@@ -1,0 +1,30 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+coverage.txt
+swagger
+
+# IDE generated files
+.idea/
+
+# OS generated files
+.DS_Store
+
+docs/build
+git log
+
+docker-compose.log
+
+.build
+
+test/bdd/fixtures/keys/tls
