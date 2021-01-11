@@ -18,35 +18,43 @@ import (
 type Client struct {
 	namespace string
 	log       txnLog
+	txnCh     chan []txn.SidetreeTxn
 	sync.RWMutex
 }
 
 type txnLog interface {
-	Append(info txnlog.Info) error
-	Read(time int64) ([]*txn.SidetreeTxn, error)
+	Append(info txnlog.Info) (txn.SidetreeTxn, error)
 }
 
 // New returns a new blockchain client.
-func New(namespace string, log txnLog) *Client {
+func New(namespace string, log txnLog, txnCh chan []txn.SidetreeTxn) *Client {
 	return &Client{
 		namespace: namespace,
 		log:       log,
+		txnCh:     txnCh,
 	}
 }
 
 // WriteAnchor writes anchor string to blockchain.
 func (c *Client) WriteAnchor(anchor string, protocolGenesisTime uint64) error {
-	// TxnInfo contains info that gets recorded on blockchain as part of Sidetree transaction
 	txnInfo := txnlog.Info{
 		AnchorString:        anchor,
 		Namespace:           c.namespace,
 		ProtocolGenesisTime: protocolGenesisTime,
 	}
 
-	return c.log.Append(txnInfo)
+	tx, err := c.log.Append(txnInfo)
+	if err != nil {
+		return err
+	}
+
+	c.txnCh <- []txn.SidetreeTxn{tx}
+
+	return nil
 }
 
 // Read reads transactions since transaction time.
-func (c *Client) Read(time int64) ([]*txn.SidetreeTxn, error) {
-	return c.log.Read(time)
+func (c *Client) Read(_ int) (bool, *txn.SidetreeTxn) {
+	// not used
+	return false, nil
 }

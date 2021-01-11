@@ -10,47 +10,38 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/txnlog/memlog"
 )
 
 const (
-	namespace = "did:orb"
+	namespace = "did:sidetree"
 )
 
 func TestNew(t *testing.T) {
-	c := New(namespace, memlog.New())
+	var txnCh chan []txn.SidetreeTxn
+
+	c := New(namespace, memlog.New(), txnCh)
 	require.NotNil(t, c)
 }
 
 func TestClient_WriteAnchor(t *testing.T) {
-	c := New(namespace, memlog.New())
+	txnCh := make(chan []txn.SidetreeTxn, 100)
+
+	c := New(namespace, memlog.New(), txnCh)
 
 	err := c.WriteAnchor("anchor", 100)
 	require.NoError(t, err)
 }
 
 func TestClient_Read(t *testing.T) {
-	c := New(namespace, memlog.New())
+	txnCh := make(chan []txn.SidetreeTxn, 100)
 
-	err := c.WriteAnchor("first", 100)
-	require.NoError(t, err)
-
-	// get all entries
-	entries, err := c.Read(-1)
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-
-	err = c.WriteAnchor("second", 100)
-	require.NoError(t, err)
+	c := New(namespace, memlog.New(), txnCh)
 
 	// get all entries
-	entries, err = c.Read(-1)
-	require.NoError(t, err)
-	require.Len(t, entries, 2)
-
-	// get all entries since first transaction (index 0)
-	entries, err = c.Read(0)
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
+	more, entries := c.Read(-1)
+	require.False(t, more)
+	require.Empty(t, entries)
 }

@@ -26,12 +26,12 @@ func New() *Log {
 }
 
 // Append adds anchor info to the log.
-func (l *Log) Append(info txnlog.Info) error {
+func (l *Log) Append(info txnlog.Info) (txnapi.SidetreeTxn, error) {
 	l.Lock()
 
 	index := len(l.txns)
 
-	txn := &txnapi.SidetreeTxn{
+	txn := txnapi.SidetreeTxn{
 		Namespace:           info.Namespace,
 		TransactionTime:     uint64(index),
 		TransactionNumber:   uint64(1), // TODO: one anchor per block (transaction time)
@@ -39,27 +39,8 @@ func (l *Log) Append(info txnlog.Info) error {
 		ProtocolGenesisTime: info.ProtocolGenesisTime,
 	}
 
-	l.txns = append(l.txns, txn)
+	l.txns = append(l.txns, &txn)
 	l.Unlock()
 
-	return nil
-}
-
-// Read reads transactions since transaction number.
-func (l *Log) Read(txnTime int64) ([]*txnapi.SidetreeTxn, error) {
-	l.RLock()
-	defer l.RUnlock()
-
-	if txnTime >= int64(len(l.txns)-1) {
-		return nil, nil
-	}
-
-	index := int64(0)
-	if txnTime > -1 {
-		index = txnTime + 1
-	}
-
-	anchors := l.txns[index:]
-
-	return anchors, nil
+	return txn, nil
 }

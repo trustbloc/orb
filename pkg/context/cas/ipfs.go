@@ -22,7 +22,9 @@ type Client struct {
 }
 
 // New creates cas client.
-func New(ipfs *shell.Shell) *Client {
+func New(url string) *Client {
+	ipfs := shell.NewShell(url)
+
 	return &Client{ipfs: ipfs}
 }
 
