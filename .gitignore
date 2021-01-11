@@ -28,3 +28,5 @@ docker-compose.log
 .build
 
 test/bdd/fixtures/keys/tls
+
+test/bdd/fixtures/data

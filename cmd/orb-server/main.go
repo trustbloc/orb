@@ -43,11 +43,9 @@ const (
 )
 
 func main() { // nolint:funlen
-	config.SetEnvPrefix("SIDETREE_IPFS")
+	config.SetEnvPrefix("ORB")
 	config.AutomaticEnv()
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	logger.Info("starting sidetree ipfs node...")
 
 	didDocNamespace := defaultDIDDocNamespace
 	if config.GetString("did.namespace") != "" {
@@ -76,7 +74,7 @@ func main() { // nolint:funlen
 
 	casClient := cas.New(config.GetString("cas.url"))
 
-	logger.Info("starting sidetree node...")
+	logger.Info("starting orb node...")
 
 	opStore := mocks.NewMockOperationStore()
 
