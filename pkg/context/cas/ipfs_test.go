@@ -12,13 +12,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	ipfsClient := shell.NewShell("ipfs:5001")
-	c := New(ipfsClient)
+	c := New("ipfs:5001")
 	require.NotNil(t, c)
 }
 
@@ -29,9 +27,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		ipfsClient := shell.NewShell(ipfs.URL)
-
-		cas := New(ipfsClient)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -48,9 +44,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		ipfsClient := shell.NewShell(ipfs.URL)
-
-		cas := New(ipfsClient)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -66,9 +60,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		ipfsClient := shell.NewShell(ipfs.URL)
-
-		cas := New(ipfsClient)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("cid")
@@ -82,9 +74,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		ipfsClient := shell.NewShell(ipfs.URL)
-
-		cas := New(ipfsClient)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")

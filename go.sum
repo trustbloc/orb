@@ -210,6 +210,8 @@ github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6 h1:GlzMPygee
 github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6/go.mod h1:SZg7nAIc9FONS+G7MwEyGkCWCJR3R02bePwTpWxqH5w=
 github.com/trustbloc/sidetree-core-go v0.1.6-0.20201217192009-0d2b4436912f h1:PHySA3TTpo8xChoP3XlTlrs2wHjkoX6K8A3mbdjVvrs=
 github.com/trustbloc/sidetree-core-go v0.1.6-0.20201217192009-0d2b4436912f/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
+github.com/trustbloc/sidetree-mock v0.1.6-0.20201217213905-213121383615 h1:fI1GsU4XF7hEQs7Eenr/w9C3k1zQZgrgUf8qvz+pNQE=
+github.com/trustbloc/sidetree-mock v0.1.6-0.20201217213905-213121383615/go.mod h1:/oL3Hkx1EFYESrylpb5F7SPdliLS6+df8n2MKlyQBiA=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c h1:GGsyl0dZ2jJgVT+VvWBf/cNijrHRhkrTjkmp5wg7li0=
 github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c/go.mod h1:xxcJeBb7SIUl/Wzkz1eVKJE/CB34YNrqX2TQI6jY9zs=
