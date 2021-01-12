@@ -1,0 +1,39 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+
+  orb:
+    container_name: orb
+    image: ${ORB_FIXTURE_IMAGE}:latest
+    environment:
+      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
+      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_HOST=0.0.0.0
+      - ORB_PORT=48326
+      - ORB_DID_NAMESPACE=did:orb
+      - ORB_DID_ALIASES=did:alias.com
+      - ORB_DID_METHOD_CONTEXT=
+      - ORB_CAS_URL=ipfs:5001
+      - ORB_DID_BASE_ENABLED=true
+    ports:
+      - 48326:48326
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+    depends_on:
+      - ipfs
+
+  ipfs:
+    container_name: ipfs
+    #TODO: this image doesn't work on ARM64 yet (investigate images)
+    image: ipfs/go-ipfs
+    environment:
+      - IPFS_PATH=/data/ipfs
+    volumes:
+      - ./data/ipfs:/data/ipfs
+    ports:
+      - "5001:5001"

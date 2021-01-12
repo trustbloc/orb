@@ -28,9 +28,20 @@ jobs:
         CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
       displayName: Upload coverage to Codecov
 
+  - job: BDDTest
+    pool:
+      vmImage: ubuntu-20.04
+    timeoutInMinutes: 30
+    steps:
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: make bdd-test
+        displayName: Run BDD tests
+
   - job: Publish
     dependsOn:
       - UnitTest
+      - BDDTest
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     pool:
       vmImage: ubuntu-16.04

@@ -45,7 +45,7 @@ lint:
 unit-test:
 	@scripts/unit.sh
 
-all: clean checks unit-test
+all: clean checks unit-test bdd-test
 
 orb:
 	@echo "Building orb"
@@ -84,3 +84,4 @@ clean:
 	rm -Rf ./.build
 	rm -Rf ./test/bdd/docker-compose.log
 	rm -Rf ./test/bdd/fixtures/keys/tls
+	rm -Rf ./test/bdd/fixtures/data
