@@ -16,19 +16,19 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
-	"github.com/trustbloc/sidetree-core-go/pkg/observer"
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
-	"github.com/trustbloc/sidetree-mock/pkg/mocks"
 
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
-	"github.com/trustbloc/orb/pkg/context/blockchain"
 	"github.com/trustbloc/orb/pkg/context/cas"
+	"github.com/trustbloc/orb/pkg/context/txnclient"
+	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
 	"github.com/trustbloc/orb/pkg/httpserver"
-	"github.com/trustbloc/orb/pkg/txnlog/memlog"
+	"github.com/trustbloc/orb/pkg/mocks"
+	"github.com/trustbloc/orb/pkg/observer"
+	"github.com/trustbloc/orb/pkg/txngraph"
 )
 
 var logger = logrus.New()
@@ -86,9 +86,9 @@ func main() { // nolint:funlen
 		panic(err)
 	}
 
-	sidetreeTxnCh := make(chan []txn.SidetreeTxn, txnBuffer)
+	sidetreeTxnCh := make(chan []string, txnBuffer)
 
-	bc := blockchain.New("did:sidetree", memlog.New(), sidetreeTxnCh)
+	bc := txnclient.New("did:sidetree", txngraph.New(casClient), memdidtxnref.New(), sidetreeTxnCh)
 
 	ctx := sidetreecontext.New(pc, bc)
 
@@ -105,8 +105,9 @@ func main() { // nolint:funlen
 	logger.Info("started batch writer")
 
 	providers := &observer.Providers{
-		Ledger:                 mockLedger{registerForSidetreeTxnValue: sidetreeTxnCh},
+		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: sidetreeTxnCh},
 		ProtocolClientProvider: pcp,
+		TxnGraph:               txngraph.New(casClient),
 	}
 
 	observer.New(providers).Start()
@@ -165,10 +166,10 @@ func getListenURL() string {
 	return fmt.Sprintf("%s:%d", host, port)
 }
 
-type mockLedger struct {
-	registerForSidetreeTxnValue chan []txn.SidetreeTxn
+type mockTxnProvider struct {
+	registerForSidetreeTxnValue chan []string
 }
 
-func (m mockLedger) RegisterForSidetreeTxn() <-chan []txn.SidetreeTxn {
+func (m mockTxnProvider) RegisterForOrbTxn() <-chan []string {
 	return m.registerForSidetreeTxnValue
 }

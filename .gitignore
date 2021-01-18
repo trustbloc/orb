@@ -30,3 +30,4 @@ docker-compose.log
 test/bdd/fixtures/keys/tls
 
 test/bdd/fixtures/data
+
