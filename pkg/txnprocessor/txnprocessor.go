@@ -25,10 +25,16 @@ type OperationStore interface {
 	Get(suffix string) ([]*operation.AnchoredOperation, error)
 }
 
+// TxnGraph interface to access orb transactions.
+type TxnGraph interface {
+	GetDidTransactions(cid, did string) ([]string, error)
+}
+
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {
 	OpStore                   OperationStore
 	OperationProtocolProvider protocol.OperationProvider
+	TxnGraph                  TxnGraph
 }
 
 // TxnProcessor processes Sidetree transactions by persisting them to an operation store.
@@ -70,38 +76,35 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 			continue
 		}
 
-		//  TODO: Special logic here to walk everything in the graph for that did
-		// check that number of operations in the store matches the number of cids when walking graph for that did
-		// (may even have to check if operations are equal - step 2)
-		// otherwise push cids + did (in reverse order) to observer for processing (this is brand new functionality)
-		// before storing dids from this batch
-
-		// For now just see how many ops we have so far and set that as operation index
-
-		var txnTime uint64 // 0 is default for create operation
-
 		opsSoFar, err := p.OpStore.Get(op.UniqueSuffix)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
 			return err
 		}
 
+		// Get all references for this did from transaction graph starting from Sidetree txn reference
+		didRefs, err := p.TxnGraph.GetDidTransactions(sidetreeTxn.Reference, op.UniqueSuffix)
 		if err != nil {
-			// unique suffix not found
-			if op.Type != operation.TypeCreate {
-				// start discovering graph for this did here
-				// have to retrieve ops again after discovering
-				logger.Warnf("non-create operation encountered for unique suffix that doesn't exist")
-			}
+			return err
 		}
 
-		txnTime = uint64(len(opsSoFar))
+		// check that number of operations in the store matches the number of transactions in the graph for that did
+		if len(didRefs) != len(opsSoFar) {
+			// TODO: This should not happen if we actively 'observe' batch writers
+			// however if can happen if observer starts starts observing new system and it is not done in order
+			// for now reject this case
+			return fmt.Errorf("discrepancy between transactions in the graph and anchored operations for did: %s", op.UniqueSuffix) //nolint:lll
+		}
 
-		op.TransactionTime = txnTime
+		// TODO: Should we check that anchored operation reference matches anchored graph
+
+		op.TransactionTime = uint64(len(opsSoFar))
 
 		// The genesis time of the protocol that was used for this operation
 		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime
 
-		logger.Debugf("updated operation with blockchain time: %s", op.UniqueSuffix)
+		op.Reference = sidetreeTxn.Reference
+
+		logger.Debugf("updated operation time: %s", op.UniqueSuffix)
 		ops = append(ops, op)
 
 		batchSuffixes[op.UniqueSuffix] = true

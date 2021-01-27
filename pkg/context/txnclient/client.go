@@ -12,8 +12,8 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
+	"github.com/trustbloc/orb/pkg/api/txn"
 	"github.com/trustbloc/orb/pkg/didtxnref"
-	"github.com/trustbloc/orb/pkg/txngraph"
 )
 
 // Client implements writing orb transactions.
@@ -26,7 +26,7 @@ type Client struct {
 }
 
 type txnGraph interface {
-	Add(info *txngraph.Node) (string, error)
+	Add(info *txn.OrbTransaction) (string, error)
 }
 
 type didTxns interface {
@@ -63,11 +63,13 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 		}
 	}
 
-	txnInfo := &txngraph.Node{
-		AnchorString:   anchor,
-		Namespace:      c.namespace,
-		Version:        version,
-		PreviousDidTxn: previousDidTxns,
+	txnInfo := &txn.OrbTransaction{
+		Payload: txn.Payload{
+			AnchorString:   anchor,
+			Namespace:      c.namespace,
+			Version:        version,
+			PreviousDidTxn: previousDidTxns,
+		},
 	}
 
 	cid, err := c.txnGraph.Add(txnInfo)

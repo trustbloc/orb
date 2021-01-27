@@ -73,6 +73,7 @@ type MockProtocolClientProvider struct {
 	opStoreClient processor.OperationStoreClient
 	opStore       txnprocessor.OperationStore
 	casClient     cas.Client
+	txnGraph      txnprocessor.TxnGraph
 	methodCtx     []string
 	baseEnabled   bool
 }
@@ -94,6 +95,13 @@ func (m *MockProtocolClientProvider) WithOpStore(opStore txnprocessor.OperationS
 // WithCasClient sets the CAS client.
 func (m *MockProtocolClientProvider) WithCasClient(casClient cas.Client) *MockProtocolClientProvider {
 	m.casClient = casClient
+
+	return m
+}
+
+// WithTxnGraph sets the transaction graph.
+func (m *MockProtocolClientProvider) WithTxnGraph(txnGraph txnprocessor.TxnGraph) *MockProtocolClientProvider {
+	m.txnGraph = txnGraph
 
 	return m
 }
@@ -160,6 +168,7 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 		&txnprocessor.Providers{
 			OpStore:                   m.opStore,
 			OperationProtocolProvider: op,
+			TxnGraph:                  m.txnGraph,
 		},
 	)
 

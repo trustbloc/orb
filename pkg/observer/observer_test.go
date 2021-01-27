@@ -17,6 +17,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/txnprocessor"
 
+	orbtxn "github.com/trustbloc/orb/pkg/api/txn"
 	"github.com/trustbloc/orb/pkg/txngraph"
 )
 
@@ -56,11 +57,15 @@ func TestStartObserver(t *testing.T) {
 		var txns []string
 		txnGraph := txngraph.New(mocks.NewMockCasClient(nil))
 
-		cid, err := txnGraph.Add(&txngraph.Node{Namespace: namespace1, Version: 1, AnchorString: "1.address"})
+		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, AnchorString: "1.address"}
+
+		cid, err := txnGraph.Add(&orbtxn.OrbTransaction{Payload: payload1})
 		require.NoError(t, err)
 		txns = append(txns, cid)
 
-		cid, err = txnGraph.Add(&txngraph.Node{Namespace: namespace2, Version: 1, AnchorString: "2.address"})
+		payload2 := orbtxn.Payload{Namespace: namespace2, Version: 1, AnchorString: "2.address"}
+
+		cid, err = txnGraph.Add(&orbtxn.OrbTransaction{Payload: payload2})
 		require.NoError(t, err)
 		txns = append(txns, cid)
 

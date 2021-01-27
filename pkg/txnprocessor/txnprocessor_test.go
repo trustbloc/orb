@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package txnprocessor
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -43,6 +44,7 @@ func TestProcessTxnOperations(t *testing.T) {
 			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
 				return fmt.Errorf("put error")
 			}},
+			TxnGraph: &mockTxnGraph{},
 		}
 
 		p := New(providers)
@@ -52,10 +54,41 @@ func TestProcessTxnOperations(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to store operation from anchor string")
 	})
 
+	t.Run("error - error retrieving cid from transaction graph", func(t *testing.T) {
+		providers := &Providers{
+			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
+				return fmt.Errorf("put error")
+			}},
+			TxnGraph: &mockTxnGraph{Err: errors.New("graph error")},
+		}
+
+		p := New(providers)
+		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
+			txn.SidetreeTxn{AnchorString: anchorString})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "graph error")
+	})
+
+	t.Run("error - discrepancy between did transactions in the graph and operation store", func(t *testing.T) {
+		providers := &Providers{
+			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
+				return fmt.Errorf("put error")
+			}},
+			TxnGraph: &mockTxnGraph{DidTxns: []string{"one", "two"}},
+		}
+
+		p := New(providers)
+		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
+			txn.SidetreeTxn{AnchorString: anchorString})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "discrepancy between transactions in the graph and anchored operations for did: abc")
+	})
+
 	t.Run("test success", func(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
+			TxnGraph:                  &mockTxnGraph{},
 		}
 
 		p := New(providers)
@@ -70,6 +103,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
+			TxnGraph:                  &mockTxnGraph{},
 		}
 
 		p := New(providers)
@@ -120,4 +154,17 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 	}
 
 	return []*operation.AnchoredOperation{op}, nil
+}
+
+type mockTxnGraph struct {
+	DidTxns []string
+	Err     error
+}
+
+func (m *mockTxnGraph) GetDidTransactions(cid, did string) ([]string, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+
+	return m.DidTxns, nil
 }

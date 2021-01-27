@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+
+	"github.com/trustbloc/orb/pkg/api/txn"
 )
 
 // Graph manages transaction graph.
@@ -22,9 +24,9 @@ func New(c cas.Client) *Graph {
 	return &Graph{cas: c}
 }
 
-// Add adds txn node.
-// Returns cid for transaction info.
-func (l *Graph) Add(info *Node) (string, error) {
+// Add adds orb transaction to the transaction graph.
+// Returns cid that contains orb transaction information.
+func (l *Graph) Add(info *txn.OrbTransaction) (string, error) {
 	// TODO: do we need canonical?
 	txnBytes, err := json.Marshal(info)
 	if err != nil {
@@ -34,14 +36,14 @@ func (l *Graph) Add(info *Node) (string, error) {
 	return l.cas.Write(txnBytes)
 }
 
-// Read reads txn node.
-func (l *Graph) Read(cid string) (*Node, error) {
+// Read reads orb transaction.
+func (l *Graph) Read(cid string) (*txn.OrbTransaction, error) {
 	nodeBytes, err := l.cas.Read(cid)
 	if err != nil {
 		return nil, err
 	}
 
-	var node Node
+	var node txn.OrbTransaction
 
 	err = json.Unmarshal(nodeBytes, &node)
 	if err != nil {
@@ -49,4 +51,26 @@ func (l *Graph) Read(cid string) (*Node, error) {
 	}
 
 	return &node, nil
+}
+
+// GetDidTransactions returns all orb transactions that are referencing DID starting from cid.
+func (l *Graph) GetDidTransactions(cid, did string) ([]string, error) {
+	var refs []string
+
+	cur := cid
+	ok := true
+
+	for ok {
+		node, err := l.Read(cur)
+		if err != nil {
+			return nil, err
+		}
+
+		cur, ok = node.Payload.PreviousDidTxn[did]
+		if ok {
+			refs = append(refs, cur)
+		}
+	}
+
+	return refs, nil
 }

@@ -78,7 +78,7 @@ func main() { // nolint:funlen
 
 	opStore := mocks.NewMockOperationStore()
 
-	pcp := mocks.NewMockProtocolClientProvider().WithOpStore(opStore).WithOpStoreClient(opStore).WithMethodContext(methodCtx).WithBase(baseEnabled).WithCasClient(casClient) //nolint: lll
+	pcp := mocks.NewMockProtocolClientProvider().WithOpStore(opStore).WithOpStoreClient(opStore).WithMethodContext(methodCtx).WithBase(baseEnabled).WithCasClient(casClient).WithTxnGraph(txngraph.New(casClient)) //nolint: lll
 
 	pc, err := pcp.ForNamespace(mocks.DefaultNS)
 	if err != nil {
@@ -88,7 +88,9 @@ func main() { // nolint:funlen
 
 	sidetreeTxnCh := make(chan []string, txnBuffer)
 
-	bc := txnclient.New("did:sidetree", txngraph.New(casClient), memdidtxnref.New(), sidetreeTxnCh)
+	txnGraph := txngraph.New(casClient)
+
+	bc := txnclient.New("did:sidetree", txnGraph, memdidtxnref.New(), sidetreeTxnCh)
 
 	ctx := sidetreecontext.New(pc, bc)
 
