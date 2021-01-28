@@ -13,7 +13,7 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.4.0
 	github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6
-	github.com/trustbloc/sidetree-core-go v0.1.6-0.20210122174942-e46167572d9c
+	github.com/trustbloc/sidetree-core-go v0.1.6-0.20210127204726-af0b0257f397
 )
 
 go 1.13

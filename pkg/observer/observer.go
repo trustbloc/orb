@@ -12,7 +12,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/txngraph"
+	"github.com/trustbloc/orb/pkg/api/txn"
 )
 
 var logger = log.New("orb-observer")
@@ -24,7 +24,7 @@ type TxnProvider interface {
 
 // TxnGraph interface to access orb transactions.
 type TxnGraph interface {
-	Read(cid string) (*txngraph.Node, error)
+	Read(cid string) (*txn.OrbTransaction, error)
 }
 
 // OperationStore interface to access operation store.
@@ -93,38 +93,41 @@ func (o *Observer) process(txns []string) {
 	for _, txn := range txns {
 		txnNode, err := o.TxnGraph.Read(txn)
 		if err != nil {
-			logger.Warnf("Failed to get txn node from txn graph: %s", txnNode.Namespace, err.Error())
+			logger.Warnf("Failed to get txn node from txn graph: %s", txnNode.Payload.Namespace, err.Error())
 
 			continue
 		}
 
-		pc, err := o.ProtocolClientProvider.ForNamespace(txnNode.Namespace)
+		txnPayload := txnNode.Payload
+
+		pc, err := o.ProtocolClientProvider.ForNamespace(txnPayload.Namespace)
 		if err != nil {
-			logger.Warnf("Failed to get protocol client for namespace [%s]: %s", txnNode.Namespace, err.Error())
+			logger.Warnf("Failed to get protocol client for namespace [%s]: %s", txnPayload.Namespace, err.Error())
 
 			continue
 		}
 
-		v, err := pc.Get(txnNode.Version)
+		v, err := pc.Get(txnPayload.Version)
 		if err != nil {
-			logger.Warnf("Failed to get processor for transaction time [%d]: %s", txnNode.Version, err.Error())
+			logger.Warnf("Failed to get processor for transaction time [%d]: %s", txnPayload.Version, err.Error())
 
 			continue
 		}
 
 		sidetreeTxn := txnapi.SidetreeTxn{
-			AnchorString:        txnNode.AnchorString,
-			Namespace:           txnNode.Namespace,
-			ProtocolGenesisTime: txnNode.Version,
+			AnchorString:        txnPayload.AnchorString,
+			Namespace:           txnPayload.Namespace,
+			ProtocolGenesisTime: txnPayload.Version,
+			Reference:           txn,
 		}
 
 		err = v.TransactionProcessor().Process(sidetreeTxn)
 		if err != nil {
-			logger.Warnf("failed to process anchor[%s]: %s", txnNode.AnchorString, err.Error())
+			logger.Warnf("failed to process anchor[%s]: %s", txnPayload.AnchorString, err.Error())
 
 			continue
 		}
 
-		logger.Debugf("successfully processed anchor[%s]", txnNode.AnchorString)
+		logger.Debugf("successfully processed anchor[%s]", txnPayload.AnchorString)
 	}
 }
