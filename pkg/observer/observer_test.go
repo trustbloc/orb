@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
@@ -59,13 +61,13 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, AnchorString: "1.address"}
 
-		cid, err := txnGraph.Add(&orbtxn.OrbTransaction{Payload: payload1})
+		cid, err := txnGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		txns = append(txns, cid)
 
 		payload2 := orbtxn.Payload{Namespace: namespace2, Version: 1, AnchorString: "2.address"}
 
-		cid, err = txnGraph.Add(&orbtxn.OrbTransaction{Payload: payload2})
+		cid, err = txnGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
 		txns = append(txns, cid)
 
@@ -151,4 +153,20 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 	}
 
 	return []*operation.AnchoredOperation{op}, nil
+}
+
+func buildCredential(payload orbtxn.Payload) *verifiable.Credential {
+	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+
+	vc := &verifiable.Credential{
+		Types:   []string{"VerifiableCredential"},
+		Context: []string{defVCContext},
+		Subject: payload,
+		Issuer: verifiable.Issuer{
+			ID: "http://peer1.com",
+		},
+		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+	}
+
+	return vc
 }

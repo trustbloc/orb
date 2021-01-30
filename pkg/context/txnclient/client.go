@@ -8,7 +8,10 @@ package txnclient
 
 import (
 	"sync"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
@@ -26,7 +29,7 @@ type Client struct {
 }
 
 type txnGraph interface {
-	Add(info *txn.OrbTransaction) (string, error)
+	Add(txn *verifiable.Credential) (string, error)
 }
 
 type didTxns interface {
@@ -46,33 +49,14 @@ func New(namespace string, graph txnGraph, txns didTxns, txnCh chan []string) *C
 
 // WriteAnchor writes anchor string to orb transaction.
 func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
-	// assemble map of previous did transaction for each did that is referenced in anchor
-	previousDidTxns := make(map[string]string)
-
-	for _, ref := range refs {
-		txns, err := c.didTxns.Get(ref.UniqueSuffix)
-		if err != nil && err != didtxnref.ErrDidTransactionReferencesNotFound {
-			return err
-		}
-
-		// TODO: it is ok for transaction references not to be there for create; handle other types here
-
-		// get did's last transaction
-		if len(txns) > 0 {
-			previousDidTxns[ref.UniqueSuffix] = txns[len(txns)-1]
-		}
+	vc, err := c.buildCredential(anchor, refs, version)
+	if err != nil {
+		return err
 	}
 
-	txnInfo := &txn.OrbTransaction{
-		Payload: txn.Payload{
-			AnchorString:   anchor,
-			Namespace:      c.namespace,
-			Version:        version,
-			PreviousDidTxn: previousDidTxns,
-		},
-	}
+	// TODO: create an offer for witnesses and wait for witness proofs (separate go routine)
 
-	cid, err := c.txnGraph.Add(txnInfo)
+	cid, err := c.txnGraph.Add(vc)
 	if err != nil {
 		return err
 	}
@@ -85,6 +69,8 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 		}
 	}
 
+	// TODO: announce txn to followers and node observer (if running in observer node)
+
 	c.txnCh <- []string{cid}
 
 	return nil
@@ -96,4 +82,59 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 func (c *Client) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	// not used
 	return false, nil
+}
+
+//
+func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[string]string, error) {
+	// assemble map of previous did transaction for each did that is referenced in anchor
+	previousDidTxns := make(map[string]string)
+
+	for _, ref := range refs {
+		txns, err := c.didTxns.Get(ref.UniqueSuffix)
+		if err != nil && err != didtxnref.ErrDidTransactionReferencesNotFound {
+			return nil, err
+		}
+
+		// TODO: it is ok for transaction references not to be there for create; handle other types here
+
+		// get did's last transaction
+		if len(txns) > 0 {
+			previousDidTxns[ref.UniqueSuffix] = txns[len(txns)-1]
+		}
+	}
+
+	return previousDidTxns, nil
+}
+
+// WriteAnchor writes anchor string to orb transaction.
+func (c *Client) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
+	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+	// TODO: Add context for anchor credential and define credential subject attributes there
+
+	// get previous did transaction for each did that is referenced in anchor
+	previousTxns, err := c.getPreviousTransactions(refs)
+	if err != nil {
+		return nil, err
+	}
+
+	subject := txn.Payload{
+		AnchorString:         anchor,
+		Namespace:            c.namespace,
+		Version:              version,
+		PreviousTransactions: previousTxns,
+	}
+
+	vc := &verifiable.Credential{
+		Types:   []string{"VerifiableCredential", "AnchorCredential"},
+		Context: []string{defVCContext},
+		Subject: subject,
+		Issuer: verifiable.Issuer{
+			ID: "http://peer1.com", // TODO: Configure this with signature PR
+		},
+		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+	}
+
+	// TODO: Sign VC here
+
+	return vc, nil
 }

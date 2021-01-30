@@ -7,11 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package txngraph
 
 import (
-	"encoding/json"
-
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/vcutil"
 )
 
 // Graph manages transaction graph.
@@ -26,9 +25,9 @@ func New(c cas.Client) *Graph {
 
 // Add adds orb transaction to the transaction graph.
 // Returns cid that contains orb transaction information.
-func (l *Graph) Add(info *txn.OrbTransaction) (string, error) {
+func (l *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
 	// TODO: do we need canonical?
-	txnBytes, err := json.Marshal(info)
+	txnBytes, err := vc.MarshalJSON()
 	if err != nil {
 		return "", err
 	}
@@ -37,20 +36,13 @@ func (l *Graph) Add(info *txn.OrbTransaction) (string, error) {
 }
 
 // Read reads orb transaction.
-func (l *Graph) Read(cid string) (*txn.OrbTransaction, error) {
+func (l *Graph) Read(cid string) (*verifiable.Credential, error) {
 	nodeBytes, err := l.cas.Read(cid)
 	if err != nil {
 		return nil, err
 	}
 
-	var node txn.OrbTransaction
-
-	err = json.Unmarshal(nodeBytes, &node)
-	if err != nil {
-		return nil, err
-	}
-
-	return &node, nil
+	return verifiable.ParseCredential(nodeBytes)
 }
 
 // GetDidTransactions returns all orb transactions that are referencing DID starting from cid.
@@ -66,7 +58,14 @@ func (l *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 			return nil, err
 		}
 
-		cur, ok = node.Payload.PreviousDidTxn[did]
+		payload, err := vcutil.GetTransactionPayload(node)
+		if err != nil {
+			return nil, err
+		}
+
+		previousTxns := payload.PreviousTransactions
+
+		cur, ok = previousTxns[did]
 		if ok {
 			refs = append(refs, cur)
 		}

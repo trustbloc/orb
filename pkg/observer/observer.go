@@ -7,12 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/vcutil"
 )
 
 var logger = log.New("orb-observer")
@@ -24,7 +25,7 @@ type TxnProvider interface {
 
 // TxnGraph interface to access orb transactions.
 type TxnGraph interface {
-	Read(cid string) (*txn.OrbTransaction, error)
+	Read(cid string) (*verifiable.Credential, error)
 }
 
 // OperationStore interface to access operation store.
@@ -93,12 +94,17 @@ func (o *Observer) process(txns []string) {
 	for _, txn := range txns {
 		txnNode, err := o.TxnGraph.Read(txn)
 		if err != nil {
-			logger.Warnf("Failed to get txn node from txn graph: %s", txnNode.Payload.Namespace, err.Error())
+			logger.Warnf("Failed to get txn node from txn graph: %s", txn, err.Error())
 
 			continue
 		}
 
-		txnPayload := txnNode.Payload
+		txnPayload, err := vcutil.GetTransactionPayload(txnNode)
+		if err != nil {
+			logger.Warnf("Failed to extract transaction payload from txn[%s] for namespace [%s]: %s", txn, txnPayload.Namespace, err.Error()) //nolint:lll
+
+			continue
+		}
 
 		pc, err := o.ProtocolClientProvider.ForNamespace(txnPayload.Namespace)
 		if err != nil {

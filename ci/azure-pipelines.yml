@@ -19,14 +19,14 @@ jobs:
       vmImage: ubuntu-16.04
     timeoutInMinutes: 30
     steps:
-    - template: azp-dependencies.yml
-    - checkout: self
-    - script: make checks && make unit-test
-      displayName: Run checks and unit test
-    - script: bash <(curl https://codecov.io/bash) -t $CODECOV_UPLOAD_TOKEN
-      env:
-        CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
-      displayName: Upload coverage to Codecov
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: make checks && make unit-test
+        displayName: Run checks and unit test
+      - script: bash <(curl https://codecov.io/bash) -t $CODECOV_UPLOAD_TOKEN
+        env:
+          CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
+        displayName: Upload coverage to Codecov
 
   - job: BDDTest
     pool:
