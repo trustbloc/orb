@@ -8,11 +8,15 @@ package txngraph
 
 import (
 	"testing"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/vcutil"
 )
 
 const testDID = "did:method:abc"
@@ -26,15 +30,13 @@ func TestGraph_Add(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil))
 
-		txnInfo := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString: "anchor",
-				Namespace:    "namespace",
-				Version:      1,
-			},
+		payload := txn.Payload{
+			AnchorString: "anchor",
+			Namespace:    "namespace",
+			Version:      1,
 		}
 
-		cid, err := graph.Add(txnInfo)
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, cid)
 	})
@@ -44,21 +46,23 @@ func TestGraph_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil))
 
-		txnInfo := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString: "anchor",
-				Namespace:    "namespace",
-				Version:      1,
-			},
+		payload := txn.Payload{
+			AnchorString: "anchor",
+			Namespace:    "namespace",
+			Version:      1,
 		}
 
-		txnCID, err := graph.Add(txnInfo)
+		txnCID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, txnCID)
 
-		txnNode, err := graph.Read(txnCID)
+		vc, err := graph.Read(txnCID)
 		require.NoError(t, err)
-		require.Equal(t, txnInfo, txnNode)
+
+		payloadFromVC, err := vcutil.GetTransactionPayload(vc)
+		require.NoError(t, err)
+
+		require.Equal(t, payload.Namespace, payloadFromVC.Namespace)
 	})
 
 	t.Run("error - transaction (cid) not found", func(t *testing.T) {
@@ -74,15 +78,13 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	t.Run("success - first did transaction (create), no previous did transaction", func(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil))
 
-		txnInfo := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString: "anchor",
-				Namespace:    "namespace",
-				Version:      1,
-			},
+		payload := txn.Payload{
+			AnchorString: "anchor",
+			Namespace:    "namespace",
+			Version:      1,
 		}
 
-		txnCID, err := graph.Add(txnInfo)
+		txnCID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, txnCID)
 
@@ -94,33 +96,29 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	t.Run("success - previous transaction for did exists", func(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil))
 
-		txn1 := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString: "anchor-1",
-				Namespace:    "namespace",
-				Version:      1,
-			},
+		payload := txn.Payload{
+			AnchorString: "anchor-1",
+			Namespace:    "namespace",
+			Version:      1,
 		}
 
-		txn1CID, err := graph.Add(txn1)
+		txn1CID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txn1)
+		require.NotNil(t, txn1CID)
 
 		testDID := "did:method:abc"
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = txn1CID
 
-		txnInfo := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString:   "anchor-2",
-				Namespace:      "namespace",
-				Version:        1,
-				PreviousDidTxn: previousDIDTxns,
-			},
+		payload = txn.Payload{
+			AnchorString:         "anchor-2",
+			Namespace:            "namespace",
+			Version:              1,
+			PreviousTransactions: previousDIDTxns,
 		}
 
-		txnCID, err := graph.Add(txnInfo)
+		txnCID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, txnCID)
 
@@ -138,16 +136,14 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = "non-existent"
 
-		txnInfo := &txn.OrbTransaction{
-			Payload: txn.Payload{
-				AnchorString:   "anchor-2",
-				Namespace:      "namespace",
-				Version:        1,
-				PreviousDidTxn: previousDIDTxns,
-			},
+		payload := txn.Payload{
+			AnchorString:         "anchor-2",
+			Namespace:            "namespace",
+			Version:              1,
+			PreviousTransactions: previousDIDTxns,
 		}
 
-		txnCID, err := graph.Add(txnInfo)
+		txnCID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, txnCID)
 
@@ -165,4 +161,20 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		require.Nil(t, txnNode)
 		require.Contains(t, err.Error(), "not found")
 	})
+}
+
+func buildCredential(payload txn.Payload) *verifiable.Credential {
+	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+
+	vc := &verifiable.Credential{
+		Types:   []string{"VerifiableCredential"},
+		Context: []string{defVCContext},
+		Subject: payload,
+		Issuer: verifiable.Issuer{
+			ID: "http://peer1.com",
+		},
+		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+	}
+
+	return vc
 }
