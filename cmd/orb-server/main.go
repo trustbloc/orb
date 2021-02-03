@@ -90,7 +90,9 @@ func main() { // nolint:funlen
 
 	txnGraph := txngraph.New(casClient)
 
-	bc := txnclient.New("did:sidetree", txnGraph, memdidtxnref.New(), sidetreeTxnCh)
+	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: memdidtxnref.New()}
+
+	bc := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
 
 	ctx := sidetreecontext.New(pc, bc)
 
@@ -109,7 +111,7 @@ func main() { // nolint:funlen
 	providers := &observer.Providers{
 		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: sidetreeTxnCh},
 		ProtocolClientProvider: pcp,
-		TxnGraph:               txngraph.New(casClient),
+		TxnGraph:               txnGraph,
 	}
 
 	observer.New(providers).Start()

@@ -25,11 +25,21 @@ const (
 func TestNew(t *testing.T) {
 	var txnCh chan []string
 
-	c := New(namespace, txngraph.New(nil), memdidtxnref.New(), txnCh)
+	providers := &Providers{
+		TxnGraph: txngraph.New(nil),
+		DidTxns:  memdidtxnref.New(),
+	}
+
+	c := New(namespace, providers, txnCh)
 	require.NotNil(t, c)
 }
 
 func TestClient_WriteAnchor(t *testing.T) {
+	providers := &Providers{
+		TxnGraph: txngraph.New(mocks.NewMockCasClient(nil)),
+		DidTxns:  memdidtxnref.New(),
+	}
+
 	t.Run("success", func(t *testing.T) {
 		txnCh := make(chan []string, 100)
 
@@ -39,7 +49,7 @@ func TestClient_WriteAnchor(t *testing.T) {
 		err := didTxns.Add(testDID, "cid")
 		require.NoError(t, err)
 
-		c := New(namespace, txngraph.New(mocks.NewMockCasClient(nil)), didTxns, txnCh)
+		c := New(namespace, providers, txnCh)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID}}, 1)
 		require.NoError(t, err)
@@ -55,7 +65,12 @@ func TestClient_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		casErr := errors.New("CAS Error")
-		c := New(namespace, txngraph.New(mocks.NewMockCasClient(casErr)), didTxns, txnCh)
+		providersWithErr := &Providers{
+			TxnGraph: txngraph.New(mocks.NewMockCasClient(casErr)),
+			DidTxns:  memdidtxnref.New(),
+		}
+
+		c := New(namespace, providersWithErr, txnCh)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID}}, 1)
 		require.Equal(t, err, casErr)
@@ -63,10 +78,15 @@ func TestClient_WriteAnchor(t *testing.T) {
 }
 
 func TestClient_Read(t *testing.T) {
+	providers := &Providers{
+		TxnGraph: txngraph.New(nil),
+		DidTxns:  memdidtxnref.New(),
+	}
+
 	t.Run("success", func(t *testing.T) {
 		txnCh := make(chan []string, 100)
 
-		c := New(namespace, txngraph.New(mocks.NewMockCasClient(nil)), memdidtxnref.New(), txnCh)
+		c := New(namespace, providers, txnCh)
 
 		more, entries := c.Read(-1)
 		require.False(t, more)

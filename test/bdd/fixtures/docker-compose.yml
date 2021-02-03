@@ -22,6 +22,7 @@ services:
       - ORB_DID_BASE_ENABLED=true
     ports:
       - 48326:48326
+    command:  /bin/sh -c "sleep 5;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
     depends_on:
