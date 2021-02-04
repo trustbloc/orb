@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package txnclient
 
 import (
-	"sync"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
@@ -21,15 +20,24 @@ import (
 
 // Client implements writing orb transactions.
 type Client struct {
+	*Providers
 	namespace string
-	txnGraph  txnGraph
-	didTxns   didTxns
 	txnCh     chan []string
-	sync.RWMutex
+}
+
+// Providers contains all of the providers required by the client.
+type Providers struct {
+	TxnGraph  txnGraph
+	DidTxns   didTxns
+	TxnSigner txnSigner
 }
 
 type txnGraph interface {
 	Add(txn *verifiable.Credential) (string, error)
+}
+
+type txnSigner interface {
+	Sign(vc *verifiable.Credential) (*verifiable.Credential, error)
 }
 
 type didTxns interface {
@@ -38,12 +46,11 @@ type didTxns interface {
 }
 
 // New returns a new orb transaction client.
-func New(namespace string, graph txnGraph, txns didTxns, txnCh chan []string) *Client {
+func New(namespace string, providers *Providers, txnCh chan []string) *Client {
 	return &Client{
-		namespace: namespace,
-		txnGraph:  graph,
-		didTxns:   txns,
+		Providers: providers,
 		txnCh:     txnCh,
+		namespace: namespace,
 	}
 }
 
@@ -56,14 +63,14 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 
 	// TODO: create an offer for witnesses and wait for witness proofs (separate go routine)
 
-	cid, err := c.txnGraph.Add(vc)
+	cid, err := c.TxnGraph.Add(vc)
 	if err != nil {
 		return err
 	}
 
 	// update global did/txn references
 	for _, ref := range refs {
-		addErr := c.didTxns.Add(ref.UniqueSuffix, cid)
+		addErr := c.DidTxns.Add(ref.UniqueSuffix, cid)
 		if addErr != nil {
 			return addErr
 		}
@@ -90,7 +97,7 @@ func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[strin
 	previousDidTxns := make(map[string]string)
 
 	for _, ref := range refs {
-		txns, err := c.didTxns.Get(ref.UniqueSuffix)
+		txns, err := c.DidTxns.Get(ref.UniqueSuffix)
 		if err != nil && err != didtxnref.ErrDidTransactionReferencesNotFound {
 			return nil, err
 		}
