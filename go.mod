@@ -5,16 +5,16 @@
 module github.com/trustbloc/orb
 
 require (
+	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210122151214-1a54003224a0
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210127113808-f60b9683e266
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
-	github.com/sirupsen/logrus v1.6.0
-	github.com/spf13/viper v1.4.0
+	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1
-	github.com/trustbloc/edge-core v0.1.5
+	github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523
 	github.com/trustbloc/sidetree-core-go v0.1.6-0.20210127204726-af0b0257f397
 )
 
-go 1.13
+go 1.15

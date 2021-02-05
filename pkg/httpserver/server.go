@@ -9,9 +9,11 @@ package httpserver
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -21,6 +23,8 @@ import (
 )
 
 var logger = logrus.New()
+
+const healthCheckEndpoint = "/healthcheck"
 
 // Server implements an HTTP server.
 type Server struct {
@@ -43,6 +47,9 @@ func New(url, certFile, keyFile, token string, handlers ...common.HTTPHandler) *
 		router.HandleFunc(handler.Path(), handler.Handler()).Methods(handler.Method())
 	}
 
+	// add healt hcheck endpoint
+	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
+
 	handler := cors.New(
 		cors.Options{
 			AllowedMethods: []string{
@@ -60,32 +67,6 @@ func New(url, certFile, keyFile, token string, handlers ...common.HTTPHandler) *
 		certFile: certFile,
 		keyFile:  keyFile,
 	}
-}
-
-func validateAuthorizationBearerToken(w http.ResponseWriter, r *http.Request, token string) bool {
-	actHdr := r.Header.Get("Authorization")
-	expHdr := "Bearer " + token
-
-	if subtle.ConstantTimeCompare([]byte(actHdr), []byte(expHdr)) != 1 {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorised.\n")) // nolint:gosec,errcheck
-
-		return false
-	}
-
-	return true
-}
-
-func authorizationMiddleware(token string) mux.MiddlewareFunc {
-	middleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if validateAuthorizationBearerToken(w, r, token) {
-				next.ServeHTTP(w, r)
-			}
-		})
-	}
-
-	return middleware
 }
 
 // Start starts the HTTP server in a separate Go routine.
@@ -122,4 +103,47 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	return s.httpServer.Shutdown(ctx)
+}
+
+func validateAuthorizationBearerToken(w http.ResponseWriter, r *http.Request, token string) bool {
+	actHdr := r.Header.Get("Authorization")
+	expHdr := "Bearer " + token
+
+	if subtle.ConstantTimeCompare([]byte(actHdr), []byte(expHdr)) != 1 {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("Unauthorised.\n")) // nolint:gosec,errcheck
+
+		return false
+	}
+
+	return true
+}
+
+func authorizationMiddleware(token string) mux.MiddlewareFunc {
+	middleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if validateAuthorizationBearerToken(w, r, token) {
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
+
+	return middleware
+}
+
+type healthCheckResp struct {
+	Status      string    `json:"status"`
+	CurrentTime time.Time `json:"currentTime"`
+}
+
+func healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
+	rw.WriteHeader(http.StatusOK)
+
+	err := json.NewEncoder(rw).Encode(&healthCheckResp{
+		Status:      "success",
+		CurrentTime: time.Now(),
+	})
+	if err != nil {
+		logger.Errorf("healthcheck response failure, %s", err)
+	}
 }

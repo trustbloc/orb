@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 
 				composition = newComposition
 
-				testSleep := 5
+				testSleep := 15
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}

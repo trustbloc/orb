@@ -25,6 +25,7 @@ GO_VER             = 1.13.4
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb
 
+ORB_REST_PATH=cmd/orb-server
 
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
@@ -47,10 +48,11 @@ unit-test:
 
 all: clean checks unit-test bdd-test
 
+.PHONY: orb
 orb:
 	@echo "Building orb"
 	@mkdir -p ./.build/bin
-	@go build -o ./.build/bin/orb cmd/orb-server/main.go
+	@cd ${ORB_REST_PATH} && go build -o ../../.build/bin/orb main.go
 
 orb-docker:
 	@docker build -f ./images/orb/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(ORB_IMAGE_NAME):latest \
@@ -68,7 +70,6 @@ endif
 ifneq ($(strip $(DEV_IMAGES)),)
 	@docker rmi $(DEV_IMAGES) -f
 endif
-
 
 generate-test-keys:
 	@mkdir -p -p test/bdd/fixtures/keys/tls
