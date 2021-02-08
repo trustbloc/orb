@@ -15,5 +15,3 @@ coverage:
 ignore:
   - "test/bdd"  # ignore bdd tests
   - "pkg/mocks"  # ignore mocks
-  - "cmd/orb-server"  # ignore folders and all its contents
-

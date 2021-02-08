@@ -4,11 +4,31 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
 set -e
 
-# Packages to include
+echo "Running $0"
+
+go generate ./...
+pwd=`pwd`
+touch "$pwd"/coverage.out
+
+amend_coverage_file () {
+if [ -f profile.out ]; then
+     cat profile.out >> "$pwd"/coverage.out
+     rm profile.out
+fi
+}
+
+# Running edge-service unit tests
 PKGS=`go list github.com/trustbloc/orb/... 2> /dev/null | \
-                                                   grep -v /mocks`
-echo "Running pkg unit tests..."
-go test -count=1 -cover $PKGS -p 1 -timeout=10m -race -coverprofile=coverage.txt -covermode=atomic
+                                                  grep -v /mocks`
+go test $PKGS -count=1 -race -coverprofile=profile.out -covermode=atomic -timeout=10m
+amend_coverage_file
+
+# Running orb-server unit tests
+cd cmd/orb-server
+PKGS=`go list github.com/trustbloc/orb/cmd/orb-server/... 2> /dev/null | \
+                                                 grep -v /mocks`
+go test $PKGS -count=1 -race -coverprofile=profile.out -covermode=atomic -timeout=10m
+amend_coverage_file
+cd "$pwd"

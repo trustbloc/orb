@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -59,6 +60,13 @@ func TestServer_Start(t *testing.T) {
 		resp, err := httpGet(t, clientURL+samplePath+"/id", authorizationHdr)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
+	})
+
+	t.Run("success - health check", func(t *testing.T) {
+		b := &httptest.ResponseRecorder{}
+		healthCheckHandler(b, nil)
+
+		require.Equal(t, http.StatusOK, b.Code)
 	})
 
 	t.Run("Stop", func(t *testing.T) {
