@@ -7,16 +7,20 @@ SPDX-License-Identifier: Apache-2.0
 package txnclient
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/api/txn"
 	"github.com/trustbloc/orb/pkg/didtxnref"
 )
+
+var logger = log.New("txn-client")
 
 // Client implements writing orb transactions.
 type Client struct {
@@ -61,8 +65,9 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return err
 	}
 
-	// TODO: create an offer for witnesses and wait for witness proofs (separate go routine)
+	logger.Debugf("created anchor credential for anchor: %s", anchor)
 
+	// TODO: create an offer for witnesses and wait for witness proofs (separate go routine)
 	cid, err := c.TxnGraph.Add(vc)
 	if err != nil {
 		return err
@@ -132,7 +137,8 @@ func (c *Client) buildCredential(anchor string, refs []*operation.Reference, ver
 	}
 
 	vc := &verifiable.Credential{
-		Types:   []string{"VerifiableCredential", "AnchorCredential"},
+		// TODO: Add definition for "AnchorCredential"
+		Types:   []string{"VerifiableCredential"},
 		Context: []string{defVCContext},
 		Subject: subject,
 		Issuer: verifiable.Issuer{
@@ -141,7 +147,10 @@ func (c *Client) buildCredential(anchor string, refs []*operation.Reference, ver
 		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 	}
 
-	// TODO: Sign VC here
+	signedVC, err := c.TxnSigner.Sign(vc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign anchor credential: %s", err.Error())
+	}
 
-	return vc, nil
+	return signedVC, nil
 }

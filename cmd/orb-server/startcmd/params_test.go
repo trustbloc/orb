@@ -6,7 +6,6 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -23,17 +22,12 @@ func (s *mockServer) Start(_ *httpserver.Server) error {
 	return nil
 }
 
-// Stop will stop the server
-func (s *mockServer) Stop(_ *httpserver.Server, _ context.Context) error {
-	return nil
-}
-
 func TestStartCmdContents(t *testing.T) {
 	startCmd := GetStartCmd(&mockServer{})
 
 	require.Equal(t, "start", startCmd.Use)
-	require.Equal(t, "Start orb-rest", startCmd.Short)
-	require.Equal(t, "Start orb-rest", startCmd.Long)
+	require.Equal(t, "Start orb-server", startCmd.Short)
+	require.Equal(t, "Start orb-server", startCmd.Long)
 
 	checkFlagPropertiesCorrect(t, startCmd, hostURLFlagName, hostURLFlagShorthand, hostURLFlagUsage)
 }

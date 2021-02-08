@@ -8,7 +8,6 @@ package startcmd
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ import (
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	ariescrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -58,7 +58,7 @@ const (
 	txnBuffer = 100
 )
 
-var logger = log.New("orb-rest")
+var logger = log.New("orb-server")
 
 const (
 	basePath = "/sidetree/0.0.1"
@@ -66,7 +66,6 @@ const (
 
 type server interface {
 	Start(srv *httpserver.Server) error
-	Stop(srv *httpserver.Server, ctx context.Context) error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
@@ -88,11 +87,7 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 	<-interrupt
 
 	return nil
-}
 
-// Stop will stop the server
-func (s *HTTPServer) Stop(srv *httpserver.Server, ctx context.Context) error {
-	return srv.Stop(ctx)
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -107,8 +102,8 @@ func GetStartCmd(srv server) *cobra.Command {
 func createStartCmd(srv server) *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
-		Short: "Start orb-rest",
-		Long:  "Start orb-rest",
+		Short: "Start orb-server",
+		Long:  "Start orb-server",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			parameters, err := getOrbParameters(cmd)
 			if err != nil {
@@ -145,16 +140,37 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	casClient := cas.New(parameters.casURL)
 	opStore := mocks.NewMockOperationStore()
 
+	// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
+	txnGraph := txngraph.New(casClient, func(_, keyID string) (*verifier.PublicKey, error) {
+		pubKeyBytes, err := localKMS.ExportPubKeyBytes(keyID[1:])
+		if err != nil {
+			return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", keyID, err.Error())
+		}
+
+		return &verifier.PublicKey{
+			Type:  kms.ED25519,
+			Value: pubKeyBytes,
+		}, nil
+	})
+
 	// get protocol client provider
-	pcp := getProtocolClientProvider(parameters, casClient, opStore)
+	pcp := getProtocolClientProvider(parameters, casClient, opStore, txnGraph)
 	pc, err := pcp.ForNamespace(mocks.DefaultNS)
 	if err != nil {
 		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", mocks.DefaultNS, err.Error())
 	}
 
+	// TODO: For now create key at startup, we need different way of handling this key as orb parameter
+	// once we figure out how to expose verification method (webfinger, did:web)
+	keyID, _, err := localKMS.Create(kms.ED25519Type)
+	if err != nil {
+		return fmt.Errorf("failed to create anchor credential signing key: %s", err.Error())
+	}
+	parameters.verificationMethod = "did:web:abc#" + keyID
+
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
-	txnClient := getTransactionClient(localKMS, crypto, casClient, sidetreeTxnCh)
+	txnClient := getTransactionClient(parameters, localKMS, crypto, txnGraph, sidetreeTxnCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, txnClient))
@@ -170,7 +186,7 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	providers := &observer.Providers{
 		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: sidetreeTxnCh},
 		ProtocolClientProvider: pcp,
-		TxnGraph:               txngraph.New(casClient),
+		TxnGraph:               txnGraph,
 	}
 
 	observer.New(providers).Start()
@@ -194,33 +210,22 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 		diddochandler.NewResolveHandler(basePath, didDocHandler),
 	)
 
-	if srv.Start(httpServer) != nil {
-		return err
-	}
-
-	// Shut down all services
-	batchWriter.Stop()
-
-	if err := srv.Stop(httpServer, context.Background()); err != nil {
-		logger.Errorf("Error stopping REST service: %s", err)
-	}
-
-	return nil
+	return srv.Start(httpServer)
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore) *mocks.MockProtocolClientProvider {
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore, graph *txngraph.Graph) *mocks.MockProtocolClientProvider {
 	return mocks.NewMockProtocolClientProvider().
 		WithOpStore(opStore).
 		WithOpStoreClient(opStore).
 		WithMethodContext(parameters.methodContext).
 		WithBase(parameters.baseEnabled).
 		WithCasClient(casClient).
-		WithTxnGraph(txngraph.New(casClient))
+		WithTxnGraph(graph)
 }
 
-func getTransactionClient(keyManager kms.KeyManager, c ariescrypto.Crypto, cas casapi.Client, sidetreeTxnCh chan []string) batch.BlockchainClient {
-	signer := vcsigner.New(keyManager, c, "#signing-key", vcsigner.JSONWebSignature2020)
-	txnClientProviders := &txnclient.Providers{TxnGraph: txngraph.New(cas), DidTxns: memdidtxnref.New(), TxnSigner: signer}
+func getTransactionClient(parameters *orbParameters, keyManager kms.KeyManager, c ariescrypto.Crypto, txnGraph *txngraph.Graph, sidetreeTxnCh chan []string) batch.BlockchainClient {
+	signer := vcsigner.New(keyManager, c, parameters.verificationMethod, vcsigner.Ed25519Signature2018)
+	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: memdidtxnref.New(), TxnSigner: signer}
 	txnClient := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
 
 	return txnClient
