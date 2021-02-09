@@ -82,6 +82,7 @@ issues:
       linters:
         - dupl
         - funlen
+        - gochecknoglobals
 
   exclude:
     # Allow package logger variables (for now)

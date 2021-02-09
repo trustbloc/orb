@@ -16,7 +16,7 @@ const (
 
 	hostURLFlagName      = "host-url"
 	hostURLFlagShorthand = "u"
-	hostURLFlagUsage     = "URL to run the orb-rest instance on. Format: HostName:Port."
+	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
 
 	tlsCertificateFlagName      = "tls-certificate"
@@ -91,17 +91,18 @@ const (
 )
 
 type orbParameters struct {
-	hostURL        string
-	didNamespace   string
-	didAliases     []string
-	casURL         string
-	dbParameters   *dbParameters
-	token          string
-	logLevel       string
-	methodContext  []string
-	baseEnabled    bool
-	tlsCertificate string
-	tlsKey         string
+	hostURL            string
+	didNamespace       string
+	didAliases         []string
+	casURL             string
+	dbParameters       *dbParameters
+	token              string
+	logLevel           string
+	methodContext      []string
+	baseEnabled        bool
+	tlsCertificate     string
+	tlsKey             string
+	verificationMethod string
 }
 
 type dbParameters struct {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
@@ -57,7 +58,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
 		var txns []string
-		txnGraph := txngraph.New(mocks.NewMockCasClient(nil))
+		txnGraph := txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, AnchorString: "1.address"}
 
@@ -169,4 +170,8 @@ func buildCredential(payload orbtxn.Payload) *verifiable.Credential {
 	}
 
 	return vc
+}
+
+var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
+	return nil, nil
 }

@@ -14,4 +14,4 @@ require (
 	github.com/trustbloc/sidetree-mock/test/bddtests v0.0.0-20210107225309-f3377d035f61
 )
 
-go 1.13
+go 1.15

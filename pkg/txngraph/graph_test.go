@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
@@ -22,13 +23,13 @@ import (
 const testDID = "did:method:abc"
 
 func TestNew(t *testing.T) {
-	log := New(mocks.NewMockCasClient(nil))
-	require.NotNil(t, log)
+	graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+	require.NotNil(t, graph)
 }
 
 func TestGraph_Add(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
 			AnchorString: "anchor",
@@ -44,7 +45,7 @@ func TestGraph_Add(t *testing.T) {
 
 func TestGraph_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
 			AnchorString: "anchor",
@@ -66,7 +67,7 @@ func TestGraph_Read(t *testing.T) {
 	})
 
 	t.Run("error - transaction (cid) not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		txnNode, err := graph.Read("non-existent")
 		require.Error(t, err)
@@ -76,7 +77,7 @@ func TestGraph_Read(t *testing.T) {
 
 func TestGraph_GetDidTransactions(t *testing.T) {
 	t.Run("success - first did transaction (create), no previous did transaction", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
 			AnchorString: "anchor",
@@ -94,7 +95,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("success - previous transaction for did exists", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
 			AnchorString: "anchor-1",
@@ -129,7 +130,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("error - cid referenced in previous transaction not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		testDID := "did:method:abc"
 
@@ -154,7 +155,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("error - head cid not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil))
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		txnNode, err := graph.GetDidTransactions("non-existent", "did")
 		require.Error(t, err)
@@ -177,4 +178,8 @@ func buildCredential(payload txn.Payload) *verifiable.Credential {
 	}
 
 	return vc
+}
+
+var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
+	return nil, nil
 }

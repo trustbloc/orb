@@ -16,44 +16,45 @@ import (
 // Graph manages transaction graph.
 type Graph struct {
 	cas cas.Client
+	pkf verifiable.PublicKeyFetcher
 }
 
 // New creates new graph manager.
-func New(c cas.Client) *Graph {
-	return &Graph{cas: c}
+func New(c cas.Client, pkf verifiable.PublicKeyFetcher) *Graph {
+	return &Graph{cas: c, pkf: pkf}
 }
 
 // Add adds orb transaction to the transaction graph.
 // Returns cid that contains orb transaction information.
-func (l *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
+func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
 	// TODO: do we need canonical?
 	txnBytes, err := vc.MarshalJSON()
 	if err != nil {
 		return "", err
 	}
 
-	return l.cas.Write(txnBytes)
+	return g.cas.Write(txnBytes)
 }
 
 // Read reads orb transaction.
-func (l *Graph) Read(cid string) (*verifiable.Credential, error) {
-	nodeBytes, err := l.cas.Read(cid)
+func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
+	nodeBytes, err := g.cas.Read(cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return verifiable.ParseCredential(nodeBytes)
+	return verifiable.ParseCredential(nodeBytes, verifiable.WithPublicKeyFetcher(g.pkf))
 }
 
 // GetDidTransactions returns all orb transactions that are referencing DID starting from cid.
-func (l *Graph) GetDidTransactions(cid, did string) ([]string, error) {
+func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 	var refs []string
 
 	cur := cid
 	ok := true
 
 	for ok {
-		node, err := l.Read(cur)
+		node, err := g.Read(cur)
 		if err != nil {
 			return nil, err
 		}

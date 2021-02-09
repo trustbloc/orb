@@ -13,11 +13,11 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-server/startcmd"
 )
 
-var logger = log.New("orb-rest")
+var logger = log.New("orb-server")
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use: "vc-rest",
+		Use: "orb-server",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 		},
