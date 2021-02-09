@@ -104,6 +104,60 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"Neither cas-url (command line flag) nor CAS_URL (environment variable) have been set.",
 			err.Error())
 	})
+	t.Run("test missing anchor credential issuer arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
+			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com"}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"Neither anchor-credential-issuer (command line flag) nor ANCHOR_CREDENTIAL_ISSUER (environment variable) have been set.",
+			err.Error())
+	})
+	t.Run("test missing anchor credential domain arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
+			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com"}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"Neither anchor-credential-domain (command line flag) nor ANCHOR_CREDENTIAL_DOMAIN (environment variable) have been set.",
+			err.Error())
+	})
+	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
+		startCmd := GetStartCmd(&mockServer{})
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
+			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com"}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"Neither anchor-credential-signature-suite (command line flag) nor ANCHOR_CREDENTIAL_SIGNATURE_SUITE (environment variable) have been set.",
+			err.Error())
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -138,8 +192,11 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 	args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
-		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption, "--" + kmsSecretsDatabaseURLFlagName,
-		"badURL"}
+		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
+		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+		"--" + anchorCredentialDomainFlagName, "domain.com",
+		"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		"--" + kmsSecretsDatabaseURLFlagName, "badURL"}
 	startCmd.SetArgs(args)
 
 	err := startCmd.Execute()
@@ -164,6 +221,9 @@ func TestStartCmdValidArgs(t *testing.T) {
 	args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
+		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+		"--" + anchorCredentialDomainFlagName, "domain.com",
+		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
 	startCmd.SetArgs(args)
 
@@ -187,6 +247,15 @@ func setEnvVars(t *testing.T, databaseType string) {
 	require.NoError(t, err)
 
 	err = os.Setenv(kmsSecretsDatabaseTypeEnvKey, databaseTypeMemOption)
+	require.NoError(t, err)
+
+	err = os.Setenv(anchorCredentialSignatureSuiteEnvKey, "suite")
+	require.NoError(t, err)
+
+	err = os.Setenv(anchorCredentialIssuerEnvKey, "issuer")
+	require.NoError(t, err)
+
+	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")
 	require.NoError(t, err)
 }
 

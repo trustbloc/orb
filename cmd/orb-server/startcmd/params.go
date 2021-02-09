@@ -88,21 +88,49 @@ const (
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
 	databaseTypeMYSQLDBOption = "mysql"
+
+	anchorCredentialIssuerFlagName      = "anchor-credential-issuer"
+	anchorCredentialIssuerEnvKey        = "ANCHOR_CREDENTIAL_ISSUER"
+	anchorCredentialIssuerFlagShorthand = "i"
+	anchorCredentialIssuerFlagUsage     = "Anchor credential issuer (required). " +
+		commonEnvVarUsageText + anchorCredentialIssuerEnvKey
+
+	anchorCredentialSignatureSuiteFlagName      = "anchor-credential-signature-suite"
+	anchorCredentialSignatureSuiteEnvKey        = "ANCHOR_CREDENTIAL_SIGNATURE_SUITE"
+	anchorCredentialSignatureSuiteFlagShorthand = "z"
+	anchorCredentialSignatureSuiteFlagUsage     = "Anchor credential signature suite (required). " +
+		commonEnvVarUsageText + anchorCredentialSignatureSuiteEnvKey
+
+	anchorCredentialDomainFlagName      = "anchor-credential-domain"
+	anchorCredentialDomainEnvKey        = "ANCHOR_CREDENTIAL_DOMAIN"
+	anchorCredentialDomainFlagShorthand = "d"
+	anchorCredentialDomainFlagUsage     = "Anchor credential domain (required). " +
+		commonEnvVarUsageText + anchorCredentialDomainEnvKey
+
+	// TODO: Add verification method
+
 )
 
 type orbParameters struct {
-	hostURL            string
-	didNamespace       string
-	didAliases         []string
-	casURL             string
-	dbParameters       *dbParameters
-	token              string
-	logLevel           string
-	methodContext      []string
-	baseEnabled        bool
-	tlsCertificate     string
-	tlsKey             string
+	hostURL                string
+	didNamespace           string
+	didAliases             []string
+	casURL                 string
+	dbParameters           *dbParameters
+	token                  string
+	logLevel               string
+	methodContext          []string
+	baseEnabled            bool
+	tlsCertificate         string
+	tlsKey                 string
+	anchorCredentialParams *anchorCredentialParams
+}
+
+type anchorCredentialParams struct {
 	verificationMethod string
+	signatureSuite     string
+	domain             string
+	issuer             string
 }
 
 type dbParameters struct {
@@ -151,8 +179,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	token, err := cmdutils.GetUserSetVarFromString(cmd, tokenFlagName,
-		tokenEnvKey, true)
+	token, err := cmdutils.GetUserSetVarFromString(cmd, tokenFlagName, tokenEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -162,17 +189,49 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	anchorCredentialParams, err := getAnchorCredentialParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &orbParameters{
-		hostURL:        hostURL,
-		tlsKey:         tlsKey,
-		tlsCertificate: tlsCertificate,
-		didNamespace:   didNamespace,
-		didAliases:     didAliases,
-		casURL:         casURL,
-		dbParameters:   dbParams,
-		token:          token,
-		logLevel:       loggingLevel,
+		hostURL:                hostURL,
+		tlsKey:                 tlsKey,
+		tlsCertificate:         tlsCertificate,
+		didNamespace:           didNamespace,
+		didAliases:             didAliases,
+		casURL:                 casURL,
+		anchorCredentialParams: anchorCredentialParams,
+		dbParameters:           dbParams,
+		token:                  token,
+		logLevel:               loggingLevel,
 	}, nil
+}
+
+func getAnchorCredentialParameters(cmd *cobra.Command) (*anchorCredentialParams, error) {
+	domain, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	issuer, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialIssuerFlagName, anchorCredentialIssuerEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	signatureSuite, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Add verification method here
+
+	return &anchorCredentialParams{
+		issuer:         issuer,
+		domain:         domain,
+		signatureSuite: signatureSuite,
+	}, nil
+
 }
 
 func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
@@ -229,6 +288,9 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringP(didAliasesFlagName, didAliasesFlagShorthand, "", didAliasesFlagUsage)
+	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
+	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
+	startCmd.Flags().StringP(anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteFlagShorthand, "", anchorCredentialSignatureSuiteFlagUsage)
 	startCmd.Flags().StringP(databaseTypeFlagName, databaseTypeFlagShorthand, "", databaseTypeFlagUsage)
 	startCmd.Flags().StringP(databaseURLFlagName, databaseURLFlagShorthand, "", databaseURLFlagUsage)
 	startCmd.Flags().StringP(databasePrefixFlagName, "", "", databasePrefixFlagUsage)

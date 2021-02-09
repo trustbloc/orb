@@ -16,6 +16,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/api/txn"
 	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
 	"github.com/trustbloc/orb/pkg/txngraph"
 )
@@ -28,9 +29,9 @@ func TestNew(t *testing.T) {
 	var txnCh chan []string
 
 	providers := &Providers{
-		TxnGraph:  txngraph.New(nil, pubKeyFetcherFnc),
-		DidTxns:   memdidtxnref.New(),
-		TxnSigner: &mockTxnSigner{},
+		TxnGraph:   txngraph.New(nil, pubKeyFetcherFnc),
+		DidTxns:    memdidtxnref.New(),
+		TxnBuilder: &mockTxnBuilder{},
 	}
 
 	c := New(namespace, providers, txnCh)
@@ -39,9 +40,9 @@ func TestNew(t *testing.T) {
 
 func TestClient_WriteAnchor(t *testing.T) {
 	providers := &Providers{
-		TxnGraph:  txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
-		DidTxns:   memdidtxnref.New(),
-		TxnSigner: &mockTxnSigner{},
+		TxnGraph:   txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+		DidTxns:    memdidtxnref.New(),
+		TxnBuilder: &mockTxnBuilder{},
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -70,9 +71,9 @@ func TestClient_WriteAnchor(t *testing.T) {
 
 		casErr := errors.New("CAS Error")
 		providersWithErr := &Providers{
-			TxnGraph:  txngraph.New(mocks.NewMockCasClient(casErr), pubKeyFetcherFnc),
-			DidTxns:   memdidtxnref.New(),
-			TxnSigner: &mockTxnSigner{},
+			TxnGraph:   txngraph.New(mocks.NewMockCasClient(casErr), pubKeyFetcherFnc),
+			DidTxns:    memdidtxnref.New(),
+			TxnBuilder: &mockTxnBuilder{},
 		}
 
 		c := New(namespace, providersWithErr, txnCh)
@@ -81,7 +82,7 @@ func TestClient_WriteAnchor(t *testing.T) {
 		require.Equal(t, err, casErr)
 	})
 
-	t.Run("error - sign error", func(t *testing.T) {
+	t.Run("error - build error", func(t *testing.T) {
 		txnCh := make(chan []string, 100)
 
 		const testDID = "did:method:abc"
@@ -91,15 +92,15 @@ func TestClient_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:  txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
-			DidTxns:   memdidtxnref.New(),
-			TxnSigner: &mockTxnSigner{Err: errors.New("sign error")},
+			TxnGraph:   txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			DidTxns:    memdidtxnref.New(),
+			TxnBuilder: &mockTxnBuilder{Err: errors.New("sign error")},
 		}
 
 		c := New(namespace, providersWithErr, txnCh)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID}}, 1)
-		require.Contains(t, err.Error(), "failed to sign anchor credential: sign error")
+		require.Contains(t, err.Error(), "failed to build anchor credential: sign error")
 	})
 }
 
@@ -120,16 +121,16 @@ func TestClient_Read(t *testing.T) {
 	})
 }
 
-type mockTxnSigner struct {
+type mockTxnBuilder struct {
 	Err error
 }
 
-func (m *mockTxnSigner) Sign(vc *verifiable.Credential) (*verifiable.Credential, error) {
+func (m *mockTxnBuilder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
 
-	return vc, nil
+	return &verifiable.Credential{Subject: subject}, nil
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {

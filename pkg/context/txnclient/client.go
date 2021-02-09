@@ -8,9 +8,7 @@ package txnclient
 
 import (
 	"fmt"
-	"time"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -31,17 +29,17 @@ type Client struct {
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	TxnGraph  txnGraph
-	DidTxns   didTxns
-	TxnSigner txnSigner
+	TxnGraph   txnGraph
+	DidTxns    didTxns
+	TxnBuilder txnBuilder
 }
 
 type txnGraph interface {
 	Add(txn *verifiable.Credential) (string, error)
 }
 
-type txnSigner interface {
-	Sign(vc *verifiable.Credential) (*verifiable.Credential, error)
+type txnBuilder interface {
+	Build(subject *txn.Payload) (*verifiable.Credential, error)
 }
 
 type didTxns interface {
@@ -120,37 +118,23 @@ func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[strin
 
 // WriteAnchor writes anchor string to orb transaction.
 func (c *Client) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
-	const defVCContext = "https://www.w3.org/2018/credentials/v1"
-	// TODO: Add context for anchor credential and define credential subject attributes there
-
 	// get previous did transaction for each did that is referenced in anchor
 	previousTxns, err := c.getPreviousTransactions(refs)
 	if err != nil {
 		return nil, err
 	}
 
-	subject := txn.Payload{
+	subject := &txn.Payload{
 		AnchorString:         anchor,
 		Namespace:            c.namespace,
 		Version:              version,
 		PreviousTransactions: previousTxns,
 	}
 
-	vc := &verifiable.Credential{
-		// TODO: Add definition for "AnchorCredential"
-		Types:   []string{"VerifiableCredential"},
-		Context: []string{defVCContext},
-		Subject: subject,
-		Issuer: verifiable.Issuer{
-			ID: "http://peer1.com", // TODO: Configure this with signature PR
-		},
-		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
-	}
-
-	signedVC, err := c.TxnSigner.Sign(vc)
+	vc, err := c.TxnBuilder.Build(subject)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign anchor credential: %s", err.Error())
+		return nil, fmt.Errorf("failed to build anchor credential: %s", err.Error())
 	}
 
-	return signedVC, nil
+	return vc, nil
 }

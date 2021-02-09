@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package vcsigner
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -30,22 +31,47 @@ const (
 	AssertionMethod = "assertionMethod"
 )
 
+// SigningParams contains required parameters for signing anchored credential.
+type SigningParams struct {
+	VerificationMethod string
+	SignatureSuite     string
+	Domain             string
+}
+
 // New returns new instance of VC signer.
-func New(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationMethod, signatureType string) *Signer {
-	return &Signer{
-		keyManager:         keyManager,
-		crypto:             c,
-		verificationMethod: verificationMethod,
-		signatureType:      signatureType,
+func New(keyManager kms.KeyManager, c ariescrypto.Crypto, params SigningParams) (*Signer, error) {
+	if err := verifySigningParams(params); err != nil {
+		return nil, fmt.Errorf("failed to verify signing parameters: %s", err.Error())
 	}
+
+	return &Signer{
+		keyManager: keyManager,
+		crypto:     c,
+		params:     params,
+	}, nil
+}
+
+func verifySigningParams(params SigningParams) error {
+	if params.VerificationMethod == "" {
+		return errors.New("missing verification method")
+	}
+
+	if params.SignatureSuite == "" {
+		return errors.New("missing signature suite")
+	}
+
+	if params.Domain == "" {
+		return errors.New("missing domain")
+	}
+
+	return nil
 }
 
 // Signer to sign verifiable credential.
 type Signer struct {
-	keyManager         kms.KeyManager
-	crypto             ariescrypto.Crypto
-	verificationMethod string
-	signatureType      string
+	keyManager kms.KeyManager
+	crypto     ariescrypto.Crypto
+	params     SigningParams
 }
 
 // Sign will sign verifiable credential.
@@ -71,21 +97,22 @@ func (s *Signer) getLinkedDataProofContext() (*verifiable.LinkedDataProofContext
 
 	var signatureSuite ariessigner.SignatureSuite
 
-	switch s.signatureType {
+	switch s.params.SignatureSuite {
 	case Ed25519Signature2018:
 		signatureSuite = ed25519signature2018.New(suite.WithSigner(kmsSigner))
 	case JSONWebSignature2020:
 		signatureSuite = jsonwebsignature2020.New(suite.WithSigner(kmsSigner))
 	default:
-		return nil, fmt.Errorf("signature type not supported %s", s.signatureType)
+		return nil, fmt.Errorf("signature type not supported: %s", s.params.SignatureSuite)
 	}
 
 	now := time.Now()
 
 	signingCtx := &verifiable.LinkedDataProofContext{
-		VerificationMethod:      s.verificationMethod,
+		Domain:                  s.params.Domain,
+		VerificationMethod:      s.params.VerificationMethod,
 		SignatureRepresentation: verifiable.SignatureJWS,
-		SignatureType:           s.signatureType,
+		SignatureType:           s.params.SignatureSuite,
 		Suite:                   signatureSuite,
 		Purpose:                 AssertionMethod,
 		Created:                 &now,
@@ -96,7 +123,7 @@ func (s *Signer) getLinkedDataProofContext() (*verifiable.LinkedDataProofContext
 
 // getKMSSigner returns new KMS signer based on verification method.
 func (s *Signer) getKMSSigner() (signer, error) {
-	kmsSigner, err := newKMSSigner(s.keyManager, s.crypto, s.verificationMethod)
+	kmsSigner, err := newKMSSigner(s.keyManager, s.crypto, s.params.VerificationMethod)
 	if err != nil {
 		return nil, err
 	}
