@@ -19,7 +19,6 @@ import (
 	"github.com/google/tink/go/subtle/random"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
-	ariescrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -45,6 +44,7 @@ import (
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/txngraph"
 	"github.com/trustbloc/orb/pkg/txnprocessor"
+	"github.com/trustbloc/orb/pkg/vcbuilder"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -166,11 +166,26 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	if err != nil {
 		return fmt.Errorf("failed to create anchor credential signing key: %s", err.Error())
 	}
-	parameters.verificationMethod = "did:web:abc#" + keyID
+
+	signingParams := vcsigner.SigningParams{
+		VerificationMethod: "did:web:abc#" + keyID,
+		Domain:             parameters.anchorCredentialParams.domain,
+		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
+	}
+
+	vcSigner, err := vcsigner.New(localKMS, crypto, signingParams)
+	if err != nil {
+		return fmt.Errorf("failed to create vc signer: %s", err.Error())
+	}
+
+	vcBuilder, err := vcbuilder.New(vcSigner, vcbuilder.BuilderParams{Issuer: parameters.anchorCredentialParams.issuer})
+	if err != nil {
+		return fmt.Errorf("failed to create vc builder: %s", err.Error())
+	}
 
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
-	txnClient := getTransactionClient(parameters, localKMS, crypto, txnGraph, sidetreeTxnCh)
+	txnClient := getTransactionClient(vcBuilder, txnGraph, sidetreeTxnCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, txnClient))
@@ -223,9 +238,8 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		WithTxnGraph(graph)
 }
 
-func getTransactionClient(parameters *orbParameters, keyManager kms.KeyManager, c ariescrypto.Crypto, txnGraph *txngraph.Graph, sidetreeTxnCh chan []string) batch.BlockchainClient {
-	signer := vcsigner.New(keyManager, c, parameters.verificationMethod, vcsigner.Ed25519Signature2018)
-	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: memdidtxnref.New(), TxnSigner: signer}
+func getTransactionClient(builder *vcbuilder.Builder, txnGraph *txngraph.Graph, sidetreeTxnCh chan []string) batch.BlockchainClient {
+	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: memdidtxnref.New(), TxnBuilder: builder}
 	txnClient := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
 
 	return txnClient

@@ -17,6 +17,9 @@ services:
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
       - CAS_URL=ipfs:5001
+      - ANCHOR_CREDENTIAL_ISSUER=http://peer1.com
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_DOMAIN=domain.com
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
       - DATABASE_PREFIX=orb
