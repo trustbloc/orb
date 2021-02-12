@@ -10,8 +10,8 @@ import (
 	"errors"
 )
 
-// ErrDidTransactionReferencesNotFound is did transaction references not found error.
-var ErrDidTransactionReferencesNotFound = errors.New("did transaction references not found")
+// ErrDidTransactionsNotFound is did transactions not found error.
+var ErrDidTransactionsNotFound = errors.New("did transactions not found")
 
 // DidTransactionReferences manages did transaction references.
 type DidTransactionReferences interface {

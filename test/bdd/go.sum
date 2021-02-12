@@ -178,8 +178,8 @@ github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6 h1:GlzMPygee
 github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6/go.mod h1:SZg7nAIc9FONS+G7MwEyGkCWCJR3R02bePwTpWxqH5w=
 github.com/trustbloc/sidetree-core-go v0.1.6-0.20201217192009-0d2b4436912f h1:PHySA3TTpo8xChoP3XlTlrs2wHjkoX6K8A3mbdjVvrs=
 github.com/trustbloc/sidetree-core-go v0.1.6-0.20201217192009-0d2b4436912f/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
-github.com/trustbloc/sidetree-core-go v0.1.6-0.20210122174942-e46167572d9c h1:corUio6dC9h2/bn0oBzwltl2iZWmCF+k7Ibu535q/0Q=
-github.com/trustbloc/sidetree-core-go v0.1.6-0.20210122174942-e46167572d9c/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
+github.com/trustbloc/sidetree-core-go v0.1.6-0.20210213084431-ac42e9d901f0 h1:qLtNukR8m8qqmUFUpYMxKhvt1xmlE5qkAX6SczZGK9g=
+github.com/trustbloc/sidetree-core-go v0.1.6-0.20210213084431-ac42e9d901f0/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
 github.com/trustbloc/sidetree-mock/test/bddtests v0.0.0-20210107225309-f3377d035f61 h1:EC0PUcs7UpWVH4sRCdLEM8d1k0wBxdw6+pOPoSJPUWo=
 github.com/trustbloc/sidetree-mock/test/bddtests v0.0.0-20210107225309-f3377d035f61/go.mod h1:fJ06CCS0mqPEKAdAW3akIvBajJ+Uu7MmK/ldqm32Bns=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=

@@ -44,7 +44,7 @@ type txnBuilder interface {
 
 type didTxns interface {
 	Add(did, cid string) error
-	Get(did string) ([]string, error)
+	Last(did string) (string, error)
 }
 
 // New returns a new orb transaction client.
@@ -100,17 +100,17 @@ func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[strin
 	previousDidTxns := make(map[string]string)
 
 	for _, ref := range refs {
-		txns, err := c.DidTxns.Get(ref.UniqueSuffix)
-		if err != nil && err != didtxnref.ErrDidTransactionReferencesNotFound {
-			return nil, err
+		last, err := c.DidTxns.Last(ref.UniqueSuffix)
+		if err != nil {
+			if err == didtxnref.ErrDidTransactionsNotFound {
+				// TODO: it is ok for transaction references not to be there for create; handle other types here
+				continue
+			} else {
+				return nil, err
+			}
 		}
 
-		// TODO: it is ok for transaction references not to be there for create; handle other types here
-
-		// get did's last transaction
-		if len(txns) > 0 {
-			previousDidTxns[ref.UniqueSuffix] = txns[len(txns)-1]
-		}
+		previousDidTxns[ref.UniqueSuffix] = last
 	}
 
 	return previousDidTxns, nil

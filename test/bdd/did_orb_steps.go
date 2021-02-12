@@ -113,6 +113,8 @@ type DIDOrbSteps struct {
 	resp          *restclient.HttpRespone
 	bddContext    *BDDContext
 	alias         string
+	uniqueSuffix  string
+	canonicalID   string
 }
 
 // NewDIDSideSteps
@@ -241,14 +243,6 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(keyID string) error 
 	return d.updateDIDDocument([]patch.Patch{p})
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithID(didID string) error {
-	var err error
-	logger.Infof("resolve did document %s with id", didID)
-
-	d.resp, err = restclient.SendResolveRequest(testDocumentResolveURL + "/" + d.namespace + docutil.NamespaceDelimiter + didID)
-	return err
-}
-
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
 	if !strings.Contains(d.resp.ErrorMsg, errorMsg) {
 		return errors.Errorf("error resp %s doesn't contain %s", d.resp.ErrorMsg, errorMsg)
@@ -269,7 +263,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 		return errors.Errorf("error resp %s", d.resp.ErrorMsg)
 	}
 
-	if msg == "#did" || msg == "#aliasdid" || msg == "#emptydoc" {
+	if msg == "#did" || msg == "#aliasdid" || msg == "#emptydoc" || msg == "#canonicalId" {
 		ns := d.namespace
 		if msg == "#aliasdid" {
 			ns = d.alias
@@ -281,15 +275,11 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 		}
 
 		msg = strings.Replace(msg, "#did", did, -1)
+		msg = strings.Replace(msg, "#canonicalId", d.canonicalID, -1)
 		msg = strings.Replace(msg, "#aliasdid", did, -1)
 
 		var result document.ResolutionResult
 		err = json.Unmarshal(d.resp.Payload, &result)
-		if err != nil {
-			return err
-		}
-
-		err = prettyPrint(&result)
 		if err != nil {
 			return err
 		}
@@ -333,13 +323,42 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	return nil
 }
 
+func (d *DIDOrbSteps) resolveDIDDocumentWithID(did string) error {
+	var err error
+	d.resp, err = restclient.SendResolveRequest(testDocumentResolveURL + "/" + did)
+
+	if err == nil && d.resp.Payload != nil {
+		var result document.ResolutionResult
+		err = json.Unmarshal(d.resp.Payload, &result)
+		if err != nil {
+			return err
+		}
+
+		err = prettyPrint(&result)
+		if err != nil {
+			return err
+		}
+
+		d.canonicalID = result.DocumentMetadata["canonicalId"].(string)
+	}
+
+	return err
+}
+
 func (d *DIDOrbSteps) resolveDIDDocument() error {
 	did, err := d.getDID()
 	if err != nil {
 		return err
 	}
-	d.resp, err = restclient.SendResolveRequest(testDocumentResolveURL + "/" + did)
-	return err
+
+	logger.Infof("resolving did document with did: %s", did)
+	return d.resolveDIDDocumentWithID(did)
+}
+
+func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalID() error {
+	logger.Infof("resolving did document with canonical id: %s", d.canonicalID)
+
+	return d.resolveDIDDocumentWithID(d.canonicalID)
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(alias string) error {
@@ -663,6 +682,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to resolve DID document$`, d.resolveDIDDocument)
+	s.Step(`^client sends request to resolve DID document with canonical id$`, d.resolveDIDDocumentWithCanonicalID)
 	s.Step(`^client sends request to resolve DID document with alias "([^"]*)"$`, d.resolveDIDDocumentWithAlias)
 	s.Step(`^client sends request to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
