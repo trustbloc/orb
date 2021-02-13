@@ -19,6 +19,9 @@ func TestNewOptions(t *testing.T) {
 	to1 := mustParseURL("https://to1")
 	to2 := mustParseURL("https://to2")
 
+	obj := &ObjectType{}
+	iri := mustParseURL("https://iri")
+
 	publishedTime := time.Now()
 	startTime := time.Now()
 	endTime := time.Now()
@@ -31,6 +34,8 @@ func TestNewOptions(t *testing.T) {
 		WithPublishedTime(&publishedTime),
 		WithStartTime(&startTime),
 		WithEndTime(&endTime),
+		WithObject(obj),
+		WithIRI(iri),
 	)
 
 	require.NotNil(t, opts)
@@ -51,4 +56,8 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, &publishedTime, opts.Published)
 	require.Equal(t, &startTime, opts.StartTime)
 	require.Equal(t, &endTime, opts.EndTime)
+
+	require.Equal(t, obj, opts.Object)
+
+	require.Equal(t, iri.String(), opts.Iri.String())
 }
