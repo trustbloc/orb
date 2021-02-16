@@ -69,38 +69,38 @@ type objectType struct {
 	EndTime   *time.Time             `json:"endTime,omitempty"`
 }
 
-// GetContext returns the context property.
-func (t *ObjectType) GetContext() *ContextProperty {
+// Context returns the context property.
+func (t *ObjectType) Context() *ContextProperty {
 	return t.object.Context
 }
 
-// GetID returns the object's ID.
-func (t *ObjectType) GetID() string {
+// ID returns the object's ID.
+func (t *ObjectType) ID() string {
 	return t.object.ID
 }
 
-// GetType returns the type of the object.
-func (t *ObjectType) GetType() *TypeProperty {
+// Type returns the type of the object.
+func (t *ObjectType) Type() *TypeProperty {
 	return t.object.Type
 }
 
-// GetPublished returns the time when the object was published.
-func (t *ObjectType) GetPublished() *time.Time {
+// Published returns the time when the object was published.
+func (t *ObjectType) Published() *time.Time {
 	return t.object.Published
 }
 
-// GetStartTime returns the start time.
-func (t *ObjectType) GetStartTime() *time.Time {
+// StartTime returns the start time.
+func (t *ObjectType) StartTime() *time.Time {
 	return t.object.StartTime
 }
 
-// GetEndTime returns the end time.
-func (t *ObjectType) GetEndTime() *time.Time {
+// EndTime returns the end time.
+func (t *ObjectType) EndTime() *time.Time {
 	return t.object.EndTime
 }
 
-// GetTo returns a set of URLs to which the object should be sent.
-func (t *ObjectType) GetTo() []*url.URL {
+// To returns a set of URLs to which the object should be sent.
+func (t *ObjectType) To() []*url.URL {
 	if t.object.To == nil {
 		return nil
 	}
@@ -114,8 +114,8 @@ func (t *ObjectType) GetTo() []*url.URL {
 	return urls
 }
 
-// GetValue returns the value of a property.
-func (t *ObjectType) GetValue(key string) (interface{}, bool) {
+// Value returns the value of a property.
+func (t *ObjectType) Value(key string) (interface{}, bool) {
 	v, ok := t.additional[key]
 
 	return v, ok

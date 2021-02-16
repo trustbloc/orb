@@ -25,7 +25,7 @@ func TestContextProperty(t *testing.T) {
 		p := NewContextProperty(ContextCredentials)
 		require.NotNil(t, p)
 
-		contexts := p.GetContexts()
+		contexts := p.Contexts()
 		require.Len(t, contexts, 1)
 		require.Equal(t, ContextCredentials, contexts[0])
 
@@ -43,7 +43,7 @@ func TestContextProperty(t *testing.T) {
 		p := NewContextProperty(ContextCredentials, ContextSecurity)
 		require.NotNil(t, p)
 
-		contexts := p.GetContexts()
+		contexts := p.Contexts()
 		require.Len(t, contexts, 2)
 		require.Equal(t, ContextCredentials, contexts[0])
 		require.Equal(t, ContextSecurity, contexts[1])

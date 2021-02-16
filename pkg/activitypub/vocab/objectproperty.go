@@ -28,18 +28,18 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 	}
 }
 
-// GetType returns the type of the object property. If the property
+// Type returns the type of the object property. If the property
 // is an IRI then nil is returned.
-func (p *ObjectProperty) GetType() *TypeProperty {
+func (p *ObjectProperty) Type() *TypeProperty {
 	if p.obj != nil {
-		return p.obj.GetType()
+		return p.obj.Type()
 	}
 
 	return nil
 }
 
-// GetIRI returns the IRI or nil if the IRI is not set.
-func (p *ObjectProperty) GetIRI() *url.URL {
+// IRI returns the IRI or nil if the IRI is not set.
+func (p *ObjectProperty) IRI() *url.URL {
 	if p.iri == nil {
 		return nil
 	}
@@ -47,8 +47,8 @@ func (p *ObjectProperty) GetIRI() *url.URL {
 	return p.iri.u
 }
 
-// GetObject returns the object or nil if the object is not set.
-func (p *ObjectProperty) GetObject() *ObjectType {
+// Object returns the object or nil if the object is not set.
+func (p *ObjectProperty) Object() *ObjectType {
 	return p.obj
 }
 
