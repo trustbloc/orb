@@ -33,6 +33,22 @@ func TestNewOptions(t *testing.T) {
 	startTime := time.Now()
 	endTime := time.Now()
 
+	inbox := mustParseURL("https://inbox")
+	outbox := mustParseURL("https://outbox")
+	followers := mustParseURL("https://followers")
+	following := mustParseURL("https://following")
+	witnesses := mustParseURL("https://witnesses")
+	witnessing := mustParseURL("https://witnessing")
+	likes := mustParseURL("https://likes")
+	liked := mustParseURL("https://liked")
+	shares := mustParseURL("https://shares")
+
+	publicKey := &PublicKeyType{
+		ID:           "key_id",
+		Owner:        "owner_id",
+		PublicKeyPem: "pem",
+	}
+
 	target := &ObjectProperty{
 		iri: NewURLProperty(mustParseURL("https://property_iri")),
 	}
@@ -63,6 +79,16 @@ func TestNewOptions(t *testing.T) {
 		WithActor(actor),
 		WithResult(result),
 		WithAnchorCredentialReference(anchorRef),
+		WithFollowers(followers),
+		WithFollowing(following),
+		WithInbox(inbox),
+		WithOutbox(outbox),
+		WithPublicKey(publicKey),
+		WithLikes(likes),
+		WithLiked(liked),
+		WithShares(shares),
+		WithWitnesses(witnesses),
+		WithWitnessing(witnessing),
 	)
 
 	require.NotNil(t, opts)
@@ -100,4 +126,16 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, result, opts.Result)
 
 	require.Equal(t, anchorRef, opts.AnchorCredRef)
+
+	require.Equal(t, followers.String(), opts.Followers.String())
+	require.Equal(t, following.String(), opts.Following.String())
+	require.Equal(t, inbox.String(), opts.Inbox.String())
+	require.Equal(t, outbox.String(), opts.Outbox.String())
+	require.Equal(t, publicKey, opts.PublicKey)
+
+	require.Equal(t, likes.String(), opts.Likes.String())
+	require.Equal(t, liked.String(), opts.Liked.String())
+	require.Equal(t, shares.String(), opts.Shares.String())
+	require.Equal(t, witnesses.String(), opts.Witnesses.String())
+	require.Equal(t, witnessing.String(), opts.Witnessing.String())
 }
