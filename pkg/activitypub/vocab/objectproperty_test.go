@@ -17,7 +17,7 @@ func TestNewObjectProperty(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		p := NewObjectProperty()
 		require.NotNil(t, p)
-		require.Nil(t, p.GetType())
+		require.Nil(t, p.Type())
 	})
 
 	t.Run("WithIRI", func(t *testing.T) {
@@ -25,17 +25,17 @@ func TestNewObjectProperty(t *testing.T) {
 
 		p := NewObjectProperty(WithIRI(iri))
 		require.NotNil(t, p)
-		require.Nil(t, p.GetType())
-		require.Nil(t, p.GetObject())
-		require.Equal(t, iri, p.GetIRI())
+		require.Nil(t, p.Type())
+		require.Nil(t, p.Object())
+		require.Equal(t, iri, p.IRI())
 	})
 
 	t.Run("WithObject", func(t *testing.T) {
 		p := NewObjectProperty(WithObject(NewObject(WithType(TypeVerifiableCredential), WithID(objectPropertyID))))
 		require.NotNil(t, p)
 
-		typeProp := p.GetType()
-		require.Nil(t, p.GetIRI())
+		typeProp := p.Type()
+		require.Nil(t, p.IRI())
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential))
 	})
@@ -79,31 +79,31 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 		p := NewObjectProperty()
 		require.NoError(t, json.Unmarshal([]byte(jsonIRIObjectProperty), p))
 
-		require.Nil(t, p.GetType())
-		require.Nil(t, p.GetObject())
-		require.Equal(t, iri, p.GetIRI())
+		require.Nil(t, p.Type())
+		require.Nil(t, p.Object())
+		require.Equal(t, iri, p.IRI())
 	})
 
 	t.Run("WithObject", func(t *testing.T) {
 		p := NewObjectProperty()
 		require.NoError(t, json.Unmarshal([]byte(jsonEmbeddedObjectProperty), p))
 
-		require.Nil(t, p.GetIRI())
+		require.Nil(t, p.IRI())
 
-		typeProp := p.GetType()
+		typeProp := p.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential))
 
-		obj := p.GetObject()
+		obj := p.Object()
 		require.NotNil(t, obj)
 
-		context := obj.GetContext()
+		context := obj.Context()
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextOrb))
 
-		require.Equal(t, objectPropertyID, obj.GetID())
+		require.Equal(t, objectPropertyID, obj.ID())
 
-		typeProp = obj.GetType()
+		typeProp = obj.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential))
 	})

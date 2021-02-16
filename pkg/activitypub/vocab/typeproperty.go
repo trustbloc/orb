@@ -57,8 +57,8 @@ func (p *TypeProperty) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-// GetTypes returns all types.
-func (p *TypeProperty) GetTypes() []Type {
+// Types returns all types.
+func (p *TypeProperty) Types() []Type {
 	return p.types
 }
 

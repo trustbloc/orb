@@ -27,7 +27,7 @@ func TestURLProperty(t *testing.T) {
 
 	p := NewURLProperty(u)
 	require.NotNil(t, p)
-	require.Equal(t, u, p.GetURL())
+	require.Equal(t, u, p.URL())
 	require.Equal(t, u.String(), p.String())
 
 	bytes, err := json.Marshal(p)
@@ -59,7 +59,7 @@ func TestURLCollectionProperty(t *testing.T) {
 		p := NewURLCollectionProperty(u1)
 		require.NotNil(t, p)
 
-		urls := p.GetURLs()
+		urls := p.URLs()
 		require.Len(t, urls, 1)
 		require.Equal(t, u1, urls[0])
 
@@ -70,7 +70,7 @@ func TestURLCollectionProperty(t *testing.T) {
 		require.NoError(t, json.Unmarshal(bytes, p2))
 		require.Equal(t, jsonURL, string(bytes))
 
-		urls = p2.GetURLs()
+		urls = p2.URLs()
 		require.Len(t, urls, 1)
 		require.Equal(t, u1, urls[0])
 	})
@@ -79,7 +79,7 @@ func TestURLCollectionProperty(t *testing.T) {
 		p := NewURLCollectionProperty(u1, u2)
 		require.NotNil(t, p)
 
-		urls := p.GetURLs()
+		urls := p.URLs()
 		require.Len(t, urls, 2)
 		require.Equal(t, u1, urls[0])
 		require.Equal(t, u2, urls[1])
@@ -91,7 +91,7 @@ func TestURLCollectionProperty(t *testing.T) {
 		require.NoError(t, json.Unmarshal(bytes, p2))
 		require.Equal(t, jsonURLCollection, string(bytes))
 
-		urls = p2.GetURLs()
+		urls = p2.URLs()
 		require.Len(t, urls, 2)
 		require.Equal(t, u1, urls[0])
 		require.Equal(t, u2, urls[1])

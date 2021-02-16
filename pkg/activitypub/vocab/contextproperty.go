@@ -24,8 +24,8 @@ func NewContextProperty(context ...Context) *ContextProperty {
 	return &ContextProperty{contexts: context}
 }
 
-// GetContexts returns all of the contexts defined in the property.
-func (p *ContextProperty) GetContexts() []Context {
+// Contexts returns all of the contexts defined in the property.
+func (p *ContextProperty) Contexts() []Context {
 	return p.contexts
 }
 

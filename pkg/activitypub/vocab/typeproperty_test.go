@@ -25,7 +25,7 @@ func TestTypeProperty(t *testing.T) {
 		p := NewTypeProperty(TypeCreate)
 		require.NotNil(t, p)
 
-		types := p.GetTypes()
+		types := p.Types()
 		require.Len(t, types, 1)
 		require.Equal(t, TypeCreate, types[0])
 
@@ -43,7 +43,7 @@ func TestTypeProperty(t *testing.T) {
 		p := NewTypeProperty(TypeCreate, TypeAnchorCredential)
 		require.NotNil(t, p)
 
-		types := p.GetTypes()
+		types := p.Types()
 		require.Len(t, types, 2)
 		require.Equal(t, TypeCreate, types[0])
 		require.Equal(t, TypeAnchorCredential, types[1])

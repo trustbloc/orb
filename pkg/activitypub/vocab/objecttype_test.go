@@ -35,21 +35,21 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 			WithEndTime(&endTime),
 		)
 
-		context := obj.GetContext()
+		context := obj.Context()
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.GetID())
+		require.Equal(t, id, obj.ID())
 
-		typeProp := obj.GetType()
+		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
 
-		require.Equal(t, &publishedTime, obj.GetPublished())
-		require.Equal(t, &startTime, obj.GetStartTime())
-		require.Equal(t, &endTime, obj.GetEndTime())
+		require.Equal(t, &publishedTime, obj.Published())
+		require.Equal(t, &startTime, obj.StartTime())
+		require.Equal(t, &endTime, obj.EndTime())
 
-		to := obj.GetTo()
+		to := obj.To()
 		require.Len(t, to, 2)
 		require.Equal(t, to1.String(), to[0].String())
 		require.Equal(t, to2.String(), to[1].String())
@@ -78,21 +78,21 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		t.Logf("Types: %s", obj.object.Type.types)
 
-		context := obj.GetContext()
+		context := obj.Context()
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.GetID())
+		require.Equal(t, id, obj.ID())
 
-		typeProp := obj.GetType()
+		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
 
-		require.Equal(t, &publishedTime, obj.GetPublished())
-		require.Equal(t, &startTime, obj.GetStartTime())
-		require.Equal(t, &endTime, obj.GetEndTime())
+		require.Equal(t, &publishedTime, obj.Published())
+		require.Equal(t, &startTime, obj.StartTime())
+		require.Equal(t, &endTime, obj.EndTime())
 
-		require.Len(t, obj.GetTo(), 0)
+		require.Len(t, obj.To(), 0)
 	})
 }
 
@@ -145,13 +145,13 @@ func TestObjectType_WithDocument(t *testing.T) {
 
 		t.Logf("Types: %s", obj.object.Type.types)
 
-		context := obj.GetContext()
+		context := obj.Context()
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.GetID())
+		require.Equal(t, id, obj.ID())
 
-		typeProp := obj.GetType()
+		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
 	})

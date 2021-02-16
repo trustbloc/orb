@@ -34,8 +34,8 @@ func (t *URLProperty) String() string {
 	return t.u.String()
 }
 
-// GetURL returns the contained URL.
-func (t *URLProperty) GetURL() *url.URL {
+// URL returns the contained URL.
+func (t *URLProperty) URL() *url.URL {
 	return t.u
 }
 
@@ -83,12 +83,12 @@ func NewURLCollectionProperty(urls ...*url.URL) *URLCollectionProperty {
 	return p
 }
 
-// GetURLs returns the URLs.
-func (t *URLCollectionProperty) GetURLs() []*url.URL {
+// URLs returns the URLs.
+func (t *URLCollectionProperty) URLs() []*url.URL {
 	urls := make([]*url.URL, len(t.urls))
 
 	for i, p := range t.urls {
-		urls[i] = p.GetURL()
+		urls[i] = p.URL()
 	}
 
 	return urls
