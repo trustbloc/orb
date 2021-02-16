@@ -124,6 +124,7 @@ type ObjectPropertyOptions struct {
 	Collection        *CollectionType
 	OrderedCollection *OrderedCollectionType
 	Activity          *ActivityType
+	AnchorCredRef     *AnchorCredentialReferenceType
 }
 
 // WithIRI sets the 'object' property to an IRI.
@@ -158,6 +159,13 @@ func WithOrderedCollection(coll *OrderedCollectionType) Opt {
 func WithActivity(activity *ActivityType) Opt {
 	return func(opts *Options) {
 		opts.Activity = activity
+	}
+}
+
+// WithAnchorCredentialReference sets the 'object' property to an embedded anchored credential reference.
+func WithAnchorCredentialReference(ref *AnchorCredentialReferenceType) Opt {
+	return func(opts *Options) {
+		opts.AnchorCredRef = ref
 	}
 }
 

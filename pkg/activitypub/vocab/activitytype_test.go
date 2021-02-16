@@ -20,6 +20,7 @@ const (
 	followActivityID = "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988"
 	acceptActivityID = "https://sally.example.com/services/orb/activities/95b3d005-abb6-423d-a889-18bc1ee84989"
 	rejectActivityID = "https://sally.example.com/services/orb/activities/75b3d005-abb6-473d-a879-18bc1ee84979"
+	offerActivityID  = "https://sally.example.com/services/orb/activities/65b3d005-6bb6-673d-6879-18bc1ee84976"
 	likeActivityID   = "https://witness1.example.com/services/orb/likes/87bcd005-abb6-433d-a889-18bc1ce84988"
 )
 
@@ -73,9 +74,9 @@ func TestCreateTypeMarshal(t *testing.T) {
 		require.NotNil(t, context)
 		context.Contains(ContextActivityStreams)
 
-		actor := a.Actor()
-		require.NotNil(t, actor)
-		require.Equal(t, actor.String(), actor.String())
+		actorURI := a.Actor()
+		require.NotNil(t, actorURI)
+		require.Equal(t, actorURI.String(), actorURI.String())
 
 		to := a.To()
 		require.Len(t, to, 2)
@@ -95,6 +96,152 @@ func TestCreateTypeMarshal(t *testing.T) {
 		require.NotNil(t, obj)
 		require.True(t, obj.Type().Is(TypeVerifiableCredential, TypeAnchorCredential))
 	})
+
+	t.Run("With AnchorCredentialReference", func(t *testing.T) {
+		const (
+			refID = "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			cid   = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		)
+
+		t.Run("Marshal", func(t *testing.T) {
+			create := NewCreateActivity(createActivityID,
+				NewObjectProperty(
+					WithAnchorCredentialReference(
+						NewAnchorCredentialReference(refID, cid),
+					),
+				),
+				WithActor(actor),
+				WithTo(followers),
+				WithTo(public),
+				WithContext(ContextOrb),
+				WithPublishedTime(&published),
+			)
+
+			bytes, err := canonicalizer.MarshalCanonical(create)
+			require.NoError(t, err)
+			t.Log(string(bytes))
+
+			require.Equal(t, getCanonical(t, jsonCreateWithAnchorCredentialRef), string(bytes))
+		})
+
+		t.Run("Unmarshal", func(t *testing.T) {
+			a := &ActivityType{}
+			require.NoError(t, json.Unmarshal([]byte(jsonCreateWithAnchorCredentialRef), a))
+			require.NotNil(t, a.Type())
+			require.True(t, a.Type().Is(TypeCreate))
+
+			id := a.ID()
+			require.NotNil(t, id)
+			require.Equal(t, createActivityID, id)
+
+			context := a.Context()
+			require.NotNil(t, context)
+			context.Contains(ContextActivityStreams)
+
+			actorURI := a.Actor()
+			require.NotNil(t, actorURI)
+			require.Equal(t, actorURI.String(), actorURI.String())
+
+			to := a.To()
+			require.Len(t, to, 2)
+			require.Equal(t, to[0].String(), followers.String())
+			require.Equal(t, to[1].String(), public.String())
+
+			objProp := a.Object()
+			require.NotNil(t, objProp)
+
+			ref := objProp.AnchorCredentialReference()
+			require.NotNil(t, ref)
+			require.True(t, ref.Type().Is(TypeAnchorCredentialRef))
+
+			refTarget := ref.Target()
+			require.NotNil(t, refTarget)
+
+			refTargetObj := refTarget.Object()
+			require.NotNil(t, refTargetObj)
+			require.Equal(t, cid, refTargetObj.ID())
+
+			refTargetObjType := refTargetObj.Type()
+			require.NotNil(t, refTargetObjType)
+			require.True(t, refTargetObjType.Is(TypeCAS))
+		})
+	})
+
+	t.Run("With embedded AnchorCredential", func(t *testing.T) {
+		cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+
+		t.Run("Marshal", func(t *testing.T) {
+			anchorCredential, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential)))
+			require.NoError(t, err)
+
+			create := NewCreateActivity(createActivityID,
+				NewObjectProperty(
+					WithObject(anchorCredential),
+				),
+				WithTarget(
+					NewObjectProperty(
+						WithObject(
+							NewObject(WithID(cid), WithType(TypeCAS)),
+						),
+					),
+				),
+				WithActor(actor),
+				WithTo(followers),
+				WithTo(public),
+				WithContext(ContextOrb),
+				WithPublishedTime(&published),
+			)
+
+			bytes, err := canonicalizer.MarshalCanonical(create)
+			require.NoError(t, err)
+			t.Log(string(bytes))
+
+			require.Equal(t, getCanonical(t, jsonCreateWithAnchorCredential), string(bytes))
+		})
+
+		t.Run("Unmarshal", func(t *testing.T) {
+			a := &ActivityType{}
+			require.NoError(t, json.Unmarshal([]byte(jsonCreateWithAnchorCredential), a))
+			require.NotNil(t, a.Type())
+			require.True(t, a.Type().Is(TypeCreate))
+
+			id := a.ID()
+			require.NotNil(t, id)
+			require.Equal(t, createActivityID, id)
+
+			context := a.Context()
+			require.NotNil(t, context)
+			context.Contains(ContextActivityStreams)
+
+			actor := a.Actor()
+			require.NotNil(t, actor)
+			require.Equal(t, actor.String(), actor.String())
+
+			to := a.To()
+			require.Len(t, to, 2)
+			require.Equal(t, to[0].String(), followers.String())
+			require.Equal(t, to[1].String(), public.String())
+
+			targetProp := a.Target()
+			require.NotNil(t, targetProp)
+			require.True(t, targetProp.Type().Is(TypeCAS))
+
+			targetObj := targetProp.Object()
+			require.NotNil(t, targetObj)
+			require.Equal(t, cid, targetObj.ID())
+
+			targetObjType := targetObj.Type()
+			require.NotNil(t, targetObjType)
+			require.True(t, targetObjType.Is(TypeCAS))
+
+			objProp := a.Object()
+			require.NotNil(t, objProp)
+
+			objTypeProp := objProp.Type()
+			require.NotNil(t, objTypeProp)
+			require.True(t, objTypeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
+		})
+	})
 }
 
 func TestAnnounceTypeMarshal(t *testing.T) {
@@ -102,7 +249,6 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 	public := mustParseURL("https://www.w3.org/ns/activitystreams#Public")
 	actor := mustParseURL("https://sally.example.com/services/orb")
 	txn1 := mustParseURL("http://sally.example.com/transactions/bafkeexwtkfyvbkdidscmqywkyls3i")
-	txn2 := mustParseURL("http://sally.example.com/transactions/bafkeexatkfbvbkdidscmqywkyls3i")
 
 	t.Run("Single object", func(t *testing.T) {
 		published := getStaticTime()
@@ -154,13 +300,29 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 		})
 	})
 
-	t.Run("With collection", func(t *testing.T) {
+	t.Run("With AnchorCredentialReferences", func(t *testing.T) {
+		const (
+			cid1 = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			cid2 = "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+
+			refID1 = "http://sally.example.com/transactions/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			refID2 = "http://sally.example.com/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		)
+
 		published := getStaticTime()
 
 		t.Run("Marshal", func(t *testing.T) {
 			items := []*ObjectProperty{
-				NewObjectProperty(WithIRI(txn1)),
-				NewObjectProperty(WithIRI(txn2)),
+				NewObjectProperty(
+					WithAnchorCredentialReference(
+						NewAnchorCredentialReference(refID1, cid1),
+					),
+				),
+				NewObjectProperty(
+					WithAnchorCredentialReference(
+						NewAnchorCredentialReference(refID2, cid2),
+					),
+				),
 			}
 
 			coll := NewCollection(items)
@@ -176,12 +338,12 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonAnnounceWithCollection), string(bytes))
+			require.Equal(t, getCanonical(t, jsonAnnounceWithAnchorCredRefs), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
 			a := &ActivityType{}
-			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithCollection), a))
+			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithAnchorCredRefs), a))
 			require.NotNil(t, a.Type())
 			require.True(t, a.Type().Is(TypeAnnounce))
 			require.Equal(t, createActivityID, a.ID())
@@ -212,29 +374,59 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.Len(t, items, 2)
 
 			item := items[0]
-			require.Equal(t, txn1, item.IRI())
+
+			ref := item.AnchorCredentialReference()
+			require.NotNil(t, ref)
+			require.Equal(t, refID1, ref.ID())
+
+			refTargetProp := ref.Target()
+			require.NotNil(t, refTargetProp)
+
+			refTargetObj := refTargetProp.Object()
+			require.NotNil(t, refTargetObj)
+			require.Equal(t, cid1, refTargetObj.ID())
 
 			item = items[1]
-			require.Equal(t, txn2, item.IRI())
+
+			ref = item.AnchorCredentialReference()
+			require.NotNil(t, ref)
+			require.Equal(t, refID2, ref.ID())
+
+			refTargetProp = ref.Target()
+			require.NotNil(t, refTargetProp)
+
+			refTargetObj = refTargetProp.Object()
+			require.NotNil(t, refTargetObj)
+			require.Equal(t, cid2, refTargetObj.ID())
 		})
 	})
 
-	t.Run("With embedded objects", func(t *testing.T) {
+	t.Run("With AnchorCredentialReference and embedded object", func(t *testing.T) {
 		const (
-			id1 = "97bcd005-abb6-423d-a889-18bc1ce84988"
-			id2 = "77dcd005-abb6-423d-a889-18bc1ce84988"
+			cid   = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			refID = "http://sally.example.com/transactions/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
 		)
 
 		published := getStaticTime()
 
 		t.Run("Marshal", func(t *testing.T) {
+			ref, err := NewAnchorCredentialReferenceWithDocument(refID, cid,
+				MustUnmarshalToDoc([]byte(anchorCredential)),
+			)
+			require.NoError(t, err)
+
 			items := []*ObjectProperty{
-				NewObjectProperty(WithObject(NewObject(WithID(id1), WithType(TypeCAS)))),
-				NewObjectProperty(WithObject(NewObject(WithID(id2), WithType(TypeCAS)))),
+				NewObjectProperty(
+					WithAnchorCredentialReference(ref),
+				),
 			}
 
 			announce := NewAnnounceActivity(createActivityID,
-				NewObjectProperty(WithOrderedCollection(NewOrderedCollection(items))),
+				NewObjectProperty(
+					WithCollection(
+						NewCollection(items),
+					),
+				),
 				WithActor(actor),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
@@ -244,12 +436,12 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonAnnounceWithEmbeddedObjects), string(bytes))
+			require.Equal(t, getCanonical(t, jsonAnnounceWithAnchorCredRefAndEmbeddedCred), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
 			a := &ActivityType{}
-			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithEmbeddedObjects), a))
+			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithAnchorCredRefAndEmbeddedCred), a))
 			require.NotNil(t, a.Type())
 			require.True(t, a.Type().Is(TypeAnnounce))
 			require.Equal(t, createActivityID, a.ID())
@@ -271,21 +463,35 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			objProp := a.Object()
 			require.NotNil(t, objProp)
 			require.NotNil(t, objProp.Type())
-			require.True(t, objProp.Type().Is(TypeOrderedCollection))
+			require.True(t, objProp.Type().Is(TypeCollection))
 
-			coll := objProp.OrderedCollection()
+			coll := objProp.Collection()
 			require.NotNil(t, coll)
 
 			items := coll.Items()
-			require.Len(t, items, 2)
+			require.Len(t, items, 1)
 
 			item := items[0]
-			require.NotNil(t, item.Type())
-			require.True(t, item.Type().Is(TypeCAS))
 
-			item = items[1]
-			require.NotNil(t, item.Type())
-			require.True(t, item.Type().Is(TypeCAS))
+			ref := item.AnchorCredentialReference()
+			require.NotNil(t, ref)
+			require.NotNil(t, refID, ref.ID())
+
+			refTargetProp := ref.Target()
+			require.NotNil(t, refTargetProp)
+
+			refTargetObj := refTargetProp.Object()
+			require.NotNil(t, refTargetObj)
+			require.Equal(t, cid, refTargetObj.ID())
+
+			refObjProp := ref.Object()
+			require.NotNil(t, refObjProp)
+
+			cred := refObjProp.Object()
+			require.NotNil(t, cred)
+
+			credType := cred.Type()
+			require.NotNil(t, credType.Is(TypeVerifiableCredential, TypeAnchorCredential))
 		})
 	})
 }
@@ -470,6 +676,70 @@ func TestRejectTypeMarshal(t *testing.T) {
 	})
 }
 
+func TestOfferTypeMarshal(t *testing.T) {
+	actor := mustParseURL("https://sally.example.com/services/orb")
+	to := mustParseURL("https://sally.example.com/services/orb/witnesses")
+	public := mustParseURL(PublicIRI)
+
+	startTime := getStaticTime()
+	endTime := startTime.Add(1 * time.Minute)
+
+	t.Run("Marshal", func(t *testing.T) {
+		obj, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential)))
+		require.NoError(t, err)
+
+		offer := NewOfferActivity(offerActivityID,
+			NewObjectProperty(WithObject(obj)),
+			WithActor(actor),
+			WithTo(to, public),
+			WithStartTime(&startTime),
+			WithEndTime(&endTime),
+		)
+
+		bytes, err := canonicalizer.MarshalCanonical(offer)
+		require.NoError(t, err)
+		t.Log(string(bytes))
+
+		require.Equal(t, getCanonical(t, jsonOffer), string(bytes))
+	})
+
+	t.Run("Unmarshal", func(t *testing.T) {
+		a := &ActivityType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonOffer), a))
+		require.NotNil(t, a.Type())
+		require.True(t, a.Type().Is(TypeOffer))
+		require.Equal(t, offerActivityID, a.ID())
+
+		context := a.Context()
+		require.NotNil(t, context)
+		context.Contains(ContextActivityStreams)
+
+		require.Len(t, a.To(), 2)
+		require.Equal(t, a.To()[0].String(), to.String())
+		require.Equal(t, a.To()[1].String(), PublicIRI)
+
+		require.Equal(t, actor.String(), a.Actor().String())
+
+		start := a.StartTime()
+		require.NotNil(t, start)
+		require.Equal(t, startTime, *start)
+
+		end := a.EndTime()
+		require.NotNil(t, end)
+		require.Equal(t, endTime, *end)
+
+		objProp := a.Object()
+		require.NotNil(t, objProp)
+
+		obj := objProp.Object()
+		require.NotNil(t, obj)
+
+		objType := obj.Type()
+		require.NotNil(t, objType)
+		require.True(t, objType.Is(TypeVerifiableCredential, TypeAnchorCredential))
+	})
+}
+
 func TestLikeTypeMarshal(t *testing.T) {
 	actor := mustParseURL("https://witness1.example.com/services/orb")
 	to := mustParseURL("https://sally.example.com/services/orb")
@@ -605,50 +875,99 @@ const (
   "type": "Announce"
 }`
 
-	jsonAnnounceWithCollection = `{
+	jsonAnnounceWithAnchorCredRefs = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "actor": "https://sally.example.com/services/orb",
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
-  "object": {
-    "items": [
-      "http://sally.example.com/transactions/bafkeexwtkfyvbkdidscmqywkyls3i",
-      "http://sally.example.com/transactions/bafkeexatkfbvbkdidscmqywkyls3i"
-    ],
-    "totalItems": 2,
-    "type": "Collection"
-  },
-  "published": "2021-01-27T09:30:10Z",
+  "type": "Announce",
+  "actor": "https://sally.example.com/services/orb",
   "to": [
     "https://sally.example.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"
   ],
-  "type": "Announce"
-}`
-
-	jsonAnnounceWithEmbeddedObjects = `{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "actor": "https://sally.example.com/services/orb",
-  "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
+  "published": "2021-01-27T09:30:10Z",
   "object": {
-    "orderedItems": [
+    "type": "Collection",
+    "totalItems": 2,
+    "items": [
       {
-        "id": "97bcd005-abb6-423d-a889-18bc1ce84988",
-        "type": "Cas"
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://trustbloc.github.io/Context/orb-v1.json"
+        ],
+        "id": "http://sally.example.com/transactions/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+        "type": "AnchorCredentialReference",
+        "target": {
+          "id": "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+          "type": "Cas"
+        }
       },
       {
-        "id": "77dcd005-abb6-423d-a889-18bc1ce84988",
-        "type": "Cas"
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://trustbloc.github.io/Context/orb-v1.json"
+        ],
+        "id": "http://sally.example.com/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+        "type": "AnchorCredentialReference",
+        "target": {
+          "id": "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+          "type": "Cas"
+        }
       }
-    ],
-    "totalItems": 2,
-    "type": "OrderedCollection"
-  },
+    ]
+  }
+}`
+
+	jsonAnnounceWithAnchorCredRefAndEmbeddedCred = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
+  "type": "Announce",
+  "actor": "https://sally.example.com/services/orb",
   "published": "2021-01-27T09:30:10Z",
   "to": [
     "https://sally.example.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"
   ],
-  "type": "Announce"
+  "object": {
+    "type": "Collection",
+    "totalItems": 1,
+    "items": [
+      {
+        "@context": [
+          "https://www.w3.org/ns/activitystreams",
+          "https://trustbloc.github.io/Context/orb-v1.json"
+        ],
+        "id": "http://sally.example.com/transactions/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+        "type": "AnchorCredentialReference",
+        "target": {
+          "id": "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+          "type": "Cas"
+        },
+        "object": {
+          "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            "https://trustbloc.github.io/Context/orb-v1.json"
+          ],
+          "id": "http://sally.example.com/transactions/bafkreihwsn",
+          "type": [
+            "VerifiableCredential",
+            "AnchorCredential"
+          ],
+          "issuer": "https://sally.example.com/services/orb",
+          "issuanceDate": "2021-01-27T09:30:10Z",
+          "credentialSubject": {
+            "anchorString": "bafkreihwsn",
+            "namespace": "did:orb",
+            "previousTransactions": {
+              "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
+              "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
+            },
+            "version": "1"
+          },
+          "proof": {}
+        }
+      }
+    ]
+  }
 }`
 
 	jsonFollow = `{
@@ -754,6 +1073,108 @@ const (
     "verificationMethod": "did:example:abcd#key",
     "domain": "https://witness1.example.com/ledgers/maple2021",
     "jws": "eyJ..."
+  }
+}`
+
+	jsonOffer = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "actor": "https://sally.example.com/services/orb",
+  "endTime": "2021-01-27T09:31:10Z",
+  "id": "https://sally.example.com/services/orb/activities/65b3d005-6bb6-673d-6879-18bc1ee84976",
+  "object": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://trustbloc.github.io/Context/orb-v1.json"
+    ],
+    "credentialSubject": {
+      "anchorString": "bafkreihwsn",
+      "namespace": "did:orb",
+      "previousTransactions": {
+        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
+        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
+      },
+      "version": "1"
+    },
+    "id": "http://sally.example.com/transactions/bafkreihwsn",
+    "issuanceDate": "2021-01-27T09:30:10Z",
+    "issuer": "https://sally.example.com/services/orb",
+    "proof": {},
+    "type": [
+      "VerifiableCredential",
+      "AnchorCredential"
+    ]
+  },
+  "startTime": "2021-01-27T09:30:10Z",
+  "to": ["https://sally.example.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
+  "type": "Offer"
+}`
+
+	jsonCreateWithAnchorCredentialRef = `{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://trustbloc.github.io/Context/orb-v1.json"
+  ],
+  "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
+  "type": "Create",
+  "actor": "https://sally.example.com/services/orb",
+  "to": [
+    "https://sally.example.com/services/orb/followers",
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "object": {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://trustbloc.github.io/Context/orb-v1.json"
+    ],
+    "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "type": "AnchorCredentialReference",
+    "target": {
+      "type": "Cas",
+      "id": "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+    }
+  }
+}`
+
+	jsonCreateWithAnchorCredential = `{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://trustbloc.github.io/Context/orb-v1.json"
+  ],
+  "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
+  "type": "Create",
+  "actor": "https://sally.example.com/services/orb",
+  "to": [
+    "https://sally.example.com/services/orb/followers",
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "target": {
+    "id": "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+    "type": "Cas"
+  },
+  "object": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://trustbloc.github.io/Context/orb-v1.json"
+    ],
+    "id": "http://sally.example.com/transactions/bafkreihwsn",
+    "type": [
+      "VerifiableCredential",
+      "AnchorCredential"
+    ],
+    "issuer": "https://sally.example.com/services/orb",
+    "issuanceDate": "2021-01-27T09:30:10Z",
+    "credentialSubject": {
+      "anchorString": "bafkreihwsn",
+      "namespace": "did:orb",
+      "previousTransactions": {
+        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
+        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
+      },
+      "version": "1"
+    },
+    "proof": {}
   }
 }`
 )

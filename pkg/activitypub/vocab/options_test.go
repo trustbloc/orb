@@ -41,6 +41,8 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(mustParseURL("https://property_result")),
 	}
 
+	anchorRef := NewAnchorCredentialReference("anchor_cred_ref_id", "cid")
+
 	opts := NewOptions(
 		WithID(id),
 		WithContext(ContextCredentials, ContextActivityStreams),
@@ -60,6 +62,7 @@ func TestNewOptions(t *testing.T) {
 		WithTarget(target),
 		WithActor(actor),
 		WithResult(result),
+		WithAnchorCredentialReference(anchorRef),
 	)
 
 	require.NotNil(t, opts)
@@ -92,8 +95,9 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, current.String(), opts.Current.String())
 
 	require.Equal(t, activity, opts.Activity)
-
 	require.Equal(t, target, opts.Target)
 	require.Equal(t, actor, opts.Actor)
 	require.Equal(t, result, opts.Result)
+
+	require.Equal(t, anchorRef, opts.AnchorCredRef)
 }
