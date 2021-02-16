@@ -20,6 +20,8 @@ type Options struct {
 	StartTime *time.Time
 	EndTime   *time.Time
 	Types     []Type
+
+	ObjectPropertyOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -82,5 +84,25 @@ func WithStartTime(t *time.Time) Opt {
 func WithEndTime(t *time.Time) Opt {
 	return func(opts *Options) {
 		opts.EndTime = t
+	}
+}
+
+// ObjectPropertyOptions holds options for an 'object' property.
+type ObjectPropertyOptions struct {
+	Iri    *url.URL
+	Object *ObjectType
+}
+
+// WithIRI sets the 'object' property to an IRI.
+func WithIRI(iri *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Iri = iri
+	}
+}
+
+// WithObject sets the 'object' property to an embedded object.
+func WithObject(obj *ObjectType) Opt {
+	return func(opts *Options) {
+		opts.Object = obj
 	}
 }
