@@ -174,3 +174,23 @@ func NewLikeActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType 
 		},
 	}
 }
+
+// NewOfferActivity returns a new 'Offer' activity.
+func NewOfferActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+	options := NewOptions(opts...)
+
+	return &ActivityType{
+		ObjectType: NewObject(
+			WithContext(getContexts(options, ContextActivityStreams)...),
+			WithID(id),
+			WithType(TypeOffer),
+			WithTo(options.To...),
+			WithStartTime(options.StartTime),
+			WithEndTime(options.EndTime),
+		),
+		activity: &activityType{
+			Actor:  NewURLProperty(options.Actor),
+			Object: obj,
+		},
+	}
+}
