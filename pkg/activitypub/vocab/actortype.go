@@ -37,13 +37,13 @@ type actorType struct {
 	Liked      *URLProperty   `json:"liked"`
 }
 
-// GetPublicKey returns the actor's public key.
-func (t *ActorType) GetPublicKey() *PublicKeyType {
+// PublicKey returns the actor's public key.
+func (t *ActorType) PublicKey() *PublicKeyType {
 	return t.actor.PublicKey
 }
 
-// GetInbox returns the URL of the actor's inbox.
-func (t *ActorType) GetInbox() *url.URL {
+// Inbox returns the URL of the actor's inbox.
+func (t *ActorType) Inbox() *url.URL {
 	if t.actor.Inbox == nil {
 		return nil
 	}
@@ -51,8 +51,8 @@ func (t *ActorType) GetInbox() *url.URL {
 	return t.actor.Inbox.URL()
 }
 
-// GetOutbox returns the URL of the actor's outbox.
-func (t *ActorType) GetOutbox() *url.URL {
+// Outbox returns the URL of the actor's outbox.
+func (t *ActorType) Outbox() *url.URL {
 	if t.actor.Outbox == nil {
 		return nil
 	}
@@ -60,8 +60,8 @@ func (t *ActorType) GetOutbox() *url.URL {
 	return t.actor.Outbox.URL()
 }
 
-// GetFollowers returns the URL of the actor's followers.
-func (t *ActorType) GetFollowers() *url.URL {
+// Followers returns the URL of the actor's followers.
+func (t *ActorType) Followers() *url.URL {
 	if t.actor.Followers == nil {
 		return nil
 	}
@@ -69,8 +69,8 @@ func (t *ActorType) GetFollowers() *url.URL {
 	return t.actor.Followers.URL()
 }
 
-// GetFollowing returns the URL of what the actor is following.
-func (t *ActorType) GetFollowing() *url.URL {
+// Following returns the URL of what the actor is following.
+func (t *ActorType) Following() *url.URL {
 	if t.actor.Following == nil {
 		return nil
 	}
@@ -78,8 +78,8 @@ func (t *ActorType) GetFollowing() *url.URL {
 	return t.actor.Following.URL()
 }
 
-// GetWitnesses returns the URL of the actor's witnesses.
-func (t *ActorType) GetWitnesses() *url.URL {
+// Witnesses returns the URL of the actor's witnesses.
+func (t *ActorType) Witnesses() *url.URL {
 	if t.actor.Witnesses == nil {
 		return nil
 	}
@@ -87,8 +87,8 @@ func (t *ActorType) GetWitnesses() *url.URL {
 	return t.actor.Witnesses.URL()
 }
 
-// GetWitnessing returns the URL of what the actor is witnessing.
-func (t *ActorType) GetWitnessing() *url.URL {
+// Witnessing returns the URL of what the actor is witnessing.
+func (t *ActorType) Witnessing() *url.URL {
 	if t.actor.Witnessing == nil {
 		return nil
 	}
@@ -96,8 +96,8 @@ func (t *ActorType) GetWitnessing() *url.URL {
 	return t.actor.Witnessing.URL()
 }
 
-// GetShares returns the URL of the actor's shares.
-func (t *ActorType) GetShares() *url.URL {
+// Shares returns the URL of the actor's shares.
+func (t *ActorType) Shares() *url.URL {
 	if t.actor.Shares == nil {
 		return nil
 	}
@@ -105,8 +105,8 @@ func (t *ActorType) GetShares() *url.URL {
 	return t.actor.Shares.URL()
 }
 
-// GetLikes returns the URL of the actor's likes.
-func (t *ActorType) GetLikes() *url.URL {
+// Likes returns the URL of the actor's likes.
+func (t *ActorType) Likes() *url.URL {
 	if t.actor.Likes == nil {
 		return nil
 	}
@@ -114,8 +114,8 @@ func (t *ActorType) GetLikes() *url.URL {
 	return t.actor.Likes.URL()
 }
 
-// GetLiked returns the URL of what the actor has liked.
-func (t *ActorType) GetLiked() *url.URL {
+// Liked returns the URL of what the actor has liked.
+func (t *ActorType) Liked() *url.URL {
 	if t.actor.Liked == nil {
 		return nil
 	}
