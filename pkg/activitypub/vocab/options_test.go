@@ -19,10 +19,12 @@ func TestNewOptions(t *testing.T) {
 	to1 := mustParseURL("https://to1")
 	to2 := mustParseURL("https://to2")
 
-	obj := &ObjectType{}
-	iri := mustParseURL("https://iri")
 	coll := NewCollection(nil)
 	oColl := NewOrderedCollection(nil)
+	activity := &ActivityType{}
+	obj := &ObjectType{}
+	iri := mustParseURL("https://iri")
+	actor := mustParseURL("https://actor")
 	first := mustParseURL("https://first")
 	last := mustParseURL("https://last")
 	current := mustParseURL("https://current")
@@ -30,6 +32,14 @@ func TestNewOptions(t *testing.T) {
 	publishedTime := time.Now()
 	startTime := time.Now()
 	endTime := time.Now()
+
+	target := &ObjectProperty{
+		iri: NewURLProperty(mustParseURL("https://property_iri")),
+	}
+
+	result := &ObjectProperty{
+		iri: NewURLProperty(mustParseURL("https://property_result")),
+	}
 
 	opts := NewOptions(
 		WithID(id),
@@ -46,6 +56,10 @@ func TestNewOptions(t *testing.T) {
 		WithFirst(first),
 		WithLast(last),
 		WithCurrent(current),
+		WithActivity(activity),
+		WithTarget(target),
+		WithActor(actor),
+		WithResult(result),
 	)
 
 	require.NotNil(t, opts)
@@ -76,4 +90,10 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, first.String(), opts.First.String())
 	require.Equal(t, last.String(), opts.Last.String())
 	require.Equal(t, current.String(), opts.Current.String())
+
+	require.Equal(t, activity, opts.Activity)
+
+	require.Equal(t, target, opts.Target)
+	require.Equal(t, actor, opts.Actor)
+	require.Equal(t, result, opts.Result)
 }

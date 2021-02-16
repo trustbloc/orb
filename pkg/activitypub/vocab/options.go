@@ -23,6 +23,7 @@ type Options struct {
 
 	ObjectPropertyOptions
 	CollectionOptions
+	ActivityOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -122,6 +123,7 @@ type ObjectPropertyOptions struct {
 	Object            *ObjectType
 	Collection        *CollectionType
 	OrderedCollection *OrderedCollectionType
+	Activity          *ActivityType
 }
 
 // WithIRI sets the 'object' property to an IRI.
@@ -150,4 +152,43 @@ func WithOrderedCollection(coll *OrderedCollectionType) Opt {
 	return func(opts *Options) {
 		opts.OrderedCollection = coll
 	}
+}
+
+// WithActivity sets the 'object' property to an embedded activity.
+func WithActivity(activity *ActivityType) Opt {
+	return func(opts *Options) {
+		opts.Activity = activity
+	}
+}
+
+// ActivityOptions holds the options for an Activity.
+type ActivityOptions struct {
+	Result *ObjectProperty
+	Actor  *url.URL
+	Target *ObjectProperty
+}
+
+// WithActor sets the 'actor' property on the activity.
+func WithActor(actor *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Actor = actor
+	}
+}
+
+// WithTarget sets the 'target' property on the activity.
+func WithTarget(target *ObjectProperty) Opt {
+	return func(opts *Options) {
+		opts.Target = target
+	}
+}
+
+// WithResult sets the 'result' property on the activity.
+func WithResult(result *ObjectProperty) Opt {
+	return func(opts *Options) {
+		opts.Result = result
+	}
+}
+
+func getContexts(options *Options, contexts ...Context) []Context {
+	return append(contexts, options.Context...)
 }

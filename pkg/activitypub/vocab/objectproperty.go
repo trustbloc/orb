@@ -19,6 +19,7 @@ type ObjectProperty struct {
 	obj         *ObjectType
 	coll        *CollectionType
 	orderedColl *OrderedCollectionType
+	activity    *ActivityType
 }
 
 // NewObjectProperty returns a new 'object' property with the given options.
@@ -30,6 +31,7 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 		obj:         options.Object,
 		coll:        options.Collection,
 		orderedColl: options.OrderedCollection,
+		activity:    options.Activity,
 	}
 }
 
@@ -46,6 +48,10 @@ func (p *ObjectProperty) Type() *TypeProperty {
 
 	if p.orderedColl != nil {
 		return p.orderedColl.Type()
+	}
+
+	if p.activity != nil {
+		return p.activity.Type()
 	}
 
 	return nil
@@ -75,6 +81,11 @@ func (p *ObjectProperty) OrderedCollection() *OrderedCollectionType {
 	return p.orderedColl
 }
 
+// Activity returns the activity or nil if the activity is not set.
+func (p *ObjectProperty) Activity() *ActivityType {
+	return p.activity
+}
+
 // MarshalJSON marshals the 'object' property.
 func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 	if p.iri != nil {
@@ -91,6 +102,10 @@ func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 
 	if p.orderedColl != nil {
 		return json.Marshal(p.orderedColl)
+	}
+
+	if p.activity != nil {
+		return json.Marshal(p.activity)
 	}
 
 	return nil, fmt.Errorf("nil object property")
@@ -127,6 +142,9 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 	case obj.object.Type.Is(TypeOrderedCollection):
 		err = p.unmarshalOrderedCollection(bytes)
 
+	case obj.object.Type.IsAny(TypeFollow, TypeAccept, TypeReject, TypeOffer, TypeLike):
+		err = p.unmarshalActivity(bytes)
+
 	default:
 		p.obj = obj
 	}
@@ -154,6 +172,18 @@ func (p *ObjectProperty) unmarshalOrderedCollection(bytes []byte) error {
 	}
 
 	p.orderedColl = coll
+
+	return nil
+}
+
+func (p *ObjectProperty) unmarshalActivity(bytes []byte) error {
+	a := &ActivityType{}
+
+	if err := json.Unmarshal(bytes, &a); err != nil {
+		return err
+	}
+
+	p.activity = a
 
 	return nil
 }
