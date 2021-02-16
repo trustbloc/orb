@@ -21,6 +21,11 @@ func TestNewOptions(t *testing.T) {
 
 	obj := &ObjectType{}
 	iri := mustParseURL("https://iri")
+	coll := NewCollection(nil)
+	oColl := NewOrderedCollection(nil)
+	first := mustParseURL("https://first")
+	last := mustParseURL("https://last")
+	current := mustParseURL("https://current")
 
 	publishedTime := time.Now()
 	startTime := time.Now()
@@ -36,6 +41,11 @@ func TestNewOptions(t *testing.T) {
 		WithEndTime(&endTime),
 		WithObject(obj),
 		WithIRI(iri),
+		WithCollection(coll),
+		WithOrderedCollection(oColl),
+		WithFirst(first),
+		WithLast(last),
+		WithCurrent(current),
 	)
 
 	require.NotNil(t, opts)
@@ -60,4 +70,10 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, obj, opts.Object)
 
 	require.Equal(t, iri.String(), opts.Iri.String())
+
+	require.Equal(t, coll, opts.Collection)
+	require.Equal(t, oColl, opts.OrderedCollection)
+	require.Equal(t, first.String(), opts.First.String())
+	require.Equal(t, last.String(), opts.Last.String())
+	require.Equal(t, current.String(), opts.Current.String())
 }

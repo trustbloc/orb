@@ -8,14 +8,17 @@ package vocab
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 )
 
 // ObjectProperty defines an 'object' property. The property may be a simple IRI or
 // an embedded object such as 'Collection', 'OrderedCollection', 'Activity', etc.
 type ObjectProperty struct {
-	iri *URLProperty
-	obj *ObjectType
+	iri         *URLProperty
+	obj         *ObjectType
+	coll        *CollectionType
+	orderedColl *OrderedCollectionType
 }
 
 // NewObjectProperty returns a new 'object' property with the given options.
@@ -23,8 +26,10 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 	options := NewOptions(opts...)
 
 	return &ObjectProperty{
-		iri: NewURLProperty(options.Iri),
-		obj: options.Object,
+		iri:         NewURLProperty(options.Iri),
+		obj:         options.Object,
+		coll:        options.Collection,
+		orderedColl: options.OrderedCollection,
 	}
 }
 
@@ -33,6 +38,14 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 func (p *ObjectProperty) Type() *TypeProperty {
 	if p.obj != nil {
 		return p.obj.Type()
+	}
+
+	if p.coll != nil {
+		return p.coll.Type()
+	}
+
+	if p.orderedColl != nil {
+		return p.orderedColl.Type()
 	}
 
 	return nil
@@ -52,6 +65,16 @@ func (p *ObjectProperty) Object() *ObjectType {
 	return p.obj
 }
 
+// Collection returns the collection or nil if the collection is not set.
+func (p *ObjectProperty) Collection() *CollectionType {
+	return p.coll
+}
+
+// OrderedCollection returns the ordered collection or nil if the ordered collection is not set.
+func (p *ObjectProperty) OrderedCollection() *OrderedCollectionType {
+	return p.orderedColl
+}
+
 // MarshalJSON marshals the 'object' property.
 func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 	if p.iri != nil {
@@ -62,15 +85,19 @@ func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 		return json.Marshal(p.obj)
 	}
 
-	return nil, nil
+	if p.coll != nil {
+		return json.Marshal(p.coll)
+	}
+
+	if p.orderedColl != nil {
+		return json.Marshal(p.orderedColl)
+	}
+
+	return nil, fmt.Errorf("nil object property")
 }
 
 // UnmarshalJSON unmarshals the 'object' property.
 func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
-	if len(bytes) == 0 {
-		return nil
-	}
-
 	iri := &URLProperty{}
 
 	err := json.Unmarshal(bytes, &iri)
@@ -87,7 +114,46 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 
-	p.obj = obj
+	if obj.object.Type == nil {
+		p.obj = obj
+
+		return nil
+	}
+
+	switch {
+	case obj.object.Type.Is(TypeCollection):
+		err = p.unmarshalCollection(bytes)
+
+	case obj.object.Type.Is(TypeOrderedCollection):
+		err = p.unmarshalOrderedCollection(bytes)
+
+	default:
+		p.obj = obj
+	}
+
+	return err
+}
+
+func (p *ObjectProperty) unmarshalCollection(bytes []byte) error {
+	coll := &CollectionType{}
+
+	if err := json.Unmarshal(bytes, &coll); err != nil {
+		return err
+	}
+
+	p.coll = coll
+
+	return nil
+}
+
+func (p *ObjectProperty) unmarshalOrderedCollection(bytes []byte) error {
+	coll := &OrderedCollectionType{}
+
+	if err := json.Unmarshal(bytes, &coll); err != nil {
+		return err
+	}
+
+	p.orderedColl = coll
 
 	return nil
 }
