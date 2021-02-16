@@ -11,6 +11,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+)
+
+var (
+	collID  = "https://org1.com/services/service1/inbox"
+	first   = mustParseURL("https://org1.com/services/service1/inbox?page=true")
+	last    = mustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
+	current = mustParseURL("https://org1.com/services/service1/inbox?page=2")
+	txn1    = mustParseURL("https://org1.com/transactions/txn1")
+	txn2    = mustParseURL("https://org1.com/transactions/txn2")
 )
 
 func TestNewObjectProperty(t *testing.T) {
@@ -39,9 +49,72 @@ func TestNewObjectProperty(t *testing.T) {
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential))
 	})
+
+	t.Run("WithCollection", func(t *testing.T) {
+		items := []*ObjectProperty{
+			NewObjectProperty(WithIRI(txn1)),
+			NewObjectProperty(WithIRI(txn2)),
+		}
+
+		coll := NewCollection(items,
+			WithContext(ContextActivityStreams),
+			WithID(collID),
+			WithFirst(first), WithLast(last), WithCurrent(current))
+
+		p := NewObjectProperty(WithCollection(coll))
+		require.NotNil(t, p)
+
+		typeProp := p.Type()
+		require.Nil(t, p.IRI())
+		require.NotNil(t, typeProp)
+		require.True(t, typeProp.Is(TypeCollection))
+
+		collProp := p.Collection()
+		require.NotNil(t, collProp)
+
+		collContext := collProp.Context()
+		require.NotNil(t, collContext)
+		require.True(t, collContext.Contains(ContextActivityStreams))
+	})
+
+	t.Run("WithOrderedCollection", func(t *testing.T) {
+		items := []*ObjectProperty{
+			NewObjectProperty(WithIRI(txn1)),
+			NewObjectProperty(WithIRI(txn2)),
+		}
+
+		coll := NewOrderedCollection(items,
+			WithContext(ContextActivityStreams),
+			WithID(collID),
+			WithFirst(first), WithLast(last), WithCurrent(current))
+
+		p := NewObjectProperty(WithOrderedCollection(coll))
+		require.NotNil(t, p)
+
+		typeProp := p.Type()
+		require.Nil(t, p.IRI())
+		require.NotNil(t, typeProp)
+		require.True(t, typeProp.Is(TypeOrderedCollection))
+
+		collProp := p.OrderedCollection()
+		require.NotNil(t, collProp)
+
+		collContext := collProp.Context()
+		require.NotNil(t, collContext)
+		require.True(t, collContext.Contains(ContextActivityStreams))
+	})
 }
 
 func TestObjectProperty_MarshalJSON(t *testing.T) {
+	t.Run("Empty", func(t *testing.T) {
+		p := NewObjectProperty()
+
+		bytes, err := json.Marshal(p)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "nil object property")
+		require.Empty(t, bytes)
+	})
+
 	t.Run("WithIRI", func(t *testing.T) {
 		iri := mustParseURL("https://example.com/obj1")
 
@@ -69,6 +142,48 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 		t.Log(string(bytes))
 
 		require.Equal(t, getCanonical(t, jsonEmbeddedObjectProperty), string(bytes))
+	})
+
+	t.Run("WithCollection", func(t *testing.T) {
+		items := []*ObjectProperty{
+			NewObjectProperty(WithIRI(txn1)),
+			NewObjectProperty(WithIRI(txn2)),
+		}
+
+		coll := NewCollection(items,
+			WithContext(ContextActivityStreams),
+			WithID(collID),
+			WithFirst(first), WithLast(last), WithCurrent(current))
+
+		p := NewObjectProperty(WithCollection(coll))
+		require.NotNil(t, p)
+
+		bytes, err := canonicalizer.MarshalCanonical(p)
+		require.NoError(t, err)
+		t.Log(string(bytes))
+
+		require.Equal(t, getCanonical(t, jsonCollectionObjectProperty), string(bytes))
+	})
+
+	t.Run("WithOrderedCollection", func(t *testing.T) {
+		items := []*ObjectProperty{
+			NewObjectProperty(WithIRI(txn1)),
+			NewObjectProperty(WithIRI(txn2)),
+		}
+
+		coll := NewOrderedCollection(items,
+			WithContext(ContextActivityStreams),
+			WithID(collID),
+			WithFirst(first), WithLast(last), WithCurrent(current))
+
+		p := NewObjectProperty(WithOrderedCollection(coll))
+		require.NotNil(t, p)
+
+		bytes, err := canonicalizer.MarshalCanonical(p)
+		require.NoError(t, err)
+		t.Log(string(bytes))
+
+		require.Equal(t, getCanonical(t, jsonOrderedCollectionObjectProperty), string(bytes))
 	})
 }
 
@@ -107,6 +222,104 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeVerifiableCredential))
 	})
+
+	t.Run("WithCollection", func(t *testing.T) {
+		p := NewObjectProperty()
+		require.NoError(t, json.Unmarshal([]byte(jsonCollectionObjectProperty), p))
+
+		require.Nil(t, p.IRI())
+
+		typeProp := p.Type()
+		require.NotNil(t, typeProp)
+		require.True(t, typeProp.Is(TypeCollection))
+
+		coll := p.Collection()
+		require.NotNil(t, coll)
+
+		context := coll.Context()
+		require.NotNil(t, context)
+		require.True(t, context.Contains(ContextActivityStreams))
+
+		require.Equal(t, collID, coll.ID())
+
+		curr := coll.Current()
+		require.NotNil(t, curr)
+		require.Equal(t, current.String(), curr.String())
+
+		frst := coll.First()
+		require.NotNil(t, frst)
+		require.Equal(t, first.String(), frst.String())
+
+		lst := coll.Last()
+		require.NotNil(t, lst)
+		require.Equal(t, last.String(), lst.String())
+
+		require.Equal(t, 2, coll.TotalItems())
+
+		items := coll.Items()
+		require.Len(t, items, 2)
+
+		item := items[0]
+		require.NotNil(t, item)
+		iri := item.IRI()
+		require.NotNil(t, iri)
+		require.Equal(t, txn1.String(), iri.String())
+
+		item = items[1]
+		require.NotNil(t, item)
+		iri = item.IRI()
+		require.NotNil(t, iri)
+		require.Equal(t, txn2.String(), iri.String())
+	})
+
+	t.Run("WithOrderedCollection", func(t *testing.T) {
+		p := NewObjectProperty()
+		require.NoError(t, json.Unmarshal([]byte(jsonOrderedCollectionObjectProperty), p))
+
+		require.Nil(t, p.IRI())
+
+		typeProp := p.Type()
+		require.NotNil(t, typeProp)
+		require.True(t, typeProp.Is(TypeOrderedCollection))
+
+		coll := p.OrderedCollection()
+		require.NotNil(t, coll)
+
+		context := coll.Context()
+		require.NotNil(t, context)
+		require.True(t, context.Contains(ContextActivityStreams))
+
+		require.Equal(t, collID, coll.ID())
+
+		curr := coll.Current()
+		require.NotNil(t, curr)
+		require.Equal(t, current.String(), curr.String())
+
+		frst := coll.First()
+		require.NotNil(t, frst)
+		require.Equal(t, first.String(), frst.String())
+
+		lst := coll.Last()
+		require.NotNil(t, lst)
+		require.Equal(t, last.String(), lst.String())
+
+		require.Equal(t, 2, coll.TotalItems())
+
+		items := coll.Items()
+		require.Len(t, items, 2)
+
+		item := items[0]
+		require.NotNil(t, item)
+		iri := item.IRI()
+		require.NotNil(t, iri)
+		require.Equal(t, txn1.String(), iri.String())
+
+		item = items[1]
+		require.NotNil(t, item)
+		iri = item.IRI()
+		require.NotNil(t, iri)
+		require.Equal(t, txn2.String(), iri.String())
+	})
 }
 
 const (
@@ -118,5 +331,31 @@ const (
   "@context": "https://trustbloc.github.io/Context/orb-v1.json",
   "id": "some_obj_ID",
   "type": "VerifiableCredential"
+}`
+	jsonCollectionObjectProperty = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "current": "https://org1.com/services/service1/inbox?page=2",
+  "first": "https://org1.com/services/service1/inbox?page=true",
+  "id": "https://org1.com/services/service1/inbox",
+  "items": [
+    "https://org1.com/transactions/txn1",
+    "https://org1.com/transactions/txn2"
+  ],
+  "last": "https://org1.com/services/service1/inbox?page=true&end=true",
+  "totalItems": 2,
+  "type": "Collection"
+}`
+	jsonOrderedCollectionObjectProperty = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "current": "https://org1.com/services/service1/inbox?page=2",
+  "first": "https://org1.com/services/service1/inbox?page=true",
+  "id": "https://org1.com/services/service1/inbox",
+  "last": "https://org1.com/services/service1/inbox?page=true&end=true",
+  "orderedItems": [
+    "https://org1.com/transactions/txn1",
+    "https://org1.com/transactions/txn2"
+  ],
+  "totalItems": 2,
+  "type": "OrderedCollection"
 }`
 )

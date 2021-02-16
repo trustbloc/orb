@@ -22,6 +22,7 @@ type Options struct {
 	Types     []Type
 
 	ObjectPropertyOptions
+	CollectionOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -87,10 +88,40 @@ func WithEndTime(t *time.Time) Opt {
 	}
 }
 
+// CollectionOptions holds the options for a Collection or OrderedCollection.
+type CollectionOptions struct {
+	First   *url.URL
+	Last    *url.URL
+	Current *url.URL
+}
+
+// WithFirst sets the 'first' property on the collection or ordered collection.
+func WithFirst(first *url.URL) Opt {
+	return func(opts *Options) {
+		opts.First = first
+	}
+}
+
+// WithLast sets the 'last' property on the collection or ordered collection.
+func WithLast(last *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Last = last
+	}
+}
+
+// WithCurrent sets the 'current' property on the collection or ordered collection.
+func WithCurrent(current *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Current = current
+	}
+}
+
 // ObjectPropertyOptions holds options for an 'object' property.
 type ObjectPropertyOptions struct {
-	Iri    *url.URL
-	Object *ObjectType
+	Iri               *url.URL
+	Object            *ObjectType
+	Collection        *CollectionType
+	OrderedCollection *OrderedCollectionType
 }
 
 // WithIRI sets the 'object' property to an IRI.
@@ -104,5 +135,19 @@ func WithIRI(iri *url.URL) Opt {
 func WithObject(obj *ObjectType) Opt {
 	return func(opts *Options) {
 		opts.Object = obj
+	}
+}
+
+// WithCollection sets the 'object' property to an embedded collection.
+func WithCollection(coll *CollectionType) Opt {
+	return func(opts *Options) {
+		opts.Collection = coll
+	}
+}
+
+// WithOrderedCollection sets the 'object' property to an embedded ordered collection.
+func WithOrderedCollection(coll *OrderedCollectionType) Opt {
+	return func(opts *Options) {
+		opts.OrderedCollection = coll
 	}
 }
