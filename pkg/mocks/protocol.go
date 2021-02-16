@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/txnprovider"
 
 	"github.com/trustbloc/orb/pkg/txnprocessor"
+	orboperationparser "github.com/trustbloc/orb/pkg/versions/0_1/operationparser"
 )
 
 // DefaultNS is default namespace used in mocks.
@@ -155,6 +156,7 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 	}
 
 	parser := operationparser.New(latest)
+	orbParser := orboperationparser.New(parser)
 	cp := compression.New(compression.WithDefaultAlgorithms())
 	op := txnprovider.NewOperationProvider(latest, parser, m.casClient, cp)
 	th := txnprovider.NewOperationHandler(latest, m.casClient, cp, parser)
@@ -174,7 +176,7 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 
 	pv := &mocks.ProtocolVersion{}
 	pv.OperationApplierReturns(oa)
-	pv.OperationParserReturns(parser)
+	pv.OperationParserReturns(orbParser)
 	pv.DocumentComposerReturns(dc)
 	pv.DocumentValidatorReturns(dv)
 	pv.DocumentTransformerReturns(dt)

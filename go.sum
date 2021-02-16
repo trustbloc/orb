@@ -876,8 +876,8 @@ github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6 h1:GlzMPygee
 github.com/trustbloc/edge-core v0.1.4-0.20200709143857-e104bb29f6c6/go.mod h1:SZg7nAIc9FONS+G7MwEyGkCWCJR3R02bePwTpWxqH5w=
 github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523 h1:c4WEzovD+23hJ9cIK8Qsvg0JQ3U1Z4Z2Zlo+AEUjoI0=
 github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523/go.mod h1:/NWjplIPfzEmgoRTmUMnuHJUDKAGMWp2kQTRlUpajvE=
-github.com/trustbloc/sidetree-core-go v0.1.6-0.20210127204726-af0b0257f397 h1:nua70oct/sYUQ/wWhoHZCjCxIg9wqHtv/0uzD7Zwxdc=
-github.com/trustbloc/sidetree-core-go v0.1.6-0.20210127204726-af0b0257f397/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
+github.com/trustbloc/sidetree-core-go v0.1.6-0.20210213084431-ac42e9d901f0 h1:qLtNukR8m8qqmUFUpYMxKhvt1xmlE5qkAX6SczZGK9g=
+github.com/trustbloc/sidetree-core-go v0.1.6-0.20210213084431-ac42e9d901f0/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

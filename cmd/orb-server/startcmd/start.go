@@ -138,6 +138,8 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 
 	// basic providers (CAS + operation store)
 	casClient := cas.New(parameters.casURL)
+
+	didTxns := memdidtxnref.New()
 	opStore := mocks.NewMockOperationStore()
 
 	// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
@@ -185,7 +187,8 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
-	txnClient := getTransactionClient(vcBuilder, txnGraph, sidetreeTxnCh)
+	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: didTxns, TxnBuilder: vcBuilder}
+	txnClient := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, txnClient))
@@ -207,7 +210,6 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	observer.New(providers).Start()
 	logger.Infof("started observer")
 
-	// did document handler with did document validator for didDocNamespace
 	didDocHandler := dochandler.New(
 		parameters.didNamespace,
 		parameters.didAliases,
@@ -236,13 +238,6 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		WithBase(parameters.baseEnabled).
 		WithCasClient(casClient).
 		WithTxnGraph(graph)
-}
-
-func getTransactionClient(builder *vcbuilder.Builder, txnGraph *txngraph.Graph, sidetreeTxnCh chan []string) batch.BlockchainClient {
-	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: memdidtxnref.New(), TxnBuilder: builder}
-	txnClient := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
-
-	return txnClient
 }
 
 type kmsProvider struct {
