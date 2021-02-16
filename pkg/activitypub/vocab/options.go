@@ -24,6 +24,7 @@ type Options struct {
 	ObjectPropertyOptions
 	CollectionOptions
 	ActivityOptions
+	ActorOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -194,6 +195,90 @@ func WithTarget(target *ObjectProperty) Opt {
 func WithResult(result *ObjectProperty) Opt {
 	return func(opts *Options) {
 		opts.Result = result
+	}
+}
+
+// ActorOptions holds the options for an Activity.
+type ActorOptions struct {
+	PublicKey  *PublicKeyType
+	Inbox      *url.URL
+	Outbox     *url.URL
+	Followers  *url.URL
+	Following  *url.URL
+	Witnesses  *url.URL
+	Witnessing *url.URL
+	Likes      *url.URL
+	Liked      *url.URL
+	Shares     *url.URL
+}
+
+// WithPublicKey sets the 'publicKey' property on the actor.
+func WithPublicKey(publicKey *PublicKeyType) Opt {
+	return func(opts *Options) {
+		opts.PublicKey = publicKey
+	}
+}
+
+// WithInbox sets the 'inbox' property on the actor.
+func WithInbox(inbox *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Inbox = inbox
+	}
+}
+
+// WithOutbox sets the 'outbox' property on the actor.
+func WithOutbox(outbox *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Outbox = outbox
+	}
+}
+
+// WithFollowers sets the 'followers' property on the actor.
+func WithFollowers(followers *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Followers = followers
+	}
+}
+
+// WithFollowing sets the 'following' property on the actor.
+func WithFollowing(following *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Following = following
+	}
+}
+
+// WithWitnesses sets the 'witnesses' property on the actor.
+func WithWitnesses(witnesses *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Witnesses = witnesses
+	}
+}
+
+// WithWitnessing sets the 'witnessing' property on the actor.
+func WithWitnessing(witnessing *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Witnessing = witnessing
+	}
+}
+
+// WithLikes sets the 'likes' property on the actor.
+func WithLikes(likes *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Likes = likes
+	}
+}
+
+// WithLiked sets the 'liked' property on the actor.
+func WithLiked(liked *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Liked = liked
+	}
+}
+
+// WithShares sets the 'shares' property on the actor.
+func WithShares(shares *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Shares = shares
 	}
 }
 
