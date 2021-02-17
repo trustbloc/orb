@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package vcutil
+package util
 
 import (
 	"testing"
@@ -14,7 +14,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
 )
 
 const defVCContext = "https://www.w3.org/2018/credentials/v1"

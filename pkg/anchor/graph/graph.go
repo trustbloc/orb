@@ -4,13 +4,13 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package txngraph
+package graph
 
 import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
-	"github.com/trustbloc/orb/pkg/vcutil"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 )
 
 // Graph manages transaction graph.
@@ -59,7 +59,7 @@ func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 			return nil, err
 		}
 
-		payload, err := vcutil.GetTransactionPayload(node)
+		payload, err := util.GetTransactionPayload(node)
 		if err != nil {
 			return nil, err
 		}

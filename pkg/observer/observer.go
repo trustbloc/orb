@@ -13,7 +13,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/vcutil"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 )
 
 var logger = log.New("orb-observer")
@@ -99,7 +99,7 @@ func (o *Observer) process(txns []string) {
 			continue
 		}
 
-		txnPayload, err := vcutil.GetTransactionPayload(txnNode)
+		txnPayload, err := util.GetTransactionPayload(txnNode)
 		if err != nil {
 			logger.Warnf("Failed to extract transaction payload from txn[%s] for namespace [%s]: %s", txn, txnPayload.Namespace, err.Error()) //nolint:lll
 

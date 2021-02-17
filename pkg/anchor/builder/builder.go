@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package vcbuilder
+package builder
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
 )
 
 const (
@@ -22,13 +22,13 @@ const (
 	// TODO: Add context for anchor credential and define credential subject attributes there.
 )
 
-// BuilderParams holds required parameters for building anchor credential.
-type BuilderParams struct {
+// Params holds required parameters for building anchor credential.
+type Params struct {
 	Issuer string
 }
 
 // New returns new instance of anchor credential builder.
-func New(signer vcSigner, params BuilderParams) (*Builder, error) {
+func New(signer vcSigner, params Params) (*Builder, error) {
 	if err := verifyBuilderParams(params); err != nil {
 		return nil, fmt.Errorf("failed to verify builder parameters: %s", err.Error())
 	}
@@ -46,7 +46,7 @@ type vcSigner interface {
 // Builder implements building of anchor credential.
 type Builder struct {
 	signer vcSigner
-	params BuilderParams
+	params Params
 }
 
 // Build will create and sign anchor credential.
@@ -70,7 +70,7 @@ func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
 	return signedVC, nil
 }
 
-func verifyBuilderParams(params BuilderParams) error {
+func verifyBuilderParams(params Params) error {
 	if params.Issuer == "" {
 		return errors.New("missing issuer")
 	}

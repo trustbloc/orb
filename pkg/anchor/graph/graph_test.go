@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package txngraph
+package graph
 
 import (
 	"testing"
@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
-	"github.com/trustbloc/orb/pkg/vcutil"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
+	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 )
 
 const testDID = "did:method:abc"

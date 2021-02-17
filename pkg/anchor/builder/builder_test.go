@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package vcbuilder
+package builder
 
 import (
 	"errors"
@@ -13,12 +13,12 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
 )
 
 func TestSigner_New(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		builderParams := BuilderParams{
+		builderParams := Params{
 			Issuer: "issuer",
 		}
 
@@ -28,7 +28,7 @@ func TestSigner_New(t *testing.T) {
 	})
 
 	t.Run("error - missing issuer", func(t *testing.T) {
-		s, err := New(&mockSigner{}, BuilderParams{})
+		s, err := New(&mockSigner{}, Params{})
 		require.Error(t, err)
 		require.Nil(t, s)
 		require.Contains(t, err.Error(), "failed to verify builder parameters: missing issuer")
@@ -36,7 +36,7 @@ func TestSigner_New(t *testing.T) {
 }
 
 func TestBuilder_Build(t *testing.T) {
-	builderParams := BuilderParams{
+	builderParams := Params{
 		Issuer: "issuer",
 	}
 
@@ -63,7 +63,7 @@ func TestBuilder_Build(t *testing.T) {
 
 func TestSigner_verifyBuilderParams(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		builderParams := BuilderParams{
+		builderParams := Params{
 			Issuer: "issuer",
 		}
 
@@ -72,7 +72,7 @@ func TestSigner_verifyBuilderParams(t *testing.T) {
 	})
 
 	t.Run("error - missing issuer", func(t *testing.T) {
-		err := verifyBuilderParams(BuilderParams{})
+		err := verifyBuilderParams(Params{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing issuer")
 	})
