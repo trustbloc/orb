@@ -36,15 +36,15 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	"github.com/trustbloc/orb/pkg/anchor/builder"
+	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/context/cas"
-	"github.com/trustbloc/orb/pkg/context/txnclient"
 	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
-	"github.com/trustbloc/orb/pkg/txngraph"
 	"github.com/trustbloc/orb/pkg/txnprocessor"
-	"github.com/trustbloc/orb/pkg/vcbuilder"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -143,7 +143,7 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	opStore := mocks.NewMockOperationStore()
 
 	// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
-	txnGraph := txngraph.New(casClient, func(_, keyID string) (*verifier.PublicKey, error) {
+	txnGraph := graph.New(casClient, func(_, keyID string) (*verifier.PublicKey, error) {
 		pubKeyBytes, err := localKMS.ExportPubKeyBytes(keyID[1:])
 		if err != nil {
 			return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", keyID, err.Error())
@@ -180,15 +180,15 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 		return fmt.Errorf("failed to create vc signer: %s", err.Error())
 	}
 
-	vcBuilder, err := vcbuilder.New(vcSigner, vcbuilder.BuilderParams{Issuer: parameters.anchorCredentialParams.issuer})
+	vcBuilder, err := builder.New(vcSigner, builder.Params{Issuer: parameters.anchorCredentialParams.issuer})
 	if err != nil {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
-	txnClientProviders := &txnclient.Providers{TxnGraph: txnGraph, DidTxns: didTxns, TxnBuilder: vcBuilder}
-	txnClient := txnclient.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
+	txnClientProviders := &writer.Providers{TxnGraph: txnGraph, DidTxns: didTxns, TxnBuilder: vcBuilder}
+	txnClient := writer.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, txnClient))
@@ -230,7 +230,7 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 	return srv.Start(httpServer)
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore, graph *txngraph.Graph) *mocks.MockProtocolClientProvider {
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore, graph *graph.Graph) *mocks.MockProtocolClientProvider {
 	return mocks.NewMockProtocolClientProvider().
 		WithOpStore(opStore).
 		WithOpStoreClient(opStore).

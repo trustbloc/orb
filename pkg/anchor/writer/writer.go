@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package txnclient
+package writer
 
 import (
 	"fmt"
@@ -14,14 +14,14 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
 	"github.com/trustbloc/orb/pkg/didtxnref"
 )
 
 var logger = log.New("txn-client")
 
-// Client implements writing orb transactions.
-type Client struct {
+// Writer implements writing orb transactions.
+type Writer struct {
 	*Providers
 	namespace string
 	txnCh     chan []string
@@ -48,8 +48,8 @@ type didTxns interface {
 }
 
 // New returns a new orb transaction client.
-func New(namespace string, providers *Providers, txnCh chan []string) *Client {
-	return &Client{
+func New(namespace string, providers *Providers, txnCh chan []string) *Writer {
+	return &Writer{
 		Providers: providers,
 		txnCh:     txnCh,
 		namespace: namespace,
@@ -57,7 +57,7 @@ func New(namespace string, providers *Providers, txnCh chan []string) *Client {
 }
 
 // WriteAnchor writes anchor string to orb transaction.
-func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
+func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
 	vc, err := c.buildCredential(anchor, refs, version)
 	if err != nil {
 		return err
@@ -89,13 +89,13 @@ func (c *Client) WriteAnchor(anchor string, refs []*operation.Reference, version
 // Read reads transactions since transaction time.
 // TODO: This is not used and can be removed from interface if we change observer in sidetree-mock to point
 // to core observer (can be done easily) Concern: Reference app has this interface.
-func (c *Client) Read(_ int) (bool, *txnapi.SidetreeTxn) {
+func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	// not used
 	return false, nil
 }
 
 //
-func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[string]string, error) {
+func (c *Writer) getPreviousTransactions(refs []*operation.Reference) (map[string]string, error) {
 	// assemble map of previous did transaction for each did that is referenced in anchor
 	previousDidTxns := make(map[string]string)
 
@@ -117,7 +117,7 @@ func (c *Client) getPreviousTransactions(refs []*operation.Reference) (map[strin
 }
 
 // WriteAnchor writes anchor string to orb transaction.
-func (c *Client) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
+func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
 	// get previous did transaction for each did that is referenced in anchor
 	previousTxns, err := c.getPreviousTransactions(refs)
 	if err != nil {

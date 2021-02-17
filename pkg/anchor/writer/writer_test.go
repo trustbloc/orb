@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package txnclient
+package writer
 
 import (
 	"errors"
@@ -16,9 +16,9 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/api/txn"
+	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/txn"
 	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
-	"github.com/trustbloc/orb/pkg/txngraph"
 )
 
 const (
@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 	var txnCh chan []string
 
 	providers := &Providers{
-		TxnGraph:   txngraph.New(nil, pubKeyFetcherFnc),
+		TxnGraph:   graph.New(nil, pubKeyFetcherFnc),
 		DidTxns:    memdidtxnref.New(),
 		TxnBuilder: &mockTxnBuilder{},
 	}
@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 
 func TestClient_WriteAnchor(t *testing.T) {
 	providers := &Providers{
-		TxnGraph:   txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+		TxnGraph:   graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
 		DidTxns:    memdidtxnref.New(),
 		TxnBuilder: &mockTxnBuilder{},
 	}
@@ -71,7 +71,7 @@ func TestClient_WriteAnchor(t *testing.T) {
 
 		casErr := errors.New("CAS Error")
 		providersWithErr := &Providers{
-			TxnGraph:   txngraph.New(mocks.NewMockCasClient(casErr), pubKeyFetcherFnc),
+			TxnGraph:   graph.New(mocks.NewMockCasClient(casErr), pubKeyFetcherFnc),
 			DidTxns:    memdidtxnref.New(),
 			TxnBuilder: &mockTxnBuilder{},
 		}
@@ -92,7 +92,7 @@ func TestClient_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:   txngraph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:   graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
 			DidTxns:    memdidtxnref.New(),
 			TxnBuilder: &mockTxnBuilder{Err: errors.New("sign error")},
 		}
@@ -106,7 +106,7 @@ func TestClient_WriteAnchor(t *testing.T) {
 
 func TestClient_Read(t *testing.T) {
 	providers := &Providers{
-		TxnGraph: txngraph.New(nil, pubKeyFetcherFnc),
+		TxnGraph: graph.New(nil, pubKeyFetcherFnc),
 		DidTxns:  memdidtxnref.New(),
 	}
 
