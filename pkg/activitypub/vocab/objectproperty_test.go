@@ -24,10 +24,26 @@ var (
 )
 
 func TestNewObjectProperty(t *testing.T) {
+	t.Run("Nil", func(t *testing.T) {
+		var p *ObjectProperty
+		require.Nil(t, p.Type())
+		require.Nil(t, p.Object())
+		require.Nil(t, p.IRI())
+		require.Nil(t, p.Collection())
+		require.Nil(t, p.OrderedCollection())
+		require.Nil(t, p.Activity())
+		require.Nil(t, p.AnchorCredentialReference())
+	})
+
 	t.Run("Empty", func(t *testing.T) {
 		p := NewObjectProperty()
-		require.NotNil(t, p)
 		require.Nil(t, p.Type())
+		require.Nil(t, p.Object())
+		require.Nil(t, p.IRI())
+		require.Nil(t, p.Collection())
+		require.Nil(t, p.OrderedCollection())
+		require.Nil(t, p.Activity())
+		require.Nil(t, p.AnchorCredentialReference())
 	})
 
 	t.Run("WithIRI", func(t *testing.T) {

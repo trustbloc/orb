@@ -40,6 +40,10 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 // Type returns the type of the object property. If the property
 // is an IRI then nil is returned.
 func (p *ObjectProperty) Type() *TypeProperty {
+	if p == nil {
+		return nil
+	}
+
 	if p.obj != nil {
 		return p.obj.Type()
 	}
@@ -65,7 +69,7 @@ func (p *ObjectProperty) Type() *TypeProperty {
 
 // IRI returns the IRI or nil if the IRI is not set.
 func (p *ObjectProperty) IRI() *url.URL {
-	if p.iri == nil {
+	if p == nil || p.iri == nil {
 		return nil
 	}
 
@@ -74,27 +78,47 @@ func (p *ObjectProperty) IRI() *url.URL {
 
 // Object returns the object or nil if the object is not set.
 func (p *ObjectProperty) Object() *ObjectType {
+	if p == nil {
+		return nil
+	}
+
 	return p.obj
 }
 
 // Collection returns the collection or nil if the collection is not set.
 func (p *ObjectProperty) Collection() *CollectionType {
+	if p == nil {
+		return nil
+	}
+
 	return p.coll
 }
 
 // OrderedCollection returns the ordered collection or nil if the ordered collection is not set.
 func (p *ObjectProperty) OrderedCollection() *OrderedCollectionType {
+	if p == nil {
+		return nil
+	}
+
 	return p.orderedColl
 }
 
 // Activity returns the activity or nil if the activity is not set.
 func (p *ObjectProperty) Activity() *ActivityType {
+	if p == nil {
+		return nil
+	}
+
 	return p.activity
 }
 
 // AnchorCredentialReference returns the anchored credential reference or nil if
 // the anchored credential reference is not set.
 func (p *ObjectProperty) AnchorCredentialReference() *AnchorCredentialReferenceType {
+	if p == nil {
+		return nil
+	}
+
 	return p.anchorCredRef
 }
 

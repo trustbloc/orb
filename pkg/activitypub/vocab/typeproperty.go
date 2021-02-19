@@ -59,12 +59,16 @@ func (p *TypeProperty) UnmarshalJSON(bytes []byte) error {
 
 // Types returns all types.
 func (p *TypeProperty) Types() []Type {
+	if p == nil {
+		return nil
+	}
+
 	return p.types
 }
 
 // Is returns true if the property has all of the given types.
 func (p *TypeProperty) Is(types ...Type) bool {
-	if len(types) == 0 {
+	if p == nil || len(types) == 0 {
 		return false
 	}
 
@@ -79,6 +83,10 @@ func (p *TypeProperty) Is(types ...Type) bool {
 
 // IsAny returns true if the property has any of the given types.
 func (p *TypeProperty) IsAny(types ...Type) bool {
+	if p == nil || len(types) == 0 {
+		return false
+	}
+
 	for _, t := range types {
 		if p.Is(t) {
 			return true

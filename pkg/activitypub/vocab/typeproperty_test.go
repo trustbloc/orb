@@ -19,7 +19,13 @@ func TestTypeProperty(t *testing.T) {
 		jsonMultiType = `["Create","AnchorCredential"]`
 	)
 
-	require.Nil(t, NewTypeProperty())
+	t.Run("Nil type", func(t *testing.T) {
+		p := NewTypeProperty()
+		require.Nil(t, p)
+		require.False(t, p.Is(TypeCreate))
+		require.False(t, p.IsAny(TypeCreate))
+		require.Empty(t, p.Types())
+	})
 
 	t.Run("Single type", func(t *testing.T) {
 		p := NewTypeProperty(TypeCreate)
