@@ -20,13 +20,17 @@ func TestURLProperty(t *testing.T) {
 		jsonURL = `"https://example.com"`
 	)
 
+	t.Run("Nil", func(t *testing.T) {
+		p := NewURLProperty(nil)
+		require.Nil(t, p)
+		require.Nil(t, p.URL())
+		require.Empty(t, p.String())
+	})
+
 	u, err := url.Parse(address)
 	require.NoError(t, err)
 
-	require.Nil(t, NewURLProperty(nil))
-
 	p := NewURLProperty(u)
-	require.NotNil(t, p)
 	require.Equal(t, u, p.URL())
 	require.Equal(t, u.String(), p.String())
 
@@ -53,7 +57,11 @@ func TestURLCollectionProperty(t *testing.T) {
 	u2, err := url.Parse(address2)
 	require.NoError(t, err)
 
-	require.Nil(t, NewURLCollectionProperty())
+	t.Run("Nil", func(t *testing.T) {
+		p := NewURLCollectionProperty()
+		require.Nil(t, p)
+		require.Empty(t, p.URLs())
+	})
 
 	t.Run("Single URL", func(t *testing.T) {
 		p := NewURLCollectionProperty(u1)

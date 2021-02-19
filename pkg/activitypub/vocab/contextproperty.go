@@ -26,12 +26,16 @@ func NewContextProperty(context ...Context) *ContextProperty {
 
 // Contexts returns all of the contexts defined in the property.
 func (p *ContextProperty) Contexts() []Context {
+	if p == nil {
+		return nil
+	}
+
 	return p.contexts
 }
 
 // Contains returns true if the property contains all of the given contexts.
 func (p *ContextProperty) Contains(contexts ...Context) bool {
-	if len(contexts) == 0 {
+	if p == nil || len(contexts) == 0 {
 		return false
 	}
 
@@ -46,6 +50,10 @@ func (p *ContextProperty) Contains(contexts ...Context) bool {
 
 // ContainsAny returns true if the property contains any of the given contexts.
 func (p *ContextProperty) ContainsAny(contexts ...Context) bool {
+	if p == nil || len(contexts) == 0 {
+		return false
+	}
+
 	for _, t := range contexts {
 		if p.contains(t) {
 			return true

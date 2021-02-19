@@ -26,26 +26,30 @@ func NewURLProperty(u *url.URL) *URLProperty {
 }
 
 // String returns the string representation of the URL.
-func (t *URLProperty) String() string {
-	if t.u == nil {
+func (p *URLProperty) String() string {
+	if p == nil || p.u == nil {
 		return ""
 	}
 
-	return t.u.String()
+	return p.u.String()
 }
 
 // URL returns the contained URL.
-func (t *URLProperty) URL() *url.URL {
-	return t.u
+func (p *URLProperty) URL() *url.URL {
+	if p == nil {
+		return nil
+	}
+
+	return p.u
 }
 
 // MarshalJSON marshals the URL property.
-func (t *URLProperty) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.u.String())
+func (p *URLProperty) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.u.String())
 }
 
 // UnmarshalJSON unmarshals the URL property.
-func (t *URLProperty) UnmarshalJSON(bytes []byte) error {
+func (p *URLProperty) UnmarshalJSON(bytes []byte) error {
 	var iri string
 
 	err := json.Unmarshal(bytes, &iri)
@@ -58,7 +62,7 @@ func (t *URLProperty) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 
-	t.u = u
+	p.u = u
 
 	return nil
 }
@@ -84,10 +88,14 @@ func NewURLCollectionProperty(urls ...*url.URL) *URLCollectionProperty {
 }
 
 // URLs returns the URLs.
-func (t *URLCollectionProperty) URLs() []*url.URL {
-	urls := make([]*url.URL, len(t.urls))
+func (p *URLCollectionProperty) URLs() []*url.URL {
+	if p == nil || len(p.urls) == 0 {
+		return nil
+	}
 
-	for i, p := range t.urls {
+	urls := make([]*url.URL, len(p.urls))
+
+	for i, p := range p.urls {
 		urls[i] = p.URL()
 	}
 
@@ -95,21 +103,21 @@ func (t *URLCollectionProperty) URLs() []*url.URL {
 }
 
 // MarshalJSON marshals the URL collection.
-func (t *URLCollectionProperty) MarshalJSON() ([]byte, error) {
-	if len(t.urls) == 1 {
-		return json.Marshal(t.urls[0])
+func (p *URLCollectionProperty) MarshalJSON() ([]byte, error) {
+	if len(p.urls) == 1 {
+		return json.Marshal(p.urls[0])
 	}
 
-	return json.Marshal(t.urls)
+	return json.Marshal(p.urls)
 }
 
 // UnmarshalJSON unmarshals the URL collection.
-func (t *URLCollectionProperty) UnmarshalJSON(bytes []byte) error {
+func (p *URLCollectionProperty) UnmarshalJSON(bytes []byte) error {
 	iri := &URLProperty{}
 
 	err := json.Unmarshal(bytes, &iri)
 	if err == nil {
-		t.urls = []*URLProperty{iri}
+		p.urls = []*URLProperty{iri}
 
 		return err
 	}
@@ -121,7 +129,7 @@ func (t *URLCollectionProperty) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 
-	t.urls = iris
+	p.urls = iris
 
 	return nil
 }

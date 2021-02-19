@@ -375,6 +375,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			item := items[0]
 
+			require.True(t, item.Type().Is(TypeAnchorCredentialRef))
 			ref := item.AnchorCredentialReference()
 			require.NotNil(t, ref)
 			require.Equal(t, refID1, ref.ID())

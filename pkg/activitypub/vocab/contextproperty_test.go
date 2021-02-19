@@ -19,7 +19,13 @@ func TestContextProperty(t *testing.T) {
 		jsonMultiContext = `["https://www.w3.org/2018/credentials/v1","https://w3id.org/security/v1"]`
 	)
 
-	require.Nil(t, NewContextProperty())
+	t.Run("Nil context", func(t *testing.T) {
+		p := NewContextProperty()
+		require.Nil(t, p)
+		require.Empty(t, p.Contexts())
+		require.False(t, p.Contains(ContextOrb))
+		require.False(t, p.ContainsAny(ContextOrb))
+	})
 
 	t.Run("Single context", func(t *testing.T) {
 		p := NewContextProperty(ContextCredentials)
