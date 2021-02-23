@@ -7,7 +7,7 @@ module github.com/trustbloc/orb
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210127113808-f60b9683e266
+	github.com/hyperledger/aries-framework-go v0.1.6-0.20210223185118-1d6fb5f95ad4
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
