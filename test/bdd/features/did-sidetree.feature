@@ -46,7 +46,7 @@ Feature:
     Then we wait 1 seconds
 
     When client sends request to resolve DID document
-    Then check error response contains "deactivated"
+    Then check success response contains "deactivated"
 
   @create_recover_did_doc
   Scenario: recover did doc

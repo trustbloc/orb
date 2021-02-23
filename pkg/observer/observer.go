@@ -121,6 +121,7 @@ func (o *Observer) process(txns []string) {
 		}
 
 		sidetreeTxn := txnapi.SidetreeTxn{
+			TransactionTime:     uint64(txnNode.Issued.Unix()),
 			AnchorString:        txnPayload.AnchorString,
 			Namespace:           txnPayload.Namespace,
 			ProtocolGenesisTime: txnPayload.Version,

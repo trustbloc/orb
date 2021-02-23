@@ -16,6 +16,7 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
+      - ALLOWED_ORIGINS=origin.com,source.com
       - CAS_URL=ipfs:5001
       - ANCHOR_CREDENTIAL_ISSUER=http://peer1.com
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018

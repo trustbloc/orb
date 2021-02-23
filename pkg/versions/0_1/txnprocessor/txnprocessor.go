@@ -97,7 +97,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 
 		// TODO: Should we check that anchored operation reference matches anchored graph
 
-		op.TransactionTime = uint64(len(opsSoFar))
+		op.TransactionTime = sidetreeTxn.TransactionTime
 
 		// The genesis time of the protocol that was used for this operation
 		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime

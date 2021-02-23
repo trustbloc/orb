@@ -44,8 +44,8 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
-	"github.com/trustbloc/orb/pkg/txnprocessor"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	"github.com/trustbloc/orb/pkg/versions/0_1/txnprocessor"
 )
 
 const (
@@ -87,7 +87,6 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 	<-interrupt
 
 	return nil
-
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -237,7 +236,8 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		WithMethodContext(parameters.methodContext).
 		WithBase(parameters.baseEnabled).
 		WithCasClient(casClient).
-		WithTxnGraph(graph)
+		WithTxnGraph(graph).
+		WithAllowedOrigins(parameters.allowedOrigins)
 }
 
 type kmsProvider struct {

@@ -22,8 +22,10 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/operationparser"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/txnprovider"
 
-	"github.com/trustbloc/orb/pkg/txnprocessor"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/0_1/operationparser"
+	"github.com/trustbloc/orb/pkg/versions/0_1/operationparser/validators/anchororigin"
+	"github.com/trustbloc/orb/pkg/versions/0_1/operationparser/validators/anchortime"
+	"github.com/trustbloc/orb/pkg/versions/0_1/txnprocessor"
 )
 
 // DefaultNS is default namespace used in mocks.
@@ -69,14 +71,15 @@ func NewMockProtocolClientProvider() *MockProtocolClientProvider {
 
 // MockProtocolClientProvider implements mock protocol client provider.
 type MockProtocolClientProvider struct {
-	mutex         sync.Mutex
-	clients       map[string]protocol.Client
-	opStoreClient processor.OperationStoreClient
-	opStore       txnprocessor.OperationStore
-	casClient     cas.Client
-	txnGraph      txnprocessor.TxnGraph
-	methodCtx     []string
-	baseEnabled   bool
+	mutex          sync.Mutex
+	clients        map[string]protocol.Client
+	opStoreClient  processor.OperationStoreClient
+	opStore        txnprocessor.OperationStore
+	casClient      cas.Client
+	txnGraph       txnprocessor.TxnGraph
+	methodCtx      []string
+	baseEnabled    bool
+	allowedOrigins []string
 }
 
 // WithOpStoreClient sets the operation store client.
@@ -121,6 +124,13 @@ func (m *MockProtocolClientProvider) WithBase(enabled bool) *MockProtocolClientP
 	return m
 }
 
+// WithAllowedOrigins allows for specifying allowed origins.
+func (m *MockProtocolClientProvider) WithAllowedOrigins(origins []string) *MockProtocolClientProvider {
+	m.allowedOrigins = origins
+
+	return m
+}
+
 // ForNamespace will return protocol client for that namespace.
 func (m *MockProtocolClientProvider) ForNamespace(namespace string) (protocol.Client, error) {
 	m.mutex.Lock()
@@ -155,8 +165,12 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 		KeyAlgorithms:               []string{"Ed25519", "P-256", "secp256k1"},
 	}
 
-	parser := operationparser.New(latest)
+	parser := operationparser.New(latest,
+		operationparser.WithAnchorTimeValidator(anchortime.New(latest.MaxOperationTimeDelta)),
+		operationparser.WithAnchorOriginValidator(anchororigin.New(m.allowedOrigins)))
+
 	orbParser := orboperationparser.New(parser)
+
 	cp := compression.New(compression.WithDefaultAlgorithms())
 	op := txnprovider.NewOperationProvider(latest, parser, m.casClient, cp)
 	th := txnprovider.NewOperationHandler(latest, m.casClient, cp, parser)

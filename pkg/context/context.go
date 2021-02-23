@@ -14,19 +14,19 @@ import (
 )
 
 // New returns a new server context.
-func New(pc protocol.Client, bc batch.BlockchainClient) *ServerContext {
+func New(pc protocol.Client, aw batch.AnchorWriter) *ServerContext {
 	return &ServerContext{
-		ProtocolClient:   pc,
-		BlockchainClient: bc,
-		OpQueue:          &opqueue.MemQueue{},
+		ProtocolClient: pc,
+		AnchorWriter:   aw,
+		OpQueue:        &opqueue.MemQueue{},
 	}
 }
 
 // ServerContext implements batch context.
 type ServerContext struct {
-	ProtocolClient   protocol.Client
-	BlockchainClient batch.BlockchainClient
-	OpQueue          *opqueue.MemQueue
+	ProtocolClient protocol.Client
+	AnchorWriter   batch.AnchorWriter
+	OpQueue        *opqueue.MemQueue
 }
 
 // Protocol returns the ProtocolClient.
@@ -34,9 +34,9 @@ func (m *ServerContext) Protocol() protocol.Client {
 	return m.ProtocolClient
 }
 
-// Blockchain returns the blockchain client.
-func (m *ServerContext) Blockchain() batch.BlockchainClient {
-	return m.BlockchainClient
+// Anchor returns the anchor writer.
+func (m *ServerContext) Anchor() batch.AnchorWriter {
+	return m.AnchorWriter
 }
 
 // OperationQueue returns the queue containing the pending operations.
