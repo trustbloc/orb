@@ -46,7 +46,11 @@ const (
 	testDocumentResolveURL = "https://localhost:48326/sidetree/0.0.1/identifiers"
 	testDocumentUpdateURL  = "https://localhost:48326/sidetree/0.0.1/operations"
 
+	origin = "origin.com"
+
 	sha2_256 = 18
+
+	anchorTimeDelta = 10
 )
 
 const addPublicKeysTemplate = `[
@@ -427,6 +431,7 @@ func (d *DIDOrbSteps) getCreateRequest(doc []byte, patches []patch.Patch) ([]byt
 		RecoveryCommitment: recoveryCommitment,
 		UpdateCommitment:   updateCommitment,
 		MultihashCode:      sha2_256,
+		AnchorOrigin:       origin,
 	})
 }
 
@@ -452,6 +457,8 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		return nil, err
 	}
 
+	now := time.Now().Unix()
+
 	recoverRequest, err := client.NewRecoverRequest(&client.RecoverRequestInfo{
 		DidSuffix:          uniqueSuffix,
 		RevealValue:        revealValue,
@@ -462,6 +469,9 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		UpdateCommitment:   updateCommitment,
 		MultihashCode:      sha2_256,
 		Signer:             ecsigner.New(d.recoveryKey, "ES256", ""), // sign with old signer
+		AnchorFrom:         now,
+		AnchorUntil:        now + anchorTimeDelta,
+		AnchorOrigin:       origin,
 	})
 
 	if err != nil {
@@ -510,6 +520,7 @@ func (d *DIDOrbSteps) getDeactivateRequest(did string) ([]byte, error) {
 		RevealValue: revealValue,
 		RecoveryKey: recoveryPubKey,
 		Signer:      ecsigner.New(d.recoveryKey, "ES256", ""),
+		AnchorFrom:  time.Now().Unix(),
 	})
 }
 
@@ -530,6 +541,8 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 		return nil, err
 	}
 
+	now := time.Now().Unix()
+
 	req, err := client.NewUpdateRequest(&client.UpdateRequestInfo{
 		DidSuffix:        did,
 		RevealValue:      revealValue,
@@ -538,6 +551,8 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 		Patches:          patches,
 		MultihashCode:    sha2_256,
 		Signer:           ecsigner.New(d.updateKey, "ES256", ""),
+		AnchorFrom:       now,
+		AnchorUntil:      now + anchorTimeDelta,
 	})
 
 	if err != nil {

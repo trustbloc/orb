@@ -107,6 +107,11 @@ const (
 	anchorCredentialDomainFlagUsage     = "Anchor credential domain (required). " +
 		commonEnvVarUsageText + anchorCredentialDomainEnvKey
 
+	allowedOriginsFlagName      = "allowed-origins"
+	allowedOriginsEnvKey        = "ALLOWED_ORIGINS"
+	allowedOriginsFlagShorthand = "o"
+	allowedOriginsFlagUsage     = "Allowed origins for this did method. " + commonEnvVarUsageText + allowedOriginsEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -121,6 +126,7 @@ type orbParameters struct {
 	logLevel               string
 	methodContext          []string
 	baseEnabled            bool
+	allowedOrigins         []string
 	tlsCertificate         string
 	tlsKey                 string
 	anchorCredentialParams *anchorCredentialParams
@@ -173,7 +179,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	dbParams, err := getDBParameters(cmd)
 	if err != nil {
 		return nil, err
@@ -194,12 +199,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	allowedOrigins, err := cmdutils.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
 	return &orbParameters{
 		hostURL:                hostURL,
 		tlsKey:                 tlsKey,
 		tlsCertificate:         tlsCertificate,
 		didNamespace:           didNamespace,
 		didAliases:             didAliases,
+		allowedOrigins:         allowedOrigins,
 		casURL:                 casURL,
 		anchorCredentialParams: anchorCredentialParams,
 		dbParameters:           dbParams,
@@ -288,6 +299,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringP(didAliasesFlagName, didAliasesFlagShorthand, "", didAliasesFlagUsage)
+	startCmd.Flags().StringP(allowedOriginsFlagName, allowedOriginsFlagShorthand, "", allowedOriginsFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteFlagShorthand, "", anchorCredentialSignatureSuiteFlagUsage)
