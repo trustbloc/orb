@@ -8,7 +8,6 @@ set -e
 
 echo "Running $0"
 
-go generate ./...
 pwd=`pwd`
 touch "$pwd"/coverage.out
 
