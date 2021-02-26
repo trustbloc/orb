@@ -6,7 +6,9 @@ module github.com/trustbloc/orb
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.4
+	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.6-0.20210223185118-1d6fb5f95ad4
 	github.com/ipfs/go-ipfs-api v0.2.0
