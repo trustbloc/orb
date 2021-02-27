@@ -16,20 +16,49 @@ import (
 
 var logger = log.New("activitypub_service")
 
-// Lifecycle implements the lifecycle of a service, i.e. Start and Stop.
-type Lifecycle struct {
-	name  string
-	state uint32
+type options struct {
 	start func()
 	stop  func()
 }
 
+// Lifecycle implements the lifecycle of a service, i.e. Start and Stop.
+type Lifecycle struct {
+	*options
+	name  string
+	state uint32
+}
+
+// Opt sets a Lifecycle option.
+type Opt func(opts *options)
+
+// WithStart sets the start function which is invoked when Start() is called.
+func WithStart(start func()) Opt {
+	return func(opts *options) {
+		opts.start = start
+	}
+}
+
+// WithStop sets the stop function which is invoked when Stop() is called.
+func WithStop(stop func()) Opt {
+	return func(opts *options) {
+		opts.stop = stop
+	}
+}
+
 // New returns a new Lifecycle.
-func New(name string, start, stop func()) *Lifecycle {
+func New(name string, opts ...Opt) *Lifecycle {
+	options := &options{
+		start: func() {},
+		stop:  func() {},
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	return &Lifecycle{
-		name:  name,
-		start: start,
-		stop:  stop,
+		options: options,
+		name:    name,
 	}
 }
 

@@ -62,7 +62,10 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		jsonUnmarshal:   json.Unmarshal,
 	}
 
-	h.Lifecycle = lifecycle.New(cfg.ServiceName, h.start, h.stop)
+	h.Lifecycle = lifecycle.New(cfg.ServiceName,
+		lifecycle.WithStart(h.start),
+		lifecycle.WithStop(h.stop),
+	)
 
 	msgChan, err := pubSub.Subscribe(context.Background(), cfg.Topic)
 	if err != nil {

@@ -20,12 +20,12 @@ func TestLifecycle(t *testing.T) {
 
 	lc := New(
 		"service1",
-		func() {
+		WithStart(func() {
 			started = true
-		},
-		func() {
+		}),
+		WithStop(func() {
 			stopped = true
-		},
+		}),
 	)
 	require.NotNil(t, lc)
 
