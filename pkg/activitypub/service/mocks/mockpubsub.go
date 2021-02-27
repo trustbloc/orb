@@ -8,20 +8,33 @@ package mocks
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/pkg/errors"
+
+	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+)
+
+const (
+	maxBufferSize = 5
+	timeout       = 100 * time.Millisecond
 )
 
 // MockPubSub implements a mock publisher-subscriber.
 type MockPubSub struct {
 	Err     error
-	MsgChan chan *message.Message
+	MsgChan map[string]chan *message.Message
+	mutex   sync.RWMutex
+	Timeout time.Duration
 }
 
 // NewPubSub returns a mock publisher-subscriber.
 func NewPubSub() *MockPubSub {
 	return &MockPubSub{
-		MsgChan: make(chan *message.Message),
+		MsgChan: make(map[string]chan *message.Message, 10),
+		Timeout: timeout,
 	}
 }
 
@@ -33,12 +46,19 @@ func (m *MockPubSub) WithError(err error) *MockPubSub {
 }
 
 // Subscribe subscribes to the given topic.
-func (m *MockPubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Message, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
 
-	return m.MsgChan, nil
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	msgChan := make(chan *message.Message, maxBufferSize)
+
+	m.MsgChan[topic] = msgChan
+
+	return msgChan, nil
 }
 
 // Publish publishes the messages to the subscribers.
@@ -47,8 +67,18 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 		return m.Err
 	}
 
+	m.mutex.RLock()
+	msgChan := m.MsgChan[topic]
+	m.mutex.RUnlock()
+
+	if msgChan == nil {
+		return errors.New("service is closed")
+	}
+
 	for _, msg := range messages {
-		m.MsgChan <- msg
+		msgChan <- msg
+
+		go m.check(msg)
 	}
 
 	return nil
@@ -60,7 +90,33 @@ func (m *MockPubSub) Close() error {
 		return m.Err
 	}
 
-	close(m.MsgChan)
+	m.mutex.Lock()
+
+	for _, m := range m.MsgChan {
+		close(m)
+	}
+
+	m.MsgChan = nil
+
+	m.mutex.Unlock()
 
 	return nil
+}
+
+func (m *MockPubSub) check(msg *message.Message) {
+	select {
+	case <-msg.Acked():
+	case <-msg.Nacked():
+		m.postToUndeliverable(msg)
+	case <-time.After(m.Timeout):
+		m.postToUndeliverable(msg)
+	}
+}
+
+func (m *MockPubSub) postToUndeliverable(msg *message.Message) {
+	m.mutex.RLock()
+	msgChan := m.MsgChan[service.UndeliverableTopic]
+	m.mutex.RUnlock()
+
+	msgChan <- msg
 }
