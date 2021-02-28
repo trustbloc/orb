@@ -32,15 +32,13 @@ import (
 //go:generate counterfeiter -o ../mocks/activityhandler.gen.go --fake-name ActivityHandler ../spi ActivityHandler
 //go:generate counterfeiter -o ../mocks/activitystore.gen.go --fake-name ActivityStore ../../store/spi Store
 
-const service1URL = "http://localhost:8001/services/service1"
-
-var cfg = &Config{
-	ServiceName:   "/services/service1",
-	ListenAddress: ":8001",
-	Topic:         "activities",
-}
-
 func TestInbox_StartStop(t *testing.T) {
+	cfg := &Config{
+		ServiceName:   "/services/service1",
+		ListenAddress: ":8201",
+		Topic:         "activities",
+	}
+
 	ib, err := New(cfg, memstore.New(cfg.ServiceName), mocks.NewPubSub(), &mocks.ActivityHandler{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
@@ -59,6 +57,14 @@ func TestInbox_StartStop(t *testing.T) {
 }
 
 func TestInbox_Handle(t *testing.T) {
+	const service1URL = "http://localhost:8202/services/service1"
+
+	cfg := &Config{
+		ServiceName:   "/services/service1",
+		ListenAddress: ":8202",
+		Topic:         "activities",
+	}
+
 	objIRI, err := url.Parse("http://example.com//services/service1/object1")
 	if err != nil {
 		panic(err)
@@ -74,7 +80,7 @@ func TestInbox_Handle(t *testing.T) {
 
 	ib.Start()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	client := http.Client{}
 
@@ -91,7 +97,7 @@ func TestInbox_Handle(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(activity)
+		req, err := newHTTPRequest(service1URL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -120,6 +126,12 @@ func TestInbox_Error(t *testing.T) {
 	client := http.Client{}
 
 	t.Run("HTTP subscriber error", func(t *testing.T) {
+		cfg := &Config{
+			ServiceName:   "/services/service1",
+			ListenAddress: ":8203",
+			Topic:         "activities",
+		}
+
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
 
@@ -144,6 +156,14 @@ func TestInbox_Error(t *testing.T) {
 	})
 
 	t.Run("Handler error", func(t *testing.T) {
+		const service1URL = "http://localhost:8204/services/service1"
+
+		cfg := &Config{
+			ServiceName:   "/services/service1",
+			ListenAddress: ":8204",
+			Topic:         "activities",
+		}
+
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
 		if err != nil {
 			panic(err)
@@ -173,7 +193,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(activity)
+		req, err := newHTTPRequest(service1URL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -184,6 +204,14 @@ func TestInbox_Error(t *testing.T) {
 	})
 
 	t.Run("Store error", func(t *testing.T) {
+		const service1URL = "http://localhost:8205/services/service1"
+
+		cfg := &Config{
+			ServiceName:   "/services/service1",
+			ListenAddress: ":8205",
+			Topic:         "activities",
+		}
+
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
 		if err != nil {
 			panic(err)
@@ -213,7 +241,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(activity)
+		req, err := newHTTPRequest(service1URL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -224,6 +252,14 @@ func TestInbox_Error(t *testing.T) {
 	})
 
 	t.Run("Unmarshal error", func(t *testing.T) {
+		const service1URL = "http://localhost:8206/services/service1"
+
+		cfg := &Config{
+			ServiceName:   "/services/service1",
+			ListenAddress: ":8206",
+			Topic:         "activities",
+		}
+
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
 		if err != nil {
 			panic(err)
@@ -259,7 +295,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(activity)
+		req, err := newHTTPRequest(service1URL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -270,6 +306,12 @@ func TestInbox_Error(t *testing.T) {
 	})
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {
+		cfg := &Config{
+			ServiceName:   "/services/service1",
+			ListenAddress: ":8207",
+			Topic:         "activities",
+		}
+
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
 
@@ -282,7 +324,7 @@ func TestInbox_Error(t *testing.T) {
 	})
 }
 
-func newHTTPRequest(activity *vocab.ActivityType) (*http.Request, error) {
+func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, error) {
 	activityBytes, err := json.Marshal(activity)
 	if err != nil {
 		return nil, err
@@ -290,7 +332,7 @@ func newHTTPRequest(activity *vocab.ActivityType) (*http.Request, error) {
 
 	msg := message.NewMessage(watermill.NewUUID(), activityBytes)
 
-	req, err := http.NewRequest(http.MethodPost, service1URL, bytes.NewBuffer(msg.Payload))
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(msg.Payload))
 	if err != nil {
 		return nil, err
 	}
