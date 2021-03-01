@@ -22,14 +22,12 @@ type UndeliverableActivity struct {
 // UndeliverableHandler implements a mock undeliverable activity handler.
 type UndeliverableHandler struct {
 	mutex      sync.Mutex
-	activities map[string]*UndeliverableActivity
+	activities []*UndeliverableActivity
 }
 
 // NewUndeliverableHandler returns a mock undeliverable activity handler.
 func NewUndeliverableHandler() *UndeliverableHandler {
-	return &UndeliverableHandler{
-		activities: make(map[string]*UndeliverableActivity),
-	}
+	return &UndeliverableHandler{}
 }
 
 // HandleUndeliverableActivity adds the given undeliverable activity to a map that may be later queried by unit tests.
@@ -37,16 +35,16 @@ func (h *UndeliverableHandler) HandleUndeliverableActivity(activity *vocab.Activ
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	h.activities[activity.ID()] = &UndeliverableActivity{
+	h.activities = append(h.activities, &UndeliverableActivity{
 		Activity: activity,
 		ToURL:    toURL,
-	}
+	})
 }
 
-// Activity returns an undeliverable activity.
-func (h *UndeliverableHandler) Activity(id string) *UndeliverableActivity {
+// Activities returns the undeliverable activities.
+func (h *UndeliverableHandler) Activities() []*UndeliverableActivity {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	return h.activities[id]
+	return h.activities
 }
