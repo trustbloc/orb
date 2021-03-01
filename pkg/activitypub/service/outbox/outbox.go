@@ -45,7 +45,6 @@ type pubSub interface {
 type Config struct {
 	ServiceName      string
 	Topic            string
-	PublishTimeout   time.Duration
 	TLSClientConfig  *tls.Config
 	RedeliveryConfig *redelivery.Config
 }
@@ -68,9 +67,13 @@ type Outbox struct {
 }
 
 // New returns a new ActivityPub Outbox.
-func New(
-	cfg *Config, s store.Store, pubSub pubSub,
-	undeliverableHandler service.UndeliverableActivityHandler) (*Outbox, error) {
+func New(cfg *Config, s store.Store, pubSub pubSub, handlerOpts ...service.HandlerOpt) (*Outbox, error) {
+	options := defaultOptions()
+
+	for _, opt := range handlerOpts {
+		opt(options)
+	}
+
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), service.UndeliverableTopic)
 	if err != nil {
 		return nil, err
@@ -80,7 +83,7 @@ func New(
 
 	h := &Outbox{
 		Config:               cfg,
-		undeliverableHandler: undeliverableHandler,
+		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
 		redeliveryChan:       redeliverChan,
 		publisher:            pubSub,
@@ -240,5 +243,17 @@ func (h *Outbox) redeliver() {
 		} else {
 			logger.Infof("[%s] Message was delivered: %s", h.ServiceName, msg.UUID)
 		}
+	}
+}
+
+type noOpUndeliverableHandler struct {
+}
+
+func (h *noOpUndeliverableHandler) HandleUndeliverableActivity(*vocab.ActivityType, string) {
+}
+
+func defaultOptions() *service.Handlers {
+	return &service.Handlers{
+		UndeliverableHandler: &noOpUndeliverableHandler{},
 	}
 }

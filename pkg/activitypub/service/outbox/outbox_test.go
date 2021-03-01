@@ -38,41 +38,40 @@ func TestNewOutbox(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName:    "service1",
-			Topic:          "activities",
-			PublishTimeout: 50 * time.Millisecond,
+			ServiceName: "service1",
+			Topic:       "activities",
 		}
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), undeliverableHandler)
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 	})
 
 	t.Run("Tls HTTP client -> Success", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName:    "service1",
-			Topic:          "activities",
-			PublishTimeout: 50 * time.Millisecond,
+			ServiceName: "service1",
+			Topic:       "activities",
 			TLSClientConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12,
 			},
 		}
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), undeliverableHandler)
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 	})
 
 	t.Run("PubSub Subscribe error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName:    "service1",
-			Topic:          "activities",
-			PublishTimeout: 50 * time.Millisecond,
+			ServiceName: "service1",
+			Topic:       "activities",
 		}
 
 		errExpected := errors.New("injected PubSub error")
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), undeliverableHandler)
+		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected),
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.Error(t, err)
 		require.True(t, errors.Is(err, errExpected))
 		require.Nil(t, ob)
@@ -85,12 +84,11 @@ func TestOutbox_StartStop(t *testing.T) {
 	pubSub := mocks.NewPubSub()
 
 	cfg := &Config{
-		ServiceName:    "service1",
-		Topic:          "activities",
-		PublishTimeout: 50 * time.Millisecond,
+		ServiceName: "service1",
+		Topic:       "activities",
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, undeliverableHandler)
+	ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -141,9 +139,8 @@ func TestOutbox_Post(t *testing.T) {
 	pubSub := mocks.NewPubSub()
 
 	cfg := &Config{
-		ServiceName:    "service1",
-		Topic:          "activities",
-		PublishTimeout: 100 * time.Millisecond,
+		ServiceName: "service1",
+		Topic:       "activities",
 		RedeliveryConfig: &redelivery.Config{
 			MaxRetries:     5,
 			InitialBackoff: 100 * time.Millisecond,
@@ -153,7 +150,7 @@ func TestOutbox_Post(t *testing.T) {
 		},
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, undeliverableHandler)
+	ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -196,9 +193,8 @@ func TestOutbox_PostError(t *testing.T) {
 	activityStore := memstore.New("service1")
 
 	cfg := &Config{
-		ServiceName:    "service1",
-		Topic:          "activities",
-		PublishTimeout: 100 * time.Millisecond,
+		ServiceName: "service1",
+		Topic:       "activities",
 		RedeliveryConfig: &redelivery.Config{
 			MaxRetries:     1,
 			InitialBackoff: 10 * time.Millisecond,
@@ -215,7 +211,8 @@ func TestOutbox_PostError(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Not started", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), mocks.NewUndeliverableHandler())
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -230,7 +227,8 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.AddActivityReturns(errExpected)
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), mocks.NewUndeliverableHandler())
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -246,7 +244,8 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), mocks.NewUndeliverableHandler())
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -268,7 +267,7 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery max retries reached", func(t *testing.T) {
 		undeliverableHandler := mocks.NewUndeliverableHandler()
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), undeliverableHandler)
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -289,8 +288,9 @@ func TestOutbox_PostError(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		undeliverableActivity := undeliverableHandler.Activity(activity.ID())
-		require.NotNil(t, undeliverableActivity)
+		undeliverableActivities := undeliverableHandler.Activities()
+		require.Len(t, undeliverableActivities, 1)
+		require.Equal(t, activity.ID(), undeliverableActivities[0].Activity.ID())
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -298,10 +298,9 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 
 	t.Run("Redelivery unmarshal error", func(t *testing.T) {
-		undeliverableHandler := mocks.NewUndeliverableHandler()
 		pubSub := mocks.NewPubSub()
 
-		ob, err := New(cfg, activityStore, pubSub, undeliverableHandler)
+		ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 

@@ -43,13 +43,45 @@ type ServiceLifecycle interface {
 	State() State
 }
 
+// Outbox defines the functions for an ActivityPub outbox.
+type Outbox interface {
+	ServiceLifecycle
+
+	Post(activity *vocab.ActivityType) error
+}
+
+// Inbox defines the functions for an ActivityPub inbox.
+type Inbox interface {
+	ServiceLifecycle
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
+	ServiceLifecycle
+
 	// HandleActivity handles the ActivityPub activity.
 	HandleActivity(activity *vocab.ActivityType) error
+
+	// Subscribe allows a client to receive published activities.
+	Subscribe() <-chan *vocab.ActivityType
 }
 
 // UndeliverableActivityHandler handles undeliverable activities.
 type UndeliverableActivityHandler interface {
 	HandleUndeliverableActivity(activity *vocab.ActivityType, toURL string)
+}
+
+// Handlers contains handlers for various activity events, including undeliverable activities.
+type Handlers struct {
+	UndeliverableHandler UndeliverableActivityHandler
+}
+
+// HandlerOpt sets a specific handler.
+type HandlerOpt func(options *Handlers)
+
+// WithUndeliverableHandler sets the handler that's called when an activity can't be delivered.
+func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.UndeliverableHandler = handler
+	}
 }

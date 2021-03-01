@@ -9,6 +9,21 @@ import (
 )
 
 type ActivityHandler struct {
+	StartStub        func()
+	startMutex       sync.RWMutex
+	startArgsForCall []struct{}
+	StopStub         func()
+	stopMutex        sync.RWMutex
+	stopArgsForCall  []struct{}
+	StateStub        func() spi.State
+	stateMutex       sync.RWMutex
+	stateArgsForCall []struct{}
+	stateReturns     struct {
+		result1 spi.State
+	}
+	stateReturnsOnCall map[int]struct {
+		result1 spi.State
+	}
 	HandleActivityStub        func(activity *vocab.ActivityType) error
 	handleActivityMutex       sync.RWMutex
 	handleActivityArgsForCall []struct {
@@ -20,9 +35,6 @@ type ActivityHandler struct {
 	handleActivityReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CloseStub            func()
-	closeMutex           sync.RWMutex
-	closeArgsForCall     []struct{}
 	SubscribeStub        func() <-chan *vocab.ActivityType
 	subscribeMutex       sync.RWMutex
 	subscribeArgsForCall []struct{}
@@ -34,6 +46,78 @@ type ActivityHandler struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *ActivityHandler) Start() {
+	fake.startMutex.Lock()
+	fake.startArgsForCall = append(fake.startArgsForCall, struct{}{})
+	fake.recordInvocation("Start", []interface{}{})
+	fake.startMutex.Unlock()
+	if fake.StartStub != nil {
+		fake.StartStub()
+	}
+}
+
+func (fake *ActivityHandler) StartCallCount() int {
+	fake.startMutex.RLock()
+	defer fake.startMutex.RUnlock()
+	return len(fake.startArgsForCall)
+}
+
+func (fake *ActivityHandler) Stop() {
+	fake.stopMutex.Lock()
+	fake.stopArgsForCall = append(fake.stopArgsForCall, struct{}{})
+	fake.recordInvocation("Stop", []interface{}{})
+	fake.stopMutex.Unlock()
+	if fake.StopStub != nil {
+		fake.StopStub()
+	}
+}
+
+func (fake *ActivityHandler) StopCallCount() int {
+	fake.stopMutex.RLock()
+	defer fake.stopMutex.RUnlock()
+	return len(fake.stopArgsForCall)
+}
+
+func (fake *ActivityHandler) State() spi.State {
+	fake.stateMutex.Lock()
+	ret, specificReturn := fake.stateReturnsOnCall[len(fake.stateArgsForCall)]
+	fake.stateArgsForCall = append(fake.stateArgsForCall, struct{}{})
+	fake.recordInvocation("State", []interface{}{})
+	fake.stateMutex.Unlock()
+	if fake.StateStub != nil {
+		return fake.StateStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.stateReturns.result1
+}
+
+func (fake *ActivityHandler) StateCallCount() int {
+	fake.stateMutex.RLock()
+	defer fake.stateMutex.RUnlock()
+	return len(fake.stateArgsForCall)
+}
+
+func (fake *ActivityHandler) StateReturns(result1 spi.State) {
+	fake.StateStub = nil
+	fake.stateReturns = struct {
+		result1 spi.State
+	}{result1}
+}
+
+func (fake *ActivityHandler) StateReturnsOnCall(i int, result1 spi.State) {
+	fake.StateStub = nil
+	if fake.stateReturnsOnCall == nil {
+		fake.stateReturnsOnCall = make(map[int]struct {
+			result1 spi.State
+		})
+	}
+	fake.stateReturnsOnCall[i] = struct {
+		result1 spi.State
+	}{result1}
 }
 
 func (fake *ActivityHandler) HandleActivity(activity *vocab.ActivityType) error {
@@ -84,22 +168,6 @@ func (fake *ActivityHandler) HandleActivityReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityHandler) Close() {
-	fake.closeMutex.Lock()
-	fake.closeArgsForCall = append(fake.closeArgsForCall, struct{}{})
-	fake.recordInvocation("Close", []interface{}{})
-	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		fake.CloseStub()
-	}
-}
-
-func (fake *ActivityHandler) CloseCallCount() int {
-	fake.closeMutex.RLock()
-	defer fake.closeMutex.RUnlock()
-	return len(fake.closeArgsForCall)
-}
-
 func (fake *ActivityHandler) Subscribe() <-chan *vocab.ActivityType {
 	fake.subscribeMutex.Lock()
 	ret, specificReturn := fake.subscribeReturnsOnCall[len(fake.subscribeArgsForCall)]
@@ -143,10 +211,14 @@ func (fake *ActivityHandler) SubscribeReturnsOnCall(i int, result1 <-chan *vocab
 func (fake *ActivityHandler) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.startMutex.RLock()
+	defer fake.startMutex.RUnlock()
+	fake.stopMutex.RLock()
+	defer fake.stopMutex.RUnlock()
+	fake.stateMutex.RLock()
+	defer fake.stateMutex.RUnlock()
 	fake.handleActivityMutex.RLock()
 	defer fake.handleActivityMutex.RUnlock()
-	fake.closeMutex.RLock()
-	defer fake.closeMutex.RUnlock()
 	fake.subscribeMutex.RLock()
 	defer fake.subscribeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
