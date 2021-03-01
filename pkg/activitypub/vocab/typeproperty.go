@@ -8,6 +8,7 @@ package vocab
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // TypeProperty defines a 'type' property on an abject which
@@ -55,6 +56,19 @@ func (p *TypeProperty) UnmarshalJSON(bytes []byte) error {
 	p.types = types
 
 	return nil
+}
+
+// String returns the string representation of the type property.
+func (p *TypeProperty) String() string {
+	if p == nil || len(p.types) == 0 {
+		return ""
+	}
+
+	if len(p.types) == 1 {
+		return string(p.types[0])
+	}
+
+	return fmt.Sprintf("%s", p.types)
 }
 
 // Types returns all types.

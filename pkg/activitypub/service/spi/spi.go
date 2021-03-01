@@ -55,6 +55,11 @@ type Inbox interface {
 	ServiceLifecycle
 }
 
+// AnchorCredentialHandler handles a new, published anchor credential.
+type AnchorCredentialHandler interface {
+	HandlerAnchorCredential(cid string, anchorCred []byte) error
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -73,7 +78,8 @@ type UndeliverableActivityHandler interface {
 
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
-	UndeliverableHandler UndeliverableActivityHandler
+	UndeliverableHandler    UndeliverableActivityHandler
+	AnchorCredentialHandler AnchorCredentialHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -83,5 +89,12 @@ type HandlerOpt func(options *Handlers)
 func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.UndeliverableHandler = handler
+	}
+}
+
+// WithAnchorCredentialHandler sets the handler for published anchor credentials.
+func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.AnchorCredentialHandler = handler
 	}
 }

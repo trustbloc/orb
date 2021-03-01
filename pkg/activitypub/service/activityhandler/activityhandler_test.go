@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -27,7 +28,7 @@ func TestNew(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := New(cfg, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+	h := New(cfg)
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -41,12 +42,38 @@ func TestNew(t *testing.T) {
 	require.Equal(t, spi.StateStopped, h.State())
 }
 
-func TestHandler_HandleCreateActivity(t *testing.T) {
+func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
 	}
 
-	h := New(cfg, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+	h := New(cfg)
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	t.Run("Unsupported activity", func(t *testing.T) {
+		activity := &vocab.ActivityType{
+			ObjectType: vocab.NewObject(vocab.WithType(vocab.Type("unsupported_type"))),
+		}
+		err := h.HandleActivity(activity)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported activity type")
+	})
+}
+
+func TestHandler_HandleCreateActivity(t *testing.T) {
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service1",
+	}
+
+	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+
+	h := New(cfg, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -56,19 +83,19 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	var (
 		mutex       sync.Mutex
-		gotActivity *vocab.ActivityType
+		gotActivity = make(map[string]*vocab.ActivityType)
 	)
 
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity = activity
+			gotActivity[activity.ID()] = activity
 			mutex.Unlock()
 		}
 	}()
 
-	t.Run("Success", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+	t.Run("Anchor credential", func(t *testing.T) {
+		const cid = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
 
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
@@ -82,32 +109,95 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			panic(err)
 		}
 
-		service1IRI := mustParseURL("http://localhost:8301/services/service1")
-		service2IRI := mustParseURL("http://localhost:8302/services/service2")
+		published := time.Now()
 
 		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithActor(service1IRI),
 			vocab.WithTarget(targetProperty),
 			vocab.WithContext(vocab.ContextOrb),
 			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, h.HandleActivity(create))
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(create))
 
-		time.Sleep(50 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.Equal(t, create, gotActivity)
-		mutex.Unlock()
+			mutex.Lock()
+			require.NotNil(t, gotActivity[create.ID()])
+			mutex.Unlock()
+
+			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+		})
+
+		t.Run("Handler error", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected anchor cred handler error")
+
+			anchorCredHandler.WithError(errExpected)
+			defer func() { anchorCredHandler.WithError(nil) }()
+
+			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
+		})
 	})
 
-	t.Run("Unsupported activity", func(t *testing.T) {
-		activity := &vocab.ActivityType{
-			ObjectType: vocab.NewObject(vocab.WithType(vocab.Type("unsupported_type"))),
-		}
-		err := h.HandleActivity(activity)
+	t.Run("Anchor credential reference", func(t *testing.T) {
+		const (
+			cid   = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			refID = "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		)
+
+		published := time.Now()
+
+		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(
+					vocab.NewAnchorCredentialReference(refID, cid),
+				),
+			),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithContext(vocab.ContextOrb),
+			vocab.WithPublishedTime(&published),
+		)
+
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(create))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.NotNil(t, gotActivity[create.ID()])
+			mutex.Unlock()
+
+			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+		})
+
+		t.Run("Handler error", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected anchor cred handler error")
+
+			anchorCredHandler.WithError(errExpected)
+			defer func() { anchorCredHandler.WithError(nil) }()
+
+			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
+		})
+	})
+
+	t.Run("Unsupported object type", func(t *testing.T) {
+		published := time.Now()
+
+		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
+			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))),
+			vocab.WithActor(service1IRI),
+			vocab.WithContext(vocab.ContextOrb),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		err := h.HandleActivity(create)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "unsupported activity type")
+		require.Contains(t, err.Error(), "unsupported object type in 'Create' activity")
 	})
 }
 

@@ -8,6 +8,7 @@ package vocab
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // ContextProperty holds one or more contexts.
@@ -22,6 +23,19 @@ func NewContextProperty(context ...Context) *ContextProperty {
 	}
 
 	return &ContextProperty{contexts: context}
+}
+
+// String returns the string representation of the context property.
+func (p *ContextProperty) String() string {
+	if p == nil || len(p.contexts) == 0 {
+		return ""
+	}
+
+	if len(p.contexts) == 1 {
+		return string(p.contexts[0])
+	}
+
+	return fmt.Sprintf("%s", p.contexts)
 }
 
 // Contexts returns all of the contexts defined in the property.

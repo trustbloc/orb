@@ -83,16 +83,18 @@ func TestService(t *testing.T) {
 	}
 
 	store2 := memstore.New(cfg2.ServiceName)
+	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
 	service2, err := NewService(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
+		service.WithAnchorCredentialHandler(anchorCredHandler2),
 	)
 	require.NoError(t, err)
 
 	defer service2.Stop()
 
-	subscriber2 := mocks.NewMockSubscriber(cfg2.ServiceName, service2.Subscribe())
+	subscriber2 := mocks.NewSubscriber(cfg2.ServiceName, service2.Subscribe())
 
 	service1.Start()
 
@@ -141,6 +143,7 @@ func TestService(t *testing.T) {
 		require.NotNil(t, activity)
 		require.Equal(t, create.ID(), activity.ID())
 		require.NotEmpty(t, subscriber2.Activities())
+		require.NotEmpty(t, anchorCredHandler2.AnchorCred(cid))
 
 		ua := undeliverableHandler1.Activities()
 		require.Len(t, ua, 1)
