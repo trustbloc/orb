@@ -12,18 +12,18 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-// MockSubscriber implements a mock activity subscriber.
-type MockSubscriber struct {
+// Subscriber implements a mock activity subscriber.
+type Subscriber struct {
 	serviceName  string
 	activityChan <-chan *vocab.ActivityType
 	mutex        sync.Mutex
 	activities   []*vocab.ActivityType
 }
 
-// NewMockSubscriber returns a new mock activity subscriber.
-func NewMockSubscriber(
-	serviceName string, activityChan <-chan *vocab.ActivityType) *MockSubscriber {
-	s := &MockSubscriber{
+// NewSubscriber returns a new mock activity subscriber.
+func NewSubscriber(
+	serviceName string, activityChan <-chan *vocab.ActivityType) *Subscriber {
+	s := &Subscriber{
 		serviceName:  serviceName,
 		activityChan: activityChan,
 	}
@@ -34,20 +34,20 @@ func NewMockSubscriber(
 }
 
 // Activities returns the activities that were received by the subscriber.
-func (m *MockSubscriber) Activities() []*vocab.ActivityType {
+func (m *Subscriber) Activities() []*vocab.ActivityType {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	return m.activities
 }
 
-func (m *MockSubscriber) listen() {
+func (m *Subscriber) listen() {
 	for activity := range m.activityChan {
 		m.add(activity)
 	}
 }
 
-func (m *MockSubscriber) add(activity *vocab.ActivityType) {
+func (m *Subscriber) add(activity *vocab.ActivityType) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

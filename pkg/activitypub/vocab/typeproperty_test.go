@@ -25,6 +25,7 @@ func TestTypeProperty(t *testing.T) {
 		require.False(t, p.Is(TypeCreate))
 		require.False(t, p.IsAny(TypeCreate))
 		require.Empty(t, p.Types())
+		require.Equal(t, "", p.String())
 	})
 
 	t.Run("Single type", func(t *testing.T) {
@@ -43,6 +44,7 @@ func TestTypeProperty(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonType), p2))
 		require.True(t, p2.Is(TypeCreate))
 		require.False(t, p2.IsAny(TypeAnchorCredential))
+		require.Equal(t, "Create", p2.String())
 	})
 
 	t.Run("Multiple types", func(t *testing.T) {
@@ -63,5 +65,6 @@ func TestTypeProperty(t *testing.T) {
 		require.True(t, p2.Is(TypeCreate, TypeAnchorCredential))
 		require.False(t, p2.Is(TypeCreate, TypeFollow))
 		require.True(t, p2.IsAny(TypeAnchorCredential))
+		require.Equal(t, "[Create AnchorCredential]", p2.String())
 	})
 }

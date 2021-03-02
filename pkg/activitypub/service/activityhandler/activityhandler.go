@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -36,7 +37,6 @@ type Handler struct {
 	*lifecycle.Lifecycle
 	*service.Handlers
 
-	name        string
 	mutex       sync.RWMutex
 	subscribers []chan *vocab.ActivityType
 }
@@ -64,7 +64,7 @@ func New(cfg *Config, opts ...service.HandlerOpt) *Handler {
 }
 
 func (h *Handler) stop() {
-	logger.Infof("[%s] Stopping activity handler", h.name)
+	logger.Infof("[%s] Stopping activity handler", h.ServiceName)
 
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -100,13 +100,49 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 }
 
 func (h *Handler) handleCreateActivity(create *vocab.ActivityType) error {
-	logger.Debugf("[%s] Handling 'Create' activity: %s", h.name, create.ID())
+	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
 
-	// TODO: Announce the 'Create'.
+	obj := create.Object()
+
+	t := obj.Type()
+
+	switch {
+	case t.Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
+		if err := h.handleAnchorCredential(create.Target(), obj.Object()); err != nil {
+			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
+		}
+
+		// TODO: Announce anchor credential
+
+	case t.Is(vocab.TypeAnchorCredentialRef):
+		ref := obj.AnchorCredentialReference()
+
+		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
+			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
+		}
+
+		// TODO: Announce anchor credential ref
+
+	default:
+		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", t, create.ID())
+	}
 
 	h.notify(create)
 
 	return nil
+}
+
+func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
+	if !target.Type().Is(vocab.TypeCAS) {
+		return fmt.Errorf("unsupported target type %s", target.Type().Types())
+	}
+
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	return h.AnchorCredentialHandler.HandlerAnchorCredential(target.Object().ID(), bytes)
 }
 
 func (h *Handler) notify(activity *vocab.ActivityType) {
@@ -119,6 +155,15 @@ func (h *Handler) notify(activity *vocab.ActivityType) {
 	}
 }
 
+type noOpAnchorCredentialPublisher struct {
+}
+
+func (p *noOpAnchorCredentialPublisher) HandlerAnchorCredential(string, []byte) error {
+	return nil
+}
+
 func defaultOptions() *service.Handlers {
-	return &service.Handlers{}
+	return &service.Handlers{
+		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
+	}
 }
