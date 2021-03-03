@@ -8,13 +8,17 @@ package activityhandler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -27,6 +31,10 @@ type Config struct {
 	// ServiceName is the name of the service (used for logging).
 	ServiceName string
 
+	// ServiceIRI is the IRI of the local service (actor). It is used as the 'actor' in activities
+	// that are posted to the outbox by the handler.
+	ServiceIRI *url.URL
+
 	// BufferSize is the size of the Go channel buffer for a subscription.
 	BufferSize int
 }
@@ -37,12 +45,14 @@ type Handler struct {
 	*lifecycle.Lifecycle
 	*service.Handlers
 
+	store       store.Store
+	outbox      service.Outbox
 	mutex       sync.RWMutex
 	subscribers []chan *vocab.ActivityType
 }
 
 // New returns a new ActivityPub activity handler.
-func New(cfg *Config, opts ...service.HandlerOpt) *Handler {
+func New(cfg *Config, s store.Store, outbox service.Outbox, opts ...service.HandlerOpt) *Handler {
 	options := defaultOptions()
 
 	for _, opt := range opts {
@@ -56,6 +66,8 @@ func New(cfg *Config, opts ...service.HandlerOpt) *Handler {
 	h := &Handler{
 		Config:   cfg,
 		Handlers: options,
+		store:    s,
+		outbox:   outbox,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -94,6 +106,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
 		return h.handleCreateActivity(activity)
+	case typeProp.Is(vocab.TypeFollow):
+		return h.handleFollowActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -132,6 +146,109 @@ func (h *Handler) handleCreateActivity(create *vocab.ActivityType) error {
 	return nil
 }
 
+func (h *Handler) handleFollowActivity(follow *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Follow' activity: %s", h.ServiceName, follow.ID())
+
+	actorIRI := follow.Actor()
+	if actorIRI == nil {
+		return fmt.Errorf("no actor specified in 'Follow' activity")
+	}
+
+	iri := follow.Object().IRI()
+	if iri == nil {
+		return fmt.Errorf("no IRI specified in 'object' field of the 'Follow' activity")
+	}
+
+	// Make sure that the IRI is targeting this service. If not then ignore the message
+	if iri.String() != h.ServiceIRI.String() {
+		logger.Infof("[%s] Not handling 'Follow' activity %s since this service %s is not the target object %s",
+			h.ServiceName, follow.ID(), iri, h.ServiceIRI)
+
+		return nil
+	}
+
+	hasFollower, err := h.hasFollower(actorIRI)
+	if err != nil {
+		return err
+	}
+
+	if hasFollower {
+		logger.Infof("[%s] Actor %s is already following %s. Replying with 'Accept' activity.",
+			h.ServiceName, actorIRI, h.ServiceIRI)
+
+		return h.postAcceptFollow(follow, actorIRI)
+	}
+
+	actor, err := h.resolveActor(actorIRI)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve actor [%s]: %w", actorIRI, err)
+	}
+
+	accept, err := h.FollowerAuth.AuthorizeFollower(actor)
+	if err != nil {
+		return fmt.Errorf("unable to authorize follower [%s]: %w", actorIRI, err)
+	}
+
+	if accept {
+		if err := h.store.AddReference(store.Follower, iri, actorIRI); err != nil {
+			return fmt.Errorf("unable to store new follower: %w", err)
+		}
+
+		logger.Infof("[%s] Request for %s to follow %s has been accepted. Replying with 'Accept' activity",
+			h.ServiceName, iri, actorIRI)
+
+		return h.postAcceptFollow(follow, actorIRI)
+	}
+
+	logger.Infof("[%s] Request for %s to follow %s has been rejected. Replying with 'Reject' activity",
+		h.ServiceName, actorIRI, h.ServiceIRI)
+
+	return h.postRejectFollow(follow, actorIRI)
+}
+
+func (h *Handler) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
+	acceptActivity := vocab.NewAcceptActivity(h.newActivityID(),
+		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithActor(h.ServiceIRI),
+		vocab.WithTo(toIRI),
+	)
+
+	h.notify(follow)
+
+	logger.Debugf("[%s] Publishing 'Accept' activity to %s", h.ServiceName, toIRI)
+
+	if err := h.outbox.Post(acceptActivity); err != nil {
+		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
+	}
+
+	return nil
+}
+
+func (h *Handler) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
+	reject := vocab.NewRejectActivity(h.newActivityID(),
+		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithActor(h.ServiceIRI),
+		vocab.WithTo(toIRI),
+	)
+
+	logger.Debugf("[%s] Publishing 'Reject' activity to %s", h.ServiceName, toIRI)
+
+	if err := h.outbox.Post(reject); err != nil {
+		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
+	}
+
+	return nil
+}
+
+func (h *Handler) hasFollower(actorIRI fmt.Stringer) (bool, error) {
+	existingFollowers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+	if err != nil {
+		return false, fmt.Errorf("unable to retrieve existing follower: %w", err)
+	}
+
+	return containsIRI(existingFollowers, actorIRI), nil
+}
+
 func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
 	if !target.Type().Is(vocab.TypeCAS) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
@@ -155,6 +272,31 @@ func (h *Handler) notify(activity *vocab.ActivityType) {
 	}
 }
 
+func defaultOptions() *service.Handlers {
+	return &service.Handlers{
+		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
+		FollowerAuth:            &acceptAllFollowerAuth{},
+	}
+}
+
+func (h *Handler) newActivityID() string {
+	return fmt.Sprintf("%s/%s", h.ServiceIRI.String(), uuid.New())
+}
+
+func (h *Handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
+	actor, err := h.store.GetActor(iri)
+	if err == nil {
+		return actor, nil
+	}
+
+	if !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+
+	// TODO: The actor isn't in our local store. Retrieve the actor from remote.
+	return nil, store.ErrNotFound
+}
+
 type noOpAnchorCredentialPublisher struct {
 }
 
@@ -162,8 +304,19 @@ func (p *noOpAnchorCredentialPublisher) HandlerAnchorCredential(string, []byte) 
 	return nil
 }
 
-func defaultOptions() *service.Handlers {
-	return &service.Handlers{
-		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
+type acceptAllFollowerAuth struct {
+}
+
+func (a *acceptAllFollowerAuth) AuthorizeFollower(*vocab.ActorType) (bool, error) {
+	return true, nil
+}
+
+func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
+	for _, f := range iris {
+		if f.String() == iri.String() {
+			return true
+		}
 	}
+
+	return false
 }

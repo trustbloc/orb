@@ -103,21 +103,23 @@ func (s *Store) QueryActivities(storeType spi.ActivityStoreType,
 
 // AddReference adds the reference of the given type to the given actor.
 func (s *Store) AddReference(referenceType spi.ReferenceType, actorIRI, referenceIRI *url.URL) error {
-	logger.Debugf("[%s] Adding reference of type %s to actor %s: %s", s.serviceName, actorIRI, referenceIRI)
+	logger.Debugf("[%s] Adding reference of type %s to actor %s: %s",
+		s.serviceName, referenceType, actorIRI, referenceIRI)
 
 	return s.referenceStores[referenceType].add(actorIRI, referenceIRI)
 }
 
 // DeleteReference deletes the reference of the given type from the given actor.
 func (s *Store) DeleteReference(referenceType spi.ReferenceType, actorIRI, referenceIRI *url.URL) error {
-	logger.Debugf("[%s] Deleting reference of type %s from actor %s: %s", s.serviceName, actorIRI, referenceIRI)
+	logger.Debugf("[%s] Deleting reference of type %s from actor %s: %s",
+		s.serviceName, referenceType, actorIRI, referenceIRI)
 
 	return s.referenceStores[referenceType].delete(actorIRI, referenceIRI)
 }
 
 // GetReferences returns the actor's list of references of the given type.
 func (s *Store) GetReferences(referenceType spi.ReferenceType, actorIRI *url.URL) ([]*url.URL, error) {
-	logger.Debugf("[%s] Retrieving references of type %s for actor %s", s.serviceName, actorIRI)
+	logger.Debugf("[%s] Retrieving references of type %s for actor %s", s.serviceName, referenceType, actorIRI)
 
 	return s.referenceStores[referenceType].get(actorIRI)
 }

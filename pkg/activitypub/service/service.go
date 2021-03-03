@@ -16,6 +16,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mempubsub"
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -73,7 +74,10 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceName,
 			BufferSize:  cfg.ActivityHandlerBufferSize,
-		}, handlerOpts...,
+		},
+		&mocks.ActivityStore{},
+		mocks.NewOutbox(),
+		handlerOpts...,
 	)
 
 	ib, err := inbox.New(

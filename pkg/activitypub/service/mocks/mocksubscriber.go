@@ -14,17 +14,14 @@ import (
 
 // Subscriber implements a mock activity subscriber.
 type Subscriber struct {
-	serviceName  string
 	activityChan <-chan *vocab.ActivityType
 	mutex        sync.Mutex
 	activities   []*vocab.ActivityType
 }
 
 // NewSubscriber returns a new mock activity subscriber.
-func NewSubscriber(
-	serviceName string, activityChan <-chan *vocab.ActivityType) *Subscriber {
+func NewSubscriber(activityChan <-chan *vocab.ActivityType) *Subscriber {
 	s := &Subscriber{
-		serviceName:  serviceName,
 		activityChan: activityChan,
 	}
 

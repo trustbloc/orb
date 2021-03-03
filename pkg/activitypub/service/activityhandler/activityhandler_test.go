@@ -19,6 +19,8 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -28,7 +30,7 @@ func TestNew(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := New(cfg)
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{})
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -47,7 +49,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceName: "service1",
 	}
 
-	h := New(cfg)
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -69,11 +71,12 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
 	}
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := New(cfg, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -111,7 +114,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
+		create := vocab.NewCreateActivity(newActivityID(service1IRI),
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTarget(targetProperty),
@@ -150,7 +153,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
+		create := vocab.NewCreateActivity(newActivityID(service1IRI),
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(
 					vocab.NewAnchorCredentialReference(refID, cid),
@@ -187,7 +190,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	t.Run("Unsupported object type", func(t *testing.T) {
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI.String()),
+		create := vocab.NewCreateActivity(newActivityID(service1IRI),
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))),
 			vocab.WithActor(service1IRI),
 			vocab.WithContext(vocab.ContextOrb),
@@ -201,8 +204,175 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	})
 }
 
-func newActivityID(serviceName string) string {
-	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+func TestHandler_HandleFollowActivity(t *testing.T) {
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service3IRI := mustParseURL("http://localhost:8303/services/service3")
+	service4IRI := mustParseURL("http://localhost:8304/services/service4")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
+	}
+
+	ob := mocks.NewOutbox()
+	as := memstore.New(cfg.ServiceName)
+
+	// Add Service2 & Service3 to Service1's store since we haven't implemented actor resolution yet and
+	// Service1 needs to retrieve the requesting actors.
+	require.NoError(t, as.PutActor(vocab.NewService(service2IRI.String())))
+	require.NoError(t, as.PutActor(vocab.NewService(service3IRI.String())))
+
+	followerAuth := mocks.NewFollowerAuth()
+
+	h := New(cfg, as, ob, spi.WithFollowerAuth(followerAuth))
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	activityChan := h.Subscribe()
+
+	var (
+		mutex       sync.Mutex
+		gotActivity = make(map[string]*vocab.ActivityType)
+	)
+
+	go func() {
+		for activity := range activityChan {
+			mutex.Lock()
+			gotActivity[activity.ID()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	t.Run("Accept", func(t *testing.T) {
+		followerAuth.WithAccept()
+
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(follow))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[follow.ID()])
+		mutex.Unlock()
+
+		followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+		require.NoError(t, err)
+		require.True(t, containsIRI(followers, service2IRI))
+		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 1)
+
+		// Post another follow. Should reply with accept since it's already a follower.
+		follow = vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(follow))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[follow.ID()])
+		mutex.Unlock()
+
+		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 2)
+	})
+
+	t.Run("Reject", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service3IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		followerAuth.WithReject()
+
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(follow))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.Nil(t, gotActivity[follow.ID()])
+			mutex.Unlock()
+
+			followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+			require.NoError(t, err)
+			require.False(t, containsIRI(followers, service3IRI))
+			require.Len(t, ob.Activities().QueryByType(vocab.TypeReject), 1)
+		})
+	})
+
+	t.Run("No actor in Follow activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(follow), "no actor specified in 'Follow' activity")
+	})
+
+	t.Run("No object IRI in Follow activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(follow), "no IRI specified in 'object' field of the 'Follow' activity")
+	})
+
+	t.Run("Object IRI does not match target service IRI in Follow activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(follow))
+	})
+
+	t.Run("Resolve actor error", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service4IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service4IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.True(t, errors.Is(h.HandleActivity(follow), store.ErrNotFound))
+	})
+
+	t.Run("AuthorizeFollower error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected authorize error")
+
+		followerAuth.WithError(errExpected)
+
+		defer func() {
+			followerAuth.WithError(nil)
+		}()
+
+		follow := vocab.NewFollowActivity(newActivityID(service3IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := h.HandleActivity(follow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
+func newActivityID(id fmt.Stringer) string {
+	return fmt.Sprintf("%s/%s", id, uuid.New())
 }
 
 func mustParseURL(raw string) *url.URL {
