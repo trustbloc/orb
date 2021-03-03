@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package service
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"testing"
@@ -278,6 +279,74 @@ func TestService_Follow(t *testing.T) {
 		acceptedFollow := accept.Object().Activity()
 		require.NotNil(t, acceptedFollow)
 		require.Equal(t, follow.ID(), acceptedFollow.ID())
+	})
+
+	t.Run("Follow - Reject", func(t *testing.T) {
+		// Add Service2 to Service1's store since we haven't implemented actor resolution yet and
+		// Service2 needs to retrieve the requesting actor.
+		require.NoError(t, store1.PutActor(vocab.NewService(service2IRI.String())))
+
+		followerAuth1.WithReject()
+
+		actorIRI := service2IRI
+		targetIRI := service1IRI
+
+		follow := vocab.NewFollowActivity(newActivityID(actorIRI.String()),
+			vocab.NewObjectProperty(vocab.WithIRI(targetIRI)),
+			vocab.WithActor(actorIRI),
+			vocab.WithTo(targetIRI),
+		)
+
+		for i := 0; i < 5; i++ {
+			// Wait for the service to start
+			err := service2.Outbox().Post(follow)
+			if err == nil {
+				break
+			}
+
+			if !errors.Is(err, service.ErrNotStarted) {
+				t.Fatal(err)
+			}
+
+			t.Logf("Service2 hasn't started yet. Waiting...")
+
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		// Wait for the message to be processed
+		time.Sleep(500 * time.Millisecond)
+
+		activity, err := store2.GetActivity(spi.Outbox, follow.ID())
+		require.NoError(t, err)
+		require.NotNil(t, activity)
+		require.Equal(t, follow.ID(), activity.ID())
+
+		activity, err = store1.GetActivity(spi.Inbox, follow.ID())
+		require.NoError(t, err)
+		require.NotNil(t, activity)
+		require.Equal(t, follow.ID(), activity.ID())
+
+		following, err := store2.GetReferences(spi.Following, actorIRI)
+		require.NoError(t, err)
+		require.Falsef(t, containsIRI(following, targetIRI), "expecting %s NOT to be following %s", actorIRI, targetIRI)
+
+		followers, err := store1.GetReferences(spi.Follower, targetIRI)
+		require.NoError(t, err)
+		require.Falsef(t, containsIRI(followers, actorIRI), "expecting %s NOT to have %s as a follower", targetIRI, actorIRI)
+
+		// Ensure we have a 'Reject' activity in our inbox
+		it, err := store2.QueryActivities(spi.Inbox, spi.NewCriteria(spi.WithType(vocab.TypeReject)))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		reject, err := it.Next()
+		require.NoError(t, err)
+
+		require.True(t, reject.Type().Is(vocab.TypeReject))
+
+		rejectedFollow := reject.Object().Activity()
+		require.NotNil(t, rejectedFollow)
+		require.Equal(t, follow.ID(), rejectedFollow.ID())
 	})
 }
 
