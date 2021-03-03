@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -327,7 +328,8 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(follow), "no IRI specified in 'object' field of the 'Follow' activity")
+		require.EqualError(t, h.HandleActivity(follow),
+			"no IRI specified in 'object' field of the 'Follow' activity")
 	})
 
 	t.Run("Object IRI does not match target service IRI in Follow activity", func(t *testing.T) {
@@ -368,6 +370,145 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		err := h.HandleActivity(follow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
+func TestHandler_HandleAcceptActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+	log.SetLevel("activitypub_memstore", log.DEBUG)
+
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	ob := mocks.NewOutbox()
+	as := memstore.New(cfg.ServiceName)
+
+	h := New(cfg, as, ob)
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	activityChan := h.Subscribe()
+
+	var (
+		mutex       sync.Mutex
+		gotActivity = make(map[string]*vocab.ActivityType)
+	)
+
+	go func() {
+		for activity := range activityChan {
+			mutex.Lock()
+			gotActivity[activity.ID()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	t.Run("Success", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(accept))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[accept.ID()])
+		mutex.Unlock()
+
+		following, err := h.store.GetReferences(store.Following, h.ServiceIRI)
+		require.NoError(t, err)
+		require.True(t, containsIRI(following, service1IRI))
+	})
+
+	t.Run("No actor in Accept activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(accept), "no actor specified in 'Accept' activity")
+	})
+
+	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(accept),
+			"no 'Follow' activity specified in the 'object' field of the 'Accept' activity")
+	})
+
+	t.Run("Object is not a Follow activity", func(t *testing.T) {
+		follow := vocab.NewAnnounceActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(accept),
+			"the 'object' field of the 'Accept' activity must be a 'Follow' type")
+	})
+
+	t.Run("No actor specified in the Follow activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.EqualError(t, h.HandleActivity(accept),
+			"no actor specified in the original 'Follow' activity of the 'Accept' activity")
+	})
+
+	t.Run("Follow actor does not match target service IRI in Accept activity", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(accept),
+			"should have ignored 'Accept' since actor in the 'Follow' does not match the target service",
+		)
 	})
 }
 

@@ -146,6 +146,8 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
+		time.Sleep(50 * time.Millisecond)
+
 		// Attempt to start another inbox with the same listen address should cause
 		// the service to shut down immediately.
 		ib2.Start()

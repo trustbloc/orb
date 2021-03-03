@@ -108,6 +108,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleCreateActivity(activity)
 	case typeProp.Is(vocab.TypeFollow):
 		return h.handleFollowActivity(activity)
+	case typeProp.Is(vocab.TypeAccept):
+		return h.handleAcceptActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -204,6 +206,49 @@ func (h *Handler) handleFollowActivity(follow *vocab.ActivityType) error {
 		h.ServiceName, actorIRI, h.ServiceIRI)
 
 	return h.postRejectFollow(follow, actorIRI)
+}
+
+func (h *Handler) handleAcceptActivity(accept *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Accept' activity: %s", h.ServiceName, accept.ID())
+
+	actor := accept.Actor()
+	if actor == nil {
+		return fmt.Errorf("no actor specified in 'Accept' activity")
+	}
+
+	follow := accept.Object().Activity()
+	if follow == nil {
+		return fmt.Errorf("no 'Follow' activity specified in the 'object' field of the 'Accept' activity")
+	}
+
+	if !follow.Type().Is(vocab.TypeFollow) {
+		return fmt.Errorf("the 'object' field of the 'Accept' activity must be a 'Follow' type")
+	}
+
+	iri := follow.Actor()
+	if iri == nil {
+		return fmt.Errorf("no actor specified in the original 'Follow' activity of the 'Accept' activity")
+	}
+
+	// Make sure that the actor in the original 'Follow' activity is this service.
+	// If not then we can ignore the message.
+	if iri.String() != h.ServiceIRI.String() {
+		logger.Infof(
+			"[%s] Not handling 'Accept' %s since the actor %s in the 'Follow' activity is not this service %s",
+			h.ServiceName, accept.ID(), iri, h.ServiceIRI)
+
+		return nil
+	}
+
+	if err := h.store.AddReference(store.Following, h.ServiceIRI, actor); err != nil {
+		return fmt.Errorf("unable to store new following: %w", err)
+	}
+
+	logger.Debugf("[%s] %s is now a follower of %s", h.ServiceName, h.ServiceIRI, actor)
+
+	h.notify(accept)
+
+	return nil
 }
 
 func (h *Handler) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) error {

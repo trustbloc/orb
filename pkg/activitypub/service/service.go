@@ -9,6 +9,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mempubsub"
-	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -40,6 +40,7 @@ type PubSubFactory func(serviceName string) PubSub
 type Config struct {
 	ServiceName               string
 	ListenAddress             string
+	ServiceIRI                *url.URL
 	RetryOpts                 *redelivery.Config
 	PubSubFactory             PubSubFactory
 	ActivityHandlerBufferSize int
@@ -74,11 +75,9 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceName,
 			BufferSize:  cfg.ActivityHandlerBufferSize,
+			ServiceIRI:  cfg.ServiceIRI,
 		},
-		&mocks.ActivityStore{},
-		mocks.NewOutbox(),
-		handlerOpts...,
-	)
+		activityStore, ob, handlerOpts...)
 
 	ib, err := inbox.New(
 		&inbox.Config{
