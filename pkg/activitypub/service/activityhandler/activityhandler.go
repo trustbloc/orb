@@ -110,6 +110,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleFollowActivity(activity)
 	case typeProp.Is(vocab.TypeAccept):
 		return h.handleAcceptActivity(activity)
+	case typeProp.Is(vocab.TypeReject):
+		return h.handleRejectActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -247,6 +249,44 @@ func (h *Handler) handleAcceptActivity(accept *vocab.ActivityType) error {
 	logger.Debugf("[%s] %s is now a follower of %s", h.ServiceName, h.ServiceIRI, actor)
 
 	h.notify(accept)
+
+	return nil
+}
+
+func (h *Handler) handleRejectActivity(reject *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Reject' activity: %s", h.ServiceName, reject.ID())
+
+	actor := reject.Actor()
+	if actor == nil {
+		return fmt.Errorf("no actor specified in 'Reject' activity")
+	}
+
+	follow := reject.Object().Activity()
+	if follow == nil {
+		return fmt.Errorf("no 'Follow' activity specified in the 'object' field of the 'Reject' activity")
+	}
+
+	if !follow.Type().Is(vocab.TypeFollow) {
+		return fmt.Errorf("the 'object' field of the 'Reject' activity must be a 'Follow' type")
+	}
+
+	iri := follow.Actor()
+	if iri == nil {
+		return fmt.Errorf("no actor specified in the original 'Follow' activity of the 'Reject' activity")
+	}
+
+	// Make sure that the actor in the original 'Follow' activity is this service. If not then we can ignore the message.
+	if iri.String() != h.ServiceIRI.String() {
+		logger.Infof(
+			"[%s] Not handling 'Reject' %s since the actor %s in the 'Follow' activity is not this service: %s",
+			h.ServiceName, reject.ID(), iri, h.ServiceIRI)
+
+		return nil
+	}
+
+	logger.Warnf("[%s] %s rejected our request to follow", h.ServiceName, iri)
+
+	h.notify(reject)
 
 	return nil
 }
