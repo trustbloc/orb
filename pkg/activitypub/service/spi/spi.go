@@ -60,6 +60,12 @@ type AnchorCredentialHandler interface {
 	HandlerAnchorCredential(cid string, anchorCred []byte) error
 }
 
+// FollowerAuth makes the decision of whether or not a request by the given
+// follower should be accepted.
+type FollowerAuth interface {
+	AuthorizeFollower(follower *vocab.ActorType) (bool, error)
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -80,6 +86,7 @@ type UndeliverableActivityHandler interface {
 type Handlers struct {
 	UndeliverableHandler    UndeliverableActivityHandler
 	AnchorCredentialHandler AnchorCredentialHandler
+	FollowerAuth            FollowerAuth
 }
 
 // HandlerOpt sets a specific handler.
@@ -92,9 +99,16 @@ func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
 	}
 }
 
-// WithAnchorCredentialHandler sets the handler for published anchor credentials.
+// WithAnchorCredentialHandler sets the handler for the published anchor credentials.
 func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.AnchorCredentialHandler = handler
+	}
+}
+
+// WithFollowerAuth sets the handler that decides whether or not to accept a 'Follow' request.
+func WithFollowerAuth(handler FollowerAuth) HandlerOpt {
+	return func(options *Handlers) {
+		options.FollowerAuth = handler
 	}
 }

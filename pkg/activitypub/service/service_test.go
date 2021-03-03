@@ -94,7 +94,7 @@ func TestService(t *testing.T) {
 
 	defer service2.Stop()
 
-	subscriber2 := mocks.NewSubscriber(cfg2.ServiceName, service2.Subscribe())
+	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
 	service1.Start()
 
