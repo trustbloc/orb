@@ -283,7 +283,7 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 

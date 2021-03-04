@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -112,6 +113,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleAcceptActivity(activity)
 	case typeProp.Is(vocab.TypeReject):
 		return h.handleRejectActivity(activity)
+	case typeProp.Is(vocab.TypeAnnounce):
+		return h.handleAnnounceActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -130,7 +133,9 @@ func (h *Handler) handleCreateActivity(create *vocab.ActivityType) error {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
-		// TODO: Announce anchor credential
+		if err := h.announceAnchorCredential(create); err != nil {
+			logger.Warnf("[%s] Unable to announce 'Create' to our followers: %s", h.ServiceIRI, err)
+		}
 
 	case t.Is(vocab.TypeAnchorCredentialRef):
 		ref := obj.AnchorCredentialReference()
@@ -139,7 +144,9 @@ func (h *Handler) handleCreateActivity(create *vocab.ActivityType) error {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
-		// TODO: Announce anchor credential ref
+		if err := h.announceAnchorCredentialRef(ref); err != nil {
+			logger.Warnf("[%s] Unable to announce 'Create' to our followers: %s", h.ServiceIRI, err)
+		}
 
 	default:
 		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", t, create.ID())
@@ -334,6 +341,33 @@ func (h *Handler) hasFollower(actorIRI fmt.Stringer) (bool, error) {
 	return containsIRI(existingFollowers, actorIRI), nil
 }
 
+func (h *Handler) handleAnnounceActivity(announce *vocab.ActivityType) error {
+	logger.Infof("[%s] Handling 'Announce' activity: %s", h.ServiceName, announce.ID())
+
+	obj := announce.Object()
+
+	t := obj.Type()
+
+	switch {
+	case t.Is(vocab.TypeCollection):
+		if err := h.handleAnnounceCollection(obj.Collection().Items()); err != nil {
+			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
+		}
+
+	case t.Is(vocab.TypeOrderedCollection):
+		if err := h.handleAnnounceCollection(obj.OrderedCollection().Items()); err != nil {
+			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
+		}
+
+	default:
+		return fmt.Errorf("unsupported object type for 'Announce' %s", t)
+	}
+
+	h.notify(announce)
+
+	return nil
+}
+
 func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
 	if !target.Type().Is(vocab.TypeCAS) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
@@ -345,6 +379,109 @@ func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *voca
 	}
 
 	return h.AnchorCredentialHandler.HandlerAnchorCredential(target.Object().ID(), bytes)
+}
+
+func (h *Handler) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
+	logger.Infof("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
+
+	for _, item := range items {
+		if !item.Type().Is(vocab.TypeAnchorCredentialRef) {
+			return fmt.Errorf("expecting 'AnchorCredentialReference' type")
+		}
+
+		ref := item.AnchorCredentialReference()
+		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
+	followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+	if err != nil {
+		return err
+	}
+
+	if len(followers) == 0 {
+		logger.Infof("[%s] No followers to announce 'Create' to", h.ServiceIRI)
+
+		return nil
+	}
+
+	anchorCredential := create.Object().Object()
+
+	anchorCredentialBytes, err := json.Marshal(anchorCredential)
+	if err != nil {
+		return err
+	}
+
+	published := time.Now()
+
+	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID(),
+		create.Target().Object().ID(), vocab.MustUnmarshalToDoc(anchorCredentialBytes),
+	)
+	if err != nil {
+		return err
+	}
+
+	announce := vocab.NewAnnounceActivity(h.newActivityID(),
+		vocab.NewObjectProperty(
+			vocab.WithCollection(
+				vocab.NewCollection(
+					[]*vocab.ObjectProperty{
+						vocab.NewObjectProperty(
+							vocab.WithAnchorCredentialReference(ref),
+						),
+					},
+				),
+			),
+		),
+		vocab.WithActor(h.ServiceIRI),
+		vocab.WithTo(followers...),
+		vocab.WithPublishedTime(&published),
+	)
+
+	logger.Infof("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+
+	return h.outbox.Post(announce)
+}
+
+func (h *Handler) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
+	followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+	if err != nil {
+		return err
+	}
+
+	if len(followers) == 0 {
+		logger.Infof("[%s] No followers to announce 'Create' to", h.ServiceIRI)
+
+		return nil
+	}
+
+	published := time.Now()
+
+	announce := vocab.NewAnnounceActivity(h.newActivityID(),
+		vocab.NewObjectProperty(
+			vocab.WithCollection(
+				vocab.NewCollection(
+					[]*vocab.ObjectProperty{
+						vocab.NewObjectProperty(
+							vocab.WithAnchorCredentialReference(ref),
+						),
+					},
+				),
+			),
+		),
+		vocab.WithActor(h.ServiceIRI),
+		vocab.WithTo(followers...),
+		vocab.WithPublishedTime(&published),
+	)
+
+	logger.Infof("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+
+	return h.outbox.Post(announce)
 }
 
 func (h *Handler) notify(activity *vocab.ActivityType) {
