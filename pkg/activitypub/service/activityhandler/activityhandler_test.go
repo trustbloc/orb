@@ -68,6 +68,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 func TestHandler_HandleCreateActivity(t *testing.T) {
 	service1IRI := mustParseURL("http://localhost:8301/services/service1")
 	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service3IRI := mustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -76,7 +77,12 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	activityStore := memstore.New(cfg.ServiceName)
+	ob := mocks.NewOutbox()
+
+	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
+
+	h := New(cfg, activityStore, ob, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -133,6 +139,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			mutex.Unlock()
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
@@ -175,6 +182,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			mutex.Unlock()
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
@@ -644,7 +652,213 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 }
 
+func TestHandler_HandleAnnounceActivity(t *testing.T) {
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
+	}
+
+	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	activityChan := h.Subscribe()
+
+	var (
+		mutex       sync.Mutex
+		gotActivity = make(map[string]*vocab.ActivityType)
+	)
+
+	go func() {
+		for activity := range activityChan {
+			mutex.Lock()
+			gotActivity[activity.ID()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
+		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), cid)
+
+		items := []*vocab.ObjectProperty{
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(ref),
+			),
+		}
+
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithCollection(
+					vocab.NewCollection(items),
+				),
+			),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		require.NoError(t, h.HandleActivity(announce))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[announce.ID()])
+		mutex.Unlock()
+	})
+
+	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
+		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), cid)
+
+		items := []*vocab.ObjectProperty{
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(ref),
+			),
+		}
+
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithOrderedCollection(
+					vocab.NewOrderedCollection(items),
+				),
+			),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		require.NoError(t, h.HandleActivity(announce))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[announce.ID()])
+		mutex.Unlock()
+	})
+
+	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
+		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+
+		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
+			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
+		)
+		require.NoError(t, err)
+
+		items := []*vocab.ObjectProperty{
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(ref),
+			),
+		}
+
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithCollection(
+					vocab.NewCollection(items),
+				),
+			),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		require.NoError(t, h.HandleActivity(announce))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[announce.ID()])
+		mutex.Unlock()
+	})
+
+	t.Run("Anchor credential ref - collection - unsupported object type", func(t *testing.T) {
+		items := []*vocab.ObjectProperty{
+			vocab.NewObjectProperty(
+				vocab.WithActor(service1IRI),
+			),
+		}
+
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithCollection(
+					vocab.NewCollection(items),
+				),
+			),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		err := h.HandleActivity(announce)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "expecting 'AnchorCredentialReference' type")
+	})
+
+	t.Run("Anchor credential ref - ordered collection - unsupported object type", func(t *testing.T) {
+		items := []*vocab.ObjectProperty{
+			vocab.NewObjectProperty(
+				vocab.WithActor(service1IRI),
+			),
+		}
+
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithOrderedCollection(
+					vocab.NewOrderedCollection(items),
+				),
+			),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		err := h.HandleActivity(announce)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "expecting 'AnchorCredentialReference' type")
+	})
+
+	t.Run("Anchor credential ref - unsupported object type", func(t *testing.T) {
+		published := time.Now()
+
+		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(
+				vocab.WithActor(service1IRI),
+			),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		err := h.HandleActivity(announce)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported object type for 'Announce'")
+	})
+}
+
 func newActivityID(id fmt.Stringer) string {
+	return fmt.Sprintf("%s/%s", id, uuid.New())
+}
+
+func newTransactionID(id fmt.Stringer) string {
 	return fmt.Sprintf("%s/%s", id, uuid.New())
 }
 
