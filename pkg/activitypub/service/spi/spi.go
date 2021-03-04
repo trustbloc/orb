@@ -8,6 +8,7 @@ package spi
 
 import (
 	"errors"
+	"time"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
@@ -66,6 +67,11 @@ type FollowerAuth interface {
 	AuthorizeFollower(follower *vocab.ActorType) (bool, error)
 }
 
+// WitnessHandler is a handler that witnesses an anchor credential.
+type WitnessHandler interface {
+	Witness(startTime, endTime time.Time, anchorCred []byte) ([]byte, error)
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -87,6 +93,7 @@ type Handlers struct {
 	UndeliverableHandler    UndeliverableActivityHandler
 	AnchorCredentialHandler AnchorCredentialHandler
 	FollowerAuth            FollowerAuth
+	Witness                 WitnessHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -110,5 +117,12 @@ func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
 func WithFollowerAuth(handler FollowerAuth) HandlerOpt {
 	return func(options *Handlers) {
 		options.FollowerAuth = handler
+	}
+}
+
+// WithWitness sets the witness handler.
+func WithWitness(handler WitnessHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.Witness = handler
 	}
 }

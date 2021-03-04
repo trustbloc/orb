@@ -367,12 +367,14 @@ func TestService_Announce(t *testing.T) {
 	store1 := memstore.New(cfg1.ServiceName)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
+	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := NewService(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
+		service.WithWitness(witness1),
 	)
 	require.NoError(t, err)
 
@@ -392,12 +394,14 @@ func TestService_Announce(t *testing.T) {
 	store2 := memstore.New(cfg2.ServiceName)
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
+	witness2 := mocks.NewWitnessHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
 	service2, err := NewService(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
+		service.WithWitness(witness2),
 	)
 	require.NoError(t, err)
 
@@ -412,12 +416,14 @@ func TestService_Announce(t *testing.T) {
 	store3 := memstore.New(cfg3.ServiceName)
 	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
 	followerAuth3 := mocks.NewFollowerAuth()
+	witness3 := mocks.NewWitnessHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
 	service3, err := NewService(cfg3, store3,
 		service.WithUndeliverableHandler(undeliverableHandler3),
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),
+		service.WithWitness(witness3),
 	)
 	require.NoError(t, err)
 
@@ -594,6 +600,100 @@ func TestService_Announce(t *testing.T) {
 	})
 }
 
+func TestService_Offer(t *testing.T) {
+	log.SetLevel(wmlogger.Module, log.WARNING)
+
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+
+	cfg1 := &Config{
+		ServiceName:   "/services/service1",
+		ServiceIRI:    service1IRI,
+		ListenAddress: ":8301",
+		RetryOpts:     redelivery.DefaultConfig(),
+	}
+
+	store1 := memstore.New(cfg1.ServiceName)
+	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
+	followerAuth1 := mocks.NewFollowerAuth()
+	undeliverableHandler1 := mocks.NewUndeliverableHandler()
+
+	service1, err := NewService(cfg1, store1,
+		service.WithUndeliverableHandler(undeliverableHandler1),
+		service.WithAnchorCredentialHandler(anchorCredHandler1),
+		service.WithFollowerAuth(followerAuth1),
+	)
+	require.NoError(t, err)
+
+	cfg2 := &Config{
+		ServiceName:   "/services/service2",
+		ServiceIRI:    service2IRI,
+		ListenAddress: ":8302",
+		RetryOpts: &redelivery.Config{
+			MaxRetries:     5,
+			InitialBackoff: 10 * time.Millisecond,
+			MaxBackoff:     time.Second,
+			BackoffFactor:  1.2,
+			MaxMessages:    20,
+		},
+	}
+
+	store2 := memstore.New(cfg2.ServiceName)
+	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
+	followerAuth2 := mocks.NewFollowerAuth()
+	witness2 := mocks.NewWitnessHandler().WithProof([]byte(proof))
+	undeliverableHandler2 := mocks.NewUndeliverableHandler()
+
+	service2, err := NewService(cfg2, store2,
+		service.WithUndeliverableHandler(undeliverableHandler2),
+		service.WithAnchorCredentialHandler(anchorCredHandler2),
+		service.WithFollowerAuth(followerAuth2),
+		service.WithWitness(witness2),
+	)
+	require.NoError(t, err)
+
+	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
+
+	service1.Start()
+	service2.Start()
+
+	defer service1.Stop()
+	defer service2.Stop()
+
+	t.Run("Offer", func(t *testing.T) {
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+		)
+
+		require.NoError(t, service1.Outbox().Post(offer))
+
+		time.Sleep(500 * time.Millisecond)
+
+		activity, err := store1.GetActivity(spi.Outbox, offer.ID())
+		require.NoError(t, err)
+		require.NotNil(t, activity)
+		require.Equal(t, offer.ID(), activity.ID())
+
+		activity, err = store2.GetActivity(spi.Inbox, offer.ID())
+		require.NoError(t, err)
+		require.NotNil(t, activity)
+		require.Equal(t, offer.ID(), activity.ID())
+
+		require.NotEmpty(t, subscriber2.Activities())
+		require.NotEmpty(t, witness2.AnchorCreds())
+	})
+}
+
 func newActivityID(serviceName fmt.Stringer) string {
 	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
 }
@@ -643,4 +743,19 @@ const anchorCredential1 = `{
 	}
   },
   "proofChain": [{}]
+}`
+
+const proof = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "proof": {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:15Z",
+    "verificationMethod": "did:example:abcd#key",
+    "domain": "https://witness1.example.com/ledgers/maple2021",
+    "jws": "eyJ..."
+  }
 }`

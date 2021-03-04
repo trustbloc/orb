@@ -229,7 +229,7 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 
 		activityStore.AddActivityReturns(errors.New("injected store error"))
 

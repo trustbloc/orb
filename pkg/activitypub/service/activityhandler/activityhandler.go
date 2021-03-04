@@ -115,6 +115,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleRejectActivity(activity)
 	case typeProp.Is(vocab.TypeAnnounce):
 		return h.handleAnnounceActivity(activity)
+	case typeProp.Is(vocab.TypeOffer):
+		return h.handleOfferActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -368,6 +370,69 @@ func (h *Handler) handleAnnounceActivity(announce *vocab.ActivityType) error {
 	return nil
 }
 
+func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
+	logger.Infof("[%s] Handling 'Offer' activity: %s", h.ServiceName, offer.ID())
+
+	err := h.validateOfferActivity(offer)
+	if err != nil {
+		return fmt.Errorf("invalid 'Offer' activity: %w", err)
+	}
+
+	obj := offer.Object().Object()
+
+	bytes, err := json.Marshal(obj)
+	if err != nil {
+		return fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)
+	}
+
+	response, err := h.Witness.Witness(*offer.StartTime(), *offer.EndTime(), bytes)
+	if err != nil {
+		return err
+	}
+
+	if len(response) == 0 {
+		return fmt.Errorf("no proof returned from witness for Offer activity %s", obj.ID())
+	}
+
+	result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(response))
+	if err != nil {
+		return fmt.Errorf("error creating offer result: %w", err)
+	}
+
+	iri, err := url.Parse(offer.Object().Object().ID())
+	if err != nil {
+		return fmt.Errorf("invalid object IRI in 'Offer' activity: %w", err)
+	}
+
+	like := vocab.NewLikeActivity(h.newActivityID(),
+		vocab.NewObjectProperty(vocab.WithIRI(iri)),
+		vocab.WithActor(h.ServiceIRI),
+		vocab.WithTo(offer.Actor()),
+		vocab.WithStartTime(offer.StartTime()),
+		vocab.WithEndTime(offer.EndTime()),
+		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+	)
+
+	likeIRI, err := url.Parse(like.ID())
+	if err != nil {
+		return err
+	}
+
+	err = h.store.AddReference(store.Liked, h.ServiceIRI, likeIRI)
+	if err != nil {
+		return fmt.Errorf("unable to store 'Like' activity: %w", err)
+	}
+
+	err = h.outbox.Post(like)
+	if err != nil {
+		return fmt.Errorf("unable to reply with 'Like' to %s: %w", offer.Actor(), err)
+	}
+
+	h.notify(offer)
+
+	return nil
+}
+
 func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
 	if !target.Type().Is(vocab.TypeCAS) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
@@ -492,6 +557,28 @@ func (h *Handler) notify(activity *vocab.ActivityType) {
 	for _, ch := range subscribers {
 		ch <- activity
 	}
+}
+
+func (h *Handler) validateOfferActivity(offer *vocab.ActivityType) error {
+	if offer.StartTime() == nil {
+		return fmt.Errorf("startTime is required")
+	}
+
+	if offer.EndTime() == nil {
+		return fmt.Errorf("endTime is required")
+	}
+
+	obj := offer.Object().Object()
+
+	if obj == nil {
+		return fmt.Errorf("object is required")
+	}
+
+	if !obj.Type().Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential) {
+		return fmt.Errorf("unsupported object type in Offer activity %s", obj.Type())
+	}
+
+	return nil
 }
 
 func defaultOptions() *service.Handlers {
