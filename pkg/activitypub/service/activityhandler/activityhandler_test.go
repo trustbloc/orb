@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -1030,6 +1031,183 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "object is required")
+	})
+}
+
+func TestHandler_HandleLikeActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.WARNING)
+
+	service1IRI := mustParseURL("http://localhost:8301/services/service1")
+	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
+	}
+
+	proofHandler := mocks.NewProofHandler()
+
+	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, spi.WithProofHandler(proofHandler))
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	activityChan := h.Subscribe()
+
+	var (
+		mutex       sync.Mutex
+		gotActivity = make(map[string]*vocab.ActivityType)
+	)
+
+	go func() {
+		for activity := range activityChan {
+			mutex.Lock()
+			gotActivity[activity.ID()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	t.Run("Success", func(t *testing.T) {
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		anchorCredID := newTransactionID(h.ServiceIRI)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+
+		require.NoError(t, h.HandleActivity(like))
+
+		time.Sleep(50 * time.Millisecond)
+
+		mutex.Lock()
+		require.NotNil(t, gotActivity[like.ID()])
+		mutex.Unlock()
+
+		require.NotEmpty(t, proofHandler.Proof(anchorCredID))
+
+		liked, err := h.store.GetReferences(store.Like, h.ServiceIRI)
+		require.NoError(t, err)
+		require.NotEmpty(t, liked)
+	})
+
+	t.Run("HandleProof error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected witness error")
+
+		proofHandler.WithError(errExpected)
+		defer proofHandler.WithError(nil)
+
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		anchorCredID := newTransactionID(h.ServiceIRI)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+
+		require.True(t, errors.Is(h.HandleActivity(like), errExpected))
+	})
+
+	t.Run("No start time", func(t *testing.T) {
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		anchorCredID := newTransactionID(h.ServiceIRI)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithEndTime(&endTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+
+		err = h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "startTime is required")
+	})
+
+	t.Run("No end time", func(t *testing.T) {
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+
+		anchorCredID := newTransactionID(h.ServiceIRI)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+
+		err = h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "endTime is required")
+	})
+
+	t.Run("No object IRI", func(t *testing.T) {
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+
+		err = h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "object is required")
+	})
+
+	t.Run("No result", func(t *testing.T) {
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		anchorCredID := newTransactionID(h.ServiceIRI)
+
+		like := vocab.NewLikeActivity(h.newActivityID(),
+			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.WithActor(h.ServiceIRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+		)
+
+		err := h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "result is required")
 	})
 }
 

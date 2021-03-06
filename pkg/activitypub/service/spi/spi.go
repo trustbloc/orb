@@ -8,6 +8,7 @@ package spi
 
 import (
 	"errors"
+	"time"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
@@ -71,6 +72,11 @@ type WitnessHandler interface {
 	Witness(anchorCred []byte) ([]byte, error)
 }
 
+// ProofHandler handles the given proof for the anchor credential.
+type ProofHandler interface {
+	HandleProof(anchorCredID string, startTime time.Time, endTime time.Time, proof []byte) error
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -93,6 +99,7 @@ type Handlers struct {
 	AnchorCredentialHandler AnchorCredentialHandler
 	FollowerAuth            FollowerAuth
 	Witness                 WitnessHandler
+	ProofHandler            ProofHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -123,5 +130,12 @@ func WithFollowerAuth(handler FollowerAuth) HandlerOpt {
 func WithWitness(handler WitnessHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.Witness = handler
+	}
+}
+
+// WithProofHandler sets the proof handler.
+func WithProofHandler(handler ProofHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.ProofHandler = handler
 	}
 }

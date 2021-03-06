@@ -367,6 +367,7 @@ func TestService_Announce(t *testing.T) {
 	store1 := memstore.New(cfg1.ServiceName)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
+	proofHandler1 := mocks.NewProofHandler()
 	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
@@ -375,6 +376,7 @@ func TestService_Announce(t *testing.T) {
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
 		service.WithWitness(witness1),
+		service.WithProofHandler(proofHandler1),
 	)
 	require.NoError(t, err)
 
@@ -395,6 +397,7 @@ func TestService_Announce(t *testing.T) {
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	witness2 := mocks.NewWitnessHandler()
+	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
 	service2, err := NewService(cfg2, store2,
@@ -402,6 +405,7 @@ func TestService_Announce(t *testing.T) {
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
 		service.WithWitness(witness2),
+		service.WithProofHandler(proofHandler2),
 	)
 	require.NoError(t, err)
 
@@ -417,6 +421,7 @@ func TestService_Announce(t *testing.T) {
 	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
 	followerAuth3 := mocks.NewFollowerAuth()
 	witness3 := mocks.NewWitnessHandler()
+	proofHandler3 := mocks.NewProofHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
 	service3, err := NewService(cfg3, store3,
@@ -424,6 +429,7 @@ func TestService_Announce(t *testing.T) {
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),
 		service.WithWitness(witness3),
+		service.WithProofHandler(proofHandler3),
 	)
 	require.NoError(t, err)
 
@@ -605,6 +611,7 @@ func TestService_Offer(t *testing.T) {
 
 	service1IRI := mustParseURL("http://localhost:8301/services/service1")
 	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service3IRI := mustParseURL("http://localhost:8303/services/service3")
 
 	cfg1 := &Config{
 		ServiceName:   "/services/service1",
@@ -616,12 +623,16 @@ func TestService_Offer(t *testing.T) {
 	store1 := memstore.New(cfg1.ServiceName)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
+	proofHandler1 := mocks.NewProofHandler()
+	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := NewService(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
+		service.WithWitness(witness1),
+		service.WithProofHandler(proofHandler1),
 	)
 	require.NoError(t, err)
 
@@ -642,6 +653,7 @@ func TestService_Offer(t *testing.T) {
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	witness2 := mocks.NewWitnessHandler().WithProof([]byte(proof))
+	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
 	service2, err := NewService(cfg2, store2,
@@ -649,16 +661,41 @@ func TestService_Offer(t *testing.T) {
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
 		service.WithWitness(witness2),
+		service.WithProofHandler(proofHandler2),
 	)
 	require.NoError(t, err)
 
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
+	cfg3 := &Config{
+		ServiceName:   "/services/service3",
+		ServiceIRI:    service3IRI,
+		ListenAddress: ":8303",
+	}
+
+	store3 := memstore.New(cfg3.ServiceName)
+	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
+	followerAuth3 := mocks.NewFollowerAuth()
+	witness3 := mocks.NewWitnessHandler()
+	proofHandler3 := mocks.NewProofHandler()
+	undeliverableHandler3 := mocks.NewUndeliverableHandler()
+
+	service3, err := NewService(cfg3, store3,
+		service.WithUndeliverableHandler(undeliverableHandler3),
+		service.WithAnchorCredentialHandler(anchorCredHandler3),
+		service.WithFollowerAuth(followerAuth3),
+		service.WithWitness(witness3),
+		service.WithProofHandler(proofHandler3),
+	)
+	require.NoError(t, err)
+
 	service1.Start()
 	service2.Start()
+	service3.Start()
 
 	defer service1.Stop()
 	defer service2.Stop()
+	defer service3.Stop()
 
 	t.Run("Offer", func(t *testing.T) {
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
@@ -691,6 +728,15 @@ func TestService_Offer(t *testing.T) {
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, witness2.AnchorCreds())
+		require.NotNil(t, proofHandler1.Proof(obj.ID()))
+
+		liked, err := store2.GetReferences(spi.Liked, service2IRI)
+		require.NoError(t, err)
+		require.NotEmpty(t, liked)
+
+		likes, err := store1.GetReferences(spi.Like, service1IRI)
+		require.NoError(t, err)
+		require.NotEmpty(t, likes)
 	})
 }
 
