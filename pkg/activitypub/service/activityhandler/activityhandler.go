@@ -128,6 +128,8 @@ func (h *Handler) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleAnnounceActivity(activity)
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
+	case typeProp.Is(vocab.TypeLike):
+		return h.handleLikeActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -437,6 +439,39 @@ func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
 	return nil
 }
 
+func (h *Handler) handleLikeActivity(like *vocab.ActivityType) error {
+	logger.Infof("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+
+	err := h.validateLikeActivity(like)
+	if err != nil {
+		return fmt.Errorf("invalid 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	resultBytes, err := json.Marshal(like.Result().Object())
+	if err != nil {
+		return fmt.Errorf("marshal error of result in 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	err = h.ProofHandler.HandleProof(like.Object().IRI().String(), *like.EndTime(), *like.StartTime(), resultBytes)
+	if err != nil {
+		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	likeIRI, err := url.Parse(like.ID())
+	if err != nil {
+		return err
+	}
+
+	err = h.store.AddReference(store.Like, h.ServiceIRI, likeIRI)
+	if err != nil {
+		return fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	h.notify(like)
+
+	return nil
+}
+
 func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
 	if !target.Type().Is(vocab.TypeCAS) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
@@ -590,6 +625,26 @@ func (h *Handler) validateOfferActivity(offer *vocab.ActivityType) error {
 	return nil
 }
 
+func (h *Handler) validateLikeActivity(like *vocab.ActivityType) error {
+	if like.StartTime() == nil {
+		return fmt.Errorf("startTime is required")
+	}
+
+	if like.EndTime() == nil {
+		return fmt.Errorf("endTime is required")
+	}
+
+	if like.Object().IRI() == nil {
+		return fmt.Errorf("object is required")
+	}
+
+	if like.Result() == nil {
+		return fmt.Errorf("result is required")
+	}
+
+	return nil
+}
+
 func (h *Handler) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.ObjectType, error) {
 	bytes, err := json.Marshal(anchorCred)
 	if err != nil {
@@ -618,6 +673,7 @@ func defaultOptions() *service.Handlers {
 	return &service.Handlers{
 		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
 		FollowerAuth:            &acceptAllFollowerAuth{},
+		ProofHandler:            &noOpProofHandler{},
 	}
 }
 
@@ -651,6 +707,13 @@ type acceptAllFollowerAuth struct {
 
 func (a *acceptAllFollowerAuth) AuthorizeFollower(*vocab.ActorType) (bool, error) {
 	return true, nil
+}
+
+type noOpProofHandler struct {
+}
+
+func (p *noOpProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
+	return nil
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
