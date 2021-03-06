@@ -936,7 +936,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		err = h.HandleActivity(offer)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "no proof returned from witness for Offer activity")
+		require.Contains(t, err.Error(), "unable to unmarshal proof")
 	})
 
 	t.Run("Witness error", func(t *testing.T) {

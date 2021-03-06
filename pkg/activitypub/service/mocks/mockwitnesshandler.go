@@ -8,7 +8,6 @@ package mocks
 
 import (
 	"sync"
-	"time"
 )
 
 // WitnessHandler implements a mock witness handler.
@@ -40,7 +39,7 @@ func (m *WitnessHandler) WithError(err error) *WitnessHandler {
 
 // Witness adds the anchor credential to a list that can be inspected using the AnchorCreds function
 // and returns the injected proof/error.
-func (m *WitnessHandler) Witness(startTime, endTime time.Time, anchorCred []byte) ([]byte, error) {
+func (m *WitnessHandler) Witness(anchorCred []byte) ([]byte, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
