@@ -25,7 +25,10 @@ import (
 
 var logger = log.New("activitypub_service")
 
-const defaultBufferSize = 100
+const (
+	defaultBufferSize      = 100
+	defaultMaxWitnessDelay = 10 * time.Minute
+)
 
 // Config holds the configuration parameters for the activity handler.
 type Config struct {
@@ -38,6 +41,10 @@ type Config struct {
 
 	// BufferSize is the size of the Go channel buffer for a subscription.
 	BufferSize int
+
+	// MaxWitnessDelay is the maximum delay from when the witness receives the transaction (via an Offer) for
+	// the witness to include the transaction into the ledger.
+	MaxWitnessDelay time.Duration
 }
 
 // Handler provides an implementation for the ActivityHandler interface.
@@ -62,6 +69,10 @@ func New(cfg *Config, s store.Store, outbox service.Outbox, opts ...service.Hand
 
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
+	}
+
+	if cfg.MaxWitnessDelay == 0 {
+		cfg.MaxWitnessDelay = defaultMaxWitnessDelay
 	}
 
 	h := &Handler{
@@ -375,41 +386,34 @@ func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	err := h.validateOfferActivity(offer)
 	if err != nil {
-		return fmt.Errorf("invalid 'Offer' activity: %w", err)
+		return fmt.Errorf("invalid 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	obj := offer.Object().Object()
+	if time.Now().After(*offer.EndTime()) {
+		return fmt.Errorf("offer [%s] has expired", offer.ID())
+	}
 
-	bytes, err := json.Marshal(obj)
+	anchorCred := offer.Object().Object()
+
+	result, err := h.witnessAnchorCredential(anchorCred)
 	if err != nil {
-		return fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)
+		return fmt.Errorf("error creating result for 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	response, err := h.Witness.Witness(*offer.StartTime(), *offer.EndTime(), bytes)
+	iri, err := url.Parse(anchorCred.ID())
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid object IRI in 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	if len(response) == 0 {
-		return fmt.Errorf("no proof returned from witness for Offer activity %s", obj.ID())
-	}
-
-	result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(response))
-	if err != nil {
-		return fmt.Errorf("error creating offer result: %w", err)
-	}
-
-	iri, err := url.Parse(offer.Object().Object().ID())
-	if err != nil {
-		return fmt.Errorf("invalid object IRI in 'Offer' activity: %w", err)
-	}
+	startTime := time.Now()
+	endTime := startTime.Add(h.MaxWitnessDelay)
 
 	like := vocab.NewLikeActivity(h.newActivityID(),
 		vocab.NewObjectProperty(vocab.WithIRI(iri)),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(offer.Actor()),
-		vocab.WithStartTime(offer.StartTime()),
-		vocab.WithEndTime(offer.EndTime()),
+		vocab.WithStartTime(&startTime),
+		vocab.WithEndTime(&endTime),
 		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
 	)
 
@@ -420,12 +424,12 @@ func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	err = h.store.AddReference(store.Liked, h.ServiceIRI, likeIRI)
 	if err != nil {
-		return fmt.Errorf("unable to store 'Like' activity: %w", err)
+		return fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err)
 	}
 
 	err = h.outbox.Post(like)
 	if err != nil {
-		return fmt.Errorf("unable to reply with 'Like' to %s: %w", offer.Actor(), err)
+		return fmt.Errorf("unable to reply with 'Like' to %s for offer [%s]: %w", offer.Actor(), offer.ID(), err)
 	}
 
 	h.notify(offer)
@@ -484,8 +488,13 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	published := time.Now()
 
+	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal anchor credential: %w", err)
+	}
+
 	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID(),
-		create.Target().Object().ID(), vocab.MustUnmarshalToDoc(anchorCredentialBytes),
+		create.Target().Object().ID(), anchorCredDoc,
 	)
 	if err != nil {
 		return err
@@ -579,6 +588,30 @@ func (h *Handler) validateOfferActivity(offer *vocab.ActivityType) error {
 	}
 
 	return nil
+}
+
+func (h *Handler) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.ObjectType, error) {
+	bytes, err := json.Marshal(anchorCred)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)
+	}
+
+	response, err := h.Witness.Witness(bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	proof, err := vocab.UnmarshalToDoc(response)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal proof: %w", err)
+	}
+
+	result, err := vocab.NewObjectWithDocument(proof)
+	if err != nil {
+		return nil, fmt.Errorf("error creating offer result: %w", err)
+	}
+
+	return result, nil
 }
 
 func defaultOptions() *service.Handlers {

@@ -8,7 +8,6 @@ package spi
 
 import (
 	"errors"
-	"time"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
@@ -69,7 +68,7 @@ type FollowerAuth interface {
 
 // WitnessHandler is a handler that witnesses an anchor credential.
 type WitnessHandler interface {
-	Witness(startTime, endTime time.Time, anchorCred []byte) ([]byte, error)
+	Witness(anchorCred []byte) ([]byte, error)
 }
 
 // ActivityHandler defines the functions of an Activity handler.

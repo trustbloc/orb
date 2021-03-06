@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
@@ -44,6 +45,9 @@ type Config struct {
 	RetryOpts                 *redelivery.Config
 	PubSubFactory             PubSubFactory
 	ActivityHandlerBufferSize int
+
+	// MaxWitnessDelay is the maximum delay that the witnessed transaction becomes included into the ledger.
+	MaxWitnessDelay time.Duration
 }
 
 // Service implements an ActivityPub service which has an inbox, outbox, and
@@ -73,9 +77,10 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 
 	handler := activityhandler.New(
 		&activityhandler.Config{
-			ServiceName: cfg.ServiceName,
-			BufferSize:  cfg.ActivityHandlerBufferSize,
-			ServiceIRI:  cfg.ServiceIRI,
+			ServiceName:     cfg.ServiceName,
+			BufferSize:      cfg.ActivityHandlerBufferSize,
+			ServiceIRI:      cfg.ServiceIRI,
+			MaxWitnessDelay: cfg.MaxWitnessDelay,
 		},
 		activityStore, ob, handlerOpts...)
 
