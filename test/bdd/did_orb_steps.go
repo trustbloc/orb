@@ -30,10 +30,10 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/patch"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/pubkey"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/client"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/model"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/model"
 
-	"github.com/trustbloc/sidetree-mock/test/bddtests/restclient"
+	"github.com/trustbloc/orb/test/bdd/restclient"
 )
 
 var logger = logrus.New()
@@ -43,8 +43,8 @@ const (
 
 	initialStateSeparator = ":"
 
-	testDocumentResolveURL = "https://localhost:48326/sidetree/0.0.1/identifiers"
-	testDocumentUpdateURL  = "https://localhost:48326/sidetree/0.0.1/operations"
+	testDocumentResolveURL = "https://localhost:48326/sidetree/v1/identifiers"
+	testDocumentUpdateURL  = "https://localhost:48326/sidetree/v1/operations"
 
 	origin = "origin.com"
 

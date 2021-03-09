@@ -15,17 +15,17 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/doccomposer"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/doctransformer/didtransformer"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/docvalidator/didvalidator"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/operationapplier"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/operationparser"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/txnprovider"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/docvalidator/didvalidator"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationapplier"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
 
-	orboperationparser "github.com/trustbloc/orb/pkg/versions/0_1/operationparser"
-	"github.com/trustbloc/orb/pkg/versions/0_1/operationparser/validators/anchororigin"
-	"github.com/trustbloc/orb/pkg/versions/0_1/operationparser/validators/anchortime"
-	"github.com/trustbloc/orb/pkg/versions/0_1/txnprocessor"
+	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
+	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
+	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
 
 // DefaultNS is default namespace used in mocks.
@@ -148,21 +148,22 @@ func (m *MockProtocolClientProvider) ForNamespace(namespace string) (protocol.Cl
 func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 	//nolint:gomnd
 	latest := protocol.Protocol{
-		GenesisTime:                 0,
-		MultihashAlgorithms:         []uint{18},
-		MaxOperationCount:           1,    // one operation per batch - batch gets cut right away
-		MaxOperationSize:            2500, // has to be bigger than max delta + max proof + small number for type
-		MaxOperationHashLength:      100,
-		MaxDeltaSize:                1700, // our test is about 1100 since we have multiple public keys/services
-		MaxCasURILength:             100,
-		CompressionAlgorithm:        "GZIP",
-		MaxChunkFileSize:            maxBatchFileSize,
-		MaxProvisionalIndexFileSize: maxBatchFileSize,
-		MaxCoreIndexFileSize:        maxBatchFileSize,
-		MaxProofFileSize:            maxBatchFileSize,
-		Patches:                     []string{"replace", "add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch"}, //nolint:lll
-		SignatureAlgorithms:         []string{"EdDSA", "ES256", "ES256K"},
-		KeyAlgorithms:               []string{"Ed25519", "P-256", "secp256k1"},
+		GenesisTime:                  0,
+		MultihashAlgorithms:          []uint{18},
+		MaxOperationCount:            1,    // one operation per batch - batch gets cut right away
+		MaxOperationSize:             2500, // has to be bigger than max delta + max proof + small number for type
+		MaxOperationHashLength:       100,
+		MaxDeltaSize:                 1700, // our test is about 1100 since we have multiple public keys/services
+		MaxCasURILength:              100,
+		CompressionAlgorithm:         "GZIP",
+		MaxChunkFileSize:             maxBatchFileSize,
+		MaxProvisionalIndexFileSize:  maxBatchFileSize,
+		MaxCoreIndexFileSize:         maxBatchFileSize,
+		MaxProofFileSize:             maxBatchFileSize,
+		Patches:                      []string{"replace", "add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch"}, //nolint:lll
+		SignatureAlgorithms:          []string{"EdDSA", "ES256", "ES256K"},
+		KeyAlgorithms:                []string{"Ed25519", "P-256", "secp256k1"},
+		MaxMemoryDecompressionFactor: 3,
 	}
 
 	parser := operationparser.New(latest,
