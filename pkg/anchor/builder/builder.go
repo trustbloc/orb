@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
@@ -25,6 +26,7 @@ const (
 // Params holds required parameters for building anchor credential.
 type Params struct {
 	Issuer string
+	URL    string
 }
 
 // New returns new instance of anchor credential builder.
@@ -51,6 +53,8 @@ type Builder struct {
 
 // Build will create and sign anchor credential.
 func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
+	id := b.params.URL + "/" + uuid.New().String()
+
 	vc := &verifiable.Credential{
 		// TODO: Add definition for "AnchorCredential"
 		Types:   []string{"VerifiableCredential"},
@@ -60,6 +64,7 @@ func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
 			ID: b.params.Issuer,
 		},
 		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+		ID:     id,
 	}
 
 	signedVC, err := b.signer.Sign(vc)
@@ -73,6 +78,10 @@ func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
 func verifyBuilderParams(params Params) error {
 	if params.Issuer == "" {
 		return errors.New("missing issuer")
+	}
+
+	if params.URL == "" {
+		return errors.New("missing URL")
 	}
 
 	return nil
