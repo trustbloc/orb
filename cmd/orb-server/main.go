@@ -23,7 +23,7 @@ func main() {
 		},
 	}
 
-	rootCmd.AddCommand(startcmd.GetStartCmd(&startcmd.HTTPServer{}))
+	rootCmd.AddCommand(startcmd.GetStartCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-rest: %s", err.Error())

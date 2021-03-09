@@ -17,38 +17,38 @@ import (
 
 func TestCreateProviders(t *testing.T) {
 	t.Run("test error from create new couchdb", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeCouchDBOption}}, nil)
+		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeCouchDBOption}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test error from create new mysql", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeMYSQLDBOption}}, nil)
+		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeMYSQLDBOption}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "DB URL for new mySQL DB provider can't be blank")
 	})
 	t.Run("test error from create new kms secrets couchdb", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
 			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: databaseTypeCouchDBOption}}, nil)
+				kmsSecretsDatabaseType: databaseTypeCouchDBOption}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test error from create new kms secrets mysql", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
 			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: databaseTypeMYSQLDBOption}}, nil)
+				kmsSecretsDatabaseType: databaseTypeMYSQLDBOption}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "DB URL for new mySQL DB provider can't be blank")
 	})
 	t.Run("test invalid database type", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: "data1"}}, nil)
+		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: "data1"}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
 	})
 	t.Run("test invalid kms secrets database type", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
 			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: "data1"}}, nil)
+				kmsSecretsDatabaseType: "data1"}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
 	})
@@ -94,6 +94,3 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 		require.Nil(t, reader)
 	})
 }
-
-
-
