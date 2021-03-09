@@ -9,15 +9,15 @@ package inbox
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 
-	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
 	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
@@ -35,9 +35,8 @@ type pubSub interface {
 
 // Config holds configuration parameters for the Inbox.
 type Config struct {
-	ServiceName   string
-	ListenAddress string
-	Topic         string
+	ServiceEndpoint string
+	Topic           string
 }
 
 // Inbox implements the ActivityPub inbox.
@@ -46,7 +45,7 @@ type Inbox struct {
 	*lifecycle.Lifecycle
 
 	router          *message.Router
-	httpSubscriber  *wmhttp.Subscriber
+	httpSubscriber  *httpsubscriber.Subscriber
 	msgChannel      <-chan *message.Message
 	activityHandler service.ActivityHandler
 	activityStore   store.Store
@@ -62,7 +61,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		jsonUnmarshal:   json.Unmarshal,
 	}
 
-	h.Lifecycle = lifecycle.New(cfg.ServiceName,
+	h.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
 		lifecycle.WithStart(h.start),
 		lifecycle.WithStop(h.stop),
 	)
@@ -72,10 +71,11 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		return nil, errors.WithMessagef(err, "unable to subscribe to topic [%s]", cfg.Topic)
 	}
 
-	httpSubscriber, err := wmhttp.NewSubscriber(cfg.ListenAddress, wmhttp.SubscriberConfig{}, wmlogger.New())
-	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to create HTTP subscriber")
-	}
+	httpSubscriber := httpsubscriber.New(
+		&httpsubscriber.Config{
+			ServiceEndpoint: cfg.ServiceEndpoint,
+		},
+	)
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
 	if err != nil {
@@ -87,7 +87,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 	router.AddPlugin(plugin.SignalsHandler)
 
 	router.AddHandler(
-		"inbox-"+cfg.ServiceName, cfg.ServiceName,
+		"inbox-"+cfg.ServiceEndpoint, cfg.ServiceEndpoint,
 		httpSubscriber, cfg.Topic, pubSub,
 		func(msg *message.Message) ([]*message.Message, error) {
 			// Simply forward the message.
@@ -102,6 +102,12 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 	return h, nil
 }
 
+// HTTPHandler returns the HTTP handler which is invoked by the HTTP server.
+// This handler must be registered with an HTTP server.
+func (h *Inbox) HTTPHandler() common.HTTPHandler {
+	return h.httpSubscriber
+}
+
 func (h *Inbox) start() {
 	// Start the router
 	go h.route()
@@ -111,68 +117,47 @@ func (h *Inbox) start() {
 
 	// HTTP server needs to be started after router is ready.
 	<-h.router.Running()
-
-	// Start the HTTP server
-	go h.serveHTTP()
 }
 
 func (h *Inbox) stop() {
-	if err := h.httpSubscriber.Close(); err != nil {
-		logger.Warnf("Error closing inbox: %s", err)
-	}
-
 	if err := h.router.Close(); err != nil {
-		logger.Warnf("[%s] Error closing router: %s", h.ServiceName, err)
+		logger.Warnf("[%s] Error closing router: %s", h.ServiceEndpoint, err)
 	} else {
-		logger.Debugf("[%s] Closed router", h.ServiceName)
+		logger.Debugf("[%s] Closed router", h.ServiceEndpoint)
 	}
 }
 
 func (h *Inbox) route() {
-	logger.Debugf("[%s] Starting router", h.ServiceName)
+	logger.Debugf("[%s] Starting router", h.ServiceEndpoint)
 
 	if err := h.router.Run(context.Background()); err != nil {
 		// This happens on startup so the best thing to do is to panic
 		panic(err)
 	}
 
-	logger.Debugf("[%s] Router stopped", h.ServiceName)
+	logger.Debugf("[%s] Router stopped", h.ServiceEndpoint)
 }
 
 func (h *Inbox) listen() {
-	logger.Debugf("[%s] Starting message listener", h.ServiceName)
+	logger.Debugf("[%s] Starting message listener", h.ServiceEndpoint)
 
 	for msg := range h.msgChannel {
-		logger.Debugf("[%s] Got new message: %s: %s", h.ServiceName, msg.UUID, msg.Payload)
+		logger.Debugf("[%s] Got new message: %s: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
 
 		h.handle(msg)
 	}
 
-	logger.Debugf("[%s] Message listener stopped", h.ServiceName)
-}
-
-func (h *Inbox) serveHTTP() {
-	logger.Debugf("[%s] Starting HTTP server", h.ServiceName)
-
-	if err := h.httpSubscriber.StartHTTPServer(); err != nil {
-		if err == http.ErrServerClosed {
-			logger.Debugf("[%s] HTTP server stopped", h.ServiceName)
-		} else {
-			logger.Errorf("[%s] Error starting HTTP server: %s", h.ServiceName, err)
-
-			h.Stop()
-		}
-	}
+	logger.Debugf("[%s] Message listener stopped", h.ServiceEndpoint)
 }
 
 func (h *Inbox) handle(msg *message.Message) {
-	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceName, msg.UUID, msg.Payload)
+	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
 
 	activity := &vocab.ActivityType{}
 
 	err := h.jsonUnmarshal(msg.Payload, activity)
 	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling activity message: %s", h.ServiceName, err)
+		logger.Errorf("[%s] Error unmarshalling activity message: %s", h.ServiceEndpoint, err)
 
 		msg.Nack()
 
@@ -180,7 +165,7 @@ func (h *Inbox) handle(msg *message.Message) {
 	}
 
 	if err := h.activityStore.AddActivity(store.Inbox, activity); err != nil {
-		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceName, activity.ID(), err)
+		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
 
 		msg.Nack()
 
@@ -188,11 +173,11 @@ func (h *Inbox) handle(msg *message.Message) {
 	}
 
 	if err := h.activityHandler.HandleActivity(activity); err != nil {
-		logger.Warnf("[%s] Error handling message [%s]: %s", h.ServiceName, msg.UUID, err)
+		logger.Warnf("[%s] Error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
 
 		msg.Nack()
 	} else {
-		logger.Warnf("[%s] Successfully handled message [%s]", h.ServiceName, msg.UUID)
+		logger.Warnf("[%s] Successfully handled message [%s]", h.ServiceEndpoint, msg.UUID)
 
 		msg.Ack()
 	}
