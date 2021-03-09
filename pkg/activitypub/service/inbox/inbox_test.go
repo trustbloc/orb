@@ -8,6 +8,7 @@ package inbox
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,12 +22,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver"
 )
 
 //go:generate counterfeiter -o ../mocks/activityhandler.gen.go --fake-name ActivityHandler ../spi ActivityHandler
@@ -34,18 +37,20 @@ import (
 
 func TestInbox_StartStop(t *testing.T) {
 	cfg := &Config{
-		ServiceName:   "/services/service1",
-		ListenAddress: ":8201",
-		Topic:         "activities",
+		ServiceEndpoint: "/services/service1",
+		Topic:           "activities",
 	}
 
-	ib, err := New(cfg, memstore.New(cfg.ServiceName), mocks.NewPubSub(), &mocks.ActivityHandler{})
+	ib, err := New(cfg, memstore.New(cfg.ServiceEndpoint), mocks.NewPubSub(), &mocks.ActivityHandler{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
 	require.Equal(t, spi.StateNotStarted, ib.State())
 
 	ib.Start()
+
+	stop := startHTTPServer(t, ":8201", ib.HTTPHandler())
+	defer stop()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -60,9 +65,8 @@ func TestInbox_Handle(t *testing.T) {
 	const service1URL = "http://localhost:8202/services/service1"
 
 	cfg := &Config{
-		ServiceName:   "/services/service1",
-		ListenAddress: ":8202",
-		Topic:         "activities",
+		ServiceEndpoint: "/services/service1",
+		Topic:           "activities",
 	}
 
 	objIRI, err := url.Parse("http://example.com//services/service1/object1")
@@ -71,14 +75,16 @@ func TestInbox_Handle(t *testing.T) {
 	}
 
 	activityHandler := &mocks.ActivityHandler{}
-
-	activityStore := memstore.New(cfg.ServiceName)
+	activityStore := memstore.New(cfg.ServiceEndpoint)
 
 	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
 	ib.Start()
+
+	stop := startHTTPServer(t, ":8202", ib.HTTPHandler())
+	defer stop()
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -87,7 +93,7 @@ func TestInbox_Handle(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		activityHandler.HandleActivityReturns(nil)
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -125,45 +131,12 @@ func TestInbox_Handle(t *testing.T) {
 func TestInbox_Error(t *testing.T) {
 	client := http.Client{}
 
-	t.Run("HTTP subscriber error", func(t *testing.T) {
-		cfg := &Config{
-			ServiceName:   "/services/service1",
-			ListenAddress: ":8203",
-			Topic:         "activities",
-		}
-
-		activityHandler := &mocks.ActivityHandler{}
-		activityStore := &mocks.ActivityStore{}
-
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
-		require.NoError(t, err)
-		require.NotNil(t, ib)
-
-		ib2, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
-		require.NoError(t, err)
-		require.NotNil(t, ib2)
-
-		ib.Start()
-		defer ib.Stop()
-
-		time.Sleep(50 * time.Millisecond)
-
-		// Attempt to start another inbox with the same listen address should cause
-		// the service to shut down immediately.
-		ib2.Start()
-
-		time.Sleep(100 * time.Millisecond)
-
-		require.Equal(t, spi.StateStopped, ib2.State())
-	})
-
 	t.Run("Handler error", func(t *testing.T) {
 		const service1URL = "http://localhost:8204/services/service1"
 
 		cfg := &Config{
-			ServiceName:   "/services/service1",
-			ListenAddress: ":8204",
-			Topic:         "activities",
+			ServiceEndpoint: "/services/service1",
+			Topic:           "activities",
 		}
 
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
@@ -181,11 +154,14 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
+		stop := startHTTPServer(t, ":8204", ib.HTTPHandler())
+		defer stop()
+
 		time.Sleep(100 * time.Millisecond)
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -209,9 +185,8 @@ func TestInbox_Error(t *testing.T) {
 		const service1URL = "http://localhost:8205/services/service1"
 
 		cfg := &Config{
-			ServiceName:   "/services/service1",
-			ListenAddress: ":8205",
-			Topic:         "activities",
+			ServiceEndpoint: "/services/service1",
+			Topic:           "activities",
 		}
 
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
@@ -229,11 +204,14 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
+		stop := startHTTPServer(t, ":8205", ib.HTTPHandler())
+		defer stop()
+
 		time.Sleep(500 * time.Millisecond)
 
 		activityStore.AddActivityReturns(errors.New("injected store error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -257,9 +235,8 @@ func TestInbox_Error(t *testing.T) {
 		const service1URL = "http://localhost:8206/services/service1"
 
 		cfg := &Config{
-			ServiceName:   "/services/service1",
-			ListenAddress: ":8206",
-			Topic:         "activities",
+			ServiceEndpoint: "/services/service1",
+			Topic:           "activities",
 		}
 
 		objIRI, err := url.Parse("http://example.com//services/service1/object1")
@@ -283,11 +260,14 @@ func TestInbox_Error(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
+		stop := startHTTPServer(t, ":8206", ib.HTTPHandler())
+		defer stop()
+
 		time.Sleep(300 * time.Millisecond)
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -309,9 +289,8 @@ func TestInbox_Error(t *testing.T) {
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName:   "/services/service1",
-			ListenAddress: ":8207",
-			Topic:         "activities",
+			ServiceEndpoint: "/services/service1",
+			Topic:           "activities",
 		}
 
 		activityHandler := &mocks.ActivityHandler{}
@@ -353,4 +332,14 @@ func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, erro
 
 func newActivityID(serviceName string) string {
 	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+}
+
+func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
+	httpServer := httpserver.New(listenAddress, "", "", "", handlers...)
+
+	require.NoError(t, httpServer.Start())
+
+	return func() {
+		require.NoError(t, httpServer.Stop(context.Background()))
+	}
 }

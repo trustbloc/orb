@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
@@ -39,8 +40,7 @@ type PubSubFactory func(serviceName string) PubSub
 
 // Config holds the configuration parameters for an ActivityPub service.
 type Config struct {
-	ServiceName               string
-	ListenAddress             string
+	ServiceEndpoint           string
 	ServiceIRI                *url.URL
 	RetryOpts                 *redelivery.Config
 	PubSubFactory             PubSubFactory
@@ -60,15 +60,16 @@ type Service struct {
 	activityHandler spi.ActivityHandler
 }
 
-// NewService returns a new ActivityPub service.
-func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.HandlerOpt) (*Service, error) {
+// New returns a new ActivityPub service.
+func New(cfg *Config, activityStore store.Store,
+	handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	ob, err := outbox.New(
 		&outbox.Config{
-			ServiceName:      cfg.ServiceName,
+			ServiceName:      cfg.ServiceEndpoint,
 			Topic:            activitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
-		activityStore, newPubSub(cfg, "outbox-"+cfg.ServiceName),
+		activityStore, newPubSub(cfg, "outbox-"+cfg.ServiceEndpoint),
 		handlerOpts...,
 	)
 	if err != nil {
@@ -77,7 +78,7 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 
 	handler := activityhandler.New(
 		&activityhandler.Config{
-			ServiceName:     cfg.ServiceName,
+			ServiceName:     cfg.ServiceEndpoint,
 			BufferSize:      cfg.ActivityHandlerBufferSize,
 			ServiceIRI:      cfg.ServiceIRI,
 			MaxWitnessDelay: cfg.MaxWitnessDelay,
@@ -86,12 +87,11 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 
 	ib, err := inbox.New(
 		&inbox.Config{
-			ServiceName:   cfg.ServiceName,
-			Topic:         activitiesTopic,
-			ListenAddress: cfg.ListenAddress,
+			ServiceEndpoint: cfg.ServiceEndpoint,
+			Topic:           activitiesTopic,
 		},
 		activityStore,
-		newPubSub(cfg, "inbox-"+cfg.ServiceName),
+		newPubSub(cfg, "inbox-"+cfg.ServiceEndpoint),
 		handler,
 	)
 	if err != nil {
@@ -104,7 +104,7 @@ func NewService(cfg *Config, activityStore store.Store, handlerOpts ...spi.Handl
 		activityHandler: handler,
 	}
 
-	s.Lifecycle = lifecycle.New(cfg.ServiceName,
+	s.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
 		lifecycle.WithStart(s.start),
 		lifecycle.WithStop(s.stop),
 	)
@@ -127,6 +127,12 @@ func (s *Service) stop() {
 // Outbox returns the outbox, which allows clients to post activities.
 func (s *Service) Outbox() spi.Outbox {
 	return s.outbox
+}
+
+// InboxHTTPHandler returns the HTTP handler for the inbox which is invoked by the HTTP server.
+// This handler must be registered with an HTTP server.
+func (s *Service) InboxHTTPHandler() common.HTTPHandler {
+	return s.inbox.HTTPHandler()
 }
 
 // Subscribe allows a client to receive published activities.

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
@@ -24,22 +26,25 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver"
 )
 
 func TestNewService(t *testing.T) {
 	cfg1 := &Config{
-		ServiceName:   "/services/service1",
-		ListenAddress: ":8311",
+		ServiceEndpoint: "/services/service1",
 		PubSubFactory: func(serviceName string) PubSub {
 			return mocks.NewPubSub()
 		},
 	}
 
-	store1 := memstore.New(cfg1.ServiceName)
+	store1 := memstore.New(cfg1.ServiceEndpoint)
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := NewService(cfg1, store1, service.WithUndeliverableHandler(undeliverableHandler1))
+	service1, err := New(cfg1, store1, service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
+
+	stop := startHTTPServer(t, ":8311", service1.InboxHTTPHandler())
+	defer stop()
 
 	service1.Start()
 
@@ -57,18 +62,17 @@ func TestService_Create(t *testing.T) {
 	service2IRI := mustParseURL("http://localhost:8302/services/service2")
 
 	cfg1 := &Config{
-		ServiceName:   "/services/service1",
-		ServiceIRI:    service1IRI,
-		ListenAddress: ":8301",
-		RetryOpts:     redelivery.DefaultConfig(),
+		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      service1IRI,
+		RetryOpts:       redelivery.DefaultConfig(),
 	}
 
-	store1 := memstore.New(cfg1.ServiceName)
+	store1 := memstore.New(cfg1.ServiceEndpoint)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := NewService(cfg1, store1,
+	service1, err := New(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -77,10 +81,12 @@ func TestService_Create(t *testing.T) {
 
 	defer service1.Stop()
 
+	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
+	defer stop1()
+
 	cfg2 := &Config{
-		ServiceName:   "/services/service2",
-		ServiceIRI:    service2IRI,
-		ListenAddress: ":8302",
+		ServiceEndpoint: "/services/service2",
+		ServiceIRI:      service2IRI,
 		RetryOpts: &redelivery.Config{
 			MaxRetries:     5,
 			InitialBackoff: 10 * time.Millisecond,
@@ -90,12 +96,12 @@ func TestService_Create(t *testing.T) {
 		},
 	}
 
-	store2 := memstore.New(cfg2.ServiceName)
+	store2 := memstore.New(cfg2.ServiceEndpoint)
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := NewService(cfg2, store2,
+	service2, err := New(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -103,6 +109,9 @@ func TestService_Create(t *testing.T) {
 	require.NoError(t, err)
 
 	defer service2.Stop()
+
+	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
+	defer stop2()
 
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
@@ -169,18 +178,17 @@ func TestService_Follow(t *testing.T) {
 	service2IRI := mustParseURL("http://localhost:8302/services/service2")
 
 	cfg1 := &Config{
-		ServiceName:   "/services/service1",
-		ServiceIRI:    service1IRI,
-		ListenAddress: ":8301",
-		RetryOpts:     redelivery.DefaultConfig(),
+		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      service1IRI,
+		RetryOpts:       redelivery.DefaultConfig(),
 	}
 
-	store1 := memstore.New(cfg1.ServiceName)
+	store1 := memstore.New(cfg1.ServiceEndpoint)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := NewService(cfg1, store1,
+	service1, err := New(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -189,10 +197,12 @@ func TestService_Follow(t *testing.T) {
 
 	defer service1.Stop()
 
+	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
+	defer stop1()
+
 	cfg2 := &Config{
-		ServiceName:   "/services/service2",
-		ServiceIRI:    service2IRI,
-		ListenAddress: ":8302",
+		ServiceEndpoint: "/services/service2",
+		ServiceIRI:      service2IRI,
 		RetryOpts: &redelivery.Config{
 			MaxRetries:     5,
 			InitialBackoff: 10 * time.Millisecond,
@@ -202,12 +212,12 @@ func TestService_Follow(t *testing.T) {
 		},
 	}
 
-	store2 := memstore.New(cfg2.ServiceName)
+	store2 := memstore.New(cfg2.ServiceEndpoint)
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := NewService(cfg2, store2,
+	service2, err := New(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -216,12 +226,19 @@ func TestService_Follow(t *testing.T) {
 
 	defer service2.Stop()
 
+	httpServer2 := httpserver.New(":8302", "", "", "", service2.InboxHTTPHandler())
+
+	defer func() {
+		require.NoError(t, httpServer2.Stop(context.Background()))
+	}()
+
 	service1.Start()
 
 	// delay the start of Service2 to test redelivery
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		service2.Start()
+		require.NoError(t, httpServer2.Start())
 	}()
 
 	defer service1.Stop()
@@ -358,20 +375,19 @@ func TestService_Announce(t *testing.T) {
 	service3IRI := mustParseURL("http://localhost:8303/services/service3")
 
 	cfg1 := &Config{
-		ServiceName:   "/services/service1",
-		ServiceIRI:    service1IRI,
-		ListenAddress: ":8301",
-		RetryOpts:     redelivery.DefaultConfig(),
+		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      service1IRI,
+		RetryOpts:       redelivery.DefaultConfig(),
 	}
 
-	store1 := memstore.New(cfg1.ServiceName)
+	store1 := memstore.New(cfg1.ServiceEndpoint)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
 	proofHandler1 := mocks.NewProofHandler()
 	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := NewService(cfg1, store1,
+	service1, err := New(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -380,10 +396,12 @@ func TestService_Announce(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
+	defer stop1()
+
 	cfg2 := &Config{
-		ServiceName:   "/services/service2",
-		ServiceIRI:    service2IRI,
-		ListenAddress: ":8302",
+		ServiceEndpoint: "/services/service2",
+		ServiceIRI:      service2IRI,
 		RetryOpts: &redelivery.Config{
 			MaxRetries:     5,
 			InitialBackoff: 10 * time.Millisecond,
@@ -393,14 +411,14 @@ func TestService_Announce(t *testing.T) {
 		},
 	}
 
-	store2 := memstore.New(cfg2.ServiceName)
+	store2 := memstore.New(cfg2.ServiceEndpoint)
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	witness2 := mocks.NewWitnessHandler()
 	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := NewService(cfg2, store2,
+	service2, err := New(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -409,22 +427,24 @@ func TestService_Announce(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
+	defer stop2()
+
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
 	cfg3 := &Config{
-		ServiceName:   "/services/service3",
-		ServiceIRI:    service3IRI,
-		ListenAddress: ":8303",
+		ServiceEndpoint: "/services/service3",
+		ServiceIRI:      service3IRI,
 	}
 
-	store3 := memstore.New(cfg3.ServiceName)
+	store3 := memstore.New(cfg3.ServiceEndpoint)
 	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
 	followerAuth3 := mocks.NewFollowerAuth()
 	witness3 := mocks.NewWitnessHandler()
 	proofHandler3 := mocks.NewProofHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
-	service3, err := NewService(cfg3, store3,
+	service3, err := New(cfg3, store3,
 		service.WithUndeliverableHandler(undeliverableHandler3),
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),
@@ -432,6 +452,9 @@ func TestService_Announce(t *testing.T) {
 		service.WithProofHandler(proofHandler3),
 	)
 	require.NoError(t, err)
+
+	stop3 := startHTTPServer(t, ":8303", service3.InboxHTTPHandler())
+	defer stop3()
 
 	subscriber3 := mocks.NewSubscriber(service3.Subscribe())
 
@@ -614,20 +637,19 @@ func TestService_Offer(t *testing.T) {
 	service3IRI := mustParseURL("http://localhost:8303/services/service3")
 
 	cfg1 := &Config{
-		ServiceName:   "/services/service1",
-		ServiceIRI:    service1IRI,
-		ListenAddress: ":8301",
-		RetryOpts:     redelivery.DefaultConfig(),
+		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      service1IRI,
+		RetryOpts:       redelivery.DefaultConfig(),
 	}
 
-	store1 := memstore.New(cfg1.ServiceName)
+	store1 := memstore.New(cfg1.ServiceEndpoint)
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
 	proofHandler1 := mocks.NewProofHandler()
 	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := NewService(cfg1, store1,
+	service1, err := New(cfg1, store1,
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -636,10 +658,12 @@ func TestService_Offer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
+	defer stop1()
+
 	cfg2 := &Config{
-		ServiceName:   "/services/service2",
-		ServiceIRI:    service2IRI,
-		ListenAddress: ":8302",
+		ServiceEndpoint: "/services/service2",
+		ServiceIRI:      service2IRI,
 		RetryOpts: &redelivery.Config{
 			MaxRetries:     5,
 			InitialBackoff: 10 * time.Millisecond,
@@ -649,14 +673,14 @@ func TestService_Offer(t *testing.T) {
 		},
 	}
 
-	store2 := memstore.New(cfg2.ServiceName)
+	store2 := memstore.New(cfg2.ServiceEndpoint)
 	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
 	followerAuth2 := mocks.NewFollowerAuth()
 	witness2 := mocks.NewWitnessHandler().WithProof([]byte(proof))
 	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := NewService(cfg2, store2,
+	service2, err := New(cfg2, store2,
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -665,22 +689,24 @@ func TestService_Offer(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
+	defer stop2()
+
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
 	cfg3 := &Config{
-		ServiceName:   "/services/service3",
-		ServiceIRI:    service3IRI,
-		ListenAddress: ":8303",
+		ServiceEndpoint: "/services/service3",
+		ServiceIRI:      service3IRI,
 	}
 
-	store3 := memstore.New(cfg3.ServiceName)
+	store3 := memstore.New(cfg3.ServiceEndpoint)
 	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
 	followerAuth3 := mocks.NewFollowerAuth()
 	witness3 := mocks.NewWitnessHandler()
 	proofHandler3 := mocks.NewProofHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
-	service3, err := NewService(cfg3, store3,
+	service3, err := New(cfg3, store3,
 		service.WithUndeliverableHandler(undeliverableHandler3),
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),
@@ -688,6 +714,9 @@ func TestService_Offer(t *testing.T) {
 		service.WithProofHandler(proofHandler3),
 	)
 	require.NoError(t, err)
+
+	stop3 := startHTTPServer(t, ":8303", service3.InboxHTTPHandler())
+	defer stop3()
 
 	service1.Start()
 	service2.Start()
@@ -765,6 +794,16 @@ func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
 	}
 
 	return false
+}
+
+func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
+	httpServer := httpserver.New(listenAddress, "", "", "", handlers...)
+
+	require.NoError(t, httpServer.Start())
+
+	return func() {
+		require.NoError(t, httpServer.Stop(context.Background()))
+	}
 }
 
 const anchorCredential1 = `{
