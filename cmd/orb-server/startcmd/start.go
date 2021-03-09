@@ -19,14 +19,14 @@ import (
 	"github.com/google/tink/go/subtle/random"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
+	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
-	ariesstorage "github.com/hyperledger/aries-framework-go/pkg/storage"
-	ariesmemstorage "github.com/hyperledger/aries-framework-go/pkg/storage/mem"
+	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
@@ -45,7 +45,7 @@ import (
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/vcsigner"
-	"github.com/trustbloc/orb/pkg/versions/0_1/txnprocessor"
+	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
 
 const (
@@ -61,7 +61,10 @@ const (
 var logger = log.New("orb-server")
 
 const (
-	basePath = "/sidetree/0.0.1"
+	basePath = "/sidetree/v1"
+
+	baseResolvePath = basePath + "/identifiers"
+	baseUpdatePath  = basePath + "/operations"
 )
 
 type server interface {
@@ -222,8 +225,8 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 		parameters.tlsCertificate,
 		parameters.tlsKey,
 		parameters.token,
-		diddochandler.NewUpdateHandler(basePath, didDocHandler, pc),
-		diddochandler.NewResolveHandler(basePath, didDocHandler),
+		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
+		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
 	)
 
 	return srv.Start(httpServer)

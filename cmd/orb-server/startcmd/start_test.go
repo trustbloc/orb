@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
-	"github.com/hyperledger/aries-framework-go/pkg/storage"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ func TestCreateProviders(t *testing.T) {
 	t.Run("test error from create new couchdb", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeCouchDBOption}}, nil)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "hostURL for new CouchDB provider can't be blank")
+		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test error from create new mysql", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeMYSQLDBOption}}, nil)
@@ -30,7 +31,7 @@ func TestCreateProviders(t *testing.T) {
 			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
 				kmsSecretsDatabaseType: databaseTypeCouchDBOption}}, nil)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "hostURL for new CouchDB provider can't be blank")
+		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test error from create new kms secrets mysql", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
@@ -62,11 +63,7 @@ func TestCreateKMS(t *testing.T) {
 	})
 	t.Run("fail to create master key service", func(t *testing.T) {
 		masterKeyStore := ariesmockstorage.MockStore{
-			Store:     make(map[string][]byte),
-			ErrPut:    nil,
-			ErrGet:    nil,
-			ErrItr:    nil,
-			ErrDelete: nil,
+			Store: make(map[string]ariesmockstorage.DBEntry),
 		}
 
 		err := masterKeyStore.Put("masterkey", []byte(""))

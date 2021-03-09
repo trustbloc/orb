@@ -10,14 +10,14 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6-0.20210223185118-1d6fb5f95ad4
+	github.com/hyperledger/aries-framework-go v0.1.6
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.7.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.6-0.20210127161542-9e174750f523
-	github.com/trustbloc/sidetree-core-go v0.1.6-0.20210223184536-814c6b81a886
+	github.com/trustbloc/sidetree-core-go v0.6.0
 )
 
 go 1.15

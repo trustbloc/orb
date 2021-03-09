@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/0_1/txnprocessor"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprocessor"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	orbtxn "github.com/trustbloc/orb/pkg/anchor/txn"
