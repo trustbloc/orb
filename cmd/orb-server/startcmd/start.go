@@ -11,10 +11,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/google/tink/go/subtle/random"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
@@ -36,6 +38,9 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
+	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
@@ -56,6 +61,8 @@ const (
 	masterKeyNumBytes = 32
 
 	txnBuffer = 100
+
+	defaultMaxWitnessDelay = 10 * time.Minute
 )
 
 var logger = log.New("orb-server")
@@ -65,6 +72,8 @@ const (
 
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
+
+	activityPubServicePath = "/services/orb"
 )
 
 type server interface {
@@ -73,10 +82,13 @@ type server interface {
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct {
+	activityPubService service.ServiceLifecycle
 }
 
 // Start starts the http server
 func (s *HTTPServer) Start(srv *httpserver.Server) error {
+	s.activityPubService.Start()
+
 	if err := srv.Start(); err != nil {
 		return err
 	}
@@ -89,19 +101,21 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 	// Wait for interrupt
 	<-interrupt
 
+	s.activityPubService.Stop()
+
 	return nil
 }
 
 // GetStartCmd returns the Cobra start command.
-func GetStartCmd(srv server) *cobra.Command {
-	startCmd := createStartCmd(srv)
+func GetStartCmd() *cobra.Command {
+	startCmd := createStartCmd()
 
 	createFlags(startCmd)
 
 	return startCmd
 }
 
-func createStartCmd(srv server) *cobra.Command {
+func createStartCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Start orb-server",
@@ -112,13 +126,13 @@ func createStartCmd(srv server) *cobra.Command {
 				return err
 			}
 
-			return startOrbServices(parameters, srv)
+			return startOrbServices(parameters)
 		},
 	}
 }
 
 // nolint: gocyclo,funlen,gocognit
-func startOrbServices(parameters *orbParameters, srv server) error {
+func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		SetDefaultLogLevel(logger, parameters.logLevel)
 	}
@@ -220,6 +234,30 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 		processor.New(parameters.didNamespace, opStore, pc),
 	)
 
+	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicePath))
+	if err != nil {
+		return fmt.Errorf("invalid service IRI: %s", err.Error())
+	}
+
+	apConfig := &apservice.Config{
+		ServiceEndpoint: activityPubServicePath,
+		ServiceIRI:      apServiceIRI,
+		MaxWitnessDelay: defaultMaxWitnessDelay,
+	}
+
+	activityPubService, err := apservice.New(apConfig,
+		memstore.New(apConfig.ServiceEndpoint),
+		// TODO: Define all of the ActivityPub handlers
+		//service.WithProofHandler(proofHandler),
+		//service.WithWitness(witnessHandler),
+		//service.WithFollowerAuth(followerAuth),
+		//service.WithAnchorCredentialHandler(anchorCredHandler),
+		//service.WithUndeliverableHandler(undeliverableHandler),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
+	}
+
 	httpServer := httpserver.New(
 		parameters.hostURL,
 		parameters.tlsCertificate,
@@ -227,7 +265,12 @@ func startOrbServices(parameters *orbParameters, srv server) error {
 		parameters.token,
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
+		activityPubService.InboxHTTPHandler(),
 	)
+
+	srv := &HTTPServer{
+		activityPubService: activityPubService,
+	}
 
 	return srv.Start(httpServer)
 }

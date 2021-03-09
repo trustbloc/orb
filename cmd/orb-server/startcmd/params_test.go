@@ -7,23 +7,17 @@ package startcmd
 
 import (
 	"os"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/orb/pkg/httpserver"
 )
 
-type mockServer struct{}
-
-// Start starts the http server
-func (s *mockServer) Start(_ *httpserver.Server) error {
-	return nil
-}
-
 func TestStartCmdContents(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
+	startCmd := GetStartCmd()
 
 	require.Equal(t, "start", startCmd.Use)
 	require.Equal(t, "Start orb-server", startCmd.Short)
@@ -34,7 +28,7 @@ func TestStartCmdContents(t *testing.T) {
 
 func TestStartCmdWithBlankArg(t *testing.T) {
 	t.Run("test blank host url arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, ""}
 		startCmd.SetArgs(args)
@@ -45,7 +39,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	})
 
 	t.Run("test blank cas url arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, ""}
 		startCmd.SetArgs(args)
@@ -56,7 +50,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	})
 
 	t.Run("test blank did namespace arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test", "--" + didNamespaceFlagName, ""}
 		startCmd.SetArgs(args)
@@ -67,7 +61,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	})
 
 	t.Run("test blank database type arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, ""}
@@ -82,7 +76,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 
 func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing host url arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		err := startCmd.Execute()
 
@@ -92,7 +86,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 	t.Run("test missing cas url arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "localhost:8080"}
 		startCmd.SetArgs(args)
@@ -105,7 +99,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 	t.Run("test missing anchor credential issuer arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
@@ -123,7 +117,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 	t.Run("test missing anchor credential domain arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
@@ -141,7 +135,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
@@ -162,7 +156,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	t.Run("test blank host env var", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		err := os.Setenv(hostURLEnvKey, "")
 		require.NoError(t, err)
@@ -173,7 +167,7 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	})
 
 	t.Run("test blank cas url env var", func(t *testing.T) {
-		startCmd := GetStartCmd(&mockServer{})
+		startCmd := GetStartCmd()
 
 		err := os.Setenv(hostURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
@@ -188,7 +182,7 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 }
 
 func TestStartCmdCreateKMSFailure(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
+	startCmd := GetStartCmd()
 
 	args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
 		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -205,20 +199,27 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 }
 
 func TestStartCmdValidArgsEnvVar(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
+	startCmd := GetStartCmd()
 
 	setEnvVars(t, databaseTypeMemOption)
 
 	defer unsetEnvVars(t)
 
-	err := startCmd.Execute()
-	require.NoError(t, err)
+	go func() {
+		err := startCmd.Execute()
+		require.Nil(t, err)
+		require.Equal(t, log.ERROR, log.GetLevel(""))
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
 }
 
 func TestStartCmdValidArgs(t *testing.T) {
-	startCmd := GetStartCmd(&mockServer{})
+	startCmd := GetStartCmd()
 
-	args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
+	args := []string{"--" + hostURLFlagName, "localhost:8247", "--" + casURLFlagName,
 		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -227,14 +228,19 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
 	startCmd.SetArgs(args)
 
-	err := startCmd.Execute()
+	go func() {
+		err := startCmd.Execute()
+		require.Nil(t, err)
+		require.Equal(t, log.ERROR, log.GetLevel(""))
+	}()
 
-	require.Nil(t, err)
-	require.Equal(t, log.ERROR, log.GetLevel(""))
+	time.Sleep(50 * time.Millisecond)
+
+	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
 }
 
 func setEnvVars(t *testing.T, databaseType string) {
-	err := os.Setenv(hostURLEnvKey, "localhost:8080")
+	err := os.Setenv(hostURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
 	err = os.Setenv(casURLEnvKey, "cas")
