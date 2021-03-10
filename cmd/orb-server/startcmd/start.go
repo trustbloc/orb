@@ -31,19 +31,20 @@ import (
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
-	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
+	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/cas"
 	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
 	"github.com/trustbloc/orb/pkg/httpserver"
@@ -74,7 +75,7 @@ const (
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
 
-	activityPubServicePath = "/services/orb"
+	activityPubServicesPath = "/services/orb"
 )
 
 type server interface {
@@ -83,7 +84,7 @@ type server interface {
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct {
-	activityPubService service.ServiceLifecycle
+	activityPubService apspi.ServiceLifecycle
 }
 
 // Start starts the http server
@@ -252,25 +253,27 @@ func startOrbServices(parameters *orbParameters) error {
 		processor.New(parameters.didNamespace, opStore, pc),
 	)
 
-	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicePath))
+	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicesPath))
 	if err != nil {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
 	}
 
 	apConfig := &apservice.Config{
-		ServiceEndpoint: activityPubServicePath,
+		ServiceEndpoint: activityPubServicesPath,
 		ServiceIRI:      apServiceIRI,
 		MaxWitnessDelay: defaultMaxWitnessDelay,
 	}
 
+	apStore := apmemstore.New(apConfig.ServiceEndpoint)
+
 	activityPubService, err := apservice.New(apConfig,
-		memstore.New(apConfig.ServiceEndpoint),
+		apStore,
 		// TODO: Define all of the ActivityPub handlers
-		//service.WithProofHandler(proofHandler),
-		//service.WithWitness(witnessHandler),
-		//service.WithFollowerAuth(followerAuth),
-		//service.WithAnchorCredentialHandler(anchorCredHandler),
-		//service.WithUndeliverableHandler(undeliverableHandler),
+		//apspi.WithProofHandler(proofHandler),
+		//apspi.WithWitness(witnessHandler),
+		//apspi.WithFollowerAuth(followerAuth),
+		//apspi.WithAnchorCredentialHandler(anchorCredHandler),
+		//apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
@@ -284,6 +287,7 @@ func startOrbServices(parameters *orbParameters) error {
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
 		activityPubService.InboxHTTPHandler(),
+		aphandler.NewServices(activityPubServicesPath, apServiceIRI, apStore),
 	)
 
 	srv := &HTTPServer{
