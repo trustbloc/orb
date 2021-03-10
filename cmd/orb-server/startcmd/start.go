@@ -49,6 +49,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
+	"github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
@@ -137,12 +138,12 @@ func startOrbServices(parameters *orbParameters) error {
 		SetDefaultLogLevel(logger, parameters.logLevel)
 	}
 
-	edgeServiceProvs, err := createStoreProviders(parameters)
+	storeProviders, err := createStoreProviders(parameters)
 	if err != nil {
 		return err
 	}
 
-	localKMS, err := createKMS(edgeServiceProvs.kmsSecretsProvider)
+	localKMS, err := createKMS(storeProviders.kmsSecretsProvider)
 	if err != nil {
 		return err
 	}
@@ -208,11 +209,23 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
-	txnClientProviders := &writer.Providers{TxnGraph: txnGraph, DidTxns: didTxns, TxnBuilder: vcBuilder}
-	txnClient := writer.New("did:sidetree", txnClientProviders, sidetreeTxnCh)
+
+	vcStore, err := verifiable.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("failed to create vc store: %s", err.Error())
+	}
+
+	anchorWriterProviders := &writer.Providers{
+		TxnGraph:   txnGraph,
+		DidTxns:    didTxns,
+		TxnBuilder: vcBuilder,
+		Store:      vcStore,
+	}
+
+	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, sidetreeTxnCh)
 
 	// create new batch writer
-	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, txnClient))
+	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, anchorWriter))
 	if err != nil {
 		return fmt.Errorf("failed to create batch writer: %s", err.Error())
 	}
@@ -304,14 +317,14 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLockService
 }
 
-type edgeServiceProviders struct {
+type storageProviders struct {
 	provider           ariesstorage.Provider
 	kmsSecretsProvider ariesstorage.Provider
 }
 
 //nolint: gocyclo
-func createStoreProviders(parameters *orbParameters) (*edgeServiceProviders, error) {
-	var edgeServiceProvs edgeServiceProviders
+func createStoreProviders(parameters *orbParameters) (*storageProviders, error) {
+	var edgeServiceProvs storageProviders
 
 	switch { //nolint: dupl
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMemOption):
@@ -323,7 +336,7 @@ func createStoreProviders(parameters *orbParameters) (*edgeServiceProviders, err
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix))
 		if err != nil {
-			return &edgeServiceProviders{}, err
+			return &storageProviders{}, err
 		}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMYSQLDBOption):
 		var err error
@@ -332,10 +345,10 @@ func createStoreProviders(parameters *orbParameters) (*edgeServiceProviders, err
 			ariesmysqlstorage.NewProvider(parameters.dbParameters.databaseURL,
 				ariesmysqlstorage.WithDBPrefix(parameters.dbParameters.databasePrefix))
 		if err != nil {
-			return &edgeServiceProviders{}, err
+			return &storageProviders{}, err
 		}
 	default:
-		return &edgeServiceProviders{}, fmt.Errorf("database type not set to a valid type." +
+		return &storageProviders{}, fmt.Errorf("database type not set to a valid type." +
 			" run start --help to see the available options")
 	}
 
@@ -349,7 +362,7 @@ func createStoreProviders(parameters *orbParameters) (*edgeServiceProviders, err
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
 		if err != nil {
-			return &edgeServiceProviders{}, err
+			return &storageProviders{}, err
 		}
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMYSQLDBOption):
 		var err error
@@ -358,10 +371,10 @@ func createStoreProviders(parameters *orbParameters) (*edgeServiceProviders, err
 			ariesmysqlstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
 				ariesmysqlstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
 		if err != nil {
-			return &edgeServiceProviders{}, err
+			return &storageProviders{}, err
 		}
 	default:
-		return &edgeServiceProviders{}, fmt.Errorf("key database type not set to a valid type." +
+		return &storageProviders{}, fmt.Errorf("key database type not set to a valid type." +
 			" run start --help to see the available options")
 	}
 

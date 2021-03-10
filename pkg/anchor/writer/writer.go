@@ -32,6 +32,7 @@ type Providers struct {
 	TxnGraph   txnGraph
 	DidTxns    didTxns
 	TxnBuilder txnBuilder
+	Store      vcStore
 }
 
 type txnGraph interface {
@@ -47,6 +48,11 @@ type didTxns interface {
 	Last(did string) (string, error)
 }
 
+type vcStore interface {
+	Put(vc *verifiable.Credential) error
+	Get(id string) (*verifiable.Credential, error)
+}
+
 // New returns a new orb transaction client.
 func New(namespace string, providers *Providers, txnCh chan []string) *Writer {
 	return &Writer{
@@ -58,6 +64,7 @@ func New(namespace string, providers *Providers, txnCh chan []string) *Writer {
 
 // WriteAnchor writes anchor string to orb transaction.
 func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
+	// build anchor credential signed by orb server (org)
 	vc, err := c.buildCredential(anchor, refs, version)
 	if err != nil {
 		return err
@@ -65,7 +72,16 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 
 	logger.Debugf("created anchor credential for anchor: %s", anchor)
 
-	// TODO: create an offer for witnesses and wait for witness proofs (separate go routine)
+	// store anchor credential
+	err = c.Store.Put(vc)
+	if err != nil {
+		return err
+	}
+
+	// TODO: create an offer for witnesses and wait for witness proofs
+
+	// TODO: Add proofs to stored anchor credential
+
 	cid, err := c.TxnGraph.Add(vc)
 	if err != nil {
 		return err

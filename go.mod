@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.6
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210224230531-58e1368e5661
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
