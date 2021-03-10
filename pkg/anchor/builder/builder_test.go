@@ -20,6 +20,7 @@ func TestSigner_New(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		builderParams := Params{
 			Issuer: "issuer",
+			URL:    "url",
 		}
 
 		b, err := New(&mockSigner{}, builderParams)
@@ -33,11 +34,19 @@ func TestSigner_New(t *testing.T) {
 		require.Nil(t, s)
 		require.Contains(t, err.Error(), "failed to verify builder parameters: missing issuer")
 	})
+
+	t.Run("error - missing URL", func(t *testing.T) {
+		s, err := New(&mockSigner{}, Params{Issuer: "issuer"})
+		require.Error(t, err)
+		require.Nil(t, s)
+		require.Contains(t, err.Error(), "failed to verify builder parameters: missing URL")
+	})
 }
 
 func TestBuilder_Build(t *testing.T) {
 	builderParams := Params{
 		Issuer: "issuer",
+		URL:    "http://domain.com/vc",
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -65,6 +74,7 @@ func TestSigner_verifyBuilderParams(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		builderParams := Params{
 			Issuer: "issuer",
+			URL:    "http://domain.com/vc",
 		}
 
 		err := verifyBuilderParams(builderParams)

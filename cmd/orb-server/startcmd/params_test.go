@@ -134,7 +134,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"Neither anchor-credential-domain (command line flag) nor ANCHOR_CREDENTIAL_DOMAIN (environment variable) have been set.",
 			err.Error())
 	})
-	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
+
+	t.Run("test missing anchor credential url", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
@@ -143,6 +144,25 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com"}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"Neither anchor-credential-url (command line flag) nor ANCHOR_CREDENTIAL_URL (environment variable) have been set.",
+			err.Error())
+	})
+	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
+			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -190,6 +210,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + kmsSecretsDatabaseURLFlagName, "badURL"}
 	startCmd.SetArgs(args)
 
@@ -225,6 +246,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
 	startCmd.SetArgs(args)
 
@@ -259,6 +281,9 @@ func setEnvVars(t *testing.T, databaseType string) {
 	require.NoError(t, err)
 
 	err = os.Setenv(anchorCredentialIssuerEnvKey, "issuer")
+	require.NoError(t, err)
+
+	err = os.Setenv(anchorCredentialURLEnvKey, "peer")
 	require.NoError(t, err)
 
 	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")

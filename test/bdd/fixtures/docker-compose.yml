@@ -19,6 +19,7 @@ services:
       - ALLOWED_ORIGINS=origin.com,source.com
       - CAS_URL=ipfs:5001
       - ANCHOR_CREDENTIAL_ISSUER=http://peer1.com
+      - ANCHOR_CREDENTIAL_URL=http://peer1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       - ANCHOR_CREDENTIAL_DOMAIN=domain.com
       - DATABASE_TYPE=couchdb

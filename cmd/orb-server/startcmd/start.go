@@ -196,7 +196,12 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc signer: %s", err.Error())
 	}
 
-	vcBuilder, err := builder.New(vcSigner, builder.Params{Issuer: parameters.anchorCredentialParams.issuer})
+	vcBuilderParams := builder.Params{
+		Issuer: parameters.anchorCredentialParams.issuer,
+		URL:    parameters.anchorCredentialParams.url,
+	}
+
+	vcBuilder, err := builder.New(vcSigner, vcBuilderParams)
 	if err != nil {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}

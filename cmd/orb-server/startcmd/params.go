@@ -95,6 +95,12 @@ const (
 	anchorCredentialIssuerFlagUsage     = "Anchor credential issuer (required). " +
 		commonEnvVarUsageText + anchorCredentialIssuerEnvKey
 
+	anchorCredentialURLFlagName      = "anchor-credential-url"
+	anchorCredentialURLEnvKey        = "ANCHOR_CREDENTIAL_URL"
+	anchorCredentialURLFlagShorthand = "g"
+	anchorCredentialURLFlagUsage     = "Anchor credential url (required). " +
+		commonEnvVarUsageText + anchorCredentialURLEnvKey
+
 	anchorCredentialSignatureSuiteFlagName      = "anchor-credential-signature-suite"
 	anchorCredentialSignatureSuiteEnvKey        = "ANCHOR_CREDENTIAL_SIGNATURE_SUITE"
 	anchorCredentialSignatureSuiteFlagShorthand = "z"
@@ -137,6 +143,7 @@ type anchorCredentialParams struct {
 	signatureSuite     string
 	domain             string
 	issuer             string
+	url                string
 }
 
 type dbParameters struct {
@@ -230,6 +237,11 @@ func getAnchorCredentialParameters(cmd *cobra.Command) (*anchorCredentialParams,
 		return nil, err
 	}
 
+	url, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialURLFlagName, anchorCredentialURLEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
 	signatureSuite, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -239,6 +251,7 @@ func getAnchorCredentialParameters(cmd *cobra.Command) (*anchorCredentialParams,
 
 	return &anchorCredentialParams{
 		issuer:         issuer,
+		url:            url,
 		domain:         domain,
 		signatureSuite: signatureSuite,
 	}, nil
@@ -302,6 +315,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(allowedOriginsFlagName, allowedOriginsFlagShorthand, "", allowedOriginsFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
+	startCmd.Flags().StringP(anchorCredentialURLFlagName, anchorCredentialURLFlagShorthand, "", anchorCredentialURLFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteFlagShorthand, "", anchorCredentialSignatureSuiteFlagUsage)
 	startCmd.Flags().StringP(databaseTypeFlagName, databaseTypeFlagShorthand, "", databaseTypeFlagUsage)
 	startCmd.Flags().StringP(databaseURLFlagName, databaseURLFlagShorthand, "", databaseURLFlagUsage)
