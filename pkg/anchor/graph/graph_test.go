@@ -107,7 +107,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, txn1CID)
 
-		testDID := "did:method:abc"
+		testDID := "did:method:123"
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = txn1CID
@@ -127,6 +127,30 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(didTxns))
 		require.Equal(t, txn1CID, didTxns[0])
+	})
+
+	t.Run("success - cid referenced in previous transaction empty (create)", func(t *testing.T) {
+		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+
+		testDID := "did:method:abc"
+
+		previousDIDTxns := make(map[string]string)
+		previousDIDTxns[testDID] = ""
+
+		payload := txn.Payload{
+			AnchorString:         "anchor-3",
+			Namespace:            "namespace",
+			Version:              1,
+			PreviousTransactions: previousDIDTxns,
+		}
+
+		txnCID, err := graph.Add(buildCredential(payload))
+		require.NoError(t, err)
+		require.NotNil(t, txnCID)
+
+		didTxns, err := graph.GetDidTransactions(txnCID, testDID)
+		require.NoError(t, err)
+		require.Nil(t, didTxns)
 	})
 
 	t.Run("error - cid referenced in previous transaction not found", func(t *testing.T) {

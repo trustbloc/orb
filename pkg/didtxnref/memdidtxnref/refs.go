@@ -24,11 +24,14 @@ func New() *MemDidTxnRef {
 }
 
 // Add adds cid (transaction reference) to the list of transaction references that have been seen for this did.
-func (ref *MemDidTxnRef) Add(suffix, cid string) error {
+func (ref *MemDidTxnRef) Add(suffixes []string, cid string) error {
 	ref.Lock()
 	defer ref.Unlock()
 
-	ref.m[suffix] = append(ref.m[suffix], cid)
+	// update global did/txn references
+	for _, suffix := range suffixes {
+		ref.m[suffix] = append(ref.m[suffix], cid)
+	}
 
 	return nil
 }
