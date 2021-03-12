@@ -92,9 +92,20 @@ func WithEndTime(t *time.Time) Opt {
 
 // CollectionOptions holds the options for a Collection or OrderedCollection.
 type CollectionOptions struct {
-	First   *url.URL
-	Last    *url.URL
-	Current *url.URL
+	TotalItems int
+	First      *url.URL
+	Last       *url.URL
+	Current    *url.URL
+	PartOf     *url.URL
+	Next       *url.URL
+	Prev       *url.URL
+}
+
+// WithTotalItems sets the 'totalItems' property on the collection or ordered collection.
+func WithTotalItems(totalItems int) Opt {
+	return func(opts *Options) {
+		opts.TotalItems = totalItems
+	}
 }
 
 // WithFirst sets the 'first' property on the collection or ordered collection.
@@ -115,6 +126,27 @@ func WithLast(last *url.URL) Opt {
 func WithCurrent(current *url.URL) Opt {
 	return func(opts *Options) {
 		opts.Current = current
+	}
+}
+
+// WithPartOf sets the 'partOf' property on a collection page or ordered collection page.
+func WithPartOf(partOf *url.URL) Opt {
+	return func(opts *Options) {
+		opts.PartOf = partOf
+	}
+}
+
+// WithNext sets the 'next' property on a collection page or ordered collection page.
+func WithNext(next *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Next = next
+	}
+}
+
+// WithPrev sets the 'prev' property on a collection page or ordered collection page.
+func WithPrev(prev *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Prev = prev
 	}
 }
 
