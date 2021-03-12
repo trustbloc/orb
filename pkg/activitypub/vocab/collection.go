@@ -21,7 +21,7 @@ type collectionType struct {
 	Current    *URLProperty      `json:"current,omitempty"`
 	First      *URLProperty      `json:"first,omitempty"`
 	Last       *URLProperty      `json:"last,omitempty"`
-	TotalItems int               `json:"totalItems"`
+	TotalItems int               `json:"totalItems,omitempty"`
 	Items      []*ObjectProperty `json:"items,omitempty"`
 }
 
@@ -43,34 +43,27 @@ func (t *CollectionType) Items() []*ObjectProperty {
 
 // Current returns the current item.
 func (t *CollectionType) Current() *url.URL {
-	if t.coll.Current == nil {
-		return nil
-	}
-
 	return t.coll.Current.u
 }
 
 // First returns a URL that may be used to retrieve the first item in the collection.
 func (t *CollectionType) First() *url.URL {
-	if t.coll.First == nil {
-		return nil
-	}
-
 	return t.coll.First.u
 }
 
 // Last returns a URL that may be used to retrieve the last item in the collection.
 func (t *CollectionType) Last() *url.URL {
-	if t.coll.Last == nil {
-		return nil
-	}
-
 	return t.coll.Last.u
 }
 
 // NewCollection returns a new collection.
 func NewCollection(items []*ObjectProperty, opts ...Opt) *CollectionType {
 	options := NewOptions(opts...)
+
+	totalItems := options.TotalItems
+	if totalItems == 0 {
+		totalItems = len(items)
+	}
 
 	return &CollectionType{
 		ObjectType: NewObject(
@@ -82,7 +75,7 @@ func NewCollection(items []*ObjectProperty, opts ...Opt) *CollectionType {
 			Current:    NewURLProperty(options.Current),
 			First:      NewURLProperty(options.First),
 			Last:       NewURLProperty(options.Last),
-			TotalItems: len(items),
+			TotalItems: totalItems,
 			Items:      items,
 		},
 	}
@@ -116,7 +109,15 @@ func NewOrderedCollection(items []*ObjectProperty, opts ...Opt) *OrderedCollecti
 	}
 
 	t.object.Type = NewTypeProperty(TypeOrderedCollection)
-	t.coll.TotalItems = len(items)
+
+	options := NewOptions(opts...)
+
+	totalItems := options.TotalItems
+	if totalItems == 0 {
+		totalItems = len(items)
+	}
+
+	t.coll.TotalItems = totalItems
 
 	return t
 }

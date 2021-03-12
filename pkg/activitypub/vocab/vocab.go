@@ -33,6 +33,10 @@ const (
 	TypeCollection Type = "Collection"
 	// TypeOrderedCollection specifies the 'OrderedCollection' object type.
 	TypeOrderedCollection Type = "OrderedCollection"
+	// TypeCollectionPage specifies the 'CollectionPage' object type.
+	TypeCollectionPage Type = "CollectionPage"
+	// TypeOrderedCollectionPage specifies the 'OrderedCollectionPage' object type.
+	TypeOrderedCollectionPage Type = "OrderedCollectionPage"
 
 	// TypeService specifies the 'Service' actor type.
 	TypeService Type = "Service"

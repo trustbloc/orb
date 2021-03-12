@@ -14,8 +14,9 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
+const service1Inbox = "https://org1.com/services/service1/inbox"
+
 func TestCollectionMarshal(t *testing.T) {
-	collID := "https://org1.com/services/service1/inbox"
 	first := mustParseURL("https://org1.com/services/service1/inbox?page=true")
 	last := mustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
 	current := mustParseURL("https://org1.com/services/service1/inbox?page=2")
@@ -30,7 +31,7 @@ func TestCollectionMarshal(t *testing.T) {
 
 		coll := NewCollection(items,
 			WithContext(ContextActivityStreams),
-			WithID(collID),
+			WithID(service1Inbox), WithTotalItems(100),
 			WithFirst(first), WithLast(last), WithCurrent(current))
 
 		bytes, err := canonicalizer.MarshalCanonical(coll)
@@ -43,7 +44,7 @@ func TestCollectionMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &CollectionType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonCollection), c))
-		require.Equal(t, collID, c.ID())
+		require.Equal(t, service1Inbox, c.ID())
 
 		context := c.Context()
 		require.NotNil(t, context)
@@ -61,7 +62,7 @@ func TestCollectionMarshal(t *testing.T) {
 		require.NotNil(t, lst)
 		require.Equal(t, last.String(), lst.String())
 
-		require.Equal(t, 2, c.TotalItems())
+		require.Equal(t, 100, c.TotalItems())
 
 		items := c.Items()
 		require.Len(t, items, 2)
@@ -81,7 +82,6 @@ func TestCollectionMarshal(t *testing.T) {
 }
 
 func TestOrderedCollectionMarshal(t *testing.T) {
-	collID := "https://org1.com/services/service1/inbox"
 	first := mustParseURL("https://org1.com/services/service1/inbox?page=true")
 	last := mustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
 	current := mustParseURL("https://org1.com/services/service1/inbox?page=2")
@@ -96,7 +96,7 @@ func TestOrderedCollectionMarshal(t *testing.T) {
 
 		coll := NewOrderedCollection(items,
 			WithContext(ContextActivityStreams),
-			WithID(collID),
+			WithID(service1Inbox), WithTotalItems(100),
 			WithFirst(first), WithLast(last), WithCurrent(current))
 
 		bytes, err := canonicalizer.MarshalCanonical(coll)
@@ -109,7 +109,7 @@ func TestOrderedCollectionMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &OrderedCollectionType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonOrderedCollection), c))
-		require.Equal(t, collID, c.ID())
+		require.Equal(t, service1Inbox, c.ID())
 
 		context := c.Context()
 		require.NotNil(t, context)
@@ -127,7 +127,7 @@ func TestOrderedCollectionMarshal(t *testing.T) {
 		require.NotNil(t, lst)
 		require.Equal(t, last.String(), lst.String())
 
-		require.Equal(t, 2, c.TotalItems())
+		require.Equal(t, 100, c.TotalItems())
 
 		items := c.Items()
 		require.Len(t, items, 2)
@@ -151,7 +151,7 @@ const (
     "@context": "https://www.w3.org/ns/activitystreams",
     "id": "https://org1.com/services/service1/inbox",
     "type": "Collection",
-    "totalItems": 2,
+    "totalItems": 100,
     "current": "https://org1.com/services/service1/inbox?page=2",
     "first": "https://org1.com/services/service1/inbox?page=true",
     "last": "https://org1.com/services/service1/inbox?page=true&end=true",
@@ -165,7 +165,7 @@ const (
     "@context": "https://www.w3.org/ns/activitystreams",
     "id": "https://org1.com/services/service1/inbox",
     "type": "OrderedCollection",
-    "totalItems": 2,
+    "totalItems": 100,
     "current": "https://org1.com/services/service1/inbox?page=2",
     "first": "https://org1.com/services/service1/inbox?page=true",
     "last": "https://org1.com/services/service1/inbox?page=true&end=true",

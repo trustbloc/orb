@@ -28,6 +28,9 @@ func TestNewOptions(t *testing.T) {
 	first := mustParseURL("https://first")
 	last := mustParseURL("https://last")
 	current := mustParseURL("https://current")
+	partOf := mustParseURL("https://activities")
+	next := mustParseURL("https://activities?page=3")
+	prev := mustParseURL("https://activities?page=1")
 
 	publishedTime := time.Now()
 	startTime := time.Now()
@@ -74,6 +77,9 @@ func TestNewOptions(t *testing.T) {
 		WithFirst(first),
 		WithLast(last),
 		WithCurrent(current),
+		WithPartOf(partOf),
+		WithNext(next),
+		WithPrev(prev),
 		WithActivity(activity),
 		WithTarget(target),
 		WithActor(actor),
@@ -119,6 +125,9 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, first.String(), opts.First.String())
 	require.Equal(t, last.String(), opts.Last.String())
 	require.Equal(t, current.String(), opts.Current.String())
+	require.Equal(t, partOf.String(), opts.PartOf.String())
+	require.Equal(t, next.String(), opts.Next.String())
+	require.Equal(t, prev.String(), opts.Prev.String())
 
 	require.Equal(t, activity, opts.Activity)
 	require.Equal(t, target, opts.Target)
