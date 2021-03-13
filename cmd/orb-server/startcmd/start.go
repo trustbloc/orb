@@ -24,6 +24,7 @@ import (
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
@@ -43,6 +44,7 @@ import (
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/proofs"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/cas"
@@ -50,7 +52,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
-	"github.com/trustbloc/orb/pkg/store/verifiable"
+	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
@@ -210,20 +212,22 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create transaction channel (used by transaction client to notify observer about orb transactions)
 	sidetreeTxnCh := make(chan []string, txnBuffer)
+	vcCh := make(chan *verifiable.Credential, txnBuffer)
 
-	vcStore, err := verifiable.New(storeProviders.provider)
+	vcStore, err := vcstore.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
 
 	anchorWriterProviders := &writer.Providers{
-		TxnGraph:   txnGraph,
-		DidTxns:    didTxns,
-		TxnBuilder: vcBuilder,
-		Store:      vcStore,
+		TxnGraph:     txnGraph,
+		DidTxns:      didTxns,
+		TxnBuilder:   vcBuilder,
+		Store:        vcStore,
+		ProofHandler: proofs.New(&proofs.Providers{}, vcCh),
 	}
 
-	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, sidetreeTxnCh)
+	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, sidetreeTxnCh, vcCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, anchorWriter))

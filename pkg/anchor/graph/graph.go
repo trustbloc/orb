@@ -68,6 +68,10 @@ func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 
 		cur, ok = previousTxns[did]
 		if ok {
+			if cur == "" { // create
+				return refs, nil
+			}
+
 			refs = append(refs, cur)
 		}
 	}

@@ -15,24 +15,27 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/didtxnref"
 )
 
-var logger = log.New("txn-client")
+var logger = log.New("anchor-writer")
 
 // Writer implements writing orb transactions.
 type Writer struct {
 	*Providers
 	namespace string
+	vcCh      <-chan *verifiable.Credential
 	txnCh     chan []string
 }
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	TxnGraph   txnGraph
-	DidTxns    didTxns
-	TxnBuilder txnBuilder
-	Store      vcStore
+	TxnGraph     txnGraph
+	DidTxns      didTxns
+	TxnBuilder   txnBuilder
+	ProofHandler proofHandler
+	Store        vcStore
 }
 
 type txnGraph interface {
@@ -44,7 +47,7 @@ type txnBuilder interface {
 }
 
 type didTxns interface {
-	Add(did, cid string) error
+	Add(dids []string, cid string) error
 	Last(did string) (string, error)
 }
 
@@ -53,13 +56,22 @@ type vcStore interface {
 	Get(id string) (*verifiable.Credential, error)
 }
 
+type proofHandler interface {
+	RequestProofs(vc *verifiable.Credential, witnesses []string) error
+}
+
 // New returns a new orb transaction client.
-func New(namespace string, providers *Providers, txnCh chan []string) *Writer {
-	return &Writer{
+func New(namespace string, providers *Providers, txnCh chan []string, vcCh chan *verifiable.Credential) *Writer {
+	w := &Writer{
 		Providers: providers,
 		txnCh:     txnCh,
+		vcCh:      vcCh,
 		namespace: namespace,
 	}
+
+	go w.listenForWitnessedAnchorCredentials()
+
+	return w
 }
 
 // WriteAnchor writes anchor string to orb transaction.
@@ -70,34 +82,21 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return err
 	}
 
-	logger.Debugf("created anchor credential for anchor: %s", anchor)
-
 	// store anchor credential
 	err = c.Store.Put(vc)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store anchor credential: %s", err.Error())
 	}
 
-	// TODO: create an offer for witnesses and wait for witness proofs
+	logger.Debugf("stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
 
-	// TODO: Add proofs to stored anchor credential
+	// TODO: Figure out witness list for this anchor file
 
-	cid, err := c.TxnGraph.Add(vc)
+	// request proofs from witnesses
+	err = c.ProofHandler.RequestProofs(vc, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to request proofs from witnesses: %s", err.Error())
 	}
-
-	// update global did/txn references
-	for _, ref := range refs {
-		addErr := c.DidTxns.Add(ref.UniqueSuffix, cid)
-		if addErr != nil {
-			return addErr
-		}
-	}
-
-	// TODO: announce txn to followers and node observer (if running in observer node)
-
-	c.txnCh <- []string{cid}
 
 	return nil
 }
@@ -119,7 +118,13 @@ func (c *Writer) getPreviousTransactions(refs []*operation.Reference) (map[strin
 		last, err := c.DidTxns.Last(ref.UniqueSuffix)
 		if err != nil {
 			if err == didtxnref.ErrDidTransactionsNotFound {
-				// TODO: it is ok for transaction references not to be there for create; handle other types here
+				if ref.Type != operation.TypeCreate {
+					return nil, fmt.Errorf("previous did transaction reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix) //nolint:lll
+				}
+
+				// create doesn't have previous transaction references
+				previousDidTxns[ref.UniqueSuffix] = ""
+
 				continue
 			} else {
 				return nil, err
@@ -153,4 +158,67 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 	}
 
 	return vc, nil
+}
+
+func (c *Writer) listenForWitnessedAnchorCredentials() {
+	logger.Debugf("starting witnessed anchored credentials listener")
+
+	for vc := range c.vcCh {
+		logger.Debugf("got witnessed anchor credential: %s: %s", vc.ID)
+
+		c.handle(vc)
+	}
+
+	logger.Debugf("[%s] witnessed anchor credential listener stopped")
+}
+
+func (c *Writer) handle(vc *verifiable.Credential) {
+	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
+
+	// store anchor credential with witness proofs
+	err := c.Store.Put(vc)
+	if err != nil {
+		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
+
+		// TODO: How to handle recovery after this and all other errors in this handler
+
+		return
+	}
+
+	cid, err := c.TxnGraph.Add(vc)
+	if err != nil {
+		logger.Errorf("failed to add witnessed anchor credential[%s] to anchor graph: %s", vc.ID, err.Error())
+
+		return
+	}
+
+	txnPayload, err := util.GetTransactionPayload(vc)
+	if err != nil {
+		logger.Errorf("failed to extract txn payload from witnessed anchor credential[%s]: %s", vc.ID, err.Error())
+
+		return
+	}
+
+	// update global did/txn references
+	suffixes := getKeys(txnPayload.PreviousTransactions)
+
+	err = c.DidTxns.Add(suffixes, cid)
+	if err != nil {
+		logger.Errorf("failed updating did transaction references for anchor credential[%s]: %s", vc.ID, err.Error())
+
+		return
+	}
+
+	// TODO: announce txn to followers and node observer (if running in observer node)
+
+	c.txnCh <- []string{cid}
+}
+
+func getKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	return keys
 }

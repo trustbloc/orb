@@ -81,7 +81,8 @@ func TestProcessTxnOperations(t *testing.T) {
 		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
 			txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "discrepancy between transactions in the graph and anchored operations for did: abc")
+		require.Contains(t, err.Error(),
+			"discrepancy between transactions in the graph[2] and anchored operations[0] for did: abc")
 	})
 
 	t.Run("test success", func(t *testing.T) {

@@ -92,7 +92,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 			// TODO: This should not happen if we actively 'observe' batch writers
 			// however if can happen if observer starts starts observing new system and it is not done in order
 			// for now reject this case
-			return fmt.Errorf("discrepancy between transactions in the graph and anchored operations for did: %s", op.UniqueSuffix) //nolint:lll
+			return fmt.Errorf("discrepancy between transactions in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs), len(opsSoFar), op.UniqueSuffix) //nolint:lll
 		}
 
 		// TODO: Should we check that anchored operation reference matches anchored graph
