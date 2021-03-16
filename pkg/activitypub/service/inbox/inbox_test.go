@@ -263,7 +263,7 @@ func TestInbox_Error(t *testing.T) {
 		stop := startHTTPServer(t, ":8206", ib.HTTPHandler())
 		defer stop()
 
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 

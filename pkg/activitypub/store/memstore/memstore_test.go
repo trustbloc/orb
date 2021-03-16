@@ -8,6 +8,7 @@ package memstore
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -151,7 +152,9 @@ func TestStore_Actors(t *testing.T) {
 	require.Equal(t, actor2, a)
 }
 
-func checkQueryResults(t *testing.T, it spi.ActivityResultsIterator, expectedTypes ...string) {
+func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...string) {
+	require.NotNil(t, it)
+
 	for i := 0; i < len(expectedTypes); i++ {
 		a, err := it.Next()
 		require.NoError(t, err)
@@ -163,6 +166,70 @@ func checkQueryResults(t *testing.T, it spi.ActivityResultsIterator, expectedTyp
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
+}
+
+func TestActivityQueryResults(t *testing.T) {
+	createActivities := newMockActivities(vocab.TypeCreate, 7)
+	announceActivities := newMockActivities(vocab.TypeAnnounce, 3)
+
+	results := activityQueryResults(append(createActivities, announceActivities...))
+
+	// No paging
+	filtered, totalItems := results.filter(spi.NewCriteria())
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+	require.True(t, filtered[0] == results[0])
+	require.True(t, filtered[9] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(1),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 6)
+	require.True(t, filtered[0] == results[4])
+	require.True(t, filtered[5] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(2),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 2)
+	require.True(t, filtered[0] == results[8])
+	require.True(t, filtered[1] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(3),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Empty(t, filtered)
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(1),
+		spi.WithSortOrder(spi.SortDescending),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 6)
+	require.True(t, filtered[0] == results[5])
+	require.True(t, filtered[5] == results[0])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(spi.WithType(vocab.TypeAnnounce)),
+		spi.WithPageSize(3),
+	)
+	require.Equal(t, 3, totalItems)
+	require.Len(t, filtered, 3)
+	require.True(t, filtered[0] == results[7])
+	require.True(t, filtered[1] == results[8])
+	require.True(t, filtered[2] == results[9])
 }
 
 func contains(activityType string, types []string) bool {
@@ -182,4 +249,23 @@ func mustParseURL(raw string) *url.URL {
 	}
 
 	return u
+}
+
+func newMockActivities(t vocab.Type, num int) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		a := newMockActivity(t, fmt.Sprintf("https://activity_%s_%d", t, i))
+		activities[i] = a
+	}
+
+	return activities
+}
+
+func newMockActivity(t vocab.Type, id string) *vocab.ActivityType {
+	if t == vocab.TypeAnnounce {
+		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty())
+	}
+
+	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
 }

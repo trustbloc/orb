@@ -9,11 +9,13 @@ package memstore
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"sync"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -95,10 +97,10 @@ func (s *Store) GetActivity(storeType spi.ActivityStoreType, activityID string) 
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
 func (s *Store) QueryActivities(storeType spi.ActivityStoreType,
-	query *spi.Criteria) (spi.ActivityResultsIterator, error) {
+	query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	logger.Debugf("[%s] Querying activity from %s - Query: %+v", s.serviceName, storeType, query)
 
-	return s.activityStores[storeType].query(query)
+	return s.activityStores[storeType].query(query, opts...)
 }
 
 // AddReference adds the reference of the given type to the given actor.
@@ -125,13 +127,14 @@ func (s *Store) GetReferences(referenceType spi.ReferenceType, actorIRI *url.URL
 }
 
 type activityStore struct {
-	mutex      sync.RWMutex
-	activities map[string]*vocab.ActivityType
+	mutex        sync.RWMutex
+	activities   []*vocab.ActivityType
+	activityByID map[string]*vocab.ActivityType
 }
 
 func newActivitiesStore() *activityStore {
 	return &activityStore{
-		activities: make(map[string]*vocab.ActivityType),
+		activityByID: make(map[string]*vocab.ActivityType),
 	}
 }
 
@@ -139,7 +142,8 @@ func (s *activityStore) add(activity *vocab.ActivityType) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.activities[activity.ID()] = activity
+	s.activities = append(s.activities, activity)
+	s.activityByID[activity.ID()] = activity
 
 	return nil
 }
@@ -148,7 +152,7 @@ func (s *activityStore) get(activityID string) (*vocab.ActivityType, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	a, ok := s.activities[activityID]
+	a, ok := s.activityByID[activityID]
 	if !ok {
 		return nil, spi.ErrNotFound
 	}
@@ -156,11 +160,11 @@ func (s *activityStore) get(activityID string) (*vocab.ActivityType, error) {
 	return a, nil
 }
 
-func (s *activityStore) query(query *spi.Criteria) (spi.ActivityResultsIterator, error) {
+func (s *activityStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return newIterator(memQueryResults(s.activities).filter(query)), nil
+	return newActivityIterator(activityQueryResults(s.activities).filter(query, opts...)), nil
 }
 
 type referenceStore struct {
@@ -209,36 +213,80 @@ func (s *referenceStore) get(actor fmt.Stringer) ([]*url.URL, error) {
 	return s.irisByActor[actor.String()], nil
 }
 
-type queryFilter struct {
+type activityQueryFilter struct {
 	*spi.Criteria
 }
 
-func newQueryFilter(query *spi.Criteria) *queryFilter {
-	return &queryFilter{
+func newQueryFilter(query *spi.Criteria) *activityQueryFilter {
+	return &activityQueryFilter{
 		Criteria: query,
 	}
 }
 
-func (q *queryFilter) Accept(activity *vocab.ActivityType) bool {
-	if len(q.Types) > 0 {
-		return activity.Type().IsAny(q.Types...)
-	}
-
-	return true
-}
-
-type memQueryResults map[string]*vocab.ActivityType
-
-func (r memQueryResults) filter(query *spi.Criteria) []*vocab.ActivityType {
+func (q *activityQueryFilter) apply(activities []*vocab.ActivityType) []*vocab.ActivityType {
 	var results []*vocab.ActivityType
 
-	mq := newQueryFilter(query)
-
-	for _, a := range r {
-		if mq.Accept(a) {
+	for _, a := range activities {
+		if len(q.Types) == 0 || a.Type().IsAny(q.Types...) {
 			results = append(results, a)
 		}
 	}
 
 	return results
+}
+
+type activityQueryResults []*vocab.ActivityType
+
+func (r activityQueryResults) filter(query *spi.Criteria, opts ...spi.QueryOpt) ([]*vocab.ActivityType, int) {
+	results := newQueryFilter(query).apply(r)
+
+	options := storeutil.GetQueryOptions(opts...)
+
+	if options.SortOrder == spi.SortDescending {
+		reverseSort(results)
+	}
+
+	startIdx := getStartIndex(len(results), options)
+	if startIdx == -1 {
+		return nil, len(results)
+	}
+
+	return results[startIdx:], len(results)
+}
+
+func getFirstPageNum(totalItems, pageSize int) int {
+	if totalItems%pageSize > 0 {
+		return totalItems / pageSize
+	}
+
+	return totalItems/pageSize - 1
+}
+
+func getStartIndex(totalItems int, options *spi.QueryOptions) int {
+	if options.PageSize <= 0 {
+		return 0
+	}
+
+	startIdx := startIndex(totalItems, options)
+	if startIdx < 0 || startIdx >= totalItems {
+		return -1
+	}
+
+	return startIdx
+}
+
+func startIndex(totalItems int, options *spi.QueryOptions) int {
+	if options.PageNumber < 0 {
+		return 0
+	}
+
+	if options.SortOrder == spi.SortAscending {
+		return options.PageNumber * options.PageSize
+	}
+
+	return (getFirstPageNum(totalItems, options.PageSize) - options.PageNumber) * options.PageSize
+}
+
+func reverseSort(results interface{}) {
+	sort.SliceStable(results, func(i, j int) bool { return i > j }) //nolint:gocritic
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-func TestIterator(t *testing.T) {
+func TestActivityIterator(t *testing.T) {
 	const (
 		activityID1 = "activity1"
 		activityID2 = "activity2"
@@ -27,17 +27,21 @@ func TestIterator(t *testing.T) {
 
 	results := []*vocab.ActivityType{activity1, activity2}
 
-	it := newIterator(results)
+	it := newActivityIterator(results, 5)
 	require.NotNil(t, it)
-
-	for i := 0; i < 2; i++ {
-		a, err := it.Next()
-		require.NoError(t, err)
-		require.NotNil(t, a)
-		require.True(t, a.ID() == activityID1 || a.ID() == activityID2)
-	}
+	require.Equal(t, 5, it.TotalItems())
 
 	a, err := it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	require.True(t, a.ID() == activityID1)
+
+	a, err = it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	require.True(t, a.ID() == activityID2)
+
+	a, err = it.Next()
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
