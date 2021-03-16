@@ -12,18 +12,37 @@ import (
 )
 
 type iterator struct {
-	results []*vocab.ActivityType
-	current int
+	current    int
+	totalItems int
 }
 
-func newIterator(results []*vocab.ActivityType) *iterator {
+func newIterator(totalItems int) *iterator {
 	return &iterator{
-		results: results,
-		current: -1,
+		totalItems: totalItems,
+		current:    -1,
 	}
 }
 
-func (it *iterator) Next() (*vocab.ActivityType, error) {
+func (it *iterator) TotalItems() int {
+	return it.totalItems
+}
+
+func (it *iterator) Close() {
+}
+
+type activityIterator struct {
+	*iterator
+	results []*vocab.ActivityType
+}
+
+func newActivityIterator(results []*vocab.ActivityType, totalItems int) *activityIterator {
+	return &activityIterator{
+		iterator: newIterator(totalItems),
+		results:  results,
+	}
+}
+
+func (it *activityIterator) Next() (*vocab.ActivityType, error) {
 	if it.current >= len(it.results)-1 {
 		return nil, spi.ErrNotFound
 	}
@@ -31,7 +50,4 @@ func (it *iterator) Next() (*vocab.ActivityType, error) {
 	it.current++
 
 	return it.results[it.current], nil
-}
-
-func (it *iterator) Close() {
 }

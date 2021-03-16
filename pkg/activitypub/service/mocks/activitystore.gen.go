@@ -60,18 +60,19 @@ type ActivityStore struct {
 		result1 *vocab.ActivityType
 		result2 error
 	}
-	QueryActivitiesStub        func(storeType spi.ActivityStoreType, query *spi.Criteria) (spi.ActivityResultsIterator, error)
+	QueryActivitiesStub        func(storeType spi.ActivityStoreType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error)
 	queryActivitiesMutex       sync.RWMutex
 	queryActivitiesArgsForCall []struct {
 		storeType spi.ActivityStoreType
 		query     *spi.Criteria
+		opts      []spi.QueryOpt
 	}
 	queryActivitiesReturns struct {
-		result1 spi.ActivityResultsIterator
+		result1 spi.ActivityIterator
 		result2 error
 	}
 	queryActivitiesReturnsOnCall map[int]struct {
-		result1 spi.ActivityResultsIterator
+		result1 spi.ActivityIterator
 		result2 error
 	}
 	AddReferenceStub        func(refType spi.ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
@@ -318,17 +319,18 @@ func (fake *ActivityStore) GetActivityReturnsOnCall(i int, result1 *vocab.Activi
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) QueryActivities(storeType spi.ActivityStoreType, query *spi.Criteria) (spi.ActivityResultsIterator, error) {
+func (fake *ActivityStore) QueryActivities(storeType spi.ActivityStoreType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	fake.queryActivitiesMutex.Lock()
 	ret, specificReturn := fake.queryActivitiesReturnsOnCall[len(fake.queryActivitiesArgsForCall)]
 	fake.queryActivitiesArgsForCall = append(fake.queryActivitiesArgsForCall, struct {
 		storeType spi.ActivityStoreType
 		query     *spi.Criteria
-	}{storeType, query})
-	fake.recordInvocation("QueryActivities", []interface{}{storeType, query})
+		opts      []spi.QueryOpt
+	}{storeType, query, opts})
+	fake.recordInvocation("QueryActivities", []interface{}{storeType, query, opts})
 	fake.queryActivitiesMutex.Unlock()
 	if fake.QueryActivitiesStub != nil {
-		return fake.QueryActivitiesStub(storeType, query)
+		return fake.QueryActivitiesStub(storeType, query, opts...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -342,30 +344,30 @@ func (fake *ActivityStore) QueryActivitiesCallCount() int {
 	return len(fake.queryActivitiesArgsForCall)
 }
 
-func (fake *ActivityStore) QueryActivitiesArgsForCall(i int) (spi.ActivityStoreType, *spi.Criteria) {
+func (fake *ActivityStore) QueryActivitiesArgsForCall(i int) (spi.ActivityStoreType, *spi.Criteria, []spi.QueryOpt) {
 	fake.queryActivitiesMutex.RLock()
 	defer fake.queryActivitiesMutex.RUnlock()
-	return fake.queryActivitiesArgsForCall[i].storeType, fake.queryActivitiesArgsForCall[i].query
+	return fake.queryActivitiesArgsForCall[i].storeType, fake.queryActivitiesArgsForCall[i].query, fake.queryActivitiesArgsForCall[i].opts
 }
 
-func (fake *ActivityStore) QueryActivitiesReturns(result1 spi.ActivityResultsIterator, result2 error) {
+func (fake *ActivityStore) QueryActivitiesReturns(result1 spi.ActivityIterator, result2 error) {
 	fake.QueryActivitiesStub = nil
 	fake.queryActivitiesReturns = struct {
-		result1 spi.ActivityResultsIterator
+		result1 spi.ActivityIterator
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) QueryActivitiesReturnsOnCall(i int, result1 spi.ActivityResultsIterator, result2 error) {
+func (fake *ActivityStore) QueryActivitiesReturnsOnCall(i int, result1 spi.ActivityIterator, result2 error) {
 	fake.QueryActivitiesStub = nil
 	if fake.queryActivitiesReturnsOnCall == nil {
 		fake.queryActivitiesReturnsOnCall = make(map[int]struct {
-			result1 spi.ActivityResultsIterator
+			result1 spi.ActivityIterator
 			result2 error
 		})
 	}
 	fake.queryActivitiesReturnsOnCall[i] = struct {
-		result1 spi.ActivityResultsIterator
+		result1 spi.ActivityIterator
 		result2 error
 	}{result1, result2}
 }

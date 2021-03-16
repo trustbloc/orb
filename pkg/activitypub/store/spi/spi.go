@@ -65,13 +65,54 @@ type Store interface {
 	GetActivity(storeType ActivityStoreType, activityID string) (*vocab.ActivityType, error)
 	// QueryActivities queries the given activity store using the provided criteria
 	// and returns a results iterator.
-	QueryActivities(storeType ActivityStoreType, query *Criteria) (ActivityResultsIterator, error)
+	QueryActivities(storeType ActivityStoreType, query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
 	// AddReference adds the reference of the given type to the given actor.
 	AddReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
 	// DeleteReference deletes the reference of the given type from the given actor.
 	DeleteReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
 	// GetReferences returns the actor's list of references of the given type.
 	GetReferences(refType ReferenceType, actorIRI *url.URL) ([]*url.URL, error)
+}
+
+// SortOrder specifies the sort order of query results.
+type SortOrder int
+
+const (
+	// SortAscending indicates that the query results must be sorted in ascending order.
+	SortAscending SortOrder = iota
+	// SortDescending indicates that the query results must be sorted in descending order.
+	SortDescending
+)
+
+// QueryOptions holds options for a query.
+type QueryOptions struct {
+	PageNumber int
+	PageSize   int
+	SortOrder  SortOrder
+}
+
+// QueryOpt sets a query option.
+type QueryOpt func(options *QueryOptions)
+
+// WithPageSize sets the page size.
+func WithPageSize(pageSize int) QueryOpt {
+	return func(options *QueryOptions) {
+		options.PageSize = pageSize
+	}
+}
+
+// WithPageNum sets the page number.
+func WithPageNum(pageNum int) QueryOpt {
+	return func(options *QueryOptions) {
+		options.PageNumber = pageNum
+	}
+}
+
+// WithSortOrder sets the sort order. (Default is ascending.)
+func WithSortOrder(sortOrder SortOrder) QueryOpt {
+	return func(options *QueryOptions) {
+		options.SortOrder = sortOrder
+	}
 }
 
 // Criteria holds the search criteria for a query.
@@ -100,8 +141,10 @@ func WithType(t ...vocab.Type) CriteriaOpt {
 	}
 }
 
-// ActivityResultsIterator defines the query results iterator for activity queries.
-type ActivityResultsIterator interface {
+// ActivityIterator defines the query results iterator for activity queries.
+type ActivityIterator interface {
+	// TotalItems returns the total number of items as a result of the query.
+	TotalItems() int
 	// Next returns the next activity or an ErrNotFound error if there are no more items.
 	Next() (*vocab.ActivityType, error)
 	// Close closes the iterator.
