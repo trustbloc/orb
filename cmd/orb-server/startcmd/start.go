@@ -219,12 +219,15 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
 
+	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
+
 	anchorWriterProviders := &writer.Providers{
 		TxnGraph:     txnGraph,
 		DidTxns:      didTxns,
 		TxnBuilder:   vcBuilder,
 		Store:        vcStore,
 		ProofHandler: proofs.New(&proofs.Providers{}, vcCh),
+		OpProcessor:  opProcessor,
 	}
 
 	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, sidetreeTxnCh, vcCh)
@@ -254,7 +257,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.didAliases,
 		pc,
 		batchWriter,
-		processor.New(parameters.didNamespace, opStore, pc),
+		opProcessor,
 	)
 
 	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicesPath))
