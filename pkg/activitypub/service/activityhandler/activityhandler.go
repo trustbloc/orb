@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -347,13 +348,20 @@ func (h *Handler) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) e
 	return nil
 }
 
-func (h *Handler) hasFollower(actorIRI fmt.Stringer) (bool, error) {
-	existingFollowers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+func (h *Handler) hasFollower(actorIRI *url.URL) (bool, error) {
+	it, err := h.store.QueryReferences(store.Follower,
+		store.NewCriteria(
+			store.WithActorIRI(h.ServiceIRI),
+			store.WithReferenceIRI(actorIRI),
+		),
+	)
 	if err != nil {
 		return false, fmt.Errorf("unable to retrieve existing follower: %w", err)
 	}
 
-	return containsIRI(existingFollowers, actorIRI), nil
+	defer it.Close()
+
+	return it.TotalItems() > 0, nil
 }
 
 func (h *Handler) handleAnnounceActivity(announce *vocab.ActivityType) error {
@@ -503,7 +511,14 @@ func (h *Handler) handleAnnounceCollection(items []*vocab.ObjectProperty) error 
 }
 
 func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
-	followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+	if err != nil {
+		return err
+	}
+
+	defer it.Close()
+
+	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
 		return err
 	}
@@ -558,7 +573,14 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 }
 
 func (h *Handler) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
-	followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+	if err != nil {
+		return err
+	}
+
+	defer it.Close()
+
+	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
 		return err
 	}

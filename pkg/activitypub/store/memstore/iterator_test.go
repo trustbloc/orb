@@ -8,6 +8,7 @@ package memstore
 
 import (
 	"errors"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,6 +43,34 @@ func TestActivityIterator(t *testing.T) {
 	require.True(t, a.ID() == activityID2)
 
 	a, err = it.Next()
+	require.Error(t, err)
+	require.True(t, errors.Is(err, spi.ErrNotFound))
+	require.Nil(t, a)
+
+	require.NotPanics(t, it.Close)
+}
+
+func TestReferenceIterator(t *testing.T) {
+	ref1 := mustParseURL("https://ref_1")
+	ref2 := mustParseURL("https://ref_2")
+
+	results := []*url.URL{ref1, ref2}
+
+	it := newReferenceIterator(results, 5)
+	require.NotNil(t, it)
+	require.Equal(t, 5, it.TotalItems())
+
+	ref, err := it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, ref)
+	require.True(t, ref.String() == ref1.String())
+
+	ref, err = it.Next()
+	require.NoError(t, err)
+	require.NotNil(t, ref)
+	require.True(t, ref.String() == ref2.String())
+
+	a, err := it.Next()
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)

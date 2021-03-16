@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -272,8 +273,12 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[follow.ID()])
 		mutex.Unlock()
 
-		followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+		it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
 		require.NoError(t, err)
+
+		followers, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+
 		require.True(t, containsIRI(followers, service2IRI))
 		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 1)
 
@@ -313,7 +318,10 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			require.Nil(t, gotActivity[follow.ID()])
 			mutex.Unlock()
 
-			followers, err := h.store.GetReferences(store.Follower, h.ServiceIRI)
+			it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
 			require.NoError(t, err)
 			require.False(t, containsIRI(followers, service3IRI))
 			require.Len(t, ob.Activities().QueryByType(vocab.TypeReject), 1)
@@ -435,8 +443,12 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[accept.ID()])
 		mutex.Unlock()
 
-		following, err := h.store.GetReferences(store.Following, h.ServiceIRI)
+		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
 		require.NoError(t, err)
+
+		following, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+
 		require.True(t, containsIRI(following, service1IRI))
 	})
 
@@ -571,7 +583,10 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[reject.ID()])
 		mutex.Unlock()
 
-		following, err := h.store.GetReferences(store.Following, h.ServiceIRI)
+		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		require.NoError(t, err)
+
+		following, err := storeutil.ReadReferences(it, -1)
 		require.NoError(t, err)
 		require.True(t, !containsIRI(following, service1IRI))
 	})
@@ -913,7 +928,10 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		mutex.Unlock()
 		require.Len(t, witness.AnchorCreds(), 1)
 
-		liked, err := h.store.GetReferences(store.Liked, h.ServiceIRI)
+		it, err := h.store.QueryReferences(store.Liked, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		require.NoError(t, err)
+
+		liked, err := storeutil.ReadReferences(it, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, liked)
 	})
@@ -1096,9 +1114,12 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		require.NotEmpty(t, proofHandler.Proof(anchorCredID))
 
-		liked, err := h.store.GetReferences(store.Like, h.ServiceIRI)
+		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
 		require.NoError(t, err)
-		require.NotEmpty(t, liked)
+
+		likes, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, likes)
 	})
 
 	t.Run("HandleProof error", func(t *testing.T) {

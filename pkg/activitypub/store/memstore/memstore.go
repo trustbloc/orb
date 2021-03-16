@@ -119,11 +119,12 @@ func (s *Store) DeleteReference(referenceType spi.ReferenceType, actorIRI, refer
 	return s.referenceStores[referenceType].delete(actorIRI, referenceIRI)
 }
 
-// GetReferences returns the actor's list of references of the given type.
-func (s *Store) GetReferences(referenceType spi.ReferenceType, actorIRI *url.URL) ([]*url.URL, error) {
-	logger.Debugf("[%s] Retrieving references of type %s for actor %s", s.serviceName, referenceType, actorIRI)
+// QueryReferences returns the list of references of the given type according to the given query.
+func (s *Store) QueryReferences(refType spi.ReferenceType,
+	query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
+	logger.Debugf("[%s] Querying references of type %s - Query: %+v", s.serviceName, refType, query)
 
-	return s.referenceStores[referenceType].get(actorIRI)
+	return s.referenceStores[refType].query(query, opts...)
 }
 
 type activityStore struct {
@@ -206,11 +207,15 @@ func (s *referenceStore) delete(actor, iri fmt.Stringer) error {
 	return spi.ErrNotFound
 }
 
-func (s *referenceStore) get(actor fmt.Stringer) ([]*url.URL, error) {
+func (s *referenceStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return s.irisByActor[actor.String()], nil
+	if query.ActorIRI == nil {
+		return nil, fmt.Errorf("actor IRI is required")
+	}
+
+	return newReferenceIterator(refQueryResults(s.irisByActor[query.ActorIRI.String()]).filter(query, opts...)), nil
 }
 
 type activityQueryFilter struct {
@@ -252,6 +257,47 @@ func (r activityQueryResults) filter(query *spi.Criteria, opts ...spi.QueryOpt) 
 	}
 
 	return results[startIdx:], len(results)
+}
+
+type refQueryResults []*url.URL
+
+func (r refQueryResults) filter(query *spi.Criteria, opts ...spi.QueryOpt) ([]*url.URL, int) {
+	results := newRefQueryFilter(query).apply(r)
+
+	options := storeutil.GetQueryOptions(opts...)
+
+	if options.SortOrder == spi.SortDescending {
+		reverseSort(results)
+	}
+
+	startIdx := getStartIndex(len(results), options)
+	if startIdx == -1 {
+		return nil, len(results)
+	}
+
+	return results[startIdx:], len(results)
+}
+
+type refQueryFilter struct {
+	*spi.Criteria
+}
+
+func newRefQueryFilter(query *spi.Criteria) *refQueryFilter {
+	return &refQueryFilter{
+		Criteria: query,
+	}
+}
+
+func (f *refQueryFilter) apply(refs []*url.URL) []*url.URL {
+	var results []*url.URL
+
+	for _, ref := range refs {
+		if f.ReferenceIRI == nil || ref.String() == f.ReferenceIRI.String() {
+			results = append(results, ref)
+		}
+	}
+
+	return results
 }
 
 func getFirstPageNum(totalItems, pageSize int) int {
