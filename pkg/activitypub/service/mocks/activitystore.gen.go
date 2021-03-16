@@ -101,18 +101,19 @@ type ActivityStore struct {
 	deleteReferenceReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetReferencesStub        func(refType spi.ReferenceType, actorIRI *url.URL) ([]*url.URL, error)
-	getReferencesMutex       sync.RWMutex
-	getReferencesArgsForCall []struct {
-		refType  spi.ReferenceType
-		actorIRI *url.URL
+	QueryReferencesStub        func(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error)
+	queryReferencesMutex       sync.RWMutex
+	queryReferencesArgsForCall []struct {
+		refType spi.ReferenceType
+		query   *spi.Criteria
+		opts    []spi.QueryOpt
 	}
-	getReferencesReturns struct {
-		result1 []*url.URL
+	queryReferencesReturns struct {
+		result1 spi.ReferenceIterator
 		result2 error
 	}
-	getReferencesReturnsOnCall map[int]struct {
-		result1 []*url.URL
+	queryReferencesReturnsOnCall map[int]struct {
+		result1 spi.ReferenceIterator
 		result2 error
 	}
 	invocations      map[string][][]interface{}
@@ -472,54 +473,55 @@ func (fake *ActivityStore) DeleteReferenceReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityStore) GetReferences(refType spi.ReferenceType, actorIRI *url.URL) ([]*url.URL, error) {
-	fake.getReferencesMutex.Lock()
-	ret, specificReturn := fake.getReferencesReturnsOnCall[len(fake.getReferencesArgsForCall)]
-	fake.getReferencesArgsForCall = append(fake.getReferencesArgsForCall, struct {
-		refType  spi.ReferenceType
-		actorIRI *url.URL
-	}{refType, actorIRI})
-	fake.recordInvocation("GetReferences", []interface{}{refType, actorIRI})
-	fake.getReferencesMutex.Unlock()
-	if fake.GetReferencesStub != nil {
-		return fake.GetReferencesStub(refType, actorIRI)
+func (fake *ActivityStore) QueryReferences(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
+	fake.queryReferencesMutex.Lock()
+	ret, specificReturn := fake.queryReferencesReturnsOnCall[len(fake.queryReferencesArgsForCall)]
+	fake.queryReferencesArgsForCall = append(fake.queryReferencesArgsForCall, struct {
+		refType spi.ReferenceType
+		query   *spi.Criteria
+		opts    []spi.QueryOpt
+	}{refType, query, opts})
+	fake.recordInvocation("QueryReferences", []interface{}{refType, query, opts})
+	fake.queryReferencesMutex.Unlock()
+	if fake.QueryReferencesStub != nil {
+		return fake.QueryReferencesStub(refType, query, opts...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.getReferencesReturns.result1, fake.getReferencesReturns.result2
+	return fake.queryReferencesReturns.result1, fake.queryReferencesReturns.result2
 }
 
-func (fake *ActivityStore) GetReferencesCallCount() int {
-	fake.getReferencesMutex.RLock()
-	defer fake.getReferencesMutex.RUnlock()
-	return len(fake.getReferencesArgsForCall)
+func (fake *ActivityStore) QueryReferencesCallCount() int {
+	fake.queryReferencesMutex.RLock()
+	defer fake.queryReferencesMutex.RUnlock()
+	return len(fake.queryReferencesArgsForCall)
 }
 
-func (fake *ActivityStore) GetReferencesArgsForCall(i int) (spi.ReferenceType, *url.URL) {
-	fake.getReferencesMutex.RLock()
-	defer fake.getReferencesMutex.RUnlock()
-	return fake.getReferencesArgsForCall[i].refType, fake.getReferencesArgsForCall[i].actorIRI
+func (fake *ActivityStore) QueryReferencesArgsForCall(i int) (spi.ReferenceType, *spi.Criteria, []spi.QueryOpt) {
+	fake.queryReferencesMutex.RLock()
+	defer fake.queryReferencesMutex.RUnlock()
+	return fake.queryReferencesArgsForCall[i].refType, fake.queryReferencesArgsForCall[i].query, fake.queryReferencesArgsForCall[i].opts
 }
 
-func (fake *ActivityStore) GetReferencesReturns(result1 []*url.URL, result2 error) {
-	fake.GetReferencesStub = nil
-	fake.getReferencesReturns = struct {
-		result1 []*url.URL
+func (fake *ActivityStore) QueryReferencesReturns(result1 spi.ReferenceIterator, result2 error) {
+	fake.QueryReferencesStub = nil
+	fake.queryReferencesReturns = struct {
+		result1 spi.ReferenceIterator
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) GetReferencesReturnsOnCall(i int, result1 []*url.URL, result2 error) {
-	fake.GetReferencesStub = nil
-	if fake.getReferencesReturnsOnCall == nil {
-		fake.getReferencesReturnsOnCall = make(map[int]struct {
-			result1 []*url.URL
+func (fake *ActivityStore) QueryReferencesReturnsOnCall(i int, result1 spi.ReferenceIterator, result2 error) {
+	fake.QueryReferencesStub = nil
+	if fake.queryReferencesReturnsOnCall == nil {
+		fake.queryReferencesReturnsOnCall = make(map[int]struct {
+			result1 spi.ReferenceIterator
 			result2 error
 		})
 	}
-	fake.getReferencesReturnsOnCall[i] = struct {
-		result1 []*url.URL
+	fake.queryReferencesReturnsOnCall[i] = struct {
+		result1 spi.ReferenceIterator
 		result2 error
 	}{result1, result2}
 }
@@ -541,8 +543,8 @@ func (fake *ActivityStore) Invocations() map[string][][]interface{} {
 	defer fake.addReferenceMutex.RUnlock()
 	fake.deleteReferenceMutex.RLock()
 	defer fake.deleteReferenceMutex.RUnlock()
-	fake.getReferencesMutex.RLock()
-	defer fake.getReferencesMutex.RUnlock()
+	fake.queryReferencesMutex.RLock()
+	defer fake.queryReferencesMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

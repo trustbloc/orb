@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
 )
@@ -274,13 +275,20 @@ func TestService_Follow(t *testing.T) {
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
 
-		following, err := store1.GetReferences(spi.Following, actorIRI)
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actorIRI)))
+		require.NoError(t, err)
+
+		following, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, following)
 		require.Truef(t, containsIRI(following, targetIRI), "expecting %s to be following %s", actorIRI, targetIRI)
 
-		followers, err := store2.GetReferences(spi.Follower, targetIRI)
+		rit, err = store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(targetIRI)))
 		require.NoError(t, err)
+
+		followers, err := storeutil.ReadReferences(rit, -1)
+		require.NoError(t, err)
+
 		require.NotEmpty(t, followers)
 		require.Truef(t, containsIRI(followers, actorIRI), "expecting %s to have %s as a follower", targetIRI, actorIRI)
 
@@ -343,11 +351,17 @@ func TestService_Follow(t *testing.T) {
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
 
-		following, err := store2.GetReferences(spi.Following, actorIRI)
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actorIRI)))
+		require.NoError(t, err)
+
+		following, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.Falsef(t, containsIRI(following, targetIRI), "expecting %s NOT to be following %s", actorIRI, targetIRI)
 
-		followers, err := store1.GetReferences(spi.Follower, targetIRI)
+		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(targetIRI)))
+		require.NoError(t, err)
+
+		followers, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.Falsef(t, containsIRI(followers, actorIRI), "expecting %s NOT to have %s as a follower", targetIRI, actorIRI)
 
@@ -574,7 +588,10 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		followers, err := store2.GetReferences(spi.Follower, service2IRI)
+		rit, err := store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(service2IRI)))
+		require.NoError(t, err)
+
+		followers, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, followers)
 		require.Truef(t, containsIRI(followers, service3IRI), "expecting %s to have %s as a follower",
@@ -759,11 +776,17 @@ func TestService_Offer(t *testing.T) {
 		require.NotEmpty(t, witness2.AnchorCreds())
 		require.NotNil(t, proofHandler1.Proof(obj.ID()))
 
-		liked, err := store2.GetReferences(spi.Liked, service2IRI)
+		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithActorIRI(service2IRI)))
+		require.NoError(t, err)
+
+		liked, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, liked)
 
-		likes, err := store1.GetReferences(spi.Like, service1IRI)
+		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithActorIRI(service1IRI)))
+		require.NoError(t, err)
+
+		likes, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, likes)
 	})

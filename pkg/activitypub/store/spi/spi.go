@@ -70,8 +70,8 @@ type Store interface {
 	AddReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
 	// DeleteReference deletes the reference of the given type from the given actor.
 	DeleteReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
-	// GetReferences returns the actor's list of references of the given type.
-	GetReferences(refType ReferenceType, actorIRI *url.URL) ([]*url.URL, error)
+	// QueryReferences returns the list of references of the given type according to the given query.
+	QueryReferences(refType ReferenceType, query *Criteria, opts ...QueryOpt) (ReferenceIterator, error)
 }
 
 // SortOrder specifies the sort order of query results.
@@ -117,7 +117,9 @@ func WithSortOrder(sortOrder SortOrder) QueryOpt {
 
 // Criteria holds the search criteria for a query.
 type Criteria struct {
-	Types []vocab.Type
+	Types        []vocab.Type
+	ActorIRI     *url.URL
+	ReferenceIRI *url.URL
 }
 
 // CriteriaOpt sets a Criteria option.
@@ -141,12 +143,36 @@ func WithType(t ...vocab.Type) CriteriaOpt {
 	}
 }
 
+// WithActorIRI sets the actor IRI on the criteria.
+func WithActorIRI(iri *url.URL) CriteriaOpt {
+	return func(query *Criteria) {
+		query.ActorIRI = iri
+	}
+}
+
+// WithReferenceIRI sets the reference IRI on the criteria.
+func WithReferenceIRI(iri *url.URL) CriteriaOpt {
+	return func(query *Criteria) {
+		query.ReferenceIRI = iri
+	}
+}
+
 // ActivityIterator defines the query results iterator for activity queries.
 type ActivityIterator interface {
 	// TotalItems returns the total number of items as a result of the query.
 	TotalItems() int
 	// Next returns the next activity or an ErrNotFound error if there are no more items.
 	Next() (*vocab.ActivityType, error)
+	// Close closes the iterator.
+	Close()
+}
+
+// ReferenceIterator defines the query results iterator for reference queries.
+type ReferenceIterator interface {
+	// TotalItems returns the total number of items as a result of the query.
+	TotalItems() int
+	// Next returns the next reference or an ErrNotFound error if there are no more items.
+	Next() (*url.URL, error)
 	// Close closes the iterator.
 	Close()
 }

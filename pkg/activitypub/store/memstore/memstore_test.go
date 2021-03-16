@@ -82,48 +82,55 @@ func TestStore_Reference(t *testing.T) {
 	actor2 := mustParseURL("https://actor2")
 	actor3 := mustParseURL("https://actor3")
 
-	followers, err := s.GetReferences(spi.Follower, actor1)
+	it, err := s.QueryReferences(spi.Follower, spi.NewCriteria())
+	require.EqualError(t, err, "actor IRI is required")
+	require.Nil(t, it)
+
+	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(actor1)))
 	require.NoError(t, err)
-	require.Empty(t, followers)
+	require.NotNil(t, it)
+
+	checkRefQueryResults(t, it)
 
 	require.NoError(t, s.AddReference(spi.Follower, actor1, actor2))
 	require.NoError(t, s.AddReference(spi.Follower, actor1, actor3))
 
-	followers, err = s.GetReferences(spi.Follower, actor1)
+	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(actor1)))
 	require.NoError(t, err)
-	require.Len(t, followers, 2)
-	require.Equal(t, actor2.String(), followers[0].String())
-	require.Equal(t, actor3.String(), followers[1].String())
 
-	following, err := s.GetReferences(spi.Following, actor1)
+	checkRefQueryResults(t, it, actor2, actor3)
+
+	it, err = s.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actor1)))
 	require.NoError(t, err)
-	require.Empty(t, following)
+
+	checkRefQueryResults(t, it)
 
 	require.NoError(t, s.AddReference(spi.Following, actor1, actor2))
 
-	following, err = s.GetReferences(spi.Following, actor1)
+	it, err = s.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actor1)))
 	require.NoError(t, err)
-	require.Len(t, following, 1)
-	require.Equal(t, actor2.String(), following[0].String())
+
+	checkRefQueryResults(t, it, actor2)
 
 	require.NoError(t, s.DeleteReference(spi.Follower, actor1, actor2))
 
-	followers, err = s.GetReferences(spi.Follower, actor1)
+	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(actor1)))
 	require.NoError(t, err)
-	require.Len(t, followers, 1)
-	require.Equal(t, actor3.String(), followers[0].String())
 
-	followers, err = s.GetReferences(spi.Follower, actor2)
+	checkRefQueryResults(t, it, actor3)
+
+	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(actor2)))
 	require.NoError(t, err)
-	require.Empty(t, followers)
+
+	checkRefQueryResults(t, it)
 
 	require.NoError(t, s.AddReference(spi.Follower, actor2, actor3))
 	require.EqualError(t, s.DeleteReference(spi.Follower, actor2, actor1), spi.ErrNotFound.Error())
 
-	followers, err = s.GetReferences(spi.Follower, actor2)
+	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(actor2)))
 	require.NoError(t, err)
-	require.Len(t, followers, 1)
-	require.Equal(t, actor3.String(), followers[0].String())
+
+	checkRefQueryResults(t, it, actor3)
 }
 
 func TestStore_Actors(t *testing.T) {
@@ -166,6 +173,22 @@ func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...s
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
+}
+
+func checkRefQueryResults(t *testing.T, it spi.ReferenceIterator, expectedIRIs ...*url.URL) {
+	require.NotNil(t, it)
+
+	for i := 0; i < len(expectedIRIs); i++ {
+		iri, err := it.Next()
+		require.NoError(t, err)
+		require.NotNil(t, iri)
+		require.True(t, containsIRI(iri, expectedIRIs))
+	}
+
+	iri, err := it.Next()
+	require.Error(t, err)
+	require.True(t, errors.Is(err, spi.ErrNotFound))
+	require.Nil(t, iri)
 }
 
 func TestActivityQueryResults(t *testing.T) {
@@ -232,9 +255,89 @@ func TestActivityQueryResults(t *testing.T) {
 	require.True(t, filtered[2] == results[9])
 }
 
+func TestReferenceQueryResults(t *testing.T) {
+	results := refQueryResults(newMockURIs(10))
+
+	// No paging
+	filtered, totalItems := results.filter(spi.NewCriteria())
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+	require.True(t, filtered[0] == results[0])
+	require.True(t, filtered[9] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(2),
+		spi.WithPageNum(4),
+		spi.WithSortOrder(spi.SortDescending),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+	require.Equal(t, results[9].String(), filtered[0].String())
+	require.Equal(t, results[0].String(), filtered[9].String())
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(1),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 6)
+	require.True(t, filtered[0] == results[4])
+	require.True(t, filtered[5] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(2),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 2)
+	require.True(t, filtered[0] == results[8])
+	require.True(t, filtered[1] == results[9])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(3),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Empty(t, filtered)
+
+	filtered, totalItems = results.filter(spi.NewCriteria(),
+		spi.WithPageSize(4),
+		spi.WithPageNum(1),
+		spi.WithSortOrder(spi.SortDescending),
+	)
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 6)
+	require.True(t, filtered[0] == results[5])
+	require.True(t, filtered[5] == results[0])
+
+	filtered, totalItems = results.filter(spi.NewCriteria(), spi.WithPageSize(20))
+	require.Equal(t, 10, totalItems)
+	require.Len(t, filtered, 10)
+
+	filtered, totalItems = results.filter(spi.NewCriteria(spi.WithReferenceIRI(results[7])))
+	require.Equal(t, 1, totalItems)
+	require.True(t, filtered[0] == results[7])
+}
+
 func contains(activityType string, types []string) bool {
 	for _, t := range types {
 		if t == activityType {
+			return true
+		}
+	}
+
+	return false
+}
+
+func containsIRI(iri fmt.Stringer, iris []*url.URL) bool {
+	for _, i := range iris {
+		if i.String() == iri.String() {
 			return true
 		}
 	}
@@ -268,4 +371,14 @@ func newMockActivity(t vocab.Type, id string) *vocab.ActivityType {
 	}
 
 	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
+}
+
+func newMockURIs(num int) []*url.URL {
+	results := make([]*url.URL, num)
+
+	for i := 0; i < num; i++ {
+		results[i] = mustParseURL(fmt.Sprintf("https://ref_%d", i))
+	}
+
+	return results
 }
