@@ -12,6 +12,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/anchor/txn"
@@ -36,6 +37,11 @@ type Providers struct {
 	TxnBuilder   txnBuilder
 	ProofHandler proofHandler
 	Store        vcStore
+	OpProcessor  opProcessor
+}
+
+type opProcessor interface {
+	Resolve(uniqueSuffix string) (*protocol.ResolutionModel, error)
 }
 
 type txnGraph interface {
@@ -90,10 +96,14 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 
 	logger.Debugf("stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
 
-	// TODO: Figure out witness list for this anchor file
+	// figure out witness list for this anchor file
+	witnesses, err := c.getWitnesses(refs)
+	if err != nil {
+		return fmt.Errorf("failed to create witness list: %s", err.Error())
+	}
 
 	// request proofs from witnesses
-	err = c.ProofHandler.RequestProofs(vc, nil)
+	err = c.ProofHandler.RequestProofs(vc, witnesses)
 	if err != nil {
 		return fmt.Errorf("failed to request proofs from witnesses: %s", err.Error())
 	}
@@ -212,6 +222,48 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	// TODO: announce txn to followers and node observer (if running in observer node)
 
 	c.txnCh <- []string{cid}
+}
+
+// getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.
+// Create and recover operations contain anchor origin in operation references.
+// For update and deactivate operations we have to 'resolve' did in order to figure out anchor origin.
+func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
+	var witnesses []string
+
+	uniqueWitnesses := make(map[string]bool)
+
+	for _, ref := range refs {
+		var anchorOriginObj interface{}
+
+		switch ref.Type {
+		case operation.TypeCreate, operation.TypeRecover:
+			anchorOriginObj = ref.AnchorOrigin
+
+		case operation.TypeUpdate, operation.TypeDeactivate:
+			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
+			if err != nil {
+				return nil, err
+			}
+
+			anchorOriginObj = result.AnchorOrigin
+		default:
+			return nil, fmt.Errorf("operation type '%s' not supported for assembling witness list", ref.Type)
+		}
+
+		// TODO: string or array of strings?
+		anchorOrigin, ok := anchorOriginObj.(string)
+		if !ok {
+			return nil, fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)
+		}
+
+		_, ok = uniqueWitnesses[anchorOrigin]
+		if !ok {
+			witnesses = append(witnesses, anchorOrigin)
+			uniqueWitnesses[anchorOrigin] = true
+		}
+	}
+
+	return witnesses, nil
 }
 
 func getKeys(m map[string]string) []string {

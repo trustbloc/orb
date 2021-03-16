@@ -16,6 +16,7 @@ import (
 	mockstore "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
@@ -64,17 +65,62 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
 			Store:        vcStore,
+			OpProcessor:  &mockOpProcessor{},
 		}
 
 		c := New(namespace, providers, txnCh, vcCh)
 
-		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin.com",
+			},
+			{
+				UniqueSuffix: "did-2",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin.com",
+			},
+		}
+
+		err = c.WriteAnchor("anchor", opRefs, 1)
 		require.NoError(t, err)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
 
 		vcCh <- anchorVC
+	})
+
+	t.Run("error - failed to get witness list", func(t *testing.T) {
+		txnCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		require.NoError(t, err)
+
+		providers := &Providers{
+			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			DidTxns:      &mockDidTxns{},
+			TxnBuilder:   &mockTxnBuilder{},
+			ProofHandler: &mockProofHandler{vcCh: vcCh},
+			Store:        vcStore,
+			OpProcessor:  &mockOpProcessor{Err: errors.New("operation processor error")},
+		}
+
+		c := New(namespace, providers, txnCh, vcCh)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeUpdate,
+				AnchorOrigin: "origin.com",
+			},
+		}
+
+		err = c.WriteAnchor("anchor", opRefs, 1)
+		require.Error(t, err)
+		require.Equal(t, err.Error(), "failed to create witness list: operation processor error")
 	})
 
 	t.Run("error - build anchor credential error", func(t *testing.T) {
@@ -242,6 +288,117 @@ func TestWriter_handle(t *testing.T) {
 	})
 }
 
+func TestWriter_getWitnesses(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		txnCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		opMap := map[string]*protocol.ResolutionModel{
+			"did-1": {AnchorOrigin: "origin-1.com"},
+			"did-2": {AnchorOrigin: "origin-2.com"},
+			"did-3": {AnchorOrigin: "origin-3.com"},
+		}
+
+		providers := &Providers{
+			OpProcessor: &mockOpProcessor{Map: opMap},
+		}
+
+		c := New(namespace, providers, txnCh, vcCh)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeUpdate,
+			},
+			{
+				UniqueSuffix: "did-2",
+				Type:         operation.TypeRecover,
+				AnchorOrigin: "new-origin-2.com",
+			},
+			{
+				UniqueSuffix: "did-3",
+				Type:         operation.TypeDeactivate,
+			},
+			{
+				UniqueSuffix: "did-4",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin-4.com",
+			},
+			{
+				UniqueSuffix: "did-5",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin-5.com",
+			},
+			{
+				UniqueSuffix: "did-6",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin-5.com", // test re-use same origin
+			},
+		}
+
+		witnesses, err := c.getWitnesses(opRefs)
+		require.NoError(t, err)
+		require.Equal(t, 5, len(witnesses))
+
+		expected := []string{"origin-1.com", "new-origin-2.com", "origin-3.com", "origin-4.com", "origin-5.com"}
+		require.Equal(t, expected, witnesses)
+	})
+
+	t.Run("error - operation type not supported", func(t *testing.T) {
+		txnCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		opMap := map[string]*protocol.ResolutionModel{
+			"did-1": {AnchorOrigin: "origin-1.com"},
+		}
+
+		providers := &Providers{
+			OpProcessor: &mockOpProcessor{Map: opMap},
+		}
+
+		c := New(namespace, providers, txnCh, vcCh)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         "invalid",
+			},
+		}
+
+		witnesses, err := c.getWitnesses(opRefs)
+		require.Error(t, err)
+		require.Nil(t, witnesses)
+		require.Equal(t, err.Error(), "operation type 'invalid' not supported for assembling witness list")
+	})
+
+	t.Run("error - unexpected interface for anchor origin", func(t *testing.T) {
+		txnCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		opMap := map[string]*protocol.ResolutionModel{
+			"did-1": {AnchorOrigin: 0},
+		}
+
+		providers := &Providers{
+			OpProcessor: &mockOpProcessor{Map: opMap},
+		}
+
+		c := New(namespace, providers, txnCh, vcCh)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeUpdate,
+			},
+		}
+
+		witnesses, err := c.getWitnesses(opRefs)
+		require.Error(t, err)
+		require.Nil(t, witnesses)
+		require.Contains(t, err.Error(), "unexpected interface 'int' for anchor origin")
+	})
+}
+
 func TestWriter_Read(t *testing.T) {
 	providers := &Providers{
 		TxnGraph: graph.New(nil, pubKeyFetcherFnc),
@@ -312,6 +469,19 @@ func (m *mockDidTxns) Add(_ []string, _ string) error {
 
 func (m *mockDidTxns) Last(did string) (string, error) {
 	return "cid", nil
+}
+
+type mockOpProcessor struct {
+	Err error
+	Map map[string]*protocol.ResolutionModel
+}
+
+func (m *mockOpProcessor) Resolve(uniqueSuffix string) (*protocol.ResolutionModel, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+
+	return m.Map[uniqueSuffix], nil
 }
 
 //nolint:gochecknoglobals,lll
