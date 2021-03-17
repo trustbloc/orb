@@ -7,18 +7,24 @@ SPDX-License-Identifier: Apache-2.0
 package proofs
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 )
 
+const activityPubURL = "http://localhost/activityPubURL"
+
 func TestNew(t *testing.T) {
 	var vcChan chan *verifiable.Credential
 
 	providers := &Providers{}
 
-	c := New(providers, vcChan)
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	c := New(providers, vcChan, apServiceIRI)
 	require.NotNil(t, c)
 }
 
@@ -28,7 +34,10 @@ func TestClient_GetProofs(t *testing.T) {
 
 		providers := &Providers{}
 
-		c := New(providers, vcCh)
+		apServiceIRI, err := url.Parse(activityPubURL)
+		require.NoError(t, err)
+
+		c := New(providers, vcCh, apServiceIRI)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
