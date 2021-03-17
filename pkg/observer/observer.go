@@ -120,9 +120,11 @@ func (o *Observer) process(txns []string) {
 			continue
 		}
 
+		ad := &util.AnchorData{OperationCount: txnPayload.OperationCount, CoreIndexFileURI: txnPayload.CoreIndex}
+
 		sidetreeTxn := txnapi.SidetreeTxn{
 			TransactionTime:     uint64(txnNode.Issued.Unix()),
-			AnchorString:        txnPayload.AnchorString,
+			AnchorString:        ad.GetAnchorString(),
 			Namespace:           txnPayload.Namespace,
 			ProtocolGenesisTime: txnPayload.Version,
 			Reference:           txn,
@@ -130,11 +132,11 @@ func (o *Observer) process(txns []string) {
 
 		err = v.TransactionProcessor().Process(sidetreeTxn)
 		if err != nil {
-			logger.Warnf("failed to process anchor[%s]: %s", txnPayload.AnchorString, err.Error())
+			logger.Warnf("failed to process anchor[%s]: %s", txnPayload.CoreIndex, err.Error())
 
 			continue
 		}
 
-		logger.Debugf("successfully processed anchor[%s]", txnPayload.AnchorString)
+		logger.Debugf("successfully processed anchor[%s]", txnPayload.CoreIndex)
 	}
 }

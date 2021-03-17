@@ -64,9 +64,9 @@ func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 			return nil, err
 		}
 
-		previousTxns := payload.PreviousTransactions
+		previousAnchors := payload.PreviousAnchors
 
-		cur, ok = previousTxns[did]
+		cur, ok = previousAnchors[did]
 		if ok {
 			if cur == "" { // create
 				return refs, nil

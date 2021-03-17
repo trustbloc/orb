@@ -32,9 +32,10 @@ func TestGraph_Add(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
-			AnchorString: "anchor",
-			Namespace:    "namespace",
-			Version:      1,
+			OperationCount: 1,
+			CoreIndex:      "coreIndex",
+			Namespace:      "namespace",
+			Version:        1,
 		}
 
 		cid, err := graph.Add(buildCredential(payload))
@@ -48,9 +49,10 @@ func TestGraph_Read(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
-			AnchorString: "anchor",
-			Namespace:    "namespace",
-			Version:      1,
+			OperationCount: 2,
+			CoreIndex:      "coreIndex",
+			Namespace:      "namespace",
+			Version:        1,
 		}
 
 		txnCID, err := graph.Add(buildCredential(payload))
@@ -80,9 +82,10 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
-			AnchorString: "anchor",
-			Namespace:    "namespace",
-			Version:      1,
+			OperationCount: 1,
+			CoreIndex:      "coreIndex",
+			Namespace:      "namespace",
+			Version:        1,
 		}
 
 		txnCID, err := graph.Add(buildCredential(payload))
@@ -98,9 +101,10 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
 		payload := txn.Payload{
-			AnchorString: "anchor-1",
-			Namespace:    "namespace",
-			Version:      1,
+			OperationCount: 1,
+			CoreIndex:      "coreIndex-1",
+			Namespace:      "namespace",
+			Version:        1,
 		}
 
 		txn1CID, err := graph.Add(buildCredential(payload))
@@ -113,10 +117,11 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns[testDID] = txn1CID
 
 		payload = txn.Payload{
-			AnchorString:         "anchor-2",
-			Namespace:            "namespace",
-			Version:              1,
-			PreviousTransactions: previousDIDTxns,
+			OperationCount:  1,
+			CoreIndex:       "coreIndex-2",
+			Namespace:       "namespace",
+			Version:         1,
+			PreviousAnchors: previousDIDTxns,
 		}
 
 		txnCID, err := graph.Add(buildCredential(payload))
@@ -138,10 +143,11 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns[testDID] = ""
 
 		payload := txn.Payload{
-			AnchorString:         "anchor-3",
-			Namespace:            "namespace",
-			Version:              1,
-			PreviousTransactions: previousDIDTxns,
+			OperationCount:  1,
+			CoreIndex:       "coreIndex-3",
+			Namespace:       "namespace",
+			Version:         1,
+			PreviousAnchors: previousDIDTxns,
 		}
 
 		txnCID, err := graph.Add(buildCredential(payload))
@@ -162,10 +168,10 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns[testDID] = "non-existent"
 
 		payload := txn.Payload{
-			AnchorString:         "anchor-2",
-			Namespace:            "namespace",
-			Version:              1,
-			PreviousTransactions: previousDIDTxns,
+			CoreIndex:       "coreIndex-2",
+			Namespace:       "namespace",
+			Version:         1,
+			PreviousAnchors: previousDIDTxns,
 		}
 
 		txnCID, err := graph.Add(buildCredential(payload))
