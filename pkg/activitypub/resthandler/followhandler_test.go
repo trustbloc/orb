@@ -40,6 +40,23 @@ func TestNewFollowers(t *testing.T) {
 	require.NotNil(t, h.Handler())
 }
 
+func TestNewFollowing(t *testing.T) {
+	serviceIRI, err := url.Parse(serviceURL)
+	require.NoError(t, err)
+
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewFollowing(cfg, memstore.New(""))
+	require.NotNil(t, h)
+	require.Equal(t, "/services/orb/following", h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+}
+
 func TestFollowers_Handler(t *testing.T) {
 	serviceIRI, err := url.Parse(serviceURL)
 	require.NoError(t, err)

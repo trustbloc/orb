@@ -16,41 +16,67 @@ import (
 
 // Followers implements the 'followers' REST handler that retrieves a service's list of followers.
 type Followers struct {
-	*handler
+	*follow
 }
 
 // NewFollowers returns a new 'followers' REST handler.
 func NewFollowers(cfg *Config, activityStore spi.Store) *Followers {
-	h := &Followers{}
+	return &Followers{
+		follow: newFollow(FollowersPath, spi.Follower, cfg, activityStore),
+	}
+}
 
-	h.handler = newHandler(FollowersPath, cfg, activityStore, h.handle, pageParam, pageNumParam)
+// Following implements the 'following' REST handler that retrieves a service's list of following.
+type Following struct {
+	*follow
+}
+
+// NewFollowing returns a new 'following' REST handler.
+func NewFollowing(cfg *Config, activityStore spi.Store) *Followers {
+	return &Followers{
+		follow: newFollow(FollowingPath, spi.Following, cfg, activityStore),
+	}
+}
+
+type follow struct {
+	*handler
+
+	refType spi.ReferenceType
+}
+
+func newFollow(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *follow {
+	h := &follow{
+		refType: refType,
+	}
+
+	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
 
 	return h
 }
 
-func (h *Followers) handle(w http.ResponseWriter, req *http.Request) {
+func (h *follow) handle(w http.ResponseWriter, req *http.Request) {
 	if h.isPaging(req) {
-		h.handleFollowersPage(w, req)
+		h.handleFollowPage(w, req)
 	} else {
-		h.handleFollowers(w, req)
+		h.handleFollow(w, req)
 	}
 }
 
-func (h *Followers) handleFollowers(rw http.ResponseWriter, _ *http.Request) {
-	followers, err := h.getFollowers()
+func (h *follow) handleFollow(rw http.ResponseWriter, _ *http.Request) {
+	following, err := h.getFollow()
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving followers for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving %s for service IRI [%s]: %s",
+			h.endpoint, h.refType, h.ServiceIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
 		return
 	}
 
-	followersCollBytes, err := h.marshal(followers)
+	followersCollBytes, err := h.marshal(following)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal followers collection for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal %s collection for service IRI [%s]: %s",
+			h.endpoint, h.refType, h.ServiceIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -60,16 +86,16 @@ func (h *Followers) handleFollowers(rw http.ResponseWriter, _ *http.Request) {
 	h.writeResponse(rw, http.StatusOK, followersCollBytes)
 }
 
-func (h *Followers) handleFollowersPage(rw http.ResponseWriter, req *http.Request) {
+func (h *follow) handleFollowPage(rw http.ResponseWriter, req *http.Request) {
 	var page *vocab.CollectionPageType
 
 	var err error
 
 	pageNum, ok := h.getPageNum(req)
 	if ok {
-		page, err = h.getFollowersPage(spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum))
+		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum))
 	} else {
-		page, err = h.getFollowersPage(spi.WithPageSize(h.PageSize))
+		page, err = h.getPage(spi.WithPageSize(h.PageSize))
 	}
 
 	if err != nil {
@@ -83,7 +109,7 @@ func (h *Followers) handleFollowersPage(rw http.ResponseWriter, req *http.Reques
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal followers page for service IRI [%s]: %s",
+		logger.Errorf("[%s] Unable to marshal page for service IRI [%s]: %s",
 			h.endpoint, h.ServiceIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
@@ -94,8 +120,8 @@ func (h *Followers) handleFollowersPage(rw http.ResponseWriter, req *http.Reques
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
-func (h *Followers) getFollowers() (*vocab.CollectionType, error) {
-	it, err := h.activityStore.QueryReferences(spi.Follower,
+func (h *follow) getFollow() (*vocab.CollectionType, error) {
+	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
 			spi.WithActorIRI(h.ServiceIRI),
 		),
@@ -125,9 +151,9 @@ func (h *Followers) getFollowers() (*vocab.CollectionType, error) {
 	), nil
 }
 
-func (h *Followers) getFollowersPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
+func (h *follow) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
 	it, err := h.activityStore.QueryReferences(
-		spi.Follower,
+		h.refType,
 		spi.NewCriteria(spi.WithActorIRI(h.ServiceIRI)),
 		opts...,
 	)

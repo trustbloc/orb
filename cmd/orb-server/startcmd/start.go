@@ -304,6 +304,7 @@ func startOrbServices(parameters *orbParameters) error {
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apCfg, apStore),
 		aphandler.NewFollowers(apCfg, apStore),
+		aphandler.NewFollowing(apCfg, apStore),
 	)
 
 	srv := &HTTPServer{
