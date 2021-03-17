@@ -221,12 +221,19 @@ func startOrbServices(parameters *orbParameters) error {
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
+	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicesPath))
+	if err != nil {
+		return fmt.Errorf("invalid service IRI: %s", err.Error())
+	}
+
+	proofHandler := proofs.New(&proofs.Providers{}, vcCh, apServiceIRI)
+
 	anchorWriterProviders := &writer.Providers{
 		TxnGraph:     txnGraph,
 		DidTxns:      didTxns,
 		TxnBuilder:   vcBuilder,
 		Store:        vcStore,
-		ProofHandler: proofs.New(&proofs.Providers{}, vcCh),
+		ProofHandler: proofHandler,
 		OpProcessor:  opProcessor,
 	}
 
@@ -259,11 +266,6 @@ func startOrbServices(parameters *orbParameters) error {
 		batchWriter,
 		opProcessor,
 	)
-
-	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicesPath))
-	if err != nil {
-		return fmt.Errorf("invalid service IRI: %s", err.Error())
-	}
 
 	apConfig := &apservice.Config{
 		ServiceEndpoint: activityPubServicesPath,
