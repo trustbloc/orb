@@ -24,6 +24,8 @@ var logger = log.New("activitypub_resthandler")
 const (
 	// FollowersPath specifies the service's 'followers' endpoint.
 	FollowersPath = "/followers"
+	// FollowingPath specifies the service's 'following' endpoint.
+	FollowingPath = "/following"
 )
 
 const (
