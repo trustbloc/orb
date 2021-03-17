@@ -222,10 +222,11 @@ const (
   "issuer": "https://sally.example.com/services/orb",
   "issuanceDate": "2021-01-27T09:30:10Z",
   "credentialSubject": {
-	"anchorString": "bafkreihwsn",
+	"operationCount": 2,
+	"coreIndex": "bafkreihwsn",
 	"namespace": "did:orb",
 	"version": "1",
-	"previousTransactions": {
+	"previousAnchors": {
 	  "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
 	  "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
 	}
@@ -256,9 +257,10 @@ const (
       "https://trustbloc.github.io/Context/orb-v1.json"
     ],
     "credentialSubject": {
-      "anchorString": "bafkreihwsn",
+      "operationCount": 2,
+      "coreIndex": "bafkreihwsn",
       "namespace": "did:orb",
-      "previousTransactions": {
+      "previousAnchors": {
         "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
         "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
       },

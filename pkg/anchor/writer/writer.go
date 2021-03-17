@@ -120,9 +120,9 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 }
 
 //
-func (c *Writer) getPreviousTransactions(refs []*operation.Reference) (map[string]string, error) {
-	// assemble map of previous did transaction for each did that is referenced in anchor
-	previousDidTxns := make(map[string]string)
+func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]string, error) {
+	// assemble map of previous did anchors for each did that is referenced in anchor
+	previousAnchors := make(map[string]string)
 
 	for _, ref := range refs {
 		last, err := c.DidTxns.Last(ref.UniqueSuffix)
@@ -133,7 +133,7 @@ func (c *Writer) getPreviousTransactions(refs []*operation.Reference) (map[strin
 				}
 
 				// create doesn't have previous transaction references
-				previousDidTxns[ref.UniqueSuffix] = ""
+				previousAnchors[ref.UniqueSuffix] = ""
 
 				continue
 			} else {
@@ -141,25 +141,31 @@ func (c *Writer) getPreviousTransactions(refs []*operation.Reference) (map[strin
 			}
 		}
 
-		previousDidTxns[ref.UniqueSuffix] = last
+		previousAnchors[ref.UniqueSuffix] = last
 	}
 
-	return previousDidTxns, nil
+	return previousAnchors, nil
 }
 
 // WriteAnchor writes anchor string to orb transaction.
 func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
-	// get previous did transaction for each did that is referenced in anchor
-	previousTxns, err := c.getPreviousTransactions(refs)
+	// get previous anchors for each did that is referenced in this anchor
+	previousAnchors, err := c.getPreviousAnchors(refs)
+	if err != nil {
+		return nil, err
+	}
+
+	ad, err := util.ParseAnchorString(anchor)
 	if err != nil {
 		return nil, err
 	}
 
 	subject := &txn.Payload{
-		AnchorString:         anchor,
-		Namespace:            c.namespace,
-		Version:              version,
-		PreviousTransactions: previousTxns,
+		OperationCount:  ad.OperationCount,
+		CoreIndex:       ad.CoreIndexFileURI,
+		Namespace:       c.namespace,
+		Version:         version,
+		PreviousAnchors: previousAnchors,
 	}
 
 	vc, err := c.TxnBuilder.Build(subject)
@@ -210,7 +216,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	}
 
 	// update global did/txn references
-	suffixes := getKeys(txnPayload.PreviousTransactions)
+	suffixes := getKeys(txnPayload.PreviousAnchors)
 
 	err = c.DidTxns.Add(suffixes, cid)
 	if err != nil {

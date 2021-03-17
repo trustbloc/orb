@@ -22,9 +22,10 @@ const defVCContext = "https://www.w3.org/2018/credentials/v1"
 func TestGetTransactionPayload(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		txnInfo := &txn.Payload{
-			AnchorString: "anchor",
-			Namespace:    "namespace",
-			Version:      1,
+			OperationCount: 1,
+			CoreIndex:      "coreIndex",
+			Namespace:      "namespace",
+			Version:        1,
 		}
 
 		vc := &verifiable.Credential{
@@ -48,9 +49,10 @@ func TestGetTransactionPayload(t *testing.T) {
 		require.NotNil(t, txnInfoFromVC)
 
 		require.Equal(t, txnInfo.Namespace, txnInfoFromVC.Namespace)
-		require.Equal(t, txnInfo.AnchorString, txnInfoFromVC.AnchorString)
+		require.Equal(t, txnInfo.OperationCount, txnInfoFromVC.OperationCount)
+		require.Equal(t, txnInfo.CoreIndex, txnInfoFromVC.CoreIndex)
 		require.Equal(t, txnInfo.Version, txnInfoFromVC.Version)
-		require.Equal(t, txnInfo.PreviousTransactions, txnInfoFromVC.PreviousTransactions)
+		require.Equal(t, txnInfo.PreviousAnchors, txnInfoFromVC.PreviousAnchors)
 	})
 
 	t.Run("error - no credential subject", func(t *testing.T) {

@@ -8,8 +8,9 @@ package txn
 
 // Payload defines orb transaction details.
 type Payload struct {
-	AnchorString         string            `json:"anchorString"`
-	Namespace            string            `json:"namespace"`
-	Version              uint64            `json:"version"`
-	PreviousTransactions map[string]string `json:"previousTransactions,omitempty"`
+	OperationCount  uint64            `json:"operationCount"`
+	CoreIndex       string            `json:"coreIndex"`
+	Namespace       string            `json:"namespace"`
+	Version         uint64            `json:"version"`
+	PreviousAnchors map[string]string `json:"previousAnchors,omitempty"`
 }

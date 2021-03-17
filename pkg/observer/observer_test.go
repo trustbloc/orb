@@ -60,13 +60,13 @@ func TestStartObserver(t *testing.T) {
 		var txns []string
 		txnGraph := graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
 
-		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, AnchorString: "1.address"}
+		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, CoreIndex: "1.address"}
 
 		cid, err := txnGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		txns = append(txns, cid)
 
-		payload2 := orbtxn.Payload{Namespace: namespace2, Version: 1, AnchorString: "2.address"}
+		payload2 := orbtxn.Payload{Namespace: namespace2, Version: 1, CoreIndex: "2.address"}
 
 		cid, err = txnGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)

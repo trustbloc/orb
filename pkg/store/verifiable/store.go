@@ -11,9 +11,12 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/edge-core/pkg/log"
 )
 
 const nameSpace = "verifiable"
+
+var logger = log.New("orb-txn-processor")
 
 // New returns new instance of verifiable credentials store.
 func New(provider storage.Provider) (*Store, error) {
@@ -42,6 +45,8 @@ func (s *Store) Put(vc *verifiable.Credential) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal vc: %w", err)
 	}
+
+	logger.Infof(string(vcBytes))
 
 	if e := s.store.Put(vc.ID, vcBytes); e != nil {
 		return fmt.Errorf("failed to put vc: %w", e)

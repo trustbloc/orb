@@ -110,9 +110,10 @@ func TestObjectType_WithDocument(t *testing.T) {
 		obj, err := NewObjectWithDocument(
 			Document{
 				"credentialSubject": Document{
-					"anchorString": "bafkreihwsn",
-					"namespace":    "did:orb",
-					"previousTransactions": Document{
+					"operationCount": 2,
+					"coreIndex":      "bafkreihwsn",
+					"namespace":      "did:orb",
+					"previousAnchors": Document{
 						"EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
 						"EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w",
 					},
@@ -192,9 +193,10 @@ const (
     "https://to2"
   ],
   "credentialSubject": {
-    "anchorString": "bafkreihwsn",
+    "operationCount": 2,
+    "coreIndex": "bafkreihwsn",
     "namespace": "did:orb",
-    "previousTransactions": {
+    "previousAnchors": {
       "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
       "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
     },

@@ -77,29 +77,30 @@ var udCredentialWithoutID = `
 //nolint:gochecknoglobals,lll
 var anchorCred = `
 {
-	"@context": [
-		"https://www.w3.org/2018/credentials/v1"
-	],
-	"credentialSubject": {
-		"anchorString": "1.QmaevShHgc5s7bNnGKkQ98BdaKDNrsCTUV6rcwHr522tQB",
-		"namespace": "did:sidetree",
-		"previousTransactions": {
-		"EiBAnjPBzHqAA-yONCU1HbGln-I0T-ZUPSIkkYAM6EwKKQ": "QmPEVPudBXM5XCoxoNUQiV466e7vD4XowohU8nRAhKJZ6f"
-		},
-		"version": 0
-	},
-	"id": "http://peer1.com/vc/85ef42f6-1019-40cc-ab3a-2b477681f5d8",
-	"issuanceDate": "2021-03-10T16:34:17.9767297Z",
-	"issuer": "http://peer1.com",
-	"proof": {
-		"created": "2021-03-10T16:34:17.9799878Z",
-		"domain": "domain.com",
-		"jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..yRt-VlWPDRq0jX-5iMYSfugJspbtmXZn3a9L011w8LI22WzpFZ5YQCTz6B09Stonywg_Xe6fwygG3IPQ5jreBg",
-		"proofPurpose": "assertionMethod",
-		"type": "Ed25519Signature2018",
-		"verificationMethod": "did:web:abc#vaK33R-2ssibOOf2CS0RceLeT61Z2hpskHuEvDW7Hq0"
-	},
-	"type": "VerifiableCredential"
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1"
+  ],
+  "credentialSubject": {
+    "coreIndex": "QmZzPwGc3JEMQDiJu21YZcdpEPam7qCoXPLEUQXn34sMhB",
+    "namespace": "did:sidetree",
+    "operationCount": 1,
+    "previousAnchors": {
+      "EiBjG9z921eyj8wI4j-LAqsJBRC_GalIUWPJeXGekxFQ-w": ""
+    },
+    "version": 0
+  },
+  "id": "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
+  "issuanceDate": "2021-03-17T20:01:10.4002903Z",
+  "issuer": "http://peer1.com",
+  "proof": {
+    "created": "2021-03-17T20:01:10.4024292Z",
+    "domain": "domain.com",
+    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..pHA1rMSsHBJLbDwRpNY0FrgSgoLzBw4S7VP7d5bkYW-JwU8qc_4CmPfQctR8kycQHSa2Jh8LNBqNKMeVWsAwDA",
+    "proofPurpose": "assertionMethod",
+    "type": "Ed25519Signature2018",
+    "verificationMethod": "did:web:abc#CvSyX0VxMCbg-UiYpAVd9OmhaFBXBr5ISpv2RZ2c9DY"
+  },
+  "type": "VerifiableCredential"
 }`
 
 func TestNew(t *testing.T) {
@@ -172,7 +173,7 @@ func TestStore_Get(t *testing.T) {
 
 		vc, err := s.Get(anchorVC.ID)
 		require.NoError(t, err)
-		require.Equal(t, vc.ID, "http://peer1.com/vc/85ef42f6-1019-40cc-ab3a-2b477681f5d8")
+		require.Equal(t, vc.ID, "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d")
 	})
 
 	t.Run("error - vc without ID", func(t *testing.T) {
