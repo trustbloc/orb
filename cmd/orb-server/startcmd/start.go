@@ -288,6 +288,12 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
+	apCfg := &aphandler.Config{
+		BasePath:   activityPubServicesPath,
+		ServiceIRI: apServiceIRI,
+		PageSize:   100, // TODO: Make configurable
+	}
+
 	httpServer := httpserver.New(
 		parameters.hostURL,
 		parameters.tlsCertificate,
@@ -296,7 +302,8 @@ func startOrbServices(parameters *orbParameters) error {
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(activityPubServicesPath, apServiceIRI, apStore),
+		aphandler.NewServices(apCfg, apStore),
+		aphandler.NewFollowers(apCfg, apStore),
 	)
 
 	srv := &HTTPServer{

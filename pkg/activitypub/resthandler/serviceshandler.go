@@ -8,7 +8,6 @@ package resthandler
 
 import (
 	"net/http"
-	"net/url"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 )
@@ -19,18 +18,18 @@ type Services struct {
 }
 
 // NewServices returns a new 'services' REST handler.
-func NewServices(basePath string, serviceIRI *url.URL, activityStore spi.Store) *Services {
+func NewServices(cfg *Config, activityStore spi.Store) *Services {
 	h := &Services{}
 
-	h.handler = newHandler(basePath, serviceIRI, activityStore, h.handle)
+	h.handler = newHandler("", cfg, activityStore, h.handle)
 
 	return h
 }
 
 func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
-	service, err := h.activityStore.GetActor(h.serviceIRI)
+	service, err := h.activityStore.GetActor(h.ServiceIRI)
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving service [%s]: %s", h.endpoint, h.serviceIRI, err)
+		logger.Errorf("[%s] Error retrieving service [%s]: %s", h.endpoint, h.ServiceIRI, err)
 
 		h.writeResponse(w, http.StatusInternalServerError, nil)
 
@@ -39,7 +38,7 @@ func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
 
 	serviceBytes, err := h.marshal(service)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.serviceIRI, err)
+		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.ServiceIRI, err)
 
 		h.writeResponse(w, http.StatusInternalServerError, nil)
 

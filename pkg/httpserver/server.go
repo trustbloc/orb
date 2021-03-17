@@ -44,10 +44,12 @@ func New(url, certFile, keyFile, token string, handlers ...common.HTTPHandler) *
 
 	for _, handler := range handlers {
 		logger.Infof("Registering handler for [%s]", handler.Path())
-		router.HandleFunc(handler.Path(), handler.Handler()).Methods(handler.Method())
+		router.HandleFunc(handler.Path(), handler.Handler()).
+			Methods(handler.Method()).
+			Queries(params(handler)...)
 	}
 
-	// add healt hcheck endpoint
+	// add health check endpoint
 	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
 
 	handler := cors.New(
@@ -146,4 +148,20 @@ func healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Errorf("healthcheck response failure, %s", err)
 	}
+}
+
+type paramHolder interface {
+	Params() map[string]string
+}
+
+func params(handler common.HTTPHandler) []string {
+	var queries []string
+
+	if p, ok := handler.(paramHolder); ok {
+		for name, value := range p.Params() {
+			queries = append(queries, name, value)
+		}
+	}
+
+	return queries
 }

@@ -30,7 +30,13 @@ func TestNewServices(t *testing.T) {
 	serviceIRI, err := url.Parse(serviceURL)
 	require.NoError(t, err)
 
-	h := NewServices(basePath, serviceIRI, memstore.New(""))
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewServices(cfg, memstore.New(""))
 	require.NotNil(t, h)
 	require.Equal(t, basePath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -41,12 +47,18 @@ func TestServices_Handler(t *testing.T) {
 	serviceIRI, err := url.Parse(serviceURL)
 	require.NoError(t, err)
 
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
 	activityStore := memstore.New("")
 
 	require.NoError(t, activityStore.PutActor(newMockService()))
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewServices(basePath, serviceIRI, activityStore)
+		h := NewServices(cfg, activityStore)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -62,7 +74,7 @@ func TestServices_Handler(t *testing.T) {
 
 		t.Logf("%s", respBytes)
 
-		require.Equal(t, getCanonical(t, serviceJSON), string(respBytes))
+		require.Equal(t, getCanonical(t, serviceJSON), getCanonical(t, string(respBytes)))
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -72,7 +84,7 @@ func TestServices_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.GetActorReturns(nil, errExpected)
 
-		h := NewServices(basePath, serviceIRI, s)
+		h := NewServices(cfg, s)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -86,7 +98,7 @@ func TestServices_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewServices(basePath, serviceIRI, activityStore)
+		h := NewServices(cfg, activityStore)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
