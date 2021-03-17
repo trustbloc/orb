@@ -8,6 +8,7 @@ package resthandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 func TestNewHandler(t *testing.T) {
@@ -299,6 +301,25 @@ func newMockURIs(num int, getURI func(i int) string) []*url.URL {
 	}
 
 	return results
+}
+
+func newMockCreateActivities(num int) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		activities[i] = newMockCreateActivity(fmt.Sprintf("https://activity_%d", i), fmt.Sprintf("https://obj_%d", i))
+	}
+
+	return activities
+}
+
+func newMockCreateActivity(id, objID string) *vocab.ActivityType {
+	return vocab.NewCreateActivity(id, vocab.NewObjectProperty(
+		vocab.WithAnchorCredentialReference(
+			vocab.NewAnchorCredentialReference(objID, "bafkd34G7hD6gbj94fnKm5D"),
+		),
+	),
+	)
 }
 
 func setPaging(h *handler, page, pageNum string) func() {

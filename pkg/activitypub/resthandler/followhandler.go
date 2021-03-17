@@ -62,6 +62,7 @@ func (h *follow) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+//nolint:dupl
 func (h *follow) handleFollow(rw http.ResponseWriter, _ *http.Request) {
 	following, err := h.getFollow()
 	if err != nil {
@@ -151,6 +152,7 @@ func (h *follow) getFollow() (*vocab.CollectionType, error) {
 	), nil
 }
 
+//nolint:dupl
 func (h *follow) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,

@@ -123,7 +123,7 @@ func NewOrderedCollection(items []*ObjectProperty, opts ...Opt) *OrderedCollecti
 }
 
 type orderedCollectionType struct {
-	OrderedItems []*ObjectProperty `json:"orderedItems"`
+	OrderedItems []*ObjectProperty `json:"orderedItems,omitempty"`
 }
 
 // Items returns the items in the ordered collection.
