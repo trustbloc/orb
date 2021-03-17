@@ -26,6 +26,10 @@ const (
 	FollowersPath = "/followers"
 	// FollowingPath specifies the service's 'following' endpoint.
 	FollowingPath = "/following"
+	// OutboxPath specifies the service's 'outbox' endpoint.
+	OutboxPath = "/outbox"
+	// InboxPath specifies the service's 'inbox' endpoint.
+	InboxPath = "/inbox"
 )
 
 const (

@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 // GetQueryOptions populates and returns the QueryOptions struct with the given options.
@@ -45,4 +46,25 @@ func ReadReferences(it store.ReferenceIterator, maxItems int) ([]*url.URL, error
 	}
 
 	return refs, nil
+}
+
+// ReadActivities returns all of the activities resulting from iterating over the given iterator,
+// up to the given maximum number of activities. If maxItems is <=0 then all items are read.
+func ReadActivities(it store.ActivityIterator, maxItems int) ([]*vocab.ActivityType, error) {
+	var activities []*vocab.ActivityType
+
+	for i := 0; maxItems <= 0 || i < maxItems; i++ {
+		ref, err := it.Next()
+		if err != nil {
+			if err == store.ErrNotFound {
+				break
+			}
+
+			return nil, err
+		}
+
+		activities = append(activities, ref)
+	}
+
+	return activities, nil
 }
