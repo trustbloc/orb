@@ -30,6 +30,10 @@ const (
 	OutboxPath = "/outbox"
 	// InboxPath specifies the service's 'inbox' endpoint.
 	InboxPath = "/inbox"
+	// WitnessesPath specifies the service's 'witnesses' endpoint.
+	WitnessesPath = "/witnesses"
+	// WitnessingPath specifies the service's 'witnessing' endpoint.
+	WitnessingPath = "/witnessing"
 )
 
 const (

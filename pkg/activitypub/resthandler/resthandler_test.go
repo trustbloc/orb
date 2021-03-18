@@ -293,6 +293,7 @@ func mustParseURL(raw string) *url.URL {
 	return u
 }
 
+//nolint:unparam
 func newMockURIs(num int, getURI func(i int) string) []*url.URL {
 	results := make([]*url.URL, num)
 
