@@ -60,7 +60,7 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(mustParseURL("https://property_result")),
 	}
 
-	anchorRef := NewAnchorCredentialReference("anchor_cred_ref_id", "cid")
+	anchorRef := NewAnchorCredentialReference("anchor_cred_ref_id", "anchor_cred_iri", "cid")
 
 	opts := NewOptions(
 		WithID(id),

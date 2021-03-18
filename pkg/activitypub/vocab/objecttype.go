@@ -29,6 +29,7 @@ func NewObject(opts ...Opt) *ObjectType {
 		object: &objectType{
 			Context:   NewContextProperty(options.Context...),
 			ID:        options.ID,
+			CID:       options.CID,
 			Type:      NewTypeProperty(options.Types...),
 			To:        NewURLCollectionProperty(options.To...),
 			Published: options.Published,
@@ -67,6 +68,7 @@ type objectType struct {
 	Published *time.Time             `json:"published,omitempty"`
 	StartTime *time.Time             `json:"startTime,omitempty"`
 	EndTime   *time.Time             `json:"endTime,omitempty"`
+	CID       string                 `json:"cid,omitempty"`
 }
 
 // Context returns the context property.
@@ -112,6 +114,11 @@ func (t *ObjectType) To() []*url.URL {
 	}
 
 	return urls
+}
+
+// CID returns the object's content ID.
+func (t *ObjectType) CID() string {
+	return t.object.CID
 }
 
 // Value returns the value of a property.

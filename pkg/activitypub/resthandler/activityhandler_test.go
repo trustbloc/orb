@@ -288,8 +288,9 @@ const (
         ],
         "id": "https://obj_18",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -305,8 +306,9 @@ const (
         ],
         "id": "https://obj_17",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -322,8 +324,9 @@ const (
         ],
         "id": "https://obj_16",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -339,8 +342,9 @@ const (
         ],
         "id": "https://obj_15",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -365,8 +369,9 @@ const (
         ],
         "id": "https://obj_2",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -382,8 +387,9 @@ const (
         ],
         "id": "https://obj_1",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -399,8 +405,9 @@ const (
         ],
         "id": "https://obj_0",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -427,8 +434,9 @@ const (
         ],
         "id": "https://obj_14",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -444,8 +452,9 @@ const (
         ],
         "id": "https://obj_13",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -461,8 +470,9 @@ const (
         ],
         "id": "https://obj_12",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },
@@ -478,8 +488,9 @@ const (
         ],
         "id": "https://obj_11",
         "target": {
-          "id": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "Cas"
+          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+          "cid": "bafkd34G7hD6gbj94fnKm5D",
+          "type": "ContentAddressedStorage"
         },
         "type": "AnchorCredentialReference"
       },

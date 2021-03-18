@@ -14,18 +14,19 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
-func TestNewAnchorCredentialReference(t *testing.T) {
-	const (
-		txID = "https://org1.com/transactions/tx1"
-		cid  = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-	)
+const (
+	txID          = "https://org1.com/transactions/tx1"
+	cid           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+	anchorCredIRI = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+)
 
+func TestNewAnchorCredentialReference(t *testing.T) {
 	t.Run("No document", func(t *testing.T) {
-		ref := NewAnchorCredentialReference(txID, cid,
+		ref := NewAnchorCredentialReference(txID, anchorCredIRI, cid,
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
-						NewObject(WithID(cid), WithType(TypeCAS)),
+						NewObject(WithID(cid), WithType(TypeContentAddressedStorage)),
 					),
 				),
 			),
@@ -47,20 +48,21 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, cid, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
 		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeCAS))
+		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 	})
 
 	t.Run("With document", func(t *testing.T) {
-		ref, err := NewAnchorCredentialReferenceWithDocument(txID, cid, nil)
+		ref, err := NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "nil document")
 		require.Nil(t, ref)
 
-		ref, err = NewAnchorCredentialReferenceWithDocument(txID, cid,
+		ref, err = NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid,
 			MustUnmarshalToDoc([]byte(anchorCredential)),
 		)
 		require.NoError(t, err)
@@ -81,11 +83,12 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, cid, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
 		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeCAS))
+		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 
 		refObjProp := ref.Object()
 		require.NotNil(t, refObjProp)
@@ -104,17 +107,12 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 }
 
 func TestAnchorCredentialReferenceMarshal(t *testing.T) {
-	const (
-		txID = "https://org1.com/transactions/tx1"
-		cid  = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-	)
-
 	t.Run("Marshal", func(t *testing.T) {
-		ref := NewAnchorCredentialReference(txID, cid,
+		ref := NewAnchorCredentialReference(txID, anchorCredIRI, cid,
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
-						NewObject(WithID(cid), WithType(TypeCAS)),
+						NewObject(WithID(cid), WithType(TypeContentAddressedStorage)),
 					),
 				),
 			),
@@ -146,15 +144,16 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, cid, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
 		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeCAS))
+		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 	})
 
 	t.Run("Marshal with document", func(t *testing.T) {
-		ref, err := NewAnchorCredentialReferenceWithDocument(txID, cid,
+		ref, err := NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid,
 			MustUnmarshalToDoc([]byte(anchorCredential)),
 		)
 		require.NoError(t, err)
@@ -186,11 +185,12 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, cid, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
 		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeCAS))
+		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 
 		refObjProp := ref.Object()
 		require.NotNil(t, refObjProp)
@@ -240,8 +240,9 @@ const (
   ],
   "id": "https://org1.com/transactions/tx1",
   "target": {
-    "id": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "type": "Cas"
+    "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "type": "ContentAddressedStorage"
   },
   "type": "AnchorCredentialReference"
 }`
@@ -276,8 +277,9 @@ const (
     ]
   },
   "target": {
-    "id": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "type": "Cas"
+    "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "type": "ContentAddressedStorage",
+    "cid":  "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
   },
   "type": "AnchorCredentialReference"
 }`
