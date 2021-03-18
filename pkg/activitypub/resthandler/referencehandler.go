@@ -22,7 +22,7 @@ type Followers struct {
 // NewFollowers returns a new 'followers' REST handler.
 func NewFollowers(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(FollowersPath, spi.Follower, cfg, activityStore),
+		reference: newReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore),
 	}
 }
 
@@ -34,7 +34,7 @@ type Following struct {
 // NewFollowing returns a new 'following' REST handler.
 func NewFollowing(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(FollowingPath, spi.Following, cfg, activityStore),
+		reference: newReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore),
 	}
 }
 
@@ -46,7 +46,7 @@ type Witnesses struct {
 // NewWitnesses returns a new 'witnesses' REST handler.
 func NewWitnesses(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(WitnessesPath, spi.Witness, cfg, activityStore),
+		reference: newReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore),
 	}
 }
 
@@ -59,19 +59,40 @@ type Witnessing struct {
 // NewWitnessing returns a new 'witnessing' REST handler.
 func NewWitnessing(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(WitnessingPath, spi.Witnessing, cfg, activityStore),
+		reference: newReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore),
 	}
 }
+
+// Liked implements the 'liked' REST handler that retrieves a service's list of objects that were 'liked'.
+type Liked struct {
+	*reference
+}
+
+// NewLiked returns a new 'liked' REST handler.
+func NewLiked(cfg *Config, activityStore spi.Store) *Followers {
+	return &Followers{
+		reference: newReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore),
+	}
+}
+
+type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
 
 type reference struct {
 	*handler
 
-	refType spi.ReferenceType
+	refType              spi.ReferenceType
+	sortOrder            spi.SortOrder
+	createCollection     createCollectionFunc
+	createCollectionPage createCollectionFunc
 }
 
-func newReference(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *reference {
+func newReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
+	cfg *Config, activityStore spi.Store) *reference {
 	h := &reference{
-		refType: refType,
+		refType:              refType,
+		sortOrder:            sortOrder,
+		createCollection:     createCollection(ordered),
+		createCollectionPage: createCollectionPage(ordered),
 	}
 
 	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
@@ -113,15 +134,15 @@ func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Request) {
-	var page *vocab.CollectionPageType
+	var page interface{}
 
 	var err error
 
 	pageNum, ok := h.getPageNum(req)
 	if ok {
-		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum))
+		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum), spi.WithSortOrder(h.sortOrder))
 	} else {
-		page, err = h.getPage(spi.WithPageSize(h.PageSize))
+		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithSortOrder(h.sortOrder))
 	}
 
 	if err != nil {
@@ -146,7 +167,7 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
-func (h *reference) getReference() (*vocab.CollectionType, error) {
+func (h *reference) getReference() (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
 			spi.WithActorIRI(h.ServiceIRI),
@@ -163,12 +184,12 @@ func (h *reference) getReference() (*vocab.CollectionType, error) {
 		return nil, err
 	}
 
-	lastURL, err := h.getPageURL(getLastPageNum(it.TotalItems(), h.PageSize, spi.SortAscending))
+	lastURL, err := h.getPageURL(getLastPageNum(it.TotalItems(), h.PageSize, h.sortOrder))
 	if err != nil {
 		return nil, err
 	}
 
-	return vocab.NewCollection(nil,
+	return h.createCollection(nil,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(h.id),
 		vocab.WithFirst(firstURL),
@@ -178,7 +199,7 @@ func (h *reference) getReference() (*vocab.CollectionType, error) {
 }
 
 //nolint:dupl
-func (h *reference) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
+func (h *reference) getPage(opts ...spi.QueryOpt) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
 		spi.NewCriteria(spi.WithActorIRI(h.ServiceIRI)),
@@ -208,11 +229,35 @@ func (h *reference) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, er
 		return nil, err
 	}
 
-	return vocab.NewCollectionPage(items,
+	return h.createCollectionPage(items,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
 		vocab.WithPrev(prev),
 		vocab.WithNext(next),
 		vocab.WithTotalItems(it.TotalItems()),
 	), nil
+}
+
+func createCollection(ordered bool) createCollectionFunc {
+	if ordered {
+		return func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{} {
+			return vocab.NewOrderedCollection(items, opts...)
+		}
+	}
+
+	return func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{} {
+		return vocab.NewCollection(items, opts...)
+	}
+}
+
+func createCollectionPage(ordered bool) createCollectionFunc {
+	if ordered {
+		return func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{} {
+			return vocab.NewOrderedCollectionPage(items, opts...)
+		}
+	}
+
+	return func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{} {
+		return vocab.NewCollectionPage(items, opts...)
+	}
 }

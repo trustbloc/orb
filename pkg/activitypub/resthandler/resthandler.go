@@ -34,6 +34,8 @@ const (
 	WitnessesPath = "/witnesses"
 	// WitnessingPath specifies the service's 'witnessing' endpoint.
 	WitnessingPath = "/witnessing"
+	// LikedPath specifies the service's 'liked' endpoint.
+	LikedPath = "/liked"
 )
 
 const (
