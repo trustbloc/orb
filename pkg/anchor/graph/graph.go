@@ -8,6 +8,7 @@ package graph
 
 import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/anchor/util"
@@ -15,13 +16,21 @@ import (
 
 // Graph manages transaction graph.
 type Graph struct {
-	cas cas.Client
-	pkf verifiable.PublicKeyFetcher
+	*Providers
+}
+
+// Providers for anchor graph.
+type Providers struct {
+	Cas       cas.Client
+	Pkf       verifiable.PublicKeyFetcher
+	DocLoader ld.DocumentLoader
 }
 
 // New creates new graph manager.
-func New(c cas.Client, pkf verifiable.PublicKeyFetcher) *Graph {
-	return &Graph{cas: c, pkf: pkf}
+func New(providers *Providers) *Graph {
+	return &Graph{
+		Providers: providers,
+	}
 }
 
 // Add adds orb transaction to the transaction graph.
@@ -33,17 +42,19 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 		return "", err
 	}
 
-	return g.cas.Write(txnBytes)
+	return g.Cas.Write(txnBytes)
 }
 
 // Read reads orb transaction.
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
-	nodeBytes, err := g.cas.Read(cid)
+	nodeBytes, err := g.Cas.Read(cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return verifiable.ParseCredential(nodeBytes, verifiable.WithPublicKeyFetcher(g.pkf))
+	return verifiable.ParseCredential(nodeBytes,
+		verifiable.WithPublicKeyFetcher(g.Pkf),
+		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
 
 // GetDidTransactions returns all orb transactions that are referencing DID starting from cid.

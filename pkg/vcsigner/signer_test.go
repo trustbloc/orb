@@ -17,6 +17,11 @@ import (
 )
 
 func TestSigner_New(t *testing.T) {
+	providers := &Providers{
+		KeyManager: &mockkms.KeyManager{},
+		Crypto:     &cryptomock.Crypto{},
+	}
+
 	t.Run("success", func(t *testing.T) {
 		signingParams := SigningParams{
 			VerificationMethod: "did:abc:123#key1",
@@ -24,7 +29,7 @@ func TestSigner_New(t *testing.T) {
 			Domain:             "domain",
 		}
 
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, signingParams)
+		s, err := New(providers, signingParams)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -35,7 +40,7 @@ func TestSigner_New(t *testing.T) {
 			Domain:         "domain",
 		}
 
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, signingParams)
+		s, err := New(providers, signingParams)
 		require.Error(t, err)
 		require.Nil(t, s)
 		require.Contains(t, err.Error(), "failed to verify signing parameters: missing verification method")
@@ -49,8 +54,13 @@ func TestSigner_Sign(t *testing.T) {
 		Domain:             "domain",
 	}
 
+	providers := &Providers{
+		KeyManager: &mockkms.KeyManager{},
+		Crypto:     &cryptomock.Crypto{},
+	}
+
 	t.Run("success - JSONWebSignature2020", func(t *testing.T) {
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, signingParams)
+		s, err := New(providers, signingParams)
 		require.NoError(t, err)
 
 		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
@@ -65,7 +75,7 @@ func TestSigner_Sign(t *testing.T) {
 			Domain:             "domain",
 		}
 
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, signingParamsWithED25519)
+		s, err := New(providers, signingParamsWithED25519)
 		require.NoError(t, err)
 
 		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
@@ -80,7 +90,7 @@ func TestSigner_Sign(t *testing.T) {
 			Domain:             "domain",
 		}
 
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, invalidSigningParams)
+		s, err := New(providers, invalidSigningParams)
 		require.NoError(t, err)
 
 		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
@@ -96,7 +106,7 @@ func TestSigner_Sign(t *testing.T) {
 			Domain:             "domain",
 		}
 
-		s, err := New(&mockkms.KeyManager{}, &cryptomock.Crypto{}, invalidSigningParams)
+		s, err := New(providers, invalidSigningParams)
 		require.NoError(t, err)
 
 		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
@@ -106,9 +116,12 @@ func TestSigner_Sign(t *testing.T) {
 	})
 
 	t.Run("error - error from crypto", func(t *testing.T) {
-		c, err := New(&mockkms.KeyManager{},
-			&cryptomock.Crypto{SignErr: fmt.Errorf("failed to sign")},
-			signingParams)
+		providersWithCryptoErr := &Providers{
+			KeyManager: &mockkms.KeyManager{},
+			Crypto:     &cryptomock.Crypto{SignErr: fmt.Errorf("failed to sign")},
+		}
+
+		c, err := New(providersWithCryptoErr, signingParams)
 		require.NoError(t, err)
 
 		signedVC, err := c.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})

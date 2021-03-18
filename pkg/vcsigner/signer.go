@@ -13,12 +13,14 @@ import (
 	"time"
 
 	ariescrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/jsonld"
 	ariessigner "github.com/hyperledger/aries-framework-go/pkg/doc/signature/signer"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/jsonwebsignature2020"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/piprate/json-gold/ld"
 )
 
 const (
@@ -38,16 +40,22 @@ type SigningParams struct {
 	Domain             string
 }
 
+// Providers contains all of the providers required by verifiable credential signer.
+type Providers struct {
+	DocLoader  ld.DocumentLoader
+	KeyManager kms.KeyManager
+	Crypto     ariescrypto.Crypto
+}
+
 // New returns new instance of VC signer.
-func New(keyManager kms.KeyManager, c ariescrypto.Crypto, params SigningParams) (*Signer, error) {
+func New(providers *Providers, params SigningParams) (*Signer, error) {
 	if err := verifySigningParams(params); err != nil {
 		return nil, fmt.Errorf("failed to verify signing parameters: %s", err.Error())
 	}
 
 	return &Signer{
-		keyManager: keyManager,
-		crypto:     c,
-		params:     params,
+		Providers: providers,
+		params:    params,
 	}, nil
 }
 
@@ -69,9 +77,8 @@ func verifySigningParams(params SigningParams) error {
 
 // Signer to sign verifiable credential.
 type Signer struct {
-	keyManager kms.KeyManager
-	crypto     ariescrypto.Crypto
-	params     SigningParams
+	*Providers
+	params SigningParams
 }
 
 // Sign will sign verifiable credential.
@@ -81,7 +88,7 @@ func (s *Signer) Sign(vc *verifiable.Credential) (*verifiable.Credential, error)
 		return nil, err
 	}
 
-	err = vc.AddLinkedDataProof(signingCtx)
+	err = vc.AddLinkedDataProof(signingCtx, jsonld.WithDocumentLoader(s.Providers.DocLoader))
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign vc: %w", err)
 	}
@@ -123,7 +130,7 @@ func (s *Signer) getLinkedDataProofContext() (*verifiable.LinkedDataProofContext
 
 // getKMSSigner returns new KMS signer based on verification method.
 func (s *Signer) getKMSSigner() (signer, error) {
-	kmsSigner, err := newKMSSigner(s.keyManager, s.crypto, s.params.VerificationMethod)
+	kmsSigner, err := newKMSSigner(s.Providers.KeyManager, s.Providers.Crypto, s.params.VerificationMethod)
 	if err != nil {
 		return nil, err
 	}

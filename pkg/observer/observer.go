@@ -92,6 +92,8 @@ func (o *Observer) listen(txnsCh <-chan []string) {
 
 func (o *Observer) process(txns []string) {
 	for _, txn := range txns {
+		logger.Debugf("observing anchor cid: %s", txn)
+
 		txnNode, err := o.TxnGraph.Read(txn)
 		if err != nil {
 			logger.Warnf("Failed to get txn node from txn graph: %s", txn, err.Error())
@@ -99,12 +101,16 @@ func (o *Observer) process(txns []string) {
 			continue
 		}
 
+		logger.Debugf("successfully read anchor cid from anchor graph: %s", txn)
+
 		txnPayload, err := util.GetTransactionPayload(txnNode)
 		if err != nil {
 			logger.Warnf("Failed to extract transaction payload from txn[%s] for namespace [%s]: %s", txn, txnPayload.Namespace, err.Error()) //nolint:lll
 
 			continue
 		}
+
+		logger.Debugf("about to process core index: %s", txnPayload.CoreIndex)
 
 		pc, err := o.ProtocolClientProvider.ForNamespace(txnPayload.Namespace)
 		if err != nil {
@@ -137,6 +143,6 @@ func (o *Observer) process(txns []string) {
 			continue
 		}
 
-		logger.Debugf("successfully processed anchor[%s]", txnPayload.CoreIndex)
+		logger.Debugf("successfully processed anchor cid[%s], core index[%s]", txn, txnPayload.CoreIndex)
 	}
 }

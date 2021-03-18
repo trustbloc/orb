@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
@@ -25,6 +26,7 @@ type Handler struct {
 
 // Providers contains all of the providers required by proof handler.
 type Providers struct {
+	DocLoader ld.DocumentLoader
 	// TODO: proof store
 }
 
@@ -52,7 +54,8 @@ func (h *Handler) RequestProofs(vc *verifiable.Credential, witnesses []string) e
 		return fmt.Errorf("failed to marshal anchor credential: %s", err.Error())
 	}
 
-	retVC, err := verifiable.ParseCredential(vcBytes, verifiable.WithDisabledProofCheck())
+	retVC, err := verifiable.ParseCredential(vcBytes, verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(h.DocLoader))
 	if err != nil {
 		return fmt.Errorf("failed to parse anchor credential: %s", err.Error())
 	}

@@ -16,7 +16,7 @@ import (
 
 const nameSpace = "verifiable"
 
-var logger = log.New("orb-txn-processor")
+var logger = log.New("verifiable-store")
 
 // New returns new instance of verifiable credentials store.
 func New(provider storage.Provider) (*Store, error) {
@@ -46,7 +46,7 @@ func (s *Store) Put(vc *verifiable.Credential) error {
 		return fmt.Errorf("failed to marshal vc: %w", err)
 	}
 
-	logger.Infof(string(vcBytes))
+	logger.Debugf("storing credential: %s", string(vcBytes))
 
 	if e := s.store.Put(vc.ID, vcBytes); e != nil {
 		return fmt.Errorf("failed to put vc: %w", e)

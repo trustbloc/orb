@@ -23,6 +23,7 @@ import (
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -30,6 +31,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -162,18 +164,29 @@ func startOrbServices(parameters *orbParameters) error {
 	didTxns := memdidtxnref.New()
 	opStore := mocks.NewMockOperationStore()
 
-	// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
-	txnGraph := graph.New(casClient, func(_, keyID string) (*verifier.PublicKey, error) {
-		pubKeyBytes, err := localKMS.ExportPubKeyBytes(keyID[1:])
-		if err != nil {
-			return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", keyID, err.Error())
-		}
+	orbDocumentLoader, err := loadOrbContexts()
+	if err != nil {
+		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
+	}
 
-		return &verifier.PublicKey{
-			Type:  kms.ED25519,
-			Value: pubKeyBytes,
-		}, nil
-	})
+	graphProviders := &graph.Providers{
+		Cas: casClient,
+		// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
+		Pkf: func(_, keyID string) (*verifier.PublicKey, error) {
+			pubKeyBytes, err := localKMS.ExportPubKeyBytes(keyID[1:])
+			if err != nil {
+				return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", keyID, err.Error())
+			}
+
+			return &verifier.PublicKey{
+				Type:  kms.ED25519,
+				Value: pubKeyBytes,
+			}, nil
+		},
+		DocLoader: orbDocumentLoader,
+	}
+
+	txnGraph := graph.New(graphProviders)
 
 	// get protocol client provider
 	pcp := getProtocolClientProvider(parameters, casClient, opStore, txnGraph)
@@ -195,7 +208,13 @@ func startOrbServices(parameters *orbParameters) error {
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
 
-	vcSigner, err := vcsigner.New(localKMS, crypto, signingParams)
+	signingProviders := &vcsigner.Providers{
+		KeyManager: localKMS,
+		Crypto:     crypto,
+		DocLoader:  orbDocumentLoader,
+	}
+
+	vcSigner, err := vcsigner.New(signingProviders, signingParams)
 	if err != nil {
 		return fmt.Errorf("failed to create vc signer: %s", err.Error())
 	}
@@ -226,7 +245,11 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
 	}
 
-	proofHandler := proofs.New(&proofs.Providers{}, vcCh, apServiceIRI)
+	proofProviders := &proofs.Providers{
+		DocLoader: orbDocumentLoader,
+	}
+
+	proofHandler := proofs.New(proofProviders, vcCh, apServiceIRI)
 
 	anchorWriterProviders := &writer.Providers{
 		TxnGraph:     txnGraph,
@@ -317,6 +340,33 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	return srv.Start(httpServer)
+}
+
+// pre-load orb contexts for vc, anchor, jws.
+func loadOrbContexts() (*jld.CachingDocumentLoader, error) {
+	docLoader := verifiable.CachingJSONLDLoader()
+
+	reader, err := ld.DocumentFromReader(strings.NewReader(builder.AnchorContextV1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to preload anchor credential jsonld context: %w", err)
+	}
+
+	docLoader.AddDocument(
+		builder.AnchorContextURIV1,
+		reader,
+	)
+
+	reader, err = ld.DocumentFromReader(strings.NewReader(builder.JwsContextV1))
+	if err != nil {
+		return nil, fmt.Errorf("failed to preload jws jsonld context: %w", err)
+	}
+
+	docLoader.AddDocument(
+		builder.JwsContextURIV1,
+		reader,
+	)
+
+	return docLoader, nil
 }
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore, graph *graph.Graph) *mocks.MockProtocolClientProvider {
