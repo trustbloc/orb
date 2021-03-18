@@ -127,12 +127,12 @@ func TestService_Create(t *testing.T) {
 	defer service1.Stop()
 	defer service2.Stop()
 
-	const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+	const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 		vocab.NewObject(
 			vocab.WithID(cid),
-			vocab.WithType(vocab.TypeCAS),
+			vocab.WithType(vocab.TypeContentAddressedStorage),
 		),
 	))
 
@@ -481,9 +481,10 @@ func TestService_Announce(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Announce - anchor credential ref (no embedded object)", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		const anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
-		ref := vocab.NewAnchorCredentialReference(newActivityID(service2IRI), cid)
+		ref := vocab.NewAnchorCredentialReference(newActivityID(service2IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -520,13 +521,14 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(cid))
+		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID))
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		const anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
-		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service2IRI),
+		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service2IRI), anchorCredID,
 			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
 		require.NoError(t, err)
@@ -566,7 +568,7 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(cid))
+		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID))
 	})
 
 	t.Run("Create and announce", func(t *testing.T) {
@@ -602,7 +604,7 @@ func TestService_Announce(t *testing.T) {
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
 				vocab.WithID(cid),
-				vocab.WithType(vocab.TypeCAS),
+				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
 		))
 

@@ -481,7 +481,7 @@ func (h *Handler) handleLikeActivity(like *vocab.ActivityType) error {
 }
 
 func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
-	if !target.Type().Is(vocab.TypeCAS) {
+	if !target.Type().Is(vocab.TypeContentAddressedStorage) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
 	}
 
@@ -543,9 +543,10 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 		return fmt.Errorf("unable to unmarshal anchor credential: %w", err)
 	}
 
+	targetObj := create.Target().Object()
+
 	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID(),
-		create.Target().Object().ID(), anchorCredDoc,
-	)
+		targetObj.ID(), targetObj.CID(), anchorCredDoc)
 	if err != nil {
 		return err
 	}

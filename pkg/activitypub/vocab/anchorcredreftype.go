@@ -19,7 +19,7 @@ type anchorCredentialReferenceType struct {
 }
 
 // NewAnchorCredentialReference returns a new "AnchorCredentialReference".
-func NewAnchorCredentialReference(id, cid string, opts ...Opt) *AnchorCredentialReferenceType {
+func NewAnchorCredentialReference(id, anchorCredIRI, cid string, opts ...Opt) *AnchorCredentialReferenceType {
 	options := NewOptions(opts...)
 
 	return &AnchorCredentialReferenceType{
@@ -32,7 +32,7 @@ func NewAnchorCredentialReference(id, cid string, opts ...Opt) *AnchorCredential
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
-						WithID(cid), WithType(TypeCAS),
+						WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage),
 					),
 				),
 			),
@@ -42,7 +42,7 @@ func NewAnchorCredentialReference(id, cid string, opts ...Opt) *AnchorCredential
 
 // NewAnchorCredentialReferenceWithDocument returns a new "AnchorCredentialReference" with the given document embedded.
 func NewAnchorCredentialReferenceWithDocument(
-	id, cid string, doc Document, opts ...Opt) (*AnchorCredentialReferenceType, error) {
+	id, anchorCredIRI, cid string, doc Document, opts ...Opt) (*AnchorCredentialReferenceType, error) {
 	options := NewOptions(opts...)
 
 	obj, err := NewObjectWithDocument(doc)
@@ -60,7 +60,7 @@ func NewAnchorCredentialReferenceWithDocument(
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
-						WithID(cid), WithType(TypeCAS),
+						WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage),
 					),
 				),
 			),

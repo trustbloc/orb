@@ -111,7 +111,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
 				vocab.WithID(cid),
-				vocab.WithType(vocab.TypeCAS),
+				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
 		))
 
@@ -156,8 +156,9 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	t.Run("Anchor credential reference", func(t *testing.T) {
 		const (
-			cid   = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-			refID = "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			anchorCredID = "https://sally.example.com/cas/bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			cid          = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			refID        = "https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 		)
 
 		published := time.Now()
@@ -165,7 +166,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 		create := vocab.NewCreateActivity(newActivityID(service1IRI),
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, cid),
+					vocab.NewAnchorCredentialReference(refID, anchorCredID, cid),
 				),
 			),
 			vocab.WithActor(service1IRI),
@@ -701,9 +702,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	}()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		const (
+			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		)
 
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -734,9 +738,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		const (
+			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		)
 
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -767,10 +774,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+		const (
+			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		)
 
 		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
-			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
+			anchorCredID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
 		require.NoError(t, err)
 

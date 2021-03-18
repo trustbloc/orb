@@ -56,8 +56,8 @@ const (
 	// TypeVerifiableCredential specifies the "VerifiableCredential" object type.
 	TypeVerifiableCredential Type = "VerifiableCredential"
 
-	// TypeCAS specifies the "Cas" object type.
-	TypeCAS Type = "Cas"
+	// TypeContentAddressedStorage specifies the "ContentAddressedStorage" object type.
+	TypeContentAddressedStorage Type = "ContentAddressedStorage"
 	// TypeAnchorCredential specifies the "AnchorCredential" object type.
 	TypeAnchorCredential Type = "AnchorCredential"
 	// TypeAnchorCredentialRef specifies the "AnchorCredentialReference" object type.

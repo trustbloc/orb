@@ -20,6 +20,7 @@ type Options struct {
 	StartTime *time.Time
 	EndTime   *time.Time
 	Types     []Type
+	CID       string
 
 	ObjectPropertyOptions
 	CollectionOptions
@@ -52,6 +53,13 @@ func WithContext(context ...Context) Opt {
 func WithID(id string) Opt {
 	return func(opts *Options) {
 		opts.ID = id
+	}
+}
+
+// WithCID sets the 'cid' property on the object.
+func WithCID(cid string) Opt {
+	return func(opts *Options) {
+		opts.CID = cid
 	}
 }
 

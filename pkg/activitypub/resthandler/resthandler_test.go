@@ -317,7 +317,8 @@ func newMockCreateActivities(num int) []*vocab.ActivityType {
 func newMockCreateActivity(id, objID string) *vocab.ActivityType {
 	return vocab.NewCreateActivity(id, vocab.NewObjectProperty(
 		vocab.WithAnchorCredentialReference(
-			vocab.NewAnchorCredentialReference(objID, "bafkd34G7hD6gbj94fnKm5D"),
+			vocab.NewAnchorCredentialReference(objID, "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+				"bafkd34G7hD6gbj94fnKm5D"),
 		),
 	),
 	)
