@@ -16,36 +16,61 @@ import (
 
 // Followers implements the 'followers' REST handler that retrieves a service's list of followers.
 type Followers struct {
-	*follow
+	*reference
 }
 
 // NewFollowers returns a new 'followers' REST handler.
 func NewFollowers(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		follow: newFollow(FollowersPath, spi.Follower, cfg, activityStore),
+		reference: newReference(FollowersPath, spi.Follower, cfg, activityStore),
 	}
 }
 
 // Following implements the 'following' REST handler that retrieves a service's list of following.
 type Following struct {
-	*follow
+	*reference
 }
 
 // NewFollowing returns a new 'following' REST handler.
 func NewFollowing(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		follow: newFollow(FollowingPath, spi.Following, cfg, activityStore),
+		reference: newReference(FollowingPath, spi.Following, cfg, activityStore),
 	}
 }
 
-type follow struct {
+// Witnesses implements the 'witnesses' REST handler that retrieves a service's list of witnesses.
+type Witnesses struct {
+	*reference
+}
+
+// NewWitnesses returns a new 'witnesses' REST handler.
+func NewWitnesses(cfg *Config, activityStore spi.Store) *Followers {
+	return &Followers{
+		reference: newReference(WitnessesPath, spi.Witness, cfg, activityStore),
+	}
+}
+
+// Witnessing implements the 'witnessing' REST handler that retrieves collection of the services that the
+// local service is witnessing.
+type Witnessing struct {
+	*reference
+}
+
+// NewWitnessing returns a new 'witnessing' REST handler.
+func NewWitnessing(cfg *Config, activityStore spi.Store) *Followers {
+	return &Followers{
+		reference: newReference(WitnessingPath, spi.Witnessing, cfg, activityStore),
+	}
+}
+
+type reference struct {
 	*handler
 
 	refType spi.ReferenceType
 }
 
-func newFollow(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *follow {
-	h := &follow{
+func newReference(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *reference {
+	h := &reference{
 		refType: refType,
 	}
 
@@ -54,17 +79,17 @@ func newFollow(path string, refType spi.ReferenceType, cfg *Config, activityStor
 	return h
 }
 
-func (h *follow) handle(w http.ResponseWriter, req *http.Request) {
+func (h *reference) handle(w http.ResponseWriter, req *http.Request) {
 	if h.isPaging(req) {
-		h.handleFollowPage(w, req)
+		h.handleReferencePage(w, req)
 	} else {
-		h.handleFollow(w, req)
+		h.handleReference(w, req)
 	}
 }
 
 //nolint:dupl
-func (h *follow) handleFollow(rw http.ResponseWriter, _ *http.Request) {
-	following, err := h.getFollow()
+func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
+	coll, err := h.getReference()
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for service IRI [%s]: %s",
 			h.endpoint, h.refType, h.ServiceIRI, err)
@@ -74,7 +99,7 @@ func (h *follow) handleFollow(rw http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	followersCollBytes, err := h.marshal(following)
+	collBytes, err := h.marshal(coll)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal %s collection for service IRI [%s]: %s",
 			h.endpoint, h.refType, h.ServiceIRI, err)
@@ -84,10 +109,10 @@ func (h *follow) handleFollow(rw http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	h.writeResponse(rw, http.StatusOK, followersCollBytes)
+	h.writeResponse(rw, http.StatusOK, collBytes)
 }
 
-func (h *follow) handleFollowPage(rw http.ResponseWriter, req *http.Request) {
+func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Request) {
 	var page *vocab.CollectionPageType
 
 	var err error
@@ -121,7 +146,7 @@ func (h *follow) handleFollowPage(rw http.ResponseWriter, req *http.Request) {
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
-func (h *follow) getFollow() (*vocab.CollectionType, error) {
+func (h *reference) getReference() (*vocab.CollectionType, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
 			spi.WithActorIRI(h.ServiceIRI),
@@ -153,7 +178,7 @@ func (h *follow) getFollow() (*vocab.CollectionType, error) {
 }
 
 //nolint:dupl
-func (h *follow) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
+func (h *reference) getPage(opts ...spi.QueryOpt) (*vocab.CollectionPageType, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
 		spi.NewCriteria(spi.WithActorIRI(h.ServiceIRI)),

@@ -57,6 +57,40 @@ func TestNewFollowing(t *testing.T) {
 	require.NotNil(t, h.Handler())
 }
 
+func TestNewWitnesses(t *testing.T) {
+	serviceIRI, err := url.Parse(serviceURL)
+	require.NoError(t, err)
+
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewWitnesses(cfg, memstore.New(""))
+	require.NotNil(t, h)
+	require.Equal(t, "/services/orb/witnesses", h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+}
+
+func TestNewWitnessing(t *testing.T) {
+	serviceIRI, err := url.Parse(serviceURL)
+	require.NoError(t, err)
+
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewWitnessing(cfg, memstore.New(""))
+	require.NotNil(t, h)
+	require.Equal(t, "/services/orb/witnessing", h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+}
+
 func TestFollowers_Handler(t *testing.T) {
 	serviceIRI, err := url.Parse(serviceURL)
 	require.NoError(t, err)
@@ -158,28 +192,36 @@ func TestFollowers_PageHandler(t *testing.T) {
 		require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, ref))
 	}
 
+	cfg := &Config{
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewFollowers(cfg, activityStore)
+	require.NotNil(t, h)
+
 	t.Run("First page -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "true", "", followersFirstPageJSON)
+		handleRequest(t, h.handler, h.handle, "true", "", followersFirstPageJSON)
 	})
 
 	t.Run("Page by num -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "true", "3", followersPage3JSON)
+		handleRequest(t, h.handler, h.handle, "true", "3", followersPage3JSON)
 	})
 
 	t.Run("Page num too large -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "true", "30", followersPageTooLargeJSON)
+		handleRequest(t, h.handler, h.handle, "true", "30", followersPageTooLargeJSON)
 	})
 
 	t.Run("Last page -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "true", "4", followersLastPageJSON)
+		handleRequest(t, h.handler, h.handle, "true", "4", followersLastPageJSON)
 	})
 
 	t.Run("Invalid page-num -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "true", "invalid", followersFirstPageJSON)
+		handleRequest(t, h.handler, h.handle, "true", "invalid", followersFirstPageJSON)
 	})
 
 	t.Run("Invalid page -> Success", func(t *testing.T) {
-		handleFollowersRequest(t, serviceIRI, activityStore, "invalid", "3", followersJSON)
+		handleRequest(t, h.handler, h.handle, "invalid", "3", followersJSON)
 	})
 
 	t.Run("Store error", func(t *testing.T) {
@@ -238,22 +280,82 @@ func TestFollowers_PageHandler(t *testing.T) {
 	})
 }
 
-func handleFollowersRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
+func TestWitnesses_Handler(t *testing.T) {
+	serviceIRI, err := url.Parse(serviceURL)
+	require.NoError(t, err)
+
+	witnesses := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
+
+	activityStore := memstore.New("")
+
+	for _, ref := range witnesses {
+		require.NoError(t, activityStore.AddReference(spi.Witness, serviceIRI, ref))
+	}
+
 	cfg := &Config{
+		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
 		PageSize:   4,
 	}
 
-	h := NewFollowers(cfg, as)
+	h := NewWitnesses(cfg, activityStore)
 	require.NotNil(t, h)
 
-	restorePaging := setPaging(h.handler, page, pageNum)
+	t.Run("Main page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "false", "", witnessesJSON)
+	})
+
+	t.Run("First page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "true", "", witnessesFirstPageJSON)
+	})
+
+	t.Run("Page by num -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "true", "3", witnessesPage3JSON)
+	})
+}
+
+func TestWitnessing_Handler(t *testing.T) {
+	serviceIRI, err := url.Parse(serviceURL)
+	require.NoError(t, err)
+
+	witnessing := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
+
+	activityStore := memstore.New("")
+
+	for _, ref := range witnessing {
+		require.NoError(t, activityStore.AddReference(spi.Witnessing, serviceIRI, ref))
+	}
+
+	cfg := &Config{
+		BasePath:   basePath,
+		ServiceIRI: serviceIRI,
+		PageSize:   4,
+	}
+
+	h := NewWitnessing(cfg, activityStore)
+	require.NotNil(t, h)
+
+	t.Run("Main page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "false", "", witnessingJSON)
+	})
+
+	t.Run("First page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "true", "", witnessingFirstPageJSON)
+	})
+
+	t.Run("Page by num -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "true", "3", witnessingPage3JSON)
+	})
+}
+
+func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, pageNum, expected string) {
+	restorePaging := setPaging(h, page, pageNum)
 	defer restorePaging()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/services/orb", nil)
 
-	h.handle(rw, req)
+	handle(rw, req)
 
 	result := rw.Result()
 	require.Equal(t, http.StatusOK, result.StatusCode)
@@ -318,11 +420,88 @@ const (
     "https://example16.com/services/orb"
   ]
 }`
+
 	followersPageTooLargeJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/followers?page=true&page-num=30",
   "type": "CollectionPage",
   "totalItems": 19,
   "prev": "https://example1.com/services/orb/followers?page=true&page-num=4"
+}`
+
+	witnessesJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnesses",
+  "type": "Collection",
+  "totalItems": 19,
+  "first": "https://example1.com/services/orb/witnesses?page=true",
+  "last": "https://example1.com/services/orb/witnesses?page=true&page-num=4"
+}`
+
+	witnessesFirstPageJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnesses?page=true&page-num=0",
+  "type": "CollectionPage",
+  "totalItems": 19,
+  "next": "https://example1.com/services/orb/witnesses?page=true&page-num=1",
+  "items": [
+    "https://example1.com/services/orb",
+    "https://example2.com/services/orb",
+    "https://example3.com/services/orb",
+    "https://example4.com/services/orb"
+  ]
+}`
+
+	witnessesPage3JSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnesses?page=true&page-num=3",
+  "type": "CollectionPage",
+  "totalItems": 19,
+  "next": "https://example1.com/services/orb/witnesses?page=true&page-num=4",
+  "prev": "https://example1.com/services/orb/witnesses?page=true&page-num=2",
+  "items": [
+    "https://example13.com/services/orb",
+    "https://example14.com/services/orb",
+    "https://example15.com/services/orb",
+    "https://example16.com/services/orb"
+  ]
+}`
+
+	witnessingJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnessing",
+  "type": "Collection",
+  "totalItems": 19,
+  "first": "https://example1.com/services/orb/witnessing?page=true",
+  "last": "https://example1.com/services/orb/witnessing?page=true&page-num=4"
+}`
+
+	witnessingFirstPageJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnessing?page=true&page-num=0",
+  "type": "CollectionPage",
+  "totalItems": 19,
+  "next": "https://example1.com/services/orb/witnessing?page=true&page-num=1",
+  "items": [
+    "https://example1.com/services/orb",
+    "https://example2.com/services/orb",
+    "https://example3.com/services/orb",
+    "https://example4.com/services/orb"
+  ]
+}`
+
+	witnessingPage3JSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/witnessing?page=true&page-num=3",
+  "type": "CollectionPage",
+  "totalItems": 19,
+  "next": "https://example1.com/services/orb/witnessing?page=true&page-num=4",
+  "prev": "https://example1.com/services/orb/witnessing?page=true&page-num=2",
+  "items": [
+    "https://example13.com/services/orb",
+    "https://example14.com/services/orb",
+    "https://example15.com/services/orb",
+    "https://example16.com/services/orb"
+  ]
 }`
 )
