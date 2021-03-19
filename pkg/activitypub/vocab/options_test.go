@@ -14,7 +14,7 @@ import (
 )
 
 func TestNewOptions(t *testing.T) {
-	const id = "https://example.com/1234"
+	id := mustParseURL("https://example.com/1234")
 
 	to1 := mustParseURL("https://to1")
 	to2 := mustParseURL("https://to2")
@@ -60,7 +60,10 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(mustParseURL("https://property_result")),
 	}
 
-	anchorRef := NewAnchorCredentialReference("anchor_cred_ref_id", "anchor_cred_iri", "cid")
+	anchorRef := NewAnchorCredentialReference(
+		mustParseURL("https://example.com/anchor_cred_ref_id"),
+		mustParseURL("https://example.com/anchor_cred_iri"),
+		"cid")
 
 	opts := NewOptions(
 		WithID(id),

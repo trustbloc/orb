@@ -58,7 +58,7 @@ type Inbox interface {
 
 // AnchorCredentialHandler handles a new, published anchor credential.
 type AnchorCredentialHandler interface {
-	HandlerAnchorCredential(cid string, anchorCred []byte) error
+	HandlerAnchorCredential(id string, anchorCred []byte) error
 }
 
 // FollowerAuth makes the decision of whether or not a request by the given

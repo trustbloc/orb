@@ -15,8 +15,7 @@ import (
 )
 
 func TestObjectType_WithoutDocument(t *testing.T) {
-	const id = "http://sally.example.com/transactions/bafkreihwsn"
-
+	id := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
 	to1 := mustParseURL("https://to1")
 	to2 := mustParseURL("https://to2")
 
@@ -39,7 +38,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.ID())
+		require.Equal(t, id.String(), obj.ID().String())
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
@@ -82,7 +81,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.ID())
+		require.Equal(t, id.String(), obj.ID().String())
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
@@ -97,8 +96,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 }
 
 func TestObjectType_WithDocument(t *testing.T) {
-	const id = "http://sally.example.com/transactions/bafkreihwsn"
-
+	id := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
 	to1 := mustParseURL("https://to1")
 	to2 := mustParseURL("https://to2")
 
@@ -150,7 +148,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextCredentials, ContextOrb))
 
-		require.Equal(t, id, obj.ID())
+		require.Equal(t, id.String(), obj.ID().String())
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)

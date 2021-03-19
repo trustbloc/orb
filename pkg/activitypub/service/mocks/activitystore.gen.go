@@ -46,11 +46,11 @@ type ActivityStore struct {
 	addActivityReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetActivityStub        func(storeType spi.ActivityStoreType, activityID string) (*vocab.ActivityType, error)
+	GetActivityStub        func(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error)
 	getActivityMutex       sync.RWMutex
 	getActivityArgsForCall []struct {
 		storeType  spi.ActivityStoreType
-		activityID string
+		activityID *url.URL
 	}
 	getActivityReturns struct {
 		result1 *vocab.ActivityType
@@ -268,12 +268,12 @@ func (fake *ActivityStore) AddActivityReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityStore) GetActivity(storeType spi.ActivityStoreType, activityID string) (*vocab.ActivityType, error) {
+func (fake *ActivityStore) GetActivity(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error) {
 	fake.getActivityMutex.Lock()
 	ret, specificReturn := fake.getActivityReturnsOnCall[len(fake.getActivityArgsForCall)]
 	fake.getActivityArgsForCall = append(fake.getActivityArgsForCall, struct {
 		storeType  spi.ActivityStoreType
-		activityID string
+		activityID *url.URL
 	}{storeType, activityID})
 	fake.recordInvocation("GetActivity", []interface{}{storeType, activityID})
 	fake.getActivityMutex.Unlock()
@@ -292,7 +292,7 @@ func (fake *ActivityStore) GetActivityCallCount() int {
 	return len(fake.getActivityArgsForCall)
 }
 
-func (fake *ActivityStore) GetActivityArgsForCall(i int) (spi.ActivityStoreType, string) {
+func (fake *ActivityStore) GetActivityArgsForCall(i int) (spi.ActivityStoreType, *url.URL) {
 	fake.getActivityMutex.RLock()
 	defer fake.getActivityMutex.RUnlock()
 	return fake.getActivityArgsForCall[i].storeType, fake.getActivityArgsForCall[i].activityID

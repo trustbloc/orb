@@ -26,6 +26,13 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
+const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+
+var (
+	host1        = mustParseURL("https://sally.example.com")
+	anchorCredID = newMockID(host1, fmt.Sprintf("/cas/%s", cid))
+)
+
 func TestNew(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
@@ -100,17 +107,16 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
 
 	t.Run("Anchor credential", func(t *testing.T) {
-		const cid = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
-				vocab.WithID(cid),
+				vocab.WithID(anchorCredID),
+				vocab.WithCID(cid),
 				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
 		))
@@ -137,10 +143,10 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			mutex.Lock()
-			require.NotNil(t, gotActivity[create.ID()])
+			require.NotNil(t, gotActivity[create.ID().String()])
 			mutex.Unlock()
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 		})
 
@@ -155,11 +161,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential reference", func(t *testing.T) {
-		const (
-			anchorCredID = "https://sally.example.com/cas/bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-			cid          = "bafkreiarkubvukdidicmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-			refID        = "https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
+		refID := mustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
 
 		published := time.Now()
 
@@ -181,10 +183,10 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			mutex.Lock()
-			require.NotNil(t, gotActivity[create.ID()])
+			require.NotNil(t, gotActivity[create.ID().String()])
 			mutex.Unlock()
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(cid))
+			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 		})
 
@@ -231,8 +233,8 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 	// Add Service2 & Service3 to Service1's store since we haven't implemented actor resolution yet and
 	// Service1 needs to retrieve the requesting actors.
-	require.NoError(t, as.PutActor(vocab.NewService(service2IRI.String())))
-	require.NoError(t, as.PutActor(vocab.NewService(service3IRI.String())))
+	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
 
 	followerAuth := mocks.NewFollowerAuth()
 
@@ -252,7 +254,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
@@ -271,7 +273,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[follow.ID()])
+		require.NotNil(t, gotActivity[follow.ID().String()])
 		mutex.Unlock()
 
 		it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
@@ -295,7 +297,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[follow.ID()])
+		require.NotNil(t, gotActivity[follow.ID().String()])
 		mutex.Unlock()
 
 		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 2)
@@ -316,7 +318,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			mutex.Lock()
-			require.Nil(t, gotActivity[follow.ID()])
+			require.Nil(t, gotActivity[follow.ID().String()])
 			mutex.Unlock()
 
 			it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
@@ -418,7 +420,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
@@ -441,7 +443,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[accept.ID()])
+		require.NotNil(t, gotActivity[accept.ID().String()])
 		mutex.Unlock()
 
 		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
@@ -558,7 +560,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
@@ -581,7 +583,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[reject.ID()])
+		require.NotNil(t, gotActivity[reject.ID().String()])
 		mutex.Unlock()
 
 		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
@@ -696,17 +698,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		const (
-			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
-
 		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
@@ -733,16 +730,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID()])
+		require.NotNil(t, gotActivity[announce.ID().String()])
 		mutex.Unlock()
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
-		const (
-			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
-
 		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
@@ -769,16 +761,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID()])
+		require.NotNil(t, gotActivity[announce.ID().String()])
 		mutex.Unlock()
 	})
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
-		const (
-			anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			cid          = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
-
 		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
 			anchorCredID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
@@ -808,7 +795,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID()])
+		require.NotNil(t, gotActivity[announce.ID().String()])
 		mutex.Unlock()
 	})
 
@@ -907,7 +894,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
@@ -934,7 +921,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[offer.ID()])
+		require.NotNil(t, gotActivity[offer.ID().String()])
 		mutex.Unlock()
 		require.Len(t, witness.AnchorCreds(), 1)
 
@@ -1091,7 +1078,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 	go func() {
 		for activity := range activityChan {
 			mutex.Lock()
-			gotActivity[activity.ID()] = activity
+			gotActivity[activity.ID().String()] = activity
 			mutex.Unlock()
 		}
 	}()
@@ -1106,7 +1093,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
 		like := vocab.NewLikeActivity(h.newActivityID(),
-			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1119,10 +1106,10 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		mutex.Lock()
-		require.NotNil(t, gotActivity[like.ID()])
+		require.NotNil(t, gotActivity[like.ID().String()])
 		mutex.Unlock()
 
-		require.NotEmpty(t, proofHandler.Proof(anchorCredID))
+		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
 
 		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
 		require.NoError(t, err)
@@ -1147,7 +1134,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
 		like := vocab.NewLikeActivity(h.newActivityID(),
-			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1168,7 +1155,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
 		like := vocab.NewLikeActivity(h.newActivityID(),
-			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
@@ -1189,7 +1176,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
 		like := vocab.NewLikeActivity(h.newActivityID(),
-			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1229,7 +1216,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
 		like := vocab.NewLikeActivity(h.newActivityID(),
-			vocab.NewObjectProperty(vocab.WithIRI(mustParseURL(anchorCredID))),
+			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1242,12 +1229,16 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 	})
 }
 
-func newActivityID(id fmt.Stringer) string {
-	return fmt.Sprintf("%s/%s", id, uuid.New())
+func newActivityID(id fmt.Stringer) *url.URL {
+	return newMockID(id, uuid.New().String())
 }
 
-func newTransactionID(id fmt.Stringer) string {
-	return fmt.Sprintf("%s/%s", id, uuid.New())
+func newTransactionID(id fmt.Stringer) *url.URL {
+	return newMockID(id, uuid.New().String())
+}
+
+func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
 
 func mustParseURL(raw string) *url.URL {

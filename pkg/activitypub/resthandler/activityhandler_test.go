@@ -24,9 +24,6 @@ import (
 const outboxURL = "https://example.com/services/orb/outbox"
 
 func TestNewOutbox(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -41,9 +38,6 @@ func TestNewOutbox(t *testing.T) {
 }
 
 func TestNewInbox(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -58,9 +52,6 @@ func TestNewInbox(t *testing.T) {
 }
 
 func TestActivities_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	activityStore := memstore.New("")
 
 	for _, activity := range newMockCreateActivities(19) {
@@ -145,9 +136,6 @@ func TestActivities_Handler(t *testing.T) {
 }
 
 func TestActivities_PageHandler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	activityStore := memstore.New("")
 
 	for _, activity := range newMockCreateActivities(19) {

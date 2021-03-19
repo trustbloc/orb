@@ -58,7 +58,7 @@ func (s *Store) PutActor(actor *vocab.ActorType) error {
 
 	logger.Debugf("[%s] Storing actor [%s]", s.serviceName, actor.ID())
 
-	s.actorStore[actor.ID()] = actor
+	s.actorStore[actor.ID().String()] = actor
 
 	return nil
 }
@@ -88,10 +88,10 @@ func (s *Store) AddActivity(storeType spi.ActivityStoreType, activity *vocab.Act
 
 // GetActivity returns the activity for the given ID from the given activity store
 // or ErrNotFound error if it wasn't found.
-func (s *Store) GetActivity(storeType spi.ActivityStoreType, activityID string) (*vocab.ActivityType, error) {
+func (s *Store) GetActivity(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error) {
 	logger.Debugf("[%s] Retrieving activity from %s - ID: %s", s.serviceName, storeType, activityID)
 
-	return s.activityStores[storeType].get(activityID)
+	return s.activityStores[storeType].get(activityID.String())
 }
 
 // QueryActivities queries the given activity store using the provided criteria
@@ -144,7 +144,7 @@ func (s *activityStore) add(activity *vocab.ActivityType) error {
 	defer s.mutex.Unlock()
 
 	s.activities = append(s.activities, activity)
-	s.activityByID[activity.ID()] = activity
+	s.activityByID[activity.ID().String()] = activity
 
 	return nil
 }

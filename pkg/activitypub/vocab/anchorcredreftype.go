@@ -6,6 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package vocab
 
+import (
+	"net/url"
+)
+
 // AnchorCredentialReferenceType defines an "AnchorCredentialReference" type.
 type AnchorCredentialReferenceType struct {
 	*ObjectType
@@ -19,7 +23,7 @@ type anchorCredentialReferenceType struct {
 }
 
 // NewAnchorCredentialReference returns a new "AnchorCredentialReference".
-func NewAnchorCredentialReference(id, anchorCredIRI, cid string, opts ...Opt) *AnchorCredentialReferenceType {
+func NewAnchorCredentialReference(id, anchorCredID *url.URL, cid string, opts ...Opt) *AnchorCredentialReferenceType {
 	options := NewOptions(opts...)
 
 	return &AnchorCredentialReferenceType{
@@ -32,7 +36,7 @@ func NewAnchorCredentialReference(id, anchorCredIRI, cid string, opts ...Opt) *A
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
-						WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage),
+						WithID(anchorCredID), WithCID(cid), WithType(TypeContentAddressedStorage),
 					),
 				),
 			),
@@ -42,7 +46,7 @@ func NewAnchorCredentialReference(id, anchorCredIRI, cid string, opts ...Opt) *A
 
 // NewAnchorCredentialReferenceWithDocument returns a new "AnchorCredentialReference" with the given document embedded.
 func NewAnchorCredentialReferenceWithDocument(
-	id, anchorCredIRI, cid string, doc Document, opts ...Opt) (*AnchorCredentialReferenceType, error) {
+	id, anchorCredID *url.URL, cid string, doc Document, opts ...Opt) (*AnchorCredentialReferenceType, error) {
 	options := NewOptions(opts...)
 
 	obj, err := NewObjectWithDocument(doc)
@@ -60,7 +64,7 @@ func NewAnchorCredentialReferenceWithDocument(
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
-						WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage),
+						WithID(anchorCredID), WithCID(cid), WithType(TypeContentAddressedStorage),
 					),
 				),
 			),

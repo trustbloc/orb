@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -21,15 +20,11 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-const (
-	serviceURL = "https://example1.com/services/orb"
-	basePath   = "/services/orb"
-)
+const basePath = "/services/orb"
+
+var serviceIRI = mustParseURL("https://example1.com/services/orb")
 
 func TestNewServices(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -44,9 +39,6 @@ func TestNewServices(t *testing.T) {
 }
 
 func TestServices_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -62,7 +54,7 @@ func TestServices_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceURL, nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
 
 		h.handle(rw, req)
 
@@ -88,7 +80,7 @@ func TestServices_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceURL, nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
 
 		h.handle(rw, req)
 
@@ -108,7 +100,7 @@ func TestServices_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceURL, nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
 
 		h.handle(rw, req)
 
@@ -141,7 +133,7 @@ func newMockService() *vocab.ActorType {
 		PublicKeyPem: keyPem,
 	}
 
-	return vocab.NewService(serviceURL,
+	return vocab.NewService(serviceIRI,
 		vocab.WithPublicKey(publicKey),
 		vocab.WithInbox(inbox),
 		vocab.WithOutbox(outbox),

@@ -14,10 +14,11 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
-const (
-	txID          = "https://org1.com/transactions/tx1"
-	cid           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-	anchorCredIRI = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+
+var (
+	anchorCredIRI = newMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+	txID          = mustParseURL("https://org1.com/transactions/tx1")
 )
 
 func TestNewAnchorCredentialReference(t *testing.T) {
@@ -26,14 +27,14 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
-						NewObject(WithID(cid), WithType(TypeContentAddressedStorage)),
+						NewObject(WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage)),
 					),
 				),
 			),
 		)
 
 		require.NotNil(t, ref)
-		require.Equal(t, txID, ref.ID())
+		require.Equal(t, txID.String(), ref.ID().String())
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
@@ -48,7 +49,7 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
 		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
@@ -68,7 +69,7 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, ref)
-		require.Equal(t, txID, ref.ID())
+		require.Equal(t, txID.String(), ref.ID().String())
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
@@ -83,7 +84,7 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
 		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
@@ -112,7 +113,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
-						NewObject(WithID(cid), WithType(TypeContentAddressedStorage)),
+						NewObject(WithID(anchorCredIRI), WithCID(cid), WithType(TypeContentAddressedStorage)),
 					),
 				),
 			),
@@ -129,7 +130,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		ref := &AnchorCredentialReferenceType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorCredentialReference), ref))
 
-		require.Equal(t, txID, ref.ID())
+		require.Equal(t, txID.String(), ref.ID().String())
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
@@ -144,7 +145,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
 		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()
@@ -170,7 +171,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(anchorCredentialReferenceWithDoc), ref))
 
 		require.NotNil(t, ref)
-		require.Equal(t, txID, ref.ID())
+		require.Equal(t, txID.String(), ref.ID().String())
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
@@ -185,7 +186,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		targetObjProp := targetProp.Object()
 		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI, targetObjProp.ID())
+		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
 		require.Equal(t, cid, targetObjProp.CID())
 
 		targetTypeProp := targetObjProp.Type()

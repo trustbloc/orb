@@ -137,7 +137,7 @@ func (t *ActorType) UnmarshalJSON(bytes []byte) error {
 }
 
 // NewService returns a new 'Service' actor type.
-func NewService(id string, opts ...Opt) *ActorType {
+func NewService(id *url.URL, opts ...Opt) *ActorType {
 	options := NewOptions(opts...)
 
 	return &ActorType{

@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	collID  = "https://org1.com/services/service1/inbox"
+	collID  = mustParseURL("https://org1.com/services/service1/inbox")
 	first   = mustParseURL("https://org1.com/services/service1/inbox?page=true")
 	last    = mustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
 	current = mustParseURL("https://org1.com/services/service1/inbox?page=2")
@@ -232,7 +232,7 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextOrb))
 
-		require.Equal(t, objectPropertyID, obj.ID())
+		require.Equal(t, objectPropertyID.String(), obj.ID().String())
 
 		typeProp = obj.Type()
 		require.NotNil(t, typeProp)
@@ -256,7 +256,7 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextActivityStreams))
 
-		require.Equal(t, collID, coll.ID())
+		require.Equal(t, collID.String(), coll.ID().String())
 
 		curr := coll.Current()
 		require.NotNil(t, curr)
@@ -305,7 +305,7 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 		require.NotNil(t, context)
 		require.True(t, context.Contains(ContextActivityStreams))
 
-		require.Equal(t, collID, coll.ID())
+		require.Equal(t, collID.String(), coll.ID().String())
 
 		curr := coll.Current()
 		require.NotNil(t, curr)
@@ -338,14 +338,14 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 	})
 }
 
-const (
-	objectPropertyID = "some_obj_ID"
+var objectPropertyID = mustParseURL("https://example.com/some_obj_ID")
 
+const (
 	jsonIRIObjectProperty = `"https://example.com/obj1"`
 
 	jsonEmbeddedObjectProperty = `{
   "@context": "https://trustbloc.github.io/Context/orb-v1.json",
-  "id": "some_obj_ID",
+  "id": "https://example.com/some_obj_ID",
   "type": "VerifiableCredential"
 }`
 	jsonCollectionObjectProperty = `{

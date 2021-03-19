@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,9 +23,6 @@ import (
 const followersURL = "https://example.com/services/orb/followers"
 
 func TestNewFollowers(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -41,9 +37,6 @@ func TestNewFollowers(t *testing.T) {
 }
 
 func TestNewFollowing(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -58,9 +51,6 @@ func TestNewFollowing(t *testing.T) {
 }
 
 func TestNewWitnesses(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -75,9 +65,6 @@ func TestNewWitnesses(t *testing.T) {
 }
 
 func TestNewWitnessing(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -92,9 +79,6 @@ func TestNewWitnessing(t *testing.T) {
 }
 
 func TestFollowers_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	followers := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i) })
 
 	activityStore := memstore.New("")
@@ -181,9 +165,6 @@ func TestFollowers_Handler(t *testing.T) {
 }
 
 func TestFollowers_PageHandler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	followers := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
 
 	activityStore := memstore.New("")
@@ -281,9 +262,6 @@ func TestFollowers_PageHandler(t *testing.T) {
 }
 
 func TestWitnesses_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	witnesses := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
 
 	activityStore := memstore.New("")
@@ -315,9 +293,6 @@ func TestWitnesses_Handler(t *testing.T) {
 }
 
 func TestWitnessing_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	witnessing := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
 
 	activityStore := memstore.New("")
@@ -349,9 +324,6 @@ func TestWitnessing_Handler(t *testing.T) {
 }
 
 func TestLiked_Handler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	liked := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example.com/transactions%d", i+1) })
 
 	activityStore := memstore.New("")

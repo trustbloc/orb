@@ -16,12 +16,12 @@ import (
 
 func TestActor(t *testing.T) {
 	const (
-		serviceID  = "https://alice.example.com/services/orb"
 		keyID      = "https://alice.example.com/services/orb#main-key"
 		keyOwnerID = "https://alice.example.com/services/orb"
 		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 	)
 
+	serviceID := mustParseURL("https://alice.example.com/services/orb")
 	followers := mustParseURL("https://sally.example.com/services/orb/followers")
 	following := mustParseURL("https://sally.example.com/services/orb/following")
 	inbox := mustParseURL("https://alice.example.com/services/orb/inbox")
@@ -67,7 +67,7 @@ func TestActor(t *testing.T) {
 
 		id := a.ID()
 		require.NotNil(t, id)
-		require.Equal(t, serviceID, id)
+		require.Equal(t, serviceID.String(), id.String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -121,7 +121,7 @@ func TestActor(t *testing.T) {
 
 		id := a.ID()
 		require.NotNil(t, id)
-		require.Equal(t, serviceID, id)
+		require.Equal(t, serviceID.String(), id.String())
 
 		require.NotNil(t, a.Context())
 		require.Nil(t, a.PublicKey())

@@ -115,7 +115,7 @@ func TestInbox_Handle(t *testing.T) {
 		// Wait for the activity to be handled
 		time.Sleep(50 * time.Millisecond)
 
-		a, err := activityStore.GetActivity(store.Inbox, activity.ID())
+		a, err := activityStore.GetActivity(store.Inbox, activity.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, a)
 		require.Equalf(t, activity.ID(), a.ID(), "The activity should have been stored in the inbox")
@@ -330,8 +330,8 @@ func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, erro
 	return req, nil
 }
 
-func newActivityID(serviceName string) string {
-	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+func newActivityID(serviceName string) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
@@ -342,4 +342,13 @@ func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTP
 	return func() {
 		require.NoError(t, httpServer.Stop(context.Background()))
 	}
+}
+
+func mustParseURL(raw string) *url.URL {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(err)
+	}
+
+	return u
 }

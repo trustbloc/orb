@@ -18,9 +18,9 @@ import (
 )
 
 func TestActivityIterator(t *testing.T) {
-	const (
-		activityID1 = "activity1"
-		activityID2 = "activity2"
+	var (
+		activityID1 = mustParseURL("https://example.com/activities/activity1")
+		activityID2 = mustParseURL("https://example.com/activities/activity2")
 	)
 
 	activity1 := vocab.NewAnnounceActivity(activityID1, vocab.NewObjectProperty())
@@ -35,12 +35,12 @@ func TestActivityIterator(t *testing.T) {
 	a, err := it.Next()
 	require.NoError(t, err)
 	require.NotNil(t, a)
-	require.True(t, a.ID() == activityID1)
+	require.True(t, a.ID().String() == activityID1.String())
 
 	a, err = it.Next()
 	require.NoError(t, err)
 	require.NotNil(t, a)
-	require.True(t, a.ID() == activityID2)
+	require.True(t, a.ID().String() == activityID2.String())
 
 	a, err = it.Next()
 	require.Error(t, err)

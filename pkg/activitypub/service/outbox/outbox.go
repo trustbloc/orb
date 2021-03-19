@@ -169,7 +169,7 @@ func (h *Outbox) Post(activity *vocab.ActivityType) error {
 	}
 
 	for _, to := range activity.To() {
-		if err := h.publish(activity.ID(), activityBytes, to); err != nil {
+		if err := h.publish(activity.ID().String(), activityBytes, to); err != nil {
 			return errors.WithMessage(err, "unable to publish activity")
 		}
 	}
