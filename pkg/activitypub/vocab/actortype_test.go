@@ -30,9 +30,7 @@ func TestActor(t *testing.T) {
 	outbox := testutil.MustParseURL("https://alice.example.com/services/orb/outbox")
 	witnesses := testutil.MustParseURL("https://alice.example.com/services/orb/witnesses")
 	witnessing := testutil.MustParseURL("https://alice.example.com/services/orb/witnessing")
-	likes := testutil.MustParseURL("https://alice.example.com/services/orb/likes")
 	liked := testutil.MustParseURL("https://alice.example.com/services/orb/liked")
-	shares := testutil.MustParseURL("https://alice.example.com/services/orb/shares")
 
 	publicKey := &PublicKeyType{
 		ID:           keyID,
@@ -49,9 +47,7 @@ func TestActor(t *testing.T) {
 			WithFollowing(following),
 			WithWitnesses(witnesses),
 			WithWitnessing(witnessing),
-			WithLikes(likes),
 			WithLiked(liked),
-			WithShares(shares),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(service)
@@ -105,17 +101,9 @@ func TestActor(t *testing.T) {
 		require.NotNil(t, wtng)
 		require.Equal(t, witnessing.String(), wtng.String())
 
-		lks := a.Likes()
-		require.NotNil(t, lks)
-		require.Equal(t, likes.String(), lks.String())
-
 		lkd := a.Liked()
 		require.NotNil(t, lkd)
 		require.Equal(t, liked.String(), lkd.String())
-
-		shrs := a.Shares()
-		require.NotNil(t, shrs)
-		require.Equal(t, shares.String(), shrs.String())
 	})
 
 	t.Run("Empty actor", func(t *testing.T) {
@@ -133,9 +121,7 @@ func TestActor(t *testing.T) {
 		require.Nil(t, a.Following())
 		require.Nil(t, a.Witnesses())
 		require.Nil(t, a.Witnessing())
-		require.Nil(t, a.Likes())
 		require.Nil(t, a.Liked())
-		require.Nil(t, a.Shares())
 	})
 }
 
@@ -158,8 +144,6 @@ const jsonService = `{
   "following": "https://sally.example.com/services/orb/following",
   "witnesses": "https://alice.example.com/services/orb/witnesses",
   "witnessing": "https://alice.example.com/services/orb/witnessing",
-  "likes": "https://alice.example.com/services/orb/likes",
-  "liked": "https://alice.example.com/services/orb/liked",
-  "shares": "https://alice.example.com/services/orb/shares"
+  "liked": "https://alice.example.com/services/orb/liked"
 }
 `

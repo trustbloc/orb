@@ -32,8 +32,6 @@ type actorType struct {
 	Following  *URLProperty   `json:"following"`
 	Witnesses  *URLProperty   `json:"witnesses"`
 	Witnessing *URLProperty   `json:"witnessing"`
-	Shares     *URLProperty   `json:"shares"`
-	Likes      *URLProperty   `json:"likes"`
 	Liked      *URLProperty   `json:"liked"`
 }
 
@@ -96,24 +94,6 @@ func (t *ActorType) Witnessing() *url.URL {
 	return t.actor.Witnessing.URL()
 }
 
-// Shares returns the URL of the actor's shares.
-func (t *ActorType) Shares() *url.URL {
-	if t.actor.Shares == nil {
-		return nil
-	}
-
-	return t.actor.Shares.URL()
-}
-
-// Likes returns the URL of the actor's likes.
-func (t *ActorType) Likes() *url.URL {
-	if t.actor.Likes == nil {
-		return nil
-	}
-
-	return t.actor.Likes.URL()
-}
-
 // Liked returns the URL of what the actor has liked.
 func (t *ActorType) Liked() *url.URL {
 	if t.actor.Liked == nil {
@@ -154,8 +134,6 @@ func NewService(id *url.URL, opts ...Opt) *ActorType {
 			Following:  NewURLProperty(options.Following),
 			Witnesses:  NewURLProperty(options.Witnesses),
 			Witnessing: NewURLProperty(options.Witnessing),
-			Shares:     NewURLProperty(options.Shares),
-			Likes:      NewURLProperty(options.Likes),
 			Liked:      NewURLProperty(options.Liked),
 		},
 	}

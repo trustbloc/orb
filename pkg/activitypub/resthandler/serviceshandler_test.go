@@ -124,9 +124,7 @@ func newMockService() *vocab.ActorType {
 	outbox := testutil.MustParseURL("https://example1.com.com/services/orb/outbox")
 	witnesses := testutil.MustParseURL("https://example1.com.com/services/orb/witnesses")
 	witnessing := testutil.MustParseURL("https://example1.com.com/services/orb/witnessing")
-	likes := testutil.MustParseURL("https://example1.com.com/services/orb/likes")
 	liked := testutil.MustParseURL("https://example1.com.com/services/orb/liked")
-	shares := testutil.MustParseURL("https://example1.com.com/services/orb/shares")
 
 	publicKey := &vocab.PublicKeyType{
 		ID:           keyID,
@@ -142,9 +140,7 @@ func newMockService() *vocab.ActorType {
 		vocab.WithFollowing(following),
 		vocab.WithWitnesses(witnesses),
 		vocab.WithWitnessing(witnessing),
-		vocab.WithLikes(likes),
 		vocab.WithLiked(liked),
-		vocab.WithShares(shares),
 	)
 }
 
@@ -166,8 +162,6 @@ const serviceJSON = `{
   "followers": "https://example1.com/services/orb/followers",
   "following": "https://example1.com/services/orb/following",
   "liked": "https://example1.com.com/services/orb/liked",
-  "likes": "https://example1.com.com/services/orb/likes",
-  "shares": "https://example1.com.com/services/orb/shares",
   "witnesses": "https://example1.com.com/services/orb/witnesses",
   "witnessing": "https://example1.com.com/services/orb/witnessing"
 }`
