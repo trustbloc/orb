@@ -12,13 +12,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 var (
 	anchorCredIRI = newMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
-	txID          = mustParseURL("https://org1.com/transactions/tx1")
+	txID          = testutil.MustParseURL("https://org1.com/transactions/tx1")
 )
 
 func TestNewAnchorCredentialReference(t *testing.T) {
@@ -123,7 +125,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, anchorCredentialReference), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, anchorCredentialReference), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -163,7 +165,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, anchorCredentialReferenceWithDoc), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, anchorCredentialReferenceWithDoc), string(bytes))
 	})
 
 	t.Run("Unmarshal with doc", func(t *testing.T) {

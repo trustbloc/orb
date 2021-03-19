@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestNewOutbox(t *testing.T) {
@@ -330,7 +331,7 @@ func TestOutbox_PostError(t *testing.T) {
 }
 
 func newActivityID(serviceName string) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
+	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 type testHandler struct {
@@ -355,13 +356,4 @@ func (m *testHandler) Method() string {
 
 func (m *testHandler) Handler() common.HTTPRequestHandler {
 	return m.handler
-}
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
 }

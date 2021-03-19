@@ -28,13 +28,14 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 var (
-	host1        = mustParseURL("https://sally.example.com")
-	anchorCredID = newMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+	host1        = testutil.MustParseURL("https://sally.example.com")
+	anchorCredID = testutil.NewMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 )
 
 func TestNewService(t *testing.T) {
@@ -66,8 +67,8 @@ func TestNewService(t *testing.T) {
 func TestService_Create(t *testing.T) {
 	log.SetLevel(wmlogger.Module, log.WARNING)
 
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -147,7 +148,7 @@ func TestService_Create(t *testing.T) {
 		panic(err)
 	}
 
-	unavailableServiceIRI := mustParseURL("http://localhost:8304/services/service4")
+	unavailableServiceIRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	create := vocab.NewCreateActivity(newActivityID(service1IRI),
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
@@ -181,8 +182,8 @@ func TestService_Create(t *testing.T) {
 func TestService_Follow(t *testing.T) {
 	log.SetLevel(wmlogger.Module, log.WARNING)
 
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -390,9 +391,9 @@ func TestService_Follow(t *testing.T) {
 func TestService_Announce(t *testing.T) {
 	log.SetLevel(wmlogger.Module, log.WARNING)
 
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
-	service3IRI := mustParseURL("http://localhost:8303/services/service3")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -652,9 +653,9 @@ func TestService_Announce(t *testing.T) {
 func TestService_Offer(t *testing.T) {
 	log.SetLevel(wmlogger.Module, log.WARNING)
 
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
-	service3IRI := mustParseURL("http://localhost:8303/services/service3")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -796,24 +797,11 @@ func TestService_Offer(t *testing.T) {
 }
 
 func newActivityID(serviceName fmt.Stringer) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
+	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func newTransactionID(serviceName fmt.Stringer) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
-}
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
-}
-
-func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
+	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {

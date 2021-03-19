@@ -18,11 +18,12 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const basePath = "/services/orb"
 
-var serviceIRI = mustParseURL("https://example1.com/services/orb")
+var serviceIRI = testutil.MustParseURL("https://example1.com/services/orb")
 
 func TestNewServices(t *testing.T) {
 	cfg := &Config{
@@ -66,7 +67,7 @@ func TestServices_Handler(t *testing.T) {
 
 		t.Logf("%s", respBytes)
 
-		require.Equal(t, getCanonical(t, serviceJSON), getCanonical(t, string(respBytes)))
+		require.Equal(t, testutil.GetCanonical(t, serviceJSON), testutil.GetCanonical(t, string(respBytes)))
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -117,15 +118,15 @@ func newMockService() *vocab.ActorType {
 		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 	)
 
-	followers := mustParseURL("https://example1.com/services/orb/followers")
-	following := mustParseURL("https://example1.com/services/orb/following")
-	inbox := mustParseURL("https://example1.com.com/services/orb/inbox")
-	outbox := mustParseURL("https://example1.com.com/services/orb/outbox")
-	witnesses := mustParseURL("https://example1.com.com/services/orb/witnesses")
-	witnessing := mustParseURL("https://example1.com.com/services/orb/witnessing")
-	likes := mustParseURL("https://example1.com.com/services/orb/likes")
-	liked := mustParseURL("https://example1.com.com/services/orb/liked")
-	shares := mustParseURL("https://example1.com.com/services/orb/shares")
+	followers := testutil.MustParseURL("https://example1.com/services/orb/followers")
+	following := testutil.MustParseURL("https://example1.com/services/orb/following")
+	inbox := testutil.MustParseURL("https://example1.com.com/services/orb/inbox")
+	outbox := testutil.MustParseURL("https://example1.com.com/services/orb/outbox")
+	witnesses := testutil.MustParseURL("https://example1.com.com/services/orb/witnesses")
+	witnessing := testutil.MustParseURL("https://example1.com.com/services/orb/witnessing")
+	likes := testutil.MustParseURL("https://example1.com.com/services/orb/likes")
+	liked := testutil.MustParseURL("https://example1.com.com/services/orb/liked")
+	shares := testutil.MustParseURL("https://example1.com.com/services/orb/shares")
 
 	publicKey := &vocab.PublicKeyType{
 		ID:           keyID,

@@ -15,12 +15,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 var (
-	host1    = mustParseURL("https://sally.example.com")
-	service1 = mustParseURL("https://sally.example.com/services/orb")
-	witness1 = mustParseURL("https://witness1.example.com/services/orb")
+	host1    = testutil.MustParseURL("https://sally.example.com")
+	service1 = testutil.MustParseURL("https://sally.example.com/services/orb")
+	witness1 = testutil.MustParseURL("https://witness1.example.com/services/orb")
 
 	createActivityID = newMockID(service1, "/activities/97bcd005-abb6-423d-a889-18bc1ce84988")
 	followActivityID = newMockID(service1, "/activities/97b3d005-abb6-422d-a889-18bc1ee84988")
@@ -32,7 +34,7 @@ var (
 
 func TestCreateTypeMarshal(t *testing.T) {
 	followers := newMockID(service1, "/followers")
-	public := mustParseURL("https://www.w3.org/ns/activitystreams#Public")
+	public := testutil.MustParseURL("https://www.w3.org/ns/activitystreams#Public")
 
 	published := getStaticTime()
 
@@ -63,7 +65,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonCreate), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonCreate), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -125,7 +127,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonCreateWithAnchorCredentialRef), string(bytes))
+			require.Equal(t, testutil.GetCanonical(t, jsonCreateWithAnchorCredentialRef), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
@@ -199,7 +201,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonCreateWithAnchorCredential), string(bytes))
+			require.Equal(t, testutil.GetCanonical(t, jsonCreateWithAnchorCredential), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
@@ -250,7 +252,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 func TestAnnounceTypeMarshal(t *testing.T) {
 	followers := newMockID(service1, "/followers")
-	public := mustParseURL("https://www.w3.org/ns/activitystreams#Public")
+	public := testutil.MustParseURL("https://www.w3.org/ns/activitystreams#Public")
 	txn1 := newMockID(host1, "/transactions/bafkeexwtkfyvbkdidscmqywkyls3i")
 
 	t.Run("Single object", func(t *testing.T) {
@@ -269,7 +271,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonAnnounce), string(bytes))
+			require.Equal(t, testutil.GetCanonical(t, jsonAnnounce), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
@@ -344,7 +346,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonAnnounceWithAnchorCredRefs), string(bytes))
+			require.Equal(t, testutil.GetCanonical(t, jsonAnnounceWithAnchorCredRefs), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
@@ -442,7 +444,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			t.Log(string(bytes))
 
-			require.Equal(t, getCanonical(t, jsonAnnounceWithAnchorCredRefAndEmbeddedCred), string(bytes))
+			require.Equal(t, testutil.GetCanonical(t, jsonAnnounceWithAnchorCredRefAndEmbeddedCred), string(bytes))
 		})
 
 		t.Run("Unmarshal", func(t *testing.T) {
@@ -504,8 +506,8 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 }
 
 func TestFollowTypeMarshal(t *testing.T) {
-	org1Service := mustParseURL("https://org1.com/services/service1")
-	org2Service := mustParseURL("https://org1.com/services/service2")
+	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
+	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
 		follow := NewFollowActivity(followActivityID,
@@ -518,7 +520,7 @@ func TestFollowTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonFollow), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonFollow), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -546,8 +548,8 @@ func TestFollowTypeMarshal(t *testing.T) {
 }
 
 func TestAcceptTypeMarshal(t *testing.T) {
-	org1Service := mustParseURL("https://org1.com/services/service1")
-	org2Service := mustParseURL("https://org1.com/services/service2")
+	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
+	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	follow := NewFollowActivity(followActivityID,
 		NewObjectProperty(WithIRI(org2Service)),
@@ -568,7 +570,7 @@ func TestAcceptTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonAccept), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonAccept), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -616,8 +618,8 @@ func TestAcceptTypeMarshal(t *testing.T) {
 }
 
 func TestRejectTypeMarshal(t *testing.T) {
-	org1Service := mustParseURL("https://org1.com/services/service1")
-	org2Service := mustParseURL("https://org1.com/services/service2")
+	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
+	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	follow := NewFollowActivity(followActivityID, NewObjectProperty(WithIRI(org2Service)),
 		WithTo(org2Service),
@@ -636,7 +638,7 @@ func TestRejectTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonReject), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonReject), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -685,7 +687,7 @@ func TestRejectTypeMarshal(t *testing.T) {
 
 func TestOfferTypeMarshal(t *testing.T) {
 	to := newMockID(service1, "/witnesses")
-	public := mustParseURL(PublicIRI)
+	public := testutil.MustParseURL(PublicIRI)
 
 	startTime := getStaticTime()
 	endTime := startTime.Add(1 * time.Minute)
@@ -706,7 +708,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonOffer), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonOffer), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -747,9 +749,9 @@ func TestOfferTypeMarshal(t *testing.T) {
 }
 
 func TestLikeTypeMarshal(t *testing.T) {
-	actor := mustParseURL("https://witness1.example.com/services/orb")
-	public := mustParseURL(PublicIRI)
-	credID := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
+	public := testutil.MustParseURL(PublicIRI)
+	credID := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
 
 	startTime := getStaticTime()
 	endTime := startTime.Add(1 * time.Minute)
@@ -771,7 +773,7 @@ func TestLikeTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonLike), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonLike), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -818,12 +820,12 @@ func TestLikeTypeMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonLike), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonLike), string(bytes))
 	})
 }
 
 func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
+	return testutil.MustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
 
 const (

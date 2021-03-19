@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const followersURL = "https://example.com/services/orb/followers"
@@ -79,7 +80,9 @@ func TestNewWitnessing(t *testing.T) {
 }
 
 func TestFollowers_Handler(t *testing.T) {
-	followers := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i) })
+	followers := testutil.NewMockURLs(19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/services/orb", i)
+	})
 
 	activityStore := memstore.New("")
 
@@ -110,7 +113,7 @@ func TestFollowers_Handler(t *testing.T) {
 
 		t.Logf("%s", respBytes)
 
-		require.Equal(t, getCanonical(t, followersJSON), getCanonical(t, string(respBytes)))
+		require.Equal(t, testutil.GetCanonical(t, followersJSON), testutil.GetCanonical(t, string(respBytes)))
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -165,7 +168,9 @@ func TestFollowers_Handler(t *testing.T) {
 }
 
 func TestFollowers_PageHandler(t *testing.T) {
-	followers := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
+	followers := testutil.NewMockURLs(19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/services/orb", i+1)
+	})
 
 	activityStore := memstore.New("")
 
@@ -262,7 +267,9 @@ func TestFollowers_PageHandler(t *testing.T) {
 }
 
 func TestWitnesses_Handler(t *testing.T) {
-	witnesses := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
+	witnesses := testutil.NewMockURLs(19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/services/orb", i+1)
+	})
 
 	activityStore := memstore.New("")
 
@@ -293,7 +300,9 @@ func TestWitnesses_Handler(t *testing.T) {
 }
 
 func TestWitnessing_Handler(t *testing.T) {
-	witnessing := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example%d.com/services/orb", i+1) })
+	witnessing := testutil.NewMockURLs(19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/services/orb", i+1)
+	})
 
 	activityStore := memstore.New("")
 
@@ -324,7 +333,7 @@ func TestWitnessing_Handler(t *testing.T) {
 }
 
 func TestLiked_Handler(t *testing.T) {
-	liked := newMockURIs(19, func(i int) string { return fmt.Sprintf("https://example.com/transactions%d", i+1) })
+	liked := testutil.NewMockURLs(19, func(i int) string { return fmt.Sprintf("https://example.com/transactions%d", i+1) })
 
 	activityStore := memstore.New("")
 
@@ -372,7 +381,7 @@ func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, page
 
 	t.Logf("%s", respBytes)
 
-	require.Equal(t, getCanonical(t, expected), getCanonical(t, string(respBytes)))
+	require.Equal(t, testutil.GetCanonical(t, expected), testutil.GetCanonical(t, string(respBytes)))
 }
 
 const (

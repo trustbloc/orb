@@ -11,40 +11,42 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestNewOptions(t *testing.T) {
-	id := mustParseURL("https://example.com/1234")
+	id := testutil.MustParseURL("https://example.com/1234")
 
-	to1 := mustParseURL("https://to1")
-	to2 := mustParseURL("https://to2")
+	to1 := testutil.MustParseURL("https://to1")
+	to2 := testutil.MustParseURL("https://to2")
 
 	coll := NewCollection(nil)
 	oColl := NewOrderedCollection(nil)
 	activity := &ActivityType{}
 	obj := &ObjectType{}
-	iri := mustParseURL("https://iri")
-	actor := mustParseURL("https://actor")
-	first := mustParseURL("https://first")
-	last := mustParseURL("https://last")
-	current := mustParseURL("https://current")
-	partOf := mustParseURL("https://activities")
-	next := mustParseURL("https://activities?page=3")
-	prev := mustParseURL("https://activities?page=1")
+	iri := testutil.MustParseURL("https://iri")
+	actor := testutil.MustParseURL("https://actor")
+	first := testutil.MustParseURL("https://first")
+	last := testutil.MustParseURL("https://last")
+	current := testutil.MustParseURL("https://current")
+	partOf := testutil.MustParseURL("https://activities")
+	next := testutil.MustParseURL("https://activities?page=3")
+	prev := testutil.MustParseURL("https://activities?page=1")
 
 	publishedTime := time.Now()
 	startTime := time.Now()
 	endTime := time.Now()
 
-	inbox := mustParseURL("https://inbox")
-	outbox := mustParseURL("https://outbox")
-	followers := mustParseURL("https://followers")
-	following := mustParseURL("https://following")
-	witnesses := mustParseURL("https://witnesses")
-	witnessing := mustParseURL("https://witnessing")
-	likes := mustParseURL("https://likes")
-	liked := mustParseURL("https://liked")
-	shares := mustParseURL("https://shares")
+	inbox := testutil.MustParseURL("https://inbox")
+	outbox := testutil.MustParseURL("https://outbox")
+	followers := testutil.MustParseURL("https://followers")
+	following := testutil.MustParseURL("https://following")
+	witnesses := testutil.MustParseURL("https://witnesses")
+	witnessing := testutil.MustParseURL("https://witnessing")
+	likes := testutil.MustParseURL("https://likes")
+	liked := testutil.MustParseURL("https://liked")
+	shares := testutil.MustParseURL("https://shares")
 
 	publicKey := &PublicKeyType{
 		ID:           "key_id",
@@ -53,16 +55,16 @@ func TestNewOptions(t *testing.T) {
 	}
 
 	target := &ObjectProperty{
-		iri: NewURLProperty(mustParseURL("https://property_iri")),
+		iri: NewURLProperty(testutil.MustParseURL("https://property_iri")),
 	}
 
 	result := &ObjectProperty{
-		iri: NewURLProperty(mustParseURL("https://property_result")),
+		iri: NewURLProperty(testutil.MustParseURL("https://property_result")),
 	}
 
 	anchorRef := NewAnchorCredentialReference(
-		mustParseURL("https://example.com/anchor_cred_ref_id"),
-		mustParseURL("https://example.com/anchor_cred_iri"),
+		testutil.MustParseURL("https://example.com/anchor_cred_ref_id"),
+		testutil.MustParseURL("https://example.com/anchor_cred_iri"),
 		"cid")
 
 	opts := NewOptions(
