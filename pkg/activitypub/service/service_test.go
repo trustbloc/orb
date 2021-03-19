@@ -30,6 +30,13 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 )
 
+const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+
+var (
+	host1        = mustParseURL("https://sally.example.com")
+	anchorCredID = newMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+)
+
 func TestNewService(t *testing.T) {
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -127,11 +134,10 @@ func TestService_Create(t *testing.T) {
 	defer service1.Stop()
 	defer service2.Stop()
 
-	const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-
 	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 		vocab.NewObject(
-			vocab.WithID(cid),
+			vocab.WithID(anchorCredID),
+			vocab.WithCID(cid),
 			vocab.WithType(vocab.TypeContentAddressedStorage),
 		),
 	))
@@ -155,17 +161,17 @@ func TestService_Create(t *testing.T) {
 
 	time.Sleep(1500 * time.Millisecond)
 
-	activity, err := store1.GetActivity(spi.Outbox, create.ID())
+	activity, err := store1.GetActivity(spi.Outbox, create.ID().URL())
 	require.NoError(t, err)
 	require.NotNil(t, activity)
 	require.Equal(t, create.ID(), activity.ID())
 
-	activity, err = store2.GetActivity(spi.Inbox, create.ID())
+	activity, err = store2.GetActivity(spi.Inbox, create.ID().URL())
 	require.NoError(t, err)
 	require.NotNil(t, activity)
 	require.Equal(t, create.ID(), activity.ID())
 	require.NotEmpty(t, subscriber2.Activities())
-	require.NotEmpty(t, anchorCredHandler2.AnchorCred(cid))
+	require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
 
 	ua := undeliverableHandler1.Activities()
 	require.Len(t, ua, 1)
@@ -248,7 +254,7 @@ func TestService_Follow(t *testing.T) {
 	t.Run("Follow - Accept", func(t *testing.T) {
 		// Add Service1 to Service2's store since we haven't implemented actor resolution yet and
 		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store2.PutActor(vocab.NewService(service1IRI.String())))
+		require.NoError(t, store2.PutActor(vocab.NewService(service1IRI)))
 
 		followerAuth2.WithAccept()
 
@@ -265,12 +271,12 @@ func TestService_Follow(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, follow.ID())
+		activity, err := store1.GetActivity(spi.Outbox, follow.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
 
-		activity, err = store2.GetActivity(spi.Inbox, follow.ID())
+		activity, err = store2.GetActivity(spi.Inbox, follow.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
@@ -309,7 +315,7 @@ func TestService_Follow(t *testing.T) {
 	t.Run("Follow - Reject", func(t *testing.T) {
 		// Add Service2 to Service1's store since we haven't implemented actor resolution yet and
 		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store1.PutActor(vocab.NewService(service2IRI.String())))
+		require.NoError(t, store1.PutActor(vocab.NewService(service2IRI)))
 
 		followerAuth1.WithReject()
 
@@ -341,12 +347,12 @@ func TestService_Follow(t *testing.T) {
 		// Wait for the message to be processed
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, follow.ID())
+		activity, err := store2.GetActivity(spi.Outbox, follow.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
 
-		activity, err = store1.GetActivity(spi.Inbox, follow.ID())
+		activity, err = store1.GetActivity(spi.Inbox, follow.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, follow.ID(), activity.ID())
@@ -481,9 +487,6 @@ func TestService_Announce(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Announce - anchor credential ref (no embedded object)", func(t *testing.T) {
-		const anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-
 		ref := vocab.NewAnchorCredentialReference(newActivityID(service2IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
@@ -509,25 +512,22 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, announce.ID())
+		activity, err := store2.GetActivity(spi.Outbox, announce.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, announce.ID(), activity.ID())
 
-		activity, err = store3.GetActivity(spi.Inbox, announce.ID())
+		activity, err = store3.GetActivity(spi.Inbox, announce.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, announce.ID(), activity.ID())
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID))
+		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID.String()))
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
-		const anchorCredID = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-
 		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service2IRI), anchorCredID,
 			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
@@ -556,19 +556,19 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, announce.ID())
+		activity, err := store2.GetActivity(spi.Outbox, announce.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, announce.ID(), activity.ID())
 
-		activity, err = store3.GetActivity(spi.Inbox, announce.ID())
+		activity, err = store3.GetActivity(spi.Inbox, announce.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, announce.ID(), activity.ID())
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID))
+		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID.String()))
 	})
 
 	t.Run("Create and announce", func(t *testing.T) {
@@ -576,7 +576,7 @@ func TestService_Announce(t *testing.T) {
 
 		// Add Service3 to Service2's store since we haven't implemented actor resolution yet and
 		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store2.PutActor(vocab.NewService(service3IRI.String())))
+		require.NoError(t, store2.PutActor(vocab.NewService(service3IRI)))
 
 		followerAuth2.WithAccept()
 
@@ -603,7 +603,8 @@ func TestService_Announce(t *testing.T) {
 
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
-				vocab.WithID(cid),
+				vocab.WithID(anchorCredID),
+				vocab.WithCID(cid),
 				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
 		))
@@ -625,17 +626,17 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, create.ID())
+		activity, err := store1.GetActivity(spi.Outbox, create.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, create.ID(), activity.ID())
 
-		activity, err = store2.GetActivity(spi.Inbox, create.ID())
+		activity, err = store2.GetActivity(spi.Inbox, create.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, create.ID(), activity.ID())
 		require.NotEmpty(t, subscriber2.Activities())
-		require.NotEmpty(t, anchorCredHandler2.AnchorCred(cid))
+		require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
 
 		// Service3 should have received an 'Announce' activity from Service2
 		it, err := store3.QueryActivities(spi.Inbox, spi.NewCriteria(spi.WithType(vocab.TypeAnnounce)))
@@ -764,19 +765,19 @@ func TestService_Offer(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, offer.ID())
+		activity, err := store1.GetActivity(spi.Outbox, offer.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, offer.ID(), activity.ID())
 
-		activity, err = store2.GetActivity(spi.Inbox, offer.ID())
+		activity, err = store2.GetActivity(spi.Inbox, offer.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, activity)
 		require.Equal(t, offer.ID(), activity.ID())
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, witness2.AnchorCreds())
-		require.NotNil(t, proofHandler1.Proof(obj.ID()))
+		require.NotNil(t, proofHandler1.Proof(obj.ID().String()))
 
 		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithActorIRI(service2IRI)))
 		require.NoError(t, err)
@@ -794,12 +795,12 @@ func TestService_Offer(t *testing.T) {
 	})
 }
 
-func newActivityID(serviceName fmt.Stringer) string {
-	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+func newActivityID(serviceName fmt.Stringer) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
-func newTransactionID(serviceName fmt.Stringer) string {
-	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+func newTransactionID(serviceName fmt.Stringer) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func mustParseURL(raw string) *url.URL {
@@ -809,6 +810,10 @@ func mustParseURL(raw string) *url.URL {
 	}
 
 	return u
+}
+
+func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {

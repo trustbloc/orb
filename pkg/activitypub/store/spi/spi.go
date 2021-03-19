@@ -62,7 +62,7 @@ type Store interface {
 	AddActivity(storeType ActivityStoreType, activity *vocab.ActivityType) error
 	// GetActivity returns the activity for the given ID from the given activity store
 	// or an ErrNotFound error if it wasn't found.
-	GetActivity(storeType ActivityStoreType, activityID string) (*vocab.ActivityType, error)
+	GetActivity(storeType ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error)
 	// QueryActivities queries the given activity store using the provided criteria
 	// and returns a results iterator.
 	QueryActivities(storeType ActivityStoreType, query *Criteria, opts ...QueryOpt) (ActivityIterator, error)

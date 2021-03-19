@@ -22,9 +22,6 @@ import (
 )
 
 func TestNewHandler(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -69,9 +66,6 @@ func TestGetLastPageNum(t *testing.T) {
 }
 
 func TestGetCurrentPrevNext(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -164,9 +158,6 @@ func TestGetCurrentPrevNext(t *testing.T) {
 }
 
 func TestGetIDPrevNextURL(t *testing.T) {
-	serviceIRI, err := url.Parse(serviceURL)
-	require.NoError(t, err)
-
 	cfg := &Config{
 		BasePath:   basePath,
 		ServiceIRI: serviceIRI,
@@ -185,7 +176,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", id.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", next.String())
@@ -200,7 +191,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", prev.String())
 			require.NotNil(t, next)
@@ -216,7 +207,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", prev.String())
 			require.Nil(t, next)
@@ -233,7 +224,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", id.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", next.String())
@@ -248,7 +239,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", prev.String())
 			require.NotNil(t, next)
@@ -264,7 +255,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id)
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", next.String())
@@ -315,9 +306,11 @@ func newMockCreateActivities(num int) []*vocab.ActivityType {
 }
 
 func newMockCreateActivity(id, objID string) *vocab.ActivityType {
-	return vocab.NewCreateActivity(id, vocab.NewObjectProperty(
+	return vocab.NewCreateActivity(mustParseURL(id), vocab.NewObjectProperty(
 		vocab.WithAnchorCredentialReference(
-			vocab.NewAnchorCredentialReference(objID, "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
+			vocab.NewAnchorCredentialReference(
+				mustParseURL(objID),
+				mustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
 				"bafkd34G7hD6gbj94fnKm5D"),
 		),
 	),

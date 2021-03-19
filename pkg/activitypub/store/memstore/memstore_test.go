@@ -22,11 +22,11 @@ func TestStore_Activity(t *testing.T) {
 	s := New("service1")
 	require.NotNil(t, s)
 
-	const (
-		activityID1 = "activity1"
-		activityID2 = "activity2"
-		activityID3 = "activity3"
-		activityID4 = "activity4"
+	var (
+		activityID1 = mustParseURL("https://example.com/activities/activity1")
+		activityID2 = mustParseURL("https://example.com/activities/activity2")
+		activityID3 = mustParseURL("https://example.com/activities/activity3")
+		activityID4 = mustParseURL("https://example.com/activities/activity4")
 	)
 
 	a, err := s.GetActivity(spi.Inbox, activityID1)
@@ -144,8 +144,8 @@ func TestStore_Actors(t *testing.T) {
 	require.EqualError(t, err, spi.ErrNotFound.Error())
 	require.Nil(t, a)
 
-	actor1 := vocab.NewService(actor1IRI.String())
-	actor2 := vocab.NewService(actor2IRI.String())
+	actor1 := vocab.NewService(actor1IRI)
+	actor2 := vocab.NewService(actor2IRI)
 
 	require.NoError(t, s.PutActor(actor1))
 	require.NoError(t, s.PutActor(actor2))
@@ -159,14 +159,14 @@ func TestStore_Actors(t *testing.T) {
 	require.Equal(t, actor2, a)
 }
 
-func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...string) {
+func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...*url.URL) {
 	require.NotNil(t, it)
 
 	for i := 0; i < len(expectedTypes); i++ {
 		a, err := it.Next()
 		require.NoError(t, err)
 		require.NotNil(t, a)
-		require.True(t, contains(a.ID(), expectedTypes))
+		require.True(t, contains(a.ID().URL(), expectedTypes))
 	}
 
 	a, err := it.Next()
@@ -325,9 +325,9 @@ func TestReferenceQueryResults(t *testing.T) {
 	require.True(t, filtered[0] == results[7])
 }
 
-func contains(activityType string, types []string) bool {
+func contains(activityType fmt.Stringer, types []*url.URL) bool {
 	for _, t := range types {
-		if t == activityType {
+		if t.String() == activityType.String() {
 			return true
 		}
 	}
@@ -358,14 +358,14 @@ func newMockActivities(t vocab.Type, num int) []*vocab.ActivityType {
 	activities := make([]*vocab.ActivityType, num)
 
 	for i := 0; i < num; i++ {
-		a := newMockActivity(t, fmt.Sprintf("https://activity_%s_%d", t, i))
+		a := newMockActivity(t, mustParseURL(fmt.Sprintf("https://activity_%s_%d", t, i)))
 		activities[i] = a
 	}
 
 	return activities
 }
 
-func newMockActivity(t vocab.Type, id string) *vocab.ActivityType {
+func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 	if t == vocab.TypeAnnounce {
 		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty())
 	}

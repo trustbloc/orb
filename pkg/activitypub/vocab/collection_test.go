@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
-const service1Inbox = "https://org1.com/services/service1/inbox"
+var service1Inbox = mustParseURL("https://org1.com/services/service1/inbox")
 
 func TestCollectionMarshal(t *testing.T) {
 	first := mustParseURL("https://org1.com/services/service1/inbox?page=true")
@@ -44,7 +44,7 @@ func TestCollectionMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &CollectionType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonCollection), c))
-		require.Equal(t, service1Inbox, c.ID())
+		require.Equal(t, service1Inbox.String(), c.ID().String())
 
 		context := c.Context()
 		require.NotNil(t, context)
@@ -109,7 +109,7 @@ func TestOrderedCollectionMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &OrderedCollectionType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonOrderedCollection), c))
-		require.Equal(t, service1Inbox, c.ID())
+		require.Equal(t, service1Inbox.String(), c.ID().String())
 
 		context := c.Context()
 		require.NotNil(t, context)

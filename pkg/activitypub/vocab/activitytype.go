@@ -62,7 +62,7 @@ func (t *ActivityType) UnmarshalJSON(bytes []byte) error {
 }
 
 // NewCreateActivity returns a new 'Create' activity.
-func NewCreateActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewCreateActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -82,7 +82,7 @@ func NewCreateActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityTyp
 }
 
 // NewAnnounceActivity returns a new 'Announce' activity.
-func NewAnnounceActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewAnnounceActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -101,7 +101,7 @@ func NewAnnounceActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityT
 }
 
 // NewFollowActivity returns a new 'Follow' activity.
-func NewFollowActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewFollowActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -119,7 +119,7 @@ func NewFollowActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityTyp
 }
 
 // NewAcceptActivity returns a new 'Accept' activity.
-func NewAcceptActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewAcceptActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -137,7 +137,7 @@ func NewAcceptActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityTyp
 }
 
 // NewRejectActivity returns a new 'Reject' activity.
-func NewRejectActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewRejectActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -155,7 +155,7 @@ func NewRejectActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityTyp
 }
 
 // NewLikeActivity returns a new 'Like' activity.
-func NewLikeActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewLikeActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
@@ -176,7 +176,7 @@ func NewLikeActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType 
 }
 
 // NewOfferActivity returns a new 'Offer' activity.
-func NewOfferActivity(id string, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewOfferActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{

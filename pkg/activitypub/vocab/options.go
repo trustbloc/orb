@@ -14,7 +14,7 @@ import (
 // Options holds all of the options for building an ActivityPub object.
 type Options struct {
 	Context   []Context
-	ID        string
+	ID        *url.URL
 	To        []*url.URL
 	Published *time.Time
 	StartTime *time.Time
@@ -50,7 +50,7 @@ func WithContext(context ...Context) Opt {
 }
 
 // WithID sets the 'id' property on the object.
-func WithID(id string) Opt {
+func WithID(id *url.URL) Opt {
 	return func(opts *Options) {
 		opts.ID = id
 	}

@@ -15,9 +15,9 @@ import (
 )
 
 func TestCollectionPageMarshal(t *testing.T) {
-	collPage1 := "https://org1.com/services/service1/inbox?page=1"
-	collPage2 := "https://org1.com/services/service1/inbox?page=2"
-	collPage3 := "https://org1.com/services/service1/inbox?page=3"
+	collPage1 := mustParseURL("https://org1.com/services/service1/inbox?page=1")
+	collPage2 := mustParseURL("https://org1.com/services/service1/inbox?page=2")
+	collPage3 := mustParseURL("https://org1.com/services/service1/inbox?page=3")
 	activity1 := mustParseURL("https://org1.com/activities/activity1")
 	activity2 := mustParseURL("https://org1.com/activities/activity2")
 	activity3 := mustParseURL("https://org1.com/activities/activity3")
@@ -32,9 +32,9 @@ func TestCollectionPageMarshal(t *testing.T) {
 		coll := NewCollectionPage(items,
 			WithContext(ContextActivityStreams),
 			WithID(collPage2),
-			WithPartOf(mustParseURL(service1Inbox)),
-			WithPrev(mustParseURL(collPage1)),
-			WithNext(mustParseURL(collPage3)),
+			WithPartOf(service1Inbox),
+			WithPrev(collPage1),
+			WithNext(collPage3),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(coll)
@@ -47,7 +47,7 @@ func TestCollectionPageMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &CollectionPageType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonCollectionPage), c))
-		require.Equal(t, collPage2, c.ID())
+		require.Equal(t, collPage2.String(), c.ID().String())
 
 		context := c.Context()
 		require.NotNil(t, context)
@@ -55,15 +55,15 @@ func TestCollectionPageMarshal(t *testing.T) {
 
 		partOf := c.PartOf()
 		require.NotNil(t, partOf)
-		require.Equal(t, service1Inbox, partOf.String())
+		require.Equal(t, service1Inbox.String(), partOf.String())
 
 		prev := c.Prev()
 		require.NotNil(t, prev)
-		require.Equal(t, collPage1, prev.String())
+		require.Equal(t, collPage1.String(), prev.String())
 
 		next := c.Next()
 		require.NotNil(t, next)
-		require.Equal(t, collPage3, next.String())
+		require.Equal(t, collPage3.String(), next.String())
 
 		require.Equal(t, 3, c.TotalItems())
 
@@ -73,9 +73,9 @@ func TestCollectionPageMarshal(t *testing.T) {
 }
 
 func TestOrderedCollectionPageMarshal(t *testing.T) {
-	collPage1 := "https://org1.com/services/service1/inbox?page=1"
-	collPage2 := "https://org1.com/services/service1/inbox?page=2"
-	collPage3 := "https://org1.com/services/service1/inbox?page=3"
+	collPage1 := mustParseURL("https://org1.com/services/service1/inbox?page=1")
+	collPage2 := mustParseURL("https://org1.com/services/service1/inbox?page=2")
+	collPage3 := mustParseURL("https://org1.com/services/service1/inbox?page=3")
 	activity1 := mustParseURL("https://org1.com/activities/activity1")
 	activity2 := mustParseURL("https://org1.com/activities/activity2")
 	activity3 := mustParseURL("https://org1.com/activities/activity3")
@@ -90,9 +90,9 @@ func TestOrderedCollectionPageMarshal(t *testing.T) {
 		coll := NewOrderedCollectionPage(items,
 			WithContext(ContextActivityStreams),
 			WithID(collPage2),
-			WithPartOf(mustParseURL(service1Inbox)),
-			WithPrev(mustParseURL(collPage1)),
-			WithNext(mustParseURL(collPage3)),
+			WithPartOf(service1Inbox),
+			WithPrev(collPage1),
+			WithNext(collPage3),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(coll)
@@ -105,7 +105,7 @@ func TestOrderedCollectionPageMarshal(t *testing.T) {
 	t.Run("Unmarshal", func(t *testing.T) {
 		c := &OrderedCollectionPageType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonOrderedCollectionPage), c))
-		require.Equal(t, collPage2, c.ID())
+		require.Equal(t, collPage2.String(), c.ID().String())
 
 		context := c.Context()
 		require.NotNil(t, context)
@@ -113,15 +113,15 @@ func TestOrderedCollectionPageMarshal(t *testing.T) {
 
 		partOf := c.PartOf()
 		require.NotNil(t, partOf)
-		require.Equal(t, service1Inbox, partOf.String())
+		require.Equal(t, service1Inbox.String(), partOf.String())
 
 		prev := c.Prev()
 		require.NotNil(t, prev)
-		require.Equal(t, collPage1, prev.String())
+		require.Equal(t, collPage1.String(), prev.String())
 
 		next := c.Next()
 		require.NotNil(t, next)
-		require.Equal(t, collPage3, next.String())
+		require.Equal(t, collPage3.String(), next.String())
 
 		require.Equal(t, 3, c.TotalItems())
 

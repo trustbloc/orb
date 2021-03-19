@@ -410,16 +410,11 @@ func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("error creating result for 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	iri, err := url.Parse(anchorCred.ID())
-	if err != nil {
-		return fmt.Errorf("invalid object IRI in 'Offer' activity [%s]: %w", offer.ID(), err)
-	}
-
 	startTime := time.Now()
 	endTime := startTime.Add(h.MaxWitnessDelay)
 
 	like := vocab.NewLikeActivity(h.newActivityID(),
-		vocab.NewObjectProperty(vocab.WithIRI(iri)),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorCred.ID().URL())),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(offer.Actor()),
 		vocab.WithStartTime(&startTime),
@@ -427,12 +422,7 @@ func (h *Handler) handleOfferActivity(offer *vocab.ActivityType) error {
 		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
 	)
 
-	likeIRI, err := url.Parse(like.ID())
-	if err != nil {
-		return err
-	}
-
-	err = h.store.AddReference(store.Liked, h.ServiceIRI, likeIRI)
+	err = h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL())
 	if err != nil {
 		return fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err)
 	}
@@ -465,12 +455,7 @@ func (h *Handler) handleLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
-	likeIRI, err := url.Parse(like.ID())
-	if err != nil {
-		return err
-	}
-
-	err = h.store.AddReference(store.Like, h.ServiceIRI, likeIRI)
+	err = h.store.AddReference(store.Like, h.ServiceIRI, like.ID().URL())
 	if err != nil {
 		return fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err)
 	}
@@ -490,7 +475,7 @@ func (h *Handler) handleAnchorCredential(target *vocab.ObjectProperty, obj *voca
 		return err
 	}
 
-	return h.AnchorCredentialHandler.HandlerAnchorCredential(target.Object().ID(), bytes)
+	return h.AnchorCredentialHandler.HandlerAnchorCredential(target.Object().ID().String(), bytes)
 }
 
 func (h *Handler) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
@@ -545,8 +530,8 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	targetObj := create.Target().Object()
 
-	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID(),
-		targetObj.ID(), targetObj.CID(), anchorCredDoc)
+	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
+		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
 	if err != nil {
 		return err
 	}
@@ -700,8 +685,14 @@ func defaultOptions() *service.Handlers {
 	}
 }
 
-func (h *Handler) newActivityID() string {
-	return fmt.Sprintf("%s/%s", h.ServiceIRI.String(), uuid.New())
+func (h *Handler) newActivityID() *url.URL {
+	id, err := url.Parse(fmt.Sprintf("%s/%s", h.ServiceIRI.String(), uuid.New()))
+	if err != nil {
+		// Should never happen since we've already validated the URLs
+		panic(err)
+	}
+
+	return id
 }
 
 func (h *Handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {

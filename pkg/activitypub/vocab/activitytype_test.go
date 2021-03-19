@@ -8,6 +8,8 @@ package vocab
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -15,27 +17,30 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
-const (
-	createActivityID = "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988"
-	followActivityID = "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988"
-	acceptActivityID = "https://sally.example.com/services/orb/activities/95b3d005-abb6-423d-a889-18bc1ee84989"
-	rejectActivityID = "https://sally.example.com/services/orb/activities/75b3d005-abb6-473d-a879-18bc1ee84979"
-	offerActivityID  = "https://sally.example.com/services/orb/activities/65b3d005-6bb6-673d-6879-18bc1ee84976"
-	likeActivityID   = "https://witness1.example.com/services/orb/likes/87bcd005-abb6-433d-a889-18bc1ce84988"
+var (
+	host1    = mustParseURL("https://sally.example.com")
+	service1 = mustParseURL("https://sally.example.com/services/orb")
+	witness1 = mustParseURL("https://witness1.example.com/services/orb")
+
+	createActivityID = newMockID(service1, "/activities/97bcd005-abb6-423d-a889-18bc1ce84988")
+	followActivityID = newMockID(service1, "/activities/97b3d005-abb6-422d-a889-18bc1ee84988")
+	acceptActivityID = newMockID(service1, "/activities/95b3d005-abb6-423d-a889-18bc1ee84989")
+	rejectActivityID = newMockID(service1, "/activities/75b3d005-abb6-473d-a879-18bc1ee84979")
+	offerActivityID  = newMockID(service1, "/activities/65b3d005-6bb6-673d-6879-18bc1ee84976")
+	likeActivityID   = newMockID(witness1, "/likes/87bcd005-abb6-433d-a889-18bc1ce84988")
 )
 
 func TestCreateTypeMarshal(t *testing.T) {
-	actor := mustParseURL("https://sally.example.com/services/orb")
-	followers := mustParseURL("https://sally.example.com/services/orb/followers")
+	followers := newMockID(service1, "/followers")
 	public := mustParseURL("https://www.w3.org/ns/activitystreams#Public")
-	cid := "97bcd005-abb6-423d-a889-18bc1ce84988"
 
 	published := getStaticTime()
 
 	t.Run("Marshal", func(t *testing.T) {
 		targetProperty := NewObjectProperty(WithObject(
 			NewObject(
-				WithID(cid),
+				WithID(anchorCredIRI),
+				WithCID(cid),
 				WithType(TypeContentAddressedStorage),
 			),
 		))
@@ -45,7 +50,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		create := NewCreateActivity(createActivityID,
 			NewObjectProperty(WithObject(obj)),
-			WithActor(actor),
+			WithActor(service1),
 			WithTarget(targetProperty),
 			WithTo(followers),
 			WithTo(public),
@@ -55,6 +60,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		bytes, err := canonicalizer.MarshalCanonical(create)
 		require.NoError(t, err)
+
 		t.Log(string(bytes))
 
 		require.Equal(t, getCanonical(t, jsonCreate), string(bytes))
@@ -68,7 +74,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		id := a.ID()
 		require.NotNil(t, id)
-		require.Equal(t, createActivityID, id)
+		require.Equal(t, createActivityID.String(), id.String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -86,7 +92,8 @@ func TestCreateTypeMarshal(t *testing.T) {
 		targetProp := a.Target()
 		require.NotNil(t, targetProp)
 		require.NotNil(t, targetProp.Object())
-		require.Equal(t, cid, targetProp.Object().ID())
+		require.Equal(t, anchorCredIRI.String(), targetProp.Object().ID().String())
+		require.Equal(t, cid, targetProp.Object().CID())
 		require.True(t, targetProp.Object().Type().Is(TypeContentAddressedStorage))
 
 		objProp := a.Object()
@@ -98,11 +105,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 	})
 
 	t.Run("With AnchorCredentialReference", func(t *testing.T) {
-		const (
-			refID         = "https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			cid           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			anchorCredIRI = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
+		refID := newMockID(host1, "/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 		t.Run("Marshal", func(t *testing.T) {
 			create := NewCreateActivity(createActivityID,
@@ -111,7 +114,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 						NewAnchorCredentialReference(refID, anchorCredIRI, cid),
 					),
 				),
-				WithActor(actor),
+				WithActor(service1),
 				WithTo(followers),
 				WithTo(public),
 				WithContext(ContextOrb),
@@ -133,7 +136,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 			id := a.ID()
 			require.NotNil(t, id)
-			require.Equal(t, createActivityID, id)
+			require.Equal(t, createActivityID.String(), id.String())
 
 			context := a.Context()
 			require.NotNil(t, context)
@@ -160,7 +163,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 			refTargetObj := refTarget.Object()
 			require.NotNil(t, refTargetObj)
-			require.Equal(t, anchorCredIRI, refTargetObj.ID())
+			require.Equal(t, anchorCredIRI.String(), refTargetObj.ID().String())
 			require.Equal(t, cid, refTargetObj.CID())
 
 			refTargetObjType := refTargetObj.Type()
@@ -170,11 +173,6 @@ func TestCreateTypeMarshal(t *testing.T) {
 	})
 
 	t.Run("With embedded AnchorCredential", func(t *testing.T) {
-		const (
-			cid           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			anchorCredIRI = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
-
 		t.Run("Marshal", func(t *testing.T) {
 			anchorCredential, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential)))
 			require.NoError(t, err)
@@ -190,7 +188,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 						),
 					),
 				),
-				WithActor(actor),
+				WithActor(service1),
 				WithTo(followers),
 				WithTo(public),
 				WithContext(ContextOrb),
@@ -212,7 +210,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 			id := a.ID()
 			require.NotNil(t, id)
-			require.Equal(t, createActivityID, id)
+			require.Equal(t, createActivityID.String(), id.String())
 
 			context := a.Context()
 			require.NotNil(t, context)
@@ -233,7 +231,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 			targetObj := targetProp.Object()
 			require.NotNil(t, targetObj)
-			require.Equal(t, anchorCredIRI, targetObj.ID())
+			require.Equal(t, anchorCredIRI.String(), targetObj.ID().String())
 			require.Equal(t, cid, targetObj.CID())
 
 			targetObjType := targetObj.Type()
@@ -251,10 +249,9 @@ func TestCreateTypeMarshal(t *testing.T) {
 }
 
 func TestAnnounceTypeMarshal(t *testing.T) {
-	followers := mustParseURL("https://sally.example.com/services/orb/followers")
+	followers := newMockID(service1, "/followers")
 	public := mustParseURL("https://www.w3.org/ns/activitystreams#Public")
-	actor := mustParseURL("https://sally.example.com/services/orb")
-	txn1 := mustParseURL("http://sally.example.com/transactions/bafkeexwtkfyvbkdidscmqywkyls3i")
+	txn1 := newMockID(host1, "/transactions/bafkeexwtkfyvbkdidscmqywkyls3i")
 
 	t.Run("Single object", func(t *testing.T) {
 		published := getStaticTime()
@@ -263,7 +260,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			announce := NewAnnounceActivity(
 				createActivityID,
 				NewObjectProperty(WithIRI(txn1)),
-				WithActor(actor),
+				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
 			)
@@ -283,7 +280,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			id := a.ID()
 			require.NotNil(t, id)
-			require.Equal(t, createActivityID, id)
+			require.Equal(t, createActivityID.String(), id.String())
 
 			context := a.Context()
 			require.NotNil(t, context)
@@ -294,7 +291,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.Len(t, to, 2)
 			require.Equal(t, to[0].String(), followers.String())
 			require.Equal(t, to[1].String(), public.String())
-			require.Equal(t, actor.String(), a.Actor().String())
+			require.Equal(t, service1.String(), a.Actor().String())
 
 			pub := a.Published()
 			require.NotNil(t, pub)
@@ -308,14 +305,15 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 	t.Run("With AnchorCredentialReferences", func(t *testing.T) {
 		const (
-			anchorCredIRI1 = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			cid1           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			refID1         = "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-
-			anchorCredIRI2 = "https://sally.example.com/cas/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-			cid2           = "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
-			refID2         = "https://sally.example.com/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
+			cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+			cid2 = "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
 		)
+
+		anchorCredIRI1 := newMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+		refID1 := newMockID(host1, "/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+
+		anchorCredIRI2 := newMockID(host1, "/cas/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
+		refID2 := newMockID(host1, "/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
 
 		published := getStaticTime()
 
@@ -337,7 +335,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			announce := NewAnnounceActivity(createActivityID,
 				NewObjectProperty(WithCollection(coll)),
-				WithActor(actor),
+				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
 			)
@@ -354,7 +352,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithAnchorCredRefs), a))
 			require.NotNil(t, a.Type())
 			require.True(t, a.Type().Is(TypeAnnounce))
-			require.Equal(t, createActivityID, a.ID())
+			require.Equal(t, createActivityID.String(), a.ID().String())
 
 			context := a.Context()
 			require.NotNil(t, context)
@@ -364,7 +362,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.Len(t, to, 2)
 			require.Equal(t, to[0].String(), followers.String())
 			require.Equal(t, to[1].String(), public.String())
-			require.Equal(t, actor.String(), a.Actor().String())
+			require.Equal(t, service1.String(), a.Actor().String())
 
 			pub := a.Published()
 			require.NotNil(t, pub)
@@ -386,38 +384,34 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.True(t, item.Type().Is(TypeAnchorCredentialRef))
 			ref := item.AnchorCredentialReference()
 			require.NotNil(t, ref)
-			require.Equal(t, refID1, ref.ID())
+			require.Equal(t, refID1.String(), ref.ID().String())
 
 			refTargetProp := ref.Target()
 			require.NotNil(t, refTargetProp)
 
 			refTargetObj := refTargetProp.Object()
 			require.NotNil(t, refTargetObj)
-			require.Equal(t, anchorCredIRI1, refTargetObj.ID())
+			require.Equal(t, anchorCredIRI1.String(), refTargetObj.ID().String())
 			require.Equal(t, cid1, refTargetObj.CID())
 
 			item = items[1]
 
 			ref = item.AnchorCredentialReference()
 			require.NotNil(t, ref)
-			require.Equal(t, refID2, ref.ID())
+			require.Equal(t, refID2.String(), ref.ID().String())
 
 			refTargetProp = ref.Target()
 			require.NotNil(t, refTargetProp)
 
 			refTargetObj = refTargetProp.Object()
 			require.NotNil(t, refTargetObj)
-			require.Equal(t, anchorCredIRI2, refTargetObj.ID())
+			require.Equal(t, anchorCredIRI2.String(), refTargetObj.ID().String())
 			require.Equal(t, cid2, refTargetObj.CID())
 		})
 	})
 
 	t.Run("With AnchorCredentialReference and embedded object", func(t *testing.T) {
-		const (
-			cid           = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			anchorCredIRI = "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-			refID         = "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-		)
+		refID := newMockID(host1, "/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 		published := getStaticTime()
 
@@ -439,7 +433,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 						NewCollection(items),
 					),
 				),
-				WithActor(actor),
+				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
 			)
@@ -456,7 +450,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, json.Unmarshal([]byte(jsonAnnounceWithAnchorCredRefAndEmbeddedCred), a))
 			require.NotNil(t, a.Type())
 			require.True(t, a.Type().Is(TypeAnnounce))
-			require.Equal(t, createActivityID, a.ID())
+			require.Equal(t, createActivityID.String(), a.ID().String())
 
 			context := a.Context()
 			require.NotNil(t, context)
@@ -466,7 +460,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.Len(t, to, 2)
 			require.Equal(t, to[0].String(), followers.String())
 			require.Equal(t, to[1].String(), public.String())
-			require.Equal(t, actor.String(), a.Actor().String())
+			require.Equal(t, service1.String(), a.Actor().String())
 
 			pub := a.Published()
 			require.NotNil(t, pub)
@@ -494,7 +488,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			refTargetObj := refTargetProp.Object()
 			require.NotNil(t, refTargetObj)
-			require.Equal(t, anchorCredIRI, refTargetObj.ID())
+			require.Equal(t, anchorCredIRI.String(), refTargetObj.ID().String())
 			require.Equal(t, cid, refTargetObj.CID())
 
 			refObjProp := ref.Object()
@@ -510,14 +504,14 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 }
 
 func TestFollowTypeMarshal(t *testing.T) {
-	service1 := mustParseURL("https://org1.com/services/service1")
-	service2 := mustParseURL("https://org1.com/services/service2")
+	org1Service := mustParseURL("https://org1.com/services/service1")
+	org2Service := mustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
 		follow := NewFollowActivity(followActivityID,
-			NewObjectProperty(WithIRI(service2)),
-			WithActor(service1),
-			WithTo(service2),
+			NewObjectProperty(WithIRI(org2Service)),
+			WithActor(org1Service),
+			WithTo(org2Service),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(follow)
@@ -532,7 +526,7 @@ func TestFollowTypeMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonFollow), a))
 		require.NotNil(t, a.Type())
 		require.True(t, a.Type().Is(TypeFollow))
-		require.Equal(t, followActivityID, a.ID())
+		require.Equal(t, followActivityID.String(), a.ID().String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -540,25 +534,25 @@ func TestFollowTypeMarshal(t *testing.T) {
 
 		to := a.To()
 		require.Len(t, to, 1)
-		require.Equal(t, to[0].String(), service2.String())
+		require.Equal(t, to[0].String(), org2Service.String())
 
-		require.Equal(t, service1.String(), a.Actor().String())
+		require.Equal(t, org1Service.String(), a.Actor().String())
 
 		objProp := a.Object()
 		require.NotNil(t, objProp)
 		require.NotNil(t, objProp.IRI())
-		require.Equal(t, service2.String(), objProp.IRI().String())
+		require.Equal(t, org2Service.String(), objProp.IRI().String())
 	})
 }
 
 func TestAcceptTypeMarshal(t *testing.T) {
-	service1 := mustParseURL("https://org1.com/services/service1")
-	service2 := mustParseURL("https://org1.com/services/service2")
+	org1Service := mustParseURL("https://org1.com/services/service1")
+	org2Service := mustParseURL("https://org1.com/services/service2")
 
 	follow := NewFollowActivity(followActivityID,
-		NewObjectProperty(WithIRI(service2)),
-		WithTo(service2),
-		WithActor(service1),
+		NewObjectProperty(WithIRI(org2Service)),
+		WithTo(org2Service),
+		WithActor(org1Service),
 	)
 
 	follow.object.Context = nil
@@ -566,8 +560,8 @@ func TestAcceptTypeMarshal(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
 		accept := NewAcceptActivity(acceptActivityID,
 			NewObjectProperty(WithActivity(follow)),
-			WithActor(service2),
-			WithTo(service1),
+			WithActor(org2Service),
+			WithTo(org1Service),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(accept)
@@ -582,7 +576,7 @@ func TestAcceptTypeMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonAccept), a))
 		require.NotNil(t, a.Type())
 		require.True(t, a.Type().Is(TypeAccept))
-		require.Equal(t, acceptActivityID, a.ID())
+		require.Equal(t, acceptActivityID.String(), a.ID().String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -590,9 +584,9 @@ func TestAcceptTypeMarshal(t *testing.T) {
 
 		to := a.To()
 		require.Len(t, to, 1)
-		require.Equal(t, to[0].String(), service1.String())
+		require.Equal(t, to[0].String(), org1Service.String())
 
-		require.Equal(t, service2.String(), a.Actor().String())
+		require.Equal(t, org2Service.String(), a.Actor().String())
 
 		objProp := a.Object()
 		require.NotNil(t, objProp)
@@ -603,39 +597,39 @@ func TestAcceptTypeMarshal(t *testing.T) {
 		require.NotNil(t, f)
 		require.NotNil(t, f.Type())
 		require.True(t, f.Type().Is(TypeFollow))
-		require.Equal(t, followActivityID, f.ID())
+		require.Equal(t, followActivityID.String(), f.ID().String())
 
 		fa := f.Actor()
 		require.NotNil(t, fa)
-		require.Equal(t, service1.String(), fa.String())
+		require.Equal(t, org1Service.String(), fa.String())
 
 		fObj := f.Object()
 		require.NotNil(t, fObj)
 		objIRI := fObj.IRI()
 		require.NotNil(t, objIRI)
-		require.Equal(t, service2.String(), objIRI.String())
+		require.Equal(t, org2Service.String(), objIRI.String())
 
 		fTo := f.To()
 		require.Len(t, fTo, 1)
-		require.Equal(t, fTo[0].String(), service2.String())
+		require.Equal(t, fTo[0].String(), org2Service.String())
 	})
 }
 
 func TestRejectTypeMarshal(t *testing.T) {
-	service1 := mustParseURL("https://org1.com/services/service1")
-	service2 := mustParseURL("https://org1.com/services/service2")
+	org1Service := mustParseURL("https://org1.com/services/service1")
+	org2Service := mustParseURL("https://org1.com/services/service2")
 
-	follow := NewFollowActivity(followActivityID, NewObjectProperty(WithIRI(service2)),
-		WithTo(service2),
-		WithActor(service1),
+	follow := NewFollowActivity(followActivityID, NewObjectProperty(WithIRI(org2Service)),
+		WithTo(org2Service),
+		WithActor(org1Service),
 	)
 
 	follow.object.Context = nil
 
 	t.Run("Marshal", func(t *testing.T) {
 		accept := NewRejectActivity(rejectActivityID, NewObjectProperty(WithActivity(follow)),
-			WithActor(service2),
-			WithTo(service1),
+			WithActor(org2Service),
+			WithTo(org1Service),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(accept)
@@ -650,7 +644,7 @@ func TestRejectTypeMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonReject), a))
 		require.NotNil(t, a.Type())
 		require.True(t, a.Type().Is(TypeReject))
-		require.Equal(t, rejectActivityID, a.ID())
+		require.Equal(t, rejectActivityID.String(), a.ID().String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -658,9 +652,9 @@ func TestRejectTypeMarshal(t *testing.T) {
 
 		to := a.To()
 		require.Len(t, to, 1)
-		require.Equal(t, to[0].String(), service1.String())
+		require.Equal(t, to[0].String(), org1Service.String())
 
-		require.Equal(t, service2.String(), a.Actor().String())
+		require.Equal(t, org2Service.String(), a.Actor().String())
 
 		objProp := a.Object()
 		require.NotNil(t, objProp)
@@ -671,27 +665,26 @@ func TestRejectTypeMarshal(t *testing.T) {
 		require.NotNil(t, f)
 		require.NotNil(t, f.Type())
 		require.True(t, f.Type().Is(TypeFollow))
-		require.Equal(t, followActivityID, f.ID())
+		require.Equal(t, followActivityID.String(), f.ID().String())
 
 		fa := f.Actor()
 		require.NotNil(t, fa)
-		require.Equal(t, service1.String(), fa.String())
+		require.Equal(t, org1Service.String(), fa.String())
 
 		fObj := f.Object()
 		require.NotNil(t, fObj)
 		objIRI := fObj.IRI()
 		require.NotNil(t, objIRI)
-		require.Equal(t, service2.String(), objIRI.String())
+		require.Equal(t, org2Service.String(), objIRI.String())
 
 		fTo := f.To()
 		require.Len(t, fTo, 1)
-		require.Equal(t, fTo[0].String(), service2.String())
+		require.Equal(t, fTo[0].String(), org2Service.String())
 	})
 }
 
 func TestOfferTypeMarshal(t *testing.T) {
-	actor := mustParseURL("https://sally.example.com/services/orb")
-	to := mustParseURL("https://sally.example.com/services/orb/witnesses")
+	to := newMockID(service1, "/witnesses")
 	public := mustParseURL(PublicIRI)
 
 	startTime := getStaticTime()
@@ -703,7 +696,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 
 		offer := NewOfferActivity(offerActivityID,
 			NewObjectProperty(WithObject(obj)),
-			WithActor(actor),
+			WithActor(service1),
 			WithTo(to, public),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
@@ -721,7 +714,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonOffer), a))
 		require.NotNil(t, a.Type())
 		require.True(t, a.Type().Is(TypeOffer))
-		require.Equal(t, offerActivityID, a.ID())
+		require.Equal(t, offerActivityID.String(), a.ID().String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -731,7 +724,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 		require.Equal(t, a.To()[0].String(), to.String())
 		require.Equal(t, a.To()[1].String(), PublicIRI)
 
-		require.Equal(t, actor.String(), a.Actor().String())
+		require.Equal(t, service1.String(), a.Actor().String())
 
 		start := a.StartTime()
 		require.NotNil(t, start)
@@ -755,7 +748,6 @@ func TestOfferTypeMarshal(t *testing.T) {
 
 func TestLikeTypeMarshal(t *testing.T) {
 	actor := mustParseURL("https://witness1.example.com/services/orb")
-	to := mustParseURL("https://sally.example.com/services/orb")
 	public := mustParseURL(PublicIRI)
 	credID := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
 
@@ -769,7 +761,7 @@ func TestLikeTypeMarshal(t *testing.T) {
 		like := NewLikeActivity(likeActivityID,
 			NewObjectProperty(WithIRI(credID)),
 			WithActor(actor),
-			WithTo(to, public),
+			WithTo(service1, public),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
 			WithResult(NewObjectProperty(WithObject(result))),
@@ -787,14 +779,14 @@ func TestLikeTypeMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonLike), a))
 		require.NotNil(t, a.Type())
 		require.True(t, a.Type().Is(TypeLike))
-		require.Equal(t, likeActivityID, a.ID())
+		require.Equal(t, likeActivityID.String(), a.ID().String())
 
 		context := a.Context()
 		require.NotNil(t, context)
 		context.Contains(ContextActivityStreams)
 
 		require.Len(t, a.To(), 2)
-		require.Equal(t, a.To()[0].String(), to.String())
+		require.Equal(t, a.To()[0].String(), service1.String())
 		require.Equal(t, a.To()[1].String(), PublicIRI)
 
 		require.Equal(t, actor.String(), a.Actor().String())
@@ -828,6 +820,10 @@ func TestLikeTypeMarshal(t *testing.T) {
 
 		require.Equal(t, getCanonical(t, jsonLike), string(bytes))
 	})
+}
+
+func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
 
 const (
@@ -866,7 +862,8 @@ const (
     },
     "published": "2021-01-27T09:30:10Z",
     "target": {
-      "id": "97bcd005-abb6-423d-a889-18bc1ce84988",
+      "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+      "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
       "type": "ContentAddressedStorage"
     },
     "to": [
@@ -880,7 +877,7 @@ const (
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://sally.example.com/services/orb",
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
-  "object": "http://sally.example.com/transactions/bafkeexwtkfyvbkdidscmqywkyls3i",
+  "object": "https://sally.example.com/transactions/bafkeexwtkfyvbkdidscmqywkyls3i",
   "published": "2021-01-27T09:30:10Z",
   "to": [
     "https://sally.example.com/services/orb/followers",

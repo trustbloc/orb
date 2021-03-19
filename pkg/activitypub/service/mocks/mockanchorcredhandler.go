@@ -32,7 +32,7 @@ func (m *AnchorCredentialHandler) WithError(err error) *AnchorCredentialHandler 
 }
 
 // HandlerAnchorCredential stores the anchor credential or returns an error if it was set.
-func (m *AnchorCredentialHandler) HandlerAnchorCredential(cid string, anchorCred []byte) error {
+func (m *AnchorCredentialHandler) HandlerAnchorCredential(id string, anchorCred []byte) error {
 	if m.err != nil {
 		return m.err
 	}
@@ -40,15 +40,15 @@ func (m *AnchorCredentialHandler) HandlerAnchorCredential(cid string, anchorCred
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.anchorCreds[cid] = anchorCred
+	m.anchorCreds[id] = anchorCred
 
 	return nil
 }
 
 // AnchorCred returns the anchor credential by ID or nil if it doesn't exist.
-func (m *AnchorCredentialHandler) AnchorCred(cid string) []byte {
+func (m *AnchorCredentialHandler) AnchorCred(id string) []byte {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	return m.anchorCreds[cid]
+	return m.anchorCreds[id]
 }

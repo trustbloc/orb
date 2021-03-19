@@ -121,7 +121,7 @@ func TestOutbox_Post(t *testing.T) {
 			require.NoError(t, json.Unmarshal(bytes, activity))
 
 			mutex.Lock()
-			activitiesReceived[activity.ID()] = activity
+			activitiesReceived[activity.ID().String()] = activity
 			mutex.Unlock()
 
 			w.WriteHeader(http.StatusOK)
@@ -178,7 +178,7 @@ func TestOutbox_Post(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	mutex.RLock()
-	_, ok := activitiesReceived[activity.ID()]
+	_, ok := activitiesReceived[activity.ID().String()]
 	mutex.RUnlock()
 	require.True(t, ok)
 
@@ -329,8 +329,8 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 }
 
-func newActivityID(serviceName string) string {
-	return fmt.Sprintf("%s/%s", serviceName, uuid.New())
+func newActivityID(serviceName string) *url.URL {
+	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 type testHandler struct {
@@ -355,4 +355,13 @@ func (m *testHandler) Method() string {
 
 func (m *testHandler) Handler() common.HTTPRequestHandler {
 	return m.handler
+}
+
+func mustParseURL(raw string) *url.URL {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(err)
+	}
+
+	return u
 }

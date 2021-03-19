@@ -53,7 +53,7 @@ type Config struct {
 type handler struct {
 	*Config
 
-	id            string
+	id            *url.URL
 	endpoint      string
 	params        map[string]string
 	activityStore spi.Store
@@ -64,7 +64,11 @@ type handler struct {
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
-	id := fmt.Sprintf("%s%s", cfg.ServiceIRI, endpoint)
+	id, err := url.Parse(fmt.Sprintf("%s%s", cfg.ServiceIRI, endpoint))
+	if err != nil {
+		// This is called on startup so it's better to panic if the config is bad.
+		panic(err)
+	}
 
 	return &handler{
 		Config:        cfg,
@@ -155,7 +159,7 @@ func (h *handler) getCurrentPrevNext(totalItems int, options *spi.QueryOptions) 
 	return current, prev, next
 }
 
-func (h *handler) getIDPrevNextURL(totalItems int, options *spi.QueryOptions) (string, *url.URL, *url.URL, error) {
+func (h *handler) getIDPrevNextURL(totalItems int, options *spi.QueryOptions) (*url.URL, *url.URL, *url.URL, error) {
 	current, prev, next := h.getCurrentPrevNext(totalItems, options)
 
 	var err error
@@ -167,18 +171,23 @@ func (h *handler) getIDPrevNextURL(totalItems int, options *spi.QueryOptions) (s
 	if prev >= 0 {
 		prevURL, err = h.getPageURL(prev)
 		if err != nil {
-			return "", nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	if next >= 0 {
 		nextURL, err = h.getPageURL(next)
 		if err != nil {
-			return "", nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
-	return h.getPageID(current), prevURL, nextURL, nil
+	pageURI, err := h.getPageURL(current)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return pageURI, prevURL, nextURL, nil
 }
 
 func (h *handler) isPaging(req *http.Request) bool {
