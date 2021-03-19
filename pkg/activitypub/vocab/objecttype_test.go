@@ -12,12 +12,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestObjectType_WithoutDocument(t *testing.T) {
-	id := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
-	to1 := mustParseURL("https://to1")
-	to2 := mustParseURL("https://to2")
+	id := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+	to1 := testutil.MustParseURL("https://to1")
+	to2 := testutil.MustParseURL("https://to2")
 
 	publishedTime := getStaticTime()
 	startTime := getStaticTime()
@@ -68,7 +70,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonObject), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonObject), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -96,9 +98,9 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 }
 
 func TestObjectType_WithDocument(t *testing.T) {
-	id := mustParseURL("http://sally.example.com/transactions/bafkreihwsn")
-	to1 := mustParseURL("https://to1")
-	to2 := mustParseURL("https://to2")
+	id := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+	to1 := testutil.MustParseURL("https://to1")
+	to2 := testutil.MustParseURL("https://to2")
 
 	publishedTime := getStaticTime()
 	startTime := getStaticTime()
@@ -135,7 +137,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonObjectWithDoc), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonObjectWithDoc), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {

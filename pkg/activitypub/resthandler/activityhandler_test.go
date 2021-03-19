@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const outboxURL = "https://example.com/services/orb/outbox"
@@ -81,7 +82,7 @@ func TestActivities_Handler(t *testing.T) {
 
 		t.Logf("%s", respBytes)
 
-		require.Equal(t, getCanonical(t, outboxJSON), getCanonical(t, string(respBytes)))
+		require.Equal(t, testutil.GetCanonical(t, outboxJSON), testutil.GetCanonical(t, string(respBytes)))
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -248,7 +249,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 
 	t.Logf("%s", respBytes)
 
-	require.Equal(t, getCanonical(t, expected), getCanonical(t, string(respBytes)))
+	require.Equal(t, testutil.GetCanonical(t, expected), testutil.GetCanonical(t, string(respBytes)))
 }
 
 const (

@@ -16,6 +16,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestStore_Activity(t *testing.T) {
@@ -23,10 +24,10 @@ func TestStore_Activity(t *testing.T) {
 	require.NotNil(t, s)
 
 	var (
-		activityID1 = mustParseURL("https://example.com/activities/activity1")
-		activityID2 = mustParseURL("https://example.com/activities/activity2")
-		activityID3 = mustParseURL("https://example.com/activities/activity3")
-		activityID4 = mustParseURL("https://example.com/activities/activity4")
+		activityID1 = testutil.MustParseURL("https://example.com/activities/activity1")
+		activityID2 = testutil.MustParseURL("https://example.com/activities/activity2")
+		activityID3 = testutil.MustParseURL("https://example.com/activities/activity3")
+		activityID4 = testutil.MustParseURL("https://example.com/activities/activity4")
 	)
 
 	a, err := s.GetActivity(spi.Inbox, activityID1)
@@ -78,9 +79,9 @@ func TestStore_Reference(t *testing.T) {
 	s := New("service1")
 	require.NotNil(t, s)
 
-	actor1 := mustParseURL("https://actor1")
-	actor2 := mustParseURL("https://actor2")
-	actor3 := mustParseURL("https://actor3")
+	actor1 := testutil.MustParseURL("https://actor1")
+	actor2 := testutil.MustParseURL("https://actor2")
+	actor3 := testutil.MustParseURL("https://actor3")
 
 	it, err := s.QueryReferences(spi.Follower, spi.NewCriteria())
 	require.EqualError(t, err, "actor IRI is required")
@@ -137,8 +138,8 @@ func TestStore_Actors(t *testing.T) {
 	s := New("service1")
 	require.NotNil(t, s)
 
-	actor1IRI := mustParseURL("https://actor1")
-	actor2IRI := mustParseURL("https://actor2")
+	actor1IRI := testutil.MustParseURL("https://actor1")
+	actor2IRI := testutil.MustParseURL("https://actor2")
 
 	a, err := s.GetActor(actor1IRI)
 	require.EqualError(t, err, spi.ErrNotFound.Error())
@@ -256,7 +257,9 @@ func TestActivityQueryResults(t *testing.T) {
 }
 
 func TestReferenceQueryResults(t *testing.T) {
-	results := refQueryResults(newMockURIs(10))
+	results := refQueryResults(testutil.NewMockURLs(10, func(i int) string {
+		return fmt.Sprintf("https://ref_%d", i)
+	}))
 
 	// No paging
 	filtered, totalItems := results.filter(spi.NewCriteria())
@@ -345,20 +348,11 @@ func containsIRI(iri fmt.Stringer, iris []*url.URL) bool {
 	return false
 }
 
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
-}
-
 func newMockActivities(t vocab.Type, num int) []*vocab.ActivityType {
 	activities := make([]*vocab.ActivityType, num)
 
 	for i := 0; i < num; i++ {
-		a := newMockActivity(t, mustParseURL(fmt.Sprintf("https://activity_%s_%d", t, i)))
+		a := newMockActivity(t, testutil.MustParseURL(fmt.Sprintf("https://activity_%s_%d", t, i)))
 		activities[i] = a
 	}
 
@@ -371,14 +365,4 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 	}
 
 	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
-}
-
-func newMockURIs(num int) []*url.URL {
-	results := make([]*url.URL, num)
-
-	for i := 0; i < num; i++ {
-		results[i] = mustParseURL(fmt.Sprintf("https://ref_%d", i))
-	}
-
-	return results
 }

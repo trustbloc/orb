@@ -12,15 +12,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestCollectionPageMarshal(t *testing.T) {
-	collPage1 := mustParseURL("https://org1.com/services/service1/inbox?page=1")
-	collPage2 := mustParseURL("https://org1.com/services/service1/inbox?page=2")
-	collPage3 := mustParseURL("https://org1.com/services/service1/inbox?page=3")
-	activity1 := mustParseURL("https://org1.com/activities/activity1")
-	activity2 := mustParseURL("https://org1.com/activities/activity2")
-	activity3 := mustParseURL("https://org1.com/activities/activity3")
+	collPage1 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=1")
+	collPage2 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=2")
+	collPage3 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=3")
+	activity1 := testutil.MustParseURL("https://org1.com/activities/activity1")
+	activity2 := testutil.MustParseURL("https://org1.com/activities/activity2")
+	activity3 := testutil.MustParseURL("https://org1.com/activities/activity3")
 
 	t.Run("Marshal", func(t *testing.T) {
 		items := []*ObjectProperty{
@@ -41,7 +43,7 @@ func TestCollectionPageMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonCollectionPage), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonCollectionPage), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -73,12 +75,12 @@ func TestCollectionPageMarshal(t *testing.T) {
 }
 
 func TestOrderedCollectionPageMarshal(t *testing.T) {
-	collPage1 := mustParseURL("https://org1.com/services/service1/inbox?page=1")
-	collPage2 := mustParseURL("https://org1.com/services/service1/inbox?page=2")
-	collPage3 := mustParseURL("https://org1.com/services/service1/inbox?page=3")
-	activity1 := mustParseURL("https://org1.com/activities/activity1")
-	activity2 := mustParseURL("https://org1.com/activities/activity2")
-	activity3 := mustParseURL("https://org1.com/activities/activity3")
+	collPage1 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=1")
+	collPage2 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=2")
+	collPage3 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=3")
+	activity1 := testutil.MustParseURL("https://org1.com/activities/activity1")
+	activity2 := testutil.MustParseURL("https://org1.com/activities/activity2")
+	activity3 := testutil.MustParseURL("https://org1.com/activities/activity3")
 
 	t.Run("Marshal", func(t *testing.T) {
 		items := []*ObjectProperty{
@@ -99,7 +101,7 @@ func TestOrderedCollectionPageMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonOrderedCollectionPage), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonOrderedCollectionPage), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {

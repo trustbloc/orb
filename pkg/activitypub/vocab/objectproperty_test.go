@@ -12,15 +12,17 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 var (
-	collID  = mustParseURL("https://org1.com/services/service1/inbox")
-	first   = mustParseURL("https://org1.com/services/service1/inbox?page=true")
-	last    = mustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
-	current = mustParseURL("https://org1.com/services/service1/inbox?page=2")
-	txn1    = mustParseURL("https://org1.com/transactions/txn1")
-	txn2    = mustParseURL("https://org1.com/transactions/txn2")
+	collID  = testutil.MustParseURL("https://org1.com/services/service1/inbox")
+	first   = testutil.MustParseURL("https://org1.com/services/service1/inbox?page=true")
+	last    = testutil.MustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")
+	current = testutil.MustParseURL("https://org1.com/services/service1/inbox?page=2")
+	txn1    = testutil.MustParseURL("https://org1.com/transactions/txn1")
+	txn2    = testutil.MustParseURL("https://org1.com/transactions/txn2")
 )
 
 func TestNewObjectProperty(t *testing.T) {
@@ -47,7 +49,7 @@ func TestNewObjectProperty(t *testing.T) {
 	})
 
 	t.Run("WithIRI", func(t *testing.T) {
-		iri := mustParseURL("https://example.com/obj1")
+		iri := testutil.MustParseURL("https://example.com/obj1")
 
 		p := NewObjectProperty(WithIRI(iri))
 		require.NotNil(t, p)
@@ -132,7 +134,7 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 	})
 
 	t.Run("WithIRI", func(t *testing.T) {
-		iri := mustParseURL("https://example.com/obj1")
+		iri := testutil.MustParseURL("https://example.com/obj1")
 
 		p := NewObjectProperty(WithIRI(iri))
 
@@ -157,7 +159,7 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonEmbeddedObjectProperty), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonEmbeddedObjectProperty), string(bytes))
 	})
 
 	t.Run("WithCollection", func(t *testing.T) {
@@ -178,7 +180,7 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonCollectionObjectProperty), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonCollectionObjectProperty), string(bytes))
 	})
 
 	t.Run("WithOrderedCollection", func(t *testing.T) {
@@ -199,13 +201,13 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonOrderedCollectionObjectProperty), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonOrderedCollectionObjectProperty), string(bytes))
 	})
 }
 
 func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 	t.Run("WithIRI", func(t *testing.T) {
-		iri := mustParseURL("https://example.com/obj1")
+		iri := testutil.MustParseURL("https://example.com/obj1")
 
 		p := NewObjectProperty()
 		require.NoError(t, json.Unmarshal([]byte(jsonIRIObjectProperty), p))
@@ -338,7 +340,7 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 	})
 }
 
-var objectPropertyID = mustParseURL("https://example.com/some_obj_ID")
+var objectPropertyID = testutil.MustParseURL("https://example.com/some_obj_ID")
 
 const (
 	jsonIRIObjectProperty = `"https://example.com/obj1"`

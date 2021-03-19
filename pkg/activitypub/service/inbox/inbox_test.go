@@ -30,6 +30,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 //go:generate counterfeiter -o ../mocks/activityhandler.gen.go --fake-name ActivityHandler ../spi ActivityHandler
@@ -331,7 +332,7 @@ func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, erro
 }
 
 func newActivityID(serviceName string) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
+	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
@@ -342,13 +343,4 @@ func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTP
 	return func() {
 		require.NoError(t, httpServer.Stop(context.Background()))
 	}
-}
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
 }

@@ -15,12 +15,13 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestActivityIterator(t *testing.T) {
 	var (
-		activityID1 = mustParseURL("https://example.com/activities/activity1")
-		activityID2 = mustParseURL("https://example.com/activities/activity2")
+		activityID1 = testutil.MustParseURL("https://example.com/activities/activity1")
+		activityID2 = testutil.MustParseURL("https://example.com/activities/activity2")
 	)
 
 	activity1 := vocab.NewAnnounceActivity(activityID1, vocab.NewObjectProperty())
@@ -51,8 +52,8 @@ func TestActivityIterator(t *testing.T) {
 }
 
 func TestReferenceIterator(t *testing.T) {
-	ref1 := mustParseURL("https://ref_1")
-	ref2 := mustParseURL("https://ref_2")
+	ref1 := testutil.MustParseURL("https://ref_1")
+	ref2 := testutil.MustParseURL("https://ref_2")
 
 	results := []*url.URL{ref1, ref2}
 

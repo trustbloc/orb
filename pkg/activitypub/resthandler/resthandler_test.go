@@ -7,18 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestNewHandler(t *testing.T) {
@@ -263,38 +261,6 @@ func TestGetIDPrevNextURL(t *testing.T) {
 	})
 }
 
-func getCanonical(t *testing.T, raw string) string {
-	var expectedDoc map[string]interface{}
-
-	require.NoError(t, json.Unmarshal([]byte(raw), &expectedDoc))
-
-	bytes, err := canonicalizer.MarshalCanonical(expectedDoc)
-
-	require.NoError(t, err)
-
-	return string(bytes)
-}
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
-}
-
-//nolint:unparam
-func newMockURIs(num int, getURI func(i int) string) []*url.URL {
-	results := make([]*url.URL, num)
-
-	for i := 0; i < num; i++ {
-		results[i] = mustParseURL(getURI(i))
-	}
-
-	return results
-}
-
 func newMockCreateActivities(num int) []*vocab.ActivityType {
 	activities := make([]*vocab.ActivityType, num)
 
@@ -306,11 +272,11 @@ func newMockCreateActivities(num int) []*vocab.ActivityType {
 }
 
 func newMockCreateActivity(id, objID string) *vocab.ActivityType {
-	return vocab.NewCreateActivity(mustParseURL(id), vocab.NewObjectProperty(
+	return vocab.NewCreateActivity(testutil.MustParseURL(id), vocab.NewObjectProperty(
 		vocab.WithAnchorCredentialReference(
 			vocab.NewAnchorCredentialReference(
-				mustParseURL(objID),
-				mustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
+				testutil.MustParseURL(objID),
+				testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
 				"bafkd34G7hD6gbj94fnKm5D"),
 		),
 	),

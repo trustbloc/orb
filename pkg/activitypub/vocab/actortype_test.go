@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestActor(t *testing.T) {
@@ -21,16 +23,16 @@ func TestActor(t *testing.T) {
 		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 	)
 
-	serviceID := mustParseURL("https://alice.example.com/services/orb")
-	followers := mustParseURL("https://sally.example.com/services/orb/followers")
-	following := mustParseURL("https://sally.example.com/services/orb/following")
-	inbox := mustParseURL("https://alice.example.com/services/orb/inbox")
-	outbox := mustParseURL("https://alice.example.com/services/orb/outbox")
-	witnesses := mustParseURL("https://alice.example.com/services/orb/witnesses")
-	witnessing := mustParseURL("https://alice.example.com/services/orb/witnessing")
-	likes := mustParseURL("https://alice.example.com/services/orb/likes")
-	liked := mustParseURL("https://alice.example.com/services/orb/liked")
-	shares := mustParseURL("https://alice.example.com/services/orb/shares")
+	serviceID := testutil.MustParseURL("https://alice.example.com/services/orb")
+	followers := testutil.MustParseURL("https://sally.example.com/services/orb/followers")
+	following := testutil.MustParseURL("https://sally.example.com/services/orb/following")
+	inbox := testutil.MustParseURL("https://alice.example.com/services/orb/inbox")
+	outbox := testutil.MustParseURL("https://alice.example.com/services/orb/outbox")
+	witnesses := testutil.MustParseURL("https://alice.example.com/services/orb/witnesses")
+	witnessing := testutil.MustParseURL("https://alice.example.com/services/orb/witnessing")
+	likes := testutil.MustParseURL("https://alice.example.com/services/orb/likes")
+	liked := testutil.MustParseURL("https://alice.example.com/services/orb/liked")
+	shares := testutil.MustParseURL("https://alice.example.com/services/orb/shares")
 
 	publicKey := &PublicKeyType{
 		ID:           keyID,
@@ -56,7 +58,7 @@ func TestActor(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, getCanonical(t, jsonService), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, jsonService), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {

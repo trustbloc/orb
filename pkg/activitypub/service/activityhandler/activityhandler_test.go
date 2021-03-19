@@ -24,13 +24,14 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 var (
-	host1        = mustParseURL("https://sally.example.com")
-	anchorCredID = newMockID(host1, fmt.Sprintf("/cas/%s", cid))
+	host1        = testutil.MustParseURL("https://sally.example.com")
+	anchorCredID = testutil.NewMockID(host1, fmt.Sprintf("/cas/%s", cid))
 )
 
 func TestNew(t *testing.T) {
@@ -75,9 +76,9 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 }
 
 func TestHandler_HandleCreateActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
-	service3IRI := mustParseURL("http://localhost:8303/services/service3")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -161,7 +162,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential reference", func(t *testing.T) {
-		refID := mustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
+		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
 
 		published := time.Now()
 
@@ -218,10 +219,10 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 }
 
 func TestHandler_HandleFollowActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
-	service3IRI := mustParseURL("http://localhost:8303/services/service3")
-	service4IRI := mustParseURL("http://localhost:8304/services/service4")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+	service4IRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -393,8 +394,8 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 }
 
 func TestHandler_HandleAcceptActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
 		ServiceName: "service2",
@@ -533,8 +534,8 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 }
 
 func TestHandler_HandleRejectActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
 		ServiceName: "service2",
@@ -672,8 +673,8 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 }
 
 func TestHandler_HandleAnnounceActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -868,8 +869,8 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 }
 
 func TestHandler_HandleOfferActivity(t *testing.T) {
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -1052,8 +1053,8 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 func TestHandler_HandleLikeActivity(t *testing.T) {
 	log.SetLevel("activitypub_service", log.WARNING)
 
-	service1IRI := mustParseURL("http://localhost:8301/services/service1")
-	service2IRI := mustParseURL("http://localhost:8302/services/service2")
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -1230,24 +1231,11 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 }
 
 func newActivityID(id fmt.Stringer) *url.URL {
-	return newMockID(id, uuid.New().String())
+	return testutil.NewMockID(id, uuid.New().String())
 }
 
 func newTransactionID(id fmt.Stringer) *url.URL {
-	return newMockID(id, uuid.New().String())
-}
-
-func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
-	return mustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
-}
-
-func mustParseURL(raw string) *url.URL {
-	u, err := url.Parse(raw)
-	if err != nil {
-		panic(err)
-	}
-
-	return u
+	return testutil.NewMockID(id, uuid.New().String())
 }
 
 const anchorCredential1 = `{
