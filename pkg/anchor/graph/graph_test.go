@@ -23,13 +23,18 @@ import (
 const testDID = "did:method:abc"
 
 func TestNew(t *testing.T) {
-	graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+	graph := New(&Providers{})
 	require.NotNil(t, graph)
 }
 
 func TestGraph_Add(t *testing.T) {
+	providers := &Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
 	t.Run("success", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		payload := txn.Payload{
 			OperationCount: 1,
@@ -45,8 +50,13 @@ func TestGraph_Add(t *testing.T) {
 }
 
 func TestGraph_Read(t *testing.T) {
+	providers := &Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
 	t.Run("success", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		payload := txn.Payload{
 			OperationCount: 2,
@@ -69,7 +79,7 @@ func TestGraph_Read(t *testing.T) {
 	})
 
 	t.Run("error - transaction (cid) not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		txnNode, err := graph.Read("non-existent")
 		require.Error(t, err)
@@ -78,8 +88,13 @@ func TestGraph_Read(t *testing.T) {
 }
 
 func TestGraph_GetDidTransactions(t *testing.T) {
+	providers := &Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
 	t.Run("success - first did transaction (create), no previous did transaction", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		payload := txn.Payload{
 			OperationCount: 1,
@@ -98,7 +113,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("success - previous transaction for did exists", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		payload := txn.Payload{
 			OperationCount: 1,
@@ -135,7 +150,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("success - cid referenced in previous transaction empty (create)", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		testDID := "did:method:abc"
 
@@ -160,7 +175,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("error - cid referenced in previous transaction not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		testDID := "did:method:abc"
 
@@ -185,7 +200,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 	})
 
 	t.Run("error - head cid not found", func(t *testing.T) {
-		graph := New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+		graph := New(providers)
 
 		txnNode, err := graph.GetDidTransactions("non-existent", "did")
 		require.Error(t, err)

@@ -18,11 +18,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/txn"
 )
 
-const (
-	defVCContext = "https://www.w3.org/2018/credentials/v1"
-	// TODO: Add context for anchor credential and define credential subject attributes there.
-)
-
 // Params holds required parameters for building anchor credential.
 type Params struct {
 	Issuer string
@@ -56,9 +51,8 @@ func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	vc := &verifiable.Credential{
-		// TODO: Add definition for "AnchorCredential"
-		Types:   []string{"VerifiableCredential"},
-		Context: []string{defVCContext},
+		Types:   []string{"VerifiableCredential", "AnchorCredential"},
+		Context: []string{vcContextURIV1, AnchorContextURIV1, JwsContextURIV1},
 		Subject: subject,
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,

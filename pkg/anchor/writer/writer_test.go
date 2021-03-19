@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		TxnGraph:     graph.New(nil, pubKeyFetcherFnc),
+		TxnGraph:     graph.New(&graph.Providers{}),
 		DidTxns:      memdidtxnref.New(),
 		TxnBuilder:   &mockTxnBuilder{},
 		ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
@@ -52,6 +52,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestWriter_WriteAnchor(t *testing.T) {
+	graphProviders := &graph.Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
+	txnGraph := graph.New(graphProviders)
+
 	t.Run("success", func(t *testing.T) {
 		txnCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
@@ -60,7 +67,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
@@ -100,7 +107,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      &mockDidTxns{},
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -128,7 +135,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providersWithErr := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{Err: errors.New("sign error")},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -153,7 +160,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -174,7 +181,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -190,12 +197,19 @@ func TestWriter_WriteAnchor(t *testing.T) {
 }
 
 func TestWriter_handle(t *testing.T) {
+	graphProviders := &graph.Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
+	txnGraph := graph.New(graphProviders)
+
 	t.Run("success", func(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
@@ -226,7 +240,7 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      memdidtxnref.New(),
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -272,7 +286,7 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc),
+			TxnGraph:     txnGraph,
 			DidTxns:      &mockDidTxns{Err: errors.New("did references error")},
 			TxnBuilder:   &mockTxnBuilder{},
 			ProofHandler: &mockProofHandler{vcCh: vcCh},
@@ -400,8 +414,13 @@ func TestWriter_getWitnesses(t *testing.T) {
 }
 
 func TestWriter_Read(t *testing.T) {
+	graphProviders := &graph.Providers{
+		Cas: mocks.NewMockCasClient(nil),
+		Pkf: pubKeyFetcherFnc,
+	}
+
 	providers := &Providers{
-		TxnGraph: graph.New(nil, pubKeyFetcherFnc),
+		TxnGraph: graph.New(graphProviders),
 		DidTxns:  memdidtxnref.New(),
 	}
 

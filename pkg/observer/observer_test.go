@@ -58,7 +58,13 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
 		var txns []string
-		txnGraph := graph.New(mocks.NewMockCasClient(nil), pubKeyFetcherFnc)
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
+		}
+
+		txnGraph := graph.New(graphProviders)
 
 		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, CoreIndex: "1.address"}
 

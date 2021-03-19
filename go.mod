@@ -10,9 +10,10 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.6
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210224230531-58e1368e5661
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210310014234-cfa8c6d6e2f4
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210310014234-cfa8c6d6e2f4
 	github.com/ipfs/go-ipfs-api v0.2.0
+	github.com/piprate/json-gold v0.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.7.0
