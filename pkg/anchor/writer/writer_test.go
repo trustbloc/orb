@@ -20,8 +20,8 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
-	"github.com/trustbloc/orb/pkg/anchor/txn"
-	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
 
@@ -32,7 +32,7 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	var txnCh chan []string
+	var anchorCh chan []string
 
 	var vcCh chan *verifiable.Credential
 
@@ -40,14 +40,14 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		TxnGraph:     graph.New(&graph.Providers{}),
-		DidTxns:      memdidtxnref.New(),
-		TxnBuilder:   &mockTxnBuilder{},
-		ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
-		Store:        vcStore,
+		AnchorGraph:   graph.New(&graph.Providers{}),
+		DidAnchors:    memdidanchorref.New(),
+		AnchorBuilder: &mockTxnBuilder{},
+		ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+		Store:         vcStore,
 	}
 
-	c := New(namespace, providers, txnCh, vcCh)
+	c := New(namespace, providers, anchorCh, vcCh)
 	require.NotNil(t, c)
 }
 
@@ -57,25 +57,25 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		Pkf: pubKeyFetcherFnc,
 	}
 
-	txnGraph := graph.New(graphProviders)
+	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
-			Store:        vcStore,
-			OpProcessor:  &mockOpProcessor{},
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+			Store:         vcStore,
+			OpProcessor:   &mockOpProcessor{},
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -100,22 +100,22 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - failed to get witness list", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      &mockDidTxns{},
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStore,
-			OpProcessor:  &mockOpProcessor{Err: errors.New("operation processor error")},
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    &mockDidTxns{},
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStore,
+			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -131,24 +131,24 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - build anchor credential error", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providersWithErr := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{Err: errors.New("sign error")},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{Err: errors.New("sign error")},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 		}
 
-		c := New(namespace, providersWithErr, txnCh, vcCh)
+		c := New(namespace, providersWithErr, anchorCh, vcCh)
 
 		err := c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "failed to build anchor credential: sign error")
 	})
 
 	t.Run("error - store anchor credential error", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		storeProviderWithErr := mockstore.NewCustomMockStoreProvider(&mockstore.MockStore{
@@ -160,39 +160,39 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStoreWithErr,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStoreWithErr,
 		}
 
-		c := New(namespace, providersWithErr, txnCh, vcCh)
+		c := New(namespace, providersWithErr, anchorCh, vcCh)
 
 		err = c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "error put")
 	})
 
-	t.Run("error - previous did transaction reference not found for non-create operations", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+	t.Run("error - previous did anchor reference not found for non-create operations", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStore,
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 1)
 		require.Contains(t, err.Error(),
-			"previous did transaction reference not found for update operation for did[did:method:abc]")
+			"previous did anchor reference not found for update operation for did[did:method:abc]")
 	})
 }
 
@@ -202,24 +202,24 @@ func TestWriter_handle(t *testing.T) {
 		Pkf: pubKeyFetcherFnc,
 	}
 
-	txnGraph := graph.New(graphProviders)
+	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
-			Store:        vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+			Store:         vcStore,
 		}
 
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - save anchor credential to store error", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		storeProviderWithErr := mockstore.NewCustomMockStoreProvider(&mockstore.MockStore{
@@ -240,14 +240,14 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStoreWithErr,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStoreWithErr,
 		}
 
-		c := New(namespace, providersWithErr, txnCh, vcCh)
+		c := New(namespace, providersWithErr, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -256,21 +256,21 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - add anchor credential to txn graph error", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     &mockTxnGraph{Err: errors.New("txn graph error")},
-			DidTxns:      memdidtxnref.New(),
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStore,
+			AnchorGraph:   &mockAnchorGraph{Err: errors.New("txn graph error")},
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStore,
 		}
 
-		c := New(namespace, providersWithErr, txnCh, vcCh)
+		c := New(namespace, providersWithErr, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -278,22 +278,22 @@ func TestWriter_handle(t *testing.T) {
 		c.handle(anchorVC)
 	})
 
-	t.Run("error - add anchor credential cid to did transactions error", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+	t.Run("error - add anchor credential cid to did anchors error", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			TxnGraph:     txnGraph,
-			DidTxns:      &mockDidTxns{Err: errors.New("did references error")},
-			TxnBuilder:   &mockTxnBuilder{},
-			ProofHandler: &mockProofHandler{vcCh: vcCh},
-			Store:        vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    &mockDidTxns{Err: errors.New("did references error")},
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Store:         vcStore,
 		}
 
-		c := New(namespace, providersWithErr, txnCh, vcCh)
+		c := New(namespace, providersWithErr, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -304,7 +304,7 @@ func TestWriter_handle(t *testing.T) {
 
 func TestWriter_getWitnesses(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -317,7 +317,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -359,7 +359,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 	})
 
 	t.Run("error - operation type not supported", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -370,7 +370,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -386,7 +386,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 	})
 
 	t.Run("error - unexpected interface for anchor origin", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -397,7 +397,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -420,15 +420,15 @@ func TestWriter_Read(t *testing.T) {
 	}
 
 	providers := &Providers{
-		TxnGraph: graph.New(graphProviders),
-		DidTxns:  memdidtxnref.New(),
+		AnchorGraph: graph.New(graphProviders),
+		DidAnchors:  memdidanchorref.New(),
 	}
 
 	t.Run("success", func(t *testing.T) {
-		txnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, providers, txnCh, vcCh)
+		c := New(namespace, providers, anchorCh, vcCh)
 
 		more, entries := c.Read(-1)
 		require.False(t, more)
@@ -440,12 +440,12 @@ type mockTxnBuilder struct {
 	Err error
 }
 
-func (m *mockTxnBuilder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
+func (m *mockTxnBuilder) Build(payload *subject.Payload) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
 
-	return &verifiable.Credential{Subject: subject, ID: "http://domain.com/vc/123"}, nil
+	return &verifiable.Credential{Subject: payload, ID: "http://domain.com/vc/123"}, nil
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
@@ -462,11 +462,11 @@ func (m *mockProofHandler) RequestProofs(vc *verifiable.Credential, _ []string) 
 	return nil
 }
 
-type mockTxnGraph struct {
+type mockAnchorGraph struct {
 	Err error
 }
 
-func (m *mockTxnGraph) Add(vc *verifiable.Credential) (string, error) {
+func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, error) {
 	if m.Err != nil {
 		return "", m.Err
 	}

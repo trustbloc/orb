@@ -13,7 +13,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -53,7 +53,7 @@ func TestBuilder_Build(t *testing.T) {
 		b, err := New(&mockSigner{}, builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build(&txn.Payload{})
+		vc, err := b.Build(&subject.Payload{})
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
 	})
@@ -63,7 +63,7 @@ func TestBuilder_Build(t *testing.T) {
 			builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build(&txn.Payload{})
+		vc, err := b.Build(&subject.Payload{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to sign credential: signer error")
 		require.Nil(t, vc)

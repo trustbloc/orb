@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprocessor"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
-	orbtxn "github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 func TestStartObserver(t *testing.T) {
@@ -57,31 +57,31 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		var txns []string
+		var anchors []string
 
 		graphProviders := &graph.Providers{
 			Cas: mocks.NewMockCasClient(nil),
 			Pkf: pubKeyFetcherFnc,
 		}
 
-		txnGraph := graph.New(graphProviders)
+		anchorGraph := graph.New(graphProviders)
 
-		payload1 := orbtxn.Payload{Namespace: namespace1, Version: 1, CoreIndex: "1.address"}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "1.address"}
 
-		cid, err := txnGraph.Add(buildCredential(payload1))
+		cid, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
-		txns = append(txns, cid)
+		anchors = append(anchors, cid)
 
-		payload2 := orbtxn.Payload{Namespace: namespace2, Version: 1, CoreIndex: "2.address"}
+		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "2.address"}
 
-		cid, err = txnGraph.Add(buildCredential(payload2))
+		cid, err = anchorGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
-		txns = append(txns, cid)
+		anchors = append(anchors, cid)
 
 		providers := &Providers{
 			TxnProvider:            mockLedger{registerForSidetreeTxnValue: sidetreeTxnCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
-			TxnGraph:               txnGraph,
+			AnchorGraph:            anchorGraph,
 		}
 
 		o := New(providers)
@@ -90,7 +90,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		sidetreeTxnCh <- txns
+		sidetreeTxnCh <- anchors
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 1, tp.ProcessCallCount())
@@ -162,7 +162,7 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 	return []*operation.AnchoredOperation{op}, nil
 }
 
-func buildCredential(payload orbtxn.Payload) *verifiable.Credential {
+func buildCredential(payload subject.Payload) *verifiable.Credential {
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
 	vc := &verifiable.Credential{

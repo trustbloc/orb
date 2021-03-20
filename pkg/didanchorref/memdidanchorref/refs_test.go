@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package memdidtxnref
+package memdidanchorref
 
 import (
 	"testing"
@@ -31,7 +31,7 @@ func TestMemDidTxnRef_Get(t *testing.T) {
 		require.Equal(t, didTxnRefs, []string{"cid"})
 	})
 
-	t.Run("error - did transaction references not found", func(t *testing.T) {
+	t.Run("error - did anchor references not found", func(t *testing.T) {
 		refs := New()
 
 		didTxnRefs, err := refs.Get("non-existent")
@@ -52,7 +52,7 @@ func TestMemDidTxnRef_Last(t *testing.T) {
 		require.Equal(t, last, "cid")
 	})
 
-	t.Run("error - did transaction references not found", func(t *testing.T) {
+	t.Run("error - did anchor references not found", func(t *testing.T) {
 		refs := New()
 
 		last, err := refs.Last("non-existent")

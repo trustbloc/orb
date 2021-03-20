@@ -4,9 +4,9 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package txn
+package subject
 
-// Payload defines orb transaction details.
+// Payload defines orb anchor details.
 type Payload struct {
 	OperationCount  uint64            `json:"operationCount"`
 	CoreIndex       string            `json:"coreIndex"`

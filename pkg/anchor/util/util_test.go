@@ -14,14 +14,14 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
 func TestGetTransactionPayload(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		txnInfo := &txn.Payload{
+		anchorSubject := &subject.Payload{
 			OperationCount: 1,
 			CoreIndex:      "coreIndex",
 			Namespace:      "namespace",
@@ -31,7 +31,7 @@ func TestGetTransactionPayload(t *testing.T) {
 		vc := &verifiable.Credential{
 			Types:   []string{"VerifiableCredential"},
 			Context: []string{defVCContext},
-			Subject: txnInfo,
+			Subject: anchorSubject,
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
@@ -44,15 +44,15 @@ func TestGetTransactionPayload(t *testing.T) {
 		parsedVC, err := verifiable.ParseCredential(vcBytes)
 		require.NoError(t, err)
 
-		txnInfoFromVC, err := GetTransactionPayload(parsedVC)
+		anchorSubjectFromVC, err := GetAnchorSubject(parsedVC)
 		require.NoError(t, err)
-		require.NotNil(t, txnInfoFromVC)
+		require.NotNil(t, anchorSubjectFromVC)
 
-		require.Equal(t, txnInfo.Namespace, txnInfoFromVC.Namespace)
-		require.Equal(t, txnInfo.OperationCount, txnInfoFromVC.OperationCount)
-		require.Equal(t, txnInfo.CoreIndex, txnInfoFromVC.CoreIndex)
-		require.Equal(t, txnInfo.Version, txnInfoFromVC.Version)
-		require.Equal(t, txnInfo.PreviousAnchors, txnInfoFromVC.PreviousAnchors)
+		require.Equal(t, anchorSubject.Namespace, anchorSubjectFromVC.Namespace)
+		require.Equal(t, anchorSubject.OperationCount, anchorSubjectFromVC.OperationCount)
+		require.Equal(t, anchorSubject.CoreIndex, anchorSubjectFromVC.CoreIndex)
+		require.Equal(t, anchorSubject.Version, anchorSubjectFromVC.Version)
+		require.Equal(t, anchorSubject.PreviousAnchors, anchorSubjectFromVC.PreviousAnchors)
 	})
 
 	t.Run("error - no credential subject", func(t *testing.T) {
@@ -66,9 +66,9 @@ func TestGetTransactionPayload(t *testing.T) {
 			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 		}
 
-		txnInfo, err := GetTransactionPayload(vc)
+		anchorSubject, err := GetAnchorSubject(vc)
 		require.Error(t, err)
-		require.Nil(t, txnInfo)
+		require.Nil(t, anchorSubject)
 		require.Contains(t, err.Error(), "missing credential subject")
 	})
 
@@ -83,9 +83,9 @@ func TestGetTransactionPayload(t *testing.T) {
 			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 		}
 
-		txnInfo, err := GetTransactionPayload(vc)
+		anchorSubject, err := GetAnchorSubject(vc)
 		require.Error(t, err)
-		require.Nil(t, txnInfo)
+		require.Nil(t, anchorSubject)
 		require.Contains(t, err.Error(), "unexpected interface for credential subject")
 	})
 }

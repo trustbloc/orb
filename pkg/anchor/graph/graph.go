@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/util"
 )
 
-// Graph manages transaction graph.
+// Graph manages anchor graph.
 type Graph struct {
 	*Providers
 }
@@ -33,19 +33,19 @@ func New(providers *Providers) *Graph {
 	}
 }
 
-// Add adds orb transaction to the transaction graph.
-// Returns cid that contains orb transaction information.
+// Add adds an anchor to the anchor graph.
+// Returns cid that contains anchor information.
 func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
 	// TODO: do we need canonical?
-	txnBytes, err := vc.MarshalJSON()
+	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
 		return "", err
 	}
 
-	return g.Cas.Write(txnBytes)
+	return g.Cas.Write(anchorBytes)
 }
 
-// Read reads orb transaction.
+// Read reads anchor.
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
 	nodeBytes, err := g.Cas.Read(cid)
 	if err != nil {
@@ -57,8 +57,8 @@ func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
 
-// GetDidTransactions returns all orb transactions that are referencing DID starting from cid.
-func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
+// GetDidAnchors returns all anchors that are referencing DID starting from cid.
+func (g *Graph) GetDidAnchors(cid, did string) ([]string, error) {
 	var refs []string
 
 	cur := cid
@@ -70,7 +70,7 @@ func (g *Graph) GetDidTransactions(cid, did string) ([]string, error) {
 			return nil, err
 		}
 
-		payload, err := util.GetTransactionPayload(node)
+		payload, err := util.GetAnchorSubject(node)
 		if err != nil {
 			return nil, err
 		}
