@@ -12,11 +12,11 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
-	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
-// GetTransactionPayload returns transaction payload.
-func GetTransactionPayload(node *verifiable.Credential) (*txn.Payload, error) {
+// GetAnchorSubject returns anchor payload.
+func GetAnchorSubject(node *verifiable.Credential) (*subject.Payload, error) {
 	customFields, err := getCredentialSubjectCustomFields(node)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func GetTransactionPayload(node *verifiable.Credential) (*txn.Payload, error) {
 		return nil, err
 	}
 
-	var payload txn.Payload
+	var payload subject.Payload
 
 	err = json.Unmarshal(customFieldsBytes, &payload)
 	if err != nil {
@@ -38,16 +38,16 @@ func GetTransactionPayload(node *verifiable.Credential) (*txn.Payload, error) {
 }
 
 func getCredentialSubjectCustomFields(node *verifiable.Credential) (map[string]interface{}, error) {
-	subject := node.Subject
-	if subject == nil {
+	payload := node.Subject
+	if payload == nil {
 		return nil, fmt.Errorf("missing credential subject")
 	}
 
-	switch t := subject.(type) {
+	switch t := payload.(type) {
 	case []verifiable.Subject:
-		subjects, _ := subject.([]verifiable.Subject) //nolint: errcheck
+		payloads, _ := payload.([]verifiable.Subject) //nolint: errcheck
 
-		return subjects[0].CustomFields, nil
+		return payloads[0].CustomFields, nil
 
 	default:
 		return nil, fmt.Errorf("unexpected interface for credential subject: %s", t)

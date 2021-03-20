@@ -23,8 +23,8 @@ type TxnProvider interface {
 	RegisterForOrbTxn() <-chan []string
 }
 
-// TxnGraph interface to access orb transactions.
-type TxnGraph interface {
+// AnchorGraph interface to access anchors.
+type AnchorGraph interface {
 	Read(cid string) (*verifiable.Credential, error)
 }
 
@@ -42,7 +42,7 @@ type OperationFilter interface {
 type Providers struct {
 	TxnProvider            TxnProvider
 	ProtocolClientProvider protocol.ClientProvider
-	TxnGraph
+	AnchorGraph
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -70,7 +70,7 @@ func (o *Observer) Stop() {
 	o.stopCh <- struct{}{}
 }
 
-func (o *Observer) listen(txnsCh <-chan []string) {
+func (o *Observer) listen(anchorCh <-chan []string) {
 	for {
 		select {
 		case <-o.stopCh:
@@ -78,71 +78,71 @@ func (o *Observer) listen(txnsCh <-chan []string) {
 
 			return
 
-		case txns, ok := <-txnsCh:
+		case anchors, ok := <-anchorCh:
 			if !ok {
 				logger.Warnf("Notification channel was closed. Exiting.")
 
 				return
 			}
 
-			o.process(txns)
+			o.process(anchors)
 		}
 	}
 }
 
-func (o *Observer) process(txns []string) {
-	for _, txn := range txns {
-		logger.Debugf("observing anchor cid: %s", txn)
+func (o *Observer) process(anchors []string) {
+	for _, anchor := range anchors {
+		logger.Debugf("observing anchor cid: %s", anchor)
 
-		txnNode, err := o.TxnGraph.Read(txn)
+		anchorNode, err := o.AnchorGraph.Read(anchor)
 		if err != nil {
-			logger.Warnf("Failed to get txn node from txn graph: %s", txn, err.Error())
+			logger.Warnf("Failed to get anchor node from anchor graph: %s", anchor, err.Error())
 
 			continue
 		}
 
-		logger.Debugf("successfully read anchor cid from anchor graph: %s", txn)
+		logger.Debugf("successfully read anchor cid from anchor graph: %s", anchor)
 
-		txnPayload, err := util.GetTransactionPayload(txnNode)
+		anchorPayload, err := util.GetAnchorSubject(anchorNode)
 		if err != nil {
-			logger.Warnf("Failed to extract transaction payload from txn[%s] for namespace [%s]: %s", txn, txnPayload.Namespace, err.Error()) //nolint:lll
+			logger.Warnf("Failed to extract anchor payload from anchor[%s] for namespace [%s]: %s", anchor, anchorPayload.Namespace, err.Error()) //nolint:lll
 
 			continue
 		}
 
-		logger.Debugf("about to process core index: %s", txnPayload.CoreIndex)
+		logger.Debugf("about to process core index: %s", anchorPayload.CoreIndex)
 
-		pc, err := o.ProtocolClientProvider.ForNamespace(txnPayload.Namespace)
+		pc, err := o.ProtocolClientProvider.ForNamespace(anchorPayload.Namespace)
 		if err != nil {
-			logger.Warnf("Failed to get protocol client for namespace [%s]: %s", txnPayload.Namespace, err.Error())
+			logger.Warnf("Failed to get protocol client for namespace [%s]: %s", anchorPayload.Namespace, err.Error())
 
 			continue
 		}
 
-		v, err := pc.Get(txnPayload.Version)
+		v, err := pc.Get(anchorPayload.Version)
 		if err != nil {
-			logger.Warnf("Failed to get processor for transaction time [%d]: %s", txnPayload.Version, err.Error())
+			logger.Warnf("Failed to get processor for transaction time [%d]: %s", anchorPayload.Version, err.Error())
 
 			continue
 		}
 
-		ad := &util.AnchorData{OperationCount: txnPayload.OperationCount, CoreIndexFileURI: txnPayload.CoreIndex}
+		ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
 		sidetreeTxn := txnapi.SidetreeTxn{
-			TransactionTime:     uint64(txnNode.Issued.Unix()),
+			TransactionTime:     uint64(anchorNode.Issued.Unix()),
 			AnchorString:        ad.GetAnchorString(),
-			Namespace:           txnPayload.Namespace,
-			ProtocolGenesisTime: txnPayload.Version,
-			Reference:           txn,
+			Namespace:           anchorPayload.Namespace,
+			ProtocolGenesisTime: anchorPayload.Version,
+			Reference:           anchor,
 		}
 
 		err = v.TransactionProcessor().Process(sidetreeTxn)
 		if err != nil {
-			logger.Warnf("failed to process anchor[%s]: %s", txnPayload.CoreIndex, err.Error())
+			logger.Warnf("failed to process anchor[%s]: %s", anchorPayload.CoreIndex, err.Error())
 
 			continue
 		}
 
-		logger.Debugf("successfully processed anchor cid[%s], core index[%s]", txn, txnPayload.CoreIndex)
+		logger.Debugf("successfully processed anchor cid[%s], core index[%s]", anchor, anchorPayload.CoreIndex)
 	}
 }

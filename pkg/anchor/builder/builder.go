@@ -15,7 +15,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
-	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 // Params holds required parameters for building anchor credential.
@@ -47,13 +47,13 @@ type Builder struct {
 }
 
 // Build will create and sign anchor credential.
-func (b *Builder) Build(subject *txn.Payload) (*verifiable.Credential, error) {
+func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential", "AnchorCredential"},
 		Context: []string{vcContextURIV1, AnchorContextURIV1, JwsContextURIV1},
-		Subject: subject,
+		Subject: payload,
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,
 		},

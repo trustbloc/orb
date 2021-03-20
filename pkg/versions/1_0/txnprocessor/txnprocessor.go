@@ -25,16 +25,16 @@ type OperationStore interface {
 	Get(suffix string) ([]*operation.AnchoredOperation, error)
 }
 
-// TxnGraph interface to access orb transactions.
-type TxnGraph interface {
-	GetDidTransactions(cid, did string) ([]string, error)
+// AnchorGraph interface to access anchors.
+type AnchorGraph interface {
+	GetDidAnchors(cid, did string) ([]string, error)
 }
 
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {
 	OpStore                   OperationStore
 	OperationProtocolProvider protocol.OperationProvider
-	TxnGraph                  TxnGraph
+	AnchorGraph               AnchorGraph
 }
 
 // TxnProcessor processes Sidetree transactions by persisting them to an operation store.
@@ -81,18 +81,18 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 			return err
 		}
 
-		// Get all references for this did from transaction graph starting from Sidetree txn reference
-		didRefs, err := p.TxnGraph.GetDidTransactions(sidetreeTxn.Reference, op.UniqueSuffix)
+		// Get all references for this did from anchor graph starting from Sidetree txn reference
+		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.Reference, op.UniqueSuffix)
 		if err != nil {
 			return err
 		}
 
-		// check that number of operations in the store matches the number of transactions in the graph for that did
+		// check that number of operations in the store matches the number of anchors in the graph for that did
 		if len(didRefs) != len(opsSoFar) {
 			// TODO: This should not happen if we actively 'observe' batch writers
 			// however if can happen if observer starts starts observing new system and it is not done in order
 			// for now reject this case
-			return fmt.Errorf("discrepancy between transactions in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs), len(opsSoFar), op.UniqueSuffix) //nolint:lll
+			return fmt.Errorf("discrepancy between anchors in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs), len(opsSoFar), op.UniqueSuffix) //nolint:lll
 		}
 
 		// TODO: Should we check that anchored operation reference matches anchored graph

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/anchor/txn"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 )
 
@@ -36,7 +36,7 @@ func TestGraph_Add(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(providers)
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			OperationCount: 1,
 			CoreIndex:      "coreIndex",
 			Namespace:      "namespace",
@@ -58,80 +58,80 @@ func TestGraph_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(providers)
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			OperationCount: 2,
 			CoreIndex:      "coreIndex",
 			Namespace:      "namespace",
 			Version:        1,
 		}
 
-		txnCID, err := graph.Add(buildCredential(payload))
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txnCID)
+		require.NotNil(t, cid)
 
-		vc, err := graph.Read(txnCID)
+		vc, err := graph.Read(cid)
 		require.NoError(t, err)
 
-		payloadFromVC, err := vcutil.GetTransactionPayload(vc)
+		payloadFromVC, err := vcutil.GetAnchorSubject(vc)
 		require.NoError(t, err)
 
 		require.Equal(t, payload.Namespace, payloadFromVC.Namespace)
 	})
 
-	t.Run("error - transaction (cid) not found", func(t *testing.T) {
+	t.Run("error - anchor (cid) not found", func(t *testing.T) {
 		graph := New(providers)
 
-		txnNode, err := graph.Read("non-existent")
+		anchorNode, err := graph.Read("non-existent")
 		require.Error(t, err)
-		require.Nil(t, txnNode)
+		require.Nil(t, anchorNode)
 	})
 }
 
-func TestGraph_GetDidTransactions(t *testing.T) {
+func TestGraph_GetDidAnchors(t *testing.T) {
 	providers := &Providers{
 		Cas: mocks.NewMockCasClient(nil),
 		Pkf: pubKeyFetcherFnc,
 	}
 
-	t.Run("success - first did transaction (create), no previous did transaction", func(t *testing.T) {
+	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {
 		graph := New(providers)
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			OperationCount: 1,
 			CoreIndex:      "coreIndex",
 			Namespace:      "namespace",
 			Version:        1,
 		}
 
-		txnCID, err := graph.Add(buildCredential(payload))
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txnCID)
+		require.NotNil(t, cid)
 
-		didTxns, err := graph.GetDidTransactions(txnCID, testDID)
+		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Equal(t, 0, len(didTxns))
+		require.Equal(t, 0, len(didAnchors))
 	})
 
-	t.Run("success - previous transaction for did exists", func(t *testing.T) {
+	t.Run("success - previous anchor for did exists", func(t *testing.T) {
 		graph := New(providers)
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			OperationCount: 1,
 			CoreIndex:      "coreIndex-1",
 			Namespace:      "namespace",
 			Version:        1,
 		}
 
-		txn1CID, err := graph.Add(buildCredential(payload))
+		anchor1CID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txn1CID)
+		require.NotNil(t, anchor1CID)
 
 		testDID := "did:method:123"
 
 		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = txn1CID
+		previousDIDTxns[testDID] = anchor1CID
 
-		payload = txn.Payload{
+		payload = subject.Payload{
 			OperationCount:  1,
 			CoreIndex:       "coreIndex-2",
 			Namespace:       "namespace",
@@ -139,17 +139,17 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		txnCID, err := graph.Add(buildCredential(payload))
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txnCID)
+		require.NotNil(t, cid)
 
-		didTxns, err := graph.GetDidTransactions(txnCID, testDID)
+		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(didTxns))
-		require.Equal(t, txn1CID, didTxns[0])
+		require.Equal(t, 1, len(didAnchors))
+		require.Equal(t, anchor1CID, didAnchors[0])
 	})
 
-	t.Run("success - cid referenced in previous transaction empty (create)", func(t *testing.T) {
+	t.Run("success - cid referenced in previous anchor empty (create)", func(t *testing.T) {
 		graph := New(providers)
 
 		testDID := "did:method:abc"
@@ -157,7 +157,7 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = ""
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			OperationCount:  1,
 			CoreIndex:       "coreIndex-3",
 			Namespace:       "namespace",
@@ -165,16 +165,16 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		txnCID, err := graph.Add(buildCredential(payload))
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txnCID)
+		require.NotNil(t, cid)
 
-		didTxns, err := graph.GetDidTransactions(txnCID, testDID)
+		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Nil(t, didTxns)
+		require.Nil(t, didAnchors)
 	})
 
-	t.Run("error - cid referenced in previous transaction not found", func(t *testing.T) {
+	t.Run("error - cid referenced in previous anchor not found", func(t *testing.T) {
 		graph := New(providers)
 
 		testDID := "did:method:abc"
@@ -182,34 +182,34 @@ func TestGraph_GetDidTransactions(t *testing.T) {
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = "non-existent"
 
-		payload := txn.Payload{
+		payload := subject.Payload{
 			CoreIndex:       "coreIndex-2",
 			Namespace:       "namespace",
 			Version:         1,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		txnCID, err := graph.Add(buildCredential(payload))
+		cid, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, txnCID)
+		require.NotNil(t, cid)
 
-		didTxns, err := graph.GetDidTransactions(txnCID, testDID)
+		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.Error(t, err)
-		require.Nil(t, didTxns)
+		require.Nil(t, didAnchors)
 		require.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("error - head cid not found", func(t *testing.T) {
 		graph := New(providers)
 
-		txnNode, err := graph.GetDidTransactions("non-existent", "did")
+		anchors, err := graph.GetDidAnchors("non-existent", "did")
 		require.Error(t, err)
-		require.Nil(t, txnNode)
+		require.Nil(t, anchors)
 		require.Contains(t, err.Error(), "not found")
 	})
 }
 
-func buildCredential(payload txn.Payload) *verifiable.Credential {
+func buildCredential(payload subject.Payload) *verifiable.Credential {
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
 	vc := &verifiable.Credential{

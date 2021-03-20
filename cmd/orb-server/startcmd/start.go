@@ -50,7 +50,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/cas"
-	"github.com/trustbloc/orb/pkg/didtxnref/memdidtxnref"
+	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
@@ -66,7 +66,7 @@ const (
 
 	masterKeyNumBytes = 32
 
-	txnBuffer = 100
+	anchorBuffer = 100
 
 	defaultMaxWitnessDelay = 10 * time.Minute
 )
@@ -161,7 +161,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// basic providers (CAS + operation store)
 	casClient := cas.New(parameters.casURL)
 
-	didTxns := memdidtxnref.New()
+	didAnchors := memdidanchorref.New()
 	opStore := mocks.NewMockOperationStore()
 
 	orbDocumentLoader, err := loadOrbContexts()
@@ -186,10 +186,10 @@ func startOrbServices(parameters *orbParameters) error {
 		DocLoader: orbDocumentLoader,
 	}
 
-	txnGraph := graph.New(graphProviders)
+	anchorGraph := graph.New(graphProviders)
 
 	// get protocol client provider
-	pcp := getProtocolClientProvider(parameters, casClient, opStore, txnGraph)
+	pcp := getProtocolClientProvider(parameters, casClient, opStore, anchorGraph)
 	pc, err := pcp.ForNamespace(mocks.DefaultNS)
 	if err != nil {
 		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", mocks.DefaultNS, err.Error())
@@ -229,9 +229,9 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
-	// create transaction channel (used by transaction client to notify observer about orb transactions)
-	sidetreeTxnCh := make(chan []string, txnBuffer)
-	vcCh := make(chan *verifiable.Credential, txnBuffer)
+	// create anchor channel (used by anchor writer to notify observer about anchors)
+	anchorCh := make(chan []string, anchorBuffer)
+	vcCh := make(chan *verifiable.Credential, anchorBuffer)
 
 	vcStore, err := vcstore.New(storeProviders.provider)
 	if err != nil {
@@ -252,15 +252,15 @@ func startOrbServices(parameters *orbParameters) error {
 	proofHandler := proofs.New(proofProviders, vcCh, apServiceIRI)
 
 	anchorWriterProviders := &writer.Providers{
-		TxnGraph:     txnGraph,
-		DidTxns:      didTxns,
-		TxnBuilder:   vcBuilder,
-		Store:        vcStore,
-		ProofHandler: proofHandler,
-		OpProcessor:  opProcessor,
+		AnchorGraph:   anchorGraph,
+		DidAnchors:    didAnchors,
+		AnchorBuilder: vcBuilder,
+		Store:         vcStore,
+		ProofHandler:  proofHandler,
+		OpProcessor:   opProcessor,
 	}
 
-	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, sidetreeTxnCh, vcCh)
+	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, anchorCh, vcCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, anchorWriter))
@@ -274,9 +274,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create new observer and start it
 	providers := &observer.Providers{
-		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: sidetreeTxnCh},
+		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: anchorCh},
 		ProtocolClientProvider: pcp,
-		TxnGraph:               txnGraph,
+		AnchorGraph:               anchorGraph,
 	}
 
 	observer.New(providers).Start()
@@ -376,7 +376,7 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		WithMethodContext(parameters.methodContext).
 		WithBase(parameters.baseEnabled).
 		WithCasClient(casClient).
-		WithTxnGraph(graph).
+		WithAnchorGraph(graph).
 		WithAllowedOrigins(parameters.allowedOrigins)
 }
 
