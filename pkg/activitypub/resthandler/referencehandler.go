@@ -40,12 +40,6 @@ func NewWitnessing(cfg *Config, activityStore spi.Store) *Reference {
 		getObjectIRI(cfg.ObjectIRI), getID("witnessing"))
 }
 
-// NewLiked returns a new 'liked' REST handler that retrieves a service's list of objects that were 'liked'.
-func NewLiked(cfg *Config, activityStore spi.Store) *Reference {
-	return NewReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("liked"))
-}
-
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
 
 // Reference implements a REST handler that retrieves references as a collection of IRIs.

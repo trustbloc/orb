@@ -403,37 +403,6 @@ func TestWitnessing_Handler(t *testing.T) {
 	})
 }
 
-func TestLiked_Handler(t *testing.T) {
-	liked := testutil.NewMockURLs(19, func(i int) string { return fmt.Sprintf("https://example.com/transactions%d", i+1) })
-
-	activityStore := memstore.New("")
-
-	for _, ref := range liked {
-		require.NoError(t, activityStore.AddReference(spi.Liked, serviceIRI, ref))
-	}
-
-	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
-	}
-
-	h := NewLiked(cfg, activityStore)
-	require.NotNil(t, h)
-
-	t.Run("Main page -> Success", func(t *testing.T) {
-		handleRequest(t, h.handler, h.handle, "false", "", likedJSON)
-	})
-
-	t.Run("First page -> Success", func(t *testing.T) {
-		handleRequest(t, h.handler, h.handle, "true", "", likedFirstPageJSON)
-	})
-
-	t.Run("Page by num -> Success", func(t *testing.T) {
-		handleRequest(t, h.handler, h.handle, "true", "3", likedPage3JSON)
-	})
-}
-
 func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, pageNum, expected string) {
 	restorePaging := setPaging(h, page, pageNum)
 	defer restorePaging()
@@ -588,44 +557,6 @@ const (
     "https://example14.com/services/orb",
     "https://example15.com/services/orb",
     "https://example16.com/services/orb"
-  ]
-}`
-
-	likedJSON = `{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/liked",
-  "type": "OrderedCollection",
-  "totalItems": 19,
-  "first": "https://example1.com/services/orb/liked?page=true",
-  "last": "https://example1.com/services/orb/liked?page=true&page-num=0"
-}`
-
-	likedFirstPageJSON = `{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/liked?page=true&page-num=4",
-  "type": "OrderedCollectionPage",
-  "totalItems": 19,
-  "next": "https://example1.com/services/orb/liked?page=true&page-num=3",
-  "orderedItems": [
-    "https://example.com/transactions19",
-    "https://example.com/transactions18",
-    "https://example.com/transactions17",
-    "https://example.com/transactions16"
-  ]
-}`
-
-	likedPage3JSON = `{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/liked?page=true&page-num=3",
-  "type": "OrderedCollectionPage",
-  "totalItems": 19,
-  "next": "https://example1.com/services/orb/liked?page=true&page-num=2",
-  "prev": "https://example1.com/services/orb/liked?page=true&page-num=4",
-  "orderedItems": [
-    "https://example.com/transactions15",
-    "https://example.com/transactions14",
-    "https://example.com/transactions13",
-    "https://example.com/transactions12"
   ]
 }`
 )
