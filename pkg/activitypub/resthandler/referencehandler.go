@@ -8,6 +8,7 @@ package resthandler
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -22,7 +23,8 @@ type Followers struct {
 // NewFollowers returns a new 'followers' REST handler.
 func NewFollowers(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore),
+		reference: newReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("followers")),
 	}
 }
 
@@ -34,7 +36,8 @@ type Following struct {
 // NewFollowing returns a new 'following' REST handler.
 func NewFollowing(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore),
+		reference: newReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("following")),
 	}
 }
 
@@ -46,7 +49,8 @@ type Witnesses struct {
 // NewWitnesses returns a new 'witnesses' REST handler.
 func NewWitnesses(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore),
+		reference: newReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("witnesses")),
 	}
 }
 
@@ -59,7 +63,8 @@ type Witnessing struct {
 // NewWitnessing returns a new 'witnessing' REST handler.
 func NewWitnessing(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore),
+		reference: newReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("witnessing")),
 	}
 }
 
@@ -71,7 +76,8 @@ type Liked struct {
 // NewLiked returns a new 'liked' REST handler.
 func NewLiked(cfg *Config, activityStore spi.Store) *Followers {
 	return &Followers{
-		reference: newReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore),
+		reference: newReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("liked")),
 	}
 }
 
@@ -84,15 +90,19 @@ type reference struct {
 	sortOrder            spi.SortOrder
 	createCollection     createCollectionFunc
 	createCollectionPage createCollectionFunc
+	getID                getIDFunc
+	getObjectIRI         getObjectIRIFunc
 }
 
 func newReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
-	cfg *Config, activityStore spi.Store) *reference {
+	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc) *reference {
 	h := &reference{
 		refType:              refType,
 		sortOrder:            sortOrder,
 		createCollection:     createCollection(ordered),
 		createCollectionPage: createCollectionPage(ordered),
+		getID:                getID,
+		getObjectIRI:         getObjectIRI,
 	}
 
 	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
@@ -101,19 +111,37 @@ func newReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 }
 
 func (h *reference) handle(w http.ResponseWriter, req *http.Request) {
+	objectIRI, err := h.getObjectIRI(req)
+	if err != nil {
+		logger.Errorf("[%s] Error getting object IRI: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
+	id, err := h.getID(objectIRI)
+	if err != nil {
+		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
 	if h.isPaging(req) {
-		h.handleReferencePage(w, req)
+		h.handleReferencePage(w, req, objectIRI, id)
 	} else {
-		h.handleReference(w, req)
+		h.handleReference(w, objectIRI, id)
 	}
 }
 
 //nolint:dupl
-func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
-	coll, err := h.getReference()
+func (h *reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.URL) {
+	coll, err := h.getReference(objectIRI, id)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+			h.endpoint, h.refType, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -123,7 +151,7 @@ func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
 	collBytes, err := h.marshal(coll)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+			h.endpoint, h.refType, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -133,21 +161,23 @@ func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
 	h.writeResponse(rw, http.StatusOK, collBytes)
 }
 
-func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Request) {
+func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
 	var page interface{}
 
 	var err error
 
 	pageNum, ok := h.getPageNum(req)
 	if ok {
-		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum), spi.WithSortOrder(h.sortOrder))
+		page, err = h.getPage(objectIRI, id,
+			spi.WithPageSize(h.PageSize), spi.WithPageNum(pageNum), spi.WithSortOrder(h.sortOrder))
 	} else {
-		page, err = h.getPage(spi.WithPageSize(h.PageSize), spi.WithSortOrder(h.sortOrder))
+		page, err = h.getPage(objectIRI, id,
+			spi.WithPageSize(h.PageSize), spi.WithSortOrder(h.sortOrder))
 	}
 
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
-			h.endpoint, h.ObjectIRI, err)
+			h.endpoint, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -157,7 +187,7 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 	pageBytes, err := h.marshal(page)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
-			h.endpoint, h.ObjectIRI, err)
+			h.endpoint, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -168,10 +198,10 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 }
 
 //nolint:dupl
-func (h *reference) getReference() (interface{}, error) {
+func (h *reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
-			spi.WithObjectIRI(h.ObjectIRI),
+			spi.WithObjectIRI(objectIRI),
 		),
 	)
 	if err != nil {
@@ -180,19 +210,19 @@ func (h *reference) getReference() (interface{}, error) {
 
 	defer it.Close()
 
-	firstURL, err := h.getPageURL(-1)
+	firstURL, err := h.getPageURL(id, -1)
 	if err != nil {
 		return nil, err
 	}
 
-	lastURL, err := h.getPageURL(getLastPageNum(it.TotalItems(), h.PageSize, h.sortOrder))
+	lastURL, err := h.getPageURL(id, getLastPageNum(it.TotalItems(), h.PageSize, h.sortOrder))
 	if err != nil {
 		return nil, err
 	}
 
 	return h.createCollection(nil,
 		vocab.WithContext(vocab.ContextActivityStreams),
-		vocab.WithID(h.id),
+		vocab.WithID(id),
 		vocab.WithFirst(firstURL),
 		vocab.WithLast(lastURL),
 		vocab.WithTotalItems(it.TotalItems()),
@@ -200,10 +230,10 @@ func (h *reference) getReference() (interface{}, error) {
 }
 
 //nolint:dupl
-func (h *reference) getPage(opts ...spi.QueryOpt) (interface{}, error) {
+func (h *reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
-		spi.NewCriteria(spi.WithObjectIRI(h.ObjectIRI)),
+		spi.NewCriteria(spi.WithObjectIRI(objectIRI)),
 		opts...,
 	)
 	if err != nil {
@@ -225,7 +255,7 @@ func (h *reference) getPage(opts ...spi.QueryOpt) (interface{}, error) {
 		items[i] = vocab.NewObjectProperty(vocab.WithIRI(ref))
 	}
 
-	id, prev, next, err := h.getIDPrevNextURL(it.TotalItems(), options)
+	id, prev, next, err := h.getIDPrevNextURL(id, it.TotalItems(), options)
 	if err != nil {
 		return nil, err
 	}

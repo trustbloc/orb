@@ -53,7 +53,6 @@ type Config struct {
 type handler struct {
 	*Config
 
-	id            *url.URL
 	endpoint      string
 	params        map[string]string
 	activityStore spi.Store
@@ -64,15 +63,8 @@ type handler struct {
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
-	id, err := url.Parse(fmt.Sprintf("%s%s", cfg.ObjectIRI, endpoint))
-	if err != nil {
-		// This is called on startup so it's better to panic if the config is bad.
-		panic(err)
-	}
-
 	return &handler{
 		Config:        cfg,
-		id:            id,
 		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, endpoint),
 		params:        paramsBuilder(params).build(),
 		activityStore: s,
@@ -118,16 +110,16 @@ func (h *handler) Handler() common.HTTPRequestHandler {
 	return h.handler
 }
 
-func (h *handler) getPageID(pageNum int) string {
+func (h *handler) getPageID(objectIRI fmt.Stringer, pageNum int) string {
 	if pageNum >= 0 {
-		return fmt.Sprintf("%s?%s=true&%s=%d", h.id, pageParam, pageNumParam, pageNum)
+		return fmt.Sprintf("%s?%s=true&%s=%d", objectIRI, pageParam, pageNumParam, pageNum)
 	}
 
-	return fmt.Sprintf("%s?%s=true", h.id, pageParam)
+	return fmt.Sprintf("%s?%s=true", objectIRI, pageParam)
 }
 
-func (h *handler) getPageURL(pageNum int) (*url.URL, error) {
-	pageID := h.getPageID(pageNum)
+func (h *handler) getPageURL(objectIRI fmt.Stringer, pageNum int) (*url.URL, error) {
+	pageID := h.getPageID(objectIRI, pageNum)
 
 	pageURL, err := url.Parse(pageID)
 	if err != nil {
@@ -159,7 +151,8 @@ func (h *handler) getCurrentPrevNext(totalItems int, options *spi.QueryOptions) 
 	return current, prev, next
 }
 
-func (h *handler) getIDPrevNextURL(totalItems int, options *spi.QueryOptions) (*url.URL, *url.URL, *url.URL, error) {
+func (h *handler) getIDPrevNextURL(objectIRI fmt.Stringer, totalItems int,
+	options *spi.QueryOptions) (*url.URL, *url.URL, *url.URL, error) {
 	current, prev, next := h.getCurrentPrevNext(totalItems, options)
 
 	var err error
@@ -169,20 +162,20 @@ func (h *handler) getIDPrevNextURL(totalItems int, options *spi.QueryOptions) (*
 	var prevURL *url.URL
 
 	if prev >= 0 {
-		prevURL, err = h.getPageURL(prev)
+		prevURL, err = h.getPageURL(objectIRI, prev)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
 
 	if next >= 0 {
-		nextURL, err = h.getPageURL(next)
+		nextURL, err = h.getPageURL(objectIRI, next)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
 
-	pageURI, err := h.getPageURL(current)
+	pageURI, err := h.getPageURL(objectIRI, current)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -306,4 +299,16 @@ func (p paramsBuilder) build() map[string]string {
 	}
 
 	return m
+}
+
+func getID(path string) getIDFunc {
+	return func(objectIRI *url.URL) (*url.URL, error) {
+		return url.Parse(fmt.Sprintf("%s/%s", objectIRI, path))
+	}
+}
+
+func getObjectIRI(baseObjectIRI *url.URL) getObjectIRIFunc {
+	return func(*http.Request) (*url.URL, error) {
+		return baseObjectIRI, nil
+	}
 }

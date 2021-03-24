@@ -164,9 +164,11 @@ func TestGetIDPrevNextURL(t *testing.T) {
 
 	h := newHandler("", cfg, memstore.New(""), nil)
 
+	id := testutil.MustParseURL(fmt.Sprintf("%s%s", cfg.ObjectIRI, ""))
+
 	t.Run("Sort ascending", func(t *testing.T) {
 		t.Run("No page-num", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: -1,
 					PageSize:   4,
@@ -174,14 +176,14 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", pageID.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", next.String())
 		})
 
 		t.Run("Page-num specified", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: 1,
 					PageSize:   4,
@@ -189,7 +191,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", pageID.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=0", prev.String())
 			require.NotNil(t, next)
@@ -197,7 +199,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 		})
 
 		t.Run("Page-num too large", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: 10,
 					PageSize:   4,
@@ -205,7 +207,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", pageID.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", prev.String())
 			require.Nil(t, next)
@@ -214,7 +216,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 
 	t.Run("Sort descending", func(t *testing.T) {
 		t.Run("No page-num", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: -1,
 					PageSize:   4,
@@ -222,14 +224,14 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", pageID.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", next.String())
 		})
 
 		t.Run("Page-num specified", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: 1,
 					PageSize:   4,
@@ -237,7 +239,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=1", pageID.String())
 			require.NotNil(t, prev)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", prev.String())
 			require.NotNil(t, next)
@@ -245,7 +247,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 		})
 
 		t.Run("Page-num too large", func(t *testing.T) {
-			id, prev, next, err := h.getIDPrevNextURL(10,
+			pageID, prev, next, err := h.getIDPrevNextURL(id, 10,
 				&spi.QueryOptions{
 					PageNumber: 10,
 					PageSize:   4,
@@ -253,7 +255,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
-			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", id.String())
+			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=10", pageID.String())
 			require.Nil(t, prev)
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", next.String())
