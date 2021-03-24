@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
@@ -36,11 +37,16 @@ const (
 	WitnessingPath = "/witnessing"
 	// LikedPath specifies the service's 'liked' endpoint.
 	LikedPath = "/liked"
+	// SharesPath specifies the object's 'shares' endpoint.
+	SharesPath = "/{id}/shares"
+	// LikesPath specifies the object's 'likes' endpoint.
+	LikesPath = "/{id}/likes"
 )
 
 const (
 	pageParam    = "page"
 	pageNumParam = "page-num"
+	idParam      = "id"
 )
 
 // Config contains configuration parameters for the handler.
@@ -311,4 +317,20 @@ func getObjectIRI(baseObjectIRI *url.URL) getObjectIRIFunc {
 	return func(*http.Request) (*url.URL, error) {
 		return baseObjectIRI, nil
 	}
+}
+
+func getObjectIRIFromParam(baseObjectIRI *url.URL) getObjectIRIFunc {
+	return func(req *http.Request) (*url.URL, error) {
+		id := getIDParam(req)
+		if id == "" {
+			return nil, fmt.Errorf("id not specified in URL")
+		}
+
+		return url.Parse(fmt.Sprintf("%s/%s", baseObjectIRI, id))
+	}
+}
+
+//nolint:gochecknoglobals
+var getIDParam = func(req *http.Request) string {
+	return mux.Vars(req)[idParam]
 }
