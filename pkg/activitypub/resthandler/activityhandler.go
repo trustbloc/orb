@@ -15,69 +15,36 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-// Outbox implements the 'outbox' REST handler that retrieves a service's outbox.
-type Outbox struct {
-	*activities
+// NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
+func NewOutbox(cfg *Config, activityStore spi.Store) *Activities {
+	return NewActivities(OutboxPath, spi.Outbox, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("outbox"))
 }
 
-// NewOutbox returns a new 'outbox' REST handler.
-func NewOutbox(cfg *Config, activityStore spi.Store) *Outbox {
-	return &Outbox{
-		activities: newActivities(OutboxPath, spi.Outbox, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("outbox"),
-		),
-	}
+// NewInbox returns a new 'inbox' REST handler that retrieves a service's inbox.
+func NewInbox(cfg *Config, activityStore spi.Store) *Activities {
+	return NewActivities(InboxPath, spi.Inbox, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("inbox"))
 }
 
-// Inbox implements the 'inbox' REST handler that retrieves a service's inbox.
-type Inbox struct {
-	*activities
-}
-
-// NewInbox returns a new 'inbox' REST handler.
-func NewInbox(cfg *Config, activityStore spi.Store) *Outbox {
-	return &Outbox{
-		activities: newActivities(InboxPath, spi.Inbox, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("inbox"),
-		),
-	}
-}
-
-// Shares implements the 'shares' REST handler that retrieves an object's 'Announce' activities.
-type Shares struct {
-	*activities
-}
-
-// NewShares returns a new 'shares' REST handler.
-func NewShares(cfg *Config, activityStore spi.Store) *Shares {
-	h := &Shares{}
-
-	h.activities = newActivities(SharesPath, spi.Share, cfg, activityStore,
+// NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' Activities.
+func NewShares(cfg *Config, activityStore spi.Store) *Activities {
+	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
 		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"))
-
-	return h
 }
 
-// Likes implements the 'likes' REST handler that retrieves an object's 'Like' activities.
-type Likes struct {
-	*activities
-}
-
-// NewLikes returns a new 'likes' REST handler.
-func NewLikes(cfg *Config, activityStore spi.Store) *Likes {
-	h := &Likes{}
-
-	h.activities = newActivities(LikesPath, spi.Like, cfg, activityStore,
+// NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' Activities.
+func NewLikes(cfg *Config, activityStore spi.Store) *Activities {
+	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
 		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"))
-
-	return h
 }
 
 type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
 
 type getObjectIRIFunc func(req *http.Request) (*url.URL, error)
 
-type activities struct {
+// Activities implements a REST handler that retrieves activities.
+type Activities struct {
 	*handler
 
 	refType      spi.ReferenceType
@@ -85,9 +52,10 @@ type activities struct {
 	getObjectIRI getObjectIRIFunc
 }
 
-func newActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
-	getObjectIRI getObjectIRIFunc, getID getIDFunc) *activities {
-	h := &activities{
+// NewActivities returns a new activities REST handler.
+func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
+	getObjectIRI getObjectIRIFunc, getID getIDFunc) *Activities {
+	h := &Activities{
 		refType:      refType,
 		getID:        getID,
 		getObjectIRI: getObjectIRI,
@@ -98,7 +66,7 @@ func newActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 	return h
 }
 
-func (h *activities) handle(w http.ResponseWriter, req *http.Request) {
+func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	objectIRI, err := h.getObjectIRI(req)
 	if err != nil {
 		logger.Errorf("[%s] Error getting ObjectIRI: %s", h.endpoint, err)
@@ -125,7 +93,7 @@ func (h *activities) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 //nolint:dupl
-func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL) {
+func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL) {
 	activities, err := h.getActivities(objectIRI, id)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
@@ -149,7 +117,7 @@ func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 	h.writeResponse(rw, http.StatusOK, activitiesCollBytes)
 }
 
-func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
+func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
 	var page *vocab.OrderedCollectionPageType
 
 	var err error
@@ -191,7 +159,7 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 }
 
 //nolint:dupl
-func (h *activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollectionType, error) {
+func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollectionType, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
 			spi.WithObjectIRI(objectIRI),
@@ -223,7 +191,7 @@ func (h *activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 }
 
 //nolint:dupl
-func (h *activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
+func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
 	it, err := h.activityStore.QueryActivities(
 		spi.NewCriteria(
 			spi.WithReferenceType(h.refType),

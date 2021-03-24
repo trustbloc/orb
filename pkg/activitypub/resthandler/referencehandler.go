@@ -15,75 +15,41 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-// Followers implements the 'followers' REST handler that retrieves a service's list of followers.
-type Followers struct {
-	*reference
+// NewFollowers returns a new 'followers' REST handler that retrieves a service's list of followers.
+func NewFollowers(cfg *Config, activityStore spi.Store) *Reference {
+	return NewReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("followers"))
 }
 
-// NewFollowers returns a new 'followers' REST handler.
-func NewFollowers(cfg *Config, activityStore spi.Store) *Followers {
-	return &Followers{
-		reference: newReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("followers")),
-	}
+// NewFollowing returns a new 'following' REST handler that retrieves a service's list of following.
+func NewFollowing(cfg *Config, activityStore spi.Store) *Reference {
+	return NewReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("following"))
 }
 
-// Following implements the 'following' REST handler that retrieves a service's list of following.
-type Following struct {
-	*reference
+// NewWitnesses returns a new 'witnesses' REST handler that retrieves a service's list of witnesses.
+func NewWitnesses(cfg *Config, activityStore spi.Store) *Reference {
+	return NewReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("witnesses"))
 }
 
-// NewFollowing returns a new 'following' REST handler.
-func NewFollowing(cfg *Config, activityStore spi.Store) *Followers {
-	return &Followers{
-		reference: newReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("following")),
-	}
-}
-
-// Witnesses implements the 'witnesses' REST handler that retrieves a service's list of witnesses.
-type Witnesses struct {
-	*reference
-}
-
-// NewWitnesses returns a new 'witnesses' REST handler.
-func NewWitnesses(cfg *Config, activityStore spi.Store) *Followers {
-	return &Followers{
-		reference: newReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("witnesses")),
-	}
-}
-
-// Witnessing implements the 'witnessing' REST handler that retrieves collection of the services that the
+// NewWitnessing returns a new 'witnessing' REST handler that retrieves collection of the services that the
 // local service is witnessing.
-type Witnessing struct {
-	*reference
+func NewWitnessing(cfg *Config, activityStore spi.Store) *Reference {
+	return NewReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("witnessing"))
 }
 
-// NewWitnessing returns a new 'witnessing' REST handler.
-func NewWitnessing(cfg *Config, activityStore spi.Store) *Followers {
-	return &Followers{
-		reference: newReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("witnessing")),
-	}
-}
-
-// Liked implements the 'liked' REST handler that retrieves a service's list of objects that were 'liked'.
-type Liked struct {
-	*reference
-}
-
-// NewLiked returns a new 'liked' REST handler.
-func NewLiked(cfg *Config, activityStore spi.Store) *Followers {
-	return &Followers{
-		reference: newReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore,
-			getObjectIRI(cfg.ObjectIRI), getID("liked")),
-	}
+// NewLiked returns a new 'liked' REST handler that retrieves a service's list of objects that were 'liked'.
+func NewLiked(cfg *Config, activityStore spi.Store) *Reference {
+	return NewReference(LikedPath, spi.Liked, spi.SortDescending, true, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("liked"))
 }
 
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
 
-type reference struct {
+// Reference implements a REST handler that retrieves references as a collection of IRIs.
+type Reference struct {
 	*handler
 
 	refType              spi.ReferenceType
@@ -94,9 +60,10 @@ type reference struct {
 	getObjectIRI         getObjectIRIFunc
 }
 
-func newReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
-	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc) *reference {
-	h := &reference{
+// NewReference returns a new reference REST handler.
+func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
+	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc) *Reference {
+	h := &Reference{
 		refType:              refType,
 		sortOrder:            sortOrder,
 		createCollection:     createCollection(ordered),
@@ -110,7 +77,7 @@ func newReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 	return h
 }
 
-func (h *reference) handle(w http.ResponseWriter, req *http.Request) {
+func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	objectIRI, err := h.getObjectIRI(req)
 	if err != nil {
 		logger.Errorf("[%s] Error getting object IRI: %s", h.endpoint, err)
@@ -137,7 +104,7 @@ func (h *reference) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 //nolint:dupl
-func (h *reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.URL) {
+func (h *Reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.URL) {
 	coll, err := h.getReference(objectIRI, id)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
@@ -161,7 +128,7 @@ func (h *reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.U
 	h.writeResponse(rw, http.StatusOK, collBytes)
 }
 
-func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
+func (h *Reference) handleReferencePage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
 	var page interface{}
 
 	var err error
@@ -198,7 +165,7 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 }
 
 //nolint:dupl
-func (h *reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
+func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
 			spi.WithObjectIRI(objectIRI),
@@ -230,7 +197,7 @@ func (h *reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 }
 
 //nolint:dupl
-func (h *reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (interface{}, error) {
+func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
 		spi.NewCriteria(spi.WithObjectIRI(objectIRI)),
