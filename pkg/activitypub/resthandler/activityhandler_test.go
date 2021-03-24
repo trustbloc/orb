@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -479,6 +480,36 @@ func TestShares_PageHandler(t *testing.T) {
 	})
 }
 
+func TestLiked_Handler(t *testing.T) {
+	liked := newMockActivities(vocab.TypeLike, 19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/activities/like_activity_%d", i, i)
+	})
+
+	activityStore := memstore.New("")
+
+	for _, a := range liked {
+		require.NoError(t, activityStore.AddActivity(a))
+		require.NoError(t, activityStore.AddReference(spi.Liked, serviceIRI, a.ID().URL()))
+	}
+
+	cfg := &Config{
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  2,
+	}
+
+	h := NewLiked(cfg, activityStore)
+	require.NotNil(t, h)
+
+	t.Run("Main page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "false", "", likedJSON)
+	})
+
+	t.Run("First page -> Success", func(t *testing.T) {
+		handleRequest(t, h.handler, h.handle, "true", "", likedFirstPageJSON)
+	})
+}
+
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
 	cfg := &Config{
 		ObjectIRI: serviceIRI,
@@ -523,7 +554,37 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty(vocab.WithIRI(id)))
 	}
 
+	if t == vocab.TypeLike {
+		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(jsonLikeResult)))
+		if err != nil {
+			panic(err)
+		}
+
+		actor := testutil.MustParseURL("https://example1.com/services/orb")
+		credID := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+
+		startTime := getStaticTime()
+		endTime := startTime.Add(1 * time.Minute)
+
+		return vocab.NewLikeActivity(id,
+			vocab.NewObjectProperty(vocab.WithIRI(credID)),
+			vocab.WithActor(actor),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		)
+	}
+
 	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
+}
+
+func getStaticTime() time.Time {
+	loc, err := time.LoadLocation("UTC")
+	if err != nil {
+		panic(err)
+	}
+
+	return time.Date(2021, time.January, 27, 9, 30, 10, 0, loc)
 }
 
 const (
@@ -847,5 +908,85 @@ const (
       "type": "Announce"
     }
   ]
+}`
+
+	likedJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/liked",
+  "type": "OrderedCollection",
+  "totalItems": 19,
+  "first": "https://example1.com/services/orb/liked?page=true",
+  "last": "https://example1.com/services/orb/liked?page=true&page-num=0"
+}`
+
+	likedFirstPageJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/liked?page=true&page-num=9",
+  "next": "https://example1.com/services/orb/liked?page=true&page-num=8",
+  "orderedItems": [
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "actor": "https://example1.com/services/orb",
+      "endTime": "2021-01-27T09:31:10Z",
+      "id": "https://example18.com/activities/like_activity_18",
+      "object": "http://sally.example.com/transactions/bafkreihwsn",
+      "result": {
+        "@context": [
+          "https://w3id.org/security/v1",
+          "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+        ],
+        "proof": {
+          "created": "2021-01-27T09:30:15Z",
+          "domain": "https://witness1.example.com/ledgers/maple2021",
+          "jws": "eyJ...",
+          "proofPurpose": "assertionMethod",
+          "type": "JsonWebSignature2020",
+          "verificationMethod": "did:example:abcd#key"
+        }
+      },
+      "startTime": "2021-01-27T09:30:10Z",
+      "type": "Like"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "actor": "https://example1.com/services/orb",
+      "endTime": "2021-01-27T09:31:10Z",
+      "id": "https://example17.com/activities/like_activity_17",
+      "object": "http://sally.example.com/transactions/bafkreihwsn",
+      "result": {
+        "@context": [
+          "https://w3id.org/security/v1",
+          "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+        ],
+        "proof": {
+          "created": "2021-01-27T09:30:15Z",
+          "domain": "https://witness1.example.com/ledgers/maple2021",
+          "jws": "eyJ...",
+          "proofPurpose": "assertionMethod",
+          "type": "JsonWebSignature2020",
+          "verificationMethod": "did:example:abcd#key"
+        }
+      },
+      "startTime": "2021-01-27T09:30:10Z",
+      "type": "Like"
+    }
+  ],
+  "totalItems": 19,
+  "type": "OrderedCollectionPage"
+}`
+
+	jsonLikeResult = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "proof": {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:15Z",
+    "verificationMethod": "did:example:abcd#key",
+    "domain": "https://witness1.example.com/ledgers/maple2021",
+    "jws": "eyJ..."
+  }
 }`
 )

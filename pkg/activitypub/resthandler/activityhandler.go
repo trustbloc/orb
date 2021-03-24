@@ -27,16 +27,23 @@ func NewInbox(cfg *Config, activityStore spi.Store) *Activities {
 		getObjectIRI(cfg.ObjectIRI), getID("inbox"))
 }
 
-// NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' Activities.
+// NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
 func NewShares(cfg *Config, activityStore spi.Store) *Activities {
 	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
 		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"))
 }
 
-// NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' Activities.
+// NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
 func NewLikes(cfg *Config, activityStore spi.Store) *Activities {
 	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
 		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"))
+}
+
+// NewLiked returns a new 'liked' REST handler that retrieves a service's 'Like' activities, i.e. the Like
+// activities that were posted by the given service.
+func NewLiked(cfg *Config, activityStore spi.Store) *Activities {
+	return NewActivities(LikedPath, spi.Liked, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("liked"))
 }
 
 type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
