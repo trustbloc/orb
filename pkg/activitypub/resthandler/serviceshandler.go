@@ -27,9 +27,9 @@ func NewServices(cfg *Config, activityStore spi.Store) *Services {
 }
 
 func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
-	service, err := h.activityStore.GetActor(h.ServiceIRI)
+	service, err := h.activityStore.GetActor(h.ObjectIRI)
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving service [%s]: %s", h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving service [%s]: %s", h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(w, http.StatusInternalServerError, nil)
 
@@ -38,7 +38,7 @@ func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
 
 	serviceBytes, err := h.marshal(service)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(w, http.StatusInternalServerError, nil)
 

@@ -34,11 +34,10 @@ type ActivityStore struct {
 		result1 *vocab.ActorType
 		result2 error
 	}
-	AddActivityStub        func(storeType spi.ActivityStoreType, activity *vocab.ActivityType) error
+	AddActivityStub        func(activity *vocab.ActivityType) error
 	addActivityMutex       sync.RWMutex
 	addActivityArgsForCall []struct {
-		storeType spi.ActivityStoreType
-		activity  *vocab.ActivityType
+		activity *vocab.ActivityType
 	}
 	addActivityReturns struct {
 		result1 error
@@ -46,10 +45,9 @@ type ActivityStore struct {
 	addActivityReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetActivityStub        func(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error)
+	GetActivityStub        func(activityID *url.URL) (*vocab.ActivityType, error)
 	getActivityMutex       sync.RWMutex
 	getActivityArgsForCall []struct {
-		storeType  spi.ActivityStoreType
 		activityID *url.URL
 	}
 	getActivityReturns struct {
@@ -60,12 +58,11 @@ type ActivityStore struct {
 		result1 *vocab.ActivityType
 		result2 error
 	}
-	QueryActivitiesStub        func(storeType spi.ActivityStoreType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error)
+	QueryActivitiesStub        func(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error)
 	queryActivitiesMutex       sync.RWMutex
 	queryActivitiesArgsForCall []struct {
-		storeType spi.ActivityStoreType
-		query     *spi.Criteria
-		opts      []spi.QueryOpt
+		query *spi.Criteria
+		opts  []spi.QueryOpt
 	}
 	queryActivitiesReturns struct {
 		result1 spi.ActivityIterator
@@ -75,11 +72,11 @@ type ActivityStore struct {
 		result1 spi.ActivityIterator
 		result2 error
 	}
-	AddReferenceStub        func(refType spi.ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
+	AddReferenceStub        func(refType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	addReferenceMutex       sync.RWMutex
 	addReferenceArgsForCall []struct {
 		refType      spi.ReferenceType
-		actorIRI     *url.URL
+		objectIRI    *url.URL
 		referenceIRI *url.URL
 	}
 	addReferenceReturns struct {
@@ -88,11 +85,11 @@ type ActivityStore struct {
 	addReferenceReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DeleteReferenceStub        func(refType spi.ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
+	DeleteReferenceStub        func(refType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	deleteReferenceMutex       sync.RWMutex
 	deleteReferenceArgsForCall []struct {
 		refType      spi.ReferenceType
-		actorIRI     *url.URL
+		objectIRI    *url.URL
 		referenceIRI *url.URL
 	}
 	deleteReferenceReturns struct {
@@ -219,17 +216,16 @@ func (fake *ActivityStore) GetActorReturnsOnCall(i int, result1 *vocab.ActorType
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) AddActivity(storeType spi.ActivityStoreType, activity *vocab.ActivityType) error {
+func (fake *ActivityStore) AddActivity(activity *vocab.ActivityType) error {
 	fake.addActivityMutex.Lock()
 	ret, specificReturn := fake.addActivityReturnsOnCall[len(fake.addActivityArgsForCall)]
 	fake.addActivityArgsForCall = append(fake.addActivityArgsForCall, struct {
-		storeType spi.ActivityStoreType
-		activity  *vocab.ActivityType
-	}{storeType, activity})
-	fake.recordInvocation("AddActivity", []interface{}{storeType, activity})
+		activity *vocab.ActivityType
+	}{activity})
+	fake.recordInvocation("AddActivity", []interface{}{activity})
 	fake.addActivityMutex.Unlock()
 	if fake.AddActivityStub != nil {
-		return fake.AddActivityStub(storeType, activity)
+		return fake.AddActivityStub(activity)
 	}
 	if specificReturn {
 		return ret.result1
@@ -243,10 +239,10 @@ func (fake *ActivityStore) AddActivityCallCount() int {
 	return len(fake.addActivityArgsForCall)
 }
 
-func (fake *ActivityStore) AddActivityArgsForCall(i int) (spi.ActivityStoreType, *vocab.ActivityType) {
+func (fake *ActivityStore) AddActivityArgsForCall(i int) *vocab.ActivityType {
 	fake.addActivityMutex.RLock()
 	defer fake.addActivityMutex.RUnlock()
-	return fake.addActivityArgsForCall[i].storeType, fake.addActivityArgsForCall[i].activity
+	return fake.addActivityArgsForCall[i].activity
 }
 
 func (fake *ActivityStore) AddActivityReturns(result1 error) {
@@ -268,17 +264,16 @@ func (fake *ActivityStore) AddActivityReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityStore) GetActivity(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error) {
+func (fake *ActivityStore) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
 	fake.getActivityMutex.Lock()
 	ret, specificReturn := fake.getActivityReturnsOnCall[len(fake.getActivityArgsForCall)]
 	fake.getActivityArgsForCall = append(fake.getActivityArgsForCall, struct {
-		storeType  spi.ActivityStoreType
 		activityID *url.URL
-	}{storeType, activityID})
-	fake.recordInvocation("GetActivity", []interface{}{storeType, activityID})
+	}{activityID})
+	fake.recordInvocation("GetActivity", []interface{}{activityID})
 	fake.getActivityMutex.Unlock()
 	if fake.GetActivityStub != nil {
-		return fake.GetActivityStub(storeType, activityID)
+		return fake.GetActivityStub(activityID)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -292,10 +287,10 @@ func (fake *ActivityStore) GetActivityCallCount() int {
 	return len(fake.getActivityArgsForCall)
 }
 
-func (fake *ActivityStore) GetActivityArgsForCall(i int) (spi.ActivityStoreType, *url.URL) {
+func (fake *ActivityStore) GetActivityArgsForCall(i int) *url.URL {
 	fake.getActivityMutex.RLock()
 	defer fake.getActivityMutex.RUnlock()
-	return fake.getActivityArgsForCall[i].storeType, fake.getActivityArgsForCall[i].activityID
+	return fake.getActivityArgsForCall[i].activityID
 }
 
 func (fake *ActivityStore) GetActivityReturns(result1 *vocab.ActivityType, result2 error) {
@@ -320,18 +315,17 @@ func (fake *ActivityStore) GetActivityReturnsOnCall(i int, result1 *vocab.Activi
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) QueryActivities(storeType spi.ActivityStoreType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+func (fake *ActivityStore) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	fake.queryActivitiesMutex.Lock()
 	ret, specificReturn := fake.queryActivitiesReturnsOnCall[len(fake.queryActivitiesArgsForCall)]
 	fake.queryActivitiesArgsForCall = append(fake.queryActivitiesArgsForCall, struct {
-		storeType spi.ActivityStoreType
-		query     *spi.Criteria
-		opts      []spi.QueryOpt
-	}{storeType, query, opts})
-	fake.recordInvocation("QueryActivities", []interface{}{storeType, query, opts})
+		query *spi.Criteria
+		opts  []spi.QueryOpt
+	}{query, opts})
+	fake.recordInvocation("QueryActivities", []interface{}{query, opts})
 	fake.queryActivitiesMutex.Unlock()
 	if fake.QueryActivitiesStub != nil {
-		return fake.QueryActivitiesStub(storeType, query, opts...)
+		return fake.QueryActivitiesStub(query, opts...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -345,10 +339,10 @@ func (fake *ActivityStore) QueryActivitiesCallCount() int {
 	return len(fake.queryActivitiesArgsForCall)
 }
 
-func (fake *ActivityStore) QueryActivitiesArgsForCall(i int) (spi.ActivityStoreType, *spi.Criteria, []spi.QueryOpt) {
+func (fake *ActivityStore) QueryActivitiesArgsForCall(i int) (*spi.Criteria, []spi.QueryOpt) {
 	fake.queryActivitiesMutex.RLock()
 	defer fake.queryActivitiesMutex.RUnlock()
-	return fake.queryActivitiesArgsForCall[i].storeType, fake.queryActivitiesArgsForCall[i].query, fake.queryActivitiesArgsForCall[i].opts
+	return fake.queryActivitiesArgsForCall[i].query, fake.queryActivitiesArgsForCall[i].opts
 }
 
 func (fake *ActivityStore) QueryActivitiesReturns(result1 spi.ActivityIterator, result2 error) {
@@ -373,18 +367,18 @@ func (fake *ActivityStore) QueryActivitiesReturnsOnCall(i int, result1 spi.Activ
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) AddReference(refType spi.ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error {
+func (fake *ActivityStore) AddReference(refType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error {
 	fake.addReferenceMutex.Lock()
 	ret, specificReturn := fake.addReferenceReturnsOnCall[len(fake.addReferenceArgsForCall)]
 	fake.addReferenceArgsForCall = append(fake.addReferenceArgsForCall, struct {
 		refType      spi.ReferenceType
-		actorIRI     *url.URL
+		objectIRI    *url.URL
 		referenceIRI *url.URL
-	}{refType, actorIRI, referenceIRI})
-	fake.recordInvocation("AddReference", []interface{}{refType, actorIRI, referenceIRI})
+	}{refType, objectIRI, referenceIRI})
+	fake.recordInvocation("AddReference", []interface{}{refType, objectIRI, referenceIRI})
 	fake.addReferenceMutex.Unlock()
 	if fake.AddReferenceStub != nil {
-		return fake.AddReferenceStub(refType, actorIRI, referenceIRI)
+		return fake.AddReferenceStub(refType, objectIRI, referenceIRI)
 	}
 	if specificReturn {
 		return ret.result1
@@ -401,7 +395,7 @@ func (fake *ActivityStore) AddReferenceCallCount() int {
 func (fake *ActivityStore) AddReferenceArgsForCall(i int) (spi.ReferenceType, *url.URL, *url.URL) {
 	fake.addReferenceMutex.RLock()
 	defer fake.addReferenceMutex.RUnlock()
-	return fake.addReferenceArgsForCall[i].refType, fake.addReferenceArgsForCall[i].actorIRI, fake.addReferenceArgsForCall[i].referenceIRI
+	return fake.addReferenceArgsForCall[i].refType, fake.addReferenceArgsForCall[i].objectIRI, fake.addReferenceArgsForCall[i].referenceIRI
 }
 
 func (fake *ActivityStore) AddReferenceReturns(result1 error) {
@@ -423,18 +417,18 @@ func (fake *ActivityStore) AddReferenceReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityStore) DeleteReference(refType spi.ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error {
+func (fake *ActivityStore) DeleteReference(refType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error {
 	fake.deleteReferenceMutex.Lock()
 	ret, specificReturn := fake.deleteReferenceReturnsOnCall[len(fake.deleteReferenceArgsForCall)]
 	fake.deleteReferenceArgsForCall = append(fake.deleteReferenceArgsForCall, struct {
 		refType      spi.ReferenceType
-		actorIRI     *url.URL
+		objectIRI    *url.URL
 		referenceIRI *url.URL
-	}{refType, actorIRI, referenceIRI})
-	fake.recordInvocation("DeleteReference", []interface{}{refType, actorIRI, referenceIRI})
+	}{refType, objectIRI, referenceIRI})
+	fake.recordInvocation("DeleteReference", []interface{}{refType, objectIRI, referenceIRI})
 	fake.deleteReferenceMutex.Unlock()
 	if fake.DeleteReferenceStub != nil {
-		return fake.DeleteReferenceStub(refType, actorIRI, referenceIRI)
+		return fake.DeleteReferenceStub(refType, objectIRI, referenceIRI)
 	}
 	if specificReturn {
 		return ret.result1
@@ -451,7 +445,7 @@ func (fake *ActivityStore) DeleteReferenceCallCount() int {
 func (fake *ActivityStore) DeleteReferenceArgsForCall(i int) (spi.ReferenceType, *url.URL, *url.URL) {
 	fake.deleteReferenceMutex.RLock()
 	defer fake.deleteReferenceMutex.RUnlock()
-	return fake.deleteReferenceArgsForCall[i].refType, fake.deleteReferenceArgsForCall[i].actorIRI, fake.deleteReferenceArgsForCall[i].referenceIRI
+	return fake.deleteReferenceArgsForCall[i].refType, fake.deleteReferenceArgsForCall[i].objectIRI, fake.deleteReferenceArgsForCall[i].referenceIRI
 }
 
 func (fake *ActivityStore) DeleteReferenceReturns(result1 error) {

@@ -17,20 +17,14 @@ import (
 // object is not found in the store.
 var ErrNotFound = fmt.Errorf("not found in ActivityPub store")
 
-// ActivityStoreType indicates the type of activities store, i.e. inbox, outbox.
-type ActivityStoreType string
-
-const (
-	// Inbox indicates that the activity store is the inbox.
-	Inbox ActivityStoreType = "INBOX"
-	// Outbox indicates that the activity store is the outbox.
-	Outbox ActivityStoreType = "OUTBOX"
-)
-
 // ReferenceType defines the type of reference, e.g. follower, witness, etc.
 type ReferenceType string
 
 const (
+	// Inbox indicates that the reference is an activity in a service's inbox.
+	Inbox ReferenceType = "INBOX"
+	// Outbox indicates that the reference is an activity in a service's outbox.
+	Outbox ReferenceType = "OUTBOX"
 	// Follower indicates that the reference is an actor that's following the local service.
 	Follower ReferenceType = "FOLLOWER"
 	// Following indicates that the reference is an actor that the local service is following.
@@ -41,14 +35,12 @@ const (
 	// Witnessing indicates that the reference is a service from which the local service
 	// receives anchor credentials to witness.
 	Witnessing ReferenceType = "WITNESSING"
-	// Like indicates that the reference is an object created by the local service that was
-	// liked (endorsed) by a witness.
+	// Like indicates that the reference is a 'Like' activity.
 	Like ReferenceType = "LIKE"
 	// Liked indicates that the reference is an object that the local service witnessed
 	// and liked (endorsed).
 	Liked ReferenceType = "LIKED"
-	// Share indicates that the reference is an object that the local service shared with
-	// (announced to) its followers.
+	// Share indicates that the reference is an 'Announce' activity that was shared.
 	Share ReferenceType = "SHARE"
 )
 
@@ -58,18 +50,18 @@ type Store interface {
 	PutActor(actor *vocab.ActorType) error
 	// GetActor returns the actor for the given IRI. Returns an ErrNotFound error if the actor is not in the store.
 	GetActor(actorIRI *url.URL) (*vocab.ActorType, error)
-	// AddActivity adds the given activity to the specified activity store.
-	AddActivity(storeType ActivityStoreType, activity *vocab.ActivityType) error
+	// AddActivity adds the given activity to the activity store.
+	AddActivity(activity *vocab.ActivityType) error
 	// GetActivity returns the activity for the given ID from the given activity store
 	// or an ErrNotFound error if it wasn't found.
-	GetActivity(storeType ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error)
+	GetActivity(activityID *url.URL) (*vocab.ActivityType, error)
 	// QueryActivities queries the given activity store using the provided criteria
 	// and returns a results iterator.
-	QueryActivities(storeType ActivityStoreType, query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
-	// AddReference adds the reference of the given type to the given actor.
-	AddReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
-	// DeleteReference deletes the reference of the given type from the given actor.
-	DeleteReference(refType ReferenceType, actorIRI *url.URL, referenceIRI *url.URL) error
+	QueryActivities(query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
+	// AddReference adds the reference of the given type to the given object.
+	AddReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
+	// DeleteReference deletes the reference of the given type from the given object.
+	DeleteReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	// QueryReferences returns the list of references of the given type according to the given query.
 	QueryReferences(refType ReferenceType, query *Criteria, opts ...QueryOpt) (ReferenceIterator, error)
 }
@@ -117,9 +109,11 @@ func WithSortOrder(sortOrder SortOrder) QueryOpt {
 
 // Criteria holds the search criteria for a query.
 type Criteria struct {
-	Types        []vocab.Type
-	ActorIRI     *url.URL
-	ReferenceIRI *url.URL
+	Types         []vocab.Type
+	ReferenceType ReferenceType
+	ObjectIRI     *url.URL
+	ReferenceIRI  *url.URL
+	ActivityIRIs  []*url.URL
 }
 
 // CriteriaOpt sets a Criteria option.
@@ -143,10 +137,17 @@ func WithType(t ...vocab.Type) CriteriaOpt {
 	}
 }
 
-// WithActorIRI sets the actor IRI on the criteria.
-func WithActorIRI(iri *url.URL) CriteriaOpt {
+// WithObjectIRI sets the object IRI on the criteria.
+func WithObjectIRI(iri *url.URL) CriteriaOpt {
 	return func(query *Criteria) {
-		query.ActorIRI = iri
+		query.ObjectIRI = iri
+	}
+}
+
+// WithReferenceType sets the reference type on the criteria.
+func WithReferenceType(refType ReferenceType) CriteriaOpt {
+	return func(query *Criteria) {
+		query.ReferenceType = refType
 	}
 }
 
@@ -154,6 +155,13 @@ func WithActorIRI(iri *url.URL) CriteriaOpt {
 func WithReferenceIRI(iri *url.URL) CriteriaOpt {
 	return func(query *Criteria) {
 		query.ReferenceIRI = iri
+	}
+}
+
+// WithActivityIRIs sets the activity IRIs on the criteria.
+func WithActivityIRIs(iris ...*url.URL) CriteriaOpt {
+	return func(query *Criteria) {
+		query.ActivityIRIs = iris
 	}
 }
 

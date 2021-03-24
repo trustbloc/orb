@@ -9,6 +9,7 @@ package inbox
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
@@ -36,6 +37,7 @@ type pubSub interface {
 // Config holds configuration parameters for the Inbox.
 type Config struct {
 	ServiceEndpoint string
+	ServiceIRI      *url.URL
 	Topic           string
 }
 
@@ -164,8 +166,16 @@ func (h *Inbox) handle(msg *message.Message) {
 		return
 	}
 
-	if err := h.activityStore.AddActivity(store.Inbox, activity); err != nil {
+	if err := h.activityStore.AddActivity(activity); err != nil {
 		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
+
+		msg.Nack()
+
+		return
+	}
+
+	if err := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
 
 		msg.Nack()
 

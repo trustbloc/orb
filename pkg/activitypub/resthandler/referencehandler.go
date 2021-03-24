@@ -112,8 +112,8 @@ func (h *reference) handle(w http.ResponseWriter, req *http.Request) {
 func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
 	coll, err := h.getReference()
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving %s for service IRI [%s]: %s",
-			h.endpoint, h.refType, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
+			h.endpoint, h.refType, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -122,8 +122,8 @@ func (h *reference) handleReference(rw http.ResponseWriter, _ *http.Request) {
 
 	collBytes, err := h.marshal(coll)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal %s collection for service IRI [%s]: %s",
-			h.endpoint, h.refType, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
+			h.endpoint, h.refType, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -146,8 +146,8 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 	}
 
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving page for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
+			h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -156,8 +156,8 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal page for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
+			h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -167,10 +167,11 @@ func (h *reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
+//nolint:dupl
 func (h *reference) getReference() (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
-			spi.WithActorIRI(h.ServiceIRI),
+			spi.WithObjectIRI(h.ObjectIRI),
 		),
 	)
 	if err != nil {
@@ -202,7 +203,7 @@ func (h *reference) getReference() (interface{}, error) {
 func (h *reference) getPage(opts ...spi.QueryOpt) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
-		spi.NewCriteria(spi.WithActorIRI(h.ServiceIRI)),
+		spi.NewCriteria(spi.WithObjectIRI(h.ObjectIRI)),
 		opts...,
 	)
 	if err != nil {

@@ -28,18 +28,22 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestNewOutbox(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+
 	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 
 	t.Run("Success", func(t *testing.T) {
 		cfg := &Config{
 			ServiceName: "service1",
+			ServiceIRI:  service1URL,
 			Topic:       "activities",
 		}
 
@@ -52,6 +56,7 @@ func TestNewOutbox(t *testing.T) {
 	t.Run("Tls HTTP client -> Success", func(t *testing.T) {
 		cfg := &Config{
 			ServiceName: "service1",
+			ServiceIRI:  service1URL,
 			Topic:       "activities",
 			TLSClientConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12,
@@ -66,6 +71,7 @@ func TestNewOutbox(t *testing.T) {
 	t.Run("PubSub Subscribe error", func(t *testing.T) {
 		cfg := &Config{
 			ServiceName: "service1",
+			ServiceIRI:  service1URL,
 			Topic:       "activities",
 		}
 
@@ -80,12 +86,15 @@ func TestNewOutbox(t *testing.T) {
 }
 
 func TestOutbox_StartStop(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+
 	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 	pubSub := mocks.NewPubSub()
 
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  service1URL,
 		Topic:       "activities",
 	}
 
@@ -106,6 +115,8 @@ func TestOutbox_StartStop(t *testing.T) {
 
 func TestOutbox_Post(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 
 	var mutex sync.RWMutex
 
@@ -141,6 +152,7 @@ func TestOutbox_Post(t *testing.T) {
 
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  service1URL,
 		Topic:       "activities",
 		RedeliveryConfig: &redelivery.Config{
 			MaxRetries:     5,
@@ -160,9 +172,6 @@ func TestOutbox_Post(t *testing.T) {
 	objIRI, err := url.Parse("http://example.com/transactions/txn1")
 	require.NoError(t, err)
 
-	toURL, err := url.Parse("http://localhost:8002/services/service1")
-	require.NoError(t, err)
-
 	activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
 		vocab.NewObjectProperty(
 			vocab.WithObject(
@@ -171,7 +180,7 @@ func TestOutbox_Post(t *testing.T) {
 				),
 			),
 		),
-		vocab.WithTo(toURL),
+		vocab.WithTo(testutil.MustParseURL("http://localhost:8002/services/service1")),
 	)
 
 	require.NoError(t, ob.Post(activity))
@@ -183,6 +192,21 @@ func TestOutbox_Post(t *testing.T) {
 	mutex.RUnlock()
 	require.True(t, ok)
 
+	a, err := activityStore.GetActivity(activity.ID().URL())
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	require.Equalf(t, activity.ID(), a.ID(), "The activity should have been stored in the outbox")
+
+	it, err := activityStore.QueryReferences(store.Outbox,
+		store.NewCriteria(
+			store.WithObjectIRI(cfg.ServiceIRI),
+			store.WithReferenceIRI(activity.ID().URL()),
+		),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, it)
+	require.Equal(t, 1, it.TotalItems())
+
 	time.Sleep(100 * time.Millisecond)
 
 	ob.Stop()
@@ -191,10 +215,13 @@ func TestOutbox_Post(t *testing.T) {
 func TestOutbox_PostError(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+
 	activityStore := memstore.New("service1")
 
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  service1URL,
 		Topic:       "activities",
 		RedeliveryConfig: &redelivery.Config{
 			MaxRetries:     1,

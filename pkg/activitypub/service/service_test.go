@@ -162,15 +162,30 @@ func TestService_Create(t *testing.T) {
 
 	time.Sleep(1500 * time.Millisecond)
 
-	activity, err := store1.GetActivity(spi.Outbox, create.ID().URL())
+	it, err := store1.QueryActivities(
+		spi.NewCriteria(
+			spi.WithObjectIRI(service1IRI),
+			spi.WithReferenceType(spi.Outbox),
+		))
 	require.NoError(t, err)
-	require.NotNil(t, activity)
-	require.Equal(t, create.ID(), activity.ID())
+	require.NotNil(t, it)
 
-	activity, err = store2.GetActivity(spi.Inbox, create.ID().URL())
+	activities, err := storeutil.ReadActivities(it, -1)
 	require.NoError(t, err)
-	require.NotNil(t, activity)
-	require.Equal(t, create.ID(), activity.ID())
+	require.True(t, containsActivity(activities, create.ID()))
+
+	it, err = store2.QueryActivities(
+		spi.NewCriteria(
+			spi.WithObjectIRI(service2IRI),
+			spi.WithReferenceType(spi.Inbox),
+		))
+	require.NoError(t, err)
+	require.NotNil(t, it)
+
+	activities, err = storeutil.ReadActivities(it, -1)
+	require.NoError(t, err)
+	require.True(t, containsActivity(activities, create.ID()))
+
 	require.NotEmpty(t, subscriber2.Activities())
 	require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
 
@@ -272,17 +287,31 @@ func TestService_Follow(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, follow.ID().URL())
+		it, err := store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, follow.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store2.GetActivity(spi.Inbox, follow.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, follow.ID(), activity.ID())
+		require.True(t, containsActivity(activities, follow.ID()))
 
-		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actorIRI)))
+		it, err = store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, follow.ID()))
+
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actorIRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(rit, -1)
@@ -290,7 +319,7 @@ func TestService_Follow(t *testing.T) {
 		require.NotEmpty(t, following)
 		require.Truef(t, containsIRI(following, targetIRI), "expecting %s to be following %s", actorIRI, targetIRI)
 
-		rit, err = store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(targetIRI)))
+		rit, err = store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(targetIRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(rit, -1)
@@ -300,17 +329,24 @@ func TestService_Follow(t *testing.T) {
 		require.Truef(t, containsIRI(followers, actorIRI), "expecting %s to have %s as a follower", targetIRI, actorIRI)
 
 		// Ensure we have an 'Accept' activity in our inbox
-		it, err := store1.QueryActivities(spi.Inbox, spi.NewCriteria(spi.WithType(vocab.TypeAccept)))
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
 		require.NoError(t, err)
 		require.NotNil(t, it)
 
-		accept, err := it.Next()
+		activities, err = storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.True(t, accept.Type().Is(vocab.TypeAccept))
 
-		acceptedFollow := accept.Object().Activity()
-		require.NotNil(t, acceptedFollow)
-		require.Equal(t, follow.ID(), acceptedFollow.ID())
+		for _, a := range activities {
+			if a.Type().Is(vocab.TypeAccept) {
+				acceptedFollow := a.Object().Activity()
+				require.NotNil(t, acceptedFollow)
+				require.Equal(t, follow.ID(), acceptedFollow.ID())
+			}
+		}
 	})
 
 	t.Run("Follow - Reject", func(t *testing.T) {
@@ -348,24 +384,38 @@ func TestService_Follow(t *testing.T) {
 		// Wait for the message to be processed
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, follow.ID().URL())
+		it, err := store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, follow.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store1.GetActivity(spi.Inbox, follow.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, follow.ID(), activity.ID())
+		require.True(t, containsActivity(activities, follow.ID()))
 
-		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithActorIRI(actorIRI)))
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, follow.ID()))
+
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actorIRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.Falsef(t, containsIRI(following, targetIRI), "expecting %s NOT to be following %s", actorIRI, targetIRI)
 
-		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(targetIRI)))
+		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(targetIRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(rit, -1)
@@ -373,18 +423,24 @@ func TestService_Follow(t *testing.T) {
 		require.Falsef(t, containsIRI(followers, actorIRI), "expecting %s NOT to have %s as a follower", targetIRI, actorIRI)
 
 		// Ensure we have a 'Reject' activity in our inbox
-		it, err := store2.QueryActivities(spi.Inbox, spi.NewCriteria(spi.WithType(vocab.TypeReject)))
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
 		require.NoError(t, err)
 		require.NotNil(t, it)
 
-		reject, err := it.Next()
+		activities, err = storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
 
-		require.True(t, reject.Type().Is(vocab.TypeReject))
-
-		rejectedFollow := reject.Object().Activity()
-		require.NotNil(t, rejectedFollow)
-		require.Equal(t, follow.ID(), rejectedFollow.ID())
+		for _, a := range activities {
+			if a.Type().Is(vocab.TypeReject) {
+				rejectedFollow := a.Object().Activity()
+				require.NotNil(t, rejectedFollow)
+				require.Equal(t, follow.ID(), rejectedFollow.ID())
+			}
+		}
 	})
 }
 
@@ -513,15 +569,29 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, announce.ID().URL())
+		it, err := store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, announce.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store3.GetActivity(spi.Inbox, announce.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, announce.ID(), activity.ID())
+		require.True(t, containsActivity(activities, announce.ID()))
+
+		it, err = store3.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service3IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, announce.ID()))
 
 		require.NotEmpty(t, subscriber3.Activities())
 
@@ -557,15 +627,29 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		activity, err := store2.GetActivity(spi.Outbox, announce.ID().URL())
+		it, err := store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, announce.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store3.GetActivity(spi.Inbox, announce.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, announce.ID(), activity.ID())
+		require.True(t, containsActivity(activities, announce.ID()))
+
+		it, err = store3.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service3IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, announce.ID()))
 
 		require.NotEmpty(t, subscriber3.Activities())
 
@@ -591,7 +675,7 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(1000 * time.Millisecond)
 
-		rit, err := store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithActorIRI(service2IRI)))
+		rit, err := store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(rit, -1)
@@ -627,26 +711,50 @@ func TestService_Announce(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, create.ID().URL())
+		it, err := store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, create.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store2.GetActivity(spi.Inbox, create.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, create.ID(), activity.ID())
+		require.True(t, containsActivity(activities, create.ID()))
+
+		it, err = store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, create.ID()))
+
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
 
 		// Service3 should have received an 'Announce' activity from Service2
-		it, err := store3.QueryActivities(spi.Inbox, spi.NewCriteria(spi.WithType(vocab.TypeAnnounce)))
+		it, err = store3.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service3IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
 
-		announce, err := it.Next()
-		require.NoError(t, err)
-		require.NotNil(t, announce)
-		require.Equal(t, service2IRI.String(), announce.Actor().String())
+		for _, a := range activities {
+			if a.Type().Is(vocab.TypeAnnounce) {
+				require.Equal(t, service2IRI.String(), a.Actor().String())
+			}
+		}
 	})
 }
 
@@ -766,28 +874,42 @@ func TestService_Offer(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activity, err := store1.GetActivity(spi.Outbox, offer.ID().URL())
+		it, err := store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, offer.ID(), activity.ID())
+		require.NotNil(t, it)
 
-		activity, err = store2.GetActivity(spi.Inbox, offer.ID().URL())
+		activities, err := storeutil.ReadActivities(it, -1)
 		require.NoError(t, err)
-		require.NotNil(t, activity)
-		require.Equal(t, offer.ID(), activity.ID())
+		require.True(t, containsActivity(activities, offer.ID()))
+
+		it, err = store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, offer.ID()))
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, witness2.AnchorCreds())
 		require.NotNil(t, proofHandler1.Proof(obj.ID().String()))
 
-		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithActorIRI(service2IRI)))
+		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
 		require.NoError(t, err)
 
 		liked, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, liked)
 
-		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithActorIRI(service1IRI)))
+		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
 		require.NoError(t, err)
 
 		likes, err := storeutil.ReadReferences(rit, -1)
@@ -824,19 +946,29 @@ func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTP
 	}
 }
 
+func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
+	for _, a := range activities {
+		if a.ID().String() == iri.String() {
+			return true
+		}
+	}
+
+	return false
+}
+
 const anchorCredential1 = `{
-  "@context": [
+ "@context": [
 	"https://www.w3.org/2018/credentials/v1",
 	"https://trustbloc.github.io/Context/orb-v1.json"
-  ],
-  "id": "http://sally.example.com/transactions/bafkreihwsn",
-  "type": [
+ ],
+ "id": "http://sally.example.com/transactions/bafkreihwsn",
+ "type": [
 	"VerifiableCredential",
 	"AnchorCredential"
-  ],
-  "issuer": "https://sally.example.com/services/orb",
-  "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
+ ],
+ "issuer": "https://sally.example.com/services/orb",
+ "issuanceDate": "2021-01-27T09:30:10Z",
+ "credentialSubject": {
 	"operationCount": 2,
 	"coreIndex": "bafkreihwsn",
 	"namespace": "did:orb",
@@ -845,21 +977,21 @@ const anchorCredential1 = `{
 	  "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
 	  "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
 	}
-  },
-  "proofChain": [{}]
+ },
+ "proofChain": [{}]
 }`
 
 const proof = `{
-  "@context": [
-    "https://w3id.org/security/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-  ],
-  "proof": {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:15Z",
-    "verificationMethod": "did:example:abcd#key",
-    "domain": "https://witness1.example.com/ledgers/maple2021",
-    "jws": "eyJ..."
-  }
+ "@context": [
+   "https://w3id.org/security/v1",
+   "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+ ],
+ "proof": {
+   "type": "JsonWebSignature2020",
+   "proofPurpose": "assertionMethod",
+   "created": "2021-01-27T09:30:15Z",
+   "verificationMethod": "did:example:abcd#key",
+   "domain": "https://witness1.example.com/ledgers/maple2021",
+   "jws": "eyJ..."
+ }
 }`

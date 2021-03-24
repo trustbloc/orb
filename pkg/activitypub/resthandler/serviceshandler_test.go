@@ -27,9 +27,9 @@ var serviceIRI = testutil.MustParseURL("https://example1.com/services/orb")
 
 func TestNewServices(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewServices(cfg, memstore.New(""))
@@ -41,9 +41,9 @@ func TestNewServices(t *testing.T) {
 
 func TestServices_Handler(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	activityStore := memstore.New("")

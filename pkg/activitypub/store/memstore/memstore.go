@@ -24,7 +24,7 @@ var logger = log.New("activitypub_memstore")
 // Store implements an in-memory ActivityPub store.
 type Store struct {
 	serviceName     string
-	activityStores  map[spi.ActivityStoreType]*activityStore
+	activityStore   *activityStore
 	referenceStores map[spi.ReferenceType]*referenceStore
 	actorStore      map[string]*vocab.ActorType
 	mutex           sync.RWMutex
@@ -33,12 +33,11 @@ type Store struct {
 // New returns a new in-memory ActivityPub store.
 func New(serviceName string) *Store {
 	return &Store{
-		serviceName: serviceName,
-		activityStores: map[spi.ActivityStoreType]*activityStore{
-			spi.Inbox:  newActivitiesStore(),
-			spi.Outbox: newActivitiesStore(),
-		},
+		serviceName:   serviceName,
+		activityStore: newActivitiesStore(),
 		referenceStores: map[spi.ReferenceType]*referenceStore{
+			spi.Inbox:      newReferenceStore(),
+			spi.Outbox:     newReferenceStore(),
 			spi.Follower:   newReferenceStore(),
 			spi.Following:  newReferenceStore(),
 			spi.Witness:    newReferenceStore(),
@@ -78,37 +77,40 @@ func (s *Store) GetActor(iri *url.URL) (*vocab.ActorType, error) {
 	return a, nil
 }
 
-// AddActivity adds the given activity to the specified activity store.
-func (s *Store) AddActivity(storeType spi.ActivityStoreType, activity *vocab.ActivityType) error {
-	logger.Debugf("[%s] Storing activity to %s - Type: %s, ID: %s",
-		s.serviceName, storeType, activity.Type(), activity.ID())
+// AddActivity adds the given activity to the activity store.
+func (s *Store) AddActivity(activity *vocab.ActivityType) error {
+	logger.Debugf("[%s] Storing activity - Type: %s, ID: %s",
+		s.serviceName, activity.Type(), activity.ID())
 
-	return s.activityStores[storeType].add(activity)
+	return s.activityStore.add(activity)
 }
 
-// GetActivity returns the activity for the given ID from the given activity store
+// GetActivity returns the activity for the given ID from the activity store
 // or ErrNotFound error if it wasn't found.
-func (s *Store) GetActivity(storeType spi.ActivityStoreType, activityID *url.URL) (*vocab.ActivityType, error) {
-	logger.Debugf("[%s] Retrieving activity from %s - ID: %s", s.serviceName, storeType, activityID)
+func (s *Store) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
+	logger.Debugf("[%s] Retrieving activity - ID: %s", s.serviceName, activityID)
 
-	return s.activityStores[storeType].get(activityID.String())
+	return s.activityStore.get(activityID.String())
 }
 
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
-func (s *Store) QueryActivities(storeType spi.ActivityStoreType,
-	query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
-	logger.Debugf("[%s] Querying activity from %s - Query: %+v", s.serviceName, storeType, query)
+func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+	logger.Debugf("[%s] Querying activity %s - Query: %+v", s.serviceName, query)
 
-	return s.activityStores[storeType].query(query, opts...)
+	if query.ReferenceType != "" && query.ObjectIRI != nil {
+		return s.queryActivitiesByRef(query.ReferenceType, query, opts...)
+	}
+
+	return s.activityStore.query(query, opts...), nil
 }
 
-// AddReference adds the reference of the given type to the given actor.
-func (s *Store) AddReference(referenceType spi.ReferenceType, actorIRI, referenceIRI *url.URL) error {
-	logger.Debugf("[%s] Adding reference of type %s to actor %s: %s",
-		s.serviceName, referenceType, actorIRI, referenceIRI)
+// AddReference adds the reference of the given type to the given object.
+func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
+	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
+		s.serviceName, referenceType, objectIRI, referenceIRI)
 
-	return s.referenceStores[referenceType].add(actorIRI, referenceIRI)
+	return s.referenceStores[referenceType].add(objectIRI, referenceIRI)
 }
 
 // DeleteReference deletes the reference of the given type from the given actor.
@@ -125,6 +127,34 @@ func (s *Store) QueryReferences(refType spi.ReferenceType,
 	logger.Debugf("[%s] Querying references of type %s - Query: %+v", s.serviceName, refType, query)
 
 	return s.referenceStores[refType].query(query, opts...)
+}
+
+func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Criteria,
+	opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+	it, err := s.QueryReferences(refType, query, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	options := storeutil.GetQueryOptions(opts...)
+
+	refs, err := storeutil.ReadReferences(it, options.PageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(refs) == 0 {
+		return newActivityIterator(nil, it.TotalItems()), nil
+	}
+
+	ait := s.activityStore.query(
+		spi.NewCriteria(spi.WithActivityIRIs(refs...)),
+		spi.WithSortOrder(options.SortOrder))
+
+	// Set 'totalItems' to the 'totalItems' returned in the original reference query, which may be based on paging.
+	ait.totalItems = it.TotalItems()
+
+	return ait, nil
 }
 
 type activityStore struct {
@@ -161,21 +191,21 @@ func (s *activityStore) get(activityID string) (*vocab.ActivityType, error) {
 	return a, nil
 }
 
-func (s *activityStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+func (s *activityStore) query(query *spi.Criteria, opts ...spi.QueryOpt) *activityIterator {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return newActivityIterator(activityQueryResults(s.activities).filter(query, opts...)), nil
+	return newActivityIterator(activityQueryResults(s.activities).filter(query, opts...))
 }
 
 type referenceStore struct {
-	irisByActor map[string][]*url.URL
-	mutex       sync.RWMutex
+	irisByObject map[string][]*url.URL
+	mutex        sync.RWMutex
 }
 
 func newReferenceStore() *referenceStore {
 	return &referenceStore{
-		irisByActor: make(map[string][]*url.URL),
+		irisByObject: make(map[string][]*url.URL),
 	}
 }
 
@@ -185,7 +215,7 @@ func (s *referenceStore) add(actor fmt.Stringer, iri *url.URL) error {
 
 	actorID := actor.String()
 
-	s.irisByActor[actorID] = append(s.irisByActor[actorID], iri)
+	s.irisByObject[actorID] = append(s.irisByObject[actorID], iri)
 
 	return nil
 }
@@ -194,11 +224,11 @@ func (s *referenceStore) delete(actor, iri fmt.Stringer) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	irisForActor := s.irisByActor[actor.String()]
+	irisForActor := s.irisByObject[actor.String()]
 
 	for actorIRI, i := range irisForActor {
 		if i.String() == iri.String() {
-			s.irisByActor[actor.String()] = append(irisForActor[0:actorIRI], irisForActor[actorIRI+1:]...)
+			s.irisByObject[actor.String()] = append(irisForActor[0:actorIRI], irisForActor[actorIRI+1:]...)
 
 			return nil
 		}
@@ -211,11 +241,11 @@ func (s *referenceStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.R
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if query.ActorIRI == nil {
-		return nil, fmt.Errorf("actor IRI is required")
+	if query.ObjectIRI == nil {
+		return nil, fmt.Errorf("object IRI is required")
 	}
 
-	return newReferenceIterator(refQueryResults(s.irisByActor[query.ActorIRI.String()]).filter(query, opts...)), nil
+	return newReferenceIterator(refQueryResults(s.irisByObject[query.ObjectIRI.String()]).filter(query, opts...)), nil
 }
 
 type activityQueryFilter struct {
@@ -230,6 +260,16 @@ func newQueryFilter(query *spi.Criteria) *activityQueryFilter {
 
 func (q *activityQueryFilter) apply(activities []*vocab.ActivityType) []*vocab.ActivityType {
 	var results []*vocab.ActivityType
+
+	if len(q.ActivityIRIs) > 0 {
+		for _, a := range activities {
+			if containsIRI(q.ActivityIRIs, a.ID().URL()) {
+				results = append(results, a)
+			}
+		}
+
+		return results
+	}
 
 	for _, a := range activities {
 		if len(q.Types) == 0 || a.Type().IsAny(q.Types...) {
@@ -335,4 +375,14 @@ func startIndex(totalItems int, options *spi.QueryOptions) int {
 
 func reverseSort(results interface{}) {
 	sort.SliceStable(results, func(i, j int) bool { return i > j }) //nolint:gocritic
+}
+
+func containsIRI(iris []*url.URL, id fmt.Stringer) bool {
+	for _, iri := range iris {
+		if iri.String() == id.String() {
+			return true
+		}
+	}
+
+	return false
 }
