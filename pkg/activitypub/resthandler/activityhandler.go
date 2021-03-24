@@ -43,6 +43,36 @@ func NewInbox(cfg *Config, activityStore spi.Store) *Outbox {
 	}
 }
 
+// Shares implements the 'shares' REST handler that retrieves an object's 'Announce' activities.
+type Shares struct {
+	*activities
+}
+
+// NewShares returns a new 'shares' REST handler.
+func NewShares(cfg *Config, activityStore spi.Store) *Shares {
+	h := &Shares{}
+
+	h.activities = newActivities(SharesPath, spi.Share, cfg, activityStore,
+		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"))
+
+	return h
+}
+
+// Likes implements the 'likes' REST handler that retrieves an object's 'Like' activities.
+type Likes struct {
+	*activities
+}
+
+// NewLikes returns a new 'likes' REST handler.
+func NewLikes(cfg *Config, activityStore spi.Store) *Likes {
+	h := &Likes{}
+
+	h.activities = newActivities(LikesPath, spi.Like, cfg, activityStore,
+		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"))
+
+	return h
+}
+
 type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
 
 type getObjectIRIFunc func(req *http.Request) (*url.URL, error)

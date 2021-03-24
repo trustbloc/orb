@@ -299,3 +299,15 @@ func setPaging(h *handler, page, pageNum string) func() {
 		h.getParams = getParamsRestore
 	}
 }
+
+func setIDParam(id string) func() {
+	restore := getIDParam
+
+	getIDParam = func(req *http.Request) string {
+		return id
+	}
+
+	return func() {
+		getIDParam = restore
+	}
+}

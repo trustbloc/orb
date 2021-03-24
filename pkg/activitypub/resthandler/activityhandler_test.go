@@ -19,10 +19,18 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-const outboxURL = "https://example.com/services/orb/outbox"
+const (
+	transactionsBaseBath = "/transactions"
+	objectID             = "d607506e-6964-4991-a19f-674952380760"
+	outboxURL            = "https://example.com/services/orb/outbox"
+	sharesURL            = "https://example.com/services/orb/followers"
+)
+
+var transactionsIRI = testutil.MustParseURL("https://sally.example.com/transactions")
 
 func TestNewOutbox(t *testing.T) {
 	cfg := &Config{
@@ -70,6 +78,80 @@ func TestNewInbox(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/inbox", id.String())
+}
+
+func TestNewShares(t *testing.T) {
+	cfg := &Config{
+		BasePath:  transactionsBaseBath,
+		ObjectIRI: transactionsIRI,
+	}
+
+	h := NewShares(cfg, memstore.New(""))
+	require.NotNil(t, h)
+	require.Equal(t, "/transactions/{id}/shares", h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+
+	t.Run("Success", func(t *testing.T) {
+		restore := setIDParam(objectID)
+		defer restore()
+
+		objectIRI, err := h.getObjectIRI(nil)
+		require.NoError(t, err)
+		require.NotNil(t, objectIRI)
+		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760", objectIRI.String())
+
+		id, err := h.getID(objectIRI)
+		require.NoError(t, err)
+		require.NotNil(t, id)
+		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares", id.String())
+	})
+
+	t.Run("No ID in URL -> error", func(t *testing.T) {
+		restore := setIDParam("")
+		defer restore()
+
+		objectIRI, err := h.getObjectIRI(nil)
+		require.EqualError(t, err, "id not specified in URL")
+		require.Nil(t, objectIRI)
+	})
+}
+
+func TestNewLikes(t *testing.T) {
+	cfg := &Config{
+		BasePath:  transactionsBaseBath,
+		ObjectIRI: transactionsIRI,
+	}
+
+	h := NewLikes(cfg, memstore.New(""))
+	require.NotNil(t, h)
+	require.Equal(t, "/transactions/{id}/likes", h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+
+	t.Run("Success", func(t *testing.T) {
+		restore := setIDParam(objectID)
+		defer restore()
+
+		objectIRI, err := h.getObjectIRI(nil)
+		require.NoError(t, err)
+		require.NotNil(t, objectIRI)
+		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760", objectIRI.String())
+
+		id, err := h.getID(objectIRI)
+		require.NoError(t, err)
+		require.NotNil(t, id)
+		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/likes", id.String())
+	})
+
+	t.Run("No ID in URL -> error", func(t *testing.T) {
+		restore := setIDParam("")
+		defer restore()
+
+		objectIRI, err := h.getObjectIRI(nil)
+		require.EqualError(t, err, "id not specified in URL")
+		require.Nil(t, objectIRI)
+	})
 }
 
 func TestActivities_Handler(t *testing.T) {
@@ -275,6 +357,128 @@ func TestActivities_PageHandler(t *testing.T) {
 	})
 }
 
+func TestShares_Handler(t *testing.T) {
+	objectIRI := testutil.NewMockID(transactionsIRI, "/"+objectID)
+
+	shares := newMockActivities(vocab.TypeAnnounce, 19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/activities/announce_activity_%d", i, i)
+	})
+
+	activityStore := memstore.New("")
+
+	for _, a := range shares {
+		require.NoError(t, activityStore.AddActivity(a))
+		require.NoError(t, activityStore.AddReference(spi.Share, objectIRI, a.ID().URL()))
+	}
+
+	cfg := &Config{
+		BasePath:  transactionsBaseBath,
+		ObjectIRI: transactionsIRI,
+		PageSize:  4,
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		h := NewShares(cfg, activityStore)
+		require.NotNil(t, h)
+
+		restore := setIDParam(objectID)
+		defer restore()
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, sharesJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+}
+
+func TestShares_PageHandler(t *testing.T) {
+	const objectID = "d607506e-6964-4991-a19f-674952380760"
+
+	objectIRI := testutil.NewMockID(transactionsIRI, "/"+objectID)
+
+	shares := newMockActivities(vocab.TypeAnnounce, 19, func(i int) string {
+		return fmt.Sprintf("https://example%d.com/activities/announce_activity_%d", i, i)
+	})
+
+	activityStore := memstore.New("")
+
+	for _, a := range shares {
+		require.NoError(t, activityStore.AddActivity(a))
+		require.NoError(t, activityStore.AddReference(spi.Share, objectIRI, a.ID().URL()))
+	}
+
+	cfg := &Config{
+		BasePath:  transactionsBaseBath,
+		ObjectIRI: transactionsIRI,
+		PageSize:  4,
+	}
+
+	t.Run("First page -> Success", func(t *testing.T) {
+		h := NewShares(cfg, activityStore)
+		require.NotNil(t, h)
+
+		restorePaging := setPaging(h.handler, "true", "")
+		defer restorePaging()
+
+		restore := setIDParam(objectID)
+		defer restore()
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, sharesFirstPageJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("By page -> Success", func(t *testing.T) {
+		h := NewShares(cfg, activityStore)
+		require.NotNil(t, h)
+
+		restorePaging := setPaging(h.handler, "true", "1")
+		defer restorePaging()
+
+		restore := setIDParam(objectID)
+		defer restore()
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, sharesPage1JSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+}
+
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
 	cfg := &Config{
 		ObjectIRI: serviceIRI,
@@ -302,6 +506,24 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	t.Logf("%s", respBytes)
 
 	require.Equal(t, testutil.GetCanonical(t, expected), testutil.GetCanonical(t, string(respBytes)))
+}
+
+func newMockActivities(t vocab.Type, num int, getURI func(i int) string) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		activities[i] = newMockActivity(t, testutil.MustParseURL(getURI(i)))
+	}
+
+	return activities
+}
+
+func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
+	if t == vocab.TypeAnnounce {
+		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty(vocab.WithIRI(id)))
+	}
+
+	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
 }
 
 const (
@@ -548,5 +770,82 @@ const (
   "next": "https://example1.com/services/orb/outbox?page=true&page-num=4",
   "totalItems": 19,
   "type": "OrderedCollectionPage"
+}`
+	sharesJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "first": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true",
+  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares",
+  "last": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=0",
+  "totalItems": 19,
+  "type": "OrderedCollection"
+}`
+
+	sharesFirstPageJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=4",
+  "type": "OrderedCollectionPage",
+  "next": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=3",
+  "totalItems": 19,
+  "orderedItems": [
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example18.com/activities/announce_activity_18",
+      "object": "https://example18.com/activities/announce_activity_18",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example17.com/activities/announce_activity_17",
+      "object": "https://example17.com/activities/announce_activity_17",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example16.com/activities/announce_activity_16",
+      "object": "https://example16.com/activities/announce_activity_16",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example15.com/activities/announce_activity_15",
+      "object": "https://example15.com/activities/announce_activity_15",
+      "type": "Announce"
+    }
+  ]
+}`
+
+	sharesPage1JSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=1",
+  "type": "OrderedCollectionPage",
+  "next": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=0",
+  "prev": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=2",
+  "totalItems": 19,
+  "orderedItems": [
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example6.com/activities/announce_activity_6",
+      "object": "https://example6.com/activities/announce_activity_6",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example5.com/activities/announce_activity_5",
+      "object": "https://example5.com/activities/announce_activity_5",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example4.com/activities/announce_activity_4",
+      "object": "https://example4.com/activities/announce_activity_4",
+      "type": "Announce"
+    },
+    {
+      "@context": "https://www.w3.org/ns/activitystreams",
+      "id": "https://example3.com/activities/announce_activity_3",
+      "object": "https://example3.com/activities/announce_activity_3",
+      "type": "Announce"
+    }
+  ]
 }`
 )

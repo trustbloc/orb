@@ -79,7 +79,8 @@ const (
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
 
-	activityPubServicesPath = "/services/orb"
+	activityPubServicesPath     = "/services/orb"
+	activityPubTransactionsPath = "/transactions"
 )
 
 type server interface {
@@ -245,6 +246,11 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
 	}
 
+	apTransactionsIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubTransactionsPath))
+	if err != nil {
+		return fmt.Errorf("invalid transactions IRI: %s", err.Error())
+	}
+
 	proofProviders := &proofs.Providers{
 		DocLoader: orbDocumentLoader,
 	}
@@ -276,7 +282,7 @@ func startOrbServices(parameters *orbParameters) error {
 	providers := &observer.Providers{
 		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: anchorCh},
 		ProtocolClientProvider: pcp,
-		AnchorGraph:               anchorGraph,
+		AnchorGraph:            anchorGraph,
 	}
 
 	observer.New(providers).Start()
@@ -311,9 +317,15 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
-	apCfg := &aphandler.Config{
+	apServiceCfg := &aphandler.Config{
 		BasePath:  activityPubServicesPath,
 		ObjectIRI: apServiceIRI,
+		PageSize:  100, // TODO: Make configurable
+	}
+
+	apTxnCfg := &aphandler.Config{
+		BasePath:  activityPubTransactionsPath,
+		ObjectIRI: apTransactionsIRI,
 		PageSize:  100, // TODO: Make configurable
 	}
 
@@ -325,14 +337,16 @@ func startOrbServices(parameters *orbParameters) error {
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apCfg, apStore),
-		aphandler.NewFollowers(apCfg, apStore),
-		aphandler.NewFollowing(apCfg, apStore),
-		aphandler.NewOutbox(apCfg, apStore),
-		aphandler.NewInbox(apCfg, apStore),
-		aphandler.NewWitnesses(apCfg, apStore),
-		aphandler.NewWitnessing(apCfg, apStore),
-		aphandler.NewLiked(apCfg, apStore),
+		aphandler.NewServices(apServiceCfg, apStore),
+		aphandler.NewFollowers(apServiceCfg, apStore),
+		aphandler.NewFollowing(apServiceCfg, apStore),
+		aphandler.NewOutbox(apServiceCfg, apStore),
+		aphandler.NewInbox(apServiceCfg, apStore),
+		aphandler.NewWitnesses(apServiceCfg, apStore),
+		aphandler.NewWitnessing(apServiceCfg, apStore),
+		aphandler.NewLiked(apServiceCfg, apStore),
+		aphandler.NewLikes(apTxnCfg, apStore),
+		aphandler.NewShares(apTxnCfg, apStore),
 	)
 
 	srv := &HTTPServer{
