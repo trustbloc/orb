@@ -20,7 +20,7 @@ import (
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 )
 
-const testDID = "did:method:abc"
+const testDID = "abc"
 
 func TestNew(t *testing.T) {
 	graph := New(&Providers{})
@@ -109,7 +109,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Equal(t, 0, len(didAnchors))
+		require.Equal(t, 1, len(didAnchors))
 	})
 
 	t.Run("success - previous anchor for did exists", func(t *testing.T) {
@@ -125,8 +125,6 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		anchor1CID, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
 		require.NotNil(t, anchor1CID)
-
-		testDID := "did:method:123"
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = anchor1CID
@@ -145,14 +143,12 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(didAnchors))
-		require.Equal(t, anchor1CID, didAnchors[0])
+		require.Equal(t, 2, len(didAnchors))
+		require.Equal(t, anchor1CID, didAnchors[0].CID)
 	})
 
 	t.Run("success - cid referenced in previous anchor empty (create)", func(t *testing.T) {
 		graph := New(providers)
-
-		testDID := "did:method:abc"
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = ""
@@ -171,13 +167,11 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
-		require.Nil(t, didAnchors)
+		require.Equal(t, 1, len(didAnchors))
 	})
 
 	t.Run("error - cid referenced in previous anchor not found", func(t *testing.T) {
 		graph := New(providers)
-
-		testDID := "did:method:abc"
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = "non-existent"

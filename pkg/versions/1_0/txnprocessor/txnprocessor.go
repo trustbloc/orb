@@ -15,6 +15,8 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
+
+	"github.com/trustbloc/orb/pkg/anchor/graph"
 )
 
 var logger = log.New("orb-txn-processor")
@@ -27,7 +29,7 @@ type OperationStore interface {
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
-	GetDidAnchors(cid, did string) ([]string, error)
+	GetDidAnchors(cid, suffix string) ([]graph.Anchor, error)
 }
 
 // Providers contains the providers required by the TxnProcessor.
@@ -50,7 +52,7 @@ func New(providers *Providers) *TxnProcessor {
 }
 
 // Process persists all of the operations for the given anchor.
-func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn) error {
+func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) error {
 	logger.Debugf("processing sidetree txn:%+v", sidetreeTxn)
 
 	txnOps, err := p.OperationProtocolProvider.GetTxnOperations(&sidetreeTxn)
@@ -58,7 +60,33 @@ func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn) error {
 		return fmt.Errorf("failed to retrieve operations for anchor string[%s]: %s", sidetreeTxn.AnchorString, err)
 	}
 
+	if len(suffixes) > 0 {
+		txnOps = filterOps(txnOps, suffixes)
+	}
+
 	return p.processTxnOperations(txnOps, sidetreeTxn)
+}
+
+func filterOps(txnOps []*operation.AnchoredOperation, suffixes []string) []*operation.AnchoredOperation {
+	var ops []*operation.AnchoredOperation
+
+	for _, op := range txnOps {
+		if contains(suffixes, op.UniqueSuffix) {
+			ops = append(ops, op)
+		}
+	}
+
+	return ops
+}
+
+func contains(arr []string, v string) bool {
+	for _, a := range arr {
+		if a == v {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn txn.SidetreeTxn) error {
@@ -88,11 +116,11 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		// check that number of operations in the store matches the number of anchors in the graph for that did
-		if len(didRefs) != len(opsSoFar) {
+		if len(didRefs)-1 != len(opsSoFar) {
 			// TODO: This should not happen if we actively 'observe' batch writers
 			// however if can happen if observer starts starts observing new system and it is not done in order
 			// for now reject this case
-			return fmt.Errorf("discrepancy between anchors in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs), len(opsSoFar), op.UniqueSuffix) //nolint:lll
+			return fmt.Errorf("discrepancy between previous anchors in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs)-1, len(opsSoFar), op.UniqueSuffix) //nolint:lll
 		}
 
 		// TODO: Should we check that anchored operation reference matches anchored graph

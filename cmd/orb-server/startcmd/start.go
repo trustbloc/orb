@@ -66,7 +66,7 @@ const (
 
 	masterKeyNumBytes = 32
 
-	anchorBuffer = 100
+	chBuffer = 100
 
 	defaultMaxWitnessDelay = 10 * time.Minute
 )
@@ -231,8 +231,10 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// create anchor channel (used by anchor writer to notify observer about anchors)
-	anchorCh := make(chan []string, anchorBuffer)
-	vcCh := make(chan *verifiable.Credential, anchorBuffer)
+	anchorCh := make(chan []string, chBuffer)
+
+	// used to notify anchor writer about witnessed anchor credential
+	vcCh := make(chan *verifiable.Credential, chBuffer)
 
 	vcStore, err := vcstore.New(storeProviders.provider)
 	if err != nil {
@@ -280,7 +282,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create new observer and start it
 	providers := &observer.Providers{
-		TxnProvider:            mockTxnProvider{registerForSidetreeTxnValue: anchorCh},
+		TxnProvider:            mockTxnProvider{registerForAnchor: anchorCh},
 		ProtocolClientProvider: pcp,
 		AnchorGraph:            anchorGraph,
 	}
@@ -527,9 +529,14 @@ func prepareMasterKeyReader(kmsSecretsStoreProvider ariesstorage.Provider) (*byt
 }
 
 type mockTxnProvider struct {
-	registerForSidetreeTxnValue chan []string
+	registerForAnchor chan []string
+	registerForDID chan []string
 }
 
-func (m mockTxnProvider) RegisterForOrbTxn() <-chan []string {
-	return m.registerForSidetreeTxnValue
+func (m mockTxnProvider) RegisterForAnchor() <-chan []string {
+	return m.registerForAnchor
+}
+
+func (m mockTxnProvider) RegisterForDID() <-chan []string {
+	return m.registerForDID
 }
