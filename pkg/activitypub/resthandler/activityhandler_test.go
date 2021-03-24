@@ -26,9 +26,9 @@ const outboxURL = "https://example.com/services/orb/outbox"
 
 func TestNewOutbox(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewOutbox(cfg, memstore.New(""))
@@ -40,9 +40,9 @@ func TestNewOutbox(t *testing.T) {
 
 func TestNewInbox(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewInbox(cfg, memstore.New(""))
@@ -56,13 +56,14 @@ func TestActivities_Handler(t *testing.T) {
 	activityStore := memstore.New("")
 
 	for _, activity := range newMockCreateActivities(19) {
-		require.NoError(t, activityStore.AddActivity(spi.Outbox, activity))
+		require.NoError(t, activityStore.AddActivity(activity))
+		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
 	}
 
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -87,15 +88,10 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Store error", func(t *testing.T) {
-		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
-		}
-
 		errExpected := fmt.Errorf("injected store error")
 
 		s := &mocks.ActivityStore{}
-		s.QueryActivitiesReturns(nil, errExpected)
+		s.QueryReferencesReturns(nil, errExpected)
 
 		h := NewOutbox(cfg, s)
 		require.NotNil(t, h)
@@ -111,11 +107,6 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
-		}
-
 		h := NewOutbox(cfg, activityStore)
 		require.NotNil(t, h)
 
@@ -140,7 +131,8 @@ func TestActivities_PageHandler(t *testing.T) {
 	activityStore := memstore.New("")
 
 	for _, activity := range newMockCreateActivities(19) {
-		require.NoError(t, activityStore.AddActivity(spi.Outbox, activity))
+		require.NoError(t, activityStore.AddActivity(activity))
+		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
 	}
 
 	t.Run("First page -> Success", func(t *testing.T) {
@@ -174,8 +166,8 @@ func TestActivities_PageHandler(t *testing.T) {
 		s.QueryActivitiesReturns(nil, errExpected)
 
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		h := NewOutbox(cfg, s)
@@ -196,8 +188,8 @@ func TestActivities_PageHandler(t *testing.T) {
 
 	t.Run("Marshal error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		h := NewOutbox(cfg, activityStore)
@@ -225,8 +217,8 @@ func TestActivities_PageHandler(t *testing.T) {
 
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
 	cfg := &Config{
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewOutbox(cfg, as)

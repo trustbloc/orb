@@ -25,9 +25,9 @@ const followersURL = "https://example.com/services/orb/followers"
 
 func TestNewFollowers(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewFollowers(cfg, memstore.New(""))
@@ -39,9 +39,9 @@ func TestNewFollowers(t *testing.T) {
 
 func TestNewFollowing(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewFollowing(cfg, memstore.New(""))
@@ -53,9 +53,9 @@ func TestNewFollowing(t *testing.T) {
 
 func TestNewWitnesses(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewWitnesses(cfg, memstore.New(""))
@@ -67,9 +67,9 @@ func TestNewWitnesses(t *testing.T) {
 
 func TestNewWitnessing(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewWitnessing(cfg, memstore.New(""))
@@ -91,9 +91,9 @@ func TestFollowers_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -119,8 +119,8 @@ func TestFollowers_Handler(t *testing.T) {
 
 	t.Run("Store error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		errExpected := fmt.Errorf("injected store error")
@@ -143,8 +143,8 @@ func TestFollowers_Handler(t *testing.T) {
 
 	t.Run("Marshal error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		h := NewFollowers(cfg, activityStore)
@@ -179,8 +179,8 @@ func TestFollowers_PageHandler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewFollowers(cfg, activityStore)
@@ -217,8 +217,8 @@ func TestFollowers_PageHandler(t *testing.T) {
 		s.QueryReferencesReturns(nil, errExpected)
 
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		h := NewFollowers(cfg, s)
@@ -239,8 +239,8 @@ func TestFollowers_PageHandler(t *testing.T) {
 
 	t.Run("Marshal error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceIRI: serviceIRI,
-			PageSize:   4,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
 		}
 
 		h := NewFollowers(cfg, activityStore)
@@ -278,9 +278,9 @@ func TestWitnesses_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewWitnesses(cfg, activityStore)
@@ -311,9 +311,9 @@ func TestWitnessing_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewWitnessing(cfg, activityStore)
@@ -342,9 +342,9 @@ func TestLiked_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := NewLiked(cfg, activityStore)

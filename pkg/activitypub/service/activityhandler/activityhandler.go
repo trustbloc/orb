@@ -351,7 +351,7 @@ func (h *Handler) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) e
 func (h *Handler) hasFollower(actorIRI *url.URL) (bool, error) {
 	it, err := h.store.QueryReferences(store.Follower,
 		store.NewCriteria(
-			store.WithActorIRI(h.ServiceIRI),
+			store.WithObjectIRI(h.ServiceIRI),
 			store.WithReferenceIRI(actorIRI),
 		),
 	)
@@ -496,7 +496,7 @@ func (h *Handler) handleAnnounceCollection(items []*vocab.ObjectProperty) error 
 }
 
 func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
-	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
 		return err
 	}
@@ -559,7 +559,7 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 }
 
 func (h *Handler) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
-	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
 		return err
 	}

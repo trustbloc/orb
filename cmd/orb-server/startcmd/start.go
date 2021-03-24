@@ -312,9 +312,9 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	apCfg := &aphandler.Config{
-		BasePath:   activityPubServicesPath,
-		ServiceIRI: apServiceIRI,
-		PageSize:   100, // TODO: Make configurable
+		BasePath:  activityPubServicesPath,
+		ObjectIRI: apServiceIRI,
+		PageSize:  100, // TODO: Make configurable
 	}
 
 	httpServer := httpserver.New(

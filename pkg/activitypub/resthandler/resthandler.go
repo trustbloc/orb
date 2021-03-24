@@ -45,9 +45,9 @@ const (
 
 // Config contains configuration parameters for the handler.
 type Config struct {
-	BasePath   string
-	ServiceIRI *url.URL
-	PageSize   int
+	BasePath  string
+	ObjectIRI *url.URL
+	PageSize  int
 }
 
 type handler struct {
@@ -64,7 +64,7 @@ type handler struct {
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
-	id, err := url.Parse(fmt.Sprintf("%s%s", cfg.ServiceIRI, endpoint))
+	id, err := url.Parse(fmt.Sprintf("%s%s", cfg.ObjectIRI, endpoint))
 	if err != nil {
 		// This is called on startup so it's better to panic if the config is bad.
 		panic(err)

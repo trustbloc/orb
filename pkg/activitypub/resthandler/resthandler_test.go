@@ -21,9 +21,9 @@ import (
 
 func TestNewHandler(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := newHandler("", cfg, memstore.New(""),
@@ -65,9 +65,9 @@ func TestGetLastPageNum(t *testing.T) {
 
 func TestGetCurrentPrevNext(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := newHandler("", cfg, memstore.New(""), nil)
@@ -157,9 +157,9 @@ func TestGetCurrentPrevNext(t *testing.T) {
 
 func TestGetIDPrevNextURL(t *testing.T) {
 	cfg := &Config{
-		BasePath:   basePath,
-		ServiceIRI: serviceIRI,
-		PageSize:   4,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
 	}
 
 	h := newHandler("", cfg, memstore.New(""), nil)

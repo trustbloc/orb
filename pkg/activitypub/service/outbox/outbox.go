@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
@@ -44,6 +45,7 @@ type pubSub interface {
 // Config holds configuration parameters for the outbox.
 type Config struct {
 	ServiceName      string
+	ServiceIRI       *url.URL
 	Topic            string
 	TLSClientConfig  *tls.Config
 	RedeliveryConfig *redelivery.Config
@@ -164,8 +166,12 @@ func (h *Outbox) Post(activity *vocab.ActivityType) error {
 		return errors.WithMessage(err, "unable to marshal")
 	}
 
-	if err := h.activityStore.AddActivity(store.Outbox, activity); err != nil {
+	if err := h.activityStore.AddActivity(activity); err != nil {
 		return errors.WithMessage(err, "unable to store activity")
+	}
+
+	if err := h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+		return errors.WithMessage(err, "unable to add reference to activity")
 	}
 
 	for _, to := range activity.To() {

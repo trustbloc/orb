@@ -66,6 +66,7 @@ func New(cfg *Config, activityStore store.Store,
 	ob, err := outbox.New(
 		&outbox.Config{
 			ServiceName:      cfg.ServiceEndpoint,
+			ServiceIRI:       cfg.ServiceIRI,
 			Topic:            activitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
@@ -88,6 +89,7 @@ func New(cfg *Config, activityStore store.Store,
 	ib, err := inbox.New(
 		&inbox.Config{
 			ServiceEndpoint: cfg.ServiceEndpoint,
+			ServiceIRI:      cfg.ServiceIRI,
 			Topic:           activitiesTopic,
 		},
 		activityStore,

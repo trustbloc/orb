@@ -41,12 +41,12 @@ func NewInbox(cfg *Config, activityStore spi.Store) *Outbox {
 type activities struct {
 	*handler
 
-	storeType spi.ActivityStoreType
+	refType spi.ReferenceType
 }
 
-func newActivities(path string, storeType spi.ActivityStoreType, cfg *Config, activityStore spi.Store) *activities {
+func newActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *activities {
 	h := &activities{
-		storeType: storeType,
+		refType: refType,
 	}
 
 	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
@@ -66,8 +66,8 @@ func (h *activities) handle(w http.ResponseWriter, req *http.Request) {
 func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request) {
 	activities, err := h.getActivities()
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving %s for service IRI [%s]: %s",
-			h.endpoint, h.storeType, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
+			h.endpoint, h.refType, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -76,8 +76,8 @@ func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request) {
 
 	activitiesCollBytes, err := h.marshal(activities)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal %s collection for service IRI [%s]: %s",
-			h.endpoint, h.storeType, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
+			h.endpoint, h.refType, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -107,8 +107,8 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	}
 
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving page for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
+			h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -117,8 +117,8 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal page for service IRI [%s]: %s",
-			h.endpoint, h.ServiceIRI, err)
+		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
+			h.endpoint, h.ObjectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -128,8 +128,13 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
+//nolint:dupl
 func (h *activities) getActivities() (*vocab.OrderedCollectionType, error) {
-	it, err := h.activityStore.QueryActivities(h.storeType, spi.NewCriteria())
+	it, err := h.activityStore.QueryReferences(h.refType,
+		spi.NewCriteria(
+			spi.WithObjectIRI(h.ObjectIRI),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +162,12 @@ func (h *activities) getActivities() (*vocab.OrderedCollectionType, error) {
 
 //nolint:dupl
 func (h *activities) getPage(opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
-	it, err := h.activityStore.QueryActivities(h.storeType, spi.NewCriteria(spi.WithActorIRI(h.ServiceIRI)), opts...)
+	it, err := h.activityStore.QueryActivities(
+		spi.NewCriteria(
+			spi.WithReferenceType(h.refType),
+			spi.WithObjectIRI(h.ObjectIRI),
+		), opts...,
+	)
 	if err != nil {
 		return nil, err
 	}

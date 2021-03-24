@@ -39,6 +39,7 @@ import (
 func TestInbox_StartStop(t *testing.T) {
 	cfg := &Config{
 		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      testutil.MustParseURL("https://example1.com/services/service1"),
 		Topic:           "activities",
 	}
 
@@ -67,6 +68,7 @@ func TestInbox_Handle(t *testing.T) {
 
 	cfg := &Config{
 		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      testutil.MustParseURL(service1URL),
 		Topic:           "activities",
 	}
 
@@ -116,10 +118,20 @@ func TestInbox_Handle(t *testing.T) {
 		// Wait for the activity to be handled
 		time.Sleep(50 * time.Millisecond)
 
-		a, err := activityStore.GetActivity(store.Inbox, activity.ID().URL())
+		a, err := activityStore.GetActivity(activity.ID().URL())
 		require.NoError(t, err)
 		require.NotNil(t, a)
 		require.Equalf(t, activity.ID(), a.ID(), "The activity should have been stored in the inbox")
+
+		it, err := activityStore.QueryReferences(store.Inbox,
+			store.NewCriteria(
+				store.WithObjectIRI(cfg.ServiceIRI),
+				store.WithReferenceIRI(activity.ID().URL()),
+			),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, it)
+		require.Equal(t, 1, it.TotalItems())
 	})
 
 	ib.Stop()
@@ -137,6 +149,7 @@ func TestInbox_Error(t *testing.T) {
 
 		cfg := &Config{
 			ServiceEndpoint: "/services/service1",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
 
@@ -187,6 +200,7 @@ func TestInbox_Error(t *testing.T) {
 
 		cfg := &Config{
 			ServiceEndpoint: "/services/service1",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
 
@@ -237,6 +251,7 @@ func TestInbox_Error(t *testing.T) {
 
 		cfg := &Config{
 			ServiceEndpoint: "/services/service1",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
 
@@ -289,8 +304,11 @@ func TestInbox_Error(t *testing.T) {
 	})
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {
+		const service1URL = "http://localhost:8205/services/service1"
+
 		cfg := &Config{
 			ServiceEndpoint: "/services/service1",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
 

@@ -277,7 +277,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[follow.ID().String()])
 		mutex.Unlock()
 
-		it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(it, -1)
@@ -322,7 +322,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			require.Nil(t, gotActivity[follow.ID().String()])
 			mutex.Unlock()
 
-			it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+			it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 			require.NoError(t, err)
 
 			followers, err := storeutil.ReadReferences(it, -1)
@@ -447,7 +447,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[accept.ID().String()])
 		mutex.Unlock()
 
-		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(it, -1)
@@ -587,7 +587,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		require.NotNil(t, gotActivity[reject.ID().String()])
 		mutex.Unlock()
 
-		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(it, -1)
@@ -926,7 +926,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		mutex.Unlock()
 		require.Len(t, witness.AnchorCreds(), 1)
 
-		it, err := h.store.QueryReferences(store.Liked, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Liked, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		liked, err := storeutil.ReadReferences(it, -1)
@@ -1112,7 +1112,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
 
-		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithActorIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		likes, err := storeutil.ReadReferences(it, -1)
