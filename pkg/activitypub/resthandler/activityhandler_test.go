@@ -36,6 +36,16 @@ func TestNewOutbox(t *testing.T) {
 	require.Equal(t, "/services/orb/outbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/outbox", id.String())
 }
 
 func TestNewInbox(t *testing.T) {
@@ -50,6 +60,16 @@ func TestNewInbox(t *testing.T) {
 	require.Equal(t, "/services/orb/inbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/inbox", id.String())
 }
 
 func TestActivities_Handler(t *testing.T) {
@@ -113,6 +133,46 @@ func TestActivities_Handler(t *testing.T) {
 		errExpected := fmt.Errorf("injected marshal error")
 
 		h.marshal = func(v interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("GetObjectIRI error", func(t *testing.T) {
+		h := NewOutbox(cfg, activityStore)
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected error")
+
+		h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("GetID error", func(t *testing.T) {
+		h := NewOutbox(cfg, activityStore)
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected error")
+
+		h.getID = func(*url.URL) (*url.URL, error) {
 			return nil, errExpected
 		}
 

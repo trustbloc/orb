@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,16 @@ func TestNewFollowers(t *testing.T) {
 	require.Equal(t, "/services/orb/followers", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/followers", id.String())
 }
 
 func TestNewFollowing(t *testing.T) {
@@ -49,6 +60,16 @@ func TestNewFollowing(t *testing.T) {
 	require.Equal(t, "/services/orb/following", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/following", id.String())
 }
 
 func TestNewWitnesses(t *testing.T) {
@@ -63,6 +84,16 @@ func TestNewWitnesses(t *testing.T) {
 	require.Equal(t, "/services/orb/witnesses", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/witnesses", id.String())
 }
 
 func TestNewWitnessing(t *testing.T) {
@@ -77,6 +108,16 @@ func TestNewWitnessing(t *testing.T) {
 	require.Equal(t, "/services/orb/witnessing", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
+
+	objectIRI, err := h.getObjectIRI(nil)
+	require.NoError(t, err)
+	require.NotNil(t, objectIRI)
+	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
+
+	id, err := h.getID(objectIRI)
+	require.NoError(t, err)
+	require.NotNil(t, id)
+	require.Equal(t, "https://example1.com/services/orb/witnessing", id.String())
 }
 
 func TestFollowers_Handler(t *testing.T) {
@@ -118,11 +159,6 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Store error", func(t *testing.T) {
-		cfg := &Config{
-			ObjectIRI: serviceIRI,
-			PageSize:  4,
-		}
-
 		errExpected := fmt.Errorf("injected store error")
 
 		s := &mocks.ActivityStore{}
@@ -142,11 +178,6 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		cfg := &Config{
-			ObjectIRI: serviceIRI,
-			PageSize:  4,
-		}
-
 		h := NewFollowers(cfg, activityStore)
 		require.NotNil(t, h)
 
@@ -158,6 +189,46 @@ func TestFollowers_Handler(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("GetObjectIRI error", func(t *testing.T) {
+		h := NewFollowers(cfg, activityStore)
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected error")
+
+		h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("GetID error", func(t *testing.T) {
+		h := NewFollowers(cfg, activityStore)
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected error")
+
+		h.getID = func(*url.URL) (*url.URL, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
 
 		h.handle(rw, req)
 

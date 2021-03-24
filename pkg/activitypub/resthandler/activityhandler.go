@@ -8,6 +8,7 @@ package resthandler
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -22,7 +23,9 @@ type Outbox struct {
 // NewOutbox returns a new 'outbox' REST handler.
 func NewOutbox(cfg *Config, activityStore spi.Store) *Outbox {
 	return &Outbox{
-		activities: newActivities(OutboxPath, spi.Outbox, cfg, activityStore),
+		activities: newActivities(OutboxPath, spi.Outbox, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("outbox"),
+		),
 	}
 }
 
@@ -34,19 +37,30 @@ type Inbox struct {
 // NewInbox returns a new 'inbox' REST handler.
 func NewInbox(cfg *Config, activityStore spi.Store) *Outbox {
 	return &Outbox{
-		activities: newActivities(InboxPath, spi.Inbox, cfg, activityStore),
+		activities: newActivities(InboxPath, spi.Inbox, cfg, activityStore,
+			getObjectIRI(cfg.ObjectIRI), getID("inbox"),
+		),
 	}
 }
+
+type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
+
+type getObjectIRIFunc func(req *http.Request) (*url.URL, error)
 
 type activities struct {
 	*handler
 
-	refType spi.ReferenceType
+	refType      spi.ReferenceType
+	getID        getIDFunc
+	getObjectIRI getObjectIRIFunc
 }
 
-func newActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store) *activities {
+func newActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
+	getObjectIRI getObjectIRIFunc, getID getIDFunc) *activities {
 	h := &activities{
-		refType: refType,
+		refType:      refType,
+		getID:        getID,
+		getObjectIRI: getObjectIRI,
 	}
 
 	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
@@ -55,19 +69,37 @@ func newActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 }
 
 func (h *activities) handle(w http.ResponseWriter, req *http.Request) {
+	objectIRI, err := h.getObjectIRI(req)
+	if err != nil {
+		logger.Errorf("[%s] Error getting ObjectIRI: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
+	id, err := h.getID(objectIRI)
+	if err != nil {
+		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
 	if h.isPaging(req) {
-		h.handleActivitiesPage(w, req)
+		h.handleActivitiesPage(w, req, objectIRI, id)
 	} else {
-		h.handleActivities(w, req)
+		h.handleActivities(w, req, objectIRI, id)
 	}
 }
 
 //nolint:dupl
-func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request) {
-	activities, err := h.getActivities()
+func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL) {
+	activities, err := h.getActivities(objectIRI, id)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+			h.endpoint, h.refType, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -77,7 +109,7 @@ func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request) {
 	activitiesCollBytes, err := h.marshal(activities)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+			h.endpoint, h.refType, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -87,20 +119,20 @@ func (h *activities) handleActivities(rw http.ResponseWriter, _ *http.Request) {
 	h.writeResponse(rw, http.StatusOK, activitiesCollBytes)
 }
 
-func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request) {
+func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
 	var page *vocab.OrderedCollectionPageType
 
 	var err error
 
 	pageNum, ok := h.getPageNum(req)
 	if ok {
-		page, err = h.getPage(
+		page, err = h.getPage(objectIRI, id,
 			spi.WithPageSize(h.PageSize),
 			spi.WithPageNum(pageNum),
 			spi.WithSortOrder(spi.SortDescending),
 		)
 	} else {
-		page, err = h.getPage(
+		page, err = h.getPage(objectIRI, id,
 			spi.WithPageSize(h.PageSize),
 			spi.WithSortOrder(spi.SortDescending),
 		)
@@ -108,7 +140,7 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
-			h.endpoint, h.ObjectIRI, err)
+			h.endpoint, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -118,7 +150,7 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	pageBytes, err := h.marshal(page)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
-			h.endpoint, h.ObjectIRI, err)
+			h.endpoint, objectIRI, err)
 
 		h.writeResponse(rw, http.StatusInternalServerError, nil)
 
@@ -129,10 +161,10 @@ func (h *activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 }
 
 //nolint:dupl
-func (h *activities) getActivities() (*vocab.OrderedCollectionType, error) {
+func (h *activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollectionType, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(
-			spi.WithObjectIRI(h.ObjectIRI),
+			spi.WithObjectIRI(objectIRI),
 		),
 	)
 	if err != nil {
@@ -141,19 +173,19 @@ func (h *activities) getActivities() (*vocab.OrderedCollectionType, error) {
 
 	defer it.Close()
 
-	firstURL, err := h.getPageURL(-1)
+	firstURL, err := h.getPageURL(id, -1)
 	if err != nil {
 		return nil, err
 	}
 
-	lastURL, err := h.getPageURL(getLastPageNum(it.TotalItems(), h.PageSize, spi.SortDescending))
+	lastURL, err := h.getPageURL(id, getLastPageNum(it.TotalItems(), h.PageSize, spi.SortDescending))
 	if err != nil {
 		return nil, err
 	}
 
 	return vocab.NewOrderedCollection(nil,
 		vocab.WithContext(vocab.ContextActivityStreams),
-		vocab.WithID(h.id),
+		vocab.WithID(id),
 		vocab.WithFirst(firstURL),
 		vocab.WithLast(lastURL),
 		vocab.WithTotalItems(it.TotalItems()),
@@ -161,11 +193,11 @@ func (h *activities) getActivities() (*vocab.OrderedCollectionType, error) {
 }
 
 //nolint:dupl
-func (h *activities) getPage(opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
+func (h *activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
 	it, err := h.activityStore.QueryActivities(
 		spi.NewCriteria(
 			spi.WithReferenceType(h.refType),
-			spi.WithObjectIRI(h.ObjectIRI),
+			spi.WithObjectIRI(objectIRI),
 		), opts...,
 	)
 	if err != nil {
@@ -187,7 +219,7 @@ func (h *activities) getPage(opts ...spi.QueryOpt) (*vocab.OrderedCollectionPage
 		items[i] = vocab.NewObjectProperty(vocab.WithActivity(activity))
 	}
 
-	id, prev, next, err := h.getIDPrevNextURL(it.TotalItems(), options)
+	id, prev, next, err := h.getIDPrevNextURL(id, it.TotalItems(), options)
 	if err != nil {
 		return nil, err
 	}
