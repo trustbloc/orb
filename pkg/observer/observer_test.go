@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,10 +14,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprocessor"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -31,10 +27,10 @@ func TestStartObserver(t *testing.T) {
 	)
 
 	t.Run("test channel close", func(t *testing.T) {
-		sidetreeTxnCh := make(chan []string, 100)
+		anchorCh := make(chan []string, 100)
 
 		providers := &Providers{
-			TxnProvider: mockLedger{registerForSidetreeTxnValue: sidetreeTxnCh},
+			TxnProvider: mockLedger{registerForAnchor: anchorCh},
 		}
 
 		o := New(providers)
@@ -43,12 +39,12 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		close(sidetreeTxnCh)
+		close(anchorCh)
 		time.Sleep(200 * time.Millisecond)
 	})
 
-	t.Run("test success", func(t *testing.T) {
-		sidetreeTxnCh := make(chan []string, 100)
+	t.Run("success - process batch", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
 
 		tp := &mocks.TxnProcessor{}
 
@@ -66,20 +62,20 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "1.address"}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1"}
 
 		cid, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		anchors = append(anchors, cid)
 
-		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "2.address"}
+		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
 
 		cid, err = anchorGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
 		anchors = append(anchors, cid)
 
 		providers := &Providers{
-			TxnProvider:            mockLedger{registerForSidetreeTxnValue: sidetreeTxnCh},
+			TxnProvider:            mockLedger{registerForAnchor: anchorCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 		}
@@ -90,76 +86,294 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		sidetreeTxnCh <- anchors
+		anchorCh <- anchors
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 1, tp.ProcessCallCount())
 	})
-}
 
-func TestTxnProcessor_Process(t *testing.T) {
-	t.Run("test error from txn operations provider", func(t *testing.T) {
-		errExpected := fmt.Errorf("txn operations provider error")
+	t.Run("success - process did (multiple, just create)", func(t *testing.T) {
+		didCh := make(chan []string, 100)
 
-		opp := &mockTxnOpsProvider{
-			err: errExpected,
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		var dids []string
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
 		}
 
-		providers := &txnprocessor.Providers{
-			OpStore:                   &mockOperationStore{},
-			OperationProtocolProvider: opp,
+		anchorGraph := graph.New(graphProviders)
+
+		did1 := "xyz"
+		did2 := "abc"
+
+		previousAnchors := make(map[string]string)
+		previousAnchors[did1] = ""
+		previousAnchors[did2] = ""
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+
+		cid, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+		dids = append(dids, cid+":"+did1, cid+":"+did2)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
 		}
 
-		p := txnprocessor.New(providers)
-		err := p.Process(txn.SidetreeTxn{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), errExpected.Error())
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		didCh <- dids
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 2, tp.ProcessCallCount())
+	})
+
+	t.Run("success - process did with previous anchors", func(t *testing.T) {
+		didCh := make(chan []string, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		did1 := "xyz"
+
+		previousAnchors := make(map[string]string)
+		previousAnchors[did1] = ""
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+
+		cid, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+
+		previousAnchors[did1] = cid
+
+		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+
+		cid, err = anchorGraph.Add(buildCredential(payload2))
+		require.NoError(t, err)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		didCh <- []string{cid + ":" + did1}
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 2, tp.ProcessCallCount())
+	})
+
+	t.Run("success - did and anchor", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		didCh := make(chan []string, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		var dids, anchors []string
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		did := "123"
+
+		previousDIDAnchors := make(map[string]string)
+		previousDIDAnchors[did] = ""
+
+		payload1 := subject.Payload{
+			Namespace: namespace1,
+			Version:   1, CoreIndex: "address",
+			PreviousAnchors: previousDIDAnchors,
+		}
+
+		cid, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+
+		anchors = append(anchors, cid)
+		dids = append(dids, cid+":"+did)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForAnchor: anchorCh, registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		anchorCh <- anchors
+		didCh <- dids
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 2, tp.ProcessCallCount())
+	})
+
+	t.Run("error - transaction processor error", func(t *testing.T) {
+		didCh := make(chan []string, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		var dids []string
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		did1 := "123"
+		did2 := "abc"
+
+		previousAnchors := make(map[string]string)
+		previousAnchors[did1] = ""
+		previousAnchors[did2] = ""
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+
+		cid, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+		dids = append(dids, cid+":"+did1, cid+":"+did2)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		didCh <- dids
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 2, tp.ProcessCallCount())
+	})
+
+	t.Run("error - cid not found", func(t *testing.T) {
+		didCh := make(chan []string, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		graphProviders := &graph.Providers{
+			Cas: mocks.NewMockCasClient(nil),
+			Pkf: pubKeyFetcherFnc,
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		didCh <- []string{"cid:did"}
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 0, tp.ProcessCallCount())
+	})
+
+	t.Run("error - invalid did format", func(t *testing.T) {
+		didCh := make(chan []string, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForDID: didCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		didCh <- []string{"no-cid"}
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 0, tp.ProcessCallCount())
 	})
 }
 
 type mockLedger struct {
-	registerForSidetreeTxnValue chan []string
+	registerForAnchor chan []string
+	registerForDID    chan []string
 }
 
-func (m mockLedger) RegisterForOrbTxn() <-chan []string {
-	return m.registerForSidetreeTxnValue
+func (m mockLedger) RegisterForAnchor() <-chan []string {
+	return m.registerForAnchor
 }
 
-type mockOperationStore struct {
-	putFunc func(ops []*operation.AnchoredOperation) error
-	getFunc func(suffix string) ([]*operation.AnchoredOperation, error)
-}
-
-func (m *mockOperationStore) Put(ops []*operation.AnchoredOperation) error {
-	if m.putFunc != nil {
-		return m.putFunc(ops)
-	}
-
-	return nil
-}
-
-func (m *mockOperationStore) Get(suffix string) ([]*operation.AnchoredOperation, error) {
-	if m.getFunc != nil {
-		return m.getFunc(suffix)
-	}
-
-	return nil, nil
-}
-
-type mockTxnOpsProvider struct {
-	err error
-}
-
-func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	op := &operation.AnchoredOperation{
-		UniqueSuffix: "abc",
-	}
-
-	return []*operation.AnchoredOperation{op}, nil
+func (m mockLedger) RegisterForDID() <-chan []string {
+	return m.registerForDID
 }
 
 func buildCredential(payload subject.Payload) *verifiable.Credential {

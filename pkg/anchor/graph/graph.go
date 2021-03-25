@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package graph
 
 import (
+	"fmt"
+
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -57,9 +59,15 @@ func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
 
-// GetDidAnchors returns all anchors that are referencing DID starting from cid.
-func (g *Graph) GetDidAnchors(cid, did string) ([]string, error) {
-	var refs []string
+// Anchor contains anchor info plus corresponding cid.
+type Anchor struct {
+	Info *verifiable.Credential
+	CID  string
+}
+
+// GetDidAnchors returns all anchors that are referencing did suffix starting from cid.
+func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
+	var refs []Anchor
 
 	cur := cid
 	ok := true
@@ -67,8 +75,10 @@ func (g *Graph) GetDidAnchors(cid, did string) ([]string, error) {
 	for ok {
 		node, err := g.Read(cur)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s] f: %s", cur, suffix, err.Error())
 		}
+
+		refs = append(refs, Anchor{Info: node, CID: cur})
 
 		payload, err := util.GetAnchorSubject(node)
 		if err != nil {
@@ -77,15 +87,21 @@ func (g *Graph) GetDidAnchors(cid, did string) ([]string, error) {
 
 		previousAnchors := payload.PreviousAnchors
 
-		cur, ok = previousAnchors[did]
-		if ok {
-			if cur == "" { // create
-				return refs, nil
-			}
-
-			refs = append(refs, cur)
+		cur, ok = previousAnchors[suffix]
+		if ok && cur == "" { // create
+			break
 		}
 	}
 
-	return refs, nil
+	return reverseOrder(refs), nil
+}
+
+func reverseOrder(original []Anchor) []Anchor {
+	var reversed []Anchor
+
+	for i := len(original) - 1; i >= 0; i-- {
+		reversed = append(reversed, original[i])
+	}
+
+	return reversed
 }

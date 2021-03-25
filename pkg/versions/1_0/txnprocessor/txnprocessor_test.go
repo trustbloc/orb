@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
+
+	"github.com/trustbloc/orb/pkg/anchor/graph"
 )
 
 const anchorString = "1.coreIndexURI"
@@ -44,7 +46,7 @@ func TestProcessTxnOperations(t *testing.T) {
 			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
 				return fmt.Errorf("put error")
 			}},
-			AnchorGraph: &mockAnchorGraph{},
+			AnchorGraph: &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -74,7 +76,7 @@ func TestProcessTxnOperations(t *testing.T) {
 			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
 				return fmt.Errorf("put error")
 			}},
-			AnchorGraph: &mockAnchorGraph{DidAnchors: []string{"one", "two"}},
+			AnchorGraph: &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "one"}, {CID: "two"}}},
 		}
 
 		p := New(providers)
@@ -82,14 +84,14 @@ func TestProcessTxnOperations(t *testing.T) {
 			txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"discrepancy between anchors in the graph[2] and anchored operations[0] for did: abc")
+			"discrepancy between previous anchors in the graph[1] and anchored operations[0] for did: abc")
 	})
 
 	t.Run("test success", func(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
-			AnchorGraph:               &mockAnchorGraph{},
+			AnchorGraph:               &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -104,7 +106,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
-			AnchorGraph:               &mockAnchorGraph{},
+			AnchorGraph:               &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -158,11 +160,11 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 }
 
 type mockAnchorGraph struct {
-	DidAnchors []string
+	DidAnchors []graph.Anchor
 	Err        error
 }
 
-func (m *mockAnchorGraph) GetDidAnchors(cid, did string) ([]string, error) {
+func (m *mockAnchorGraph) GetDidAnchors(cid, suffix string) ([]graph.Anchor, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
