@@ -50,7 +50,7 @@ const (
 
 	sha2_256 = 18
 
-	anchorTimeDelta = 10
+	anchorTimeDelta = 300
 )
 
 const addPublicKeysTemplate = `[

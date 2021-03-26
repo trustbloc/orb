@@ -54,9 +54,12 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
+	"github.com/trustbloc/orb/pkg/resolver"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
+
+	localdiscovery "github.com/trustbloc/orb/pkg/discovery/local"
 )
 
 const (
@@ -233,6 +236,9 @@ func startOrbServices(parameters *orbParameters) error {
 	// create anchor channel (used by anchor writer to notify observer about anchors)
 	anchorCh := make(chan []string, chBuffer)
 
+	// create did channel (used by resolver to notify observer about "not-found" DIDs)
+	didCh := make(chan []string, chBuffer)
+
 	// used to notify anchor writer about witnessed anchor credential
 	vcCh := make(chan *verifiable.Credential, chBuffer)
 
@@ -282,7 +288,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create new observer and start it
 	providers := &observer.Providers{
-		TxnProvider:            mockTxnProvider{registerForAnchor: anchorCh},
+		TxnProvider:            mockTxnProvider{registerForAnchor: anchorCh, registerForDID: didCh},
 		ProtocolClientProvider: pcp,
 		AnchorGraph:            anchorGraph,
 	}
@@ -331,13 +337,20 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:  100, // TODO: Make configurable
 	}
 
+	orbResolver := resolver.NewResolveHandler(
+		parameters.didNamespace,
+		parameters.didAliases,
+		didDocHandler,
+		localdiscovery.New(didCh),
+	)
+
 	httpServer := httpserver.New(
 		parameters.hostURL,
 		parameters.tlsCertificate,
 		parameters.tlsKey,
 		parameters.token,
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
-		diddochandler.NewResolveHandler(baseResolvePath, didDocHandler),
+		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apServiceCfg, apStore),
 		aphandler.NewFollowers(apServiceCfg, apStore),
@@ -530,7 +543,7 @@ func prepareMasterKeyReader(kmsSecretsStoreProvider ariesstorage.Provider) (*byt
 
 type mockTxnProvider struct {
 	registerForAnchor chan []string
-	registerForDID chan []string
+	registerForDID    chan []string
 }
 
 func (m mockTxnProvider) RegisterForAnchor() <-chan []string {

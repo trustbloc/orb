@@ -110,8 +110,40 @@ Feature:
       When client sends request to resolve DID document
       Then check success response does NOT contain "newService"
 
+    @discover_did
+    Scenario: discover did
+      When client sends request to create DID document
+      Then check success response contains "#did"
 
+      Then we wait 1 seconds
+      When client sends request to resolve DID document
+      Then check success response contains "#did"
+      Then check success response contains "canonicalId"
 
+      When client sends request to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
 
+      When client sends request to recover DID document
+      Then we wait 1 seconds
 
+      When client sends request to resolve DID document
+      Then check success response contains "recoveryKey"
+      Then check success response contains "canonicalId"
 
+      When client sends request to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
+      Then check success response contains "recoveryKey"
+
+      Then container "orb" is stopped
+      Then we wait 3 seconds
+
+      Then container "orb" is started
+      Then we wait 15 seconds
+
+      When client sends request to resolve DID document with canonical id
+      Then check error response contains "not found"
+
+      Then we wait 5 seconds
+      When client sends request to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
+      Then check success response contains "recoveryKey"

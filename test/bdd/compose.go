@@ -29,6 +29,8 @@ type Composition struct {
 	composeFilesYaml string
 	projectName      string
 	dockerHelper     DockerHelper
+
+	dir string
 }
 
 // NewComposition create a new Composition specifying the project name (for isolation) and the compose files.
@@ -38,11 +40,11 @@ func NewComposition(projectName string, composeFilesYaml string, dir string) (co
 	}
 
 	endpoint := "unix:///var/run/docker.sock"
-	composition = &Composition{composeFilesYaml: composeFilesYaml, projectName: projectName}
+	composition = &Composition{composeFilesYaml: composeFilesYaml, projectName: projectName, dir: dir}
 	if composition.dockerClient, err = docker.NewClient(endpoint); err != nil {
 		return nil, errRetFunc()
 	}
-	if _, err = composition.issueCommand([]string{"up", "--force-recreate", "-d"}, dir); err != nil {
+	if _, err = composition.issueCommand([]string{"up", "--force-recreate", "-d"}); err != nil {
 		return nil, errRetFunc()
 	}
 	if composition.dockerHelper, err = NewDockerCmdlineHelper(); err != nil {
@@ -51,6 +53,15 @@ func NewComposition(projectName string, composeFilesYaml string, dir string) (co
 	// Now parse the current system
 	return composition, nil
 }
+
+// Up brings up all containers
+func (c *Composition) Up() error {
+	if _, err := c.issueCommand([]string{"up", "--force-recreate", "-d"}); err != nil {
+		return fmt.Errorf("Error bringing up docker containers using compose yaml '%s':  %s", c.composeFilesYaml, err)
+	}
+	return nil
+}
+
 
 func parseComposeFilesArg(composeFileArgs string) []string {
 	var args []string
@@ -65,9 +76,9 @@ func (c *Composition) getFileArgs() []string {
 }
 
 // GetContainerIDs returns the container IDs for the composition (NOTE: does NOT include those defined outside composition, eg. chaincode containers)
-func (c *Composition) GetContainerIDs(dir string) (containerIDs []string, err error) {
+func (c *Composition) GetContainerIDs() (containerIDs []string, err error) {
 	var cmdOutput []byte
-	if cmdOutput, err = c.issueCommand([]string{"ps", "-q"}, dir); err != nil {
+	if cmdOutput, err = c.issueCommand([]string{"ps", "-q"}); err != nil {
 		return nil, fmt.Errorf("Error getting container IDs for project '%s':  %s", c.projectName, err)
 	}
 	containerIDs = splitDockerCommandResults(string(cmdOutput))
@@ -83,7 +94,8 @@ func (c *Composition) refreshContainerList() (err error) {
 	return err
 }
 
-func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err error) {
+func (c *Composition) issueCommand(args []string) (_ []byte, err error) {
+
 	var cmdOut []byte
 	errRetFunc := func() error {
 		return fmt.Errorf("Error issuing command to docker-compose with args '%s':  %s (%s)", args, err, string(cmdOut))
@@ -92,7 +104,7 @@ func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err err
 	cmdArgs = append(cmdArgs, c.getFileArgs()...)
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command(dockerComposeCommand, cmdArgs...) //nolint: gosec
-	cmd.Dir = dir
+	cmd.Dir = c.dir
 	if cmdOut, err = cmd.CombinedOutput(); err != nil {
 		return cmdOut, errRetFunc()
 	}
@@ -105,14 +117,14 @@ func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err err
 }
 
 // Decompose decompose the composition.  Will also remove any containers with the same projectName prefix (eg. chaincode containers)
-func (c *Composition) Decompose(dir string) (output string, err error) {
+func (c *Composition) Decompose() (output string, err error) {
 	var outputBytes []byte
 	//var containers []string
-	_, err = c.issueCommand([]string{"stop"}, dir)
+	_, err = c.issueCommand([]string{"stop"})
 	if err != nil {
 		log.Fatal(err)
 	}
-	outputBytes, err = c.issueCommand([]string{"rm", "-f"}, dir)
+	outputBytes, err = c.issueCommand([]string{"rm", "-f"})
 	// Now remove associated chaincode containers if any
 	containerErr := c.dockerHelper.RemoveContainersWithNamePrefix(c.projectName)
 	if containerErr != nil {
@@ -122,8 +134,8 @@ func (c *Composition) Decompose(dir string) (output string, err error) {
 }
 
 // GenerateLogs to file
-func (c *Composition) GenerateLogs(dir string) error {
-	outputBytes, err := c.issueCommand([]string{"logs"}, dir)
+func (c *Composition) GenerateLogs() error {
+	outputBytes, err := c.issueCommand([]string{"logs"})
 	if err != nil {
 		return err
 	}
@@ -186,3 +198,4 @@ func GenerateBytesUUID() []byte {
 
 	return uuid
 }
+
