@@ -18,7 +18,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-var composition *Composition
+var context *BDDContext
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -37,19 +37,13 @@ func TestMain(m *testing.M) {
 
 	initBDDConfig()
 
+	compose := os.Getenv("DISABLE_COMPOSITION") != "true"
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
-
-			if os.Getenv("DISABLE_COMPOSITION") != "true" {
-
-				// Need a unique name, but docker does not allow '-' in names
-				composeProjectName := strings.Replace(generateUUID(), "-", "", -1)
-				newComposition, err := NewComposition(composeProjectName, "docker-compose.yml", "./fixtures")
-				if err != nil {
+			if compose {
+				if err := context.Composition().Up(); err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
-
-				composition = newComposition
 
 				testSleep := 15
 				if os.Getenv("TEST_SLEEP") != "" {
@@ -58,13 +52,17 @@ func TestMain(m *testing.M) {
 				fmt.Println(fmt.Sprintf("docker-compose up with tags=%s ... waiting for orb to start for %d seconds", tags, testSleep))
 				time.Sleep(time.Second * time.Duration(testSleep))
 			}
-
 		})
 
 		s.AfterSuite(func() {
-			if composition != nil {
-				composition.GenerateLogs("./fixtures")
-				composition.Decompose("./fixtures")
+			if compose {
+				composition := context.Composition()
+				if err := composition.GenerateLogs(); err != nil {
+					logger.Warnf("Error generating logs: %s", err)
+				}
+				if _, err := composition.Decompose(); err != nil {
+					logger.Warnf("Error decomposing: %s", err)
+				}
 			}
 		})
 
@@ -85,15 +83,26 @@ func TestMain(m *testing.M) {
 }
 
 func FeatureContext(s *godog.Suite) {
-
-	context, err := NewBDDContext()
+	var err error
+	context, err = NewBDDContext()
 	if err != nil {
 		panic(fmt.Sprintf("Error returned from NewBDDContext: %s", err))
 	}
 
+	// Need a unique name, but docker does not allow '-' in names
+	composeProjectName := strings.Replace(generateUUID(), "-", "", -1)
+	composition, err := NewComposition(composeProjectName, "docker-compose.yml", "./fixtures")
+	if err != nil {
+		panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
+	}
+
+	context.SetComposition(composition)
+
 	// Context is shared between tests - for now
 	// Note: Each test after NewcommonSteps. should add unique steps only
+	NewDockerSteps(context).RegisterSteps(s)
 	NewDIDSideSteps(context, "did:orb").RegisterSteps(s)
+
 }
 
 func initBDDConfig() {
