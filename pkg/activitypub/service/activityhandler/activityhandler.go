@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -48,6 +50,10 @@ type Config struct {
 	MaxWitnessDelay time.Duration
 }
 
+type activityPubClient interface {
+	GetActor(iri *url.URL) (*vocab.ActorType, error)
+}
+
 // Handler provides an implementation for the ActivityHandler interface.
 type Handler struct {
 	*Config
@@ -58,10 +64,16 @@ type Handler struct {
 	outbox      service.Outbox
 	mutex       sync.RWMutex
 	subscribers []chan *vocab.ActivityType
+	client      activityPubClient
+}
+
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
 // New returns a new ActivityPub activity handler.
-func New(cfg *Config, s store.Store, outbox service.Outbox, opts ...service.HandlerOpt) *Handler {
+func New(cfg *Config, s store.Store, outbox service.Outbox, httpClient httpClient,
+	opts ...service.HandlerOpt) *Handler {
 	options := defaultOptions()
 
 	for _, opt := range opts {
@@ -81,6 +93,7 @@ func New(cfg *Config, s store.Store, outbox service.Outbox, opts ...service.Hand
 		Handlers: options,
 		store:    s,
 		outbox:   outbox,
+		client:   client.New(httpClient),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -217,20 +230,29 @@ func (h *Handler) handleFollowActivity(follow *vocab.ActivityType) error {
 	}
 
 	if accept {
-		if err := h.store.AddReference(store.Follower, iri, actorIRI); err != nil {
-			return fmt.Errorf("unable to store new follower: %w", err)
-		}
+		logger.Infof("[%s] Request for %s to follow %s has been accepted", h.ServiceName, h.ServiceIRI, actor.ID())
 
-		logger.Infof("[%s] Request for %s to follow %s has been accepted. Replying with 'Accept' activity",
-			h.ServiceName, iri, actorIRI)
-
-		return h.postAcceptFollow(follow, actorIRI)
+		return h.acceptActor(follow, actor)
 	}
 
 	logger.Infof("[%s] Request for %s to follow %s has been rejected. Replying with 'Reject' activity",
 		h.ServiceName, actorIRI, h.ServiceIRI)
 
 	return h.postRejectFollow(follow, actorIRI)
+}
+
+func (h *Handler) acceptActor(follow *vocab.ActivityType, actor *vocab.ActorType) error {
+	if err := h.store.AddReference(store.Follower, h.ServiceIRI, actor.ID().URL()); err != nil {
+		return fmt.Errorf("unable to store new follower: %w", err)
+	}
+
+	if err := h.store.PutActor(actor); err != nil {
+		logger.Warnf("[%s] Unable to store actor %s: %s", actor.ID(), err)
+	}
+
+	logger.Infof("[%s] Replying to %s with 'Accept' activity", h.ServiceName, actor.ID())
+
+	return h.postAcceptFollow(follow, actor.ID().URL())
 }
 
 func (h *Handler) handleAcceptActivity(accept *vocab.ActivityType) error {
@@ -705,8 +727,8 @@ func (h *Handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
 		return nil, err
 	}
 
-	// TODO: The actor isn't in our local store. Retrieve the actor from remote.
-	return nil, store.ErrNotFound
+	// The actor isn't in our local store. Retrieve the actor from the remote server.
+	return h.client.GetActor(iri)
 }
 
 type noOpAnchorCredentialPublisher struct {

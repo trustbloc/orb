@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
+	clientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -40,7 +42,7 @@ func TestNew(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{})
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -59,7 +61,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceName: "service1",
 	}
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{})
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -92,7 +94,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
 
-	h := New(cfg, activityStore, ob, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := New(cfg, activityStore, ob, &clientmocks.HTTPClient{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -239,7 +241,10 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 	followerAuth := mocks.NewFollowerAuth()
 
-	h := New(cfg, as, ob, spi.WithFollowerAuth(followerAuth))
+	httpClient := &clientmocks.HTTPClient{}
+	httpClient.DoReturns(nil, client.ErrNotFound)
+
+	h := New(cfg, as, ob, httpClient, spi.WithFollowerAuth(followerAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -369,7 +374,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.True(t, errors.Is(h.HandleActivity(follow), store.ErrNotFound))
+		require.True(t, errors.Is(h.HandleActivity(follow), client.ErrNotFound))
 	})
 
 	t.Run("AuthorizeFollower error", func(t *testing.T) {
@@ -405,7 +410,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := New(cfg, as, ob)
+	h := New(cfg, as, ob, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -545,7 +550,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := New(cfg, as, ob)
+	h := New(cfg, as, ob, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -683,7 +688,8 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{},
+		spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -879,7 +885,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 	witness := mocks.NewWitnessHandler()
 
-	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, spi.WithWitness(witness))
+	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1063,7 +1069,8 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 	proofHandler := mocks.NewProofHandler()
 
-	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, spi.WithProofHandler(proofHandler))
+	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{},
+		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 
 	h.Start()

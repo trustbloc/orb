@@ -9,7 +9,6 @@ package httppublisher
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -28,32 +27,14 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	t.Run("No TLS", func(t *testing.T) {
-		cfg := &Config{
-			ServiceName: "service1",
-		}
+	p := New("service1", http.DefaultClient)
+	require.NotNil(t, p)
+	require.NotNil(t, p.client)
+	require.Nil(t, p.client.Transport)
+	require.Equal(t, spi.StateStarted, p.State())
 
-		p := New(cfg)
-		require.NotNil(t, p)
-		require.NotNil(t, p.client)
-		require.Nil(t, p.client.Transport)
-		require.Equal(t, spi.StateStarted, p.State())
-
-		require.NoError(t, p.Close())
-		require.Equal(t, spi.StateStopped, p.State())
-	})
-
-	t.Run("With TLS", func(t *testing.T) {
-		cfg := &Config{
-			ServiceName:     "service1",
-			TLSClientConfig: &tls.Config{},
-		}
-
-		p := New(cfg)
-		require.NotNil(t, p)
-		require.NotNil(t, p.client)
-		require.NotNil(t, p.client.Transport)
-	})
+	require.NoError(t, p.Close())
+	require.Equal(t, spi.StateStopped, p.State())
 }
 
 func TestPublisher_Publish(t *testing.T) {
@@ -104,11 +85,7 @@ func TestPublisher_Publish(t *testing.T) {
 		require.NoError(t, httpServer.Stop(context.Background()))
 	}()
 
-	cfg := &Config{
-		ServiceName: "service1",
-	}
-
-	p := New(cfg)
+	p := New("service1", http.DefaultClient)
 	require.NotNil(t, p)
 
 	t.Run("Success", func(t *testing.T) {
@@ -159,7 +136,7 @@ func TestPublisher_Publish(t *testing.T) {
 func TestNewRequest(t *testing.T) {
 	const serviceURL = "http://localhost:8100/services/service1"
 
-	p := New(&Config{ServiceName: "service1"})
+	p := New("service1", http.DefaultClient)
 	require.NotNil(t, p)
 
 	t.Run("Success", func(t *testing.T) {

@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -38,7 +39,7 @@ import (
 
 func TestInbox_StartStop(t *testing.T) {
 	cfg := &Config{
-		ServiceEndpoint: "/services/service1",
+		ServiceEndpoint: "/services/service1/inbox",
 		ServiceIRI:      testutil.MustParseURL("https://example1.com/services/service1"),
 		Topic:           "activities",
 	}
@@ -66,8 +67,10 @@ func TestInbox_StartStop(t *testing.T) {
 func TestInbox_Handle(t *testing.T) {
 	const service1URL = "http://localhost:8202/services/service1"
 
+	service1InboxURL := service1URL + resthandler.InboxPath
+
 	cfg := &Config{
-		ServiceEndpoint: "/services/service1",
+		ServiceEndpoint: "/services/service1/inbox",
 		ServiceIRI:      testutil.MustParseURL(service1URL),
 		Topic:           "activities",
 	}
@@ -106,7 +109,7 @@ func TestInbox_Handle(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(service1URL, activity)
+		req, err := newHTTPRequest(service1InboxURL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -147,8 +150,10 @@ func TestInbox_Error(t *testing.T) {
 	t.Run("Handler error", func(t *testing.T) {
 		const service1URL = "http://localhost:8204/services/service1"
 
+		service1InboxURL := service1URL + resthandler.InboxPath
+
 		cfg := &Config{
-			ServiceEndpoint: "/services/service1",
+			ServiceEndpoint: "/services/service1/inbox",
 			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
@@ -185,7 +190,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(service1URL, activity)
+		req, err := newHTTPRequest(service1InboxURL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -198,8 +203,10 @@ func TestInbox_Error(t *testing.T) {
 	t.Run("Store error", func(t *testing.T) {
 		const service1URL = "http://localhost:8205/services/service1"
 
+		service1InboxURL := service1URL + resthandler.InboxPath
+
 		cfg := &Config{
-			ServiceEndpoint: "/services/service1",
+			ServiceEndpoint: "/services/service1/inbox",
 			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
@@ -236,7 +243,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(service1URL, activity)
+		req, err := newHTTPRequest(service1InboxURL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -249,8 +256,10 @@ func TestInbox_Error(t *testing.T) {
 	t.Run("Unmarshal error", func(t *testing.T) {
 		const service1URL = "http://localhost:8206/services/service1"
 
+		service1InboxURL := service1URL + resthandler.InboxPath
+
 		cfg := &Config{
-			ServiceEndpoint: "/services/service1",
+			ServiceEndpoint: "/services/service1/inbox",
 			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
@@ -293,7 +302,7 @@ func TestInbox_Error(t *testing.T) {
 			),
 		)
 
-		req, err := newHTTPRequest(service1URL, activity)
+		req, err := newHTTPRequest(service1InboxURL, activity)
 		require.NoError(t, err)
 
 		resp, err := client.Do(req)
@@ -307,7 +316,7 @@ func TestInbox_Error(t *testing.T) {
 		const service1URL = "http://localhost:8205/services/service1"
 
 		cfg := &Config{
-			ServiceEndpoint: "/services/service1",
+			ServiceEndpoint: "/services/service1/inbox",
 			ServiceIRI:      testutil.MustParseURL(service1URL),
 			Topic:           "activities",
 		}
