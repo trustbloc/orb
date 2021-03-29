@@ -8,7 +8,6 @@ package outbox
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,6 +30,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -47,23 +47,8 @@ func TestNewOutbox(t *testing.T) {
 			Topic:       "activities",
 		}
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
 			spi.WithUndeliverableHandler(undeliverableHandler))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-	})
-
-	t.Run("Tls HTTP client -> Success", func(t *testing.T) {
-		cfg := &Config{
-			ServiceName: "service1",
-			ServiceIRI:  service1URL,
-			Topic:       "activities",
-			TLSClientConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-			},
-		}
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 	})
@@ -77,7 +62,7 @@ func TestNewOutbox(t *testing.T) {
 
 		errExpected := errors.New("injected PubSub error")
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected),
+		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), &http.Client{},
 			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.Error(t, err)
 		require.True(t, errors.Is(err, errExpected))
@@ -98,7 +83,7 @@ func TestOutbox_StartStop(t *testing.T) {
 		Topic:       "activities",
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(undeliverableHandler))
+	ob, err := New(cfg, activityStore, pubSub, &http.Client{}, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -115,29 +100,28 @@ func TestOutbox_StartStop(t *testing.T) {
 
 func TestOutbox_Post(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
+	log.SetLevel("activitypub_client", log.DEBUG)
 
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+	service2URL := testutil.MustParseURL("http://localhost:8003/services/service2")
 
 	var mutex sync.RWMutex
 
-	activitiesReceived := make(map[string]*vocab.ActivityType)
+	activitiesReceived2 := make(map[string]*vocab.ActivityType)
 
-	httpServer := httpserver.New(":8002", "", "", "",
-		newTestHandler("/services/service1", func(w http.ResponseWriter, req *http.Request) {
-			bytes, err := ioutil.ReadAll(req.Body)
-			require.NoError(t, err)
+	receivedActivity := func(activity *vocab.ActivityType, activities map[string]*vocab.ActivityType) {
+		mutex.Lock()
+		activities[activity.ID().String()] = activity
+		mutex.Unlock()
+	}
 
-			fmt.Printf("Got HTTP message: %s\n", bytes)
-
-			activity := &vocab.ActivityType{}
-			require.NoError(t, json.Unmarshal(bytes, activity))
-
-			mutex.Lock()
-			activitiesReceived[activity.ID().String()] = activity
-			mutex.Unlock()
-
-			w.WriteHeader(http.StatusOK)
-		}),
+	httpServer := httpserver.New(":8003", "", "", "",
+		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
+		newTestHandler("/services/service2/inbox", http.MethodPost,
+			mockInboxHandler(t, func(activity *vocab.ActivityType) {
+				receivedActivity(activity, activitiesReceived2)
+			}),
+		),
 	)
 
 	require.NoError(t, httpServer.Start())
@@ -149,6 +133,8 @@ func TestOutbox_Post(t *testing.T) {
 	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 	pubSub := mocks.NewPubSub()
+
+	require.NoError(t, activityStore.AddReference(store.Follower, service1URL, service2URL))
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -163,7 +149,7 @@ func TestOutbox_Post(t *testing.T) {
 		},
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(undeliverableHandler))
+	ob, err := New(cfg, activityStore, pubSub, &http.Client{}, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -180,7 +166,11 @@ func TestOutbox_Post(t *testing.T) {
 				),
 			),
 		),
-		vocab.WithTo(testutil.MustParseURL("http://localhost:8002/services/service1")),
+		vocab.WithTo(
+			testutil.MustParseURL(vocab.PublicIRI),
+			service2URL,
+			service1URL, // Should ignore this IRI since it's the local service
+		),
 	)
 
 	require.NoError(t, ob.Post(activity))
@@ -188,9 +178,9 @@ func TestOutbox_Post(t *testing.T) {
 	time.Sleep(250 * time.Millisecond)
 
 	mutex.RLock()
-	_, ok := activitiesReceived[activity.ID().String()]
-	mutex.RUnlock()
+	_, ok := activitiesReceived2[activity.ID().String()]
 	require.True(t, ok)
+	mutex.RUnlock()
 
 	a, err := activityStore.GetActivity(activity.ID().URL())
 	require.NoError(t, err)
@@ -216,8 +206,11 @@ func TestOutbox_PostError(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+	service2URL := testutil.MustParseURL("http://localhost:8002/services/service2")
 
 	activityStore := memstore.New("service1")
+
+	require.NoError(t, activityStore.PutActor(aptestutil.NewMockService(service2URL)))
 
 	cfg := &Config{
 		ServiceName: "service1",
@@ -232,14 +225,10 @@ func TestOutbox_PostError(t *testing.T) {
 		},
 	}
 
-	objIRI, err := url.Parse("http://example.com/transactions/txn1")
-	require.NoError(t, err)
-
-	toURL, err := url.Parse("http://localhost:8002/services/service1")
-	require.NoError(t, err)
+	objIRI := testutil.MustParseURL("http://example.com/transactions/txn1")
 
 	t.Run("Not started", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
 			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -255,7 +244,7 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.AddActivityReturns(errExpected)
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
 			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -272,7 +261,7 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(),
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
 			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -295,7 +284,8 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery max retries reached", func(t *testing.T) {
 		undeliverableHandler := mocks.NewUndeliverableHandler()
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), spi.WithUndeliverableHandler(undeliverableHandler))
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -309,7 +299,7 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
-			vocab.WithTo(toURL),
+			vocab.WithTo(service2URL),
 		)
 
 		require.NoError(t, ob.Post(activity))
@@ -328,7 +318,8 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery unmarshal error", func(t *testing.T) {
 		pubSub := mocks.NewPubSub()
 
-		ob, err := New(cfg, activityStore, pubSub, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+		ob, err := New(cfg, activityStore, pubSub, &http.Client{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -346,7 +337,7 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
-			vocab.WithTo(toURL),
+			vocab.WithTo(service2URL),
 		)
 
 		require.NoError(t, ob.Post(activity))
@@ -363,12 +354,14 @@ func newActivityID(serviceName string) *url.URL {
 
 type testHandler struct {
 	path    string
+	method  string
 	handler common.HTTPRequestHandler
 }
 
-func newTestHandler(path string, handler common.HTTPRequestHandler) *testHandler {
+func newTestHandler(path, method string, handler common.HTTPRequestHandler) *testHandler {
 	return &testHandler{
 		path:    path,
+		method:  method,
 		handler: handler,
 	}
 }
@@ -378,9 +371,38 @@ func (m *testHandler) Path() string {
 }
 
 func (m *testHandler) Method() string {
-	return http.MethodPost
+	return m.method
 }
 
 func (m *testHandler) Handler() common.HTTPRequestHandler {
 	return m.handler
+}
+
+func mockServiceRequestHandler(t *testing.T, iri *url.URL) common.HTTPRequestHandler {
+	return func(w http.ResponseWriter, req *http.Request) {
+		respBytes, err := json.Marshal(aptestutil.NewMockService(iri))
+		require.NoError(t, err)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		_, err = w.Write(respBytes)
+		require.NoError(t, err)
+	}
+}
+
+func mockInboxHandler(t *testing.T, handle func(activity *vocab.ActivityType)) common.HTTPRequestHandler {
+	return func(w http.ResponseWriter, req *http.Request) {
+		bytes, err := ioutil.ReadAll(req.Body)
+		require.NoError(t, err)
+
+		fmt.Printf("Got HTTP message: %s\n", bytes)
+
+		activity := &vocab.ActivityType{}
+		require.NoError(t, json.Unmarshal(bytes, activity))
+
+		handle(activity)
+
+		w.WriteHeader(http.StatusOK)
+	}
 }

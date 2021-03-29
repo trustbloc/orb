@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -28,6 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -49,7 +52,7 @@ func TestNewService(t *testing.T) {
 	store1 := memstore.New(cfg1.ServiceEndpoint)
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1, service.WithUndeliverableHandler(undeliverableHandler1))
+	service1, err := New(cfg1, store1, &http.Client{}, service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 
 	stop := startHTTPServer(t, ":8311", service1.InboxHTTPHandler())
@@ -69,6 +72,7 @@ func TestService_Create(t *testing.T) {
 
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	unavailableServiceIRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -77,11 +81,16 @@ func TestService_Create(t *testing.T) {
 	}
 
 	store1 := memstore.New(cfg1.ServiceEndpoint)
+
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service1IRI)))
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(unavailableServiceIRI)))
+
 	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
 	followerAuth1 := mocks.NewFollowerAuth()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1,
+	service1, err := New(cfg1, store1, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -110,7 +119,7 @@ func TestService_Create(t *testing.T) {
 	followerAuth2 := mocks.NewFollowerAuth()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := New(cfg2, store2,
+	service2, err := New(cfg2, store2, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -147,8 +156,6 @@ func TestService_Create(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
-	unavailableServiceIRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	create := vocab.NewCreateActivity(newActivityID(service1IRI),
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
@@ -191,7 +198,7 @@ func TestService_Create(t *testing.T) {
 
 	ua := undeliverableHandler1.Activities()
 	require.Len(t, ua, 1)
-	require.Equal(t, unavailableServiceIRI.String(), ua[0].ToURL)
+	require.Equal(t, testutil.NewMockID(unavailableServiceIRI, resthandler.InboxPath).String(), ua[0].ToURL)
 }
 
 func TestService_Follow(t *testing.T) {
@@ -211,7 +218,9 @@ func TestService_Follow(t *testing.T) {
 	followerAuth1 := mocks.NewFollowerAuth()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1,
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
+
+	service1, err := New(cfg1, store1, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -240,7 +249,9 @@ func TestService_Follow(t *testing.T) {
 	followerAuth2 := mocks.NewFollowerAuth()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := New(cfg2, store2,
+	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service1IRI)))
+
+	service2, err := New(cfg2, store2, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -268,10 +279,6 @@ func TestService_Follow(t *testing.T) {
 	defer service2.Stop()
 
 	t.Run("Follow - Accept", func(t *testing.T) {
-		// Add Service1 to Service2's store since we haven't implemented actor resolution yet and
-		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store2.PutActor(vocab.NewService(service1IRI)))
-
 		followerAuth2.WithAccept()
 
 		actorIRI := service1IRI
@@ -350,10 +357,6 @@ func TestService_Follow(t *testing.T) {
 	})
 
 	t.Run("Follow - Reject", func(t *testing.T) {
-		// Add Service2 to Service1's store since we haven't implemented actor resolution yet and
-		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store1.PutActor(vocab.NewService(service2IRI)))
-
 		followerAuth1.WithReject()
 
 		actorIRI := service2IRI
@@ -464,7 +467,9 @@ func TestService_Announce(t *testing.T) {
 	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1,
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
+
+	service1, err := New(cfg1, store1, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -495,7 +500,9 @@ func TestService_Announce(t *testing.T) {
 	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := New(cfg2, store2,
+	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service3IRI)))
+
+	service2, err := New(cfg2, store2, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -521,7 +528,7 @@ func TestService_Announce(t *testing.T) {
 	proofHandler3 := mocks.NewProofHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
-	service3, err := New(cfg3, store3,
+	service3, err := New(cfg3, store3, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler3),
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),
@@ -778,7 +785,9 @@ func TestService_Offer(t *testing.T) {
 	witness1 := mocks.NewWitnessHandler()
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1,
+	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
+
+	service1, err := New(cfg1, store1, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler1),
 		service.WithAnchorCredentialHandler(anchorCredHandler1),
 		service.WithFollowerAuth(followerAuth1),
@@ -809,7 +818,9 @@ func TestService_Offer(t *testing.T) {
 	proofHandler2 := mocks.NewProofHandler()
 	undeliverableHandler2 := mocks.NewUndeliverableHandler()
 
-	service2, err := New(cfg2, store2,
+	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service1IRI)))
+
+	service2, err := New(cfg2, store2, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler2),
 		service.WithAnchorCredentialHandler(anchorCredHandler2),
 		service.WithFollowerAuth(followerAuth2),
@@ -835,7 +846,7 @@ func TestService_Offer(t *testing.T) {
 	proofHandler3 := mocks.NewProofHandler()
 	undeliverableHandler3 := mocks.NewUndeliverableHandler()
 
-	service3, err := New(cfg3, store3,
+	service3, err := New(cfg3, store3, &http.Client{},
 		service.WithUndeliverableHandler(undeliverableHandler3),
 		service.WithAnchorCredentialHandler(anchorCredHandler3),
 		service.WithFollowerAuth(followerAuth3),

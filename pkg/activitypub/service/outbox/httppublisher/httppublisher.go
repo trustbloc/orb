@@ -8,7 +8,6 @@ package httppublisher
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"net/http"
 
@@ -25,28 +24,22 @@ var logger = log.New("activitypub_service")
 // MetadataSendTo is the metadata key for the destination URL.
 const MetadataSendTo = "send_to"
 
-// Config holds the configuration parameters for the HTTP publisher.
-type Config struct {
-	ServiceName     string
-	TLSClientConfig *tls.Config
-}
-
 // Publisher is an implementation of a Watermill Publisher that publishes messages over HTTP.
 type Publisher struct {
-	*Config
 	*lifecycle.Lifecycle
 
+	ServiceName    string
 	client         *http.Client
 	jsonMarshal    func(v interface{}) ([]byte, error)
 	newRequestFunc func(string, *message.Message) (*http.Request, error)
 }
 
 // New creates a new HTTP Publisher.
-func New(cfg *Config) *Publisher {
+func New(serviceName string, client *http.Client) *Publisher {
 	p := &Publisher{
-		Config:      cfg,
-		Lifecycle:   lifecycle.New(cfg.ServiceName),
-		client:      resolveHTTPClient(cfg),
+		ServiceName: serviceName,
+		Lifecycle:   lifecycle.New(serviceName),
+		client:      client,
 		jsonMarshal: json.Marshal,
 	}
 
@@ -83,7 +76,7 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 		return errors.Wrapf(err, "cannot marshal message %s", msg.UUID)
 	}
 
-	logger.Debugf("[%s] Sending message [%s] to [%s] ", msg.UUID, req.URL)
+	logger.Debugf("[%s] Sending message [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
 
 	resp, err := p.client.Do(req)
 	if err != nil {
@@ -101,7 +94,7 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 		return errors.Errorf("server responded with error %d - %s", resp.StatusCode, resp.Status)
 	}
 
-	logger.Debugf("[%s] Message successfully sent [%s] to [%s] ", msg.UUID, req.URL)
+	logger.Debugf("[%s] Message successfully sent [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
 
 	return nil
 }
@@ -127,18 +120,4 @@ func (p *Publisher) newRequest(_ string, msg *message.Message) (*http.Request, e
 	req.Header.Set(wmhttp.HeaderMetadata, string(metadataBytes))
 
 	return req, nil
-}
-
-func resolveHTTPClient(cfg *Config) *http.Client {
-	if cfg.TLSClientConfig == nil {
-		return http.DefaultClient
-	}
-
-	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-			},
-		},
-	}
 }

@@ -9,12 +9,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
@@ -61,7 +63,7 @@ type Service struct {
 }
 
 // New returns a new ActivityPub service.
-func New(cfg *Config, activityStore store.Store,
+func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 	handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	ob, err := outbox.New(
 		&outbox.Config{
@@ -70,8 +72,8 @@ func New(cfg *Config, activityStore store.Store,
 			Topic:            activitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
-		activityStore, newPubSub(cfg, "outbox-"+cfg.ServiceEndpoint),
-		handlerOpts...,
+		activityStore, newPubSub(cfg, cfg.ServiceEndpoint+resthandler.OutboxPath),
+		httpClient, handlerOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)
@@ -84,16 +86,16 @@ func New(cfg *Config, activityStore store.Store,
 			ServiceIRI:      cfg.ServiceIRI,
 			MaxWitnessDelay: cfg.MaxWitnessDelay,
 		},
-		activityStore, ob, handlerOpts...)
+		activityStore, ob, httpClient, handlerOpts...)
 
 	ib, err := inbox.New(
 		&inbox.Config{
-			ServiceEndpoint: cfg.ServiceEndpoint,
+			ServiceEndpoint: cfg.ServiceEndpoint + resthandler.InboxPath,
 			ServiceIRI:      cfg.ServiceIRI,
 			Topic:           activitiesTopic,
 		},
 		activityStore,
-		newPubSub(cfg, "inbox-"+cfg.ServiceEndpoint),
+		newPubSub(cfg, cfg.ServiceEndpoint+resthandler.InboxPath),
 		handler,
 	)
 	if err != nil {

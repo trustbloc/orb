@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -312,8 +313,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apStore := apmemstore.New(apConfig.ServiceEndpoint)
 
+	// TODO: Configure the HTTP client with TLS
+	httpClient := &http.Client{}
+
 	activityPubService, err := apservice.New(apConfig,
-		apStore,
+		apStore, httpClient,
 		// TODO: Define all of the ActivityPub handlers
 		//apspi.WithProofHandler(proofHandler),
 		//apspi.WithWitness(witnessHandler),

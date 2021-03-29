@@ -89,7 +89,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 	router.AddPlugin(plugin.SignalsHandler)
 
 	router.AddHandler(
-		"inbox-"+cfg.ServiceEndpoint, cfg.ServiceEndpoint,
+		cfg.ServiceEndpoint, cfg.ServiceEndpoint,
 		httpSubscriber, cfg.Topic, pubSub,
 		func(msg *message.Message) ([]*message.Message, error) {
 			// Simply forward the message.

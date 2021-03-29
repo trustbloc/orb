@@ -2,10 +2,11 @@ package outbox
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
@@ -15,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/httppublisher"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
@@ -27,7 +29,8 @@ import (
 var logger = log.New("activitypub_service")
 
 const (
-	metadataEventType = "event_type"
+	metadataEventType             = "event_type"
+	defaultConcurrentHTTPRequests = 10
 )
 
 type redeliveryService interface {
@@ -44,11 +47,16 @@ type pubSub interface {
 
 // Config holds configuration parameters for the outbox.
 type Config struct {
-	ServiceName      string
-	ServiceIRI       *url.URL
-	Topic            string
-	TLSClientConfig  *tls.Config
-	RedeliveryConfig *redelivery.Config
+	ServiceName           string
+	ServiceIRI            *url.URL
+	Topic                 string
+	RedeliveryConfig      *redelivery.Config
+	MaxRecipients         int
+	MaxConcurrentRequests int
+}
+
+type activityPubClient interface {
+	GetActor(iri *url.URL) (*vocab.ActorType, error)
 }
 
 // Outbox implements the ActivityPub outbox.
@@ -62,6 +70,7 @@ type Outbox struct {
 	undeliverableHandler service.UndeliverableActivityHandler
 	undeliverableChan    <-chan *message.Message
 	activityStore        store.Store
+	client               activityPubClient
 	redeliveryService    redeliveryService
 	redeliveryChan       chan *message.Message
 	jsonMarshal          func(v interface{}) ([]byte, error)
@@ -69,7 +78,8 @@ type Outbox struct {
 }
 
 // New returns a new ActivityPub Outbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, handlerOpts ...service.HandlerOpt) (*Outbox, error) {
+func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client,
+	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := defaultOptions()
 
 	for _, opt := range handlerOpts {
@@ -83,10 +93,15 @@ func New(cfg *Config, s store.Store, pubSub pubSub, handlerOpts ...service.Handl
 
 	redeliverChan := make(chan *message.Message)
 
+	if cfg.MaxConcurrentRequests <= 0 {
+		cfg.MaxConcurrentRequests = defaultConcurrentHTTPRequests
+	}
+
 	h := &Outbox{
 		Config:               cfg,
 		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
+		client:               client.New(httpClient),
 		redeliveryChan:       redeliverChan,
 		publisher:            pubSub,
 		undeliverableChan:    undeliverableChan,
@@ -105,11 +120,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, handlerOpts ...service.Handl
 		panic(err)
 	}
 
-	httpPublisher := httppublisher.New(
-		&httppublisher.Config{
-			ServiceName:     cfg.ServiceName,
-			TLSClientConfig: cfg.TLSClientConfig,
-		})
+	httpPublisher := httppublisher.New(cfg.ServiceName, httpClient)
 
 	router.AddHandler(
 		"outbox-"+cfg.ServiceName, cfg.Topic,
@@ -166,17 +177,21 @@ func (h *Outbox) Post(activity *vocab.ActivityType) error {
 		return errors.WithMessage(err, "unable to marshal")
 	}
 
-	if err := h.activityStore.AddActivity(activity); err != nil {
+	err = h.activityStore.AddActivity(activity)
+	if err != nil {
 		return errors.WithMessage(err, "unable to store activity")
 	}
 
-	if err := h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+	err = h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL())
+	if err != nil {
 		return errors.WithMessage(err, "unable to add reference to activity")
 	}
 
-	for _, to := range activity.To() {
-		if err := h.publish(activity.ID().String(), activityBytes, to); err != nil {
-			return errors.WithMessage(err, "unable to publish activity")
+	for _, actorInbox := range h.resolveInboxes(activity.To()) {
+		err = h.publish(activity.ID().String(), activityBytes, actorInbox)
+		if err != nil {
+			// TODO: Do we continue processing the rest?
+			return fmt.Errorf("unable to publish activity to inbox %s: %w", actorInbox, err)
 		}
 	}
 
@@ -250,6 +265,106 @@ func (h *Outbox) redeliver() {
 			logger.Infof("[%s] Message was delivered: %s", h.ServiceName, msg.UUID)
 		}
 	}
+}
+
+func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
+	return h.resolveIRIs(toIRIs,
+		func(actorIRI *url.URL) ([]*url.URL, error) {
+			if actorIRI.String() == vocab.PublicIRI {
+				// Should not attempt to publish to the 'Public' URL
+				logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, actorIRI)
+
+				return nil, nil
+			}
+
+			if actorIRI.String() == h.ServiceIRI.String() {
+				logger.Debugf("[%s] Not adding local service %s to recipients list", h.ServiceName, actorIRI)
+
+				return nil, nil
+			}
+
+			inboxIRI, err := h.resolveInbox(actorIRI)
+			if err != nil {
+				return nil, err
+			}
+
+			return []*url.URL{inboxIRI}, nil
+		},
+	)
+}
+
+func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
+	actor, err := h.activityStore.GetActor(iri)
+	if err != nil {
+		if err != store.ErrNotFound {
+			return nil, fmt.Errorf("unable to load actor %s from storage: %w", iri, err)
+		}
+	}
+
+	if actor != nil && actor.Inbox() != nil {
+		logger.Debugf("[%s] Found actor  %s in local store", h.ServiceName, iri)
+
+		return actor.Inbox(), nil
+	}
+
+	logger.Debugf("[%s] Actor not found in local store. Retrieving actor from %s", h.ServiceName, iri)
+
+	actor, err = h.client.GetActor(iri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the actor to the local store so that we don't have to retrieve it next time.
+	err = h.activityStore.PutActor(actor)
+	if err != nil {
+		logger.Warnf("[%s] Unable to add actor %s to local storage: %s", h.ServiceName, iri, err)
+	}
+
+	return actor.Inbox(), nil
+}
+
+// resolveIRIs resolves each of the given IRIs using the given resolve function. The requests are performed
+// in parallel, up to a maximum concurrent requests specified by parameter, MaxConcurrentRequests.
+func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*url.URL, error)) []*url.URL {
+	var wg sync.WaitGroup
+
+	var recipients []*url.URL
+
+	var mutex sync.Mutex
+
+	wg.Add(len(toIRIs))
+
+	resolveChan := make(chan *url.URL, h.MaxConcurrentRequests)
+
+	go func() {
+		for _, iri := range toIRIs {
+			resolveChan <- iri
+		}
+	}()
+
+	go func() {
+		for reqIRI := range resolveChan {
+			go func(toIRI *url.URL) {
+				defer wg.Done()
+
+				r, err := resolve(toIRI)
+				if err != nil {
+					// TODO: Perform retry.
+					logger.Warnf("[%s] Unable to resolve IRIs for %s: %s", h.ServiceName, toIRI, err)
+				} else {
+					mutex.Lock()
+					recipients = append(recipients, r...)
+					mutex.Unlock()
+				}
+			}(reqIRI)
+		}
+	}()
+
+	wg.Wait()
+
+	close(resolveChan)
+
+	return recipients
 }
 
 type noOpUndeliverableHandler struct {
