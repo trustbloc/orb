@@ -970,7 +970,7 @@ func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
 const anchorCredential1 = `{
  "@context": [
 	"https://www.w3.org/2018/credentials/v1",
-	"https://trustbloc.github.io/Context/orb-v1.json"
+	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
  ],
  "id": "http://sally.example.com/transactions/bafkreihwsn",
  "type": [

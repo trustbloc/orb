@@ -832,14 +832,14 @@ const (
 	jsonCreate = `{
     "@context": [
       "https://www.w3.org/ns/activitystreams",
-      "https://trustbloc.github.io/Context/orb-v1.json"
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
     "actor": "https://sally.example.com/services/orb",
     "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
     "object": {
       "@context": [
         "https://www.w3.org/2018/credentials/v1",
-        "https://trustbloc.github.io/Context/orb-v1.json"
+        "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
       ],
       "credentialSubject": {
 	"operationCount": 2,
@@ -905,7 +905,7 @@ const (
       {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/Context/orb-v1.json"
+          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
         "type": "AnchorCredentialReference",
@@ -918,7 +918,7 @@ const (
       {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/Context/orb-v1.json"
+          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
         "type": "AnchorCredentialReference",
@@ -949,7 +949,7 @@ const (
       {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/Context/orb-v1.json"
+          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
         "type": "AnchorCredentialReference",
@@ -961,7 +961,7 @@ const (
         "object": {
           "@context": [
             "https://www.w3.org/2018/credentials/v1",
-            "https://trustbloc.github.io/Context/orb-v1.json"
+            "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
           ],
           "id": "http://sally.example.com/transactions/bafkreihwsn",
           "type": [
@@ -1029,7 +1029,7 @@ const (
 	anchorCredential1 = `{
   "@context": [
 	"https://www.w3.org/2018/credentials/v1",
-	"https://trustbloc.github.io/Context/orb-v1.json"
+	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsn",
   "type": [
@@ -1102,7 +1102,7 @@ const (
   "object": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
-      "https://trustbloc.github.io/Context/orb-v1.json"
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
     "credentialSubject": {
       "operationCount": 2,
@@ -1131,7 +1131,7 @@ const (
 	jsonCreateWithAnchorCredentialRef = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/Context/orb-v1.json"
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
   "type": "Create",
@@ -1144,7 +1144,7 @@ const (
   "object": {
     "@context": [
       "https://www.w3.org/ns/activitystreams",
-      "https://trustbloc.github.io/Context/orb-v1.json"
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
     "id": "https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
     "type": "AnchorCredentialReference",
@@ -1159,7 +1159,7 @@ const (
 	jsonCreateWithAnchorCredential = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/Context/orb-v1.json"
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
   "type": "Create",
@@ -1177,7 +1177,7 @@ const (
   "object": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
-      "https://trustbloc.github.io/Context/orb-v1.json"
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
     "id": "http://sally.example.com/transactions/bafkreihwsn",
     "type": [
