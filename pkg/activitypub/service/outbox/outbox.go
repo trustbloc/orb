@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,12 +18,14 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/httppublisher"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -57,6 +60,7 @@ type Config struct {
 
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
+	GetReferences(iri *url.URL) (client.ReferenceIterator, error)
 }
 
 // Outbox implements the ActivityPub outbox.
@@ -268,21 +272,9 @@ func (h *Outbox) redeliver() {
 }
 
 func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
-	return h.resolveIRIs(toIRIs,
+	return h.resolveIRIs(
+		h.resolveIRIs(toIRIs, h.resolveActorIRIs),
 		func(actorIRI *url.URL) ([]*url.URL, error) {
-			if actorIRI.String() == vocab.PublicIRI {
-				// Should not attempt to publish to the 'Public' URL
-				logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, actorIRI)
-
-				return nil, nil
-			}
-
-			if actorIRI.String() == h.ServiceIRI.String() {
-				logger.Debugf("[%s] Not adding local service %s to recipients list", h.ServiceName, actorIRI)
-
-				return nil, nil
-			}
-
 			inboxIRI, err := h.resolveInbox(actorIRI)
 			if err != nil {
 				return nil, err
@@ -321,6 +313,71 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 	}
 
 	return actor.Inbox(), nil
+}
+
+func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
+	if iri.String() == vocab.PublicIRI {
+		// Should not attempt to publish to the 'Public' URI.
+		logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, iri)
+
+		return nil, nil
+	}
+
+	if strings.HasPrefix(iri.String(), h.ServiceIRI.String()) {
+		// This IRI is for the local service. The only valid paths are /followers and /witnesses.
+		switch {
+		case strings.HasSuffix(iri.Path, resthandler.FollowersPath):
+			return h.loadReferences(store.Follower)
+		case strings.HasSuffix(iri.Path, resthandler.WitnessesPath):
+			return h.loadReferences(store.Witness)
+		default:
+			logger.Warnf("[%s] Ignoring local IRI %s since it is not a valid recipient.", h.ServiceName, iri)
+
+			return nil, nil
+		}
+	}
+
+	// If the IRI is a remote service then attempt to retrieve it from local store.
+	actor, err := h.activityStore.GetActor(iri)
+	if err != nil {
+		if err != store.ErrNotFound {
+			return nil, err
+		}
+	}
+
+	if actor != nil {
+		// The IRI is for a remote service.
+		return []*url.URL{actor.ID().URL()}, nil
+	}
+
+	// The IRI may be either an actor that we haven't seen before or a collection on a remote server.
+	// Attempt to retrieve it from the remote server.
+	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, iri)
+
+	it, err := h.client.GetReferences(iri)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.ReadReferences(it, h.MaxRecipients)
+}
+
+func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error) {
+	logger.Debugf("[%s] Loading references from local storage", h.ServiceName)
+
+	it, err := h.activityStore.QueryReferences(refType, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+	if err != nil {
+		return nil, fmt.Errorf("error querying for references of type %s from storage: %w", refType, err)
+	}
+
+	refs, err := storeutil.ReadReferences(it, h.MaxRecipients)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving references of type %s from storage: %w", refType, err)
+	}
+
+	logger.Debugf("[%s] Got %d references from local storage", h.ServiceName, len(refs))
+
+	return refs, nil
 }
 
 // resolveIRIs resolves each of the given IRIs using the given resolve function. The requests are performed

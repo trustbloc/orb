@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -33,6 +35,8 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
+
+const pageSize = 2
 
 func TestNewOutbox(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
@@ -104,10 +108,18 @@ func TestOutbox_Post(t *testing.T) {
 
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 	service2URL := testutil.MustParseURL("http://localhost:8003/services/service2")
+	service3URL := testutil.MustParseURL("http://localhost:8003/services/service3")
+	service4URL := testutil.MustParseURL("http://localhost:8003/services/service4")
+	service5URL := testutil.MustParseURL("http://localhost:8003/services/service5")
+
+	witnesses := []*url.URL{service3URL, service4URL, service5URL}
 
 	var mutex sync.RWMutex
 
 	activitiesReceived2 := make(map[string]*vocab.ActivityType)
+	activitiesReceived3 := make(map[string]*vocab.ActivityType)
+	activitiesReceived4 := make(map[string]*vocab.ActivityType)
+	activitiesReceived5 := make(map[string]*vocab.ActivityType)
 
 	receivedActivity := func(activity *vocab.ActivityType, activities map[string]*vocab.ActivityType) {
 		mutex.Lock()
@@ -117,9 +129,38 @@ func TestOutbox_Post(t *testing.T) {
 
 	httpServer := httpserver.New(":8003", "", "", "",
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
+		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
+		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),
+		newTestHandler("/services/service5", http.MethodGet, mockServiceRequestHandler(t, service5URL)),
+		newTestHandler("/services/service2/witnesses", http.MethodGet,
+			func(w http.ResponseWriter, req *http.Request) {
+				collID := testutil.NewMockID(service2URL, resthandler.WitnessesPath)
+
+				if !paramAsBool(req, "page") {
+					handleMockCollection(t, collID, witnesses, w, req)
+				} else {
+					handleMockCollectionPage(t, collID, witnesses, w, req)
+				}
+			},
+		),
 		newTestHandler("/services/service2/inbox", http.MethodPost,
 			mockInboxHandler(t, func(activity *vocab.ActivityType) {
 				receivedActivity(activity, activitiesReceived2)
+			}),
+		),
+		newTestHandler("/services/service3/inbox", http.MethodPost,
+			mockInboxHandler(t, func(activity *vocab.ActivityType) {
+				receivedActivity(activity, activitiesReceived3)
+			}),
+		),
+		newTestHandler("/services/service4/inbox", http.MethodPost,
+			mockInboxHandler(t, func(activity *vocab.ActivityType) {
+				receivedActivity(activity, activitiesReceived4)
+			}),
+		),
+		newTestHandler("/services/service5/inbox", http.MethodPost,
+			mockInboxHandler(t, func(activity *vocab.ActivityType) {
+				receivedActivity(activity, activitiesReceived5)
 			}),
 		),
 	)
@@ -168,7 +209,9 @@ func TestOutbox_Post(t *testing.T) {
 		),
 		vocab.WithTo(
 			testutil.MustParseURL(vocab.PublicIRI),
-			service2URL,
+			testutil.NewMockID(service1URL, resthandler.FollowersPath),
+			testutil.NewMockID(service1URL, resthandler.WitnessesPath),
+			testutil.NewMockID(service2URL, resthandler.WitnessesPath),
 			service1URL, // Should ignore this IRI since it's the local service
 		),
 	)
@@ -179,6 +222,12 @@ func TestOutbox_Post(t *testing.T) {
 
 	mutex.RLock()
 	_, ok := activitiesReceived2[activity.ID().String()]
+	require.True(t, ok)
+	_, ok = activitiesReceived3[activity.ID().String()]
+	require.True(t, ok)
+	_, ok = activitiesReceived4[activity.ID().String()]
+	require.True(t, ok)
+	_, ok = activitiesReceived5[activity.ID().String()]
 	require.True(t, ok)
 	mutex.RUnlock()
 
@@ -378,6 +427,42 @@ func (m *testHandler) Handler() common.HTTPRequestHandler {
 	return m.handler
 }
 
+func paramAsInt(req *http.Request, param string) (int, bool) {
+	params := req.URL.Query()
+
+	values := params[param]
+	if len(values) == 0 || values[0] == "" {
+		return 0, false
+	}
+
+	size, err := strconv.Atoi(values[0])
+	if err != nil {
+		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+
+		return 0, false
+	}
+
+	return size, true
+}
+
+func paramAsBool(req *http.Request, param string) bool {
+	params := req.URL.Query()
+
+	values := params[param]
+	if len(values) == 0 || values[0] == "" {
+		return false
+	}
+
+	b, err := strconv.ParseBool(values[0])
+	if err != nil {
+		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+
+		return false
+	}
+
+	return b
+}
+
 func mockServiceRequestHandler(t *testing.T, iri *url.URL) common.HTTPRequestHandler {
 	return func(w http.ResponseWriter, req *http.Request) {
 		respBytes, err := json.Marshal(aptestutil.NewMockService(iri))
@@ -405,4 +490,57 @@ func mockInboxHandler(t *testing.T, handle func(activity *vocab.ActivityType)) c
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+func handleMockCollection(t *testing.T, collID *url.URL, uris []*url.URL, w http.ResponseWriter, req *http.Request) {
+	t.Logf("Got request for %s without paging\n", req.URL.Path)
+
+	respBytes, err := json.Marshal(aptestutil.NewMockCollection(
+		collID,
+		testutil.NewMockID(collID, "?page=true"),
+		len(uris),
+	))
+	require.NoError(t, err)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(respBytes)
+	require.NoError(t, err)
+}
+
+func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
+	w http.ResponseWriter, req *http.Request) {
+	pageNum, ok := paramAsInt(req, "page-num")
+	if !ok {
+		pageNum = 0
+	}
+
+	t.Logf("Got request for %s for page %d\n", req.URL.Path, pageNum)
+
+	from := pageSize * pageNum
+	to := from + pageSize
+
+	if to > len(uris) {
+		to = len(uris)
+	}
+
+	var next *url.URL
+
+	id := testutil.NewMockID(collID, fmt.Sprintf("?page=true&page-num=%d", pageNum))
+
+	if len(uris) > pageSize*(pageNum+1) {
+		next = testutil.NewMockID(collID, fmt.Sprintf("?page=true&page-num=%d", pageNum+1))
+	}
+
+	respBytes, err := json.Marshal(aptestutil.NewMockCollectionPage(id, next, collID,
+		len(uris), uris[from:to]...,
+	))
+	require.NoError(t, err)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(respBytes)
+	require.NoError(t, err)
 }
