@@ -346,7 +346,7 @@ const (
 	jsonIRIObjectProperty = `"https://example.com/obj1"`
 
 	jsonEmbeddedObjectProperty = `{
-  "@context": "https://trustbloc.github.io/Context/orb-v1.json",
+  "@context": "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
   "id": "https://example.com/some_obj_ID",
   "type": "VerifiableCredential"
 }`

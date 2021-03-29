@@ -17,7 +17,7 @@ const (
 	// ContextCredentials is the verifiable credential context.
 	ContextCredentials Context = "https://www.w3.org/2018/credentials/v1"
 	// ContextOrb is the Orb context.
-	ContextOrb Context = "https://trustbloc.github.io/Context/orb-v1.json"
+	ContextOrb Context = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
 )
 
 const (

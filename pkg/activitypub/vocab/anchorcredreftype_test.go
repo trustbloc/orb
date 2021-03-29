@@ -215,7 +215,7 @@ const (
 	anchorCredential = `{
   "@context": [
 	"https://www.w3.org/2018/credentials/v1",
-	"https://trustbloc.github.io/Context/orb-v1.json"
+	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsn",
   "type": [
@@ -239,7 +239,7 @@ const (
 	anchorCredentialReference = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/Context/orb-v1.json"
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "https://org1.com/transactions/tx1",
   "target": {
@@ -252,13 +252,13 @@ const (
 	anchorCredentialReferenceWithDoc = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/Context/orb-v1.json"
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "https://org1.com/transactions/tx1",
   "object": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
-      "https://trustbloc.github.io/Context/orb-v1.json"
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
     "credentialSubject": {
       "operationCount": 2,

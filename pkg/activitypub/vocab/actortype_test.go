@@ -129,7 +129,7 @@ const jsonService = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/security/v1",
-    "https://trustbloc.github.io/Context/orb-v1.json"
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
   "id": "https://alice.example.com/services/orb",
   "type": "Service",
