@@ -536,27 +536,12 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 		return nil
 	}
 
-	anchorCredential := create.Object().Object()
-
-	anchorCredentialBytes, err := json.Marshal(anchorCredential)
+	ref, err := newAnchorCredentialReferenceFromCreate(create)
 	if err != nil {
 		return err
 	}
 
 	published := time.Now()
-
-	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
-	if err != nil {
-		return fmt.Errorf("unable to unmarshal anchor credential: %w", err)
-	}
-
-	targetObj := create.Target().Object()
-
-	ref, err := vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
-		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
-	if err != nil {
-		return err
-	}
 
 	announce := vocab.NewAnnounceActivity(h.newActivityID(),
 		vocab.NewObjectProperty(
@@ -575,9 +560,22 @@ func (h *Handler) announceAnchorCredential(create *vocab.ActivityType) error {
 		vocab.WithPublishedTime(&published),
 	)
 
-	logger.Infof("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
 
-	return h.outbox.Post(announce)
+	err = h.outbox.Post(announce)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
+
+	err = h.store.AddReference(store.Share, ref.ID().URL(), announce.ID().URL())
+	if err != nil {
+		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
+			h.ServiceIRI, announce.ID(), ref.ID())
+	}
+
+	return nil
 }
 
 func (h *Handler) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
@@ -618,9 +616,23 @@ func (h *Handler) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferen
 		vocab.WithPublishedTime(&published),
 	)
 
-	logger.Infof("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
 
-	return h.outbox.Post(announce)
+	err = h.outbox.Post(announce)
+	if err != nil {
+		return err
+	}
+
+	anchorCredID := ref.Target().Object().ID()
+
+	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorCredID)
+
+	err = h.store.AddReference(store.Share, anchorCredID.URL(), announce.ID().URL())
+	if err != nil {
+		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s", h.ServiceIRI, announce.ID(), anchorCredID)
+	}
+
+	return nil
 }
 
 func (h *Handler) notify(activity *vocab.ActivityType) {
@@ -729,6 +741,25 @@ func (h *Handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
 
 	// The actor isn't in our local store. Retrieve the actor from the remote server.
 	return h.client.GetActor(iri)
+}
+
+func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorCredentialReferenceType, error) {
+	anchorCredential := create.Object().Object()
+
+	anchorCredentialBytes, err := json.Marshal(anchorCredential)
+	if err != nil {
+		return nil, err
+	}
+
+	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal anchor credential: %w", err)
+	}
+
+	targetObj := create.Target().Object()
+
+	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
+		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
 }
 
 type noOpAnchorCredentialPublisher struct {
