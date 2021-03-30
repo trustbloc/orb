@@ -36,6 +36,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
@@ -49,18 +50,21 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/proofs"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
+	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/cas"
+	"github.com/trustbloc/orb/pkg/context/common"
+	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
+	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
+	localdiscovery "github.com/trustbloc/orb/pkg/discovery/local"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
+	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/resolver"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
-	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
-
-	localdiscovery "github.com/trustbloc/orb/pkg/discovery/local"
 )
 
 const (
@@ -194,10 +198,14 @@ func startOrbServices(parameters *orbParameters) error {
 	anchorGraph := graph.New(graphProviders)
 
 	// get protocol client provider
-	pcp := getProtocolClientProvider(parameters, casClient, opStore, anchorGraph)
-	pc, err := pcp.ForNamespace(mocks.DefaultNS)
+	pcp, err := getProtocolClientProvider(parameters, casClient, opStore, anchorGraph)
 	if err != nil {
-		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", mocks.DefaultNS, err.Error())
+		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
+	}
+
+	pc, err := pcp.ForNamespace(parameters.didNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", parameters.didNamespace, err.Error())
 	}
 
 	// TODO: For now create key at startup, we need different way of handling this key as orb parameter
@@ -275,7 +283,7 @@ func startOrbServices(parameters *orbParameters) error {
 		OpProcessor:   opProcessor,
 	}
 
-	anchorWriter := writer.New("did:sidetree", anchorWriterProviders, anchorCh, vcCh)
+	anchorWriter := writer.New(parameters.didNamespace, anchorWriterProviders, anchorCh, vcCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, anchorWriter))
@@ -402,15 +410,31 @@ func loadOrbContexts() (*jld.CachingDocumentLoader, error) {
 	return docLoader, nil
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore txnprocessor.OperationStore, graph *graph.Graph) *mocks.MockProtocolClientProvider {
-	return mocks.NewMockProtocolClientProvider().
-		WithOpStore(opStore).
-		WithOpStoreClient(opStore).
-		WithMethodContext(parameters.methodContext).
-		WithBase(parameters.baseEnabled).
-		WithCasClient(casClient).
-		WithAnchorGraph(graph).
-		WithAllowedOrigins(parameters.allowedOrigins)
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
+	versions := []string{"1.0"}
+
+	sidetreeCfg := config.Sidetree{
+		MethodContext: parameters.methodContext,
+		EnableBase:    parameters.baseEnabled,
+		AnchorOrigins: parameters.allowedOrigins,
+	}
+
+	registry := factoryregistry.New()
+
+	var protocolVersions []protocol.Version
+	for _, version := range versions {
+		pv, err := registry.CreateProtocolVersion(version, casClient, opStore, anchorGraph, sidetreeCfg)
+		if err != nil {
+			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)
+		}
+
+		protocolVersions = append(protocolVersions, pv)
+	}
+
+	pcp := orbpcp.New()
+	pcp.Add(parameters.didNamespace, orbpc.New(protocolVersions))
+
+	return pcp, nil
 }
 
 type kmsProvider struct {
