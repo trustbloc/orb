@@ -33,7 +33,7 @@ const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 var (
 	host1        = testutil.MustParseURL("https://sally.example.com")
-	anchorCredID = testutil.NewMockID(host1, fmt.Sprintf("/cas/%s", cid))
+	anchorCredID = testutil.NewMockID(host1, "/transactions/bafkreihwsn")
 )
 
 func TestNew(t *testing.T) {
@@ -78,6 +78,8 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 }
 
 func TestHandler_HandleCreateActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
@@ -151,6 +153,13 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
+
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
@@ -191,6 +200,13 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
+
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
@@ -1250,7 +1266,7 @@ const anchorCredential1 = `{
 	"https://www.w3.org/2018/credentials/v1",
 	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
-  "id": "http://sally.example.com/transactions/bafkreihwsn",
+  "id": "https://sally.example.com/transactions/bafkreihwsn",
   "type": [
 	"VerifiableCredential",
 	"AnchorCredential"
