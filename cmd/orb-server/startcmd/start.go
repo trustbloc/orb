@@ -288,7 +288,9 @@ func startOrbServices(parameters *orbParameters) error {
 	anchorWriter := writer.New(parameters.didNamespace, anchorWriterProviders, anchorCh, vcCh)
 
 	// create new batch writer
-	batchWriter, err := batch.New(parameters.didNamespace, sidetreecontext.New(pc, anchorWriter))
+	batchWriter, err := batch.New(parameters.didNamespace,
+		sidetreecontext.New(pc, anchorWriter),
+		batch.WithBatchTimeout(parameters.batchWriterTimeout))
 	if err != nil {
 		return fmt.Errorf("failed to create batch writer: %s", err.Error())
 	}

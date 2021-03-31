@@ -7,11 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	"strconv"
+	"time"
 )
 
 const (
+	defaultBatchWriterTimeout = 1000 * time.Millisecond
+
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
 	hostURLFlagName      = "host-url"
@@ -50,6 +55,12 @@ const (
 	casURLFlagShorthand = "c"
 	casURLEnvKey        = "CAS_URL"
 	casURLFlagUsage     = "The URL of the Content Addressable Storage(CAS). " + commonEnvVarUsageText + casURLEnvKey
+
+	batchWriterTimeoutFlagName      = "batch-writer-timeout"
+	batchWriterTimeoutFlagShorthand = "b"
+	batchWriterTimeoutEnvKey        = "BATCH_WRITER_TIMEOUT"
+	batchWriterTimeoutFlagUsage     = "Maximum time (in millisecond) in-between cutting batches." +
+		commonEnvVarUsageText + batchWriterTimeoutEnvKey
 
 	databaseTypeFlagName      = "database-type"
 	databaseTypeEnvKey        = "DATABASE_TYPE"
@@ -134,6 +145,7 @@ type orbParameters struct {
 	externalEndpoint       string
 	didNamespace           string
 	didAliases             []string
+	batchWriterTimeout     time.Duration
 	casURL                 string
 	dbParameters           *dbParameters
 	token                  string
@@ -194,6 +206,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	batchWriterTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	batchWriterTimeout := defaultBatchWriterTimeout
+	if batchWriterTimeoutStr != "" {
+		timeout, parseErr := strconv.ParseUint(batchWriterTimeoutStr, 10, 32)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid batch writer timeout format: %s", parseErr.Error())
+		}
+
+		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -203,6 +230,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	dbParams, err := getDBParameters(cmd)
 	if err != nil {
 		return nil, err
@@ -237,6 +265,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didAliases:             didAliases,
 		allowedOrigins:         allowedOrigins,
 		casURL:                 casURL,
+		batchWriterTimeout:     batchWriterTimeout,
 		anchorCredentialParams: anchorCredentialParams,
 		dbParameters:           dbParams,
 		token:                  token,
@@ -328,6 +357,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
+	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringP(didAliasesFlagName, didAliasesFlagShorthand, "", didAliasesFlagUsage)
