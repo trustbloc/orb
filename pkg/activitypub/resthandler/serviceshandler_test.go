@@ -15,7 +15,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -25,6 +24,18 @@ const basePath = "/services/orb"
 
 var serviceIRI = testutil.MustParseURL("https://example1.com/services/orb")
 
+const (
+	keyID      = "https://example1.com/services/orb#main-key"
+	keyOwnerID = "https://example1.com/services/orb"
+	keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+)
+
+var publicKey = &vocab.PublicKeyType{
+	ID:           keyID,
+	Owner:        keyOwnerID,
+	PublicKeyPem: keyPem,
+}
+
 func TestNewServices(t *testing.T) {
 	cfg := &Config{
 		BasePath:  basePath,
@@ -32,7 +43,7 @@ func TestNewServices(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewServices(cfg, memstore.New(""))
+	h := NewServices(cfg, memstore.New(""), publicKey)
 	require.NotNil(t, h)
 	require.Equal(t, basePath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -48,10 +59,8 @@ func TestServices_Handler(t *testing.T) {
 
 	activityStore := memstore.New("")
 
-	require.NoError(t, activityStore.PutActor(newMockService()))
-
 	t.Run("Success", func(t *testing.T) {
-		h := NewServices(cfg, activityStore)
+		h := NewServices(cfg, activityStore, publicKey)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -71,27 +80,8 @@ func TestServices_Handler(t *testing.T) {
 		require.NoError(t, result.Body.Close())
 	})
 
-	t.Run("Store error", func(t *testing.T) {
-		errExpected := fmt.Errorf("injected store error")
-
-		s := &mocks.ActivityStore{}
-		s.GetActorReturns(nil, errExpected)
-
-		h := NewServices(cfg, s)
-		require.NotNil(t, h)
-
-		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
-
-		h.handle(rw, req)
-
-		result := rw.Result()
-		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
-		require.NoError(t, result.Body.Close())
-	})
-
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewServices(cfg, activityStore)
+		h := NewServices(cfg, activityStore, publicKey)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -111,39 +101,6 @@ func TestServices_Handler(t *testing.T) {
 	})
 }
 
-func newMockService() *vocab.ActorType {
-	const (
-		keyID      = "https://example1.com/services/orb#main-key"
-		keyOwnerID = "https://example1.com/services/orb"
-		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
-	)
-
-	followers := testutil.MustParseURL("https://example1.com/services/orb/followers")
-	following := testutil.MustParseURL("https://example1.com/services/orb/following")
-	inbox := testutil.MustParseURL("https://example1.com.com/services/orb/inbox")
-	outbox := testutil.MustParseURL("https://example1.com.com/services/orb/outbox")
-	witnesses := testutil.MustParseURL("https://example1.com.com/services/orb/witnesses")
-	witnessing := testutil.MustParseURL("https://example1.com.com/services/orb/witnessing")
-	liked := testutil.MustParseURL("https://example1.com.com/services/orb/liked")
-
-	publicKey := &vocab.PublicKeyType{
-		ID:           keyID,
-		Owner:        keyOwnerID,
-		PublicKeyPem: keyPem,
-	}
-
-	return vocab.NewService(serviceIRI,
-		vocab.WithPublicKey(publicKey),
-		vocab.WithInbox(inbox),
-		vocab.WithOutbox(outbox),
-		vocab.WithFollowers(followers),
-		vocab.WithFollowing(following),
-		vocab.WithWitnesses(witnesses),
-		vocab.WithWitnessing(witnessing),
-		vocab.WithLiked(liked),
-	)
-}
-
 const serviceJSON = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
@@ -157,11 +114,11 @@ const serviceJSON = `{
     "owner": "https://example1.com/services/orb",
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
   },
-  "inbox": "https://example1.com.com/services/orb/inbox",
-  "outbox": "https://example1.com.com/services/orb/outbox",
+  "inbox": "https://example1.com/services/orb/inbox",
+  "outbox": "https://example1.com/services/orb/outbox",
   "followers": "https://example1.com/services/orb/followers",
   "following": "https://example1.com/services/orb/following",
-  "liked": "https://example1.com.com/services/orb/liked",
-  "witnesses": "https://example1.com.com/services/orb/witnesses",
-  "witnessing": "https://example1.com.com/services/orb/witnessing"
+  "liked": "https://example1.com/services/orb/liked",
+  "witnesses": "https://example1.com/services/orb/witnesses",
+  "witnessing": "https://example1.com/services/orb/witnessing"
 }`

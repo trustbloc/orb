@@ -45,6 +45,7 @@ import (
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/proofs"
@@ -341,6 +342,13 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:  100, // TODO: Make configurable
 	}
 
+	// FIXME: Configure with real values.
+	publicKey := &vocab.PublicKeyType{
+		ID:           apServiceIRI.String() + "#main-key",
+		Owner:        apServiceIRI.String(),
+		PublicKeyPem: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki.....",
+	}
+
 	orbResolver := resolver.NewResolveHandler(
 		parameters.didNamespace,
 		parameters.didAliases,
@@ -356,7 +364,7 @@ func startOrbServices(parameters *orbParameters) error {
 		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apServiceCfg, apStore),
+		aphandler.NewServices(apServiceCfg, apStore, publicKey),
 		aphandler.NewFollowers(apServiceCfg, apStore),
 		aphandler.NewFollowing(apServiceCfg, apStore),
 		aphandler.NewOutbox(apServiceCfg, apStore),
