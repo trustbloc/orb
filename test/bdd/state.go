@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+type httpPath = string
+type httpMethod = string
+type authToken = string
+
 type state struct {
 	vars          map[string]string
 	responseValue string

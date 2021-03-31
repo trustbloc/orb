@@ -31,7 +31,7 @@ Feature:
     And the JSON path "witnessing" of the response equals "https://orb.domain2.com/services/orb/witnessing"
 
   @activitypub_follow
-  Scenario: Follow ActivityPub service
+  Scenario: follow/accept
     # domain2 follows domain1
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
 
@@ -65,7 +65,7 @@ Feature:
     And the JSON path "items" of the response contains "https://orb.domain1.com/services/orb"
 
   @activitypub_create
-  Scenario: Create/announce
+  Scenario: create/announce
     # domain2 follows domain1
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
 
@@ -89,3 +89,26 @@ Feature:
     When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
+
+  @activitypub_offer
+  Scenario: offer/like
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json"
+
+    Then we wait 2 seconds
+
+    # The 'Offer' activity should be in the inbox of domain1.
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.#.id" of the response contains "https://orb.domain2.com/services/orb/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
+
+    # The 'Like' should be in the 'liked' collection of domain1.
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.#.type" of the response contains "Like"
+    And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
+
+    # A 'Like' activity should be in the inbox of domain2.
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.#.type" of the response contains "Like"
+    And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"

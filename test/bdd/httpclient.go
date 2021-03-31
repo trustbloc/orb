@@ -21,10 +21,6 @@ const (
 	tokenPrefix = "Bearer "
 )
 
-type httpPath = string
-type httpMethod = string
-type authToken = string
-
 type httpClient struct {
 	state *state
 }
