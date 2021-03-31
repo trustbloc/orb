@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/gherkin"
 )
 
 var context *BDDContext
@@ -35,9 +36,10 @@ func TestMain(m *testing.M) {
 		tags = cmdTags.Value.String()
 	}
 
-	initBDDConfig()
-
 	compose := os.Getenv("DISABLE_COMPOSITION") != "true"
+
+	state := newState()
+
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
@@ -66,7 +68,15 @@ func TestMain(m *testing.M) {
 			}
 		})
 
-		FeatureContext(s)
+		s.BeforeScenario(func(i interface{}) {
+			state.clear()
+
+			if s, ok := i.(*gherkin.Scenario); ok {
+				logger.Infof("\n\n********** Running scenario: %s **********", s.Name)
+			}
+		})
+
+		FeatureContext(s, state)
 	}, godog.Options{
 		Tags:          tags,
 		Format:        "progress",
@@ -82,7 +92,7 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
-func FeatureContext(s *godog.Suite) {
+func FeatureContext(s *godog.Suite, state *state) {
 	var err error
 	context, err = NewBDDContext()
 	if err != nil {
@@ -99,11 +109,7 @@ func FeatureContext(s *godog.Suite) {
 	context.SetComposition(composition)
 
 	// Context is shared between tests - for now
-	// Note: Each test after NewcommonSteps. should add unique steps only
+	NewCommonSteps(context, state).RegisterSteps(s)
 	NewDockerSteps(context).RegisterSteps(s)
 	NewDIDSideSteps(context, "did:orb").RegisterSteps(s)
-
-}
-
-func initBDDConfig() {
 }
