@@ -68,7 +68,7 @@ func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 		getObjectIRI: getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
+	h.handler = newHandler(path, cfg, activityStore, h.handle)
 
 	return h
 }
