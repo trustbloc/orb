@@ -10,6 +10,7 @@ require (
 	github.com/mr-tron/base58 v1.1.3
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.4.2
+	github.com/tidwall/gjson v1.7.4
 	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210324191759-951b35003134
 )
 
