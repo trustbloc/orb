@@ -673,12 +673,6 @@ func getPubKey(pubKey interface{}) (string, error) {
 	return string(opsPubKeyBytes), nil
 }
 
-func wait(seconds int) error {
-	logger.Infof("Waiting [%d] seconds\n", seconds)
-	time.Sleep(time.Duration(seconds) * time.Second)
-	return nil
-}
-
 func prettyPrint(result *document.ResolutionResult) error {
 	b, err := json.MarshalIndent(result, "", " ")
 	if err != nil {
@@ -706,5 +700,4 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to deactivate DID document$`, d.deactivateDIDDocument)
 	s.Step(`^client sends request to recover DID document$`, d.recoverDIDDocument)
 	s.Step(`^client sends request to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
-	s.Step(`^we wait (\d+) seconds$`, wait)
 }

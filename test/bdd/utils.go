@@ -6,7 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 
 package bdd
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // generateUUID returns a UUID based on RFC 4122
 func generateUUID() string {

@@ -44,12 +44,11 @@ func NewComposition(projectName string, composeFilesYaml string, dir string) (co
 	if composition.dockerClient, err = docker.NewClient(endpoint); err != nil {
 		return nil, errRetFunc()
 	}
-	if _, err = composition.issueCommand([]string{"up", "--force-recreate", "-d"}); err != nil {
-		return nil, errRetFunc()
-	}
+
 	if composition.dockerHelper, err = NewDockerCmdlineHelper(); err != nil {
 		return nil, errRetFunc()
 	}
+
 	// Now parse the current system
 	return composition, nil
 }
@@ -61,7 +60,6 @@ func (c *Composition) Up() error {
 	}
 	return nil
 }
-
 
 func parseComposeFilesArg(composeFileArgs string) []string {
 	var args []string
@@ -198,4 +196,3 @@ func GenerateBytesUUID() []byte {
 
 	return uuid
 }
-
