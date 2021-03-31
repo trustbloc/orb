@@ -45,6 +45,7 @@ import (
 
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -332,11 +333,15 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 	}
 
+	// TODO: A mock witness handler is set here so that the integration tests don't panic.
+	//  This needs to be replaced with a real witness handler.
+	mockWitnessHandler := apmocks.NewWitnessHandler().WithProof([]byte(mockProof))
+
 	activityPubService, err := apservice.New(apConfig,
 		apStore, httpClient,
 		// TODO: Define all of the ActivityPub handlers
 		//apspi.WithProofHandler(proofHandler),
-		//apspi.WithWitness(witnessHandler),
+		apspi.WithWitness(mockWitnessHandler),
 		//apspi.WithFollowerAuth(followerAuth),
 		//apspi.WithAnchorCredentialHandler(anchorCredHandler),
 		//apspi.WithUndeliverableHandler(undeliverableHandler),
@@ -596,3 +601,18 @@ func (m mockTxnProvider) RegisterForAnchor() <-chan []string {
 func (m mockTxnProvider) RegisterForDID() <-chan []string {
 	return m.registerForDID
 }
+
+const mockProof = `{
+ "@context": [
+   "https://w3id.org/security/v1",
+   "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+ ],
+ "mockProof": {
+   "type": "JsonWebSignature2020",
+   "proofPurpose": "assertionMethod",
+   "created": "2021-01-27T09:30:15Z",
+   "verificationMethod": "did:example:abcd#key",
+   "domain": "https://witness1.example.com/ledgers/maple2021",
+   "jws": "eyJ..."
+ }
+}`

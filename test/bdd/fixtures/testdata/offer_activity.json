@@ -1,0 +1,33 @@
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "actor": "https://orb.domain2.com/services/orb",
+  "startTime": "2021-03-31T01:30:10Z",
+  "endTime": "2029-03-31T23:31:10Z",
+  "id": "https://orb.domain2.com/services/orb/activities/63b3d005-6cb6-673d-6379-18be1ee84973",
+  "object": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    ],
+    "credentialSubject": {
+      "operationCount": 2,
+      "coreIndex": "bafkreihwsn",
+      "namespace": "did:orb",
+      "previousAnchors": {
+        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
+        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
+      },
+      "version": "1"
+    },
+    "id": "http://orb.domain2.com/transactions/bafkreihwsn",
+    "issuanceDate": "2021-03-31T09:30:10Z",
+    "issuer": "https://orb.domain2.com/services/orb",
+    "proof": {},
+    "type": [
+      "VerifiableCredential",
+      "AnchorCredential"
+    ]
+  },
+  "to": ["https://orb.domain1.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
+  "type": "Offer"
+}
