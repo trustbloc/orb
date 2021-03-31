@@ -187,7 +187,7 @@ func (h *Inbox) handle(msg *message.Message) {
 
 		msg.Nack()
 	} else {
-		logger.Warnf("[%s] Successfully handled message [%s]", h.ServiceEndpoint, msg.UUID)
+		logger.Debugf("[%s] Successfully handled message [%s]", h.ServiceEndpoint, msg.UUID)
 
 		msg.Ack()
 	}

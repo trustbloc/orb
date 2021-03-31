@@ -134,10 +134,10 @@ Feature:
       Then check success response contains "#canonicalId"
       Then check success response contains "recoveryKey"
 
-      Then container "orb" is stopped
+      Then container "orb-domain1" is stopped
       Then we wait 3 seconds
 
-      Then container "orb" is started
+      Then container "orb-domain1" is started
       Then we wait 15 seconds
 
       When client sends request to resolve DID document with canonical id

@@ -7,11 +7,17 @@ version: '2'
 
 services:
 
-  orb:
-    container_name: orb
+  orb-domain1:
+    container_name: orb.domain1.com
     image: ${ORB_FIXTURE_IMAGE}:latest
     environment:
-      - ORB_HOST_URL=0.0.0.0:48326
+      - LOG_LEVEL=DEBUG
+      - ORB_HOST_URL=0.0.0.0:443
+      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
+      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
+      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
+      # balancer servicing multiple nodes.
+      - ORB_EXTERNAL_ENDPOINT=orb.domain1.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
@@ -29,7 +35,43 @@ services:
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
     ports:
-      - 48326:48326
+      - 48326:443
+    command:  /bin/sh -c "sleep 10;orb start"
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+    depends_on:
+      - ipfs
+      - couchdb.example.com
+
+  orb-domain2:
+    container_name: orb.domain2.com
+    image: ${ORB_FIXTURE_IMAGE}:latest
+    environment:
+      - LOG_LEVEL=DEBUG
+      - ORB_HOST_URL=0.0.0.0:443
+      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
+      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
+      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
+      # balancer servicing multiple nodes.
+      - ORB_EXTERNAL_ENDPOINT=orb.domain2.com
+      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
+      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - DID_NAMESPACE=did:orb
+      - DID_ALIASES=did:alias.com
+      - ALLOWED_ORIGINS=origin.com,source.com
+      - CAS_URL=ipfs:5001
+      - ANCHOR_CREDENTIAL_ISSUER=http://peer2.com
+      - ANCHOR_CREDENTIAL_URL=http://peer2.com/vc
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_DOMAIN=domain.com
+      - DATABASE_TYPE=couchdb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - DATABASE_PREFIX=orb
+      - KMSSECRETS_DATABASE_TYPE=couchdb
+      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - KMSSECRETS_DATABASE_PREFIX=orbkms
+    ports:
+      - 48426:443
     command:  /bin/sh -c "sleep 10;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls

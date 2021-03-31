@@ -240,8 +240,10 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 func TestStartCmdValidArgs(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	args := []string{"--" + hostURLFlagName, "localhost:8247", "--" + casURLFlagName,
-		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+	args := []string{"--" + hostURLFlagName, "localhost:8247",
+		"--" + externalEndpointFlagName, "orb.example.com",
+		"--" + casURLFlagName, "localhost:8081",
+		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",

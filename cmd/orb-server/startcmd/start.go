@@ -8,6 +8,7 @@ package startcmd
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -259,12 +260,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
-	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubServicesPath))
+	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.externalEndpoint, activityPubServicesPath))
 	if err != nil {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
 	}
 
-	apTransactionsIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.hostURL, activityPubTransactionsPath))
+	apTransactionsIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.externalEndpoint, activityPubTransactionsPath))
 	if err != nil {
 		return fmt.Errorf("invalid transactions IRI: %s", err.Error())
 	}
@@ -323,7 +324,13 @@ func startOrbServices(parameters *orbParameters) error {
 	apStore := apmemstore.New(apConfig.ServiceEndpoint)
 
 	// TODO: Configure the HTTP client with TLS
-	httpClient := &http.Client{}
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint: gosec
+			},
+		},
+	}
 
 	activityPubService, err := apservice.New(apConfig,
 		apStore, httpClient,
