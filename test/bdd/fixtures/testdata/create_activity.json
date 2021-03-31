@@ -1,0 +1,27 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+  ],
+  "id": "https://orb.domain1.com/services/orb/activities/77bdd005-bbb6-223d-b889-58bc1de84985",
+  "type": "Create",
+  "actor": "https://orb.domain1.com/services/orb",
+  "to": [
+    "https://orb.domain1.com/services/orb/followers",
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "published": "2021-03-31T09:30:10Z",
+  "object": {
+    "@context": [
+      "https://www.w3.org/ns/activitystreams",
+      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    ],
+    "id": "https://orb.domain1.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "type": "AnchorCredentialReference",
+    "target": {
+      "type": "ContentAddressedStorage",
+      "id": "https://orb.domain1.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+      "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+    }
+  }
+}
