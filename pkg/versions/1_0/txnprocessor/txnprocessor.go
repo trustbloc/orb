@@ -16,27 +16,16 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/context/common"
 )
 
 var logger = log.New("orb-txn-processor")
 
-// OperationStore interface to access operation store.
-type OperationStore interface {
-	Put(ops []*operation.AnchoredOperation) error
-	Get(suffix string) ([]*operation.AnchoredOperation, error)
-}
-
-// AnchorGraph interface to access anchors.
-type AnchorGraph interface {
-	GetDidAnchors(cid, suffix string) ([]graph.Anchor, error)
-}
-
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {
-	OpStore                   OperationStore
+	OpStore                   common.OperationStore
 	OperationProtocolProvider protocol.OperationProvider
-	AnchorGraph               AnchorGraph
+	AnchorGraph               common.AnchorGraph
 }
 
 // TxnProcessor processes Sidetree transactions by persisting them to an operation store.

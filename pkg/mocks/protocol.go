@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
 
+	"github.com/trustbloc/orb/pkg/context/common"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -74,9 +75,9 @@ type MockProtocolClientProvider struct {
 	mutex          sync.Mutex
 	clients        map[string]protocol.Client
 	opStoreClient  processor.OperationStoreClient
-	opStore        txnprocessor.OperationStore
+	opStore        common.OperationStore
 	casClient      cas.Client
-	anchorGraph    txnprocessor.AnchorGraph
+	anchorGraph    common.AnchorGraph
 	methodCtx      []string
 	baseEnabled    bool
 	allowedOrigins []string
@@ -90,7 +91,7 @@ func (m *MockProtocolClientProvider) WithOpStoreClient(opStoreClient processor.O
 }
 
 // WithOpStore sets the operation store.
-func (m *MockProtocolClientProvider) WithOpStore(opStore txnprocessor.OperationStore) *MockProtocolClientProvider {
+func (m *MockProtocolClientProvider) WithOpStore(opStore common.OperationStore) *MockProtocolClientProvider {
 	m.opStore = opStore
 
 	return m
@@ -104,7 +105,7 @@ func (m *MockProtocolClientProvider) WithCasClient(casClient cas.Client) *MockPr
 }
 
 // WithAnchorGraph sets the anchor graph.
-func (m *MockProtocolClientProvider) WithAnchorGraph(anchorGraph txnprocessor.AnchorGraph) *MockProtocolClientProvider {
+func (m *MockProtocolClientProvider) WithAnchorGraph(anchorGraph common.AnchorGraph) *MockProtocolClientProvider {
 	m.anchorGraph = anchorGraph
 
 	return m
