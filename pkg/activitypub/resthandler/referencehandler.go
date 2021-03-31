@@ -66,7 +66,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, pageParam, pageNumParam)
+	h.handler = newHandler(path, cfg, activityStore, h.handle)
 
 	return h
 }

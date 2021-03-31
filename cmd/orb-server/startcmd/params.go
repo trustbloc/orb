@@ -19,6 +19,13 @@ const (
 	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
 
+	externalEndpointFlagName      = "external-endpoint"
+	externalEndpointFlagShorthand = "e"
+	externalEndpointFlagUsage     = "External endpoint that clients use to invoke services." +
+		" This endpoint is used to generate IDs of anchor credentials and ActivityPub objects and" +
+		" should be resolvable by external clients. Format: HostName[:Port]."
+	externalEndpointEnvKey = "ORB_EXTERNAL_ENDPOINT"
+
 	tlsCertificateFlagName      = "tls-certificate"
 	tlsCertificateFlagShorthand = "y"
 	tlsCertificateFlagUsage     = "TLS certificate for ORB server. " + commonEnvVarUsageText + tlsCertificateLEnvKey
@@ -124,6 +131,7 @@ const (
 
 type orbParameters struct {
 	hostURL                string
+	externalEndpoint       string
 	didNamespace           string
 	didAliases             []string
 	casURL                 string
@@ -160,6 +168,15 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
 		return nil, err
+	}
+
+	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if externalEndpoint == "" {
+		externalEndpoint = hostURL
 	}
 
 	tlsCertificate, err := cmdutils.GetUserSetVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey, true)
@@ -213,6 +230,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	return &orbParameters{
 		hostURL:                hostURL,
+		externalEndpoint:       externalEndpoint,
 		tlsKey:                 tlsKey,
 		tlsCertificate:         tlsCertificate,
 		didNamespace:           didNamespace,
@@ -307,6 +325,7 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
