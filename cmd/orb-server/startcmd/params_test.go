@@ -172,6 +172,29 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"Neither anchor-credential-signature-suite (command line flag) nor ANCHOR_CREDENTIAL_SIGNATURE_SUITE (environment variable) have been set.",
 			err.Error())
 	})
+
+	t.Run("test invalid batch writer timeout", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{"--" + hostURLFlagName, "localhost:8247",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + batchWriterTimeoutFlagName, "abc",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid batch writer timeout format")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -243,6 +266,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 	args := []string{"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + casURLFlagName, "localhost:8081",
+		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -268,6 +292,9 @@ func setEnvVars(t *testing.T, databaseType string) {
 	require.NoError(t, err)
 
 	err = os.Setenv(casURLEnvKey, "cas")
+	require.NoError(t, err)
+
+	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")
 	require.NoError(t, err)
 
 	err = os.Setenv(didNamespaceEnvKey, "namespace")
