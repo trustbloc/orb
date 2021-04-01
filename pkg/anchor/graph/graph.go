@@ -11,10 +11,13 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/anchor/util"
 )
+
+var logger = log.New("anchor-graph")
 
 // Graph manages anchor graph.
 type Graph struct {
@@ -44,17 +47,26 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 		return "", err
 	}
 
-	return g.Cas.Write(anchorBytes)
+	cid, err := g.Cas.Write(anchorBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to add anchor to graph: %s", err.Error())
+	}
+
+	logger.Debugf("added anchor[%s]: %s", cid, string(anchorBytes))
+
+	return cid, nil
 }
 
 // Read reads anchor.
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
-	nodeBytes, err := g.Cas.Read(cid)
+	anchorBytes, err := g.Cas.Read(cid)
 	if err != nil {
 		return nil, err
 	}
 
-	return verifiable.ParseCredential(nodeBytes,
+	logger.Debugf("read anchor[%s]: %s", cid, string(anchorBytes))
+
+	return verifiable.ParseCredential(anchorBytes,
 		verifiable.WithPublicKeyFetcher(g.Pkf),
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }

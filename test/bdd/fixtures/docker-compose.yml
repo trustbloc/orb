@@ -24,7 +24,7 @@ services:
       - DID_ALIASES=did:alias.com
       - ALLOWED_ORIGINS=origin.com,source.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=300
+      - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
       - ANCHOR_CREDENTIAL_ISSUER=http://peer1.com
       - ANCHOR_CREDENTIAL_URL=http://peer1.com/vc
@@ -35,7 +35,7 @@ services:
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
-      - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - KMSSECRETS_DATABASE_PREFIX=orb1kms
     ports:
       - 48326:443
     command:  /bin/sh -c "sleep 10;orb start"
@@ -62,7 +62,7 @@ services:
       - DID_ALIASES=did:alias.com
       - ALLOWED_ORIGINS=origin.com,source.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=300
+      - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
       - ANCHOR_CREDENTIAL_ISSUER=http://peer2.com
       - ANCHOR_CREDENTIAL_URL=http://peer2.com/vc
@@ -73,7 +73,7 @@ services:
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
-      - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - KMSSECRETS_DATABASE_PREFIX=orb2kms
     ports:
       - 48426:443
     command:  /bin/sh -c "sleep 10;orb start"
