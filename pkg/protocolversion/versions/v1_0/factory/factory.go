@@ -42,7 +42,7 @@ func (v *Factory) Create(version string, casClient cas.Client, opStore ctxcommon
 	p := protocol.Protocol{
 		GenesisTime:                  0,
 		MultihashAlgorithms:          []uint{18},
-		MaxOperationCount:            1, // T0DO: issue-164 Revert to 5000 for release, for now cut right away
+		MaxOperationCount:            5000,
 		MaxOperationSize:             2500,
 		MaxOperationHashLength:       100,
 		MaxDeltaSize:                 1700,

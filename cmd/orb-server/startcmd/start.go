@@ -185,9 +185,11 @@ func startOrbServices(parameters *orbParameters) error {
 		Cas: casClient,
 		// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
 		Pkf: func(_, keyID string) (*verifier.PublicKey, error) {
-			pubKeyBytes, err := localKMS.ExportPubKeyBytes(keyID[1:])
+			kid := keyID[1:]
+
+			pubKeyBytes, err := localKMS.ExportPubKeyBytes(kid)
 			if err != nil {
-				return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", keyID, err.Error())
+				return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", kid, err.Error())
 			}
 
 			return &verifier.PublicKey{
@@ -574,6 +576,8 @@ func prepareMasterKeyReader(kmsSecretsStoreProvider ariesstorage.Provider) (*byt
 	masterKey, err := masterKeyStore.Get(masterKeyDBKeyName)
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {
+			logger.Infof("master key[%s] not found, creating new one ...", masterKeyDBKeyName)
+
 			masterKeyRaw := random.GetRandomBytes(uint32(masterKeyNumBytes))
 			masterKey = []byte(base64.URLEncoding.EncodeToString(masterKeyRaw))
 
