@@ -36,13 +36,13 @@ var (
 	anchorCredID = testutil.NewMockID(host1, "/transactions/bafkreihwsn")
 )
 
-func TestNew(t *testing.T) {
+func TestNewInbox(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
 		BufferSize:  100,
 	}
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -61,7 +61,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceName: "service1",
 	}
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -96,7 +96,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
 
-	h := New(cfg, activityStore, ob, &clientmocks.HTTPClient{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, activityStore, ob, &clientmocks.HTTPClient{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -260,7 +260,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	httpClient := &clientmocks.HTTPClient{}
 	httpClient.DoReturns(nil, client.ErrNotFound)
 
-	h := New(cfg, as, ob, httpClient, spi.WithFollowerAuth(followerAuth))
+	h := NewInbox(cfg, as, ob, httpClient, spi.WithFollowerAuth(followerAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -426,7 +426,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := New(cfg, as, ob, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, as, ob, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -566,7 +566,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := New(cfg, as, ob, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, as, ob, &clientmocks.HTTPClient{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -704,7 +704,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := New(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{},
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{},
 		spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
@@ -901,7 +901,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 	witness := mocks.NewWitnessHandler()
 
-	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1085,7 +1085,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 	proofHandler := mocks.NewProofHandler()
 
-	h := New(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{},
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{},
 		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 

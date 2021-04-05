@@ -79,7 +79,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 		return nil, fmt.Errorf("create outbox failed: %w", err)
 	}
 
-	handler := activityhandler.New(
+	inboxHandler := activityhandler.NewInbox(
 		&activityhandler.Config{
 			ServiceName:     cfg.ServiceEndpoint,
 			BufferSize:      cfg.ActivityHandlerBufferSize,
@@ -96,7 +96,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 		},
 		activityStore,
 		newPubSub(cfg, cfg.ServiceEndpoint+resthandler.InboxPath),
-		handler,
+		inboxHandler,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create inbox failed: %w", err)
@@ -105,7 +105,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 	s := &Service{
 		inbox:           ib,
 		outbox:          ob,
-		activityHandler: handler,
+		activityHandler: inboxHandler,
 	}
 
 	s.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
