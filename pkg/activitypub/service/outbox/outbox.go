@@ -71,6 +71,7 @@ type Outbox struct {
 	router               *message.Router
 	httpPublisher        message.Publisher
 	publisher            message.Publisher
+	activityHandler      service.ActivityHandler
 	undeliverableHandler service.UndeliverableActivityHandler
 	undeliverableChan    <-chan *message.Message
 	activityStore        store.Store
@@ -82,7 +83,7 @@ type Outbox struct {
 }
 
 // New returns a new ActivityPub Outbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client,
+func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client, activityHandler service.ActivityHandler,
 	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := defaultOptions()
 
@@ -103,6 +104,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client,
 
 	h := &Outbox{
 		Config:               cfg,
+		activityHandler:      activityHandler,
 		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
 		client:               client.New(httpClient),
@@ -189,6 +191,11 @@ func (h *Outbox) Post(activity *vocab.ActivityType) error {
 	err = h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL())
 	if err != nil {
 		return errors.WithMessage(err, "unable to add reference to activity")
+	}
+
+	err = h.activityHandler.HandleActivity(activity)
+	if err != nil {
+		return fmt.Errorf("unable to handle activity: %w", err)
 	}
 
 	for _, actorInbox := range h.resolveInboxes(activity.To()) {

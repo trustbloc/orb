@@ -40,7 +40,9 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, httpClient http
 		Handlers: options,
 	}
 
-	h.handler = newHandler(cfg, s, httpClient)
+	h.handler = newHandler(cfg, s, httpClient, h.undoFollower)
+
+	h.undoFollow = h.undoFollower
 
 	return h
 }
@@ -64,6 +66,8 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleOfferActivity(activity)
 	case typeProp.Is(vocab.TypeLike):
 		return h.handleLikeActivity(activity)
+	case typeProp.Is(vocab.TypeUndo):
+		return h.handleUndoActivity(activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
@@ -619,6 +623,39 @@ func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.Ob
 	}
 
 	return result, nil
+}
+
+func (h *Inbox) undoFollower(follow *vocab.ActivityType) error {
+	followerIRI := follow.Actor()
+
+	iri := follow.Object().IRI()
+	if iri == nil {
+		return fmt.Errorf("no IRI specified in 'object' field of the 'Follow' activity")
+	}
+
+	// Make sure that the IRI is targeting this service. If not then ignore the message.
+	if iri.String() != h.ServiceIRI.String() {
+		logger.Infof("[%s] Not handling 'Undo' of follow activity %s since this service %s"+
+			" is not the target object %s", h.ServiceName, follow.ID(), h.ServiceIRI, iri)
+
+		return nil
+	}
+
+	err := h.store.DeleteReference(store.Follower, h.ServiceIRI, followerIRI)
+	if err != nil {
+		if err == store.ErrNotFound {
+			logger.Infof("[%s] %s not found in followers of %s", h.ServiceName, followerIRI, h.ServiceIRI)
+
+			return nil
+		}
+
+		return fmt.Errorf("unable to delete %s from %s's collection of followers", followerIRI, h.ServiceIRI)
+	}
+
+	logger.Debugf("[%s] %s was successfully deleted from %s's collection of followers",
+		h.ServiceIRI, followerIRI, h.ServiceIRI)
+
+	return nil
 }
 
 func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorCredentialReferenceType, error) {

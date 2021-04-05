@@ -29,6 +29,7 @@ var (
 	acceptActivityID = newMockID(service1, "/activities/95b3d005-abb6-423d-a889-18bc1ee84989")
 	rejectActivityID = newMockID(service1, "/activities/75b3d005-abb6-473d-a879-18bc1ee84979")
 	offerActivityID  = newMockID(service1, "/activities/65b3d005-6bb6-673d-6879-18bc1ee84976")
+	undoActivityID   = newMockID(service1, "/activities/77bcd005-abb6-433d-a889-18bc1ce64981")
 	likeActivityID   = newMockID(witness1, "/likes/87bcd005-abb6-433d-a889-18bc1ce84988")
 )
 
@@ -824,6 +825,48 @@ func TestLikeTypeMarshal(t *testing.T) {
 	})
 }
 
+func TestUndoTypeMarshal(t *testing.T) {
+	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
+	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
+
+	t.Run("Marshal", func(t *testing.T) {
+		accept := NewUndoActivity(undoActivityID,
+			NewObjectProperty(WithIRI(followActivityID)),
+			WithActor(org1Service),
+			WithTo(org2Service),
+		)
+
+		bytes, err := canonicalizer.MarshalCanonical(accept)
+		require.NoError(t, err)
+		t.Log(string(bytes))
+
+		require.Equal(t, testutil.GetCanonical(t, jsonUndo), string(bytes))
+	})
+
+	t.Run("Unmarshal", func(t *testing.T) {
+		a := &ActivityType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonUndo), a))
+		require.NotNil(t, a.Type())
+		require.True(t, a.Type().Is(TypeUndo))
+		require.Equal(t, undoActivityID.String(), a.ID().String())
+
+		context := a.Context()
+		require.NotNil(t, context)
+		context.Contains(ContextActivityStreams)
+
+		to := a.To()
+		require.Len(t, to, 1)
+		require.Equal(t, to[0].String(), org2Service.String())
+
+		require.Equal(t, org1Service.String(), a.Actor().String())
+
+		objProp := a.Object()
+		require.NotNil(t, objProp)
+		require.NotNil(t, objProp.IRI())
+		require.True(t, objProp.IRI().String() == followActivityID.String())
+	})
+}
+
 func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
 	return testutil.MustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
@@ -1198,5 +1241,14 @@ const (
     },
     "proof": {}
   }
+}`
+
+	jsonUndo = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "actor": "https://org1.com/services/service1",
+  "id": "https://sally.example.com/services/orb/activities/77bcd005-abb6-433d-a889-18bc1ce64981",
+  "object": "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988",
+  "to": "https://org1.com/services/service2",
+  "type": "Undo"
 }`
 )
