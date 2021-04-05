@@ -23,7 +23,7 @@ jobs:
       - checkout: self
       - script: make checks && make unit-test
         displayName: Run checks and unit test
-      - script: bash <(curl https://codecov.io/bash) -t $CODECOV_UPLOAD_TOKEN
+      - script: bash <(curl https://codecov.io/bash)
         env:
           CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)
         displayName: Upload coverage to Codecov
