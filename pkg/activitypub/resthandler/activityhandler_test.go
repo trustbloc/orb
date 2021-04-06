@@ -551,7 +551,7 @@ func newMockActivities(t vocab.Type, num int, getURI func(i int) string) []*voca
 
 func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 	if t == vocab.TypeAnnounce {
-		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty(vocab.WithIRI(id)))
+		return vocab.NewAnnounceActivity(vocab.NewObjectProperty(vocab.WithIRI(id)), vocab.WithID(id))
 	}
 
 	if t == vocab.TypeLike {
@@ -566,8 +566,9 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 		startTime := getStaticTime()
 		endTime := startTime.Add(1 * time.Minute)
 
-		return vocab.NewLikeActivity(id,
+		return vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(credID)),
+			vocab.WithID(id),
 			vocab.WithActor(actor),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
@@ -575,7 +576,7 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 		)
 	}
 
-	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
+	return vocab.NewCreateActivity(vocab.NewObjectProperty(), vocab.WithID(id))
 }
 
 func getStaticTime() time.Time {

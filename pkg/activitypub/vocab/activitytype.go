@@ -62,13 +62,13 @@ func (t *ActivityType) UnmarshalJSON(bytes []byte) error {
 }
 
 // NewCreateActivity returns a new 'Create' activity.
-func NewCreateActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewCreateActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeCreate),
 			WithTo(options.To...),
 			WithPublishedTime(options.Published),
@@ -82,13 +82,13 @@ func NewCreateActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityT
 }
 
 // NewAnnounceActivity returns a new 'Announce' activity.
-func NewAnnounceActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewAnnounceActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeAnnounce),
 			WithTo(options.To...),
 			WithPublishedTime(options.Published),
@@ -101,13 +101,13 @@ func NewAnnounceActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *Activit
 }
 
 // NewFollowActivity returns a new 'Follow' activity.
-func NewFollowActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewFollowActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeFollow),
 			WithTo(options.To...),
 		),
@@ -119,13 +119,13 @@ func NewFollowActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityT
 }
 
 // NewAcceptActivity returns a new 'Accept' activity.
-func NewAcceptActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewAcceptActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeAccept),
 			WithTo(options.To...),
 		),
@@ -137,13 +137,13 @@ func NewAcceptActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityT
 }
 
 // NewRejectActivity returns a new 'Reject' activity.
-func NewRejectActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewRejectActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeReject),
 			WithTo(options.To...),
 		),
@@ -155,13 +155,13 @@ func NewRejectActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityT
 }
 
 // NewLikeActivity returns a new 'Like' activity.
-func NewLikeActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewLikeActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeLike),
 			WithTo(options.To...),
 			WithStartTime(options.StartTime),
@@ -176,13 +176,13 @@ func NewLikeActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityTyp
 }
 
 // NewOfferActivity returns a new 'Offer' activity.
-func NewOfferActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewOfferActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeOffer),
 			WithTo(options.To...),
 			WithStartTime(options.StartTime),
@@ -196,13 +196,13 @@ func NewOfferActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityTy
 }
 
 // NewUndoActivity returns a new 'Undo' activity.
-func NewUndoActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+func NewUndoActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams)...),
-			WithID(id),
+			WithID(options.ID),
 			WithType(TypeUndo),
 			WithTo(options.To...),
 		),

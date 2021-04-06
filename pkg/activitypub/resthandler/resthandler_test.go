@@ -274,14 +274,16 @@ func newMockCreateActivities(num int) []*vocab.ActivityType {
 }
 
 func newMockCreateActivity(id, objID string) *vocab.ActivityType {
-	return vocab.NewCreateActivity(testutil.MustParseURL(id), vocab.NewObjectProperty(
-		vocab.WithAnchorCredentialReference(
-			vocab.NewAnchorCredentialReference(
-				testutil.MustParseURL(objID),
-				testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
-				"bafkd34G7hD6gbj94fnKm5D"),
+	return vocab.NewCreateActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorCredentialReference(
+				vocab.NewAnchorCredentialReference(
+					testutil.MustParseURL(objID),
+					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
+					"bafkd34G7hD6gbj94fnKm5D"),
+			),
 		),
-	),
+		vocab.WithID(testutil.MustParseURL(id)),
 	)
 }
 

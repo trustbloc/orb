@@ -201,7 +201,7 @@ func TestOutbox_Post(t *testing.T) {
 	objIRI, err := url.Parse("http://example.com/transactions/txn1")
 	require.NoError(t, err)
 
-	activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+	activity := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(
 			vocab.WithObject(
 				vocab.NewObject(
@@ -209,6 +209,7 @@ func TestOutbox_Post(t *testing.T) {
 				),
 			),
 		),
+		vocab.WithID(newActivityID(cfg.ServiceIRI)),
 		vocab.WithTo(
 			testutil.MustParseURL(vocab.PublicIRI),
 			testutil.NewMockID(service1URL, resthandler.FollowersPath),
@@ -284,7 +285,7 @@ func TestOutbox_PostError(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName), nil)
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
 
 		require.True(t, errors.Is(ob.Post(activity), spi.ErrNotStarted))
 	})
@@ -302,7 +303,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName), nil)
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
 
 		require.True(t, errors.Is(ob.Post(activity), errExpected))
 
@@ -324,7 +325,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName), nil)
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
 
 		require.True(t, errors.Is(ob.Post(activity), errExpected))
 
@@ -345,7 +346,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.jsonMarshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName), nil)
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
 
 		require.True(t, errors.Is(ob.Post(activity), errExpected))
 
@@ -364,7 +365,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -372,6 +373,7 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
@@ -402,7 +404,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.jsonUnmarshal = func(data []byte, v interface{}) error { return errExpected }
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -410,6 +412,7 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
@@ -433,7 +436,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceName),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -441,6 +444,7 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
@@ -453,8 +457,8 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 }
 
-func newActivityID(serviceName string) *url.URL {
-	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
+func newActivityID(servicIRI fmt.Stringer) *url.URL {
+	return testutil.NewMockID(servicIRI, uuid.New().String())
 }
 
 type testHandler struct {

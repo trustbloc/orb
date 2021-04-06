@@ -261,8 +261,9 @@ func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 }
 
 func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
-	acceptActivity := vocab.NewAcceptActivity(h.newActivityID(),
+	acceptActivity := vocab.NewAcceptActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithID(h.newActivityID()),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(toIRI),
 	)
@@ -279,8 +280,9 @@ func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) err
 }
 
 func (h *Inbox) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
-	reject := vocab.NewRejectActivity(h.newActivityID(),
+	reject := vocab.NewRejectActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithID(h.newActivityID()),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(toIRI),
 	)
@@ -359,8 +361,9 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 	startTime := time.Now()
 	endTime := startTime.Add(h.MaxWitnessDelay)
 
-	like := vocab.NewLikeActivity(h.newActivityID(),
+	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(anchorCred.ID().URL())),
+		vocab.WithID(h.newActivityID()),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(offer.Actor()),
 		vocab.WithStartTime(&startTime),
@@ -467,7 +470,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	published := time.Now()
 
-	announce := vocab.NewAnnounceActivity(h.newActivityID(),
+	announce := vocab.NewAnnounceActivity(
 		vocab.NewObjectProperty(
 			vocab.WithCollection(
 				vocab.NewCollection(
@@ -479,6 +482,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				),
 			),
 		),
+		vocab.WithID(h.newActivityID()),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(followers...),
 		vocab.WithPublishedTime(&published),
@@ -523,7 +527,7 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 
 	published := time.Now()
 
-	announce := vocab.NewAnnounceActivity(h.newActivityID(),
+	announce := vocab.NewAnnounceActivity(
 		vocab.NewObjectProperty(
 			vocab.WithCollection(
 				vocab.NewCollection(
@@ -535,6 +539,7 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 				),
 			),
 		),
+		vocab.WithID(h.newActivityID()),
 		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(followers...),
 		vocab.WithPublishedTime(&published),

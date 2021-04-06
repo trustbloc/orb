@@ -51,8 +51,9 @@ func TestCreateTypeMarshal(t *testing.T) {
 		obj, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential1)))
 		require.NoError(t, err)
 
-		create := NewCreateActivity(createActivityID,
+		create := NewCreateActivity(
 			NewObjectProperty(WithObject(obj)),
+			WithID(createActivityID),
 			WithActor(service1),
 			WithTarget(targetProperty),
 			WithTo(followers),
@@ -111,12 +112,13 @@ func TestCreateTypeMarshal(t *testing.T) {
 		refID := newMockID(host1, "/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 		t.Run("Marshal", func(t *testing.T) {
-			create := NewCreateActivity(createActivityID,
+			create := NewCreateActivity(
 				NewObjectProperty(
 					WithAnchorCredentialReference(
 						NewAnchorCredentialReference(refID, anchorCredIRI, cid),
 					),
 				),
+				WithID(createActivityID),
 				WithActor(service1),
 				WithTo(followers),
 				WithTo(public),
@@ -180,10 +182,11 @@ func TestCreateTypeMarshal(t *testing.T) {
 			anchorCredential, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential)))
 			require.NoError(t, err)
 
-			create := NewCreateActivity(createActivityID,
+			create := NewCreateActivity(
 				NewObjectProperty(
 					WithObject(anchorCredential),
 				),
+				WithID(createActivityID),
 				WithTarget(
 					NewObjectProperty(
 						WithObject(
@@ -261,8 +264,8 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 		t.Run("Marshal", func(t *testing.T) {
 			announce := NewAnnounceActivity(
-				createActivityID,
 				NewObjectProperty(WithIRI(txn1)),
+				WithID(createActivityID),
 				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
@@ -336,8 +339,9 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			coll := NewCollection(items)
 
-			announce := NewAnnounceActivity(createActivityID,
+			announce := NewAnnounceActivity(
 				NewObjectProperty(WithCollection(coll)),
+				WithID(createActivityID),
 				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
@@ -430,12 +434,13 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 				),
 			}
 
-			announce := NewAnnounceActivity(createActivityID,
+			announce := NewAnnounceActivity(
 				NewObjectProperty(
 					WithCollection(
 						NewCollection(items),
 					),
 				),
+				WithID(createActivityID),
 				WithActor(service1),
 				WithTo(followers), WithTo(public),
 				WithPublishedTime(&published),
@@ -511,8 +516,9 @@ func TestFollowTypeMarshal(t *testing.T) {
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
-		follow := NewFollowActivity(followActivityID,
+		follow := NewFollowActivity(
 			NewObjectProperty(WithIRI(org2Service)),
+			WithID(followActivityID),
 			WithActor(org1Service),
 			WithTo(org2Service),
 		)
@@ -552,8 +558,9 @@ func TestAcceptTypeMarshal(t *testing.T) {
 	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
-	follow := NewFollowActivity(followActivityID,
+	follow := NewFollowActivity(
 		NewObjectProperty(WithIRI(org2Service)),
+		WithID(followActivityID),
 		WithTo(org2Service),
 		WithActor(org1Service),
 	)
@@ -561,8 +568,9 @@ func TestAcceptTypeMarshal(t *testing.T) {
 	follow.object.Context = nil
 
 	t.Run("Marshal", func(t *testing.T) {
-		accept := NewAcceptActivity(acceptActivityID,
+		accept := NewAcceptActivity(
 			NewObjectProperty(WithActivity(follow)),
+			WithID(acceptActivityID),
 			WithActor(org2Service),
 			WithTo(org1Service),
 		)
@@ -622,7 +630,8 @@ func TestRejectTypeMarshal(t *testing.T) {
 	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
-	follow := NewFollowActivity(followActivityID, NewObjectProperty(WithIRI(org2Service)),
+	follow := NewFollowActivity(NewObjectProperty(WithIRI(org2Service)),
+		WithID(followActivityID),
 		WithTo(org2Service),
 		WithActor(org1Service),
 	)
@@ -630,7 +639,8 @@ func TestRejectTypeMarshal(t *testing.T) {
 	follow.object.Context = nil
 
 	t.Run("Marshal", func(t *testing.T) {
-		accept := NewRejectActivity(rejectActivityID, NewObjectProperty(WithActivity(follow)),
+		accept := NewRejectActivity(NewObjectProperty(WithActivity(follow)),
+			WithID(rejectActivityID),
 			WithActor(org2Service),
 			WithTo(org1Service),
 		)
@@ -697,8 +707,9 @@ func TestOfferTypeMarshal(t *testing.T) {
 		obj, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential)))
 		require.NoError(t, err)
 
-		offer := NewOfferActivity(offerActivityID,
+		offer := NewOfferActivity(
 			NewObjectProperty(WithObject(obj)),
+			WithID(offerActivityID),
 			WithActor(service1),
 			WithTo(to, public),
 			WithStartTime(&startTime),
@@ -761,8 +772,9 @@ func TestLikeTypeMarshal(t *testing.T) {
 		result, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(jsonLikeResult)))
 		require.NoError(t, err)
 
-		like := NewLikeActivity(likeActivityID,
+		like := NewLikeActivity(
 			NewObjectProperty(WithIRI(credID)),
+			WithID(likeActivityID),
 			WithActor(actor),
 			WithTo(service1, public),
 			WithStartTime(&startTime),
@@ -830,8 +842,9 @@ func TestUndoTypeMarshal(t *testing.T) {
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
-		accept := NewUndoActivity(undoActivityID,
+		accept := NewUndoActivity(
 			NewObjectProperty(WithIRI(followActivityID)),
+			WithID(undoActivityID),
 			WithActor(org1Service),
 			WithTo(org2Service),
 		)

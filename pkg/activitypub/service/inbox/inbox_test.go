@@ -99,7 +99,7 @@ func TestInbox_Handle(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		activityHandler.HandleActivityReturns(nil)
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -107,6 +107,7 @@ func TestInbox_Handle(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -180,7 +181,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -188,6 +189,7 @@ func TestInbox_Error(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -233,7 +235,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityStore.AddActivityReturns(errors.New("injected store error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -241,6 +243,7 @@ func TestInbox_Error(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -292,7 +295,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
 
-		activity := vocab.NewCreateActivity(newActivityID(cfg.ServiceEndpoint),
+		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
 					vocab.NewObject(
@@ -300,6 +303,7 @@ func TestInbox_Error(t *testing.T) {
 					),
 				),
 			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)

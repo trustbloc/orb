@@ -24,8 +24,8 @@ func TestActivityIterator(t *testing.T) {
 		activityID2 = testutil.MustParseURL("https://example.com/activities/activity2")
 	)
 
-	activity1 := vocab.NewAnnounceActivity(activityID1, vocab.NewObjectProperty())
-	activity2 := vocab.NewAnnounceActivity(activityID2, vocab.NewObjectProperty())
+	activity1 := vocab.NewAnnounceActivity(vocab.NewObjectProperty(), vocab.WithID(activityID1))
+	activity2 := vocab.NewAnnounceActivity(vocab.NewObjectProperty(), vocab.WithID(activityID2))
 
 	results := []*vocab.ActivityType{activity1, activity2}
 

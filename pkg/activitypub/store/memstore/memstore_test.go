@@ -35,7 +35,7 @@ func TestStore_Activity(t *testing.T) {
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
 
-	activity1 := vocab.NewCreateActivity(activityID1, vocab.NewObjectProperty())
+	activity1 := vocab.NewCreateActivity(vocab.NewObjectProperty(), vocab.WithID(activityID1))
 	require.NoError(t, s.AddActivity(activity1))
 
 	a, err = s.GetActivity(activityID1)
@@ -43,10 +43,10 @@ func TestStore_Activity(t *testing.T) {
 	require.NotNil(t, a)
 	require.Equal(t, activity1, a)
 
-	activity2 := vocab.NewAnnounceActivity(activityID2, vocab.NewObjectProperty())
+	activity2 := vocab.NewAnnounceActivity(vocab.NewObjectProperty(), vocab.WithID(activityID2))
 	require.NoError(t, s.AddActivity(activity2))
 
-	activity3 := vocab.NewCreateActivity(activityID3, vocab.NewObjectProperty())
+	activity3 := vocab.NewCreateActivity(vocab.NewObjectProperty(), vocab.WithID(activityID3))
 	require.NoError(t, s.AddActivity(activity3))
 
 	require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID1))
@@ -344,8 +344,8 @@ func newMockActivities(t vocab.Type, num int) []*vocab.ActivityType {
 
 func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 	if t == vocab.TypeAnnounce {
-		return vocab.NewAnnounceActivity(id, vocab.NewObjectProperty(vocab.WithIRI(id)))
+		return vocab.NewAnnounceActivity(vocab.NewObjectProperty(vocab.WithIRI(id)), vocab.WithID(id))
 	}
 
-	return vocab.NewCreateActivity(id, vocab.NewObjectProperty())
+	return vocab.NewCreateActivity(vocab.NewObjectProperty(), vocab.WithID(id))
 }
