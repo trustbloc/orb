@@ -14,6 +14,16 @@ variables:
   GOPATH: $(Agent.BuildDirectory)/go
 
 jobs:
+  - job: Checks
+    pool:
+      vmImage: ubuntu-20.04
+    timeoutInMinutes: 30
+    steps:
+      - template: azp-dependencies.yml
+      - checkout: self
+      - script: make checks
+        displayName: Run checks
+
   - job: UnitTest
     pool:
       vmImage: ubuntu-16.04
@@ -21,8 +31,8 @@ jobs:
     steps:
       - template: azp-dependencies.yml
       - checkout: self
-      - script: make checks && make unit-test
-        displayName: Run checks and unit test
+      - script: make unit-test
+        displayName: Run unit test
       - script: bash <(curl https://codecov.io/bash)
         env:
           CODECOV_UPLOAD_TOKEN: $(CODECOV_UPLOAD_TOKEN)

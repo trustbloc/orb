@@ -10,6 +10,7 @@ Feature:
 
   @create_valid_did_doc
   Scenario: create valid did doc
+    When client discover orb endpoints
     When client sends request to create DID document
     Then check success response contains "#did"
     # retrieve document with initial value before it becomes available on the ledger
@@ -35,6 +36,7 @@ Feature:
 
   @create_deactivate_did_doc
   Scenario: deactivate valid did doc
+    When client discover orb endpoints
     When client sends request to create DID document
     Then check success response contains "#did"
     Then we wait 1 seconds
@@ -50,6 +52,7 @@ Feature:
 
   @create_recover_did_doc
   Scenario: recover did doc
+    When client discover orb endpoints
     When client sends request to create DID document
     Then check success response contains "#did"
     Then we wait 1 seconds
@@ -69,6 +72,7 @@ Feature:
 
     @create_add_remove_public_key
     Scenario: add and remove public keys
+      When client discover orb endpoints
       When client sends request to create DID document
       Then check success response contains "#did"
       Then we wait 1 seconds
@@ -94,6 +98,7 @@ Feature:
 
     @create_add_remove_services
     Scenario: add and remove service endpoints
+      When client discover orb endpoints
       When client sends request to create DID document
       Then check success response contains "#did"
       Then we wait 1 seconds
@@ -112,6 +117,7 @@ Feature:
 
     @discover_did
     Scenario: discover did
+      When client discover orb endpoints
       When client sends request to create DID document
       Then check success response contains "#did"
 

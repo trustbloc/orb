@@ -43,9 +43,6 @@ const (
 
 	initialStateSeparator = ":"
 
-	testDocumentResolveURL = "https://localhost:48326/sidetree/v1/identifiers"
-	testDocumentUpdateURL  = "https://localhost:48326/sidetree/v1/operations"
-
 	origin = "origin.com"
 
 	sha2_256 = 18
@@ -106,24 +103,48 @@ const docTemplate = `{
   ]
 }`
 
+type wellKnowResp struct {
+	ResolutionEndpoint string `json:"resolutionEndpoint"`
+	OperationEndpoint  string `json:"operationEndpoint"`
+}
+
 var emptyJson = []byte("{}")
 
 // DIDOrbSteps
 type DIDOrbSteps struct {
-	namespace     string
-	createRequest *model.CreateRequest
-	recoveryKey   *ecdsa.PrivateKey
-	updateKey     *ecdsa.PrivateKey
-	resp          *restclient.HttpRespone
-	bddContext    *BDDContext
-	alias         string
-	uniqueSuffix  string
-	canonicalID   string
+	namespace          string
+	createRequest      *model.CreateRequest
+	recoveryKey        *ecdsa.PrivateKey
+	updateKey          *ecdsa.PrivateKey
+	resp               *restclient.HttpRespone
+	bddContext         *BDDContext
+	alias              string
+	uniqueSuffix       string
+	canonicalID        string
+	resolutionEndpoint string
+	operationEndpoint  string
 }
 
 // NewDIDSideSteps
 func NewDIDSideSteps(context *BDDContext, namespace string) *DIDOrbSteps {
 	return &DIDOrbSteps{bddContext: context, namespace: namespace}
+}
+
+func (d *DIDOrbSteps) discoverEndpoints() error {
+	resp, err := restclient.SendResolveRequest("https://localhost:48326/.well-known/did-orb")
+	if err != nil {
+		return err
+	}
+
+	var w wellKnowResp
+	if err := json.Unmarshal(resp.Payload, &w); err != nil {
+		return err
+	}
+
+	d.resolutionEndpoint = strings.ReplaceAll(w.ResolutionEndpoint, "orb.domain1.com", "localhost:48326")
+	d.operationEndpoint = strings.ReplaceAll(w.OperationEndpoint, "orb.domain1.com", "localhost:48326")
+
+	return nil
 }
 
 func (d *DIDOrbSteps) createDIDDocument() error {
@@ -141,7 +162,7 @@ func (d *DIDOrbSteps) createDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(testDocumentUpdateURL, reqBytes)
+	d.resp, err = restclient.SendRequest(d.operationEndpoint, reqBytes)
 	if err == nil {
 		var req model.CreateRequest
 		e := json.Unmarshal(reqBytes, &req)
@@ -168,7 +189,7 @@ func (d *DIDOrbSteps) updateDIDDocument(patches []patch.Patch) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(testDocumentUpdateURL, req)
+	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
 	return err
 }
 
@@ -185,7 +206,7 @@ func (d *DIDOrbSteps) deactivateDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(testDocumentUpdateURL, req)
+	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
 	return err
 }
 
@@ -207,7 +228,7 @@ func (d *DIDOrbSteps) recoverDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(testDocumentUpdateURL, req)
+	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
 	return err
 }
 
@@ -329,7 +350,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithID(did string) error {
 	var err error
-	d.resp, err = restclient.SendResolveRequest(testDocumentResolveURL + "/" + did)
+	d.resp, err = restclient.SendResolveRequest(d.resolutionEndpoint + "/" + did)
 
 	if err == nil && d.resp.Payload != nil {
 		var result document.ResolutionResult
@@ -373,7 +394,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(alias string) error {
 
 	d.alias = alias
 
-	url := testDocumentResolveURL + "/" + did
+	url := d.resolutionEndpoint + "/" + did
 
 	d.resp, err = restclient.SendResolveRequest(url)
 	return err
@@ -390,7 +411,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue() error {
 		return err
 	}
 
-	req := testDocumentResolveURL + "/" + did + initialStateSeparator + initialState
+	req := d.resolutionEndpoint + "/" + did + initialStateSeparator + initialState
 
 	d.resp, err = restclient.SendResolveRequest(req)
 	return err
@@ -686,6 +707,7 @@ func prettyPrint(result *document.ResolutionResult) error {
 
 // RegisterSteps registers orb steps
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
+	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)

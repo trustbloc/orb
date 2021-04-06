@@ -17,7 +17,7 @@ services:
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
-      - ORB_EXTERNAL_ENDPOINT=orb.domain1.com
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain1.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
@@ -55,7 +55,7 @@ services:
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
-      - ORB_EXTERNAL_ENDPOINT=orb.domain2.com
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb

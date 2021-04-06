@@ -60,7 +60,8 @@ import (
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
-	localdiscovery "github.com/trustbloc/orb/pkg/discovery/local"
+	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
@@ -68,6 +69,7 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 )
 
 const (
@@ -263,12 +265,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
-	apServiceIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.externalEndpoint, activityPubServicesPath))
+	apServiceIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubServicesPath))
 	if err != nil {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
 	}
 
-	apTransactionsIRI, err := url.Parse(fmt.Sprintf("https://%s%s", parameters.externalEndpoint, activityPubTransactionsPath))
+	apTransactionsIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubTransactionsPath))
 	if err != nil {
 		return fmt.Errorf("invalid transactions IRI: %s", err.Error())
 	}
@@ -380,12 +382,16 @@ func startOrbServices(parameters *orbParameters) error {
 		localdiscovery.New(didCh),
 	)
 
-	httpServer := httpserver.New(
-		parameters.hostURL,
-		parameters.tlsCertificate,
-		parameters.tlsKey,
-		parameters.token,
-		diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
+	// create discovery rest api
+	endpointDiscoveryOp := discoveryrest.New(&discoveryrest.Config{
+		ResolutionPath: baseResolvePath,
+		OperationPath:  baseUpdatePath,
+		BaseURL:        parameters.externalEndpoint,
+	})
+
+	handlers := make([]restcommon.HTTPHandler, 0)
+
+	handlers = append(handlers, diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apServiceCfg, apStore, publicKey),
@@ -397,7 +403,17 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewWitnessing(apServiceCfg, apStore),
 		aphandler.NewLiked(apServiceCfg, apStore),
 		aphandler.NewLikes(apTxnCfg, apStore),
-		aphandler.NewShares(apTxnCfg, apStore),
+		aphandler.NewShares(apTxnCfg, apStore))
+
+	handlers = append(handlers,
+		endpointDiscoveryOp.GetRESTHandlers()...)
+
+	httpServer := httpserver.New(
+		parameters.hostURL,
+		parameters.tlsCertificate,
+		parameters.tlsKey,
+		parameters.token,
+		handlers...,
 	)
 
 	srv := &HTTPServer{
