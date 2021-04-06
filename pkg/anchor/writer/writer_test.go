@@ -9,6 +9,7 @@ package writer
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
@@ -19,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
@@ -29,12 +31,21 @@ const (
 	namespace = "did:sidetree"
 
 	testDID = "did:method:abc"
+
+	activityPubURL = "http://localhost/activityPubURL"
+	casURL         = "http://localhost/cas"
 )
 
 func TestNew(t *testing.T) {
 	var anchorCh chan []string
 
 	var vcCh chan *verifiable.Credential
+
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	casIRI, err := url.Parse(casURL)
+	require.NoError(t, err)
 
 	vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
 	require.NoError(t, err)
@@ -44,10 +55,11 @@ func TestNew(t *testing.T) {
 		DidAnchors:    memdidanchorref.New(),
 		AnchorBuilder: &mockTxnBuilder{},
 		ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+		Outbox:        &mockOutbox{},
 		Store:         vcStore,
 	}
 
-	c := New(namespace, providers, anchorCh, vcCh)
+	c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 	require.NotNil(t, c)
 }
 
@@ -56,6 +68,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		Cas: mocks.NewMockCasClient(nil),
 		Pkf: pubKeyFetcherFnc,
 	}
+
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	casIRI, err := url.Parse(casURL)
+	require.NoError(t, err)
 
 	anchorGraph := graph.New(graphProviders)
 
@@ -71,11 +89,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
-			Store:         vcStore,
 			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Store:         vcStore,
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -111,11 +130,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			DidAnchors:    &mockDidTxns{},
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStore,
 			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -139,9 +159,10 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{Err: errors.New("sign error")},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 		}
 
-		c := New(namespace, providersWithErr, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
 		err := c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "failed to build anchor credential: sign error")
@@ -164,10 +185,11 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStoreWithErr,
 		}
 
-		c := New(namespace, providersWithErr, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
 		err = c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "error put")
@@ -185,10 +207,11 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStore,
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 1)
 		require.Contains(t, err.Error(),
@@ -202,6 +225,12 @@ func TestWriter_handle(t *testing.T) {
 		Pkf: pubKeyFetcherFnc,
 	}
 
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	casIRI, err := url.Parse(casURL)
+	require.NoError(t, err)
+
 	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
@@ -213,13 +242,14 @@ func TestWriter_handle(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+			Outbox:        &mockOutbox{},
 			Store:         vcStore,
 		}
 
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -244,10 +274,11 @@ func TestWriter_handle(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStoreWithErr,
 		}
 
-		c := New(namespace, providersWithErr, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -267,10 +298,11 @@ func TestWriter_handle(t *testing.T) {
 			DidAnchors:    memdidanchorref.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStore,
 		}
 
-		c := New(namespace, providersWithErr, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -290,10 +322,35 @@ func TestWriter_handle(t *testing.T) {
 			DidAnchors:    &mockDidTxns{Err: errors.New("did references error")},
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
+			Outbox:        &mockOutbox{},
 			Store:         vcStore,
 		}
 
-		c := New(namespace, providersWithErr, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		c.handle(anchorVC)
+	})
+
+	t.Run("error - outbox error", func(t *testing.T) {
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchorref.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
+			Outbox:        &mockOutbox{Err: errors.New("outbox error")},
+			Store:         vcStore,
+		}
+
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
@@ -303,6 +360,12 @@ func TestWriter_handle(t *testing.T) {
 }
 
 func TestWriter_getWitnesses(t *testing.T) {
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	casIRI, err := url.Parse(casURL)
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
@@ -317,7 +380,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -370,7 +433,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -397,7 +460,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		opRefs := []*operation.Reference{
 			{
@@ -424,11 +487,17 @@ func TestWriter_Read(t *testing.T) {
 		DidAnchors:  memdidanchorref.New(),
 	}
 
+	apServiceIRI, err := url.Parse(activityPubURL)
+	require.NoError(t, err)
+
+	casIRI, err := url.Parse(casURL)
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, providers, anchorCh, vcCh)
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
 		more, entries := c.Read(-1)
 		require.False(t, more)
@@ -501,6 +570,18 @@ func (m *mockOpProcessor) Resolve(uniqueSuffix string) (*protocol.ResolutionMode
 	}
 
 	return m.Map[uniqueSuffix], nil
+}
+
+type mockOutbox struct {
+	Err error
+}
+
+func (m *mockOutbox) Post(activity *vocab.ActivityType) error {
+	if m.Err != nil {
+		return m.Err
+	}
+
+	return nil
 }
 
 //nolint:gochecknoglobals,lll

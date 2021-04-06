@@ -51,6 +51,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/handler"
 	"github.com/trustbloc/orb/pkg/anchor/proofs"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/config"
@@ -94,6 +95,8 @@ const (
 
 	activityPubServicesPath     = "/services/orb"
 	activityPubTransactionsPath = "/transactions"
+
+	casPath     = "/cas"
 )
 
 type server interface {
@@ -265,6 +268,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
+	casIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, casPath))
+	if err != nil {
+		return fmt.Errorf("invalid CAS service IRI: %s", err.Error())
+	}
+
 	apServiceIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubServicesPath))
 	if err != nil {
 		return fmt.Errorf("invalid service IRI: %s", err.Error())
@@ -273,6 +281,40 @@ func startOrbServices(parameters *orbParameters) error {
 	apTransactionsIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubTransactionsPath))
 	if err != nil {
 		return fmt.Errorf("invalid transactions IRI: %s", err.Error())
+	}
+
+	apConfig := &apservice.Config{
+		ServiceEndpoint: activityPubServicesPath,
+		ServiceIRI:      apServiceIRI,
+		MaxWitnessDelay: defaultMaxWitnessDelay,
+	}
+
+	apStore := apmemstore.New(apConfig.ServiceEndpoint)
+
+	// TODO: Configure the HTTP client with TLS
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint: gosec
+			},
+		},
+	}
+
+	// TODO: A mock witness handler is set here so that the integration tests don't panic.
+	//  This needs to be replaced with a real witness handler.
+	mockWitnessHandler := apmocks.NewWitnessHandler().WithProof([]byte(mockProof))
+
+	activityPubService, err := apservice.New(apConfig,
+		apStore, httpClient,
+		// TODO: Define all of the ActivityPub handlers
+		//apspi.WithProofHandler(proofHandler),
+		apspi.WithWitness(mockWitnessHandler),
+		//apspi.WithFollowerAuth(followerAuth),
+		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),
+		//apspi.WithUndeliverableHandler(undeliverableHandler),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
 	proofProviders := &proofs.Providers{
@@ -288,9 +330,10 @@ func startOrbServices(parameters *orbParameters) error {
 		Store:         vcStore,
 		ProofHandler:  proofHandler,
 		OpProcessor:   opProcessor,
+		Outbox:        activityPubService.Outbox(),
 	}
 
-	anchorWriter := writer.New(parameters.didNamespace, anchorWriterProviders, anchorCh, vcCh)
+	anchorWriter := writer.New(parameters.didNamespace, apServiceIRI, casIRI, anchorWriterProviders, anchorCh, vcCh)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,
@@ -321,40 +364,6 @@ func startOrbServices(parameters *orbParameters) error {
 		batchWriter,
 		opProcessor,
 	)
-
-	apConfig := &apservice.Config{
-		ServiceEndpoint: activityPubServicesPath,
-		ServiceIRI:      apServiceIRI,
-		MaxWitnessDelay: defaultMaxWitnessDelay,
-	}
-
-	apStore := apmemstore.New(apConfig.ServiceEndpoint)
-
-	// TODO: Configure the HTTP client with TLS
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint: gosec
-			},
-		},
-	}
-
-	// TODO: A mock witness handler is set here so that the integration tests don't panic.
-	//  This needs to be replaced with a real witness handler.
-	mockWitnessHandler := apmocks.NewWitnessHandler().WithProof([]byte(mockProof))
-
-	activityPubService, err := apservice.New(apConfig,
-		apStore, httpClient,
-		// TODO: Define all of the ActivityPub handlers
-		//apspi.WithProofHandler(proofHandler),
-		apspi.WithWitness(mockWitnessHandler),
-		//apspi.WithFollowerAuth(followerAuth),
-		//apspi.WithAnchorCredentialHandler(anchorCredHandler),
-		//apspi.WithUndeliverableHandler(undeliverableHandler),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
-	}
 
 	apServiceCfg := &aphandler.Config{
 		BasePath:  activityPubServicesPath,

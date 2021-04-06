@@ -18,7 +18,7 @@ Feature:
     Then check success response contains "#did"
     Then check success response does NOT contain "canonicalId"
 
-    Then we wait 1 seconds
+    Then we wait 3 seconds
     When client sends request to resolve DID document
     Then check success response contains "#did"
     Then check success response contains "canonicalId"
@@ -39,13 +39,13 @@ Feature:
     When client discover orb endpoints
     When client sends request to create DID document
     Then check success response contains "#did"
-    Then we wait 1 seconds
+    Then we wait 3 seconds
 
     When client sends request to resolve DID document
     Then check success response contains "#did"
 
     When client sends request to deactivate DID document
-    Then we wait 1 seconds
+    Then we wait 3 seconds
 
     When client sends request to resolve DID document
     Then check success response contains "deactivated"
@@ -55,13 +55,13 @@ Feature:
     When client discover orb endpoints
     When client sends request to create DID document
     Then check success response contains "#did"
-    Then we wait 1 seconds
+    Then we wait 3 seconds
 
     When client sends request to resolve DID document
     Then check success response contains "canonicalId"
 
     When client sends request to recover DID document
-    Then we wait 1 seconds
+    Then we wait 3 seconds
 
     When client sends request to resolve DID document
     Then check success response contains "recoveryKey"
@@ -75,13 +75,13 @@ Feature:
       When client discover orb endpoints
       When client sends request to create DID document
       Then check success response contains "#did"
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response contains "canonicalId"
 
       When client sends request to add public key with ID "newKey" to DID document
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response contains "newKey"
@@ -91,7 +91,7 @@ Feature:
       Then check success response contains "#canonicalId"
 
       When client sends request to remove public key with ID "newKey" from DID document
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response does NOT contain "newKey"
@@ -101,16 +101,16 @@ Feature:
       When client discover orb endpoints
       When client sends request to create DID document
       Then check success response contains "#did"
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to add service endpoint with ID "newService" to DID document
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response contains "newService"
 
       When client sends request to remove service endpoint with ID "newService" from DID document
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response does NOT contain "newService"
@@ -121,7 +121,7 @@ Feature:
       When client sends request to create DID document
       Then check success response contains "#did"
 
-      Then we wait 1 seconds
+      Then we wait 3 seconds
       When client sends request to resolve DID document
       Then check success response contains "#did"
       Then check success response contains "canonicalId"
@@ -130,7 +130,7 @@ Feature:
       Then check success response contains "#canonicalId"
 
       When client sends request to recover DID document
-      Then we wait 1 seconds
+      Then we wait 3 seconds
 
       When client sends request to resolve DID document
       Then check success response contains "recoveryKey"
@@ -153,3 +153,26 @@ Feature:
       When client sends request to resolve DID document with canonical id
       Then check success response contains "#canonicalId"
       Then check success response contains "recoveryKey"
+
+    @follow_anchor_writer
+    Scenario: follow  anchor writer
+
+      # domain2 follows domain1
+      When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
+
+      When client sends request to create DID document
+      Then check success response contains "#did"
+
+      Then we wait 3 seconds
+      When client sends request to resolve DID document
+      Then check success response contains "#did"
+
+      When client sends request to create DID document
+      Then check success response contains "#did"
+
+      Then we wait 3 seconds
+      When client sends request to resolve DID document
+      Then check success response contains "#did"
+
+
+      Then we wait 5 seconds
