@@ -157,8 +157,9 @@ func TestService_Create(t *testing.T) {
 		panic(err)
 	}
 
-	create := vocab.NewCreateActivity(newActivityID(service1IRI),
+	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
+		vocab.WithID(newActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTarget(targetProperty),
 		vocab.WithContext(vocab.ContextOrb),
@@ -284,8 +285,9 @@ func TestService_Follow(t *testing.T) {
 		actorIRI := service1IRI
 		targetIRI := service2IRI
 
-		follow := vocab.NewFollowActivity(newActivityID(actorIRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(targetIRI)),
+			vocab.WithID(newActivityID(actorIRI)),
 			vocab.WithActor(actorIRI),
 			vocab.WithTo(targetIRI),
 		)
@@ -362,8 +364,9 @@ func TestService_Follow(t *testing.T) {
 		actorIRI := service2IRI
 		targetIRI := service1IRI
 
-		follow := vocab.NewFollowActivity(newActivityID(actorIRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(targetIRI)),
+			vocab.WithID(newActivityID(actorIRI)),
 			vocab.WithActor(actorIRI),
 			vocab.WithTo(targetIRI),
 		)
@@ -561,12 +564,13 @@ func TestService_Announce(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service2IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithCollection(
 					vocab.NewCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service3IRI),
 			vocab.WithPublishedTime(&published),
@@ -619,12 +623,13 @@ func TestService_Announce(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service2IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithCollection(
 					vocab.NewCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service3IRI),
 			vocab.WithPublishedTime(&published),
@@ -672,8 +677,9 @@ func TestService_Announce(t *testing.T) {
 
 		followerAuth2.WithAccept()
 
-		follow := vocab.NewFollowActivity(newActivityID(service3IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
+			vocab.WithID(newActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -707,8 +713,9 @@ func TestService_Announce(t *testing.T) {
 		}
 
 		// Service1 posts a 'Create' to Service2
-		create := vocab.NewCreateActivity(newActivityID(service1IRI),
+		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithTarget(targetProperty),
 			vocab.WithContext(vocab.ContextOrb),
 			vocab.WithTo(service2IRI),
@@ -873,8 +880,9 @@ func TestService_Offer(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),

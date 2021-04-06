@@ -153,8 +153,9 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI),
+		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTarget(targetProperty),
 			vocab.WithContext(vocab.ContextOrb),
@@ -197,12 +198,13 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI),
+		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(
 					vocab.NewAnchorCredentialReference(refID, anchorCredID, cid),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithContext(vocab.ContextOrb),
@@ -242,8 +244,9 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	t.Run("Unsupported object type", func(t *testing.T) {
 		published := time.Now()
 
-		create := vocab.NewCreateActivity(newActivityID(service1IRI),
+		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithContext(vocab.ContextOrb),
 			vocab.WithTo(service2IRI),
@@ -304,8 +307,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	t.Run("Accept", func(t *testing.T) {
 		followerAuth.WithAccept()
 
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -328,8 +332,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 1)
 
 		// Post another follow. Should reply with accept since it's already a follower.
-		follow = vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow = vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -346,8 +351,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("Reject", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service3IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -374,8 +380,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("No actor in Follow activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -383,8 +390,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("No object IRI in Follow activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -394,8 +402,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("Object IRI does not match target service IRI in Follow activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -404,8 +413,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service4IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service4IRI)),
 			vocab.WithActor(service4IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -422,8 +432,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			followerAuth.WithError(nil)
 		}()
 
-		follow := vocab.NewFollowActivity(newActivityID(service3IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -468,14 +479,16 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	}()
 
 	t.Run("Success", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -498,14 +511,16 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 
 	t.Run("No actor in Accept activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithTo(service2IRI),
 		)
 
@@ -513,8 +528,9 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 
 	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -524,13 +540,15 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 
 	t.Run("Object is not a Follow activity", func(t *testing.T) {
-		follow := vocab.NewAnnounceActivity(newActivityID(service2IRI),
+		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -540,13 +558,15 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 
 	t.Run("No actor specified in the Follow activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -556,14 +576,16 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 
 	t.Run("Follow actor does not match target service IRI in Accept activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		accept := vocab.NewAcceptActivity(newActivityID(service1IRI),
+		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -608,14 +630,16 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	}()
 
 	t.Run("Success", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -637,14 +661,16 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 
 	t.Run("No actor in Reject activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithTo(service2IRI),
 		)
 
@@ -652,8 +678,9 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 
 	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -663,13 +690,15 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 
 	t.Run("Object is not a Follow activity", func(t *testing.T) {
-		follow := vocab.NewAnnounceActivity(newActivityID(service2IRI),
+		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -679,13 +708,15 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 
 	t.Run("No actor specified in the Follow activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -695,14 +726,16 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	})
 
 	t.Run("Follow actor does not match target service IRI in Reject activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service1IRI),
 		)
 
-		reject := vocab.NewRejectActivity(newActivityID(service1IRI),
+		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -757,12 +790,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithCollection(
 					vocab.NewCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -788,12 +822,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithOrderedCollection(
 					vocab.NewOrderedCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -822,12 +857,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithCollection(
 					vocab.NewCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -851,12 +887,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithCollection(
 					vocab.NewCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -876,12 +913,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithOrderedCollection(
 					vocab.NewOrderedCollection(items),
 				),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -895,10 +933,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	t.Run("Anchor credential ref - unsupported object type", func(t *testing.T) {
 		published := time.Now()
 
-		announce := vocab.NewAnnounceActivity(newActivityID(service1IRI),
+		announce := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(
 				vocab.WithActor(service1IRI),
 			),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -951,8 +990,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -985,8 +1025,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1010,7 +1051,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1027,8 +1068,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		endTime := time.Now().Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
@@ -1045,7 +1087,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		startTime := time.Now()
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1061,8 +1103,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeAnnounce)))),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1078,8 +1121,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		offer := vocab.NewOfferActivity(newActivityID(service1IRI),
+		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1136,8 +1180,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1177,8 +1222,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1198,8 +1244,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
@@ -1219,8 +1266,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1239,8 +1287,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1259,8 +1308,9 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		anchorCredID := newTransactionID(h.ServiceIRI)
 
-		like := vocab.NewLikeActivity(h.newActivityID(),
+		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+			vocab.WithID(h.newActivityID()),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1330,32 +1380,37 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 		}
 	}()
 
-	follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+	follow := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	followNoIRI := vocab.NewFollowActivity(newActivityID(service2IRI),
+	followNoIRI := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(),
+		vocab.WithID(newActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	followIRINotLocalService := vocab.NewFollowActivity(newActivityID(service2IRI),
+	followIRINotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	followActorNotLocalService := vocab.NewFollowActivity(newActivityID(service2IRI),
+	followActorNotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
 		vocab.WithActor(service3IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	unsupported := vocab.NewLikeActivity(inboxHandler.newActivityID(),
+	unsupported := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(inboxHandler.newActivityID()),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
@@ -1371,8 +1426,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 	require.NoError(t, inboxHandler.store.AddActivity(unsupported))
 
 	t.Run("No actor in activity", func(t *testing.T) {
-		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -1380,8 +1436,10 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 	})
 
 	t.Run("No object IRI in activity", func(t *testing.T) {
-		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -1391,8 +1449,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 	})
 
 	t.Run("Activity not found in storage", func(t *testing.T) {
-		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(newActivityID(service3IRI))),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -1403,7 +1462,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 	})
 
 	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
-		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
@@ -1415,8 +1474,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 	})
 
 	t.Run("Unsupported activity type for 'Undo'", func(t *testing.T) {
-		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(unsupported.ID().URL())),
+			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -1439,8 +1499,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 			require.True(t, containsIRI(followers, service2IRI))
 
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -1464,8 +1525,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 		})
 
 		t.Run("No IRI -> error", func(t *testing.T) {
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -1475,8 +1537,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 		})
 
 		t.Run("IRI not local service -> error", func(t *testing.T) {
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(followIRINotLocalService.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -1494,7 +1557,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 			require.False(t, containsIRI(followers, service2IRI))
 
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -1523,7 +1586,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 			require.True(t, containsIRI(following, service1IRI))
 
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -1548,8 +1611,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 		})
 
 		t.Run("No IRI -> error", func(t *testing.T) {
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -1559,7 +1623,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 		})
 
 		t.Run("Actor not local service -> error", func(t *testing.T) {
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(followActorNotLocalService.ID().URL())),
 				vocab.WithActor(service3IRI),
 				vocab.WithTo(service1IRI),
@@ -1578,8 +1642,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 			require.False(t, containsIRI(followers, service1IRI))
 
-			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
