@@ -65,6 +65,14 @@ type Service struct {
 // New returns a new ActivityPub service.
 func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 	handlerOpts ...spi.HandlerOpt) (*Service, error) {
+	outboxHandler := activityhandler.NewOutbox(
+		&activityhandler.Config{
+			ServiceName: cfg.ServiceEndpoint,
+			BufferSize:  cfg.ActivityHandlerBufferSize,
+			ServiceIRI:  cfg.ServiceIRI,
+		},
+		activityStore, httpClient)
+
 	ob, err := outbox.New(
 		&outbox.Config{
 			ServiceName:      cfg.ServiceEndpoint,
@@ -73,7 +81,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
 		activityStore, newPubSub(cfg, cfg.ServiceEndpoint+resthandler.OutboxPath),
-		httpClient, handlerOpts...,
+		httpClient, outboxHandler, handlerOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)

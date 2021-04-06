@@ -56,6 +56,26 @@ func TestNewInbox(t *testing.T) {
 	require.Equal(t, spi.StateStopped, h.State())
 }
 
+func TestNewOutbox(t *testing.T) {
+	cfg := &Config{
+		ServiceName: "service1",
+		BufferSize:  100,
+	}
+
+	h := NewOutbox(cfg, &mocks.ActivityStore{}, &clientmocks.HTTPClient{})
+	require.NotNil(t, h)
+
+	require.Equal(t, spi.StateNotStarted, h.State())
+
+	h.Start()
+
+	require.Equal(t, spi.StateStarted, h.State())
+
+	h.Stop()
+
+	require.Equal(t, spi.StateStopped, h.State())
+}
+
 func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
@@ -1250,6 +1270,328 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		err := h.HandleActivity(like)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "result is required")
+	})
+}
+
+func TestHandler_HandleUndoActivity(t *testing.T) {
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+
+	inboxCfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
+	}
+
+	outboxCfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	ob := mocks.NewOutbox()
+
+	httpClient := &clientmocks.HTTPClient{}
+	httpClient.DoReturns(nil, client.ErrNotFound)
+
+	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), ob, httpClient)
+	require.NotNil(t, inboxHandler)
+
+	inboxHandler.Start()
+	defer inboxHandler.Stop()
+
+	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), httpClient)
+	require.NotNil(t, outboxHandler)
+
+	inboxHandler.Start()
+	defer inboxHandler.Stop()
+
+	inboxActivityChan := inboxHandler.Subscribe()
+	outboxActivityChan := outboxHandler.Subscribe()
+
+	var (
+		mutex             sync.Mutex
+		inboxGotActivity  = make(map[string]*vocab.ActivityType)
+		outboxGotActivity = make(map[string]*vocab.ActivityType)
+	)
+
+	go func() {
+		for activity := range inboxActivityChan {
+			mutex.Lock()
+			inboxGotActivity[activity.ID().String()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	go func() {
+		for activity := range outboxActivityChan {
+			mutex.Lock()
+			outboxGotActivity[activity.ID().String()] = activity
+			mutex.Unlock()
+		}
+	}()
+
+	follow := vocab.NewFollowActivity(newActivityID(service2IRI),
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	followNoIRI := vocab.NewFollowActivity(newActivityID(service2IRI),
+		vocab.NewObjectProperty(),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	followIRINotLocalService := vocab.NewFollowActivity(newActivityID(service2IRI),
+		vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	followActorNotLocalService := vocab.NewFollowActivity(newActivityID(service2IRI),
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithActor(service3IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	unsupported := vocab.NewLikeActivity(inboxHandler.newActivityID(),
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	require.NoError(t, outboxHandler.store.AddActivity(follow))
+	require.NoError(t, outboxHandler.store.AddActivity(followNoIRI))
+	require.NoError(t, outboxHandler.store.AddActivity(followActorNotLocalService))
+
+	require.NoError(t, inboxHandler.store.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, inboxHandler.store.AddActivity(follow))
+	require.NoError(t, inboxHandler.store.AddActivity(followNoIRI))
+	require.NoError(t, inboxHandler.store.AddActivity(followIRINotLocalService))
+	require.NoError(t, inboxHandler.store.AddActivity(unsupported))
+
+	t.Run("No actor in activity", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.EqualError(t, inboxHandler.HandleActivity(undo), "no actor specified in 'Undo' activity")
+	})
+
+	t.Run("No object IRI in activity", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.EqualError(t, inboxHandler.HandleActivity(undo),
+			"no IRI specified in 'object' field of the 'Undo' activity")
+	})
+
+	t.Run("Activity not found in storage", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(newActivityID(service3IRI))),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := inboxHandler.HandleActivity(undo)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), store.ErrNotFound.Error())
+	})
+
+	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := inboxHandler.HandleActivity(undo)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not the same as the actor of the original activity")
+	})
+
+	t.Run("Unsupported activity type for 'Undo'", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+			vocab.NewObjectProperty(vocab.WithIRI(unsupported.ID().URL())),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := inboxHandler.HandleActivity(undo)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not supported")
+	})
+
+	t.Run("Inbox Undo Follow", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, inboxHandler.store.AddReference(store.Follower, service1IRI, service2IRI))
+
+			it, err := inboxHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(followers, service2IRI))
+
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, inboxHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.NotNil(t, inboxGotActivity[undo.ID().String()])
+			mutex.Unlock()
+
+			it, err = inboxHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service2IRI))
+		})
+
+		t.Run("No IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.EqualError(t, inboxHandler.HandleActivity(undo),
+				"no IRI specified in 'object' field of the 'Follow' activity")
+		})
+
+		t.Run("IRI not local service -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(followIRINotLocalService.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, inboxHandler.HandleActivity(undo))
+		})
+
+		t.Run("Not a follower", func(t *testing.T) {
+			it, err := inboxHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service2IRI))
+
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, inboxHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.NotNil(t, inboxGotActivity[undo.ID().String()])
+			mutex.Unlock()
+		})
+	})
+
+	t.Run("Outbox Undo Follow", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, outboxHandler.store.AddReference(store.Following, service2IRI, service1IRI))
+
+			it, err := outboxHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(outboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			following, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(following, service1IRI))
+
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, outboxHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.NotNil(t, outboxGotActivity[undo.ID().String()])
+			mutex.Unlock()
+
+			it, err = outboxHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(outboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			following, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(following, service1IRI))
+		})
+
+		t.Run("No IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.EqualError(t, outboxHandler.HandleActivity(undo),
+				"no IRI specified in 'object' field of the 'Follow' activity")
+		})
+
+		t.Run("Actor not local service -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(followActorNotLocalService.ID().URL())),
+				vocab.WithActor(service3IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, outboxHandler.HandleActivity(undo))
+		})
+
+		t.Run("Not following", func(t *testing.T) {
+			it, err := outboxHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service1IRI))
+
+			undo := vocab.NewUndoActivity(newActivityID(service2IRI),
+				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, outboxHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			mutex.Lock()
+			require.NotNil(t, outboxGotActivity[undo.ID().String()])
+			mutex.Unlock()
+		})
 	})
 }
 

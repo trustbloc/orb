@@ -64,6 +64,8 @@ const (
 	TypeAnchorCredentialRef Type = "AnchorCredentialReference"
 	// TypeOffer specifies the "Offer" activity type.
 	TypeOffer Type = "Offer"
+	// TypeUndo specifies the "Undo" activity type.
+	TypeUndo Type = "Undo"
 )
 
 const (

@@ -60,7 +60,8 @@ type Store interface {
 	QueryActivities(query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
 	// AddReference adds the reference of the given type to the given object.
 	AddReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
-	// DeleteReference deletes the reference of the given type from the given object.
+	// DeleteReference deletes the reference of the given type from the given object. If the reference
+	// is not found then ErrNotFound is returned.
 	DeleteReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	// QueryReferences returns the list of references of the given type according to the given query.
 	QueryReferences(refType ReferenceType, query *Criteria, opts ...QueryOpt) (ReferenceIterator, error)

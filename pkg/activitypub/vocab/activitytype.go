@@ -194,3 +194,21 @@ func NewOfferActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityTy
 		},
 	}
 }
+
+// NewUndoActivity returns a new 'Undo' activity.
+func NewUndoActivity(id *url.URL, obj *ObjectProperty, opts ...Opt) *ActivityType {
+	options := NewOptions(opts...)
+
+	return &ActivityType{
+		ObjectType: NewObject(
+			WithContext(getContexts(options, ContextActivityStreams)...),
+			WithID(id),
+			WithType(TypeUndo),
+			WithTo(options.To...),
+		),
+		activity: &activityType{
+			Actor:  NewURLProperty(options.Actor),
+			Object: obj,
+		},
+	}
+}

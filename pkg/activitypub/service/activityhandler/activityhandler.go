@@ -52,6 +52,8 @@ type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
 }
 
+type undoFollowFunc func(follow *vocab.ActivityType) error
+
 type handler struct {
 	*Config
 	*lifecycle.Lifecycle
@@ -60,13 +62,14 @@ type handler struct {
 	mutex       sync.RWMutex
 	subscribers []chan *vocab.ActivityType
 	client      activityPubClient
+	undoFollow  undoFollowFunc
 }
 
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func newHandler(cfg *Config, s store.Store, httpClient httpClient) *handler {
+func newHandler(cfg *Config, s store.Store, httpClient httpClient, undoFollow undoFollowFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -76,9 +79,10 @@ func newHandler(cfg *Config, s store.Store, httpClient httpClient) *handler {
 	}
 
 	h := &handler{
-		Config: cfg,
-		store:  s,
-		client: client.New(httpClient),
+		Config:     cfg,
+		store:      s,
+		client:     client.New(httpClient),
+		undoFollow: undoFollow,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -108,6 +112,46 @@ func (h *handler) Subscribe() <-chan *vocab.ActivityType {
 	h.mutex.Unlock()
 
 	return ch
+}
+
+func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Undo' activity: %s", h.ServiceName, undo.ID())
+
+	actorIRI := undo.Actor()
+	if actorIRI == nil {
+		return fmt.Errorf("no actor specified in 'Undo' activity")
+	}
+
+	activityID := undo.Object().IRI()
+	if activityID == nil {
+		return fmt.Errorf("no IRI specified in 'object' field of the 'Undo' activity")
+	}
+
+	activity, err := h.store.GetActivity(activityID)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve activity %s from storage: %w", activityID, err)
+	}
+
+	if activity.Actor().String() != undo.Actor().String() {
+		return fmt.Errorf("not handling 'Undo' activity %s since the actor of the 'Undo' [%s] is not"+
+			" the same as the actor of the original activity [%s]", undo.ID(), undo.Actor(), activity.Actor())
+	}
+
+	switch {
+	case activity.Type().Is(vocab.TypeFollow):
+		err = h.undoFollow(activity)
+		if err != nil {
+			return err
+		}
+
+		h.notify(undo)
+
+		return nil
+
+	default:
+		return fmt.Errorf("not handling 'Undo' activity %s since undo of type %s is not supported",
+			undo.ID(), activity.Type())
+	}
 }
 
 func (h *handler) notify(activity *vocab.ActivityType) {
