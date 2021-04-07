@@ -22,7 +22,6 @@
     "id": "http://orb.domain2.com/transactions/bafkreihwsn",
     "issuanceDate": "2021-03-31T09:30:10Z",
     "issuer": "https://orb.domain2.com/services/orb",
-    "proof": {},
     "type": [
       "VerifiableCredential",
       "AnchorCredential"
