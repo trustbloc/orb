@@ -7,8 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package handler
 
 import (
-	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 )
@@ -25,21 +24,9 @@ type AnchorCredentialHandler struct {
 	anchorCh chan []string
 }
 
-// HandlerAnchorCredential handles anchor credential.
-func (h *AnchorCredentialHandler) HandlerAnchorCredential(id string, anchorCred []byte) error {
-	logger.Debugf("received request id[%s], cred: %s", id, string(anchorCred))
-
-	parts := strings.Split(id, "/cas/")
-
-	const numOfParts = 2
-
-	// TODO: will change interface of anchor credential handler to include cid
-	// TODO: handle case where anchorCred is nil
-	if len(parts) != numOfParts {
-		return fmt.Errorf("unable to parse cid: %s", id)
-	}
-
-	cid := parts[1]
+// HandleAnchorCredential handles anchor credential.
+func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error {
+	logger.Debugf("received request id[%s], cid[%s], cred: %s", id, cid, string(anchorCred))
 
 	h.anchorCh <- []string{cid}
 

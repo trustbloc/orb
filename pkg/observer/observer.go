@@ -111,7 +111,7 @@ func (o *Observer) processAnchors(anchors []string) {
 
 		anchorInfo, err := o.AnchorGraph.Read(anchor)
 		if err != nil {
-			logger.Infof("Failed to get anchor[%s] node from anchor graph: %s", anchor, err.Error())
+			logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor, err.Error())
 
 			continue
 		}
@@ -119,7 +119,7 @@ func (o *Observer) processAnchors(anchors []string) {
 		logger.Debugf("successfully read anchor[%s] from anchor graph", anchor)
 
 		if err := o.processAnchor(anchor, anchorInfo); err != nil {
-			logger.Infof(err.Error())
+			logger.Warnf(err.Error())
 
 			continue
 		}

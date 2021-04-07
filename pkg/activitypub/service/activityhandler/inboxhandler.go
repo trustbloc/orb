@@ -424,7 +424,7 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 		return err
 	}
 
-	return h.AnchorCredentialHandler.HandlerAnchorCredential(target.Object().ID().String(), bytes)
+	return h.AnchorCredentialHandler.HandleAnchorCredential(target.Object().ID().URL(), target.Object().CID(), bytes)
 }
 
 func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
@@ -685,7 +685,7 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 type noOpAnchorCredentialPublisher struct {
 }
 
-func (p *noOpAnchorCredentialPublisher) HandlerAnchorCredential(string, []byte) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(*url.URL, string, []byte) error {
 	return nil
 }
 
