@@ -20,7 +20,6 @@ import (
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
@@ -180,7 +179,7 @@ func TestInbox_Error(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
+		activityHandler.HandleActivityReturns(fmt.Errorf("injected handler error"))
 
 		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
@@ -235,7 +234,7 @@ func TestInbox_Error(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activityStore.AddActivityReturns(errors.New("injected store error"))
+		activityStore.AddActivityReturns(fmt.Errorf("injected store error"))
 
 		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
@@ -282,7 +281,7 @@ func TestInbox_Error(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
-		errExpected := errors.New("injected unmarshal error")
+		errExpected := fmt.Errorf("injected unmarshal error")
 
 		ib.jsonUnmarshal = func(data []byte, v interface{}) error {
 			return errExpected
@@ -296,7 +295,7 @@ func TestInbox_Error(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
 
-		activityHandler.HandleActivityReturns(errors.New("injected handler error"))
+		activityHandler.HandleActivityReturns(fmt.Errorf("injected handler error"))
 
 		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
@@ -332,7 +331,7 @@ func TestInbox_Error(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
-		errExpected := errors.New("injected pub sub error")
+		errExpected := fmt.Errorf("injected pub sub error")
 
 		ib, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), activityHandler)
 		require.Error(t, err)
@@ -465,7 +464,7 @@ func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, erro
 
 	metadataBytes, err := json.Marshal(msg.Metadata)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal metadata to JSON")
+		return nil, fmt.Errorf("marshal metadata to JSON: %w", err)
 	}
 
 	req.Header.Set(wmhttp.HeaderMetadata, string(metadataBytes))

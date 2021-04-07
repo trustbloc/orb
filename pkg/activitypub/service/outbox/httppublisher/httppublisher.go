@@ -9,11 +9,11 @@ package httppublisher
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
@@ -73,14 +73,14 @@ func (p *Publisher) Close() error {
 func (p *Publisher) publish(topic string, msg *message.Message) error {
 	req, err := p.newRequestFunc(topic, msg)
 	if err != nil {
-		return errors.Wrapf(err, "cannot marshal message %s", msg.UUID)
+		return fmt.Errorf("marshal message %s: %w", msg.UUID, err)
 	}
 
 	logger.Debugf("[%s] Sending message [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, "send message [%s] failed", msg.UUID)
+		return fmt.Errorf("send message [%s]: %w", msg.UUID, err)
 	}
 
 	if err := resp.Body.Close(); err != nil {
@@ -91,7 +91,7 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 		logger.Debugf("[%s] Error code %d received in response from [%s] for message [%s]",
 			p.ServiceName, resp.StatusCode, req.URL, msg.UUID)
 
-		return errors.Errorf("server responded with error %d - %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("server responded with error %d - %s", resp.StatusCode, resp.Status)
 	}
 
 	logger.Debugf("[%s] Message successfully sent [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
@@ -102,19 +102,19 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 func (p *Publisher) newRequest(_ string, msg *message.Message) (*http.Request, error) {
 	toURL, ok := msg.Metadata[MetadataSendTo]
 	if !ok {
-		return nil, errors.Errorf("metadata [%s] not found in message", MetadataSendTo)
+		return nil, fmt.Errorf("metadata [%s] not found in message", MetadataSendTo)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, toURL, bytes.NewBuffer(msg.Payload))
 	if err != nil {
-		return nil, errors.WithMessage(err, "unable to create HTTP request")
+		return nil, fmt.Errorf("create HTTP request: %w", err)
 	}
 
 	req.Header.Set(wmhttp.HeaderUUID, msg.UUID)
 
 	metadataBytes, err := p.jsonMarshal(msg.Metadata)
 	if err != nil {
-		return nil, errors.WithMessage(err, "unable to marshal metadata to JSON")
+		return nil, fmt.Errorf("marshal metadata to JSON: %w", err)
 	}
 
 	req.Header.Set(wmhttp.HeaderMetadata, string(metadataBytes))

@@ -8,11 +8,11 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/pkg/errors"
 
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 )
@@ -72,7 +72,7 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 	m.mutex.RUnlock()
 
 	if msgChan == nil {
-		return errors.New("service is closed")
+		return fmt.Errorf("service is closed")
 	}
 
 	for _, msg := range messages {

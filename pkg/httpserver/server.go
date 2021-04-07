@@ -10,13 +10,13 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -74,7 +74,7 @@ func New(url, certFile, keyFile, token string, handlers ...common.HTTPHandler) *
 // Start starts the HTTP server in a separate Go routine.
 func (s *Server) Start() error {
 	if !atomic.CompareAndSwapUint32(&s.started, 0, 1) {
-		return errors.New("server already started")
+		return fmt.Errorf("server already started")
 	}
 
 	go func() {
@@ -101,7 +101,7 @@ func (s *Server) Start() error {
 // Stop stops the REST service.
 func (s *Server) Stop(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&s.started, 1, 0) {
-		return errors.New("cannot stop HTTP server since it hasn't been started")
+		return fmt.Errorf("cannot stop HTTP server since it hasn't been started")
 	}
 
 	return s.httpServer.Shutdown(ctx)

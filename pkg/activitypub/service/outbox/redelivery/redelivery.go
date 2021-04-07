@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package redelivery
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
@@ -115,17 +115,14 @@ func (m *Service) Add(msg *message.Message) (time.Time, error) {
 		ra, err := strconv.Atoi(redeliverAttemptsStr)
 		if err != nil {
 			return time.Time{},
-				errors.WithMessagef(
-					err, "error converting redelivery attempts metadata to number for message [%s]", msg.UUID,
-				)
+				fmt.Errorf("convert redelivery attempts metadata to number for message [%s]: %w", msg.UUID, err)
 		}
 
 		redeliveryAttempts = ra
 	}
 
 	if redeliveryAttempts >= m.MaxRetries {
-		return time.Time{},
-			errors.Errorf("unable to redeliver message after %d redelivery attempts", redeliveryAttempts)
+		return time.Time{}, fmt.Errorf("unable to redeliver message after %d redelivery attempts", redeliveryAttempts)
 	}
 
 	newMsg := msg.Copy()

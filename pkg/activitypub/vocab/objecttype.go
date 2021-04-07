@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"net/url"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // ObjectType defines an 'object'.
@@ -47,14 +45,14 @@ func NewObjectWithDocument(doc Document, opts ...Opt) (*ObjectType, error) {
 
 	bytes, err := MarshalJSON(NewObject(opts...), doc)
 	if err != nil {
-		return nil, errors.WithMessage(err, "marshal error")
+		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
 	obj := &ObjectType{}
 
 	err = json.Unmarshal(bytes, &obj)
 	if err != nil {
-		return nil, errors.WithMessage(err, "unmarshal error")
+		return nil, fmt.Errorf("unmarshal: %w", err)
 	}
 
 	return obj, nil

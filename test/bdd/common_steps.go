@@ -17,7 +17,6 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
 
@@ -69,7 +68,7 @@ func (d *CommonSteps) setJSONVariable(varName, value string) error {
 	if err := json.Unmarshal([]byte(value), &m); err != nil {
 		var arr []interface{}
 		if err := json.Unmarshal([]byte(value), &arr); err != nil {
-			return errors.WithMessagef(err, "invalid JSON: %s", value)
+			return fmt.Errorf("invalid JSON %s: %w", value, err)
 		}
 
 		arr, err = d.state.resolveArray(arr)
@@ -298,7 +297,7 @@ func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) err
 	}
 
 	if code != expectingCode {
-		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
 	}
 
 	logger.Infof("Returned status code is %d which is the expected status code", code)
@@ -315,7 +314,7 @@ func (d *CommonSteps) httpGet(url string) error {
 	}
 
 	if code != http.StatusOK {
-		return errors.Errorf("received status code %d", code)
+		return fmt.Errorf("received status code %d", code)
 	}
 
 	d.state.setResponse(string(payload))
@@ -330,7 +329,7 @@ func (d *CommonSteps) httpPostFile(url, path string) error {
 	}
 
 	if code != http.StatusOK {
-		return errors.Errorf("received status code %d", code)
+		return fmt.Errorf("received status code %d", code)
 	}
 
 	return nil
@@ -343,7 +342,7 @@ func (d *CommonSteps) httpPostFileWithExpectedCode(url, path string, expectingCo
 	}
 
 	if code != expectingCode {
-		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
 	}
 
 	logger.Infof("Returned status code is %d which is the expected status code", code)
@@ -367,7 +366,7 @@ func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	}
 
 	if code != http.StatusOK {
-		return errors.Errorf("received status code %d", code)
+		return fmt.Errorf("received status code %d", code)
 	}
 
 	d.state.setResponse(string(payload))
@@ -391,7 +390,7 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, ex
 	}
 
 	if code != expectingCode {
-		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
 	}
 
 	logger.Infof("Returned status code is %d which is the expected status code", code)
@@ -475,7 +474,7 @@ func (d *CommonSteps) valuesEqual(value1, value2 string) error {
 
 	logger.Infof("Value1 [%s] does not equal value 2 [%s]", value1, value2)
 
-	return errors.Errorf("values [%s] and [%s] are not equal", value1, value2)
+	return fmt.Errorf("values [%s] and [%s] are not equal", value1, value2)
 }
 
 func (d *CommonSteps) valuesNotEqual(value1, value2 string) error {
@@ -491,7 +490,7 @@ func (d *CommonSteps) valuesNotEqual(value1, value2 string) error {
 
 	logger.Infof("Value1 [%s] equals value 2 [%s]", value1, value2)
 
-	return errors.Errorf("values [%s] and [%s] are equal", value1, value2)
+	return fmt.Errorf("values [%s] and [%s] are equal", value1, value2)
 }
 
 func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
