@@ -166,6 +166,23 @@ func (h *Inbox) handle(msg *message.Message) {
 		return
 	}
 
+	activityID, err := h.activityStore.GetActivity(activity.ID().URL())
+	if err != nil {
+		if err != store.ErrNotFound {
+			logger.Errorf("[%s] Error retrieving activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
+
+			msg.Nack()
+
+			return
+		}
+	} else {
+		logger.Infof("[%s] Ignoring duplicate activity [%s]", h.ServiceEndpoint, activityID)
+
+		msg.Nack()
+
+		return
+	}
+
 	if err := h.activityStore.AddActivity(activity); err != nil {
 		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
 

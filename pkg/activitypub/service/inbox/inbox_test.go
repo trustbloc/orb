@@ -166,6 +166,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
 		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
 		require.NoError(t, err)
@@ -220,6 +221,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
 		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
 		require.NoError(t, err)
@@ -274,6 +276,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
 		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
 		require.NoError(t, err)
@@ -327,6 +330,7 @@ func TestInbox_Error(t *testing.T) {
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
 		errExpected := errors.New("injected pub sub error")
 
@@ -334,6 +338,113 @@ func TestInbox_Error(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, ib)
+	})
+
+	t.Run("Duplicate activity error", func(t *testing.T) {
+		const service1URL = "http://localhost:8207/services/service1"
+
+		service1InboxURL := service1URL + resthandler.InboxPath
+
+		cfg := &Config{
+			ServiceEndpoint: "/services/service1/inbox",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
+			Topic:           "activities",
+		}
+
+		objIRI, err := url.Parse("http://example.com//services/service1/object1")
+		if err != nil {
+			panic(err)
+		}
+
+		activityHandler := &mocks.ActivityHandler{}
+		activityStore := &mocks.ActivityStore{}
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		require.NoError(t, err)
+		require.NotNil(t, ib)
+
+		ib.Start()
+		defer ib.Stop()
+
+		stop := startHTTPServer(t, ":8207", ib.HTTPHandler())
+		defer stop()
+
+		time.Sleep(500 * time.Millisecond)
+
+		activity := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(
+				vocab.WithObject(
+					vocab.NewObject(
+						vocab.WithIRI(objIRI),
+					),
+				),
+			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+		)
+
+		req, err := newHTTPRequest(service1InboxURL, activity)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("GetActivity error", func(t *testing.T) {
+		const service1URL = "http://localhost:8208/services/service1"
+
+		service1InboxURL := service1URL + resthandler.InboxPath
+
+		cfg := &Config{
+			ServiceEndpoint: "/services/service1/inbox",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
+			Topic:           "activities",
+		}
+
+		objIRI, err := url.Parse("http://example.com//services/service1/object1")
+		if err != nil {
+			panic(err)
+		}
+
+		errExpected := fmt.Errorf("injected store error")
+
+		activityHandler := &mocks.ActivityHandler{}
+		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, errExpected)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		require.NoError(t, err)
+		require.NotNil(t, ib)
+
+		ib.Start()
+		defer ib.Stop()
+
+		stop := startHTTPServer(t, ":8208", ib.HTTPHandler())
+		defer stop()
+
+		time.Sleep(500 * time.Millisecond)
+
+		activity := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(
+				vocab.WithObject(
+					vocab.NewObject(
+						vocab.WithIRI(objIRI),
+					),
+				),
+			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+		)
+
+		req, err := newHTTPRequest(service1InboxURL, activity)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
 	})
 }
 
