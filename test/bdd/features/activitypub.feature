@@ -7,75 +7,83 @@
 @all
 @activitypub
 Feature:
+  Background: Setup
+    And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
+    And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
 
   @activitypub_service
   Scenario: Get ActivityPub service
     When an HTTP GET is sent to "https://localhost:48326/services/orb"
     Then the JSON path "type" of the response equals "Service"
-    And the JSON path "inbox" of the response equals "https://orb.domain1.com/services/orb/inbox"
-    And the JSON path "outbox" of the response equals "https://orb.domain1.com/services/orb/outbox"
-    And the JSON path "followers" of the response equals "https://orb.domain1.com/services/orb/followers"
-    And the JSON path "following" of the response equals "https://orb.domain1.com/services/orb/following"
-    And the JSON path "liked" of the response equals "https://orb.domain1.com/services/orb/liked"
-    And the JSON path "witnesses" of the response equals "https://orb.domain1.com/services/orb/witnesses"
-    And the JSON path "witnessing" of the response equals "https://orb.domain1.com/services/orb/witnessing"
+    And the JSON path "inbox" of the response equals "${domain1IRI}/inbox"
+    And the JSON path "outbox" of the response equals "${domain1IRI}/outbox"
+    And the JSON path "followers" of the response equals "${domain1IRI}/followers"
+    And the JSON path "following" of the response equals "${domain1IRI}/following"
+    And the JSON path "liked" of the response equals "${domain1IRI}/liked"
+    And the JSON path "witnesses" of the response equals "${domain1IRI}/witnesses"
+    And the JSON path "witnessing" of the response equals "${domain1IRI}/witnessing"
 
     When an HTTP GET is sent to "https://localhost:48426/services/orb"
     Then the JSON path "type" of the response equals "Service"
-    And the JSON path "inbox" of the response equals "https://orb.domain2.com/services/orb/inbox"
-    And the JSON path "outbox" of the response equals "https://orb.domain2.com/services/orb/outbox"
-    And the JSON path "followers" of the response equals "https://orb.domain2.com/services/orb/followers"
-    And the JSON path "following" of the response equals "https://orb.domain2.com/services/orb/following"
-    And the JSON path "liked" of the response equals "https://orb.domain2.com/services/orb/liked"
-    And the JSON path "witnesses" of the response equals "https://orb.domain2.com/services/orb/witnesses"
-    And the JSON path "witnessing" of the response equals "https://orb.domain2.com/services/orb/witnessing"
+    And the JSON path "inbox" of the response equals "${domain2IRI}/inbox"
+    And the JSON path "outbox" of the response equals "${domain2IRI}/outbox"
+    And the JSON path "followers" of the response equals "${domain2IRI}/followers"
+    And the JSON path "following" of the response equals "${domain2IRI}/following"
+    And the JSON path "liked" of the response equals "${domain2IRI}/liked"
+    And the JSON path "witnesses" of the response equals "${domain2IRI}/witnesses"
+    And the JSON path "witnessing" of the response equals "${domain2IRI}/witnessing"
 
   @activitypub_follow
   Scenario: follow/accept/undo
     # domain2 follows domain1
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
+    Given variable "followID" is assigned a unique ID
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
 
     Then we wait 3 seconds
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox"
     Then the JSON path "type" of the response equals "OrderedCollection"
-    And the JSON path "id" of the response equals "https://orb.domain1.com/services/orb/inbox"
-    And the JSON path "first" of the response equals "https://orb.domain1.com/services/orb/inbox?page=true"
+    And the JSON path "id" of the response equals "${domain1IRI}/inbox"
+    And the JSON path "first" of the response equals "${domain1IRI}/inbox?page=true"
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "https://orb.domain2.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/${followID}"
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/followers"
     Then the JSON path "type" of the response equals "Collection"
-    And the JSON path "id" of the response equals "https://orb.domain1.com/services/orb/followers"
-    And the JSON path "first" of the response equals "https://orb.domain1.com/services/orb/followers?page=true"
+    And the JSON path "id" of the response equals "${domain1IRI}/followers"
+    And the JSON path "first" of the response equals "${domain1IRI}/followers?page=true"
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response contains "https://orb.domain2.com/services/orb"
+    And the JSON path "items" of the response contains "${domain2IRI}"
 
     When an HTTP GET is sent to "https://localhost:48426/services/orb/following"
     Then the JSON path "type" of the response equals "Collection"
-    And the JSON path "id" of the response equals "https://orb.domain2.com/services/orb/following"
-    And the JSON path "first" of the response equals "https://orb.domain2.com/services/orb/following?page=true"
+    And the JSON path "id" of the response equals "${domain2IRI}/following"
+    And the JSON path "first" of the response equals "${domain2IRI}/following?page=true"
 
     When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response contains "https://orb.domain1.com/services/orb"
+    And the JSON path "items" of the response contains "${domain1IRI}"
 
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/undo_follow_activity.json"
+    Given variable "undoID" is assigned a unique ID
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${undoID}","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain2IRI}/activities/${followID}"}'
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${undoFollowActivity}" of type "application/json"
 
     Then we wait 3 seconds
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response does not contain "https://orb.domain2.com/services/orb"
+    And the JSON path "items" of the response does not contain "${domain2IRI}"
 
   @activitypub_create
   Scenario: create/announce
-    # domain2 follows domain1
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
+    Given variable "followID" is assigned a unique ID
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
 
     Then we wait 2 seconds
 
@@ -86,7 +94,7 @@ Feature:
 
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "https://orb.domain1.com/services/orb/activities/77bdd005-bbb6-223d-b889-58bc1de84985"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/77bdd005-bbb6-223d-b889-58bc1de84985"
 
     # An 'Announce' activity should have been posted to domain1's followers (domain2).
     When an HTTP GET is sent to "https://localhost:48326/services/orb/outbox?page=true"
@@ -107,7 +115,7 @@ Feature:
     # The 'Offer' activity should be in the inbox of domain1.
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "https://orb.domain2.com/services/orb/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
 
     # The 'Like' should be in the 'liked' collection of domain1.
     When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true"

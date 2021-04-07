@@ -1,8 +1,0 @@
-{
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://orb.domain2.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988",
-  "type": "Follow",
-  "actor": "https://orb.domain2.com/services/orb",
-  "to": "https://orb.domain1.com/services/orb",
-  "object": "https://orb.domain1.com/services/orb"
-}

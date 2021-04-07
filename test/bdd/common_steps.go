@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
@@ -93,6 +94,16 @@ func (d *CommonSteps) setJSONVariable(varName, value string) error {
 	}
 
 	d.state.setVar(varName, string(bytes))
+
+	return nil
+}
+
+func (d *CommonSteps) setUUIDVariable(varName string) error {
+	value := uuid.New().String()
+
+	logger.Infof("Setting var [%s] to [%s]", varName, value)
+
+	d.state.setVar(varName, value)
 
 	return nil
 }
@@ -527,4 +538,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithExpectedCode)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
+	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
 }
