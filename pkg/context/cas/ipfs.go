@@ -10,10 +10,13 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"time"
 
 	shell "github.com/ipfs/go-ipfs-api"
 	log "github.com/sirupsen/logrus"
 )
+
+const timeout = 2
 
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
@@ -24,6 +27,8 @@ type Client struct {
 // New creates cas client.
 func New(url string) *Client {
 	ipfs := shell.NewShell(url)
+
+	ipfs.SetTimeout(timeout * time.Second)
 
 	return &Client{ipfs: ipfs}
 }

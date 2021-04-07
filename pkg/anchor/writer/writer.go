@@ -8,13 +8,17 @@ package writer
 
 import (
 	"fmt"
+	"net/url"
 
+	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/didanchorref"
@@ -25,9 +29,11 @@ var logger = log.New("anchor-writer")
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
-	namespace string
-	vcCh      <-chan *verifiable.Credential
-	anchorCh  chan []string
+	namespace    string
+	vcCh         <-chan *verifiable.Credential
+	anchorCh     chan []string
+	apServiceIRI *url.URL
+	casIRI       *url.URL
 }
 
 // Providers contains all of the providers required by the client.
@@ -38,6 +44,11 @@ type Providers struct {
 	ProofHandler  proofHandler
 	Store         vcStore
 	OpProcessor   opProcessor
+	Outbox        outbox
+}
+
+type outbox interface {
+	Post(activity *vocab.ActivityType) error
 }
 
 type opProcessor interface {
@@ -67,12 +78,15 @@ type proofHandler interface {
 }
 
 // New returns a new anchor writer.
-func New(namespace string, providers *Providers, anchorCh chan []string, vcCh chan *verifiable.Credential) *Writer {
+func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
+	anchorCh chan []string, vcCh chan *verifiable.Credential) *Writer {
 	w := &Writer{
-		Providers: providers,
-		anchorCh:  anchorCh,
-		vcCh:      vcCh,
-		namespace: namespace,
+		Providers:    providers,
+		anchorCh:     anchorCh,
+		vcCh:         vcCh,
+		namespace:    namespace,
+		apServiceIRI: apServiceIRI,
+		casIRI:       casURL,
 	}
 
 	go w.listenForWitnessedAnchorCredentials()
@@ -225,9 +239,70 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	// TODO: announce anchor to followers and node observer (if running in observer node)
-
 	c.anchorCh <- []string{cid}
+
+	logger.Debugf("posted cid[%s] to anchor channel", cid)
+
+	// announce anchor credential activity to followers
+	err = c.postActivity(vc, cid)
+	if err != nil {
+		logger.Warnf("failed to post new activity for cid[%s]: %s", cid, err.Error())
+
+		return
+	}
+
+	logger.Debugf("created activity for cid[%s]", cid)
+}
+
+// postActivity creates and posts new activity to activity pub.
+func (c *Writer) postActivity(vc *verifiable.Credential, cid string) error { //nolint: interfacer
+	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
+	if err != nil {
+		return fmt.Errorf("failed to parse cid URL: %s", err.Error())
+	}
+
+	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
+		vocab.NewObject(
+			vocab.WithID(cidURL),
+			vocab.WithCID(cid),
+			vocab.WithType(vocab.TypeContentAddressedStorage),
+		),
+	))
+
+	bytes, err := vc.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("failed to marshal anchor credential: %s", err.Error())
+	}
+
+	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
+	if err != nil {
+		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+	}
+
+	systemFollowers, err := url.Parse(c.apServiceIRI.String() + resthandler.FollowersPath)
+	if err != nil {
+		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+	}
+
+	activityID, err := newActivityID(c.apServiceIRI.String())
+	if err != nil {
+		return fmt.Errorf("failed to create new activity ID: %s", err.Error())
+	}
+
+	create := vocab.NewCreateActivity(
+		vocab.NewObjectProperty(vocab.WithObject(obj)),
+		vocab.WithActor(c.apServiceIRI),
+		vocab.WithTarget(targetProperty),
+		vocab.WithContext(vocab.ContextOrb),
+		vocab.WithTo(systemFollowers),
+		vocab.WithID(activityID),
+	)
+
+	return c.Outbox.Post(create)
+}
+
+func newActivityID(serviceName string) (*url.URL, error) {
+	return url.Parse(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 // getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.

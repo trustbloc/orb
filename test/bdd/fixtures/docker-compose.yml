@@ -35,7 +35,7 @@ services:
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
-      - KMSSECRETS_DATABASE_PREFIX=orb1kms
+      - KMSSECRETS_DATABASE_PREFIX=orbkms
     ports:
       - 48326:443
     command:  /bin/sh -c "sleep 10;orb start"
@@ -73,10 +73,10 @@ services:
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
-      - KMSSECRETS_DATABASE_PREFIX=orb2kms
+      - KMSSECRETS_DATABASE_PREFIX=orbkms
     ports:
       - 48426:443
-    command:  /bin/sh -c "sleep 10;orb start"
+    command:  /bin/sh -c "sleep 12;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
     depends_on:
