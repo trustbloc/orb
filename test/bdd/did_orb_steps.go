@@ -19,7 +19,6 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/mr-tron/base58"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
@@ -291,7 +290,7 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(keyID string) error 
 
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
 	if !strings.Contains(d.resp.ErrorMsg, errorMsg) {
-		return errors.Errorf("error resp %s doesn't contain %s", d.resp.ErrorMsg, errorMsg)
+		return fmt.Errorf("error resp %s doesn't contain %s", d.resp.ErrorMsg, errorMsg)
 	}
 	return nil
 }
@@ -306,7 +305,7 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	if d.resp.ErrorMsg != "" {
-		return errors.Errorf("error resp %s", d.resp.ErrorMsg)
+		return fmt.Errorf("error resp %s", d.resp.ErrorMsg)
 	}
 
 	if msg == "#did" || msg == "#aliasdid" || msg == "#emptydoc" || msg == "#canonicalId" {
@@ -335,12 +334,12 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 		// perform basic checks on document
 		if didDoc.ID() == "" || didDoc.Context()[0] != "https://www.w3.org/ns/did/v1" ||
 			(len(didDoc.PublicKeys()) > 0 && !strings.Contains(didDoc.PublicKeys()[0].Controller(), didDoc.ID())) {
-			return errors.New("response is not a valid did document")
+			return fmt.Errorf("response is not a valid did document")
 		}
 
 		if msg == "#emptydoc" {
 			if len(didDoc) > 2 { // has id and context
-				return errors.New("response is not an empty document")
+				return fmt.Errorf("response is not an empty document")
 			}
 
 			logger.Info("response contains empty did document")
@@ -357,11 +356,11 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	}
 
 	if contains && !strings.Contains(string(d.resp.Payload), msg) {
-		return errors.Errorf("success resp doesn't contain %s", msg)
+		return fmt.Errorf("success resp doesn't contain %s", msg)
 	}
 
 	if !contains && strings.Contains(string(d.resp.Payload), msg) {
-		return errors.Errorf("success resp should NOT contain %s", msg)
+		return fmt.Errorf("success resp should NOT contain %s", msg)
 	}
 
 	logger.Infof("passed check that success response MUST%s contain %s", action, msg)

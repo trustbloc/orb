@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -88,7 +87,7 @@ func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
 func (c *Client) get(iri *url.URL) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, iri.String(), nil)
 	if err != nil {
-		return nil, errors.WithMessage(err, "unable to create HTTP request")
+		return nil, fmt.Errorf("create HTTP request: %w", err)
 	}
 
 	req.Header.Set("Accept", "application/json")

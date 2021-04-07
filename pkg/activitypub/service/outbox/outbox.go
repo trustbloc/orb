@@ -14,7 +14,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
-	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -180,22 +179,22 @@ func (h *Outbox) Post(activity *vocab.ActivityType) error {
 
 	activityBytes, err := h.jsonMarshal(activity)
 	if err != nil {
-		return errors.WithMessage(err, "unable to marshal")
+		return fmt.Errorf("marshal: %w", err)
 	}
 
 	err = h.activityStore.AddActivity(activity)
 	if err != nil {
-		return errors.WithMessage(err, "unable to store activity")
+		return fmt.Errorf("store activity: %w", err)
 	}
 
 	err = h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL())
 	if err != nil {
-		return errors.WithMessage(err, "unable to add reference to activity")
+		return fmt.Errorf("add reference to activity: %w", err)
 	}
 
 	err = h.activityHandler.HandleActivity(activity)
 	if err != nil {
-		return fmt.Errorf("unable to handle activity: %w", err)
+		return fmt.Errorf("handle activity: %w", err)
 	}
 
 	for _, actorInbox := range h.resolveInboxes(activity.To()) {

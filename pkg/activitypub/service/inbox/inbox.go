@@ -9,12 +9,12 @@ package inbox
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/url"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
-	"github.com/pkg/errors"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
@@ -70,7 +70,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 
 	msgChan, err := pubSub.Subscribe(context.Background(), cfg.Topic)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to subscribe to topic [%s]", cfg.Topic)
+		return nil, fmt.Errorf("subscribe to topic [%s]: %w", cfg.Topic, err)
 	}
 
 	httpSubscriber := httpsubscriber.New(
@@ -81,7 +81,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
 	if err != nil {
-		return nil, errors.WithMessagef(err, "unable to create router")
+		return nil, fmt.Errorf("create router: %w", err)
 	}
 
 	router.AddMiddleware(middleware.Recoverer, middleware.CorrelationID)

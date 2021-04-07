@@ -65,7 +65,7 @@ func TestService(t *testing.T) {
 
 		_, err := s.Add(msg)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "error converting redelivery attempts metadata to number")
+		require.Contains(t, err.Error(), "convert redelivery attempts metadata to number")
 	})
 
 	t.Run("Max attempts reached -> Error", func(t *testing.T) {
