@@ -6,7 +6,11 @@ SPDX-License-Identifier: Apache-2.0
 
 package bdd
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/cucumber/messages-go/v10"
+)
 
 // BDDContext
 type BDDContext struct {
@@ -21,12 +25,10 @@ func NewBDDContext() (*BDDContext, error) {
 }
 
 // BeforeScenario execute code before bdd scenario
-func (b *BDDContext) BeforeScenario(interface{}) {
-}
+func (b *BDDContext) BeforeScenario(*messages.Pickle) {}
 
 // AfterScenario execute code after bdd scenario
-func (b *BDDContext) AfterScenario(interface{}, error) {
-}
+func (b *BDDContext) AfterScenario(*messages.Pickle, error) {}
 
 // SetComposition sets the Docker composition in the context
 func (b *BDDContext) SetComposition(composition *Composition) {

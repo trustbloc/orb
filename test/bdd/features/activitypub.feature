@@ -110,7 +110,7 @@ Feature:
   Scenario: offer/like
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json"
 
-    Then we wait 2 seconds
+    Then we wait 5 seconds
 
     # The 'Offer' activity should be in the inbox of domain1.
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
