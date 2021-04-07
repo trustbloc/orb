@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/model"
 
+	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/test/bdd/restclient"
 )
 
@@ -103,11 +105,6 @@ const docTemplate = `{
   ]
 }`
 
-type wellKnowResp struct {
-	ResolutionEndpoint string `json:"resolutionEndpoint"`
-	OperationEndpoint  string `json:"operationEndpoint"`
-}
-
 var emptyJson = []byte("{}")
 
 // DIDOrbSteps
@@ -136,13 +133,37 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 		return err
 	}
 
-	var w wellKnowResp
+	var w restapi.WellKnownResponse
 	if err := json.Unmarshal(resp.Payload, &w); err != nil {
 		return err
 	}
 
-	d.resolutionEndpoint = strings.ReplaceAll(w.ResolutionEndpoint, "orb.domain1.com", "localhost:48326")
-	d.operationEndpoint = strings.ReplaceAll(w.OperationEndpoint, "orb.domain1.com", "localhost:48326")
+	resp, err = restclient.SendResolveRequest(
+		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
+			url.PathEscape(w.ResolutionEndpoint)))
+	if err != nil {
+		return err
+	}
+
+	var webFingerResponse restapi.WebFingerResponse
+	if err := json.Unmarshal(resp.Payload, &webFingerResponse); err != nil {
+		return err
+	}
+
+	d.resolutionEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
+
+	resp, err = restclient.SendResolveRequest(
+		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
+			url.PathEscape(w.OperationEndpoint)))
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(resp.Payload, &webFingerResponse); err != nil {
+		return err
+	}
+
+	d.operationEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
 
 	return nil
 }

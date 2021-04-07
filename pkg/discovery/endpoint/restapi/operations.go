@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -19,12 +20,13 @@ var logger = log.New("discovery-rest")
 // API endpoints.
 const (
 	wellKnownEndpoint = "/.well-known/did-orb"
+	webFingerEndpoint = "/.well-known/webfinger"
 )
 
-type wellKnowResp struct {
-	ResolutionEndpoint string `json:"resolutionEndpoint"`
-	OperationEndpoint  string `json:"operationEndpoint"`
-}
+const (
+	minResolvers      = "https://trustbloc.dev/ns/min-resolvers"
+	minResolversValue = 2 // TODO need to be configurable
+)
 
 // New returns discovery operations.
 func New(c *Config) *Operation {
@@ -51,19 +53,89 @@ type Config struct {
 func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 	return []common.HTTPHandler{
 		newHTTPHandler(wellKnownEndpoint, http.MethodGet, o.wellKnownHandler),
+		newHTTPHandler(webFingerEndpoint, http.MethodGet, o.webFingerHandler),
 	}
 }
 
+// wellKnownHandler swagger:route Get /.well-known/did-orb discovery wellKnownReq
+//
+// wellKnownHandler.
+//
+// Responses:
+//    default: genericError
+//        200: wellKnownResp
 func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
-	rw.Header().Add("Content-Type", "application/json")
-	rw.WriteHeader(http.StatusOK)
-
-	err := json.NewEncoder(rw).Encode(&wellKnowResp{
+	writeResponse(rw, &WellKnownResponse{
 		ResolutionEndpoint: o.resolutionEndpoint,
 		OperationEndpoint:  o.operationEndpoint,
+	}, http.StatusOK)
+}
+
+// webFingerHandler swagger:route Get /.well-known/webfinger discovery webFingerReq
+//
+// webFingerHandler.
+//
+// Responses:
+//    default: genericError
+//        200: webFingerResp
+func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
+	queryValue := r.URL.Query()["resource"]
+	if len(queryValue) == 0 {
+		writeErrorResponse(rw, http.StatusBadRequest, "resource query string not found")
+
+		return
+	}
+
+	resource := queryValue[0]
+
+	switch {
+	case strings.Contains(resource, o.resolutionEndpoint):
+		resp := &WebFingerResponse{
+			Subject:    resource,
+			Properties: map[string]interface{}{minResolvers: minResolversValue},
+			// TODO how to get other instances endpoints
+			// https://trustbloc.github.io/did-method-orb/#example-11-client-shared-domain-discovery-response
+			Links: []WebFingerLink{
+				{Rel: "self", Href: resource},
+			},
+		}
+		writeResponse(rw, resp, http.StatusOK)
+	case strings.Contains(resource, o.operationEndpoint):
+		resp := &WebFingerResponse{
+			Subject: resource,
+			// TODO how to get other instances endpoints
+			// https://trustbloc.github.io/did-method-orb/#example-11-client-shared-domain-discovery-response
+			Links: []WebFingerLink{
+				{Rel: "self", Href: resource},
+			},
+		}
+		writeResponse(rw, resp, http.StatusOK)
+	default:
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found", resource))
+	}
+}
+
+// writeErrorResponse write error resp.
+func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(status)
+
+	err := json.NewEncoder(rw).Encode(ErrorResponse{
+		Message: msg,
 	})
 	if err != nil {
-		logger.Errorf("well known response failure, %s", err)
+		logger.Errorf("Unable to send error message, %s", err)
+	}
+}
+
+// writeResponse writes response.
+func writeResponse(rw http.ResponseWriter, v interface{}, status int) {
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(status)
+
+	err := json.NewEncoder(rw).Encode(v)
+	if err != nil {
+		logger.Errorf("unable to send a response: %v", err)
 	}
 }
 
