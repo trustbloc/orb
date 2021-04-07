@@ -7,6 +7,7 @@ module github.com/trustbloc/orb/test/bdd
 require (
 	github.com/cucumber/godog v0.8.1
 	github.com/fsouza/go-dockerclient v1.6.5
+	github.com/google/uuid v1.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0

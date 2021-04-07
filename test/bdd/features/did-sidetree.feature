@@ -7,6 +7,9 @@
 @all
 @did-sidetree
 Feature:
+  Background: Setup
+    And variable "domain1IRI" is assigned the value "${domain1IRI}"
+    And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
 
   @create_valid_did_doc
   Scenario: create valid did doc
@@ -158,7 +161,9 @@ Feature:
     Scenario: follow  anchor writer
 
       # domain2 follows domain1
-      When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/follow_activity.json"
+      Given variable "followID" is assigned a unique ID
+      And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+      Then an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
 
       When client sends request to create DID document
       Then check success response contains "#did"
