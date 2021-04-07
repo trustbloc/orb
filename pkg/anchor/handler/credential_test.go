@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package handler
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,9 +26,12 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		c := New(anchorCh)
 
-		id := "https://orb.domain1.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		id, err := url.Parse("https://orb.domain1.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+		require.NoError(t, err)
 
-		err := c.HandlerAnchorCredential(id, nil)
+		cid := "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+
+		err = c.HandleAnchorCredential(id, cid, nil)
 		require.NoError(t, err)
 	})
 }

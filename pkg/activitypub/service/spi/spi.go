@@ -8,6 +8,7 @@ package spi
 
 import (
 	"errors"
+	"net/url"
 	"time"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -58,7 +59,7 @@ type Inbox interface {
 
 // AnchorCredentialHandler handles a new, published anchor credential.
 type AnchorCredentialHandler interface {
-	HandlerAnchorCredential(id string, anchorCred []byte) error
+	HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error
 }
 
 // FollowerAuth makes the decision of whether or not a request by the given
