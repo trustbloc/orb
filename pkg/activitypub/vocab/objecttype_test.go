@@ -27,7 +27,6 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 	t.Run("NewObject", func(t *testing.T) {
 		obj := NewObject(
-			WithID(id),
 			WithContext(ContextCredentials, ContextOrb),
 			WithType(TypeVerifiableCredential, TypeAnchorCredential),
 			WithTo(to1, to2),
@@ -35,6 +34,8 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
 		)
+
+		obj.SetID(id)
 
 		context := obj.Context()
 		require.NotNil(t, context)

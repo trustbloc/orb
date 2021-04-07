@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -209,7 +208,6 @@ func TestOutbox_Post(t *testing.T) {
 				),
 			),
 		),
-		vocab.WithID(newActivityID(cfg.ServiceIRI)),
 		vocab.WithTo(
 			testutil.MustParseURL(vocab.PublicIRI),
 			testutil.NewMockID(service1URL, resthandler.FollowersPath),
@@ -219,7 +217,9 @@ func TestOutbox_Post(t *testing.T) {
 		),
 	)
 
-	require.NoError(t, ob.Post(activity))
+	activityID, err := ob.Post(activity)
+	require.NoError(t, err)
+	require.NotNil(t, activityID)
 
 	time.Sleep(250 * time.Millisecond)
 
@@ -285,9 +285,11 @@ func TestOutbox_PostError(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
-		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
+		activity := vocab.NewCreateActivity(nil)
 
-		require.True(t, errors.Is(ob.Post(activity), spi.ErrNotStarted))
+		activityID, err := ob.Post(activity)
+		require.True(t, errors.Is(err, spi.ErrNotStarted))
+		require.Nil(t, activityID)
 	})
 
 	t.Run("AddActivity error", func(t *testing.T) {
@@ -303,9 +305,11 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
+		activity := vocab.NewCreateActivity(nil)
 
-		require.True(t, errors.Is(ob.Post(activity), errExpected))
+		activityID, err := ob.Post(activity)
+		require.True(t, errors.Is(err, errExpected))
+		require.Nil(t, activityID)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -325,9 +329,11 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.Start()
 
-		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
+		activity := vocab.NewCreateActivity(nil)
 
-		require.True(t, errors.Is(ob.Post(activity), errExpected))
+		activityID, err := ob.Post(activity)
+		require.True(t, errors.Is(err, errExpected))
+		require.Nil(t, activityID)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -346,9 +352,11 @@ func TestOutbox_PostError(t *testing.T) {
 
 		ob.jsonMarshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
-		activity := vocab.NewCreateActivity(nil, vocab.WithID(newActivityID(cfg.ServiceIRI)))
+		activity := vocab.NewCreateActivity(nil)
 
-		require.True(t, errors.Is(ob.Post(activity), errExpected))
+		activityID, err := ob.Post(activity)
+		require.True(t, errors.Is(err, errExpected))
+		require.Nil(t, activityID)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -373,11 +381,12 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
-			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
-		require.NoError(t, ob.Post(activity))
+		activityID, err := ob.Post(activity)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -412,11 +421,12 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
-			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
-		require.NoError(t, ob.Post(activity))
+		activityID, err := ob.Post(activity)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -444,21 +454,46 @@ func TestOutbox_PostError(t *testing.T) {
 					),
 				),
 			),
-			vocab.WithID(newActivityID(cfg.ServiceIRI)),
 			vocab.WithTo(service2URL),
 		)
 
-		err = ob.Post(activity)
+		activityID, err := ob.Post(activity)
 
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, activityID)
 
 		ob.Stop()
 	})
-}
 
-func newActivityID(servicIRI fmt.Stringer) *url.URL {
-	return testutil.NewMockID(servicIRI, uuid.New().String())
+	t.Run("Invalid actor error", func(t *testing.T) {
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+		require.NoError(t, err)
+		require.NotNil(t, ob)
+
+		ob.Start()
+
+		activity := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(
+				vocab.WithObject(
+					vocab.NewObject(
+						vocab.WithIRI(objIRI),
+					),
+				),
+			),
+			vocab.WithActor(service2URL),
+			vocab.WithTo(service2URL),
+		)
+
+		activityID, err := ob.Post(activity)
+
+		require.Error(t, err)
+		require.EqualError(t, err, "invalid actor IRI")
+		require.Nil(t, activityID)
+
+		ob.Stop()
+	})
 }
 
 type testHandler struct {

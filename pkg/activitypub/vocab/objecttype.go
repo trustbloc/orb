@@ -79,6 +79,11 @@ func (t *ObjectType) ID() *URLProperty {
 	return t.object.ID
 }
 
+// SetID sets the object's ID.
+func (t *ObjectType) SetID(id *url.URL) {
+	t.object.ID = NewURLProperty(id)
+}
+
 // Type returns the type of the object.
 func (t *ObjectType) Type() *TypeProperty {
 	return t.object.Type

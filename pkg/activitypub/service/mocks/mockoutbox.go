@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"net/url"
 	"sync"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -18,6 +19,7 @@ type Outbox struct {
 	mutex      sync.RWMutex
 	activities Activities
 	err        error
+	activityID *url.URL
 }
 
 // NewOutbox returns a mock outbox.
@@ -32,6 +34,13 @@ func (m *Outbox) WithError(err error) *Outbox {
 	return m
 }
 
+// WithActivityID sets the ID of the posted activity.
+func (m *Outbox) WithActivityID(id *url.URL) *Outbox {
+	m.activityID = id
+
+	return m
+}
+
 // Activities returns the activities that were posted to the outbox.
 func (m *Outbox) Activities() Activities {
 	m.mutex.RLock()
@@ -42,9 +51,9 @@ func (m *Outbox) Activities() Activities {
 
 // Post post an activity to the outbox. The activity is simply stored
 // so that it may be retrieved by the Activies function.
-func (m *Outbox) Post(activity *vocab.ActivityType) error {
+func (m *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	if m.err != nil {
-		return m.err
+		return nil, m.err
 	}
 
 	m.mutex.Lock()
@@ -52,7 +61,7 @@ func (m *Outbox) Post(activity *vocab.ActivityType) error {
 
 	m.activities = append(m.activities, activity)
 
-	return nil
+	return m.activityID, nil
 }
 
 // Start does nothing.

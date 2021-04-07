@@ -96,7 +96,7 @@ const (
 	activityPubServicesPath     = "/services/orb"
 	activityPubTransactionsPath = "/transactions"
 
-	casPath     = "/cas"
+	casPath = "/cas"
 )
 
 type server interface {
@@ -638,7 +638,7 @@ const mockProof = `{
    "https://w3id.org/security/v1",
    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
  ],
- "mockProof": {
+ "proof": {
    "type": "JsonWebSignature2020",
    "proofPurpose": "assertionMethod",
    "created": "2021-01-27T09:30:15Z",

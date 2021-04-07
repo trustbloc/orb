@@ -96,7 +96,7 @@ func (s *Store) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
 func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
-	logger.Debugf("[%s] Querying activity %s - Query: %+v", s.serviceName, query)
+	logger.Debugf("[%s] Querying activities - Query: %+v", s.serviceName, query)
 
 	if query.ReferenceType != "" && query.ObjectIRI != nil {
 		return s.queryActivitiesByRef(query.ReferenceType, query, opts...)
@@ -110,15 +110,31 @@ func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI, referen
 	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 
+	if objectIRI == nil {
+		return fmt.Errorf("nil object IRI")
+	}
+
+	if referenceIRI == nil {
+		return fmt.Errorf("nil reference IRI")
+	}
+
 	return s.referenceStores[referenceType].add(objectIRI, referenceIRI)
 }
 
 // DeleteReference deletes the reference of the given type from the given actor.
-func (s *Store) DeleteReference(referenceType spi.ReferenceType, actorIRI, referenceIRI *url.URL) error {
-	logger.Debugf("[%s] Deleting reference of type %s from actor %s: %s",
-		s.serviceName, referenceType, actorIRI, referenceIRI)
+func (s *Store) DeleteReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
+	logger.Debugf("[%s] Deleting reference of type %s from object %s: %s",
+		s.serviceName, referenceType, objectIRI, referenceIRI)
 
-	return s.referenceStores[referenceType].delete(actorIRI, referenceIRI)
+	if objectIRI == nil {
+		return fmt.Errorf("nil object IRI")
+	}
+
+	if referenceIRI == nil {
+		return fmt.Errorf("nil reference IRI")
+	}
+
+	return s.referenceStores[referenceType].delete(objectIRI, referenceIRI)
 }
 
 // QueryReferences returns the list of references of the given type according to the given query.

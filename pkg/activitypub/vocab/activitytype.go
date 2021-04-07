@@ -33,6 +33,11 @@ func (t *ActivityType) Actor() *url.URL {
 	return t.activity.Actor.URL()
 }
 
+// SetActor sets the actor for the activity.
+func (t *ActivityType) SetActor(iri *url.URL) {
+	t.activity.Actor = NewURLProperty(iri)
+}
+
 // Target returns the target of the activity.
 func (t *ActivityType) Target() *ObjectProperty {
 	return t.activity.Target

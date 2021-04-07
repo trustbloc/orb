@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -170,16 +169,6 @@ func defaultOptions() *service.Handlers {
 		FollowerAuth:            &acceptAllFollowerAuth{},
 		ProofHandler:            &noOpProofHandler{},
 	}
-}
-
-func (h *handler) newActivityID() *url.URL {
-	id, err := url.Parse(fmt.Sprintf("%s/%s", h.ServiceIRI.String(), uuid.New()))
-	if err != nil {
-		// Should never happen since we've already validated the URLs
-		panic(err)
-	}
-
-	return id
 }
 
 func (h *handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
