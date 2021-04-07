@@ -137,6 +137,30 @@ func TestStore_Reference(t *testing.T) {
 	checkRefQueryResults(t, it, actor3)
 }
 
+func TestStore_ReferenceError(t *testing.T) {
+	s := New("service1")
+	require.NotNil(t, s)
+
+	actor1 := testutil.MustParseURL("https://actor1")
+	actor2 := testutil.MustParseURL("https://actor2")
+
+	t.Run("AddReference - Nil object IRI -> error", func(t *testing.T) {
+		require.EqualError(t, s.AddReference(spi.Follower, nil, actor2), "nil object IRI")
+	})
+
+	t.Run("AddReference - Nil reference -> error", func(t *testing.T) {
+		require.EqualError(t, s.AddReference(spi.Follower, actor1, nil), "nil reference IRI")
+	})
+
+	t.Run("DeleteReference - Nil object IRI -> error", func(t *testing.T) {
+		require.EqualError(t, s.DeleteReference(spi.Follower, nil, actor2), "nil object IRI")
+	})
+
+	t.Run("DeleteReference - Nil reference -> error", func(t *testing.T) {
+		require.EqualError(t, s.DeleteReference(spi.Follower, actor1, nil), "nil reference IRI")
+	})
+}
+
 func TestStore_Actors(t *testing.T) {
 	s := New("service1")
 	require.NotNil(t, s)

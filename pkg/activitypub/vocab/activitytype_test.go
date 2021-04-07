@@ -53,14 +53,15 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		create := NewCreateActivity(
 			NewObjectProperty(WithObject(obj)),
-			WithID(createActivityID),
-			WithActor(service1),
 			WithTarget(targetProperty),
 			WithTo(followers),
 			WithTo(public),
 			WithContext(ContextOrb),
 			WithPublishedTime(&published),
 		)
+
+		create.SetID(createActivityID)
+		create.SetActor(service1)
 
 		bytes, err := canonicalizer.MarshalCanonical(create)
 		require.NoError(t, err)

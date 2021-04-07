@@ -55,7 +55,6 @@ func TestNew(t *testing.T) {
 		DidAnchors:    memdidanchorref.New(),
 		AnchorBuilder: &mockTxnBuilder{},
 		ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
-		Outbox:        &mockOutbox{},
 		Store:         vcStore,
 	}
 
@@ -576,12 +575,12 @@ type mockOutbox struct {
 	Err error
 }
 
-func (m *mockOutbox) Post(activity *vocab.ActivityType) error {
+func (m *mockOutbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	if m.Err != nil {
-		return m.Err
+		return nil, m.Err
 	}
 
-	return nil
+	return activity.ID().URL(), nil
 }
 
 //nolint:gochecknoglobals,lll

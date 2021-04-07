@@ -159,14 +159,14 @@ func TestService_Create(t *testing.T) {
 
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
-		vocab.WithID(newActivityID(service1IRI)),
-		vocab.WithActor(service1IRI),
 		vocab.WithTarget(targetProperty),
 		vocab.WithContext(vocab.ContextOrb),
 		vocab.WithTo(service2IRI, unavailableServiceIRI),
 	)
 
-	require.NoError(t, service1.Outbox().Post(create))
+	createID, err := service1.Outbox().Post(create)
+	require.NoError(t, err)
+	require.NotNil(t, createID)
 
 	time.Sleep(1500 * time.Millisecond)
 
@@ -282,17 +282,14 @@ func TestService_Follow(t *testing.T) {
 	t.Run("Follow - Accept", func(t *testing.T) {
 		followerAuth2.WithAccept()
 
-		actorIRI := service1IRI
-		targetIRI := service2IRI
-
 		follow := vocab.NewFollowActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(targetIRI)),
-			vocab.WithID(newActivityID(actorIRI)),
-			vocab.WithActor(actorIRI),
-			vocab.WithTo(targetIRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
+			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, service1.Outbox().Post(follow))
+		activityID, err := service1.Outbox().Post(follow)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -320,22 +317,23 @@ func TestService_Follow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, containsActivity(activities, follow.ID()))
 
-		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actorIRI)))
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, following)
-		require.Truef(t, containsIRI(following, targetIRI), "expecting %s to be following %s", actorIRI, targetIRI)
+		require.Truef(t, containsIRI(following, service2IRI), "expecting %s to be following %s", service1IRI, service2IRI)
 
-		rit, err = store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(targetIRI)))
+		rit, err = store2.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
 
 		require.NotEmpty(t, followers)
-		require.Truef(t, containsIRI(followers, actorIRI), "expecting %s to have %s as a follower", targetIRI, actorIRI)
+		require.Truef(t, containsIRI(followers, service1IRI), "expecting %s to have %s as a follower",
+			service2IRI, service1IRI)
 
 		// Ensure we have an 'Accept' activity in our inbox
 		it, err = store1.QueryActivities(
@@ -361,19 +359,14 @@ func TestService_Follow(t *testing.T) {
 	t.Run("Follow - Reject", func(t *testing.T) {
 		followerAuth1.WithReject()
 
-		actorIRI := service2IRI
-		targetIRI := service1IRI
-
 		follow := vocab.NewFollowActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(targetIRI)),
-			vocab.WithID(newActivityID(actorIRI)),
-			vocab.WithActor(actorIRI),
-			vocab.WithTo(targetIRI),
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithTo(service1IRI),
 		)
 
 		for i := 0; i < 5; i++ {
 			// Wait for the service to start
-			err := service2.Outbox().Post(follow)
+			_, err := service2.Outbox().Post(follow)
 			if err == nil {
 				break
 			}
@@ -414,19 +407,21 @@ func TestService_Follow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, containsActivity(activities, follow.ID()))
 
-		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actorIRI)))
+		rit, err := store1.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
-		require.Falsef(t, containsIRI(following, targetIRI), "expecting %s NOT to be following %s", actorIRI, targetIRI)
+		require.Falsef(t, containsIRI(following, service1IRI), "expecting %s NOT to be following %s",
+			service2IRI, service1IRI)
 
-		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(targetIRI)))
+		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
 		require.NoError(t, err)
 
 		followers, err := storeutil.ReadReferences(rit, -1)
 		require.NoError(t, err)
-		require.Falsef(t, containsIRI(followers, actorIRI), "expecting %s NOT to have %s as a follower", targetIRI, actorIRI)
+		require.Falsef(t, containsIRI(followers, service2IRI), "expecting %s NOT to have %s as a follower",
+			service1IRI, service2IRI)
 
 		// Ensure we have a 'Reject' activity in our inbox
 		it, err = store1.QueryActivities(
@@ -570,13 +565,13 @@ func TestService_Announce(t *testing.T) {
 					vocab.NewCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service2IRI)),
-			vocab.WithActor(service2IRI),
 			vocab.WithTo(service3IRI),
 			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, service2.Outbox().Post(announce))
+		activityID, err := service2.Outbox().Post(announce)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -629,13 +624,13 @@ func TestService_Announce(t *testing.T) {
 					vocab.NewCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service2IRI)),
-			vocab.WithActor(service2IRI),
 			vocab.WithTo(service3IRI),
 			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, service2.Outbox().Post(announce))
+		activityID, err := service2.Outbox().Post(announce)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -671,20 +666,21 @@ func TestService_Announce(t *testing.T) {
 	t.Run("Create and announce", func(t *testing.T) {
 		// Service3 requests to follow Service2
 
-		// Add Service3 to Service2's store since we haven't implemented actor resolution yet and
-		// Service2 needs to retrieve the requesting actor.
-		require.NoError(t, store2.PutActor(vocab.NewService(service3IRI)))
+		require.NoError(t, store2.PutActor(vocab.NewService(service3IRI,
+			vocab.WithInbox(testutil.NewMockID(service3IRI, resthandler.InboxPath)))))
+		require.NoError(t, store3.PutActor(vocab.NewService(service2IRI,
+			vocab.WithInbox(testutil.NewMockID(service2IRI, resthandler.InboxPath)))))
 
 		followerAuth2.WithAccept()
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
-			vocab.WithID(newActivityID(service3IRI)),
-			vocab.WithActor(service3IRI),
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, service1.Outbox().Post(follow))
+		activityID, err := service3.Outbox().Post(follow)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(1000 * time.Millisecond)
 
@@ -715,13 +711,14 @@ func TestService_Announce(t *testing.T) {
 		// Service1 posts a 'Create' to Service2
 		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
 			vocab.WithTarget(targetProperty),
 			vocab.WithContext(vocab.ContextOrb),
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, service1.Outbox().Post(create))
+		createID, err := service1.Outbox().Post(create)
+		require.NoError(t, err)
+		require.NotNil(t, createID)
 
 		time.Sleep(500 * time.Millisecond)
 
@@ -882,14 +879,14 @@ func TestService_Offer(t *testing.T) {
 
 		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
 		)
 
-		require.NoError(t, service1.Outbox().Post(offer))
+		activityID, err := service1.Outbox().Post(offer)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
 
 		time.Sleep(500 * time.Millisecond)
 

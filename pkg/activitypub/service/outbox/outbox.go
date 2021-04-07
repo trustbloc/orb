@@ -14,6 +14,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
+	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -171,41 +172,48 @@ func (h *Outbox) stop() {
 	}
 }
 
-// Post posts an activity to the outbox.
-func (h *Outbox) Post(activity *vocab.ActivityType) error {
+// Post posts an activity to the outbox and returns the ID of the activity that was posted.
+// If the activity does not specify an ID then a unique ID will be generated. The 'actor' of the
+// activity is also assigned to the service IRI of the outbox.
+func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	if h.State() != service.StateStarted {
-		return service.ErrNotStarted
+		return nil, service.ErrNotStarted
+	}
+
+	activity, err := h.validateAndPopulateActivity(activity)
+	if err != nil {
+		return nil, err
 	}
 
 	activityBytes, err := h.jsonMarshal(activity)
 	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
+		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
 	err = h.activityStore.AddActivity(activity)
 	if err != nil {
-		return fmt.Errorf("store activity: %w", err)
+		return nil, fmt.Errorf("store activity: %w", err)
 	}
 
 	err = h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL())
 	if err != nil {
-		return fmt.Errorf("add reference to activity: %w", err)
+		return nil, fmt.Errorf("add reference to activity: %w", err)
 	}
 
 	err = h.activityHandler.HandleActivity(activity)
 	if err != nil {
-		return fmt.Errorf("handle activity: %w", err)
+		return nil, fmt.Errorf("handle activity: %w", err)
 	}
 
 	for _, actorInbox := range h.resolveInboxes(activity.To()) {
 		err = h.publish(activity.ID().String(), activityBytes, actorInbox)
 		if err != nil {
 			// TODO: Do we continue processing the rest?
-			return fmt.Errorf("unable to publish activity to inbox %s: %w", actorInbox, err)
+			return nil, fmt.Errorf("unable to publish activity to inbox %s: %w", actorInbox, err)
 		}
 	}
 
-	return nil
+	return activity.ID().URL(), nil
 }
 
 func (h *Outbox) publish(id string, activityBytes []byte, to fmt.Stringer) error {
@@ -428,6 +436,32 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 	close(resolveChan)
 
 	return recipients
+}
+
+func (h *Outbox) newActivityID() *url.URL {
+	id, err := url.Parse(fmt.Sprintf("%s/%s", h.ServiceIRI, uuid.New()))
+	if err != nil {
+		// Should never happen since we've already validated the URLs
+		panic(err)
+	}
+
+	return id
+}
+
+func (h *Outbox) validateAndPopulateActivity(activity *vocab.ActivityType) (*vocab.ActivityType, error) {
+	if activity.ID() == nil {
+		activity.SetID(h.newActivityID())
+	}
+
+	if activity.Actor() != nil {
+		if activity.Actor().String() != h.ServiceIRI.String() {
+			return nil, fmt.Errorf("invalid actor IRI")
+		}
+	} else {
+		activity.SetActor(h.ServiceIRI)
+	}
+
+	return activity, nil
 }
 
 type noOpUndeliverableHandler struct {

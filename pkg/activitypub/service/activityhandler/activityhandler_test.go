@@ -112,7 +112,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
 	activityStore := memstore.New(cfg.ServiceName)
-	ob := mocks.NewOutbox()
+	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service1IRI, "/activities/123456789"))
 
 	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
 
@@ -958,9 +958,10 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		ServiceIRI:  service1IRI,
 	}
 
+	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service1IRI, "/activities/123456789"))
 	witness := mocks.NewWitnessHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1182,7 +1183,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1224,7 +1225,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1246,7 +1247,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
@@ -1268,7 +1269,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1289,7 +1290,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1310,7 +1311,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		like := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(h.newActivityID()),
+			vocab.WithID(newActivityID(h.ServiceIRI)),
 			vocab.WithActor(h.ServiceIRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1410,7 +1411,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 	unsupported := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(inboxHandler.newActivityID()),
+		vocab.WithID(newActivityID(inboxHandler.ServiceIRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)

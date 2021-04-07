@@ -263,8 +263,6 @@ func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
 	acceptActivity := vocab.NewAcceptActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
-		vocab.WithID(h.newActivityID()),
-		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(toIRI),
 	)
 
@@ -272,7 +270,7 @@ func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) err
 
 	logger.Debugf("[%s] Publishing 'Accept' activity to %s", h.ServiceName, toIRI)
 
-	if err := h.outbox.Post(acceptActivity); err != nil {
+	if _, err := h.outbox.Post(acceptActivity); err != nil {
 		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
 	}
 
@@ -282,14 +280,12 @@ func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) err
 func (h *Inbox) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
 	reject := vocab.NewRejectActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
-		vocab.WithID(h.newActivityID()),
-		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(toIRI),
 	)
 
 	logger.Debugf("[%s] Publishing 'Reject' activity to %s", h.ServiceName, toIRI)
 
-	if err := h.outbox.Post(reject); err != nil {
+	if _, err := h.outbox.Post(reject); err != nil {
 		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
 	}
 
@@ -363,22 +359,20 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(anchorCred.ID().URL())),
-		vocab.WithID(h.newActivityID()),
-		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(offer.Actor()),
 		vocab.WithStartTime(&startTime),
 		vocab.WithEndTime(&endTime),
 		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
 	)
 
-	err = h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL())
-	if err != nil {
-		return fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err)
-	}
-
-	err = h.outbox.Post(like)
+	activityID, err := h.outbox.Post(like)
 	if err != nil {
 		return fmt.Errorf("unable to reply with 'Like' to %s for offer [%s]: %w", offer.Actor(), offer.ID(), err)
+	}
+
+	err = h.store.AddReference(store.Liked, h.ServiceIRI, activityID)
+	if err != nil {
+		return fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err)
 	}
 
 	h.notify(offer)
@@ -482,25 +476,23 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithID(h.newActivityID()),
-		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(followers...),
 		vocab.WithPublishedTime(&published),
 	)
 
 	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
 
-	err = h.outbox.Post(announce)
+	activityID, err := h.outbox.Post(announce)
 	if err != nil {
 		return err
 	}
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
 
-	err = h.store.AddReference(store.Share, ref.ID().URL(), announce.ID().URL())
+	err = h.store.AddReference(store.Share, ref.ID().URL(), activityID)
 	if err != nil {
-		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
-			h.ServiceIRI, announce.ID(), ref.ID())
+		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s: %s",
+			h.ServiceIRI, announce.ID(), ref.ID(), err)
 	}
 
 	return nil
@@ -539,15 +531,13 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 				),
 			),
 		),
-		vocab.WithID(h.newActivityID()),
-		vocab.WithActor(h.ServiceIRI),
 		vocab.WithTo(followers...),
 		vocab.WithPublishedTime(&published),
 	)
 
 	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
 
-	err = h.outbox.Post(announce)
+	activityID, err := h.outbox.Post(announce)
 	if err != nil {
 		return err
 	}
@@ -556,7 +546,7 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorCredID)
 
-	err = h.store.AddReference(store.Share, anchorCredID.URL(), announce.ID().URL())
+	err = h.store.AddReference(store.Share, anchorCredID.URL(), activityID)
 	if err != nil {
 		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s", h.ServiceIRI, announce.ID(), anchorCredID)
 	}

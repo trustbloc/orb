@@ -48,7 +48,7 @@ type Providers struct {
 }
 
 type outbox interface {
-	Post(activity *vocab.ActivityType) error
+	Post(activity *vocab.ActivityType) (*url.URL, error)
 }
 
 type opProcessor interface {
@@ -298,7 +298,9 @@ func (c *Writer) postActivity(vc *verifiable.Credential, cid string) error { //n
 		vocab.WithID(activityID),
 	)
 
-	return c.Outbox.Post(create)
+	_, err = c.Outbox.Post(create)
+
+	return err
 }
 
 func newActivityID(serviceName string) (*url.URL, error) {
