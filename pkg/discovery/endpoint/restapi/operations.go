@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -24,29 +23,36 @@ const (
 )
 
 const (
-	minResolvers      = "https://trustbloc.dev/ns/min-resolvers"
-	minResolversValue = 2 // TODO need to be configurable
+	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
 )
 
 // New returns discovery operations.
 func New(c *Config) *Operation {
 	return &Operation{
-		resolutionEndpoint: fmt.Sprintf("%s%s", c.BaseURL, c.ResolutionPath),
-		operationEndpoint:  fmt.Sprintf("%s%s", c.BaseURL, c.OperationPath),
+		resolutionPath:            c.ResolutionPath,
+		operationPath:             c.OperationPath,
+		baseURL:                   c.BaseURL,
+		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
+		discoveryDomains:          c.DiscoveryDomains,
 	}
 }
 
 // Operation defines handlers for discovery operations.
 type Operation struct {
-	resolutionEndpoint string
-	operationEndpoint  string
+	resolutionPath            string
+	operationPath             string
+	baseURL                   string
+	discoveryDomains          []string
+	discoveryMinimumResolvers int
 }
 
 // Config defines configuration for discovery operations.
 type Config struct {
-	ResolutionPath string
-	OperationPath  string
-	BaseURL        string
+	ResolutionPath            string
+	OperationPath             string
+	BaseURL                   string
+	DiscoveryDomains          []string
+	DiscoveryMinimumResolvers int
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
@@ -66,8 +72,8 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 //        200: wellKnownResp
 func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 	writeResponse(rw, &WellKnownResponse{
-		ResolutionEndpoint: o.resolutionEndpoint,
-		OperationEndpoint:  o.operationEndpoint,
+		ResolutionEndpoint: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath),
+		OperationEndpoint:  fmt.Sprintf("%s%s", o.baseURL, o.operationPath),
 	}, http.StatusOK)
 }
 
@@ -89,26 +95,38 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 	resource := queryValue[0]
 
 	switch {
-	case strings.Contains(resource, o.resolutionEndpoint):
+	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
 		resp := &WebFingerResponse{
 			Subject:    resource,
-			Properties: map[string]interface{}{minResolvers: minResolversValue},
-			// TODO how to get other instances endpoints
-			// https://trustbloc.github.io/did-method-orb/#example-11-client-shared-domain-discovery-response
+			Properties: map[string]interface{}{minResolvers: o.discoveryMinimumResolvers},
 			Links: []WebFingerLink{
 				{Rel: "self", Href: resource},
 			},
 		}
+
+		for _, v := range o.discoveryDomains {
+			resp.Links = append(resp.Links, WebFingerLink{
+				Rel:  "alternate",
+				Href: fmt.Sprintf("%s%s", v, o.resolutionPath),
+			})
+		}
+
 		writeResponse(rw, resp, http.StatusOK)
-	case strings.Contains(resource, o.operationEndpoint):
+	case resource == fmt.Sprintf("%s%s", o.baseURL, o.operationPath):
 		resp := &WebFingerResponse{
 			Subject: resource,
-			// TODO how to get other instances endpoints
-			// https://trustbloc.github.io/did-method-orb/#example-11-client-shared-domain-discovery-response
 			Links: []WebFingerLink{
 				{Rel: "self", Href: resource},
 			},
 		}
+
+		for _, v := range o.discoveryDomains {
+			resp.Links = append(resp.Links, WebFingerLink{
+				Rel:  "alternate",
+				Href: fmt.Sprintf("%s%s", v, o.operationPath),
+			})
+		}
+
 		writeResponse(rw, resp, http.StatusOK)
 	default:
 		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found", resource))

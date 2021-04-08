@@ -8,14 +8,16 @@ package startcmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"strconv"
 	"time"
+
+	"github.com/spf13/cobra"
+	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 )
 
 const (
-	defaultBatchWriterTimeout = 1000 * time.Millisecond
+	defaultBatchWriterTimeout        = 1000 * time.Millisecond
+	defaultDiscoveryMinimumResolvers = 1
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -136,26 +138,37 @@ const (
 	allowedOriginsFlagShorthand = "o"
 	allowedOriginsFlagUsage     = "Allowed origins for this did method. " + commonEnvVarUsageText + allowedOriginsEnvKey
 
+	discoveryDomainsFlagName  = "discovery-domains"
+	discoveryDomainsEnvKey    = "DISCOVERY_DOMAINS"
+	discoveryDomainsFlagUsage = "Discovery domains. " + commonEnvVarUsageText + discoveryDomainsEnvKey
+
+	discoveryMinimumResolversFlagName  = "discovery-minimum-resolvers"
+	discoveryMinimumResolversEnvKey    = "DISCOVERY_MINIMUM_RESOLVERS"
+	discoveryMinimumResolversFlagUsage = "Discovery minimum resolvers number." +
+		commonEnvVarUsageText + discoveryMinimumResolversEnvKey
+
 	// TODO: Add verification method
 
 )
 
 type orbParameters struct {
-	hostURL                string
-	externalEndpoint       string
-	didNamespace           string
-	didAliases             []string
-	batchWriterTimeout     time.Duration
-	casURL                 string
-	dbParameters           *dbParameters
-	token                  string
-	logLevel               string
-	methodContext          []string
-	baseEnabled            bool
-	allowedOrigins         []string
-	tlsCertificate         string
-	tlsKey                 string
-	anchorCredentialParams *anchorCredentialParams
+	hostURL                   string
+	externalEndpoint          string
+	didNamespace              string
+	didAliases                []string
+	batchWriterTimeout        time.Duration
+	casURL                    string
+	dbParameters              *dbParameters
+	token                     string
+	logLevel                  string
+	methodContext             []string
+	baseEnabled               bool
+	allowedOrigins            []string
+	tlsCertificate            string
+	tlsKey                    string
+	anchorCredentialParams    *anchorCredentialParams
+	discoveryDomains          []string
+	discoveryMinimumResolvers int
 }
 
 type anchorCredentialParams struct {
@@ -256,20 +269,35 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	discoveryDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
+
+	discoveryMinimumResolversStr := cmdutils.GetUserSetOptionalVarFromString(cmd, discoveryMinimumResolversFlagName,
+		discoveryMinimumResolversEnvKey)
+
+	discoveryMinimumResolvers := defaultDiscoveryMinimumResolvers
+	if discoveryMinimumResolversStr != "" {
+		discoveryMinimumResolvers, err = strconv.Atoi(discoveryMinimumResolversStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid discovery minimum resolvers: %s", err.Error())
+		}
+	}
+
 	return &orbParameters{
-		hostURL:                hostURL,
-		externalEndpoint:       externalEndpoint,
-		tlsKey:                 tlsKey,
-		tlsCertificate:         tlsCertificate,
-		didNamespace:           didNamespace,
-		didAliases:             didAliases,
-		allowedOrigins:         allowedOrigins,
-		casURL:                 casURL,
-		batchWriterTimeout:     batchWriterTimeout,
-		anchorCredentialParams: anchorCredentialParams,
-		dbParameters:           dbParams,
-		token:                  token,
-		logLevel:               loggingLevel,
+		hostURL:                   hostURL,
+		externalEndpoint:          externalEndpoint,
+		tlsKey:                    tlsKey,
+		tlsCertificate:            tlsCertificate,
+		didNamespace:              didNamespace,
+		didAliases:                didAliases,
+		allowedOrigins:            allowedOrigins,
+		casURL:                    casURL,
+		batchWriterTimeout:        batchWriterTimeout,
+		anchorCredentialParams:    anchorCredentialParams,
+		dbParameters:              dbParams,
+		token:                     token,
+		logLevel:                  loggingLevel,
+		discoveryDomains:          discoveryDomains,
+		discoveryMinimumResolvers: discoveryMinimumResolvers,
 	}, nil
 }
 
@@ -361,7 +389,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringP(didAliasesFlagName, didAliasesFlagShorthand, "", didAliasesFlagUsage)
-	startCmd.Flags().StringP(allowedOriginsFlagName, allowedOriginsFlagShorthand, "", allowedOriginsFlagUsage)
+	startCmd.Flags().StringArrayP(allowedOriginsFlagName, allowedOriginsFlagShorthand, []string{}, allowedOriginsFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialURLFlagName, anchorCredentialURLFlagShorthand, "", anchorCredentialURLFlagUsage)
@@ -377,4 +405,6 @@ func createFlags(startCmd *cobra.Command) {
 
 	startCmd.Flags().StringP(tokenFlagName, "", "", tokenFlagUsage)
 	startCmd.Flags().StringP(LogLevelFlagName, LogLevelFlagShorthand, "", LogLevelPrefixFlagUsage)
+	startCmd.Flags().StringArrayP(discoveryDomainsFlagName, "", []string{}, discoveryDomainsFlagUsage)
+	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)
 }

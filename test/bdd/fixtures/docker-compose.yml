@@ -36,6 +36,7 @@ services:
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - DISCOVERY_DOMAINS=https://orb.domain2.com
     ports:
       - 48326:443
     command:  /bin/sh -c "sleep 10;orb start"
@@ -74,6 +75,7 @@ services:
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - DISCOVERY_DOMAINS=https://orb.domain1.com
     ports:
       - 48426:443
     command:  /bin/sh -c "sleep 12;orb start"

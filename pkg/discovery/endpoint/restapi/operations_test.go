@@ -80,9 +80,11 @@ func TestWebFinger(t *testing.T) {
 
 	t.Run("test resolution resource", func(t *testing.T) {
 		c := restapi.New(&restapi.Config{
-			OperationPath:  "/op",
-			ResolutionPath: "/resolve",
-			BaseURL:        "http://base",
+			OperationPath:             "/op",
+			ResolutionPath:            "/resolve",
+			BaseURL:                   "http://base",
+			DiscoveryDomains:          []string{"http://domain1"},
+			DiscoveryMinimumResolvers: 2,
 		},
 		)
 
@@ -96,13 +98,17 @@ func TestWebFinger(t *testing.T) {
 
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 		require.Equal(t, w.Links[0].Href, "http://base/resolve")
+		require.Equal(t, w.Links[1].Href, "http://domain1/resolve")
+		require.Equal(t, w.Properties["https://trustbloc.dev/ns/min-resolvers"], float64(2))
 	})
 
 	t.Run("test operation resource", func(t *testing.T) {
 		c := restapi.New(&restapi.Config{
-			OperationPath:  "/op",
-			ResolutionPath: "/resolve",
-			BaseURL:        "http://base",
+			OperationPath:             "/op",
+			ResolutionPath:            "/resolve",
+			BaseURL:                   "http://base",
+			DiscoveryDomains:          []string{"http://domain1"},
+			DiscoveryMinimumResolvers: 2,
 		},
 		)
 
@@ -116,6 +122,8 @@ func TestWebFinger(t *testing.T) {
 
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 		require.Equal(t, w.Links[0].Href, "http://base/op")
+		require.Equal(t, w.Links[1].Href, "http://domain1/op")
+		require.Empty(t, w.Properties)
 	})
 }
 
