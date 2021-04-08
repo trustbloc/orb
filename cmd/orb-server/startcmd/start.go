@@ -393,9 +393,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// create discovery rest api
 	endpointDiscoveryOp := discoveryrest.New(&discoveryrest.Config{
-		ResolutionPath: baseResolvePath,
-		OperationPath:  baseUpdatePath,
-		BaseURL:        parameters.externalEndpoint,
+		ResolutionPath:            baseResolvePath,
+		OperationPath:             baseUpdatePath,
+		BaseURL:                   parameters.externalEndpoint,
+		DiscoveryDomains:          parameters.discoveryDomains,
+		DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
 	})
 
 	handlers := make([]restcommon.HTTPHandler, 0)

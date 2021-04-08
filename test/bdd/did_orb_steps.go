@@ -151,6 +151,10 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 
 	d.resolutionEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
 
+	if !strings.Contains(webFingerResponse.Links[1].Href, "orb.domain2.com") {
+		return fmt.Errorf("webfinger response return wrong link")
+	}
+
 	resp, err = restclient.SendResolveRequest(
 		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.OperationEndpoint)))
