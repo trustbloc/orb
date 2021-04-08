@@ -167,7 +167,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	return nil
 }
 
-func (d *DIDOrbSteps) createDIDDocument() error {
+func (d *DIDOrbSteps) createDIDDocument(url string) error {
 	var err error
 
 	logger.Info("create did document")
@@ -182,7 +182,7 @@ func (d *DIDOrbSteps) createDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.operationEndpoint, reqBytes)
+	d.resp, err = restclient.SendRequest(url, reqBytes)
 	if err == nil {
 		var req model.CreateRequest
 		e := json.Unmarshal(reqBytes, &req)
@@ -196,7 +196,7 @@ func (d *DIDOrbSteps) createDIDDocument() error {
 	return err
 }
 
-func (d *DIDOrbSteps) updateDIDDocument(patches []patch.Patch) error {
+func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error {
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -209,11 +209,11 @@ func (d *DIDOrbSteps) updateDIDDocument(patches []patch.Patch) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
+	d.resp, err = restclient.SendRequest(url, req)
 	return err
 }
 
-func (d *DIDOrbSteps) deactivateDIDDocument() error {
+func (d *DIDOrbSteps) deactivateDIDDocument(url string) error {
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -226,11 +226,11 @@ func (d *DIDOrbSteps) deactivateDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
+	d.resp, err = restclient.SendRequest(url, req)
 	return err
 }
 
-func (d *DIDOrbSteps) recoverDIDDocument() error {
+func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -248,44 +248,44 @@ func (d *DIDOrbSteps) recoverDIDDocument() error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.operationEndpoint, req)
+	d.resp, err = restclient.SendRequest(url, req)
 	return err
 }
 
-func (d *DIDOrbSteps) addPublicKeyToDIDDocument(keyID string) error {
+func (d *DIDOrbSteps) addPublicKeyToDIDDocument(url, keyID string) error {
 	p, err := getAddPublicKeysPatch(keyID)
 	if err != nil {
 		return err
 	}
 
-	return d.updateDIDDocument([]patch.Patch{p})
+	return d.updateDIDDocument(url, []patch.Patch{p})
 }
 
-func (d *DIDOrbSteps) removePublicKeyFromDIDDocument(keyID string) error {
+func (d *DIDOrbSteps) removePublicKeyFromDIDDocument(url, keyID string) error {
 	p, err := getRemovePublicKeysPatch(keyID)
 	if err != nil {
 		return err
 	}
 
-	return d.updateDIDDocument([]patch.Patch{p})
+	return d.updateDIDDocument(url, []patch.Patch{p})
 }
 
-func (d *DIDOrbSteps) addServiceEndpointToDIDDocument(keyID string) error {
+func (d *DIDOrbSteps) addServiceEndpointToDIDDocument(url, keyID string) error {
 	p, err := getAddServiceEndpointsPatch(keyID)
 	if err != nil {
 		return err
 	}
 
-	return d.updateDIDDocument([]patch.Patch{p})
+	return d.updateDIDDocument(url, []patch.Patch{p})
 }
 
-func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(keyID string) error {
+func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(url, keyID string) error {
 	p, err := getRemoveServiceEndpointsPatch(keyID)
 	if err != nil {
 		return err
 	}
 
-	return d.updateDIDDocument([]patch.Patch{p})
+	return d.updateDIDDocument(url, []patch.Patch{p})
 }
 
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
@@ -368,7 +368,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	return nil
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithID(did string) error {
+func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 	var err error
 	d.resp, err = restclient.SendResolveRequest(d.resolutionEndpoint + "/" + did)
 
@@ -390,23 +390,23 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(did string) error {
 	return err
 }
 
-func (d *DIDOrbSteps) resolveDIDDocument() error {
+func (d *DIDOrbSteps) resolveDIDDocument(url string) error {
 	did, err := d.getDID()
 	if err != nil {
 		return err
 	}
 
 	logger.Infof("resolving did document with did: %s", did)
-	return d.resolveDIDDocumentWithID(did)
+	return d.resolveDIDDocumentWithID(url, did)
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalID() error {
+func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalID(url string) error {
 	logger.Infof("resolving did document with canonical id: %s", d.canonicalID)
 
-	return d.resolveDIDDocumentWithID(d.canonicalID)
+	return d.resolveDIDDocumentWithID(url, d.canonicalID)
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(alias string) error {
+func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(url, alias string) error {
 	did, err := d.getDIDWithNamespace(alias)
 	if err != nil {
 		return err
@@ -414,13 +414,11 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(alias string) error {
 
 	d.alias = alias
 
-	url := d.resolutionEndpoint + "/" + did
-
-	d.resp, err = restclient.SendResolveRequest(url)
+	d.resp, err = restclient.SendResolveRequest(url + "/" + did)
 	return err
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue() error {
+func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
 	did, err := d.getDID()
 	if err != nil {
 		return err
@@ -431,9 +429,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue() error {
 		return err
 	}
 
-	req := d.resolutionEndpoint + "/" + did + initialStateSeparator + initialState
-
-	d.resp, err = restclient.SendResolveRequest(req)
+	d.resp, err = restclient.SendResolveRequest(url + "/" + did + initialStateSeparator + initialState)
 	return err
 }
 
@@ -729,17 +725,17 @@ func prettyPrint(result *document.ResolutionResult) error {
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
-	s.Step(`^client sends request to create DID document$`, d.createDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
-	s.Step(`^client sends request to resolve DID document$`, d.resolveDIDDocument)
-	s.Step(`^client sends request to resolve DID document with canonical id$`, d.resolveDIDDocumentWithCanonicalID)
-	s.Step(`^client sends request to resolve DID document with alias "([^"]*)"$`, d.resolveDIDDocumentWithAlias)
-	s.Step(`^client sends request to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
-	s.Step(`^client sends request to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
-	s.Step(`^client sends request to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)
-	s.Step(`^client sends request to remove service endpoint with ID "([^"]*)" from DID document$`, d.removeServiceEndpointsFromDIDDocument)
-	s.Step(`^client sends request to deactivate DID document$`, d.deactivateDIDDocument)
-	s.Step(`^client sends request to recover DID document$`, d.recoverDIDDocument)
-	s.Step(`^client sends request to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document$`, d.resolveDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical id$`, d.resolveDIDDocumentWithCanonicalID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with alias "([^"]*)"$`, d.resolveDIDDocumentWithAlias)
+	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to remove service endpoint with ID "([^"]*)" from DID document$`, d.removeServiceEndpointsFromDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to deactivate DID document$`, d.deactivateDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to recover DID document$`, d.recoverDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
 }
