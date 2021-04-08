@@ -8,7 +8,7 @@
 @did-sidetree
 Feature:
   Background: Setup
-    And variable "domain1IRI" is assigned the value "${domain1IRI}"
+    And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
 
   @create_valid_did_doc

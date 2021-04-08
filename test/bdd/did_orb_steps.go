@@ -370,7 +370,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 	var err error
-	d.resp, err = restclient.SendResolveRequest(d.resolutionEndpoint + "/" + did)
+	d.resp, err = restclient.SendResolveRequest(url + "/" + did)
 
 	if err == nil && d.resp.Payload != nil {
 		var result document.ResolutionResult
