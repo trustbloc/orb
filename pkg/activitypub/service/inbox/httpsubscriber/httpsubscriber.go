@@ -153,7 +153,7 @@ func (s *Subscriber) respond(msg *message.Message, w http.ResponseWriter, r *htt
 		w.WriteHeader(http.StatusInternalServerError)
 
 	case <-s.stopped:
-		logger.Infof("[%s] Message [%s] wasn not handled since service was stopped", s.ServiceEndpoint, msg.UUID)
+		logger.Infof("[%s] Message [%s] was not handled since service was stopped", s.ServiceEndpoint, msg.UUID)
 
 		s.done <- struct{}{}
 

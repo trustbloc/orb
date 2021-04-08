@@ -76,6 +76,9 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 	}
 
 	for _, msg := range messages {
+		// Copy the message so that the Ack/Nack is specific to a subscriber
+		msg = msg.Copy()
+
 		msgChan <- msg
 
 		go m.check(msg)

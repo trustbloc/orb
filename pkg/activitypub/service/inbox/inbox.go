@@ -159,7 +159,7 @@ func (h *Inbox) handle(msg *message.Message) {
 
 	err := h.jsonUnmarshal(msg.Payload, activity)
 	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling activity message: %s", h.ServiceEndpoint, err)
+		logger.Errorf("[%s] Error unmarshalling activity message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
 
 		msg.Nack()
 
@@ -169,14 +169,15 @@ func (h *Inbox) handle(msg *message.Message) {
 	activityID, err := h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
 		if err != store.ErrNotFound {
-			logger.Errorf("[%s] Error retrieving activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
+			logger.Errorf("[%s] Error retrieving activity [%s] in message [%s]: %s",
+				h.ServiceEndpoint, activity.ID(), msg.UUID, err)
 
 			msg.Nack()
 
 			return
 		}
 	} else {
-		logger.Infof("[%s] Ignoring duplicate activity [%s]", h.ServiceEndpoint, activityID)
+		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activityID, msg.UUID)
 
 		msg.Nack()
 

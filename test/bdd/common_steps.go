@@ -35,7 +35,8 @@ func NewCommonSteps(context *BDDContext, state *state) *CommonSteps {
 }
 
 func (d *CommonSteps) wait(seconds int) error {
-	logger.Infof("Waiting [%d] seconds\n", seconds)
+	logger.Infof("Waiting [%d] seconds", seconds)
+
 	time.Sleep(time.Duration(seconds) * time.Second)
 
 	return nil

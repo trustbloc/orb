@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -145,6 +147,8 @@ func TestInbox_Handle(t *testing.T) {
 }
 
 func TestInbox_Error(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
 	client := http.Client{}
 
 	t.Run("Handler error", func(t *testing.T) {
@@ -277,7 +281,23 @@ func TestInbox_Error(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		pubSub := mocks.NewPubSub()
+		undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+		require.NoError(t, err)
+
+		var mutex sync.Mutex
+
+		var undeliverableMessages []*message.Message
+
+		go func() {
+			for msg := range undeliverableChan {
+				mutex.Lock()
+				undeliverableMessages = append(undeliverableMessages, msg)
+				mutex.Unlock()
+			}
+		}()
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -294,8 +314,6 @@ func TestInbox_Error(t *testing.T) {
 		defer stop()
 
 		time.Sleep(500 * time.Millisecond)
-
-		activityHandler.HandleActivityReturns(fmt.Errorf("injected handler error"))
 
 		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
@@ -316,6 +334,10 @@ func TestInbox_Error(t *testing.T) {
 		require.NotNil(t, resp)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
+
+		mutex.Lock()
+		require.Len(t, undeliverableMessages, 1)
+		mutex.Unlock()
 	})
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {
