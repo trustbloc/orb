@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
@@ -50,7 +51,7 @@ func TestNewOutbox(t *testing.T) {
 			Topic:       "activities",
 		}
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -65,7 +66,7 @@ func TestNewOutbox(t *testing.T) {
 
 		errExpected := errors.New("injected PubSub error")
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
 		require.Error(t, err)
 		require.True(t, errors.Is(err, errExpected))
@@ -86,7 +87,7 @@ func TestOutbox_StartStop(t *testing.T) {
 		Topic:       "activities",
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, &http.Client{},
+	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
 		&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
@@ -190,7 +191,7 @@ func TestOutbox_Post(t *testing.T) {
 		},
 	}
 
-	ob, err := New(cfg, activityStore, pubSub, &http.Client{},
+	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
 		&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
@@ -280,7 +281,7 @@ func TestOutbox_PostError(t *testing.T) {
 	objIRI := testutil.MustParseURL("http://example.com/transactions/txn1")
 
 	t.Run("Not started", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -298,7 +299,7 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.AddActivityReturns(errExpected)
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -322,7 +323,7 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.AddReferenceReturns(errExpected)
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -341,7 +342,7 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -366,7 +367,7 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery max retries reached", func(t *testing.T) {
 		undeliverableHandler := mocks.NewUndeliverableHandler()
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -402,7 +403,7 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery unmarshal error", func(t *testing.T) {
 		pubSub := mocks.NewPubSub()
 
-		ob, err := New(cfg, activityStore, pubSub, &http.Client{},
+		ob, err := New(cfg, activityStore, pubSub, transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -439,7 +440,7 @@ func TestOutbox_PostError(t *testing.T) {
 		handler := &mocks.ActivityHandler{}
 		handler.HandleActivityReturns(errExpected)
 
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			handler, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -467,7 +468,7 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 
 	t.Run("Invalid actor error", func(t *testing.T) {
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), &http.Client{},
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
 			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)

@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/httppublisher"
@@ -82,8 +83,13 @@ type Outbox struct {
 	jsonUnmarshal        func(data []byte, v interface{}) error
 }
 
+type httpTransport interface {
+	Post(ctx context.Context, req *transport.Request, payload []byte) (*http.Response, error)
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
+}
+
 // New returns a new ActivityPub Outbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client, activityHandler service.ActivityHandler,
+func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
 	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := defaultOptions()
 
@@ -107,7 +113,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client, act
 		activityHandler:      activityHandler,
 		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
-		client:               client.New(httpClient),
+		client:               client.New(t),
 		redeliveryChan:       redeliverChan,
 		publisher:            pubSub,
 		undeliverableChan:    undeliverableChan,
@@ -126,7 +132,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, httpClient *http.Client, act
 		panic(err)
 	}
 
-	httpPublisher := httppublisher.New(cfg.ServiceName, httpClient)
+	httpPublisher := httppublisher.New(cfg.ServiceName, t)
 
 	router.AddHandler(
 		"outbox-"+cfg.ServiceName, cfg.Topic,

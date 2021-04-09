@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -64,11 +66,11 @@ type handler struct {
 	undoFollow  undoFollowFunc
 }
 
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
+type httpTransport interface {
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
-func newHandler(cfg *Config, s store.Store, httpClient httpClient, undoFollow undoFollowFunc) *handler {
+func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow undoFollowFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -80,7 +82,7 @@ func newHandler(cfg *Config, s store.Store, httpClient httpClient, undoFollow un
 	h := &handler{
 		Config:     cfg,
 		store:      s,
-		client:     client.New(httpClient),
+		client:     client.New(t),
 		undoFollow: undoFollow,
 	}
 

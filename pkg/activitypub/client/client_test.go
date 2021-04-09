@@ -17,13 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/client/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-//go:generate counterfeiter -o ./mocks/httpclient.gen.go --fake-name HTTPClient . httpClient
+//go:generate counterfeiter -o ../mocks/httptransport.gen.go --fake-name HTTPTransport . httpTransport
 
 func TestClient_GetActor(t *testing.T) {
 	actorIRI := testutil.MustParseURL("https://example.com/services/service1")
@@ -32,7 +32,7 @@ func TestClient_GetActor(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Success", func(t *testing.T) {
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw := httptest.NewRecorder()
 
@@ -41,7 +41,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -55,7 +55,7 @@ func TestClient_GetActor(t *testing.T) {
 	})
 
 	t.Run("Error status code", func(t *testing.T) {
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw := httptest.NewRecorder()
 
@@ -63,7 +63,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -79,9 +79,9 @@ func TestClient_GetActor(t *testing.T) {
 	t.Run("HTTP client error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected HTTP client error")
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
-		httpClient.DoReturns(nil, errExpected)
+		httpClient.GetReturns(nil, errExpected)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -98,11 +98,11 @@ func TestClient_GetActor(t *testing.T) {
 		_, err = rw.Write([]byte("{"))
 		require.NoError(t, err)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -137,7 +137,7 @@ func TestClient_GetReferences(t *testing.T) {
 		serviceBytes, e := json.Marshal(aptestutil.NewMockService(serviceIRI))
 		require.NoError(t, e)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw := httptest.NewRecorder()
 
@@ -146,7 +146,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -180,7 +180,7 @@ func TestClient_GetReferences(t *testing.T) {
 		))
 		require.NoError(t, e)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw1 := httptest.NewRecorder()
 
@@ -201,9 +201,9 @@ func TestClient_GetReferences(t *testing.T) {
 		result2 := rw2.Result()
 		result3 := rw3.Result()
 
-		httpClient.DoReturnsOnCall(0, result1, nil)
-		httpClient.DoReturnsOnCall(1, result2, nil)
-		httpClient.DoReturnsOnCall(2, result3, nil)
+		httpClient.GetReturnsOnCall(0, result1, nil)
+		httpClient.GetReturnsOnCall(1, result2, nil)
+		httpClient.GetReturnsOnCall(2, result3, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -245,7 +245,7 @@ func TestClient_GetReferences(t *testing.T) {
 		))
 		require.NoError(t, e)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw1 := httptest.NewRecorder()
 
@@ -266,9 +266,9 @@ func TestClient_GetReferences(t *testing.T) {
 		result2 := rw2.Result()
 		result3 := rw3.Result()
 
-		httpClient.DoReturnsOnCall(0, result1, nil)
-		httpClient.DoReturnsOnCall(1, result2, nil)
-		httpClient.DoReturnsOnCall(2, result3, nil)
+		httpClient.GetReturnsOnCall(0, result1, nil)
+		httpClient.GetReturnsOnCall(1, result2, nil)
+		httpClient.GetReturnsOnCall(2, result3, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -292,9 +292,9 @@ func TestClient_GetReferences(t *testing.T) {
 	t.Run("HTTP client error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected HTTP client error")
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
-		httpClient.DoReturns(nil, errExpected)
+		httpClient.GetReturns(nil, errExpected)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -311,11 +311,11 @@ func TestClient_GetReferences(t *testing.T) {
 		_, err = rw.Write([]byte("{"))
 		require.NoError(t, err)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -337,11 +337,11 @@ func TestClient_GetReferences(t *testing.T) {
 		_, e = rw.Write(invalidCollBytes)
 		require.NoError(t, e)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		result := rw.Result()
 
-		httpClient.DoReturns(result, nil)
+		httpClient.GetReturns(result, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -355,7 +355,7 @@ func TestClient_GetReferences(t *testing.T) {
 	})
 
 	t.Run("Unmarshal collection page error", func(t *testing.T) {
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw1 := httptest.NewRecorder()
 
@@ -370,8 +370,8 @@ func TestClient_GetReferences(t *testing.T) {
 		result1 := rw1.Result()
 		result2 := rw2.Result()
 
-		httpClient.DoReturnsOnCall(0, result1, nil)
-		httpClient.DoReturnsOnCall(1, result2, nil)
+		httpClient.GetReturnsOnCall(0, result1, nil)
+		httpClient.GetReturnsOnCall(1, result2, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)
@@ -396,7 +396,7 @@ func TestClient_GetReferences(t *testing.T) {
 		invalidCollBytes, err := json.Marshal(aptestutil.NewMockService(actorIRI))
 		require.NoError(t, err)
 
-		httpClient := &mocks.HTTPClient{}
+		httpClient := &mocks.HTTPTransport{}
 
 		rw1 := httptest.NewRecorder()
 
@@ -411,8 +411,8 @@ func TestClient_GetReferences(t *testing.T) {
 		result1 := rw1.Result()
 		result2 := rw2.Result()
 
-		httpClient.DoReturnsOnCall(0, result1, nil)
-		httpClient.DoReturnsOnCall(1, result2, nil)
+		httpClient.GetReturnsOnCall(0, result1, nil)
+		httpClient.GetReturnsOnCall(1, result2, nil)
 
 		c := New(httpClient)
 		require.NotNil(t, t, c)

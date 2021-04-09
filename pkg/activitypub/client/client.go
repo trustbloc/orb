@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -29,20 +31,20 @@ type ReferenceIterator interface {
 	TotalItems() int
 }
 
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
+type httpTransport interface {
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
 // Client implements an ActivityPub client which retrieves ActivityPub objects (such as actors, activities,
 // and collections) from remote sources.
 type Client struct {
-	httpClient httpClient
+	httpTransport
 }
 
 // New returns a new ActivityPub client.
-func New(httpClient httpClient) *Client {
+func New(t httpTransport) *Client {
 	return &Client{
-		httpClient: httpClient,
+		httpTransport: t,
 	}
 }
 
@@ -92,7 +94,7 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.Get(context.Background(), transport.NewRequest(iri))
 	if err != nil {
 		return nil, fmt.Errorf("request to %s failed: %w", iri, err)
 	}

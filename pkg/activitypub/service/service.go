@@ -16,6 +16,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
@@ -62,8 +63,13 @@ type Service struct {
 	activityHandler spi.ActivityHandler
 }
 
+type httpTransport interface {
+	Post(ctx context.Context, req *transport.Request, payload []byte) (*http.Response, error)
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
+}
+
 // New returns a new ActivityPub service.
-func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
+func New(cfg *Config, activityStore store.Store, t httpTransport,
 	handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
@@ -71,7 +77,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 			BufferSize:  cfg.ActivityHandlerBufferSize,
 			ServiceIRI:  cfg.ServiceIRI,
 		},
-		activityStore, httpClient)
+		activityStore, t)
 
 	ob, err := outbox.New(
 		&outbox.Config{
@@ -81,7 +87,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
 		activityStore, newPubSub(cfg, cfg.ServiceEndpoint+resthandler.OutboxPath),
-		httpClient, outboxHandler, handlerOpts...,
+		t, outboxHandler, handlerOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)
@@ -94,7 +100,7 @@ func New(cfg *Config, activityStore store.Store, httpClient *http.Client,
 			ServiceIRI:      cfg.ServiceIRI,
 			MaxWitnessDelay: cfg.MaxWitnessDelay,
 		},
-		activityStore, ob, httpClient, handlerOpts...)
+		activityStore, ob, t, handlerOpts...)
 
 	ib, err := inbox.New(
 		&inbox.Config{

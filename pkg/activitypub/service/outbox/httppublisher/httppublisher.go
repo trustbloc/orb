@@ -7,15 +7,17 @@ SPDX-License-Identifier: Apache-2.0
 package httppublisher
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 )
 
@@ -24,23 +26,27 @@ var logger = log.New("activitypub_service")
 // MetadataSendTo is the metadata key for the destination URL.
 const MetadataSendTo = "send_to"
 
+type httpTransport interface {
+	Post(ctx context.Context, req *transport.Request, payload []byte) (*http.Response, error)
+}
+
 // Publisher is an implementation of a Watermill Publisher that publishes messages over HTTP.
 type Publisher struct {
 	*lifecycle.Lifecycle
 
 	ServiceName    string
-	client         *http.Client
+	httpTransport  httpTransport
 	jsonMarshal    func(v interface{}) ([]byte, error)
-	newRequestFunc func(string, *message.Message) (*http.Request, error)
+	newRequestFunc func(string, *message.Message) (*transport.Request, error)
 }
 
 // New creates a new HTTP Publisher.
-func New(serviceName string, client *http.Client) *Publisher {
+func New(serviceName string, t httpTransport) *Publisher {
 	p := &Publisher{
-		ServiceName: serviceName,
-		Lifecycle:   lifecycle.New(serviceName),
-		client:      client,
-		jsonMarshal: json.Marshal,
+		ServiceName:   serviceName,
+		Lifecycle:     lifecycle.New(serviceName),
+		httpTransport: t,
+		jsonMarshal:   json.Marshal,
 	}
 
 	p.newRequestFunc = p.newRequest
@@ -78,7 +84,7 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 
 	logger.Debugf("[%s] Sending message [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
 
-	resp, err := p.client.Do(req)
+	resp, err := p.httpTransport.Post(context.Background(), req, msg.Payload)
 	if err != nil {
 		return fmt.Errorf("send message [%s]: %w", msg.UUID, err)
 	}
@@ -99,16 +105,18 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 	return nil
 }
 
-func (p *Publisher) newRequest(_ string, msg *message.Message) (*http.Request, error) {
-	toURL, ok := msg.Metadata[MetadataSendTo]
+func (p *Publisher) newRequest(_ string, msg *message.Message) (*transport.Request, error) {
+	to, ok := msg.Metadata[MetadataSendTo]
 	if !ok {
 		return nil, fmt.Errorf("metadata [%s] not found in message", MetadataSendTo)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, toURL, bytes.NewBuffer(msg.Payload))
+	toURL, err := url.Parse(to)
 	if err != nil {
-		return nil, fmt.Errorf("create HTTP request: %w", err)
+		return nil, fmt.Errorf("parse URL %s: %w", to, err)
 	}
+
+	req := transport.NewRequest(toURL)
 
 	req.Header.Set(wmhttp.HeaderUUID, msg.UUID)
 

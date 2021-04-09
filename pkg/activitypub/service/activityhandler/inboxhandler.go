@@ -27,7 +27,7 @@ type Inbox struct {
 }
 
 // NewInbox returns a new ActivityPub inbox activity handler.
-func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, httpClient httpClient,
+func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport,
 	opts ...service.HandlerOpt) *Inbox {
 	options := defaultOptions()
 
@@ -40,7 +40,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, httpClient http
 		Handlers: options,
 	}
 
-	h.handler = newHandler(cfg, s, httpClient, h.undoFollower)
+	h.handler = newHandler(cfg, s, t, h.undoFollower)
 
 	h.undoFollow = h.undoFollower
 
