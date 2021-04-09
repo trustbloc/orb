@@ -7,10 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package httppublisher
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -22,15 +22,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/httpserver"
 )
 
 func TestNew(t *testing.T) {
-	p := New("service1", http.DefaultClient)
+	p := New("service1", transport.Default())
 	require.NotNil(t, p)
-	require.NotNil(t, p.client)
-	require.Nil(t, p.client.Transport)
+	require.NotNil(t, p.httpTransport)
 	require.Equal(t, spi.StateStarted, p.State())
 
 	require.NoError(t, p.Close())
@@ -85,7 +85,7 @@ func TestPublisher_Publish(t *testing.T) {
 		require.NoError(t, httpServer.Stop(context.Background()))
 	}()
 
-	p := New("service1", http.DefaultClient)
+	p := New("service1", transport.Default())
 	require.NotNil(t, p)
 
 	t.Run("Success", func(t *testing.T) {
@@ -122,21 +122,23 @@ func TestPublisher_Publish(t *testing.T) {
 	})
 
 	t.Run("BadRequest error", func(t *testing.T) {
-		p.newRequestFunc = func(s string, m *message.Message) (*http.Request, error) {
-			return http.NewRequest(http.MethodPost, serviceURL, bytes.NewBuffer([]byte("invalid")))
+		errExpected := fmt.Errorf("injected request error")
+
+		p.newRequestFunc = func(s string, m *message.Message) (*transport.Request, error) {
+			return nil, errExpected
 		}
 		defer func() { p.newRequestFunc = p.newRequest }()
 
 		err := p.Publish("topic", message.NewMessage(watermill.NewUUID(), []byte("payload")))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "400 Bad Request")
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 }
 
 func TestNewRequest(t *testing.T) {
 	const serviceURL = "http://localhost:8100/services/service1"
 
-	p := New("service1", http.DefaultClient)
+	p := New("service1", transport.Default())
 	require.NotNil(t, p)
 
 	t.Run("Success", func(t *testing.T) {
@@ -154,10 +156,6 @@ func TestNewRequest(t *testing.T) {
 		var md message.Metadata
 		require.NoError(t, json.Unmarshal([]byte(metadata), &md))
 		require.Equal(t, serviceURL, md[MetadataSendTo])
-
-		payload, err := ioutil.ReadAll(req.Body)
-		require.NoError(t, err)
-		require.Equal(t, payload1, payload)
 	})
 
 	t.Run("No SendTo metadata", func(t *testing.T) {

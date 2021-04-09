@@ -44,6 +44,7 @@ import (
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -301,8 +302,12 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 	}
 
+	// TODO: Pass in private key, public key ID and signers.
+	t := transport.New(httpClient, nil, "",
+		transport.DefaultSigner(), transport.DefaultSigner())
+
 	activityPubService, err := apservice.New(apConfig,
-		apStore, httpClient,
+		apStore, t,
 		// TODO: Define all of the ActivityPub handlers
 		// apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(vct.New(parameters.vctURL, vct.WithHTTPClient(httpClient))),

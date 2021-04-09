@@ -19,7 +19,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
-	clientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -42,7 +42,7 @@ func TestNewInbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -62,7 +62,7 @@ func TestNewOutbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewOutbox(cfg, &mocks.ActivityStore{}, &clientmocks.HTTPClient{})
+	h := NewOutbox(cfg, &mocks.ActivityStore{}, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
 	require.Equal(t, spi.StateNotStarted, h.State())
@@ -81,7 +81,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceName: "service1",
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -116,7 +116,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
 
-	h := NewInbox(cfg, activityStore, ob, &clientmocks.HTTPClient{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -280,8 +280,8 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 	followerAuth := mocks.NewFollowerAuth()
 
-	httpClient := &clientmocks.HTTPClient{}
-	httpClient.DoReturns(nil, client.ErrNotFound)
+	httpClient := &apmocks.HTTPTransport{}
+	httpClient.GetReturns(nil, client.ErrNotFound)
 
 	h := NewInbox(cfg, as, ob, httpClient, spi.WithFollowerAuth(followerAuth))
 	require.NotNil(t, h)
@@ -457,7 +457,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -608,7 +608,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, &clientmocks.HTTPClient{})
+	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
 	h.Start()
@@ -757,7 +757,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &clientmocks.HTTPClient{},
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{},
 		spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
@@ -961,7 +961,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service1IRI, "/activities/123456789"))
 	witness := mocks.NewWitnessHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, &clientmocks.HTTPClient{}, spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, &apmocks.HTTPTransport{}, spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1150,7 +1150,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 	proofHandler := mocks.NewProofHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &clientmocks.HTTPClient{},
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &apmocks.HTTPTransport{},
 		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 
@@ -1341,8 +1341,8 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 	ob := mocks.NewOutbox()
 
-	httpClient := &clientmocks.HTTPClient{}
-	httpClient.DoReturns(nil, client.ErrNotFound)
+	httpClient := &apmocks.HTTPTransport{}
+	httpClient.GetReturns(nil, client.ErrNotFound)
 
 	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), ob, httpClient)
 	require.NotNil(t, inboxHandler)

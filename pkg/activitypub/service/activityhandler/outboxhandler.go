@@ -19,10 +19,10 @@ type Outbox struct {
 }
 
 // NewOutbox returns a new ActivityPub outbox activity handler.
-func NewOutbox(cfg *Config, s store.Store, httpClient httpClient) *Outbox {
+func NewOutbox(cfg *Config, s store.Store, t httpTransport) *Outbox {
 	h := &Outbox{}
 
-	h.handler = newHandler(cfg, s, httpClient, h.undoFollowing)
+	h.handler = newHandler(cfg, s, t, h.undoFollowing)
 
 	h.undoFollow = h.undoFollowing
 
