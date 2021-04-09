@@ -54,8 +54,8 @@ func NewComposition(projectName string, composeFilesYaml string, dir string) (co
 }
 
 // Up brings up all containers
-func (c *Composition) Up() error {
-	if _, err := c.issueCommand([]string{"up", "--force-recreate", "-d"}); err != nil {
+func (c *Composition) Up(names ...string) error {
+	if _, err := c.issueCommand(append([]string{"up", "--force-recreate", "-d"}, names...)); err != nil {
 		return fmt.Errorf("Error bringing up docker containers using compose yaml '%s':  %s", c.composeFilesYaml, err)
 	}
 	return nil
@@ -93,7 +93,6 @@ func (c *Composition) refreshContainerList() (err error) {
 }
 
 func (c *Composition) issueCommand(args []string) (_ []byte, err error) {
-
 	var cmdOut []byte
 	errRetFunc := func() error {
 		return fmt.Errorf("Error issuing command to docker-compose with args '%s':  %s (%s)", args, err, string(cmdOut))
@@ -117,7 +116,7 @@ func (c *Composition) issueCommand(args []string) (_ []byte, err error) {
 // Decompose decompose the composition.  Will also remove any containers with the same projectName prefix (eg. chaincode containers)
 func (c *Composition) Decompose() (output string, err error) {
 	var outputBytes []byte
-	//var containers []string
+	// var containers []string
 	_, err = c.issueCommand([]string{"stop"})
 	if err != nil {
 		log.Fatal(err)
@@ -137,7 +136,7 @@ func (c *Composition) GenerateLogs() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile("docker-compose.log", outputBytes, 0775)
+	err = ioutil.WriteFile("docker-compose.log", outputBytes, 0o775)
 	return err
 }
 

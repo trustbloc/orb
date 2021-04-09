@@ -41,12 +41,13 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
+	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
-	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
@@ -70,7 +71,6 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
-	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 )
 
 const (
@@ -300,18 +300,14 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 	}
 
-	// TODO: A mock witness handler is set here so that the integration tests don't panic.
-	//  This needs to be replaced with a real witness handler.
-	mockWitnessHandler := apmocks.NewWitnessHandler().WithProof([]byte(mockProof))
-
 	activityPubService, err := apservice.New(apConfig,
 		apStore, httpClient,
 		// TODO: Define all of the ActivityPub handlers
-		//apspi.WithProofHandler(proofHandler),
-		apspi.WithWitness(mockWitnessHandler),
-		//apspi.WithFollowerAuth(followerAuth),
+		// apspi.WithProofHandler(proofHandler),
+		apspi.WithWitness(vct.New(parameters.vctURL, vct.WithHTTPClient(httpClient))),
+		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),
-		//apspi.WithUndeliverableHandler(undeliverableHandler),
+		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
@@ -634,18 +630,3 @@ func (m mockTxnProvider) RegisterForAnchor() <-chan []string {
 func (m mockTxnProvider) RegisterForDID() <-chan []string {
 	return m.registerForDID
 }
-
-const mockProof = `{
- "@context": [
-   "https://w3id.org/security/v1",
-   "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
- ],
- "proof": {
-   "type": "JsonWebSignature2020",
-   "proofPurpose": "assertionMethod",
-   "created": "2021-01-27T09:30:15Z",
-   "verificationMethod": "did:example:abcd#key",
-   "domain": "https://witness1.example.com/ledgers/maple2021",
-   "jws": "eyJ..."
- }
-}`
