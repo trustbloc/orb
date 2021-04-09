@@ -31,11 +31,11 @@ type Transport struct {
 	getSigner   Signer
 	postSigner  Signer
 	privateKey  crypto.PrivateKey
-	publicKeyID string
+	publicKeyID *url.URL
 }
 
 // New returns a new transport.
-func New(client httpClient, privateKey crypto.PrivateKey, publicKeyID string,
+func New(client httpClient, privateKey crypto.PrivateKey, publicKeyID *url.URL,
 	getSigner, postSigner Signer) *Transport {
 	return &Transport{
 		client:      client,
@@ -64,9 +64,10 @@ func NewRequest(toURL *url.URL) *Request {
 // This transport should only be used by tests.
 func Default() *Transport {
 	return &Transport{
-		client:     http.DefaultClient,
-		getSigner:  &NoOpSigner{},
-		postSigner: &NoOpSigner{},
+		client:      http.DefaultClient,
+		publicKeyID: &url.URL{},
+		getSigner:   &NoOpSigner{},
+		postSigner:  &NoOpSigner{},
 	}
 }
 
@@ -84,7 +85,7 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 
 	req.Header = r.Header
 
-	err = t.postSigner.SignRequest(t.privateKey, t.publicKeyID, req, payload)
+	err = t.postSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, payload)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -101,7 +102,7 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 
 	req.Header = r.Header
 
-	err = t.postSigner.SignRequest(t.privateKey, t.publicKeyID, req, nil)
+	err = t.getSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

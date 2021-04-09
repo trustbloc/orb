@@ -21,8 +21,10 @@ import (
 //go:generate counterfeiter -o ../mocks/httpclient.gen.go --fake-name HTTPClient . httpClient
 //go:generate counterfeiter -o ../mocks/httpsigner.gen.go --fake-name HTTPSigner . Signer
 
+const publicKeyID = "https://alice.example.com/services/orb#main-key"
+
 func TestNew(t *testing.T) {
-	tp := New(http.DefaultClient, nil, "", DefaultSigner(), DefaultSigner())
+	tp := New(http.DefaultClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 	require.NotNil(t, tp)
 }
 
@@ -41,7 +43,7 @@ func TestTransport_Post(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, nil, "", DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
@@ -57,7 +59,7 @@ func TestTransport_Post(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, nil, "", signer, signer)
+		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), signer, signer)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
@@ -76,7 +78,7 @@ func TestTransport_Get(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, nil, "", DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
@@ -91,7 +93,7 @@ func TestTransport_Get(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, nil, "", signer, signer)
+		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), signer, signer)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
