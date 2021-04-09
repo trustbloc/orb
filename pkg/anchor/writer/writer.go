@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -250,8 +249,6 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 
 		return
 	}
-
-	logger.Debugf("created activity for cid[%s]", cid)
 }
 
 // postActivity creates and posts new activity to activity pub.
@@ -284,27 +281,21 @@ func (c *Writer) postActivity(vc *verifiable.Credential, cid string) error { //n
 		return fmt.Errorf("failed to create new object with document: %s", err.Error())
 	}
 
-	activityID, err := newActivityID(c.apServiceIRI.String())
-	if err != nil {
-		return fmt.Errorf("failed to create new activity ID: %s", err.Error())
-	}
-
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
-		vocab.WithActor(c.apServiceIRI),
 		vocab.WithTarget(targetProperty),
 		vocab.WithContext(vocab.ContextOrb),
 		vocab.WithTo(systemFollowers),
-		vocab.WithID(activityID),
 	)
 
-	_, err = c.Outbox.Post(create)
+	postID, err := c.Outbox.Post(create)
+	if err != nil {
+		return nil
+	}
 
-	return err
-}
+	logger.Debugf("created activity for cid[%s], post id[%s]", cid, postID)
 
-func newActivityID(serviceName string) (*url.URL, error) {
-	return url.Parse(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
+	return nil
 }
 
 // getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.

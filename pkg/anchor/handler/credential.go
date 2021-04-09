@@ -32,14 +32,3 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string
 
 	return nil
 }
-
-/*
-func unmarshalAnchorCredentialReference(bytes []byte) (*vocab.AnchorCredentialReferenceType, error) {
-	r := &vocab.AnchorCredentialReferenceType{}
-
-	if err := json.Unmarshal(bytes, &r); err != nil {
-		return nil, err
-	}
-
-	return r, nil
-} */
