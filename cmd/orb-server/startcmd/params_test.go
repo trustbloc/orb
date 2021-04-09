@@ -41,7 +41,20 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	t.Run("test blank cas url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, ""}
+		args := []string{"--" + hostURLFlagName, "test"}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+
+		const errMsg = "vct-url (command line flag) nor ORB_VCT_URL (environment variable) have been set."
+		require.Contains(t, err.Error(), errMsg)
+	})
+
+	t.Run("test blank cas url arg", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "", "--" + vctURLFlagName, "test"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -52,7 +65,10 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	t.Run("test blank did namespace arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test", "--" + didNamespaceFlagName, ""}
+		args := []string{
+			"--" + hostURLFlagName, "test", "--" + casURLFlagName,
+			"test", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName, "",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -63,15 +79,16 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	t.Run("test blank database type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test",
-			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, ""}
+		args := []string{
+			"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test", "--" + vctURLFlagName, "test",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, "",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "database-type value is empty", err.Error())
 	})
-
 }
 
 func TestStartCmdWithMissingArg(t *testing.T) {
@@ -88,7 +105,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing cas url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080"}
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + vctURLFlagName, "test"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -101,12 +118,16 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing anchor credential issuer arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
-			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-			"--" + anchorCredentialDomainFlagName, "domain.com"}
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -119,12 +140,16 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing anchor credential domain arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
-			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com"}
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -138,12 +163,16 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing anchor credential url", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
-			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com"}
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -156,13 +185,17 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
-			"localhost:8081", "--" + didNamespaceFlagName, "namespace",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + vctURLFlagName, "localhost:8081",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com"}
+			"--" + anchorCredentialURLFlagName, "peer.com",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -176,7 +209,9 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test invalid batch writer timeout", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8247",
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casURLFlagName, "localhost:8081",
 			"--" + batchWriterTimeoutFlagName, "abc",
@@ -186,7 +221,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
 
 		startCmd.SetArgs(args)
 
@@ -215,6 +251,9 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err := os.Setenv(hostURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
 
+		err = os.Setenv(vctURLEnvKey, "localhost:8080")
+		require.NoError(t, err)
+
 		err = os.Setenv(casURLEnvKey, "")
 		require.NoError(t, err)
 
@@ -227,14 +266,19 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 func TestStartCmdCreateKMSFailure(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + casURLFlagName,
-		"localhost:8081", "--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+	args := []string{
+		"--" + hostURLFlagName, "localhost:8080",
+		"--" + casURLFlagName, "localhost:8081",
+		"--" + vctURLFlagName, "localhost:8081",
+		"--" + didNamespaceFlagName, "namespace",
+		"--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + anchorCredentialURLFlagName, "peer.com",
-		"--" + kmsSecretsDatabaseURLFlagName, "badURL"}
+		"--" + kmsSecretsDatabaseURLFlagName, "badURL",
+	}
 	startCmd.SetArgs(args)
 
 	err := startCmd.Execute()
@@ -263,7 +307,8 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 func TestStartCmdValidArgs(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	args := []string{"--" + hostURLFlagName, "localhost:8247",
+	args := []string{
+		"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + casURLFlagName, "localhost:8081",
 		"--" + batchWriterTimeoutFlagName, "700",
@@ -273,7 +318,8 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + anchorCredentialURLFlagName, "peer.com",
-		"--" + LogLevelFlagName, log.ParseString(log.ERROR)}
+		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+	}
 	startCmd.SetArgs(args)
 
 	go func() {

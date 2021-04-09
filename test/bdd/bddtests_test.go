@@ -10,16 +10,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/cucumber/godog/gherkin"
+	"github.com/cucumber/messages-go/v10"
 )
 
+// vctService docker service name from fixtures/docker-compose.yml
+const vctService = "orb.vct"
+
 var context *BDDContext
+
+var createTree = "./scripts/pre_setup.sh"
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -47,10 +53,27 @@ func TestMain(m *testing.M) {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 
-				testSleep := 20
+				logger.Infof("Creating tree log id")
+				res, err := exec.Command(createTree).CombinedOutput() //nolint: gosec
+				if err != nil {
+					logger.Fatal(err)
+				}
+
+				logger.Infof("VCT_LOG_ID: %s", strings.TrimSpace(string(res)))
+
+				if err = os.Setenv("VCT_LOG_ID", strings.TrimSpace(string(res))); err != nil {
+					logger.Fatal(err)
+				}
+
+				if err := context.Composition().Up(vctService); err != nil {
+					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
+				}
+
+				var testSleep int
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}
+
 				fmt.Println(fmt.Sprintf("docker-compose up with tags=%s ... waiting for orb to start for %d seconds", tags, testSleep))
 				time.Sleep(time.Second * time.Duration(testSleep))
 			}
@@ -68,12 +91,10 @@ func TestMain(m *testing.M) {
 			}
 		})
 
-		s.BeforeScenario(func(i interface{}) {
+		s.BeforeScenario(func(pickle *messages.Pickle) {
 			state.clear()
 
-			if s, ok := i.(*gherkin.Scenario); ok {
-				logger.Infof("\n\n********** Running scenario: %s **********", s.Name)
-			}
+			logger.Infof("\n\n********** Running scenario: %s **********", pickle.GetName())
 		})
 
 		FeatureContext(s, state)
