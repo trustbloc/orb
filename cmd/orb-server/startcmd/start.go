@@ -8,6 +8,8 @@ package startcmd
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -36,6 +38,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -94,8 +97,9 @@ const (
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
 
-	activityPubServicesPath     = "/services/orb"
-	activityPubTransactionsPath = "/transactions"
+	activityPubServicesPath         = "/services/orb"
+	activityPubServicePublicKeyPath = "/services/orb#main-key"
+	activityPubTransactionsPath     = "/transactions"
 
 	casPath = "/cas"
 )
@@ -269,20 +273,13 @@ func startOrbServices(parameters *orbParameters) error {
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
-	casIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, casPath))
-	if err != nil {
-		return fmt.Errorf("invalid CAS service IRI: %s", err.Error())
-	}
+	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
-	apServiceIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubServicesPath))
-	if err != nil {
-		return fmt.Errorf("invalid service IRI: %s", err.Error())
-	}
+	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
 
-	apTransactionsIRI, err := url.Parse(fmt.Sprintf("%s%s", parameters.externalEndpoint, activityPubTransactionsPath))
-	if err != nil {
-		return fmt.Errorf("invalid transactions IRI: %s", err.Error())
-	}
+	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint, activityPubServicePublicKeyPath)
+
+	apTransactionsIRI := mustParseURL(parameters.externalEndpoint, activityPubTransactionsPath)
 
 	apConfig := &apservice.Config{
 		ServiceEndpoint: activityPubServicesPath,
@@ -302,9 +299,16 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 	}
 
-	// TODO: Pass in private key, public key ID and signers.
-	t := transport.New(httpClient, nil, "",
-		transport.DefaultSigner(), transport.DefaultSigner())
+	// TODO: Replace with real signing key.
+	_, privKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	t := transport.New(httpClient, privKey, apServicePublicKeyIRI,
+		httpsig.NewSigner(httpsig.DefaultGetSignerConfig()),
+		httpsig.NewSigner(httpsig.DefaultPostSignerConfig()),
+	)
 
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t,
@@ -635,4 +639,13 @@ func (m mockTxnProvider) RegisterForAnchor() <-chan []string {
 
 func (m mockTxnProvider) RegisterForDID() <-chan []string {
 	return m.registerForDID
+}
+
+func mustParseURL(basePath, relativePath string) *url.URL {
+	u, err := url.Parse(fmt.Sprintf("%s%s", basePath, relativePath))
+	if err != nil {
+		panic(fmt.Errorf("invalid URL: %s", err.Error()))
+	}
+
+	return u
 }
