@@ -20,7 +20,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
-	"github.com/trustbloc/orb/pkg/didanchorref"
 )
 
 var logger = log.New("anchor-writer")
@@ -63,8 +62,8 @@ type anchorBuilder interface {
 }
 
 type didAnchors interface {
-	Add(dids []string, cid string) error
-	Last(did string) (string, error)
+	Put(dids []string, cid string) error
+	Get(did []string) ([]string, error)
 }
 
 type vcStore interface {
@@ -134,30 +133,39 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 
 //
 func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]string, error) {
-	// assemble map of previous did anchors for each did that is referenced in anchor
+	// assemble map of latest did anchor references
 	previousAnchors := make(map[string]string)
 
-	for _, ref := range refs {
-		last, err := c.DidAnchors.Last(ref.UniqueSuffix)
-		if err != nil {
-			if err == didanchorref.ErrDidAnchorsNotFound {
-				if ref.Type != operation.TypeCreate {
-					return nil, fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix) //nolint:lll
-				}
+	suffixes := getSuffixes(refs)
 
-				// create doesn't have previous anchor references
-				previousAnchors[ref.UniqueSuffix] = ""
+	anchors, err := c.DidAnchors.Get(suffixes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve latest did anchor references for suffixes[%s]", suffixes) //nolint:lll
+	}
 
-				continue
-			} else {
-				return nil, err
+	for i, ref := range refs {
+		if anchors[i] == "" {
+			if ref.Type != operation.TypeCreate {
+				return nil, fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix) //nolint:lll
 			}
-		}
 
-		previousAnchors[ref.UniqueSuffix] = last
+			// create doesn't have previous anchor references
+			previousAnchors[ref.UniqueSuffix] = ""
+		} else {
+			previousAnchors[ref.UniqueSuffix] = anchors[i]
+		}
 	}
 
 	return previousAnchors, nil
+}
+
+func getSuffixes(refs []*operation.Reference) []string {
+	suffixes := make([]string, len(refs))
+	for i, ref := range refs {
+		suffixes[i] = ref.UniqueSuffix
+	}
+
+	return suffixes
 }
 
 // buildCredential builds and signs anchor credential.
@@ -231,7 +239,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	// update global did/anchor references
 	suffixes := getKeys(anchorSubject.PreviousAnchors)
 
-	err = c.DidAnchors.Add(suffixes, cid)
+	err = c.DidAnchors.Put(suffixes, cid)
 	if err != nil {
 		logger.Errorf("failed updating did anchor references for anchor credential[%s]: %s", vc.ID, err.Error())
 
