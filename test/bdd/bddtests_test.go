@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,12 +19,7 @@ import (
 	"github.com/cucumber/messages-go/v10"
 )
 
-// vctService docker service name from fixtures/docker-compose.yml
-const vctService = "orb.vct"
-
 var context *BDDContext
-
-var createTree = "./scripts/pre_setup.sh"
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -53,23 +47,7 @@ func TestMain(m *testing.M) {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 
-				logger.Infof("Creating tree log id")
-				res, err := exec.Command(createTree).CombinedOutput() //nolint: gosec
-				if err != nil {
-					logger.Fatal(err)
-				}
-
-				logger.Infof("VCT_LOG_ID: %s", strings.TrimSpace(string(res)))
-
-				if err = os.Setenv("VCT_LOG_ID", strings.TrimSpace(string(res))); err != nil {
-					logger.Fatal(err)
-				}
-
-				if err := context.Composition().Up(vctService); err != nil {
-					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
-				}
-
-				var testSleep int
+				testSleep := 30
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}
