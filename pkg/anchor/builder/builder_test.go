@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -92,7 +93,7 @@ type mockSigner struct {
 	Err error
 }
 
-func (m *mockSigner) Sign(vc *verifiable.Credential) (*verifiable.Credential, error) {
+func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

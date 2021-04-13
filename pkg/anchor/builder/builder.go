@@ -16,6 +16,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
 // Params holds required parameters for building anchor credential.
@@ -37,7 +38,7 @@ func New(signer vcSigner, params Params) (*Builder, error) {
 }
 
 type vcSigner interface {
-	Sign(vc *verifiable.Credential) (*verifiable.Credential, error)
+	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
 }
 
 // Builder implements building of anchor credential.

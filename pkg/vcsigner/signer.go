@@ -81,9 +81,33 @@ type Signer struct {
 	params SigningParams
 }
 
+// Opt represents option for Sign fn.
+type Opt func(*verifiable.LinkedDataProofContext)
+
+// WithCreated allows providing time when signing credentials.
+func WithCreated(t time.Time) Opt {
+	return func(ctx *verifiable.LinkedDataProofContext) {
+		ctx.Created = &t
+	}
+}
+
+// WithSignatureRepresentation allows providing signature representation when signing credentials.
+func WithSignatureRepresentation(signature verifiable.SignatureRepresentation) Opt {
+	return func(ctx *verifiable.LinkedDataProofContext) {
+		ctx.SignatureRepresentation = signature
+	}
+}
+
+// WithDomain allows providing domain when signing credentials.
+func WithDomain(domain string) Opt {
+	return func(ctx *verifiable.LinkedDataProofContext) {
+		ctx.Domain = domain
+	}
+}
+
 // Sign will sign verifiable credential.
-func (s *Signer) Sign(vc *verifiable.Credential) (*verifiable.Credential, error) {
-	signingCtx, err := s.getLinkedDataProofContext()
+func (s *Signer) Sign(vc *verifiable.Credential, opts ...Opt) (*verifiable.Credential, error) {
+	signingCtx, err := s.getLinkedDataProofContext(opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +120,7 @@ func (s *Signer) Sign(vc *verifiable.Credential) (*verifiable.Credential, error)
 	return vc, nil
 }
 
-func (s *Signer) getLinkedDataProofContext() (*verifiable.LinkedDataProofContext, error) {
+func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataProofContext, error) {
 	kmsSigner, err := s.getKMSSigner()
 	if err != nil {
 		return nil, err
@@ -123,6 +147,10 @@ func (s *Signer) getLinkedDataProofContext() (*verifiable.LinkedDataProofContext
 		Suite:                   signatureSuite,
 		Purpose:                 AssertionMethod,
 		Created:                 &now,
+	}
+
+	for _, opt := range opts {
+		opt(signingCtx)
 	}
 
 	return signingCtx, nil
