@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210310014234-cfa8c6d6e2f4
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210310014234-cfa8c6d6e2f4
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210325221830-6ab3160b7588
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/piprate/json-gold v0.4.0
