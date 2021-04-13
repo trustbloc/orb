@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
-	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
+	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
 
@@ -52,7 +52,7 @@ func TestNew(t *testing.T) {
 
 	providers := &Providers{
 		AnchorGraph:   graph.New(&graph.Providers{}),
-		DidAnchors:    memdidanchorref.New(),
+		DidAnchors:    memdidanchor.New(),
 		AnchorBuilder: &mockTxnBuilder{},
 		ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
 		Store:         vcStore,
@@ -85,7 +85,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		providers := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
 			OpProcessor:   &mockOpProcessor{},
@@ -126,7 +126,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		providers := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    &mockDidTxns{},
+			DidAnchors:    &mockDidAnchor{},
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -155,7 +155,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		providersWithErr := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{Err: errors.New("sign error")},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -181,7 +181,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		providersWithErr := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -203,7 +203,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		providers := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -238,7 +238,7 @@ func TestWriter_handle(t *testing.T) {
 
 		providers := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
 			Outbox:        &mockOutbox{},
@@ -270,7 +270,7 @@ func TestWriter_handle(t *testing.T) {
 
 		providersWithErr := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -294,7 +294,7 @@ func TestWriter_handle(t *testing.T) {
 
 		providersWithErr := &Providers{
 			AnchorGraph:   &mockAnchorGraph{Err: errors.New("txn graph error")},
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -318,7 +318,7 @@ func TestWriter_handle(t *testing.T) {
 
 		providersWithErr := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    &mockDidTxns{Err: errors.New("did references error")},
+			DidAnchors:    &mockDidAnchor{Err: errors.New("did references error")},
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: vcCh},
 			Outbox:        &mockOutbox{},
@@ -339,7 +339,7 @@ func TestWriter_handle(t *testing.T) {
 
 		providers := &Providers{
 			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchorref.New(),
+			DidAnchors:    memdidanchor.New(),
 			AnchorBuilder: &mockTxnBuilder{},
 			ProofHandler:  &mockProofHandler{vcCh: make(chan *verifiable.Credential, 100)},
 			Outbox:        &mockOutbox{Err: errors.New("outbox error")},
@@ -483,7 +483,7 @@ func TestWriter_Read(t *testing.T) {
 
 	providers := &Providers{
 		AnchorGraph: graph.New(graphProviders),
-		DidAnchors:  memdidanchorref.New(),
+		DidAnchors:  memdidanchor.New(),
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -542,11 +542,11 @@ func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, error) {
 	return "cid", nil
 }
 
-type mockDidTxns struct {
+type mockDidAnchor struct {
 	Err error
 }
 
-func (m *mockDidTxns) Add(_ []string, _ string) error {
+func (m *mockDidAnchor) Put(_ []string, _ string) error {
 	if m.Err != nil {
 		return m.Err
 	}
@@ -554,8 +554,8 @@ func (m *mockDidTxns) Add(_ []string, _ string) error {
 	return nil
 }
 
-func (m *mockDidTxns) Last(did string) (string, error) {
-	return "cid", nil
+func (m *mockDidAnchor) Get(did []string) ([]string, error) {
+	return []string{"cid"}, nil
 }
 
 type mockOpProcessor struct {

@@ -65,7 +65,7 @@ import (
 	"github.com/trustbloc/orb/pkg/context/common"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
-	"github.com/trustbloc/orb/pkg/didanchorref/memdidanchorref"
+	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
@@ -183,7 +183,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// basic providers (CAS + operation store)
 	casClient := cas.New(parameters.casURL)
 
-	didAnchors := memdidanchorref.New()
+	didAnchors := memdidanchor.New()
 	opStore := mocks.NewMockOperationStore()
 
 	orbDocumentLoader, err := loadOrbContexts()
