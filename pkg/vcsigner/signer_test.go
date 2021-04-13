@@ -9,6 +9,7 @@ package vcsigner
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	cryptomock "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
@@ -66,6 +67,24 @@ func TestSigner_Sign(t *testing.T) {
 		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
 		require.NoError(t, err)
 		require.Equal(t, 1, len(signedVC.Proofs))
+	})
+
+	t.Run("success - with options", func(t *testing.T) {
+		s, err := New(providers, signingParams)
+		require.NoError(t, err)
+
+		now := time.Now()
+
+		signedVC, err := s.Sign(
+			&verifiable.Credential{ID: "https://example.edu/credentials/1872"},
+			WithDomain("https://example.edu/credentials/2020"),
+			WithCreated(now),
+			WithSignatureRepresentation(verifiable.SignatureProofValue),
+		)
+		require.NoError(t, err)
+		require.Len(t, signedVC.Proofs, 1)
+		require.Equal(t, "https://example.edu/credentials/2020", signedVC.Proofs[0]["domain"])
+		require.Equal(t, now.Format(time.RFC3339Nano), signedVC.Proofs[0]["created"])
 	})
 
 	t.Run("success - Ed25519Signature2018", func(t *testing.T) {

@@ -187,7 +187,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.0.0-e47fa46
+    image: ghcr.io/trustbloc-cicd/vct:v0.0.0-dc82d93
     environment:
       - VCT_API_HOST=0.0.0.0:8077
       - VCT_LOG_ID=${VCT_LOG_ID}

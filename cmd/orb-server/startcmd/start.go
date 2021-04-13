@@ -38,7 +38,6 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -48,6 +47,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -318,7 +318,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore, t,
 		// TODO: Define all of the ActivityPub handlers
 		// apspi.WithProofHandler(proofHandler),
-		apspi.WithWitness(vct.New(parameters.vctURL, vct.WithHTTPClient(httpClient))),
+		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner, vct.WithHTTPClient(httpClient))),
 		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
