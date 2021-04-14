@@ -26,6 +26,7 @@ type Options struct {
 	CollectionOptions
 	ActivityOptions
 	ActorOptions
+	PublicKeyOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -303,6 +304,26 @@ func WithWitnessing(witnessing *url.URL) Opt {
 func WithLiked(liked *url.URL) Opt {
 	return func(opts *Options) {
 		opts.Liked = liked
+	}
+}
+
+// PublicKeyOptions holds the options for a Public Key.
+type PublicKeyOptions struct {
+	Owner        *url.URL
+	PublicKeyPem string
+}
+
+// WithOwner sets the 'owner' property on the public key.
+func WithOwner(owner *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Owner = owner
+	}
+}
+
+// WithPublicKeyPem sets the 'publicKeyPem' property on the public key.
+func WithPublicKeyPem(pem string) Opt {
+	return func(opts *Options) {
+		opts.PublicKeyPem = pem
 	}
 }
 

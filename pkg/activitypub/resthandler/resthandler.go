@@ -23,6 +23,8 @@ import (
 var logger = log.New("activitypub_resthandler")
 
 const (
+	// PublicKeysPath specifies the service's "keys" endpoint.
+	PublicKeysPath = "/keys/{id}"
 	// FollowersPath specifies the service's 'followers' endpoint.
 	FollowersPath = "/followers"
 	// FollowingPath specifies the service's 'following' endpoint.

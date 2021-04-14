@@ -12,9 +12,20 @@ import (
 
 // PublicKeyType defines a public key object.
 type PublicKeyType struct {
-	ID           string `json:"id"`
-	Owner        string `json:"owner"`
-	PublicKeyPem string `json:"publicKeyPem"`
+	ID           *URLProperty `json:"id"`
+	Owner        *URLProperty `json:"owner"`
+	PublicKeyPem string       `json:"publicKeyPem"`
+}
+
+// NewPublicKey returns a new public key object.
+func NewPublicKey(opts ...Opt) *PublicKeyType {
+	options := NewOptions(opts...)
+
+	return &PublicKeyType{
+		ID:           NewURLProperty(options.ID),
+		Owner:        NewURLProperty(options.Owner),
+		PublicKeyPem: options.PublicKeyPem,
+	}
 }
 
 // ActorType defines an 'actor'.

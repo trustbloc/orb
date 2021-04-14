@@ -15,6 +15,9 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
+// MainKeyID is the ID of the service's public key.
+const MainKeyID = "main-key"
+
 // Services implements the 'services' REST handler to retrieve a given ActivityPub service (actor).
 type Services struct {
 	*handler
@@ -29,6 +32,17 @@ func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKe
 	}
 
 	h.handler = newHandler("", cfg, activityStore, h.handle)
+
+	return h
+}
+
+// NewPublicKeys returns a new public keys REST handler.
+func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
+	h := &Services{
+		publicKey: publicKey,
+	}
+
+	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey)
 
 	return h
 }
@@ -53,6 +67,41 @@ func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	h.writeResponse(w, http.StatusOK, serviceBytes)
+}
+
+func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
+	keyID := getIDParam(req)
+
+	if keyID == "" {
+		logger.Infof("[%s] Key ID not specified [%s]", h.endpoint, h.ObjectIRI)
+
+		h.writeResponse(w, http.StatusBadRequest, nil)
+
+		return
+	}
+
+	// Currently only one key is supported. In the future we may wish to have
+	// multiple keys per service.
+	if keyID != MainKeyID {
+		logger.Infof("[%s] Public key [%s] not found for [%s]", h.endpoint, h.ObjectIRI, keyID)
+
+		h.writeResponse(w, http.StatusNotFound, nil)
+
+		return
+	}
+
+	publicKeyBytes, err := h.marshal(h.publicKey)
+	if err != nil {
+		logger.Errorf("[%s] Unable to marshal public key [%s]: %s", h.endpoint, h.ObjectIRI, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
+	logger.Debugf("[%s] Returning public key bytes: %s", h.endpoint, publicKeyBytes)
+
+	h.writeResponse(w, http.StatusOK, publicKeyBytes)
 }
 
 func (h *Services) newService() (*vocab.ActorType, error) {

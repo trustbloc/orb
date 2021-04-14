@@ -16,11 +16,7 @@ import (
 
 // NewMockService returns a mock 'Service' type actor with the given IRI.
 func NewMockService(serviceIRI *url.URL) *vocab.ActorType {
-	const (
-		keyID      = "https://example1.com/services/orb#main-key"
-		keyOwnerID = "https://example1.com/services/orb"
-		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
-	)
+	const keyPem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 
 	followers := testutil.NewMockID(serviceIRI, "/followers")
 	following := testutil.NewMockID(serviceIRI, "/following")
@@ -30,11 +26,11 @@ func NewMockService(serviceIRI *url.URL) *vocab.ActorType {
 	witnessing := testutil.NewMockID(serviceIRI, "/witnessing")
 	liked := testutil.NewMockID(serviceIRI, "/liked")
 
-	publicKey := &vocab.PublicKeyType{
-		ID:           keyID,
-		Owner:        keyOwnerID,
-		PublicKeyPem: keyPem,
-	}
+	publicKey := vocab.NewPublicKey(
+		vocab.WithID(testutil.NewMockID(serviceIRI, "/keys/main-key")),
+		vocab.WithOwner(serviceIRI),
+		vocab.WithPublicKeyPem(keyPem),
+	)
 
 	return vocab.NewService(serviceIRI,
 		vocab.WithPublicKey(publicKey),
