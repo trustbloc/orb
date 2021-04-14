@@ -26,6 +26,11 @@ Feature:
     Then check success response contains "#did"
     Then check success response contains "canonicalId"
 
+    # resolve did on the second server within same domain (organisation)
+    When client sends request to "https://localhost:48526/sidetree/v1/identifiers" to resolve DID document
+    Then check success response contains "#did"
+    Then check success response contains "canonicalId"
+
     When client sends request to "https://localhost:48326/sidetree/v1/identifiers" to resolve DID document with canonical id
     Then check success response contains "#canonicalId"
 
@@ -121,6 +126,11 @@ Feature:
     @discover_did
     Scenario: discover did
       When client discover orb endpoints
+
+      Then container "orb-domain2" is stopped
+      Then we wait 3 seconds
+
+      # orb-domain1 keeps accepting requests
       When client sends request to "https://localhost:48326/sidetree/v1/operations" to create DID document
       Then check success response contains "#did"
 
@@ -143,24 +153,22 @@ Feature:
       Then check success response contains "#canonicalId"
       Then check success response contains "recoveryKey"
 
-      Then container "orb-domain1" is stopped
-      Then we wait 3 seconds
-
-      Then container "orb-domain1" is started
+      Then container "orb-domain2" is started
       Then we wait 15 seconds
 
-      When client sends request to "https://localhost:48326/sidetree/v1/identifiers" to resolve DID document with canonical id
+      # resolve did in different organization - it will trigger did discovery in different organisation
+      When client sends request to "https://localhost:48426/sidetree/v1/identifiers" to resolve DID document with canonical id
       Then check error response contains "not found"
 
       Then we wait 5 seconds
-      When client sends request to "https://localhost:48326/sidetree/v1/identifiers" to resolve DID document with canonical id
+      When client sends request to "https://localhost:48426/sidetree/v1/identifiers" to resolve DID document with canonical id
       Then check success response contains "#canonicalId"
       Then check success response contains "recoveryKey"
 
     @follow_anchor_writer
-    Scenario: second server follows first server (anchor writer)
+    Scenario: domain2 server follows domain server (anchor writer)
 
-      # domain2 follows domain1
+      # domain2 server follows domain1 server
       Given variable "followID" is assigned a unique ID
       And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
       Then an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
@@ -172,7 +180,11 @@ Feature:
       When client sends request to "https://localhost:48326/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
 
-      # check second server for document
+      # check that document is available on the first server of domain2
       Then we wait 5 seconds
       When client sends request to "https://localhost:48426/sidetree/v1/identifiers" to resolve DID document
+      Then check success response contains "#did"
+
+      # check that document is available on the second server of domain2
+      When client sends request to "https://localhost:48626/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
