@@ -97,9 +97,8 @@ const (
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
 
-	activityPubServicesPath         = "/services/orb"
-	activityPubServicePublicKeyPath = "/services/orb#main-key"
-	activityPubTransactionsPath     = "/transactions"
+	activityPubServicesPath     = "/services/orb"
+	activityPubTransactionsPath = "/transactions"
 
 	casPath = "/cas"
 )
@@ -281,7 +280,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
 
-	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint, activityPubServicePublicKeyPath)
+	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint,
+		fmt.Sprintf("%s/keys/%s", activityPubServicesPath, aphandler.MainKeyID))
 
 	apTransactionsIRI := mustParseURL(parameters.externalEndpoint, activityPubTransactionsPath)
 
@@ -387,12 +387,11 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:  100, // TODO: Make configurable
 	}
 
-	// FIXME: Configure with real values.
-	publicKey := &vocab.PublicKeyType{
-		ID:           apServiceIRI.String() + "#main-key",
-		Owner:        apServiceIRI.String(),
-		PublicKeyPem: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki.....",
-	}
+	publicKey := vocab.NewPublicKey(
+		vocab.WithID(apServicePublicKeyIRI),
+		vocab.WithOwner(apServiceIRI),
+		vocab.WithPublicKeyPem("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."),
+	)
 
 	orbResolver := resolver.NewResolveHandler(
 		parameters.didNamespace,
@@ -416,6 +415,7 @@ func startOrbServices(parameters *orbParameters) error {
 		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apServiceCfg, apStore, publicKey),
+		aphandler.NewPublicKeys(apServiceCfg, apStore, publicKey),
 		aphandler.NewFollowers(apServiceCfg, apStore),
 		aphandler.NewFollowing(apServiceCfg, apStore),
 		aphandler.NewOutbox(apServiceCfg, apStore),

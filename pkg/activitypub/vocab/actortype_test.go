@@ -17,13 +17,10 @@ import (
 )
 
 func TestActor(t *testing.T) {
-	const (
-		keyID      = "https://alice.example.com/services/orb#main-key"
-		keyOwnerID = "https://alice.example.com/services/orb"
-		keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
-	)
+	const keyPem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 
-	serviceID := testutil.MustParseURL("https://alice.example.com/services/orb")
+	serviceIRI := testutil.MustParseURL("https://alice.example.com/services/orb")
+	keyID := testutil.NewMockID(serviceIRI, "/keys/main-key")
 	followers := testutil.MustParseURL("https://sally.example.com/services/orb/followers")
 	following := testutil.MustParseURL("https://sally.example.com/services/orb/following")
 	inbox := testutil.MustParseURL("https://alice.example.com/services/orb/inbox")
@@ -32,14 +29,14 @@ func TestActor(t *testing.T) {
 	witnessing := testutil.MustParseURL("https://alice.example.com/services/orb/witnessing")
 	liked := testutil.MustParseURL("https://alice.example.com/services/orb/liked")
 
-	publicKey := &PublicKeyType{
-		ID:           keyID,
-		Owner:        keyOwnerID,
-		PublicKeyPem: keyPem,
-	}
+	publicKey := NewPublicKey(
+		WithID(keyID),
+		WithOwner(serviceIRI),
+		WithPublicKeyPem(keyPem),
+	)
 
 	t.Run("Marshal", func(t *testing.T) {
-		service := NewService(serviceID,
+		service := NewService(serviceIRI,
 			WithPublicKey(publicKey),
 			WithInbox(inbox),
 			WithOutbox(outbox),
@@ -65,7 +62,7 @@ func TestActor(t *testing.T) {
 
 		id := a.ID()
 		require.NotNil(t, id)
-		require.Equal(t, serviceID.String(), id.String())
+		require.Equal(t, serviceIRI.String(), id.String())
 
 		context := a.Context()
 		require.NotNil(t, context)
@@ -73,8 +70,8 @@ func TestActor(t *testing.T) {
 
 		key := a.PublicKey()
 		require.NotNil(t, key)
-		require.Equal(t, keyID, key.ID)
-		require.Equal(t, keyOwnerID, key.Owner)
+		require.Equal(t, keyID.String(), key.ID.String())
+		require.Equal(t, serviceIRI.String(), key.Owner.String())
 		require.Equal(t, keyPem, key.PublicKeyPem)
 
 		in := a.Inbox()
@@ -107,11 +104,11 @@ func TestActor(t *testing.T) {
 	})
 
 	t.Run("Empty actor", func(t *testing.T) {
-		a := NewService(serviceID)
+		a := NewService(serviceIRI)
 
 		id := a.ID()
 		require.NotNil(t, id)
-		require.Equal(t, serviceID.String(), id.String())
+		require.Equal(t, serviceIRI.String(), id.String())
 
 		require.NotNil(t, a.Context())
 		require.Nil(t, a.PublicKey())
@@ -134,7 +131,7 @@ const jsonService = `{
   "id": "https://alice.example.com/services/orb",
   "type": "Service",
   "publicKey": {
-    "id": "https://alice.example.com/services/orb#main-key",
+    "id": "https://alice.example.com/services/orb/keys/main-key",
     "owner": "https://alice.example.com/services/orb",
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
   },

@@ -22,6 +22,7 @@ Feature:
     And the JSON path "liked" of the response equals "${domain1IRI}/liked"
     And the JSON path "witnesses" of the response equals "${domain1IRI}/witnesses"
     And the JSON path "witnessing" of the response equals "${domain1IRI}/witnessing"
+    And the JSON path "publicKey.id" of the response equals "${domain1IRI}/keys/main-key"
 
     When an HTTP GET is sent to "https://localhost:48426/services/orb"
     Then the JSON path "type" of the response equals "Service"
@@ -32,6 +33,19 @@ Feature:
     And the JSON path "liked" of the response equals "${domain2IRI}/liked"
     And the JSON path "witnesses" of the response equals "${domain2IRI}/witnesses"
     And the JSON path "witnessing" of the response equals "${domain2IRI}/witnessing"
+    And the JSON path "publicKey.id" of the response equals "${domain2IRI}/keys/main-key"
+
+  @activitypub_pubkey
+  Scenario: Get service public key
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/keys/main-key"
+    Then the JSON path "id" of the response equals "https://orb.domain1.com/services/orb/keys/main-key"
+    Then the JSON path "owner" of the response equals "https://orb.domain1.com/services/orb"
+    Then the JSON path "publicKeyPem" of the response is not empty
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/keys/main-key"
+    Then the JSON path "id" of the response equals "https://orb.domain2.com/services/orb/keys/main-key"
+    Then the JSON path "owner" of the response equals "https://orb.domain2.com/services/orb"
+    Then the JSON path "publicKeyPem" of the response is not empty
 
   @activitypub_follow
   Scenario: follow/accept/undo

@@ -20,21 +20,22 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-const basePath = "/services/orb"
-
-var serviceIRI = testutil.MustParseURL("https://example1.com/services/orb")
-
 const (
-	keyID      = "https://example1.com/services/orb#main-key"
-	keyOwnerID = "https://example1.com/services/orb"
-	keyPem     = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+	basePath      = "/services/orb"
+	publicKeyPath = "/services/orb/keys/{id}"
+	keyPem        = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
 )
 
-var publicKey = &vocab.PublicKeyType{
-	ID:           keyID,
-	Owner:        keyOwnerID,
-	PublicKeyPem: keyPem,
-}
+var (
+	serviceIRI   = testutil.MustParseURL("https://example1.com/services/orb")
+	publicKeyIRI = testutil.NewMockID(serviceIRI, "/keys/main-key")
+)
+
+var publicKey = vocab.NewPublicKey(
+	vocab.WithID(publicKeyIRI),
+	vocab.WithOwner(serviceIRI),
+	vocab.WithPublicKeyPem(keyPem),
+)
 
 func TestNewServices(t *testing.T) {
 	cfg := &Config{
@@ -46,6 +47,20 @@ func TestNewServices(t *testing.T) {
 	h := NewServices(cfg, memstore.New(""), publicKey)
 	require.NotNil(t, h)
 	require.Equal(t, basePath, h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+}
+
+func TestNewPublicKey(t *testing.T) {
+	cfg := &Config{
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
+	}
+
+	h := NewPublicKeys(cfg, memstore.New(""), publicKey)
+	require.NotNil(t, h)
+	require.Equal(t, publicKeyPath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 }
@@ -101,7 +116,95 @@ func TestServices_Handler(t *testing.T) {
 	})
 }
 
-const serviceJSON = `{
+func TestPublicKeys_Handler(t *testing.T) {
+	cfg := &Config{
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+	}
+
+	activityStore := memstore.New("")
+
+	t.Run("Success", func(t *testing.T) {
+		h := NewPublicKeys(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(MainKeyID)
+		defer restoreID()
+
+		h.handlePublicKey(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, publicKeyJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("No key ID -> BadRequest", func(t *testing.T) {
+		h := NewPublicKeys(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		h.handlePublicKey(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Key ID not found -> NotFound", func(t *testing.T) {
+		h := NewPublicKeys(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam("invalid-key")
+		defer restoreID()
+
+		h.handlePublicKey(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusNotFound, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Marshal error", func(t *testing.T) {
+		h := NewPublicKeys(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected marshal error")
+
+		h.marshal = func(v interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(MainKeyID)
+		defer restoreID()
+
+		h.handlePublicKey(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+}
+
+const (
+	serviceJSON = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/security/v1",
@@ -110,7 +213,7 @@ const serviceJSON = `{
   "id": "https://example1.com/services/orb",
   "type": "Service",
   "publicKey": {
-    "id": "https://example1.com/services/orb#main-key",
+    "id": "https://example1.com/services/orb/keys/main-key",
     "owner": "https://example1.com/services/orb",
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
   },
@@ -122,3 +225,10 @@ const serviceJSON = `{
   "witnesses": "https://example1.com/services/orb/witnesses",
   "witnessing": "https://example1.com/services/orb/witnessing"
 }`
+
+	publicKeyJSON = `{
+  "id": "https://example1.com/services/orb/keys/main-key",
+  "owner": "https://example1.com/services/orb",
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+}`
+)

@@ -46,11 +46,11 @@ func TestNewOptions(t *testing.T) {
 	witnessing := testutil.MustParseURL("https://witnessing")
 	liked := testutil.MustParseURL("https://liked")
 
-	publicKey := &PublicKeyType{
-		ID:           "key_id",
-		Owner:        "owner_id",
-		PublicKeyPem: "pem",
-	}
+	publicKey := NewPublicKey(
+		WithID(testutil.MustParseURL("https://actor/keys/main-key")),
+		WithOwner(testutil.MustParseURL("https://actor")),
+		WithPublicKeyPem("pem"),
+	)
 
 	target := &ObjectProperty{
 		iri: NewURLProperty(testutil.MustParseURL("https://property_iri")),
