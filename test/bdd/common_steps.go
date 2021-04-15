@@ -323,6 +323,38 @@ func (d *CommonSteps) httpGet(url string) error {
 	return nil
 }
 
+func (d *CommonSteps) httpGetWithSignature(url, privKeyFile, pubKeyID string) error {
+	d.state.clearResponse()
+
+	payload, code, _, err := d.doHTTPGetWithSignature(url, privKeyFile, pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	if code != http.StatusOK {
+		return fmt.Errorf("received status code %d", code)
+	}
+
+	d.state.setResponse(string(payload))
+
+	return nil
+}
+
+func (d *CommonSteps) httpGetWithSignatureAndExpectedCode(url, privKeyFile, pubKeyID string, expectingCode int) error {
+	_, code, _, err := d.doHTTPGetWithSignature(url, privKeyFile, pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	if code != expectingCode {
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	return nil
+}
+
 func (d *CommonSteps) httpPostFile(url, path string) error {
 	_, code, _, err := d.doHTTPPostFile(url, path)
 	if err != nil {
@@ -351,6 +383,34 @@ func (d *CommonSteps) httpPostFileWithExpectedCode(url, path string, expectingCo
 	return nil
 }
 
+func (d *CommonSteps) httpPostFileWithSignature(url, path, privKeyFile, pubKeyID string) error {
+	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	if code != http.StatusOK {
+		return fmt.Errorf("received status code %d", code)
+	}
+
+	return nil
+}
+
+func (d *CommonSteps) httpPostFileWithSignatureAndExpectedCode(url, path, privKeyFile, pubKeyID string, expectingCode int) error {
+	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	if code != expectingCode {
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	return nil
+}
+
 func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	d.state.clearResponse()
 
@@ -362,6 +422,28 @@ func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	data = resolved.(string)
 
 	payload, code, _, err := d.doHTTPPost(url, []byte(data), contentType)
+	if err != nil {
+		return err
+	}
+
+	if code != http.StatusOK {
+		return fmt.Errorf("received status code %d", code)
+	}
+
+	d.state.setResponse(string(payload))
+
+	return nil
+}
+
+func (d *CommonSteps) httpPostWithSignature(url, data, contentType, privKeyFile, pubKeyID string) error {
+	d.state.clearResponse()
+
+	err := d.state.resolveVarsInExpression(&data, &privKeyFile, &pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, privKeyFile, pubKeyID)
 	if err != nil {
 		return err
 	}
@@ -401,6 +483,32 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, ex
 	return nil
 }
 
+func (d *CommonSteps) httpPostWithSignatureAndExpectedCode(url, data, contentType, privKeyFile, pubKeyID string, expectingCode int) error {
+	d.state.clearResponse()
+
+	resolved, err := d.state.resolveVars(data)
+	if err != nil {
+		return err
+	}
+
+	data = resolved.(string)
+
+	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, privKeyFile, pubKeyID)
+	if err != nil {
+		return err
+	}
+
+	if code != expectingCode {
+		return fmt.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	d.state.setResponse(string(payload))
+
+	return nil
+}
+
 func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, http.Header, error) {
 	client := newHTTPClient(d.state)
 
@@ -410,6 +518,24 @@ func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, http.Header, error) {
 	}
 
 	payload, statusCode, header, err := client.Get(resolved.(string))
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	printResponse(statusCode, payload, header)
+
+	return payload, statusCode, header, nil
+}
+
+func (d *CommonSteps) doHTTPGetWithSignature(url, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
+	client := newHTTPClient(d.state)
+
+	err := d.state.resolveVarsInExpression(&url, &privKeyFile, &pubKeyID)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	payload, statusCode, header, err := client.GetWithSignature(url, privKeyFile, pubKeyID)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -437,7 +563,29 @@ func (d *CommonSteps) doHTTPPost(url string, content []byte, contentType string)
 	return payload, statusCode, header, nil
 }
 
+func (d *CommonSteps) doHTTPPostWithSignature(url string, content []byte, contentType, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
+	client := newHTTPClient(d.state)
+
+	err := d.state.resolveVarsInExpression(&url, &privKeyFile, &pubKeyID)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	payload, statusCode, header, err := client.PostWithSignature(url, content, contentType, privKeyFile, pubKeyID)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	printResponse(statusCode, payload, header)
+
+	return payload, statusCode, header, nil
+}
+
 func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, http.Header, error) {
+	return d.doHTTPPostFileWithSignature(url, path, "", "")
+}
+
+func (d *CommonSteps) doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
 	d.state.clearResponse()
 
 	logger.Infof("Uploading file [%s] to [%s]", path, url)
@@ -452,7 +600,7 @@ func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, http.Header
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := d.doHTTPPost(url, contents, contentType)
+	payload, statusCode, header, err := d.doHTTPPostWithSignature(url, contents, contentType, privKeyFile, pubKeyID)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -533,10 +681,16 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
+	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpGetWithSignature)
+	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithSignatureAndExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPostFile)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpPostWithSignature)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpPostFileWithSignature)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithSignatureAndExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithSignatureAndExpectedCode)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
 }

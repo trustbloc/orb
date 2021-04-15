@@ -8,12 +8,19 @@ package bdd
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/go-fed/httpsig"
 )
 
 const (
@@ -30,6 +37,10 @@ func newHTTPClient(state *state) *httpClient {
 }
 
 func (c *httpClient) Get(url string) ([]byte, int, http.Header, error) {
+	return c.GetWithSignature(url, "", "")
+}
+
+func (c *httpClient) GetWithSignature(url, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
 	client := &http.Client{}
 	defer client.CloseIdleConnections()
 
@@ -47,6 +58,18 @@ func (c *httpClient) Get(url string) ([]byte, int, http.Header, error) {
 	}
 
 	c.setAuthTokenHeader(httpReq)
+
+	if privKeyFile != "" {
+		privKey, err := privateKeyFromFile(privKeyFile)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+
+		err = signRequest(privKey, pubKeyID, httpReq, nil)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+	}
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
@@ -68,6 +91,10 @@ func (c *httpClient) Get(url string) ([]byte, int, http.Header, error) {
 }
 
 func (c *httpClient) Post(url string, data []byte, contentType string) ([]byte, int, http.Header, error) {
+	return c.PostWithSignature(url, data, contentType, "", "")
+}
+
+func (c *httpClient) PostWithSignature(url string, data []byte, contentType, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
 	client := &http.Client{}
 	defer client.CloseIdleConnections()
 
@@ -89,6 +116,18 @@ func (c *httpClient) Post(url string, data []byte, contentType string) ([]byte, 
 	httpReq.Header.Set("Content-Type", contentType)
 
 	c.setAuthTokenHeader(httpReq)
+
+	if privKeyFile != "" {
+		privKey, err := privateKeyFromFile(privKeyFile)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+
+		err = signRequest(privKey, pubKeyID, httpReq, data)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+	}
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
@@ -165,4 +204,53 @@ func printResponse(statusCode int, payload []byte, header http.Header) {
 	} else {
 		logger.Infof("Received status code %d and a response with no Content-Type:\n%s", statusCode, payload)
 	}
+}
+
+func privateKeyFromFile(file string) (crypto.PrivateKey, error) {
+	keyBytes, err := ioutil.ReadFile(filepath.Clean(file))
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		return nil, fmt.Errorf("private key not found")
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
+}
+
+func signRequest(pKey crypto.PrivateKey, pubKeyID string, req *http.Request, body []byte) error {
+	logger.Debugf("Signing request for %s. Public key ID [%s]", req.RequestURI, pubKeyID)
+
+	var headers []string
+	if req.Method == http.MethodPost {
+		headers = []string{"(request-target)", "Date", "Digest"}
+	} else {
+		headers = []string{"(request-target)", "Date"}
+	}
+
+	signer, _, err := httpsig.NewSigner([]httpsig.Algorithm{httpsig.ED25519},
+		httpsig.DigestSha256, headers, httpsig.Signature, int64(60))
+	if err != nil {
+		return fmt.Errorf("new signer: %w", err)
+	}
+
+	req.Header.Add("Date", date())
+
+	err = signer.SignRequest(pKey, pubKeyID, req, body)
+	if err != nil {
+		return fmt.Errorf("sign request: %w", err)
+	}
+
+	return nil
+}
+
+func date() string {
+	return fmt.Sprintf("%s GMT", time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05"))
 }
