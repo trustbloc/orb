@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sync"
 	"testing"
 	"time"
 
@@ -300,15 +299,13 @@ func TestInbox_Error(t *testing.T) {
 		undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
 		require.NoError(t, err)
 
-		var mutex sync.Mutex
-
 		var undeliverableMessages []*message.Message
 
+		done := make(chan struct{})
 		go func() {
 			for msg := range undeliverableChan {
-				mutex.Lock()
 				undeliverableMessages = append(undeliverableMessages, msg)
-				mutex.Unlock()
+				close(done)
 			}
 		}()
 
@@ -331,8 +328,6 @@ func TestInbox_Error(t *testing.T) {
 		stop := startHTTPServer(t, ":8206", ib.HTTPHandler())
 		defer stop()
 
-		time.Sleep(500 * time.Millisecond)
-
 		activity := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithObject(
@@ -354,9 +349,13 @@ func TestInbox_Error(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
 
-		mutex.Lock()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("timeout")
+		}
+
 		require.Len(t, undeliverableMessages, 1)
-		mutex.Unlock()
 	})
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {

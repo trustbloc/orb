@@ -393,7 +393,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("marshal error of result in 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(like.Object().IRI().String(), *like.EndTime(), *like.StartTime(), resultBytes)
+	err = h.ProofHandler.HandleProof(like.Object().IRI().String(), *like.StartTime(), *like.EndTime(), resultBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
 	}

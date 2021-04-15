@@ -6,11 +6,13 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"net"
 	"os"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -299,8 +301,11 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		require.Equal(t, log.ERROR, log.GetLevel(""))
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	require.NoError(t, backoff.Retry(func() error { // nolint: wrapcheck
+		_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
 
+		return err
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3)))
 	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
 }
 
@@ -335,6 +340,9 @@ func TestStartCmdValidArgs(t *testing.T) {
 
 func setEnvVars(t *testing.T, databaseType string) {
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
+	require.NoError(t, err)
+
+	err = os.Setenv(vctURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
 	err = os.Setenv(casURLEnvKey, "cas")
