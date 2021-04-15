@@ -21,7 +21,7 @@ import (
 //go:generate counterfeiter -o ../mocks/httpclient.gen.go --fake-name HTTPClient . httpClient
 //go:generate counterfeiter -o ../mocks/httpsigner.gen.go --fake-name HTTPSigner . Signer
 
-const publicKeyID = "https://alice.example.com/services/orb#main-key"
+const publicKeyID = "https://alice.example.com/services/orb/keys/main-key"
 
 func TestNew(t *testing.T) {
 	tp := New(http.DefaultClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())

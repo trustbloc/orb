@@ -68,6 +68,26 @@ func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	return actor, nil
 }
 
+// GetPublicKey retrieves the public key at the given IRI.
+//nolint:interfacer
+func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
+	respBytes, err := c.get(keyIRI)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)
+	}
+
+	logger.Debugf("Got response from %s: %s", keyIRI, respBytes)
+
+	pubKey := &vocab.PublicKeyType{}
+
+	err = json.Unmarshal(respBytes, pubKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid public key in response from %s: %w", keyIRI, err)
+	}
+
+	return pubKey, nil
+}
+
 // GetReferences returns an iterator that reads all references at the given IRI. The IRI either resolves
 // to an ActivityPub actor, collection or ordered collection.
 func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
