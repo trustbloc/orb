@@ -31,7 +31,7 @@ func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKe
 		publicKey: publicKey,
 	}
 
-	h.handler = newHandler("", cfg, activityStore, h.handle)
+	h.handler = newHandler("", cfg, activityStore, h.handle, nil)
 
 	return h
 }
@@ -42,7 +42,7 @@ func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.Public
 		publicKey: publicKey,
 	}
 
-	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey)
+	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey, nil)
 
 	return h
 }

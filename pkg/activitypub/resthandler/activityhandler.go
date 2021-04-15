@@ -16,34 +16,34 @@ import (
 )
 
 // NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
-func NewOutbox(cfg *Config, activityStore spi.Store) *Activities {
+func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(OutboxPath, spi.Outbox, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("outbox"))
+		getObjectIRI(cfg.ObjectIRI), getID("outbox"), verifier)
 }
 
 // NewInbox returns a new 'inbox' REST handler that retrieves a service's inbox.
-func NewInbox(cfg *Config, activityStore spi.Store) *Activities {
+func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(InboxPath, spi.Inbox, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("inbox"))
+		getObjectIRI(cfg.ObjectIRI), getID("inbox"), verifier)
 }
 
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
-func NewShares(cfg *Config, activityStore spi.Store) *Activities {
+func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
-		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"))
+		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"), verifier)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
-func NewLikes(cfg *Config, activityStore spi.Store) *Activities {
+func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
-		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"))
+		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"), verifier)
 }
 
 // NewLiked returns a new 'liked' REST handler that retrieves a service's 'Like' activities, i.e. the Like
 // activities that were posted by the given service.
-func NewLiked(cfg *Config, activityStore spi.Store) *Activities {
+func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(LikedPath, spi.Liked, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("liked"))
+		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier)
 }
 
 type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
@@ -61,19 +61,28 @@ type Activities struct {
 
 // NewActivities returns a new activities REST handler.
 func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
-	getObjectIRI getObjectIRIFunc, getID getIDFunc) *Activities {
+	getObjectIRI getObjectIRIFunc, getID getIDFunc, verifier signatureVerifier) *Activities {
 	h := &Activities{
 		refType:      refType,
 		getID:        getID,
 		getObjectIRI: getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
 
 	return h
 }
 
 func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
+	_, err := h.verifier.VerifyRequest(req)
+	if err != nil {
+		logger.Warnf("[%s] Invalid HTTP signature: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
 	objectIRI, err := h.getObjectIRI(req)
 	if err != nil {
 		logger.Errorf("[%s] Error getting ObjectIRI: %s", h.endpoint, err)

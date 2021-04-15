@@ -31,7 +31,7 @@ func TestNewFollowers(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowers(cfg, memstore.New(""))
+	h := NewFollowers(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/followers", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -55,7 +55,7 @@ func TestNewFollowing(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowing(cfg, memstore.New(""))
+	h := NewFollowing(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/following", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -79,7 +79,7 @@ func TestNewWitnesses(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnesses(cfg, memstore.New(""))
+	h := NewWitnesses(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/witnesses", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -103,7 +103,7 @@ func TestNewWitnessing(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnessing(cfg, memstore.New(""))
+	h := NewWitnessing(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/witnessing", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -138,7 +138,7 @@ func TestFollowers_Handler(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore)
+		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -164,7 +164,7 @@ func TestFollowers_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewFollowers(cfg, s)
+		h := NewFollowers(cfg, s, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -178,7 +178,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore)
+		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -198,7 +198,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore)
+		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -218,7 +218,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore)
+		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -254,7 +254,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowers(cfg, activityStore)
+	h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 
 	t.Run("First page -> Success", func(t *testing.T) {
@@ -292,7 +292,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, s)
+		h := NewFollowers(cfg, s, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -314,7 +314,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, activityStore)
+		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -354,7 +354,7 @@ func TestWitnesses_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnesses(cfg, activityStore)
+	h := NewWitnesses(cfg, activityStore, &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -387,7 +387,7 @@ func TestWitnessing_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnessing(cfg, activityStore)
+	h := NewWitnessing(cfg, activityStore, &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
