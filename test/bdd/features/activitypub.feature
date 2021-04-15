@@ -8,8 +8,13 @@
 @activitypub
 Feature:
   Background: Setup
-    And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
+    Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
+    And variable "domain1KeyID" is assigned the value "${domain1IRI}/keys/main-key"
+    And variable "domain1KeyFile" is assigned the value "./fixtures/testdata/keys/domain1/private-key.pem"
+
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
+    And variable "domain2KeyID" is assigned the value "${domain2IRI}/keys/main-key"
+    And variable "domain2KeyFile" is assigned the value "./fixtures/testdata/keys/domain2/private-key.pem"
 
   @activitypub_service
   Scenario: Get ActivityPub service
@@ -52,44 +57,44 @@ Feature:
     # domain2 follows domain1
     Given variable "followID" is assigned a unique ID
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollection"
     And the JSON path "id" of the response equals "${domain1IRI}/inbox"
     And the JSON path "first" of the response equals "${domain1IRI}/inbox?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/${followID}"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain1IRI}/followers"
     And the JSON path "first" of the response equals "${domain1IRI}/followers?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain2IRI}"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/following"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/following" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain2IRI}/following"
     And the JSON path "first" of the response equals "${domain2IRI}/following?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain1IRI}"
 
     Given variable "undoID" is assigned a unique ID
     And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${undoID}","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain2IRI}/activities/${followID}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${undoFollowActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${undoFollowActivity}" of type "application/json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain2IRI}"
 
@@ -97,48 +102,59 @@ Feature:
   Scenario: create/announce
     Given variable "followID" is assigned a unique ID
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
     Then we wait 2 seconds
 
     # Post 'Create' activity to domain1
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/create_activity.json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/create_activity.json" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
 
     Then we wait 2 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/77bdd005-bbb6-223d-b889-58bc1de84985"
 
     # An 'Announce' activity should have been posted to domain1's followers (domain2).
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/outbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/outbox?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
 
     # An 'Announce' activity should have been received by domain2 since it's a follower of domain1.
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
 
   @activitypub_offer
   Scenario: offer/like
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
     Then we wait 2 seconds
 
     # The 'Offer' activity should be in the inbox of domain1.
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
 
     # The 'Like' should be in the 'liked' collection of domain1.
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Like"
     And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
 
     # A 'Like' activity should be in the inbox of domain2.
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Like"
     And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
+
+  @activitypub_httpsig
+  Scenario: Tests HTTP signature verification
+    Given variable "followID" is assigned a unique ID
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+
+    # No signature on POST
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
+
+    # Invalid signature on POST
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain1KeyFile}" using key ID "${domain2KeyID}" and the returned status code is 401

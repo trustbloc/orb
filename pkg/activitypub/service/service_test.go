@@ -8,8 +8,14 @@ package service
 
 import (
 	"context"
+	"crypto"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -20,6 +26,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
@@ -52,7 +59,8 @@ func TestNewService(t *testing.T) {
 	store1 := memstore.New(cfg1.ServiceEndpoint)
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1, transport.Default(), service.WithUndeliverableHandler(undeliverableHandler1))
+	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{},
+		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 
 	stop := startHTTPServer(t, ":8311", service1.InboxHTTPHandler())
@@ -74,57 +82,22 @@ func TestService_Create(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	unavailableServiceIRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
-	cfg1 := &Config{
-		ServiceEndpoint: "/services/service1",
-		ServiceIRI:      service1IRI,
-		RetryOpts:       redelivery.DefaultConfig(),
-	}
+	service1, store1, publicKey1, mockProviders1 := newServiceWithMocks(t, "/services/service1", service1IRI)
 
-	store1 := memstore.New(cfg1.ServiceEndpoint)
+	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
 
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service1IRI)))
+	require.NoError(t, store1.PutActor(actor1))
 	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
 	require.NoError(t, store1.PutActor(aptestutil.NewMockService(unavailableServiceIRI)))
-
-	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
-	followerAuth1 := mocks.NewFollowerAuth()
-	undeliverableHandler1 := mocks.NewUndeliverableHandler()
-
-	service1, err := New(cfg1, store1, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler1),
-		service.WithAnchorCredentialHandler(anchorCredHandler1),
-		service.WithFollowerAuth(followerAuth1),
-	)
-	require.NoError(t, err)
 
 	defer service1.Stop()
 
 	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
 	defer stop1()
 
-	cfg2 := &Config{
-		ServiceEndpoint: "/services/service2",
-		ServiceIRI:      service2IRI,
-		RetryOpts: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.2,
-			MaxMessages:    20,
-		},
-	}
+	service2, store2, _, mockProviders2 := newServiceWithMocks(t, "/services/service2", service2IRI)
 
-	store2 := memstore.New(cfg2.ServiceEndpoint)
-	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
-	followerAuth2 := mocks.NewFollowerAuth()
-	undeliverableHandler2 := mocks.NewUndeliverableHandler()
-
-	service2, err := New(cfg2, store2, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler2),
-		service.WithAnchorCredentialHandler(anchorCredHandler2),
-		service.WithFollowerAuth(followerAuth2),
-	)
-	require.NoError(t, err)
+	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
 
 	defer service2.Stop()
 
@@ -195,9 +168,9 @@ func TestService_Create(t *testing.T) {
 	require.True(t, containsActivity(activities, create.ID()))
 
 	require.NotEmpty(t, subscriber2.Activities())
-	require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
+	require.NotEmpty(t, mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
 
-	ua := undeliverableHandler1.Activities()
+	ua := mockProviders1.undeliverableHandler.Activities()
 	require.Len(t, ua, 1)
 	require.Equal(t, testutil.NewMockID(unavailableServiceIRI, resthandler.InboxPath).String(), ua[0].ToURL)
 }
@@ -208,58 +181,25 @@ func TestService_Follow(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
-	cfg1 := &Config{
-		ServiceEndpoint: "/services/service1",
-		ServiceIRI:      service1IRI,
-		RetryOpts:       redelivery.DefaultConfig(),
-	}
-
-	store1 := memstore.New(cfg1.ServiceEndpoint)
-	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
-	followerAuth1 := mocks.NewFollowerAuth()
-	undeliverableHandler1 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
-
-	service1, err := New(cfg1, store1, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler1),
-		service.WithAnchorCredentialHandler(anchorCredHandler1),
-		service.WithFollowerAuth(followerAuth1),
-	)
-	require.NoError(t, err)
+	service1, store1, publicKey1, mockProviders1 := newServiceWithMocks(t, "/services/service1", service1IRI)
 
 	defer service1.Stop()
 
-	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
-	defer stop1()
-
-	cfg2 := &Config{
-		ServiceEndpoint: "/services/service2",
-		ServiceIRI:      service2IRI,
-		RetryOpts: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.2,
-			MaxMessages:    20,
-		},
-	}
-
-	store2 := memstore.New(cfg2.ServiceEndpoint)
-	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
-	followerAuth2 := mocks.NewFollowerAuth()
-	undeliverableHandler2 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service1IRI)))
-
-	service2, err := New(cfg2, store2, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler2),
-		service.WithAnchorCredentialHandler(anchorCredHandler2),
-		service.WithFollowerAuth(followerAuth2),
-	)
-	require.NoError(t, err)
+	service2, store2, publicKey2, mockProviders2 := newServiceWithMocks(t, "/services/service2", service2IRI)
 
 	defer service2.Stop()
+
+	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
+	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
+
+	require.NoError(t, store1.PutActor(actor2))
+	require.NoError(t, store2.PutActor(actor1))
+
+	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
+	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
+
+	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
+	defer stop1()
 
 	httpServer2 := httpserver.New(":8302", "", "", "", service2.InboxHTTPHandler())
 
@@ -280,7 +220,7 @@ func TestService_Follow(t *testing.T) {
 	defer service2.Stop()
 
 	t.Run("Follow - Accept", func(t *testing.T) {
-		followerAuth2.WithAccept()
+		mockProviders2.followerAuth.WithAccept()
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
@@ -357,7 +297,7 @@ func TestService_Follow(t *testing.T) {
 	})
 
 	t.Run("Follow - Reject", func(t *testing.T) {
-		followerAuth1.WithReject()
+		mockProviders1.followerAuth.WithReject()
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
@@ -447,98 +387,46 @@ func TestService_Follow(t *testing.T) {
 
 func TestService_Announce(t *testing.T) {
 	log.SetLevel(wmlogger.Module, log.WARNING)
+	log.SetLevel("activitypub_service", log.DEBUG)
+	log.SetLevel("activitypub_client", log.DEBUG)
+	log.SetLevel("activitypub_httpsig", log.DEBUG)
 
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
-	cfg1 := &Config{
-		ServiceEndpoint: "/services/service1",
-		ServiceIRI:      service1IRI,
-		RetryOpts:       redelivery.DefaultConfig(),
-	}
-
-	store1 := memstore.New(cfg1.ServiceEndpoint)
-	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
-	followerAuth1 := mocks.NewFollowerAuth()
-	proofHandler1 := mocks.NewProofHandler()
-	witness1 := mocks.NewWitnessHandler()
-	undeliverableHandler1 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
-
-	service1, err := New(cfg1, store1, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler1),
-		service.WithAnchorCredentialHandler(anchorCredHandler1),
-		service.WithFollowerAuth(followerAuth1),
-		service.WithWitness(witness1),
-		service.WithProofHandler(proofHandler1),
-	)
-	require.NoError(t, err)
+	service1, store1, publicKey1, _ := newServiceWithMocks(t, "/services/service1", service1IRI)
 
 	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
 	defer stop1()
 
-	cfg2 := &Config{
-		ServiceEndpoint: "/services/service2",
-		ServiceIRI:      service2IRI,
-		RetryOpts: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.2,
-			MaxMessages:    20,
-		},
-	}
-
-	store2 := memstore.New(cfg2.ServiceEndpoint)
-	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
-	followerAuth2 := mocks.NewFollowerAuth()
-	witness2 := mocks.NewWitnessHandler()
-	proofHandler2 := mocks.NewProofHandler()
-	undeliverableHandler2 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service3IRI)))
-
-	service2, err := New(cfg2, store2, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler2),
-		service.WithAnchorCredentialHandler(anchorCredHandler2),
-		service.WithFollowerAuth(followerAuth2),
-		service.WithWitness(witness2),
-		service.WithProofHandler(proofHandler2),
-	)
-	require.NoError(t, err)
+	service2, store2, publicKey2, mockProviders2 := newServiceWithMocks(t, "/services/service2", service2IRI)
 
 	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
 	defer stop2()
 
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
-	cfg3 := &Config{
-		ServiceEndpoint: "/services/service3",
-		ServiceIRI:      service3IRI,
-	}
-
-	store3 := memstore.New(cfg3.ServiceEndpoint)
-	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
-	followerAuth3 := mocks.NewFollowerAuth()
-	witness3 := mocks.NewWitnessHandler()
-	proofHandler3 := mocks.NewProofHandler()
-	undeliverableHandler3 := mocks.NewUndeliverableHandler()
-
-	service3, err := New(cfg3, store3, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler3),
-		service.WithAnchorCredentialHandler(anchorCredHandler3),
-		service.WithFollowerAuth(followerAuth3),
-		service.WithWitness(witness3),
-		service.WithProofHandler(proofHandler3),
-	)
-	require.NoError(t, err)
+	service3, store3, publicKey3, mockProviders3 := newServiceWithMocks(t, "/services/service3", service3IRI)
 
 	stop3 := startHTTPServer(t, ":8303", service3.InboxHTTPHandler())
 	defer stop3()
 
 	subscriber3 := mocks.NewSubscriber(service3.Subscribe())
+
+	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
+	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
+	actor3 := aptestutil.NewMockService(service3IRI, aptestutil.WithPublicKey(publicKey3))
+
+	mockProviders2.actorRetriever.
+		WithPublicKey(publicKey1).WithActor(actor1).
+		WithPublicKey(publicKey3).WithActor(actor3)
+
+	mockProviders3.actorRetriever.
+		WithPublicKey(publicKey2).WithActor(actor2)
+
+	require.NoError(t, store1.PutActor(actor2))
+	require.NoError(t, store2.PutActor(actor3))
 
 	service1.Start()
 	service2.Start()
@@ -601,7 +489,7 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID.String()))
+		require.NotEmpty(t, mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
@@ -660,7 +548,7 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, anchorCredHandler3.AnchorCred(anchorCredID.String()))
+		require.NotEmpty(t, mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
 	})
 
 	t.Run("Create and announce", func(t *testing.T) {
@@ -671,7 +559,7 @@ func TestService_Announce(t *testing.T) {
 		require.NoError(t, store3.PutActor(vocab.NewService(service2IRI,
 			vocab.WithInbox(testutil.NewMockID(service2IRI, resthandler.InboxPath)))))
 
-		followerAuth2.WithAccept()
+		mockProviders2.followerAuth.WithAccept()
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
@@ -747,7 +635,7 @@ func TestService_Announce(t *testing.T) {
 		require.True(t, containsActivity(activities, create.ID()))
 
 		require.NotEmpty(t, subscriber2.Activities())
-		require.NotEmpty(t, anchorCredHandler2.AnchorCred(anchorCredID.String()))
+		require.NotEmpty(t, mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
 
 		// Service3 should have received an 'Announce' activity from Service2
 		it, err = store3.QueryActivities(
@@ -776,91 +664,34 @@ func TestService_Offer(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
-	cfg1 := &Config{
-		ServiceEndpoint: "/services/service1",
-		ServiceIRI:      service1IRI,
-		RetryOpts:       redelivery.DefaultConfig(),
-	}
-
-	store1 := memstore.New(cfg1.ServiceEndpoint)
-	anchorCredHandler1 := mocks.NewAnchorCredentialHandler()
-	followerAuth1 := mocks.NewFollowerAuth()
-	proofHandler1 := mocks.NewProofHandler()
-	witness1 := mocks.NewWitnessHandler()
-	undeliverableHandler1 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
-
-	service1, err := New(cfg1, store1, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler1),
-		service.WithAnchorCredentialHandler(anchorCredHandler1),
-		service.WithFollowerAuth(followerAuth1),
-		service.WithWitness(witness1),
-		service.WithProofHandler(proofHandler1),
-	)
-	require.NoError(t, err)
+	service1, store1, publicKey1, mockProviders1 := newServiceWithMocks(t, "/services/service1", service1IRI)
 
 	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
 	defer stop1()
 
-	cfg2 := &Config{
-		ServiceEndpoint: "/services/service2",
-		ServiceIRI:      service2IRI,
-		RetryOpts: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.2,
-			MaxMessages:    20,
-		},
-	}
+	service2, store2, publicKey2, mockProviders2 := newServiceWithMocks(t, "/services/service2", service2IRI)
 
-	store2 := memstore.New(cfg2.ServiceEndpoint)
-	anchorCredHandler2 := mocks.NewAnchorCredentialHandler()
-	followerAuth2 := mocks.NewFollowerAuth()
-	witness2 := mocks.NewWitnessHandler().WithProof([]byte(proof))
-	proofHandler2 := mocks.NewProofHandler()
-	undeliverableHandler2 := mocks.NewUndeliverableHandler()
-
-	require.NoError(t, store2.PutActor(aptestutil.NewMockService(service1IRI)))
-
-	service2, err := New(cfg2, store2, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler2),
-		service.WithAnchorCredentialHandler(anchorCredHandler2),
-		service.WithFollowerAuth(followerAuth2),
-		service.WithWitness(witness2),
-		service.WithProofHandler(proofHandler2),
-	)
-	require.NoError(t, err)
+	mockProviders2.witnessHandler.WithProof([]byte(proof))
 
 	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
 	defer stop2()
 
 	subscriber2 := mocks.NewSubscriber(service2.Subscribe())
 
-	cfg3 := &Config{
-		ServiceEndpoint: "/services/service3",
-		ServiceIRI:      service3IRI,
-	}
-
-	store3 := memstore.New(cfg3.ServiceEndpoint)
-	anchorCredHandler3 := mocks.NewAnchorCredentialHandler()
-	followerAuth3 := mocks.NewFollowerAuth()
-	witness3 := mocks.NewWitnessHandler()
-	proofHandler3 := mocks.NewProofHandler()
-	undeliverableHandler3 := mocks.NewUndeliverableHandler()
-
-	service3, err := New(cfg3, store3, transport.Default(),
-		service.WithUndeliverableHandler(undeliverableHandler3),
-		service.WithAnchorCredentialHandler(anchorCredHandler3),
-		service.WithFollowerAuth(followerAuth3),
-		service.WithWitness(witness3),
-		service.WithProofHandler(proofHandler3),
-	)
-	require.NoError(t, err)
+	//nolint:dogsled
+	service3, _, _, _ := newServiceWithMocks(t, "/services/service3", service3IRI)
 
 	stop3 := startHTTPServer(t, ":8303", service3.InboxHTTPHandler())
 	defer stop3()
+
+	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
+	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
+
+	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
+	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
+
+	require.NoError(t, store1.PutActor(actor2))
+	require.NoError(t, store2.PutActor(actor1))
 
 	service1.Start()
 	service2.Start()
@@ -915,8 +746,8 @@ func TestService_Offer(t *testing.T) {
 		require.True(t, containsActivity(activities, offer.ID()))
 
 		require.NotEmpty(t, subscriber2.Activities())
-		require.NotEmpty(t, witness2.AnchorCreds())
-		require.NotNil(t, proofHandler1.Proof(obj.ID().String()))
+		require.NotEmpty(t, mockProviders2.witnessHandler.AnchorCreds())
+		require.NotNil(t, mockProviders1.proofHandler.Proof(obj.ID().String()))
 
 		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
 		require.NoError(t, err)
@@ -932,6 +763,72 @@ func TestService_Offer(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, likes)
 	})
+}
+
+type mockProviders struct {
+	actorRetriever          *mocks.ActorRetriever
+	anchorCredentialHandler *mocks.AnchorCredentialHandler
+	followerAuth            *mocks.FollowerAuth
+	undeliverableHandler    *mocks.UndeliverableHandler
+	proofHandler            *mocks.ProofHandler
+	witnessHandler          *mocks.WitnessHandler
+}
+
+func newServiceWithMocks(t *testing.T, endpoint string,
+	serviceIRI *url.URL) (*Service, spi.Store, *vocab.PublicKeyType, *mockProviders) {
+	cfg := &Config{
+		ServiceEndpoint: endpoint,
+		ServiceIRI:      serviceIRI,
+		RetryOpts: &redelivery.Config{
+			MaxRetries:     5,
+			InitialBackoff: 10 * time.Millisecond,
+			MaxBackoff:     time.Second,
+			BackoffFactor:  1.2,
+			MaxMessages:    20,
+		},
+	}
+
+	providers := &mockProviders{
+		actorRetriever:          mocks.NewActorRetriever(),
+		anchorCredentialHandler: mocks.NewAnchorCredentialHandler(),
+		followerAuth:            mocks.NewFollowerAuth(),
+		undeliverableHandler:    mocks.NewUndeliverableHandler(),
+		proofHandler:            mocks.NewProofHandler(),
+		witnessHandler:          mocks.NewWitnessHandler(),
+	}
+
+	pubKeyBytes, privKey1, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	pemBytes, err := publicKeyToPEM(pubKeyBytes)
+	require.NoError(t, err)
+
+	publicKey := vocab.NewPublicKey(
+		vocab.WithID(testutil.NewMockID(serviceIRI, "/keys/main-key")),
+		vocab.WithOwner(cfg.ServiceIRI),
+		vocab.WithPublicKeyPem(string(pemBytes)),
+	)
+
+	trnspt := transport.New(http.DefaultClient, privKey1,
+		publicKey.ID.URL(),
+		httpsig.NewSigner(httpsig.DefaultGetSignerConfig()),
+		httpsig.NewSigner(httpsig.DefaultPostSignerConfig()),
+	)
+
+	sigVerifier := httpsig.NewVerifier(httpsig.DefaultVerifierConfig(), providers.actorRetriever)
+
+	activityStore := memstore.New(cfg.ServiceEndpoint)
+
+	s, err := New(cfg, activityStore, trnspt, sigVerifier,
+		service.WithUndeliverableHandler(providers.undeliverableHandler),
+		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
+		service.WithFollowerAuth(providers.followerAuth),
+		service.WithWitness(providers.witnessHandler),
+		service.WithProofHandler(providers.proofHandler),
+	)
+	require.NoError(t, err)
+
+	return s, activityStore, publicKey, providers
 }
 
 func newActivityID(serviceName fmt.Stringer) *url.URL {
@@ -970,6 +867,21 @@ func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
 	}
 
 	return false
+}
+
+func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
+	keyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	block := pem.Block{
+		Type:    "PUBLIC KEY",
+		Headers: nil,
+		Bytes:   keyBytes,
+	}
+
+	return pem.EncodeToMemory(&block), nil
 }
 
 const anchorCredential1 = `{

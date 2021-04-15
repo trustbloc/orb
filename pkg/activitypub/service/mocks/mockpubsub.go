@@ -24,18 +24,27 @@ const (
 
 // MockPubSub implements a mock publisher-subscriber.
 type MockPubSub struct {
-	Err     error
-	MsgChan map[string]chan *message.Message
-	mutex   sync.RWMutex
-	Timeout time.Duration
+	Err               error
+	MsgChan           map[string]chan *message.Message
+	mutex             sync.RWMutex
+	Timeout           time.Duration
+	undeliverableChan chan *message.Message
+	done              chan struct{}
+	closed            bool
 }
 
 // NewPubSub returns a mock publisher-subscriber.
 func NewPubSub() *MockPubSub {
-	return &MockPubSub{
-		MsgChan: make(map[string]chan *message.Message, 10),
-		Timeout: timeout,
+	m := &MockPubSub{
+		MsgChan:           make(map[string]chan *message.Message),
+		Timeout:           timeout,
+		undeliverableChan: make(chan *message.Message, maxBufferSize),
+		done:              make(chan struct{}),
 	}
+
+	go m.handleUndeliverable()
+
+	return m
 }
 
 // WithError injects an error into the mock publisher-subscriber.
@@ -51,8 +60,12 @@ func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message
 		return nil, m.Err
 	}
 
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	if m.closed {
+		return nil, fmt.Errorf("closed")
+	}
 
 	msgChan := make(chan *message.Message, maxBufferSize)
 
@@ -68,12 +81,13 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 	}
 
 	m.mutex.RLock()
-	msgChan := m.MsgChan[topic]
-	m.mutex.RUnlock()
+	defer m.mutex.RUnlock()
 
-	if msgChan == nil {
-		return fmt.Errorf("service is closed")
+	if m.closed {
+		return fmt.Errorf("closed")
 	}
+
+	msgChan := m.MsgChan[topic]
 
 	for _, msg := range messages {
 		// Copy the message so that the Ack/Nack is specific to a subscriber
@@ -95,15 +109,32 @@ func (m *MockPubSub) Close() error {
 
 	m.mutex.Lock()
 
-	for _, m := range m.MsgChan {
-		close(m)
-	}
-
-	m.MsgChan = nil
+	m.closed = true
 
 	m.mutex.Unlock()
 
+	close(m.undeliverableChan)
+
+	<-m.done
+
+	for _, msgChan := range m.MsgChan {
+		close(msgChan)
+	}
+
 	return nil
+}
+
+func (m *MockPubSub) handleUndeliverable() {
+	for msg := range m.undeliverableChan {
+		msgChan, ok := m.MsgChan[service.UndeliverableTopic]
+		if !ok {
+			continue
+		}
+
+		msgChan <- msg
+	}
+
+	m.done <- struct{}{}
 }
 
 func (m *MockPubSub) check(msg *message.Message) {
@@ -118,8 +149,11 @@ func (m *MockPubSub) check(msg *message.Message) {
 
 func (m *MockPubSub) postToUndeliverable(msg *message.Message) {
 	m.mutex.RLock()
-	msgChan := m.MsgChan[service.UndeliverableTopic]
-	m.mutex.RUnlock()
+	defer m.mutex.RUnlock()
 
-	msgChan <- msg
+	if m.closed {
+		return
+	}
+
+	m.undeliverableChan <- msg
 }

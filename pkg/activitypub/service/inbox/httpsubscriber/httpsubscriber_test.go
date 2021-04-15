@@ -9,6 +9,7 @@ package httpsubscriber
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -18,13 +19,18 @@ import (
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-const endpoint = "/services/service1"
+const (
+	endpoint   = "/services/service1"
+	serviceURL = "http://localhost:8202/services/service1"
+)
 
 func TestNew(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint})
+	s := New(&Config{ServiceEndpoint: endpoint}, &mocks.SignatureVerifier{})
 	require.NotNil(t, s)
 
 	require.Equal(t, spi.StateStarted, s.State())
@@ -38,7 +44,10 @@ func TestNew(t *testing.T) {
 }
 
 func TestSubscriber_HandleAck(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint})
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -64,7 +73,10 @@ func TestSubscriber_HandleAck(t *testing.T) {
 }
 
 func TestSubscriber_HandleNack(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint})
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -90,7 +102,10 @@ func TestSubscriber_HandleNack(t *testing.T) {
 }
 
 func TestSubscriber_HandleRequestTimeout(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint})
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -118,7 +133,10 @@ func TestSubscriber_HandleRequestTimeout(t *testing.T) {
 }
 
 func TestSubscriber_UnmarshalError(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint})
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -142,7 +160,10 @@ func TestSubscriber_UnmarshalError(t *testing.T) {
 
 func TestSubscriber_Close(t *testing.T) {
 	t.Run("Publish when stopped", func(t *testing.T) {
-		s := New(&Config{ServiceEndpoint: endpoint})
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 		require.NotNil(t, s)
 
 		_, err := s.Subscribe(context.Background(), "")
@@ -170,7 +191,10 @@ func TestSubscriber_Close(t *testing.T) {
 	})
 
 	t.Run("Respond when stopped", func(t *testing.T) {
-		s := New(&Config{ServiceEndpoint: endpoint})
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+
+		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 		require.NotNil(t, s)
 
 		_, err := s.Subscribe(context.Background(), "")
@@ -190,4 +214,35 @@ func TestSubscriber_Close(t *testing.T) {
 		require.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
+}
+
+func TestSubscriber_HTTPSignatureError(t *testing.T) {
+	errExpected := fmt.Errorf("injected verifier error")
+
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(nil, errExpected)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	require.NotNil(t, s)
+
+	defer s.Stop()
+
+	msgChan, err := s.Subscribe(context.Background(), "")
+	require.NoError(t, err)
+	require.NotNil(t, msgChan)
+
+	go func() {
+		for msg := range msgChan {
+			msg.Ack()
+		}
+	}()
+
+	rw := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+
+	s.handleMessage(rw, req)
+
+	result := rw.Result()
+	require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+	require.NoError(t, result.Body.Close())
 }
