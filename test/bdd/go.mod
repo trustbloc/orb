@@ -8,6 +8,7 @@ require (
 	github.com/cucumber/godog v0.9.0
 	github.com/cucumber/messages-go/v10 v10.0.3
 	github.com/fsouza/go-dockerclient v1.6.5
+	github.com/go-fed/httpsig v1.1.1-0.20201223112313-55836744818e
 	github.com/google/uuid v1.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.7.0
