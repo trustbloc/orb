@@ -68,11 +68,11 @@ import (
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
-	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/resolver"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
+	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -187,7 +187,10 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	opStore := mocks.NewMockOperationStore()
+	opStore, err := operation.New(storeProviders.provider)
+	if err != nil {
+		return err
+	}
 
 	orbDocumentLoader, err := loadOrbContexts()
 	if err != nil {

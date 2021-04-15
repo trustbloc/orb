@@ -27,25 +27,69 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
-      - ANCHOR_CREDENTIAL_ISSUER=http://peer1.com
-      - ANCHOR_CREDENTIAL_URL=http://peer1.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
+      - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain.com
+      - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain1.com:5984
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
-      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
       - DISCOVERY_DOMAINS=https://orb.domain2.com
     ports:
       - 48326:443
-    command:  /bin/sh -c "sleep 10;orb start"
+    command:  /bin/sh -c "sleep 12;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
     depends_on:
       - ipfs
-      - couchdb.example.com
+      - couchdb.kms.com
+      - couchdb.domain1.com
+    networks:
+      - orb_net
+
+  orb2-domain1:
+    container_name: orb2.domain1.com
+    image: ${ORB_FIXTURE_IMAGE}:latest
+    environment:
+      - LOG_LEVEL=DEBUG
+      - ORB_VCT_URL=http://orb.vct:8077
+      - ORB_HOST_URL=0.0.0.0:443
+      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
+      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
+      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
+      # balancer servicing multiple nodes.
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain1.com
+      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
+      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - DID_NAMESPACE=did:orb
+      - DID_ALIASES=did:alias.com
+      - ALLOWED_ORIGINS=origin.com,source.com
+      # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
+      - BATCH_WRITER_TIMEOUT=200
+      - CAS_URL=ipfs:5001
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
+      - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
+      - DATABASE_TYPE=couchdb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain1.com:5984
+      - DATABASE_PREFIX=orb
+      - KMSSECRETS_DATABASE_TYPE=couchdb
+      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - DISCOVERY_DOMAINS=https://orb.domain2.com
+    ports:
+      - 48526:443
+    command:  /bin/sh -c "sleep 15;orb start"
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+    depends_on:
+      - ipfs
+      - couchdb.kms.com
+      - couchdb.domain1.com
     networks:
       - orb_net
 
@@ -69,25 +113,69 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
-      - ANCHOR_CREDENTIAL_ISSUER=http://peer2.com
-      - ANCHOR_CREDENTIAL_URL=http://peer2.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
+      - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain.com
+      - ANCHOR_CREDENTIAL_DOMAIN=domain2.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain2.com:5984
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
-      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.example.com:5984
+      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
       - DISCOVERY_DOMAINS=https://orb.domain1.com
     ports:
       - 48426:443
-    command:  /bin/sh -c "sleep 12;orb start"
+    command:  /bin/sh -c "sleep 15;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
     depends_on:
       - ipfs
-      - couchdb.example.com
+      - couchdb.kms.com
+      - couchdb.domain2.com
+    networks:
+      - orb_net
+
+  orb2-domain2:
+    container_name: orb2.domain2.com
+    image: ${ORB_FIXTURE_IMAGE}:latest
+    environment:
+      - LOG_LEVEL=DEBUG
+      - ORB_HOST_URL=0.0.0.0:443
+      - ORB_VCT_URL=http://orb.vct:8077
+      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
+      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
+      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
+      # balancer servicing multiple nodes.
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
+      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
+      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - DID_NAMESPACE=did:orb
+      - DID_ALIASES=did:alias.com
+      - ALLOWED_ORIGINS=origin.com,source.com
+      # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
+      - BATCH_WRITER_TIMEOUT=200
+      - CAS_URL=ipfs:5001
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
+      - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_DOMAIN=domain2.com
+      - DATABASE_TYPE=couchdb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain2.com:5984
+      - DATABASE_PREFIX=orb
+      - KMSSECRETS_DATABASE_TYPE=couchdb
+      - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMSSECRETS_DATABASE_PREFIX=orbkms
+      - DISCOVERY_DOMAINS=https://orb.domain1.com
+    ports:
+      - 48626:443
+    command:  /bin/sh -c "sleep 15;orb start"
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+    depends_on:
+      - ipfs
+      - couchdb.kms.com
+      - couchdb.domain2.com
     networks:
       - orb_net
 
@@ -104,11 +192,37 @@ services:
     networks:
       - orb_net
 
-  couchdb.example.com:
-    container_name: couchdb.example.com
+  couchdb.kms.com:
+    container_name: couchdb.kms.com
     image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
     ports:
-      - ${COUCHDB_PORT}:${COUCHDB_PORT}
+      - ${COUCHDB_KMS_PORT}:${COUCHDB_PORT}
+    environment:
+      - COUCHDB_USER=${COUCHDB_USERNAME}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    volumes:
+      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
+    networks:
+      - orb_net
+
+  couchdb.domain1.com:
+    container_name: couchdb.domain1.com
+    image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
+    ports:
+      - ${COUCHDB_DOMAIN1_PORT}:${COUCHDB_PORT}
+    environment:
+      - COUCHDB_USER=${COUCHDB_USERNAME}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    volumes:
+      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
+    networks:
+      - orb_net
+
+  couchdb.domain2.com:
+    container_name: couchdb.domain2.com
+    image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
+    ports:
+      - ${COUCHDB_DOMAIN2_PORT}:${COUCHDB_PORT}
     environment:
       - COUCHDB_USER=${COUCHDB_USERNAME}
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}

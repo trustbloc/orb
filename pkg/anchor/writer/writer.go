@@ -201,7 +201,7 @@ func (c *Writer) listenForWitnessedAnchorCredentials() {
 	logger.Debugf("starting witnessed anchored credentials listener")
 
 	for vc := range c.vcCh {
-		logger.Debugf("got witnessed anchor credential: %s: %s", vc.ID)
+		logger.Debugf("got witnessed anchor credential: %s", vc.ID)
 
 		c.handle(vc)
 	}
