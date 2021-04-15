@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	nameSpace = "operation"
+	namespace = "operation"
 	index     = "suffix"
 )
 
@@ -25,14 +25,56 @@ var logger = log.New("operation-store")
 
 // New creates new operation store.
 func New(provider storage.Provider) (*Store, error) {
-	store, err := provider.OpenStore(nameSpace)
+	store, err := provider.OpenStore(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open operation store: %s", err.Error())
+	}
+
+	config, err := provider.GetStoreConfig(namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operation store config: %s", err.Error())
+	}
+
+	if contains(config.TagNames, index) {
+		logger.Infof("store index has been configured")
+
+		return &Store{store: store}, nil
+	}
+
+	logger.Infof("store index has not yet been configured, creating index...")
+
+	setErr := provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index}})
+	if setErr != nil {
+		logger.Infof("checking if some other server may have been faster in creating index, set index error: %s",
+			setErr.Error())
+
+		config, getErr := provider.GetStoreConfig(namespace)
+		if getErr != nil {
+			return nil, fmt.Errorf("failed to get operation store config: %s", getErr.Error())
+		}
+
+		if !contains(config.TagNames, index) {
+			return nil, fmt.Errorf("failed to set index: %s", setErr.Error())
+		}
+
+		logger.Infof("store index has been configured, some other server has been faster in creating it")
+	} else {
+		logger.Infof("successfully created index")
 	}
 
 	return &Store{
 		store: store,
 	}, nil
+}
+
+func contains(values []string, value string) bool {
+	for _, val := range values {
+		if val == value {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Store is db implementation of operation store.

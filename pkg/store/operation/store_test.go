@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
@@ -33,6 +34,27 @@ func TestNew(t *testing.T) {
 		require.NotNil(t, s)
 	})
 
+	t.Run("success - index exists", func(t *testing.T) {
+		provider := &mocks.Provider{}
+		provider.GetStoreConfigReturns(storage.StoreConfiguration{TagNames: []string{index}}, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+	})
+
+	t.Run("success - different server won in race to create index", func(t *testing.T) {
+		provider := &mocks.Provider{}
+		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
+
+		provider.GetStoreConfigReturnsOnCall(0, storage.StoreConfiguration{}, nil)
+		provider.GetStoreConfigReturnsOnCall(1, storage.StoreConfiguration{TagNames: []string{index}}, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+	})
+
 	t.Run("error - open store fails", func(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(nil, fmt.Errorf("open store error"))
@@ -40,6 +62,42 @@ func TestNew(t *testing.T) {
 		s, err := New(provider)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open operation store: open store error")
+		require.Nil(t, s)
+	})
+
+	t.Run("error - get store config fails", func(t *testing.T) {
+		provider := &mocks.Provider{}
+		provider.GetStoreConfigReturns(storage.StoreConfiguration{}, fmt.Errorf("get store config error"))
+
+		s, err := New(provider)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get operation store config: get store config error")
+		require.Nil(t, s)
+	})
+
+	t.Run("error - set store config fails", func(t *testing.T) {
+		provider := &mocks.Provider{}
+		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
+
+		provider.GetStoreConfigReturnsOnCall(0, storage.StoreConfiguration{}, nil)
+		provider.GetStoreConfigReturnsOnCall(1, storage.StoreConfiguration{}, nil)
+
+		s, err := New(provider)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to set index: set store config error")
+		require.Nil(t, s)
+	})
+
+	t.Run("error - second get store config fails", func(t *testing.T) {
+		provider := &mocks.Provider{}
+		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
+
+		provider.GetStoreConfigReturnsOnCall(0, storage.StoreConfiguration{}, nil)
+		provider.GetStoreConfigReturnsOnCall(1, storage.StoreConfiguration{}, fmt.Errorf("get store config error"))
+
+		s, err := New(provider)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get operation store config: get store config error")
 		require.Nil(t, s)
 	})
 }
