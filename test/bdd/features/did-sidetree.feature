@@ -8,8 +8,13 @@
 @did-sidetree
 Feature:
   Background: Setup
-    And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
+    Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
+    And variable "domain1KeyID" is assigned the value "${domain1IRI}/keys/main-key"
+    And variable "domain1KeyFile" is assigned the value "./fixtures/testdata/keys/domain1/private-key.pem"
+
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
+    And variable "domain2KeyID" is assigned the value "${domain2IRI}/keys/main-key"
+    And variable "domain2KeyFile" is assigned the value "./fixtures/testdata/keys/domain2/private-key.pem"
 
   @create_valid_did_doc
   Scenario: create valid did doc
@@ -171,7 +176,7 @@ Feature:
       # domain2 server follows domain1 server
       Given variable "followID" is assigned a unique ID
       And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-      Then an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json"
+      When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
       When client sends request to "https://localhost:48326/sidetree/v1/operations" to create DID document
       Then check success response contains "#did"

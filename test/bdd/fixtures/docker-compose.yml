@@ -10,6 +10,7 @@ services:
   orb-domain1:
     container_name: orb.domain1.com
     image: ${ORB_FIXTURE_IMAGE}:latest
+    restart: always
     environment:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077
@@ -43,6 +44,7 @@ services:
     command:  /bin/sh -c "sleep 12;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
+      - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
       - ipfs
       - couchdb.kms.com
@@ -53,6 +55,7 @@ services:
   orb2-domain1:
     container_name: orb2.domain1.com
     image: ${ORB_FIXTURE_IMAGE}:latest
+    restart: always
     environment:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077
@@ -86,6 +89,7 @@ services:
     command:  /bin/sh -c "sleep 15;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
+      - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
       - ipfs
       - couchdb.kms.com
@@ -96,6 +100,7 @@ services:
   orb-domain2:
     container_name: orb.domain2.com
     image: ${ORB_FIXTURE_IMAGE}:latest
+    restart: always
     environment:
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
@@ -129,6 +134,7 @@ services:
     command:  /bin/sh -c "sleep 15;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
+      - ./testdata/keys/domain2:/etc/orb/activitypub
     depends_on:
       - ipfs
       - couchdb.kms.com
@@ -139,6 +145,7 @@ services:
   orb2-domain2:
     container_name: orb2.domain2.com
     image: ${ORB_FIXTURE_IMAGE}:latest
+    restart: always
     environment:
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
@@ -172,6 +179,7 @@ services:
     command:  /bin/sh -c "sleep 15;orb start"
     volumes:
       - ./keys/tls:/etc/orb/tls
+      - ./testdata/keys/domain2:/etc/orb/activitypub
     depends_on:
       - ipfs
       - couchdb.kms.com

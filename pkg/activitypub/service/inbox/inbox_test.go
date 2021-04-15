@@ -26,6 +26,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -37,6 +38,7 @@ import (
 
 //go:generate counterfeiter -o ../mocks/activityhandler.gen.go --fake-name ActivityHandler ../spi ActivityHandler
 //go:generate counterfeiter -o ../mocks/activitystore.gen.go --fake-name ActivityStore ../../store/spi Store
+//go:generate counterfeiter -o ../mocks/sigfnatureverifier.gen.go --fake-name SignatureVerifier . signatureVerifier
 
 func TestInbox_StartStop(t *testing.T) {
 	cfg := &Config{
@@ -45,7 +47,8 @@ func TestInbox_StartStop(t *testing.T) {
 		Topic:           "activities",
 	}
 
-	ib, err := New(cfg, memstore.New(cfg.ServiceEndpoint), mocks.NewPubSub(), &mocks.ActivityHandler{})
+	ib, err := New(cfg, memstore.New(cfg.ServiceEndpoint), mocks.NewPubSub(), &mocks.ActivityHandler{},
+		&mocks.SignatureVerifier{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -84,7 +87,10 @@ func TestInbox_Handle(t *testing.T) {
 	activityHandler := &mocks.ActivityHandler{}
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
-	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -109,6 +115,7 @@ func TestInbox_Handle(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -171,7 +178,10 @@ func TestInbox_Error(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -194,6 +204,7 @@ func TestInbox_Error(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -226,7 +237,10 @@ func TestInbox_Error(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.GetActivityReturns(nil, store.ErrNotFound)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -249,6 +263,7 @@ func TestInbox_Error(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -297,7 +312,10 @@ func TestInbox_Error(t *testing.T) {
 			}
 		}()
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler)
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -324,6 +342,7 @@ func TestInbox_Error(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -355,7 +374,8 @@ func TestInbox_Error(t *testing.T) {
 
 		errExpected := fmt.Errorf("injected pub sub error")
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), activityHandler)
+		ib, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), activityHandler,
+			&mocks.SignatureVerifier{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, ib)
@@ -380,7 +400,10 @@ func TestInbox_Error(t *testing.T) {
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -401,6 +424,7 @@ func TestInbox_Error(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -435,7 +459,10 @@ func TestInbox_Error(t *testing.T) {
 		activityStore := &mocks.ActivityStore{}
 		activityStore.GetActivityReturns(nil, errExpected)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler)
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -456,6 +483,7 @@ func TestInbox_Error(t *testing.T) {
 				),
 			),
 			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
 		)
 
 		req, err := newHTTPRequest(service1InboxURL, activity)
@@ -466,6 +494,78 @@ func TestInbox_Error(t *testing.T) {
 		require.NotNil(t, resp)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
+	})
+}
+
+func TestUnmarshalAndValidateActivity(t *testing.T) {
+	activityID := testutil.MustParseURL("https://example1.com/activities/activity1")
+
+	ib, e := New(&Config{}, memstore.New(""), mocks.NewPubSub(), nil, nil)
+	require.NoError(t, e)
+	require.NotNil(t, ib)
+
+	t.Run("Success", func(t *testing.T) {
+		actorIRI := testutil.MustParseURL("https://example1.com/services/service1")
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(activityID), vocab.WithActor(actorIRI))
+
+		activityBytes, err := json.Marshal(activity)
+		require.NoError(t, err)
+
+		msg := message.NewMessage("msg1", activityBytes)
+		msg.Metadata[httpsubscriber.ActorIRIKey] = actorIRI.String()
+
+		a, err := ib.unmarshalAndValidateActivity(msg)
+		require.NoError(t, err)
+		require.NotNil(t, a)
+		require.Equal(t, activity.ID().String(), a.ID().String())
+	})
+
+	t.Run("Unmarshal error", func(t *testing.T) {
+		a, err := ib.unmarshalAndValidateActivity(message.NewMessage("msg1", []byte("{")))
+		require.EqualError(t, err, "unmarshal activity: unexpected end of JSON input")
+		require.Nil(t, a)
+	})
+
+	t.Run("No actor IRI in message error", func(t *testing.T) {
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(activityID))
+
+		activityBytes, err := json.Marshal(activity)
+		require.NoError(t, err)
+
+		a, err := ib.unmarshalAndValidateActivity(message.NewMessage("msg1", activityBytes))
+		require.EqualError(t, err, "no actorIRI specified in message context")
+		require.Nil(t, a)
+	})
+
+	t.Run("Nil actor in activity error", func(t *testing.T) {
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(activityID))
+
+		activityBytes, err := json.Marshal(activity)
+		require.NoError(t, err)
+
+		msg := message.NewMessage("msg1", activityBytes)
+		msg.Metadata[httpsubscriber.ActorIRIKey] = "https://example1.com/services/service1"
+
+		a, err := ib.unmarshalAndValidateActivity(msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no actor specified in activity")
+		require.Nil(t, a)
+	})
+
+	t.Run("Actor mismatch error", func(t *testing.T) {
+		actorIRI := testutil.MustParseURL("https://example1.com/services/service1")
+		activity := vocab.NewCreateActivity(nil, vocab.WithID(activityID), vocab.WithActor(actorIRI))
+
+		activityBytes, err := json.Marshal(activity)
+		require.NoError(t, err)
+
+		msg := message.NewMessage("msg1", activityBytes)
+		msg.Metadata[httpsubscriber.ActorIRIKey] = "https://example1.com/services/service2"
+
+		a, err := ib.unmarshalAndValidateActivity(msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not match the actor in the HTTP signature")
+		require.Nil(t, a)
 	})
 }
 

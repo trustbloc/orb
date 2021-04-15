@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -34,6 +35,10 @@ type pubSub interface {
 	Close() error
 }
 
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (*url.URL, error)
+}
+
 // Config holds configuration parameters for the Inbox.
 type Config struct {
 	ServiceEndpoint string
@@ -55,7 +60,8 @@ type Inbox struct {
 }
 
 // New returns a new ActivityPub inbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler) (*Inbox, error) {
+func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
+	sigVerifier signatureVerifier) (*Inbox, error) {
 	h := &Inbox{
 		Config:          cfg,
 		activityHandler: activityHandler,
@@ -77,6 +83,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		&httpsubscriber.Config{
 			ServiceEndpoint: cfg.ServiceEndpoint,
 		},
+		sigVerifier,
 	)
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
@@ -155,11 +162,9 @@ func (h *Inbox) listen() {
 func (h *Inbox) handle(msg *message.Message) {
 	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
 
-	activity := &vocab.ActivityType{}
-
-	err := h.jsonUnmarshal(msg.Payload, activity)
+	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling activity message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
+		logger.Errorf("[%s] Error validating activity for message [%s]", h.ServiceEndpoint, msg.UUID)
 
 		msg.Nack()
 
@@ -209,4 +214,29 @@ func (h *Inbox) handle(msg *message.Message) {
 
 		msg.Ack()
 	}
+}
+
+func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.ActivityType, error) {
+	activity := &vocab.ActivityType{}
+
+	err := h.jsonUnmarshal(msg.Payload, activity)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal activity: %w", err)
+	}
+
+	actorIRI := msg.Metadata[httpsubscriber.ActorIRIKey]
+	if actorIRI == "" {
+		return nil, fmt.Errorf("no actorIRI specified in message context")
+	}
+
+	if activity.Actor() == nil {
+		return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
+	}
+
+	if activity.Actor().String() != actorIRI {
+		return nil, fmt.Errorf("actor in activity [%s] does not match the actor in the HTTP signature [%s]",
+			activity.ID(), actorIRI)
+	}
+
+	return activity, nil
 }

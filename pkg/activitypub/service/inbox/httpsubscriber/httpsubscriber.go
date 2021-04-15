@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
@@ -23,14 +24,21 @@ import (
 var logger = log.New("activitypub_service")
 
 const (
+	// ActorIRIKey is the metadata key for the actor IRI.
+	ActorIRIKey = "actor-iri"
+
 	defaultBufferSize = 100
 	stopTimeout       = 250 * time.Millisecond
 )
 
-// Config holds the HTTP subscriper configuration parameters.
+// Config holds the HTTP subscriber configuration parameters.
 type Config struct {
 	ServiceEndpoint string
 	BufferSize      int
+}
+
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (*url.URL, error)
 }
 
 // Subscriber implements a subscriber for Watermill that handles HTTP requests.
@@ -42,10 +50,11 @@ type Subscriber struct {
 	stopped          chan struct{}
 	done             chan struct{}
 	unmarshalMessage wmhttp.UnmarshalMessageFunc
+	verifier         signatureVerifier
 }
 
 // New returns a new HTTP subscriber.
-func New(cfg *Config) *Subscriber {
+func New(cfg *Config, sigVerifier signatureVerifier) *Subscriber {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -53,6 +62,7 @@ func New(cfg *Config) *Subscriber {
 	s := &Subscriber{
 		Config:           cfg,
 		unmarshalMessage: wmhttp.DefaultUnmarshalMessageFunc,
+		verifier:         sigVerifier,
 		msgChan:          make(chan *message.Message, cfg.BufferSize),
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
@@ -95,6 +105,15 @@ func (s *Subscriber) Handler() common.HTTPRequestHandler {
 }
 
 func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
+	actorIRI, err := s.verifier.VerifyRequest(r)
+	if err != nil {
+		logger.Warnf("[%s] Invalid HTTP signature: %s", s.ServiceEndpoint, err)
+
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
 	msg, err := s.unmarshalMessage("", r)
 	if err != nil {
 		logger.Warnf("[%s] Error reading message: %s", s.ServiceEndpoint, err)
@@ -104,7 +123,9 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debugf("[%s] Handling message [%s]", s.ServiceEndpoint, msg.UUID)
+	msg.Metadata[ActorIRIKey] = actorIRI.String()
+
+	logger.Debugf("[%s] Handling message [%s] from actor [%s]", s.ServiceEndpoint, msg.UUID, actorIRI)
 
 	err = s.publish(msg)
 	if err != nil {

@@ -68,8 +68,12 @@ type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (*url.URL, error)
+}
+
 // New returns a new ActivityPub service.
-func New(cfg *Config, activityStore store.Store, t httpTransport,
+func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
 	handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
@@ -110,7 +114,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport,
 		},
 		activityStore,
 		newPubSub(cfg, cfg.ServiceEndpoint+resthandler.InboxPath),
-		inboxHandler,
+		inboxHandler, sigVerifier,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create inbox failed: %w", err)
