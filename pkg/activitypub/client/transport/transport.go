@@ -14,7 +14,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/trustbloc/edge-core/pkg/log"
 )
+
+var logger = log.New("activitypub_client")
 
 // Signer signs an HTTP request and adds the signature to the header of the request.
 type Signer interface {
@@ -90,6 +94,8 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
 
+	logger.Debugf("Signed HTTP POST to %s. Headers: %s", r.URL, req.Header)
+
 	return t.client.Do(req)
 }
 
@@ -101,6 +107,8 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 	}
 
 	req.Header = r.Header
+
+	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
 
 	err = t.getSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, nil)
 	if err != nil {

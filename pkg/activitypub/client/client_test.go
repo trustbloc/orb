@@ -431,3 +431,95 @@ func TestClient_GetReferences(t *testing.T) {
 		require.NoError(t, result2.Body.Close())
 	})
 }
+
+func TestClient_GetPublicKey(t *testing.T) {
+	serviceIRI := testutil.MustParseURL("https://example.com/services/service1")
+	keyIRI := testutil.NewMockID(serviceIRI, "/keys/main-key")
+
+	publicKeyBytesBytes, err := json.Marshal(aptestutil.NewMockPublicKey(serviceIRI))
+	require.NoError(t, err)
+
+	t.Run("Success", func(t *testing.T) {
+		httpClient := &mocks.HTTPTransport{}
+
+		rw := httptest.NewRecorder()
+
+		_, err = rw.Write(publicKeyBytesBytes)
+		require.NoError(t, err)
+
+		result := rw.Result()
+
+		httpClient.GetReturns(result, nil)
+
+		c := New(httpClient)
+		require.NotNil(t, t, c)
+
+		publicKey, e := c.GetPublicKey(keyIRI)
+		require.NoError(t, e)
+		require.NotNil(t, publicKey)
+		require.Equal(t, keyIRI.String(), publicKey.ID.String())
+
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Error status code", func(t *testing.T) {
+		httpClient := &mocks.HTTPTransport{}
+
+		rw := httptest.NewRecorder()
+
+		rw.Code = http.StatusInternalServerError
+
+		result := rw.Result()
+
+		httpClient.GetReturns(result, nil)
+
+		c := New(httpClient)
+		require.NotNil(t, t, c)
+
+		publicKey, e := c.GetPublicKey(keyIRI)
+		require.Error(t, e)
+		require.Nil(t, publicKey)
+		require.Contains(t, e.Error(), "status code 500")
+
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("HTTP client error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected HTTP client error")
+
+		httpClient := &mocks.HTTPTransport{}
+
+		httpClient.GetReturns(nil, errExpected)
+
+		c := New(httpClient)
+		require.NotNil(t, t, c)
+
+		publicKey, e := c.GetPublicKey(keyIRI)
+		require.Error(t, e)
+		require.Contains(t, e.Error(), errExpected.Error())
+		require.Nil(t, publicKey)
+	})
+
+	t.Run("Unmarshal client error", func(t *testing.T) {
+		rw := httptest.NewRecorder()
+
+		_, err = rw.Write([]byte("{"))
+		require.NoError(t, err)
+
+		httpClient := &mocks.HTTPTransport{}
+
+		result := rw.Result()
+
+		httpClient.GetReturns(result, nil)
+
+		c := New(httpClient)
+		require.NotNil(t, t, c)
+
+		publicKey, err := c.GetPublicKey(keyIRI)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unexpected end of JSON input")
+		require.Nil(t, publicKey)
+
+		require.NoError(t, result.Body.Close())
+	})
+}

@@ -14,9 +14,30 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-// NewMockService returns a mock 'Service' type actor with the given IRI.
-func NewMockService(serviceIRI *url.URL) *vocab.ActorType {
-	const keyPem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+// ServiceOptions are options passed in to NewMockService.
+type ServiceOptions struct {
+	PublicKey *vocab.PublicKeyType
+}
+
+// ServiceOpt is a mock service option.
+type ServiceOpt func(options *ServiceOptions)
+
+// WithPublicKey sets the public key on the mock service.
+func WithPublicKey(pubKey *vocab.PublicKeyType) ServiceOpt {
+	return func(options *ServiceOptions) {
+		options.PublicKey = pubKey
+	}
+}
+
+// NewMockService returns a mock 'Service' type actor with the given IRI and options.
+func NewMockService(serviceIRI *url.URL, opts ...ServiceOpt) *vocab.ActorType {
+	options := &ServiceOptions{
+		PublicKey: NewMockPublicKey(serviceIRI),
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
 
 	followers := testutil.NewMockID(serviceIRI, "/followers")
 	following := testutil.NewMockID(serviceIRI, "/following")
@@ -26,14 +47,8 @@ func NewMockService(serviceIRI *url.URL) *vocab.ActorType {
 	witnessing := testutil.NewMockID(serviceIRI, "/witnessing")
 	liked := testutil.NewMockID(serviceIRI, "/liked")
 
-	publicKey := vocab.NewPublicKey(
-		vocab.WithID(testutil.NewMockID(serviceIRI, "/keys/main-key")),
-		vocab.WithOwner(serviceIRI),
-		vocab.WithPublicKeyPem(keyPem),
-	)
-
 	return vocab.NewService(serviceIRI,
-		vocab.WithPublicKey(publicKey),
+		vocab.WithPublicKey(options.PublicKey),
 		vocab.WithInbox(inbox),
 		vocab.WithOutbox(outbox),
 		vocab.WithFollowers(followers),
@@ -41,6 +56,17 @@ func NewMockService(serviceIRI *url.URL) *vocab.ActorType {
 		vocab.WithWitnesses(witnesses),
 		vocab.WithWitnessing(witnessing),
 		vocab.WithLiked(liked),
+	)
+}
+
+// NewMockPublicKey returns a mock public key using the given service IRI.
+func NewMockPublicKey(serviceIRI *url.URL) *vocab.PublicKeyType {
+	const keyPem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+
+	return vocab.NewPublicKey(
+		vocab.WithID(testutil.NewMockID(serviceIRI, "/keys/main-key")),
+		vocab.WithOwner(serviceIRI),
+		vocab.WithPublicKeyPem(keyPem),
 	)
 }
 

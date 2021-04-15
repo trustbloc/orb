@@ -23,7 +23,7 @@ func TestSigner(t *testing.T) {
 		_, privKey, err := ed25519.GenerateKey(rand.Reader)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", nil)
+		req, err := http.NewRequest(http.MethodGet, "https://domain1.com", nil)
 		require.NoError(t, err)
 
 		require.NoError(t, s.SignRequest(privKey, "pubKeyID", req, nil))
