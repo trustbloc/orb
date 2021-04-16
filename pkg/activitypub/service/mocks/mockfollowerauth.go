@@ -10,39 +10,39 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-// FollowerAuth implements a mock follower authorization.
-type FollowerAuth struct {
+// ActorAuth implements a mock actor authorization handler.
+type ActorAuth struct {
 	accept bool
 	err    error
 }
 
-// NewFollowerAuth returns a mock follower authorization.
-func NewFollowerAuth() *FollowerAuth {
-	return &FollowerAuth{}
+// NewActorAuth returns a mock actor authorization.
+func NewActorAuth() *ActorAuth {
+	return &ActorAuth{}
 }
 
-// WithAccept ensures that the request to follow is accepted.
-func (m *FollowerAuth) WithAccept() *FollowerAuth {
+// WithAccept ensures that the request is accepted.
+func (m *ActorAuth) WithAccept() *ActorAuth {
 	m.accept = true
 
 	return m
 }
 
-// WithReject ensures that the request to follow is rejected.
-func (m *FollowerAuth) WithReject() *FollowerAuth {
+// WithReject ensures that the request is rejected.
+func (m *ActorAuth) WithReject() *ActorAuth {
 	m.accept = false
 
 	return m
 }
 
 // WithError injects an error into the handler.
-func (m *FollowerAuth) WithError(err error) *FollowerAuth {
+func (m *ActorAuth) WithError(err error) *ActorAuth {
 	m.err = err
 
 	return m
 }
 
-// AuthorizeFollower is a mock implementation that returns the injected values.
-func (m *FollowerAuth) AuthorizeFollower(follower *vocab.ActorType) (bool, error) {
+// AuthorizeActor is a mock implementation that returns the injected values.
+func (m *ActorAuth) AuthorizeActor(follower *vocab.ActorType) (bool, error) {
 	return m.accept, m.err
 }

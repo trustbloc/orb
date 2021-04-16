@@ -768,7 +768,7 @@ func TestService_Offer(t *testing.T) {
 type mockProviders struct {
 	actorRetriever          *mocks.ActorRetriever
 	anchorCredentialHandler *mocks.AnchorCredentialHandler
-	followerAuth            *mocks.FollowerAuth
+	followerAuth            *mocks.ActorAuth
 	undeliverableHandler    *mocks.UndeliverableHandler
 	proofHandler            *mocks.ProofHandler
 	witnessHandler          *mocks.WitnessHandler
@@ -791,7 +791,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	providers := &mockProviders{
 		actorRetriever:          mocks.NewActorRetriever(),
 		anchorCredentialHandler: mocks.NewAnchorCredentialHandler(),
-		followerAuth:            mocks.NewFollowerAuth(),
+		followerAuth:            mocks.NewActorAuth(),
 		undeliverableHandler:    mocks.NewUndeliverableHandler(),
 		proofHandler:            mocks.NewProofHandler(),
 		witnessHandler:          mocks.NewWitnessHandler(),

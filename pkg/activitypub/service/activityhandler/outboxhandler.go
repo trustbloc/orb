@@ -22,9 +22,11 @@ type Outbox struct {
 func NewOutbox(cfg *Config, s store.Store, t httpTransport) *Outbox {
 	h := &Outbox{}
 
-	h.handler = newHandler(cfg, s, t, h.undoFollowing)
-
-	h.undoFollow = h.undoFollowing
+	h.handler = newHandler(cfg, s, t,
+		func(follow *vocab.ActivityType) error {
+			return h.undoAddReference(follow, store.Following)
+		},
+	)
 
 	return h
 }
@@ -42,33 +44,28 @@ func (h *Outbox) HandleActivity(activity *vocab.ActivityType) error {
 	}
 }
 
-func (h *Outbox) undoFollowing(follow *vocab.ActivityType) error {
-	// Make sure that the actor IRI is this service. If not then ignore the message.
-	if follow.Actor().String() != h.ServiceIRI.String() {
-		logger.Infof("[%s] Not handling 'Undo' of follow activity %s since this service %s"+
-			" is not the actor %s", h.ServiceName, follow.ID(), h.ServiceIRI, follow.Actor())
-
-		return nil
+func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType) error {
+	if activity.Actor().String() != h.ServiceIRI.String() {
+		return fmt.Errorf("this service is not the actor for the 'Undo'")
 	}
 
-	iri := follow.Object().IRI()
+	iri := activity.Object().IRI()
 	if iri == nil {
-		return fmt.Errorf("no IRI specified in 'object' field of the 'Follow' activity")
+		return fmt.Errorf("no IRI specified in 'object' field")
 	}
 
-	err := h.store.DeleteReference(store.Following, h.ServiceIRI, iri)
-	if err != nil {
+	if err := h.store.DeleteReference(refType, h.ServiceIRI, iri); err != nil {
 		if err == store.ErrNotFound {
-			logger.Infof("[%s] %s not found in following collection of %s", h.ServiceName, iri, h.ServiceIRI)
+			logger.Infof("[%s] %s not found in %s collection of %s", h.ServiceName, iri, refType, h.ServiceIRI)
 
 			return nil
 		}
 
-		return fmt.Errorf("unable to delete %s from %s's collection of following", iri, h.ServiceIRI)
+		return fmt.Errorf("unable to delete %s from %s's collection of %s", iri, h.ServiceIRI, refType)
 	}
 
-	logger.Debugf("[%s] %s was successfully deleted from %s's collection of following",
-		h.ServiceIRI, iri, h.ServiceIRI)
+	logger.Debugf("[%s] %s was successfully deleted from %s's collection of %s",
+		h.ServiceIRI, iri, h.ServiceIRI, refType)
 
 	return nil
 }

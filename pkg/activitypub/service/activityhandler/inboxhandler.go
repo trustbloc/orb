@@ -40,9 +40,11 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport
 		Handlers: options,
 	}
 
-	h.handler = newHandler(cfg, s, t, h.undoFollower)
-
-	h.undoFollow = h.undoFollower
+	h.handler = newHandler(cfg, s, t,
+		func(activity *vocab.ActivityType) error {
+			return h.undoAddReference(activity, store.Follower)
+		},
+	)
 
 	return h
 }
@@ -110,37 +112,27 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) handleFollowActivity(follow *vocab.ActivityType) error {
-	logger.Debugf("[%s] Handling 'Follow' activity: %s", h.ServiceName, follow.ID())
+func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType store.ReferenceType,
+	auth service.ActorAuth) error {
+	logger.Debugf("[%s] Handling '%s' activity: %s", h.ServiceName, activity.Type(), activity.ID())
 
-	actorIRI := follow.Actor()
-	if actorIRI == nil {
-		return fmt.Errorf("no actor specified in 'Follow' activity")
+	err := h.validateActivity(activity)
+	if err != nil {
+		return fmt.Errorf("validate '%s' activity [%s]: %w", activity.Type(), activity.ID(), err)
 	}
 
-	iri := follow.Object().IRI()
-	if iri == nil {
-		return fmt.Errorf("no IRI specified in 'object' field of the 'Follow' activity")
-	}
+	actorIRI := activity.Actor()
 
-	// Make sure that the IRI is targeting this service. If not then ignore the message
-	if iri.String() != h.ServiceIRI.String() {
-		logger.Infof("[%s] Not handling 'Follow' activity %s since this service %s is not the target object %s",
-			h.ServiceName, follow.ID(), h.ServiceIRI, iri)
-
-		return nil
-	}
-
-	hasFollower, err := h.hasFollower(actorIRI)
+	hasFollower, err := h.hasReference(actorIRI, refType)
 	if err != nil {
 		return err
 	}
 
 	if hasFollower {
-		logger.Infof("[%s] Actor %s is already following %s. Replying with 'Accept' activity.",
-			h.ServiceName, actorIRI, h.ServiceIRI)
+		logger.Infof("[%s] Actor %s already has %s in its %s collection. Replying with 'Accept' activity.",
+			h.ServiceName, actorIRI, h.ServiceIRI, refType)
 
-		return h.postAcceptFollow(follow, actorIRI)
+		return h.postAccept(activity, actorIRI)
 	}
 
 	actor, err := h.resolveActor(actorIRI)
@@ -148,74 +140,98 @@ func (h *Inbox) handleFollowActivity(follow *vocab.ActivityType) error {
 		return fmt.Errorf("unable to retrieve actor [%s]: %w", actorIRI, err)
 	}
 
-	accept, err := h.FollowerAuth.AuthorizeFollower(actor)
+	accept, err := auth.AuthorizeActor(actor)
 	if err != nil {
-		return fmt.Errorf("unable to authorize follower [%s]: %w", actorIRI, err)
+		return fmt.Errorf("authorize actor [%s]: %w", actorIRI, err)
 	}
 
 	if accept {
-		logger.Infof("[%s] Request for %s to follow %s has been accepted", h.ServiceName, h.ServiceIRI, actor.ID())
+		logger.Infof("[%s] Request for %s to activity %s has been accepted", h.ServiceName, h.ServiceIRI, actor.ID())
 
-		return h.acceptActor(follow, actor)
+		return h.acceptActor(activity, actor, refType)
 	}
 
-	logger.Infof("[%s] Request for %s to follow %s has been rejected. Replying with 'Reject' activity",
+	logger.Infof("[%s] Request for %s to activity %s has been rejected. Replying with 'Reject' activity",
 		h.ServiceName, actorIRI, h.ServiceIRI)
 
-	return h.postRejectFollow(follow, actorIRI)
+	return h.postReject(activity, actorIRI)
 }
 
-func (h *Inbox) acceptActor(follow *vocab.ActivityType, actor *vocab.ActorType) error {
-	if err := h.store.AddReference(store.Follower, h.ServiceIRI, actor.ID().URL()); err != nil {
-		return fmt.Errorf("unable to store new follower: %w", err)
+func (h *Inbox) handleFollowActivity(follow *vocab.ActivityType) error {
+	return h.handleReferenceActivity(follow, store.Follower, h.FollowerAuth)
+}
+
+func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
+	actorIRI := activity.Actor()
+	if actorIRI == nil {
+		return fmt.Errorf("no actor specified")
+	}
+
+	iri := activity.Object().IRI()
+	if iri == nil {
+		return fmt.Errorf("no IRI specified in 'object' field")
+	}
+
+	// Make sure that the IRI is targeting this service. If not then ignore the message
+	if iri.String() != h.ServiceIRI.String() {
+		return fmt.Errorf("this service is not the target object for the 'Undo'")
+	}
+
+	return nil
+}
+
+func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType, refType store.ReferenceType) error {
+	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL()); err != nil {
+		return fmt.Errorf("unable to store reference: %w", err)
 	}
 
 	if err := h.store.PutActor(actor); err != nil {
 		logger.Warnf("[%s] Unable to store actor %s: %s", actor.ID(), err)
 	}
 
-	logger.Infof("[%s] Replying to %s with 'Accept' activity", h.ServiceName, actor.ID())
+	logger.Debugf("[%s] Replying to %s with 'Accept' activity", h.ServiceName, actor.ID())
 
-	return h.postAcceptFollow(follow, actor.ID().URL())
+	return h.postAccept(activity, actor.ID().URL())
 }
 
 func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Accept' activity: %s", h.ServiceName, accept.ID())
 
-	actor := accept.Actor()
-	if actor == nil {
+	actorIRI := accept.Actor()
+	if actorIRI == nil {
 		return fmt.Errorf("no actor specified in 'Accept' activity")
 	}
 
-	follow := accept.Object().Activity()
-	if follow == nil {
-		return fmt.Errorf("no 'Follow' activity specified in the 'object' field of the 'Accept' activity")
+	activity := accept.Object().Activity()
+	if activity == nil {
+		return fmt.Errorf("no activity specified in the 'object' field of the 'Accept' activity")
 	}
 
-	if !follow.Type().Is(vocab.TypeFollow) {
-		return fmt.Errorf("the 'object' field of the 'Accept' activity must be a 'Follow' type")
-	}
-
-	iri := follow.Actor()
+	iri := activity.Actor()
 	if iri == nil {
-		return fmt.Errorf("no actor specified in the original 'Follow' activity of the 'Accept' activity")
+		return fmt.Errorf("no actor specified in the object of the 'Accept' activity")
 	}
 
-	// Make sure that the actor in the original 'Follow' activity is this service.
+	// Make sure that the actorIRI in the original activity is this service.
 	// If not then we can ignore the message.
 	if iri.String() != h.ServiceIRI.String() {
 		logger.Infof(
-			"[%s] Not handling 'Accept' %s since the actor %s in the 'Follow' activity is not this service %s",
+			"[%s] Not handling 'Accept' %s since the actor %s in the object is not this service %s",
 			h.ServiceName, accept.ID(), iri, h.ServiceIRI)
 
 		return nil
 	}
 
-	if err := h.store.AddReference(store.Following, h.ServiceIRI, actor); err != nil {
-		return fmt.Errorf("unable to store new following: %w", err)
-	}
+	switch {
+	case activity.Type().Is(vocab.TypeFollow):
+		if err := h.store.AddReference(store.Following, h.ServiceIRI, actorIRI); err != nil {
+			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
+		}
 
-	logger.Debugf("[%s] %s is now a follower of %s", h.ServiceName, h.ServiceIRI, actor)
+	default:
+		return fmt.Errorf("unsupported activity type [%s] in the 'object' field of the 'Accept' activity",
+			activity.Type())
+	}
 
 	h.notify(accept)
 
@@ -260,13 +276,13 @@ func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
+func (h *Inbox) postAccept(activity *vocab.ActivityType, toIRI *url.URL) error {
 	acceptActivity := vocab.NewAcceptActivity(
-		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.NewObjectProperty(vocab.WithActivity(activity)),
 		vocab.WithTo(toIRI),
 	)
 
-	h.notify(follow)
+	h.notify(activity)
 
 	logger.Debugf("[%s] Publishing 'Accept' activity to %s", h.ServiceName, toIRI)
 
@@ -277,9 +293,9 @@ func (h *Inbox) postAcceptFollow(follow *vocab.ActivityType, toIRI *url.URL) err
 	return nil
 }
 
-func (h *Inbox) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) error {
+func (h *Inbox) postReject(activity *vocab.ActivityType, toIRI *url.URL) error {
 	reject := vocab.NewRejectActivity(
-		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.NewObjectProperty(vocab.WithActivity(activity)),
 		vocab.WithTo(toIRI),
 	)
 
@@ -292,8 +308,8 @@ func (h *Inbox) postRejectFollow(follow *vocab.ActivityType, toIRI *url.URL) err
 	return nil
 }
 
-func (h *Inbox) hasFollower(actorIRI *url.URL) (bool, error) {
-	it, err := h.store.QueryReferences(store.Follower,
+func (h *Inbox) hasReference(actorIRI *url.URL, refType store.ReferenceType) (bool, error) {
+	it, err := h.store.QueryReferences(refType,
 		store.NewCriteria(
 			store.WithObjectIRI(h.ServiceIRI),
 			store.WithReferenceIRI(actorIRI),
@@ -620,35 +636,32 @@ func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.Ob
 	return result, nil
 }
 
-func (h *Inbox) undoFollower(follow *vocab.ActivityType) error {
-	followerIRI := follow.Actor()
-
-	iri := follow.Object().IRI()
+func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType) error {
+	iri := activity.Object().IRI()
 	if iri == nil {
-		return fmt.Errorf("no IRI specified in 'object' field of the 'Follow' activity")
+		return fmt.Errorf("no IRI specified in 'object' field of the '%s' activity", activity.Type())
 	}
 
 	// Make sure that the IRI is targeting this service. If not then ignore the message.
 	if iri.String() != h.ServiceIRI.String() {
-		logger.Infof("[%s] Not handling 'Undo' of follow activity %s since this service %s"+
-			" is not the target object %s", h.ServiceName, follow.ID(), h.ServiceIRI, iri)
-
-		return nil
+		return fmt.Errorf("this service is not the target for the 'Undo'")
 	}
 
-	err := h.store.DeleteReference(store.Follower, h.ServiceIRI, followerIRI)
+	actorIRI := activity.Actor()
+
+	err := h.store.DeleteReference(refType, h.ServiceIRI, actorIRI)
 	if err != nil {
 		if err == store.ErrNotFound {
-			logger.Infof("[%s] %s not found in followers of %s", h.ServiceName, followerIRI, h.ServiceIRI)
+			logger.Infof("[%s] %s not found in %s collection of %s", h.ServiceName, actorIRI, refType, h.ServiceIRI)
 
 			return nil
 		}
 
-		return fmt.Errorf("unable to delete %s from %s's collection of followers", followerIRI, h.ServiceIRI)
+		return fmt.Errorf("unable to delete %s from %s's collection of %s", actorIRI, h.ServiceIRI, refType)
 	}
 
-	logger.Debugf("[%s] %s was successfully deleted from %s's collection of followers",
-		h.ServiceIRI, followerIRI, h.ServiceIRI)
+	logger.Debugf("[%s] %s was successfully deleted from %s's collection of %s",
+		h.ServiceIRI, actorIRI, h.ServiceIRI, refType)
 
 	return nil
 }
@@ -679,10 +692,10 @@ func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(*url.URL, string,
 	return nil
 }
 
-type acceptAllFollowerAuth struct {
+type acceptAllActorsAuth struct {
 }
 
-func (a *acceptAllFollowerAuth) AuthorizeFollower(*vocab.ActorType) (bool, error) {
+func (a *acceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
 	return true, nil
 }
 

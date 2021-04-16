@@ -122,20 +122,8 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Anchor credential", func(t *testing.T) {
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
@@ -168,9 +156,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, gotActivity[create.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, subscriber.Activity(create.ID()))
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
@@ -216,9 +202,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, gotActivity[create.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, subscriber.Activity(create.ID()))
 
 			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
@@ -278,7 +262,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
 
-	followerAuth := mocks.NewFollowerAuth()
+	followerAuth := mocks.NewActorAuth()
 
 	httpClient := &apmocks.HTTPTransport{}
 	httpClient.GetReturns(nil, client.ErrNotFound)
@@ -289,20 +273,8 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Accept", func(t *testing.T) {
 		followerAuth.WithAccept()
@@ -318,9 +290,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[follow.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(follow.ID()))
 
 		it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
@@ -343,9 +313,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[follow.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(follow.ID()))
 
 		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 2)
 	})
@@ -365,9 +333,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.Nil(t, gotActivity[follow.ID().String()])
-			mutex.Unlock()
+			require.Nil(t, subscriber.Activity(follow.ID()))
 
 			it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 			require.NoError(t, err)
@@ -386,7 +352,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(follow), "no actor specified in 'Follow' activity")
+		err := h.HandleActivity(follow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no actor specified")
 	})
 
 	t.Run("No object IRI in Follow activity", func(t *testing.T) {
@@ -397,8 +365,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(follow),
-			"no IRI specified in 'object' field of the 'Follow' activity")
+		err := h.HandleActivity(follow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no IRI specified in 'object' field")
 	})
 
 	t.Run("Object IRI does not match target service IRI in Follow activity", func(t *testing.T) {
@@ -409,7 +378,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(follow))
+		err := h.HandleActivity(follow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "this service is not the target object for the 'Undo'")
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {
@@ -423,7 +394,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		require.True(t, errors.Is(h.HandleActivity(follow), client.ErrNotFound))
 	})
 
-	t.Run("AuthorizeFollower error", func(t *testing.T) {
+	t.Run("AuthorizeActor error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected authorize error")
 
 		followerAuth.WithError(errExpected)
@@ -463,22 +434,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
-
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Accept Follow -> Success", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -497,9 +456,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[accept.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(accept.ID()))
 
 		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
@@ -527,7 +484,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.EqualError(t, h.HandleActivity(accept), "no actor specified in 'Accept' activity")
 	})
 
-	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
+	t.Run("No activity specified in 'object' field", func(t *testing.T) {
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(),
 			vocab.WithID(newActivityID(service1IRI)),
@@ -536,13 +493,14 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(accept),
-			"no 'Follow' activity specified in the 'object' field of the 'Accept' activity")
+			"no activity specified in the 'object' field of the 'Accept' activity")
 	})
 
-	t.Run("Object is not a Follow activity", func(t *testing.T) {
+	t.Run("Unsupported activity type", func(t *testing.T) {
 		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -554,10 +512,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(accept),
-			"the 'object' field of the 'Accept' activity must be a 'Follow' type")
+			"unsupported activity type [Announce] in the 'object' field of the 'Accept' activity")
 	})
 
-	t.Run("No actor specified in the Follow activity", func(t *testing.T) {
+	t.Run("No actor specified in the activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -572,10 +530,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(accept),
-			"no actor specified in the original 'Follow' activity of the 'Accept' activity")
+			"no actor specified in the object of the 'Accept' activity")
 	})
 
-	t.Run("Follow actor does not match target service IRI in Accept activity", func(t *testing.T) {
+	t.Run("Actor in object does not match target service IRI in Accept activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -591,7 +549,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		)
 
 		require.NoError(t, h.HandleActivity(accept),
-			"should have ignored 'Accept' since actor in the 'Follow' does not match the target service",
+			"should have ignored 'Accept' since actor in the activity does not match the target service",
 		)
 	})
 }
@@ -614,20 +572,8 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Success", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
@@ -648,9 +594,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[reject.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(reject.ID()))
 
 		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
@@ -764,20 +708,8 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
 		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
@@ -806,9 +738,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(announce.ID()))
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
@@ -838,9 +768,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(announce.ID()))
 	})
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
@@ -873,9 +801,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[announce.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(announce.ID()))
 	})
 
 	t.Run("Anchor credential ref - collection - unsupported object type", func(t *testing.T) {
@@ -967,20 +893,8 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Success", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
@@ -1004,9 +918,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[offer.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(offer.ID()))
 		require.Len(t, witness.AnchorCreds(), 1)
 
 		it, err := h.store.QueryReferences(store.Liked, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
@@ -1157,20 +1069,8 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 	h.Start()
 	defer h.Stop()
 
-	activityChan := h.Subscribe()
-
-	var (
-		mutex       sync.Mutex
-		gotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range activityChan {
-			mutex.Lock()
-			gotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
 
 	t.Run("Success", func(t *testing.T) {
 		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
@@ -1195,9 +1095,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		mutex.Lock()
-		require.NotNil(t, gotActivity[like.ID().String()])
-		mutex.Unlock()
+		require.NotNil(t, subscriber.Activity(like.ID()))
 
 		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
 
@@ -1324,62 +1222,13 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 	})
 }
 
-func TestHandler_HandleUndoActivity(t *testing.T) {
+func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
-	inboxCfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
-	}
-
-	outboxCfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
-	}
-
-	ob := mocks.NewOutbox()
-
-	httpClient := &apmocks.HTTPTransport{}
-	httpClient.GetReturns(nil, client.ErrNotFound)
-
-	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), ob, httpClient)
-	require.NotNil(t, inboxHandler)
-
-	inboxHandler.Start()
-	defer inboxHandler.Stop()
-
-	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), httpClient)
-	require.NotNil(t, outboxHandler)
-
-	inboxHandler.Start()
-	defer inboxHandler.Stop()
-
-	inboxActivityChan := inboxHandler.Subscribe()
-	outboxActivityChan := outboxHandler.Subscribe()
-
-	var (
-		mutex             sync.Mutex
-		inboxGotActivity  = make(map[string]*vocab.ActivityType)
-		outboxGotActivity = make(map[string]*vocab.ActivityType)
-	)
-
-	go func() {
-		for activity := range inboxActivityChan {
-			mutex.Lock()
-			inboxGotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
-
-	go func() {
-		for activity := range outboxActivityChan {
-			mutex.Lock()
-			outboxGotActivity[activity.ID().String()] = activity
-			mutex.Unlock()
-		}
-	}()
+	ibHandler, obHandler, ibSubscriber, obSubscriber, stop := startInboxOutboxWithMocks(t, service1IRI, service2IRI)
+	defer stop()
 
 	follow := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
@@ -1411,20 +1260,20 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 
 	unsupported := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(inboxHandler.ServiceIRI)),
+		vocab.WithID(newActivityID(ibHandler.ServiceIRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	require.NoError(t, outboxHandler.store.AddActivity(follow))
-	require.NoError(t, outboxHandler.store.AddActivity(followNoIRI))
-	require.NoError(t, outboxHandler.store.AddActivity(followActorNotLocalService))
+	require.NoError(t, obHandler.store.AddActivity(follow))
+	require.NoError(t, obHandler.store.AddActivity(followNoIRI))
+	require.NoError(t, obHandler.store.AddActivity(followActorNotLocalService))
 
-	require.NoError(t, inboxHandler.store.PutActor(vocab.NewService(service2IRI)))
-	require.NoError(t, inboxHandler.store.AddActivity(follow))
-	require.NoError(t, inboxHandler.store.AddActivity(followNoIRI))
-	require.NoError(t, inboxHandler.store.AddActivity(followIRINotLocalService))
-	require.NoError(t, inboxHandler.store.AddActivity(unsupported))
+	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, ibHandler.store.AddActivity(follow))
+	require.NoError(t, ibHandler.store.AddActivity(followNoIRI))
+	require.NoError(t, ibHandler.store.AddActivity(followIRINotLocalService))
+	require.NoError(t, ibHandler.store.AddActivity(unsupported))
 
 	t.Run("No actor in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
@@ -1433,7 +1282,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, inboxHandler.HandleActivity(undo), "no actor specified in 'Undo' activity")
+		require.EqualError(t, ibHandler.HandleActivity(undo), "no actor specified in 'Undo' activity")
 	})
 
 	t.Run("No object IRI in activity", func(t *testing.T) {
@@ -1445,7 +1294,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, inboxHandler.HandleActivity(undo),
+		require.EqualError(t, ibHandler.HandleActivity(undo),
 			"no IRI specified in 'object' field of the 'Undo' activity")
 	})
 
@@ -1457,7 +1306,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := inboxHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), store.ErrNotFound.Error())
 	})
@@ -1469,7 +1318,7 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := inboxHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not the same as the actor of the original activity")
 	})
@@ -1482,17 +1331,17 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := inboxHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not supported")
 	})
 
 	t.Run("Inbox Undo Follow", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, inboxHandler.store.AddReference(store.Follower, service1IRI, service2IRI))
+			require.NoError(t, ibHandler.store.AddReference(store.Follower, service1IRI, service2IRI))
 
-			it, err := inboxHandler.store.QueryReferences(store.Follower,
-				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			it, err := ibHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			followers, err := storeutil.ReadReferences(it, -1)
@@ -1507,16 +1356,14 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, inboxHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(undo))
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, inboxGotActivity[undo.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, ibSubscriber.Activity(undo.ID()))
 
-			it, err = inboxHandler.store.QueryReferences(store.Follower,
-				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			it, err = ibHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			followers, err = storeutil.ReadReferences(it, -1)
@@ -1533,8 +1380,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.EqualError(t, inboxHandler.HandleActivity(undo),
-				"no IRI specified in 'object' field of the 'Follow' activity")
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no IRI specified in 'object' field of the 'Follow' activity")
 		})
 
 		t.Run("IRI not local service -> error", func(t *testing.T) {
@@ -1545,12 +1393,14 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, inboxHandler.HandleActivity(undo))
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "this service is not the target for the 'Undo'")
 		})
 
 		t.Run("Not a follower", func(t *testing.T) {
-			it, err := inboxHandler.store.QueryReferences(store.Follower,
-				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			it, err := ibHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			followers, err := storeutil.ReadReferences(it, -1)
@@ -1564,22 +1414,20 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, inboxHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(undo))
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, inboxGotActivity[undo.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, ibSubscriber.Activity(undo.ID()))
 		})
 	})
 
 	t.Run("Outbox Undo Follow", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, outboxHandler.store.AddReference(store.Following, service2IRI, service1IRI))
+			require.NoError(t, obHandler.store.AddReference(store.Following, service2IRI, service1IRI))
 
-			it, err := outboxHandler.store.QueryReferences(store.Following,
-				store.NewCriteria(store.WithObjectIRI(outboxHandler.ServiceIRI)))
+			it, err := obHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			following, err := storeutil.ReadReferences(it, -1)
@@ -1593,16 +1441,14 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, outboxHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(undo))
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, outboxGotActivity[undo.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, obSubscriber.Activity(undo.ID()))
 
-			it, err = outboxHandler.store.QueryReferences(store.Following,
-				store.NewCriteria(store.WithObjectIRI(outboxHandler.ServiceIRI)))
+			it, err = obHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			following, err = storeutil.ReadReferences(it, -1)
@@ -1619,8 +1465,9 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.EqualError(t, outboxHandler.HandleActivity(undo),
-				"no IRI specified in 'object' field of the 'Follow' activity")
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no IRI specified in 'object' field")
 		})
 
 		t.Run("Actor not local service -> error", func(t *testing.T) {
@@ -1630,12 +1477,14 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, outboxHandler.HandleActivity(undo))
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "this service is not the actor for the 'Undo'")
 		})
 
 		t.Run("Not following", func(t *testing.T) {
-			it, err := outboxHandler.store.QueryReferences(store.Following,
-				store.NewCriteria(store.WithObjectIRI(inboxHandler.ServiceIRI)))
+			it, err := obHandler.store.QueryReferences(store.Following,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
 			require.NoError(t, err)
 
 			followers, err := storeutil.ReadReferences(it, -1)
@@ -1650,15 +1499,82 @@ func TestHandler_HandleUndoActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, outboxHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(undo))
 
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
-			require.NotNil(t, outboxGotActivity[undo.ID().String()])
-			mutex.Unlock()
+			require.NotNil(t, obSubscriber.Activity(undo.ID()))
 		})
 	})
+}
+
+type mockActivitySubscriber struct {
+	mutex        sync.RWMutex
+	activities   map[string]*vocab.ActivityType
+	activityChan <-chan *vocab.ActivityType
+}
+
+func newMockActivitySubscriber(activityChan <-chan *vocab.ActivityType) *mockActivitySubscriber {
+	return &mockActivitySubscriber{
+		activities:   make(map[string]*vocab.ActivityType),
+		activityChan: activityChan,
+	}
+}
+
+func (l *mockActivitySubscriber) Listen() {
+	for activity := range l.activityChan {
+		l.mutex.Lock()
+		l.activities[activity.ID().String()] = activity
+		l.mutex.Unlock()
+	}
+}
+
+func (l *mockActivitySubscriber) Activity(iri fmt.Stringer) *vocab.ActivityType {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+
+	return l.activities[iri.String()]
+}
+
+type stopFunc func()
+
+func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
+	outboxServiceIRI *url.URL) (*Inbox, *Outbox, *mockActivitySubscriber, *mockActivitySubscriber, stopFunc) {
+	inboxCfg := &Config{
+		ServiceName: "inbox1",
+		ServiceIRI:  inboxServiceIRI,
+	}
+
+	outboxCfg := &Config{
+		ServiceName: "outbox1",
+		ServiceIRI:  outboxServiceIRI,
+	}
+
+	httpClient := &apmocks.HTTPTransport{}
+	httpClient.GetReturns(nil, client.ErrNotFound)
+
+	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), mocks.NewOutbox(), httpClient)
+	require.NotNil(t, inboxHandler)
+
+	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), httpClient)
+	require.NotNil(t, outboxHandler)
+
+	inboxSubscriber := newMockActivitySubscriber(inboxHandler.Subscribe())
+	outboxSubscriber := newMockActivitySubscriber(outboxHandler.Subscribe())
+
+	go func() {
+		go inboxSubscriber.Listen()
+		go outboxSubscriber.Listen()
+
+		inboxHandler.Start()
+		inboxHandler.Start()
+	}()
+
+	return inboxHandler, outboxHandler, inboxSubscriber, outboxSubscriber,
+		func() {
+			inboxHandler.Stop()
+			inboxHandler.Stop()
+		}
 }
 
 func newActivityID(id fmt.Stringer) *url.URL {

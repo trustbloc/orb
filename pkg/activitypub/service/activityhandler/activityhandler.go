@@ -53,7 +53,7 @@ type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
 }
 
-type undoFollowFunc func(follow *vocab.ActivityType) error
+type undoFunc func(activity *vocab.ActivityType) error
 
 type handler struct {
 	*Config
@@ -63,14 +63,14 @@ type handler struct {
 	mutex       sync.RWMutex
 	subscribers []chan *vocab.ActivityType
 	client      activityPubClient
-	undoFollow  undoFollowFunc
+	undoFollow  undoFunc
 }
 
 type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
-func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow undoFollowFunc) *handler {
+func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow undoFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -138,20 +138,23 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 			" the same as the actor of the original activity [%s]", undo.ID(), undo.Actor(), activity.Actor())
 	}
 
+	err = h.undoActivity(activity)
+	if err != nil {
+		return fmt.Errorf("undo activity [%s]: %w", undo.ID(), err)
+	}
+
+	h.notify(undo)
+
+	return nil
+}
+
+func (h *handler) undoActivity(activity *vocab.ActivityType) error {
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
-		err = h.undoFollow(activity)
-		if err != nil {
-			return err
-		}
-
-		h.notify(undo)
-
-		return nil
+		return h.undoFollow(activity)
 
 	default:
-		return fmt.Errorf("not handling 'Undo' activity %s since undo of type %s is not supported",
-			undo.ID(), activity.Type())
+		return fmt.Errorf("undo of type %s is not supported", activity.Type())
 	}
 }
 
@@ -168,7 +171,7 @@ func (h *handler) notify(activity *vocab.ActivityType) {
 func defaultOptions() *service.Handlers {
 	return &service.Handlers{
 		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
-		FollowerAuth:            &acceptAllFollowerAuth{},
+		FollowerAuth:            &acceptAllActorsAuth{},
 		ProofHandler:            &noOpProofHandler{},
 	}
 }
