@@ -54,6 +54,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
+	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -160,6 +161,12 @@ func createStartCmd() *cobra.Command {
 			return startOrbServices(parameters)
 		},
 	}
+}
+
+type mockProofHandler func(anchorCredID string, _, endTime time.Time, proof []byte) error
+
+func (m mockProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
+	return m(anchorCredID, startTime, endTime, proof)
 }
 
 // nolint: gocyclo,funlen,gocognit
@@ -324,10 +331,20 @@ func startOrbServices(parameters *orbParameters) error {
 
 	sigVerifier := httpsig.NewVerifier(httpsig.DefaultVerifierConfig(), client.New(t))
 
+	monitoringSvc, err := monitoring.New(storeProviders.provider, vcStore, monitoring.WithHTTPClient(httpClient))
+	if err != nil {
+		return fmt.Errorf("monitoring: %w", err)
+	}
+
+	defer monitoringSvc.Close()
+
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, sigVerifier,
 		// TODO: Define all of the ActivityPub handlers
-		// apspi.WithProofHandler(proofHandler),
+		// TODO: mockProofHandler need to be replaced with real implementation which should invoke Watch function.
+		apspi.WithProofHandler(mockProofHandler(func(anchorCredID string, _, endTime time.Time, proof []byte) error {
+			return monitoringSvc.Watch(anchorCredID, endTime, proof)
+		})),
 		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner, vct.WithHTTPClient(httpClient))),
 		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),
