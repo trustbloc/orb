@@ -345,6 +345,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithProofHandler(mockProofHandler(func(anchorCredID string, _, endTime time.Time, proof []byte) error {
 			return monitoringSvc.Watch(anchorCredID, endTime, proof)
 		})),
+		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner, vct.WithHTTPClient(httpClient))),
 		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),

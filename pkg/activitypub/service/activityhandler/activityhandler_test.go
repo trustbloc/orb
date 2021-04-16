@@ -416,6 +416,179 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 }
 
+func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+	service4IRI := testutil.MustParseURL("http://localhost:8304/services/service4")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1IRI,
+	}
+
+	ob := mocks.NewOutbox()
+	as := memstore.New(cfg.ServiceName)
+
+	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
+
+	witnessInvitationAuth := mocks.NewActorAuth()
+
+	httpClient := &apmocks.HTTPTransport{}
+	httpClient.GetReturns(nil, client.ErrNotFound)
+
+	h := NewInbox(cfg, as, ob, httpClient, spi.WithWitnessInvitationAuth(witnessInvitationAuth))
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
+
+	t.Run("Accept", func(t *testing.T) {
+		witnessInvitationAuth.WithAccept()
+
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(inviteWitness))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(inviteWitness.ID()))
+
+		it, err := h.store.QueryReferences(store.Witnessing, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+		require.NoError(t, err)
+
+		witnesses, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+
+		require.True(t, containsIRI(witnesses, service2IRI))
+		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 1)
+
+		// Post another invitation. Should reply with accept since it's already a inviteWitness.
+		inviteWitness = vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(inviteWitness))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(inviteWitness.ID()))
+
+		require.Len(t, ob.Activities().QueryByType(vocab.TypeAccept), 2)
+	})
+
+	t.Run("Reject", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		witnessInvitationAuth.WithReject()
+
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(inviteWitness))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.Nil(t, subscriber.Activity(inviteWitness.ID()))
+
+			it, err := h.store.QueryReferences(store.Witnessing, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+			require.NoError(t, err)
+
+			witnesses, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.False(t, containsIRI(witnesses, service3IRI))
+			require.Len(t, ob.Activities().QueryByType(vocab.TypeReject), 1)
+		})
+	})
+
+	t.Run("No actor in Witness activity", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := h.HandleActivity(inviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no actor specified")
+	})
+
+	t.Run("No object IRI in Witness activity", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := h.HandleActivity(inviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no IRI specified in 'object' field")
+	})
+
+	t.Run("Object IRI does not match target service IRI in Witness activity", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := h.HandleActivity(inviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "this service is not the target object for the 'Undo'")
+	})
+
+	t.Run("Resolve actor error", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service4IRI)),
+			vocab.WithActor(service4IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		require.True(t, errors.Is(h.HandleActivity(inviteWitness), client.ErrNotFound))
+	})
+
+	t.Run("AuthorizeWitness error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected authorize error")
+
+		witnessInvitationAuth.WithError(errExpected)
+
+		defer func() {
+			witnessInvitationAuth.WithError(nil)
+		}()
+
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := h.HandleActivity(inviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
 func TestHandler_HandleAcceptActivity(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
@@ -465,6 +638,36 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, containsIRI(following, service1IRI))
+	})
+
+	t.Run("Accept Witness -> Success", func(t *testing.T) {
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		accept := vocab.NewAcceptActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(inviteWitness)),
+			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(accept))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(accept.ID()))
+
+		it, err := h.store.QueryReferences(store.Witness, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+		require.NoError(t, err)
+
+		witnesses, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+
+		require.True(t, containsIRI(witnesses, service1IRI))
 	})
 
 	t.Run("No actor in Accept activity", func(t *testing.T) {
@@ -1494,6 +1697,223 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, obHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, obSubscriber.Activity(undo.ID()))
+		})
+	})
+}
+
+func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+
+	ibHandler, obHandler, ibSubscriber, obSubscriber, stop := startInboxOutboxWithMocks(t, service1IRI, service2IRI)
+	defer stop()
+
+	inviteWitness := vocab.NewInviteWitnessActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	inviteWitnessNoIRI := vocab.NewInviteWitnessActivity(
+		vocab.NewObjectProperty(),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	inviteWitnessIRINotLocalService := vocab.NewInviteWitnessActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	inviteWitnessActorNotLocalService := vocab.NewInviteWitnessActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service3IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	require.NoError(t, obHandler.store.AddActivity(inviteWitness))
+	require.NoError(t, obHandler.store.AddActivity(inviteWitnessNoIRI))
+	require.NoError(t, obHandler.store.AddActivity(inviteWitnessActorNotLocalService))
+
+	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, ibHandler.store.AddActivity(inviteWitness))
+	require.NoError(t, ibHandler.store.AddActivity(inviteWitnessNoIRI))
+	require.NoError(t, ibHandler.store.AddActivity(inviteWitnessIRINotLocalService))
+
+	t.Run("Inbox Undo InviteWitness", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, ibHandler.store.AddReference(store.Witnessing, service1IRI, service2IRI))
+
+			it, err := ibHandler.store.QueryReferences(store.Witnessing,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(followers, service2IRI))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitness.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, ibHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, ibSubscriber.Activity(undo.ID()))
+
+			it, err = ibHandler.store.QueryReferences(store.Witnessing,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service2IRI))
+		})
+
+		t.Run("No IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessNoIRI.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no IRI specified in 'object' field of the 'InviteWitness' activity")
+		})
+
+		t.Run("IRI not local service -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessIRINotLocalService.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "this service is not the target for the 'Undo'")
+		})
+
+		t.Run("Not witnessing", func(t *testing.T) {
+			it, err := ibHandler.store.QueryReferences(store.Witnessing,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service2IRI))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitness.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, ibHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, ibSubscriber.Activity(undo.ID()))
+		})
+	})
+
+	t.Run("Outbox Undo InviteWitness", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, obHandler.store.AddReference(store.Witness, service2IRI, service1IRI))
+
+			it, err := obHandler.store.QueryReferences(store.Witness,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			following, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(following, service1IRI))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitness.ID().URL())),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, obHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, obSubscriber.Activity(undo.ID()))
+
+			it, err = obHandler.store.QueryReferences(store.Witness,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			following, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(following, service1IRI))
+		})
+
+		t.Run("No IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessNoIRI.ID().URL())),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no IRI specified in 'object' field")
+		})
+
+		t.Run("Actor not local service -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessActorNotLocalService.ID().URL())),
+				vocab.WithActor(service3IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "this service is not the actor for the 'Undo'")
+		})
+
+		t.Run("Not a witness", func(t *testing.T) {
+			it, err := obHandler.store.QueryReferences(store.Witness,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(followers, service1IRI))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(inviteWitness.ID().URL())),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),

@@ -59,18 +59,19 @@ type handler struct {
 	*Config
 	*lifecycle.Lifecycle
 
-	store       store.Store
-	mutex       sync.RWMutex
-	subscribers []chan *vocab.ActivityType
-	client      activityPubClient
-	undoFollow  undoFunc
+	store             store.Store
+	mutex             sync.RWMutex
+	subscribers       []chan *vocab.ActivityType
+	client            activityPubClient
+	undoFollow        undoFunc
+	undoInviteWitness undoFunc
 }
 
 type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
-func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow undoFunc) *handler {
+func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow, undoInviteWitness undoFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -80,10 +81,11 @@ func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow undoFunc
 	}
 
 	h := &handler{
-		Config:     cfg,
-		store:      s,
-		client:     client.New(t),
-		undoFollow: undoFollow,
+		Config:            cfg,
+		store:             s,
+		client:            client.New(t),
+		undoFollow:        undoFollow,
+		undoInviteWitness: undoInviteWitness,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -153,6 +155,9 @@ func (h *handler) undoActivity(activity *vocab.ActivityType) error {
 	case activity.Type().Is(vocab.TypeFollow):
 		return h.undoFollow(activity)
 
+	case activity.Type().Is(vocab.TypeInviteWitness):
+		return h.undoInviteWitness(activity)
+
 	default:
 		return fmt.Errorf("undo of type %s is not supported", activity.Type())
 	}
@@ -172,6 +177,7 @@ func defaultOptions() *service.Handlers {
 	return &service.Handlers{
 		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
 		FollowerAuth:            &acceptAllActorsAuth{},
+		WitnessInvitationAuth:   &acceptAllActorsAuth{},
 		ProofHandler:            &noOpProofHandler{},
 	}
 }

@@ -44,13 +44,16 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport
 		func(activity *vocab.ActivityType) error {
 			return h.undoAddReference(activity, store.Follower)
 		},
+		func(activity *vocab.ActivityType) error {
+			return h.undoAddReference(activity, store.Witnessing)
+		},
 	)
 
 	return h
 }
 
 // HandleActivity handles the ActivityPub activity in the inbox.
-func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
+func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error { //nolint:gocyclo
 	typeProp := activity.Type()
 
 	switch {
@@ -58,6 +61,8 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleCreateActivity(activity)
 	case typeProp.Is(vocab.TypeFollow):
 		return h.handleFollowActivity(activity)
+	case typeProp.Is(vocab.TypeInviteWitness):
+		return h.handleWitnessActivity(activity)
 	case typeProp.Is(vocab.TypeAccept):
 		return h.handleAcceptActivity(activity)
 	case typeProp.Is(vocab.TypeReject):
@@ -161,6 +166,10 @@ func (h *Inbox) handleFollowActivity(follow *vocab.ActivityType) error {
 	return h.handleReferenceActivity(follow, store.Follower, h.FollowerAuth)
 }
 
+func (h *Inbox) handleWitnessActivity(follow *vocab.ActivityType) error {
+	return h.handleReferenceActivity(follow, store.Witnessing, h.WitnessInvitationAuth)
+}
+
 func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
 	actorIRI := activity.Actor()
 	if actorIRI == nil {
@@ -226,6 +235,11 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	case activity.Type().Is(vocab.TypeFollow):
 		if err := h.store.AddReference(store.Following, h.ServiceIRI, actorIRI); err != nil {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
+		}
+
+	case activity.Type().Is(vocab.TypeInviteWitness):
+		if err := h.store.AddReference(store.Witness, h.ServiceIRI, actorIRI); err != nil {
+			return fmt.Errorf("handle accept 'Witness' activity %s: %w", accept.ID(), err)
 		}
 
 	default:

@@ -100,6 +100,7 @@ type Handlers struct {
 	UndeliverableHandler    UndeliverableActivityHandler
 	AnchorCredentialHandler AnchorCredentialHandler
 	FollowerAuth            ActorAuth
+	WitnessInvitationAuth   ActorAuth
 	Witness                 WitnessHandler
 	ProofHandler            ProofHandler
 }
@@ -125,6 +126,13 @@ func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
 func WithFollowerAuth(handler ActorAuth) HandlerOpt {
 	return func(options *Handlers) {
 		options.FollowerAuth = handler
+	}
+}
+
+// WithWitnessInvitationAuth sets the handler that decides whether or not to accept an 'InviteWitness' request.
+func WithWitnessInvitationAuth(handler ActorAuth) HandlerOpt {
+	return func(options *Handlers) {
+		options.WitnessInvitationAuth = handler
 	}
 }
 

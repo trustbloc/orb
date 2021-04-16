@@ -26,6 +26,9 @@ func NewOutbox(cfg *Config, s store.Store, t httpTransport) *Outbox {
 		func(follow *vocab.ActivityType) error {
 			return h.undoAddReference(follow, store.Following)
 		},
+		func(inviteWitness *vocab.ActivityType) error {
+			return h.undoAddReference(inviteWitness, store.Witness)
+		},
 	)
 
 	return h

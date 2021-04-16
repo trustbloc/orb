@@ -125,6 +125,47 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
 
+  @activitypub_invite_witness
+  Scenario: invite witness/accept/undo
+    # domain1 invites domain2 to be a witness
+    Given variable "inviteWitnessID" is assigned a unique ID
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/inbox" with content "${inviteWitnessActivity}" of type "application/json" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
+
+    Then we wait 3 seconds
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/${inviteWitnessID}"
+
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "Collection"
+    And the JSON path "id" of the response equals "${domain1IRI}/witnesses"
+    And the JSON path "first" of the response equals "${domain1IRI}/witnesses?page=true"
+
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "CollectionPage"
+    And the JSON path "items" of the response contains "${domain2IRI}"
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "Collection"
+    And the JSON path "id" of the response equals "${domain2IRI}/witnessing"
+    And the JSON path "first" of the response equals "${domain2IRI}/witnessing?page=true"
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "CollectionPage"
+    And the JSON path "items" of the response contains "${domain1IRI}"
+
+    Given variable "undoWitnessID" is assigned a unique ID
+    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${undoWitnessID}","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain1IRI}/activities/${inviteWitnessID}"}'
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/inbox" with content "${undoInviteWitnessActivity}" of type "application/json" signed with private key from file "${domain1KeyFile}" using key ID "${domain1KeyID}"
+
+    Then we wait 3 seconds
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+    Then the JSON path "type" of the response equals "CollectionPage"
+    And the JSON path "items" of the response does not contain "${domain1IRI}"
+
   @activitypub_offer
   Scenario: offer/like
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
