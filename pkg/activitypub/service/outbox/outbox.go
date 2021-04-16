@@ -196,6 +196,8 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
 
+	logger.Debugf("[%s] Posting activity: %s", h.ServiceName, activityBytes)
+
 	err = h.activityStore.AddActivity(activity)
 	if err != nil {
 		return nil, fmt.Errorf("store activity: %w", err)

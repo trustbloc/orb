@@ -63,10 +63,10 @@ type AnchorCredentialHandler interface {
 	HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error
 }
 
-// FollowerAuth makes the decision of whether or not a request by the given
-// follower should be accepted.
-type FollowerAuth interface {
-	AuthorizeFollower(follower *vocab.ActorType) (bool, error)
+// ActorAuth makes the decision of whether or not a request by the given
+// actor should be accepted.
+type ActorAuth interface {
+	AuthorizeActor(actor *vocab.ActorType) (bool, error)
 }
 
 // WitnessHandler is a handler that witnesses an anchor credential.
@@ -99,7 +99,7 @@ type UndeliverableActivityHandler interface {
 type Handlers struct {
 	UndeliverableHandler    UndeliverableActivityHandler
 	AnchorCredentialHandler AnchorCredentialHandler
-	FollowerAuth            FollowerAuth
+	FollowerAuth            ActorAuth
 	Witness                 WitnessHandler
 	ProofHandler            ProofHandler
 }
@@ -122,7 +122,7 @@ func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
 }
 
 // WithFollowerAuth sets the handler that decides whether or not to accept a 'Follow' request.
-func WithFollowerAuth(handler FollowerAuth) HandlerOpt {
+func WithFollowerAuth(handler ActorAuth) HandlerOpt {
 	return func(options *Handlers) {
 		options.FollowerAuth = handler
 	}
