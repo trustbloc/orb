@@ -426,15 +426,15 @@ func startOrbServices(parameters *orbParameters) error {
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apServiceCfg, apStore, publicKey),
 		aphandler.NewPublicKeys(apServiceCfg, apStore, publicKey),
-		aphandler.NewFollowers(apServiceCfg, apStore),
-		aphandler.NewFollowing(apServiceCfg, apStore),
-		aphandler.NewOutbox(apServiceCfg, apStore),
-		aphandler.NewInbox(apServiceCfg, apStore),
-		aphandler.NewWitnesses(apServiceCfg, apStore),
-		aphandler.NewWitnessing(apServiceCfg, apStore),
-		aphandler.NewLiked(apServiceCfg, apStore),
-		aphandler.NewLikes(apTxnCfg, apStore),
-		aphandler.NewShares(apTxnCfg, apStore))
+		aphandler.NewFollowers(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewFollowing(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewOutbox(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewInbox(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewWitnesses(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewWitnessing(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewLiked(apServiceCfg, apStore, sigVerifier),
+		aphandler.NewLikes(apTxnCfg, apStore, sigVerifier),
+		aphandler.NewShares(apTxnCfg, apStore, sigVerifier))
 
 	handlers = append(handlers,
 		endpointDiscoveryOp.GetRESTHandlers()...)

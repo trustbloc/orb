@@ -16,31 +16,35 @@ import (
 )
 
 // NewFollowers returns a new 'followers' REST handler that retrieves a service's list of followers.
-func NewFollowers(cfg *Config, activityStore spi.Store) *Reference {
+func NewFollowers(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
 	return NewReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("followers"))
+		getObjectIRI(cfg.ObjectIRI), getID("followers"), verifier)
 }
 
 // NewFollowing returns a new 'following' REST handler that retrieves a service's list of following.
-func NewFollowing(cfg *Config, activityStore spi.Store) *Reference {
+func NewFollowing(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
 	return NewReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("following"))
+		getObjectIRI(cfg.ObjectIRI), getID("following"), verifier)
 }
 
 // NewWitnesses returns a new 'witnesses' REST handler that retrieves a service's list of witnesses.
-func NewWitnesses(cfg *Config, activityStore spi.Store) *Reference {
+func NewWitnesses(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
 	return NewReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("witnesses"))
+		getObjectIRI(cfg.ObjectIRI), getID("witnesses"), verifier)
 }
 
 // NewWitnessing returns a new 'witnessing' REST handler that retrieves collection of the services that the
 // local service is witnessing.
-func NewWitnessing(cfg *Config, activityStore spi.Store) *Reference {
+func NewWitnessing(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
 	return NewReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("witnessing"))
+		getObjectIRI(cfg.ObjectIRI), getID("witnessing"), verifier)
 }
 
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
+
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (*url.URL, error)
+}
 
 // Reference implements a REST handler that retrieves references as a collection of IRIs.
 type Reference struct {
@@ -56,7 +60,8 @@ type Reference struct {
 
 // NewReference returns a new reference REST handler.
 func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
-	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc) *Reference {
+	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc,
+	verifier signatureVerifier) *Reference {
 	h := &Reference{
 		refType:              refType,
 		sortOrder:            sortOrder,
@@ -66,12 +71,21 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
 
 	return h
 }
 
 func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
+	_, err := h.verifier.VerifyRequest(req)
+	if err != nil {
+		logger.Warnf("[%s] Invalid HTTP signature: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
 	objectIRI, err := h.getObjectIRI(req)
 	if err != nil {
 		logger.Errorf("[%s] Error getting object IRI: %s", h.endpoint, err)

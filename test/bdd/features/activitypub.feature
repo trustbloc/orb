@@ -158,3 +158,11 @@ Feature:
 
     # Invalid signature on POST
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain1KeyFile}" using key ID "${domain2KeyID}" and the returned status code is 401
+
+    # No signature on GET
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" and the returned status code is 401
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" and the returned status code is 401
+
+    # Invalid signature on GET
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" signed with private key from file "${domain2KeyFile}" using key ID "${domain1KeyID}" and the returned status code is 401
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" signed with private key from file "${domain2KeyFile}" using key ID "${domain1KeyID}" and the returned status code is 401

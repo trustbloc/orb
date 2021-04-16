@@ -65,18 +65,21 @@ type handler struct {
 	params        map[string]string
 	activityStore spi.Store
 	handler       common.HTTPRequestHandler
+	verifier      signatureVerifier
 	marshal       func(v interface{}) ([]byte, error)
 	writeResponse func(w http.ResponseWriter, status int, body []byte)
 	getParams     func(req *http.Request) map[string][]string
 }
 
-func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
+func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler,
+	verifier signatureVerifier, params ...string) *handler {
 	return &handler{
 		Config:        cfg,
 		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, endpoint),
 		params:        paramsBuilder(params).build(),
 		activityStore: s,
 		handler:       h,
+		verifier:      verifier,
 		marshal:       json.Marshal,
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()

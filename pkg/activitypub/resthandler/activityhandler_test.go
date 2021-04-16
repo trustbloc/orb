@@ -40,7 +40,7 @@ func TestNewOutbox(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewOutbox(cfg, memstore.New(""))
+	h := NewOutbox(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/outbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -64,7 +64,7 @@ func TestNewInbox(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewInbox(cfg, memstore.New(""))
+	h := NewInbox(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/inbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -87,7 +87,7 @@ func TestNewShares(t *testing.T) {
 		ObjectIRI: transactionsIRI,
 	}
 
-	h := NewShares(cfg, memstore.New(""))
+	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/transactions/{id}/shares", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -124,7 +124,7 @@ func TestNewLikes(t *testing.T) {
 		ObjectIRI: transactionsIRI,
 	}
 
-	h := NewLikes(cfg, memstore.New(""))
+	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 	require.Equal(t, "/transactions/{id}/likes", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -170,7 +170,7 @@ func TestActivities_Handler(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore)
+		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -196,7 +196,7 @@ func TestActivities_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewOutbox(cfg, s)
+		h := NewOutbox(cfg, s, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -210,7 +210,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore)
+		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -230,7 +230,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore)
+		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -250,7 +250,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore)
+		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -313,7 +313,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, s)
+		h := NewOutbox(cfg, s, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -335,7 +335,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, activityStore)
+		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -379,7 +379,7 @@ func TestShares_Handler(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore)
+		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restore := setIDParam(objectID)
@@ -426,7 +426,7 @@ func TestShares_PageHandler(t *testing.T) {
 	}
 
 	t.Run("First page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore)
+		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "")
@@ -453,7 +453,7 @@ func TestShares_PageHandler(t *testing.T) {
 	})
 
 	t.Run("By page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore)
+		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "1")
@@ -498,7 +498,7 @@ func TestLiked_Handler(t *testing.T) {
 		PageSize:  2,
 	}
 
-	h := NewLiked(cfg, activityStore)
+	h := NewLiked(cfg, activityStore, &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -516,7 +516,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 		PageSize:  4,
 	}
 
-	h := NewOutbox(cfg, as)
+	h := NewOutbox(cfg, as, &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
 
 	restorePaging := setPaging(h.handler, page, pageNum)

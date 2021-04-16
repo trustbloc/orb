@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -28,7 +29,7 @@ func TestNewHandler(t *testing.T) {
 
 	h := newHandler("", cfg, memstore.New(""),
 		func(writer http.ResponseWriter, request *http.Request) {},
-		pageNumParam, pageParam,
+		&mocks.SignatureVerifier{}, pageNumParam, pageParam,
 	)
 
 	require.NotNil(t, h)
@@ -70,7 +71,7 @@ func TestGetCurrentPrevNext(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil)
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
 
 	t.Run("Sort ascending", func(t *testing.T) {
 		t.Run("No page-num", func(t *testing.T) {
@@ -162,7 +163,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil)
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
 
 	id := testutil.MustParseURL(fmt.Sprintf("%s%s", cfg.ObjectIRI, ""))
 
