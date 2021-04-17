@@ -61,8 +61,8 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
-	"github.com/trustbloc/orb/pkg/anchor/handler"
-	"github.com/trustbloc/orb/pkg/anchor/proofs"
+	"github.com/trustbloc/orb/pkg/anchor/handler/credential"
+	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
@@ -163,12 +163,6 @@ func createStartCmd() *cobra.Command {
 	}
 }
 
-type mockProofHandler func(anchorCredID string, _, endTime time.Time, proof []byte) error
-
-func (m mockProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
-	return m(anchorCredID, startTime, endTime, proof)
-}
-
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
@@ -248,7 +242,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:abc#" + keyID,
+		VerificationMethod: "did:web:abc.com#" + keyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
@@ -338,35 +332,33 @@ func startOrbServices(parameters *orbParameters) error {
 
 	defer monitoringSvc.Close()
 
+	proofHander := proof.New(
+		&proof.Providers{
+			Store:         vcStore,
+			MonitoringSvc: monitoringSvc,
+			DocLoader:     orbDocumentLoader,
+		},
+		vcCh)
+
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, sigVerifier,
 		// TODO: Define all of the ActivityPub handlers
-		// TODO: mockProofHandler need to be replaced with real implementation which should invoke Watch function.
-		apspi.WithProofHandler(mockProofHandler(func(anchorCredID string, _, endTime time.Time, proof []byte) error {
-			return monitoringSvc.Watch(anchorCredID, endTime, proof)
-		})),
+		apspi.WithProofHandler(proofHander),
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner, vct.WithHTTPClient(httpClient))),
 		// apspi.WithFollowerAuth(followerAuth),
-		apspi.WithAnchorCredentialHandler(handler.New(anchorCh)),
+		apspi.WithAnchorCredentialHandler(credential.New(anchorCh)),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
-	proofProviders := &proofs.Providers{
-		DocLoader: orbDocumentLoader,
-	}
-
-	proofHandler := proofs.New(proofProviders, vcCh, apServiceIRI)
-
 	anchorWriterProviders := &writer.Providers{
 		AnchorGraph:   anchorGraph,
 		DidAnchors:    didAnchors,
 		AnchorBuilder: vcBuilder,
 		Store:         vcStore,
-		ProofHandler:  proofHandler,
 		OpProcessor:   opProcessor,
 		Outbox:        activityPubService.Outbox(),
 	}

@@ -24,7 +24,7 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
-      - ALLOWED_ORIGINS=origin.com,source.com
+      - ALLOWED_ORIGINS=https://orb.domain2.com/services/orb
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
@@ -69,7 +69,7 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
-      - ALLOWED_ORIGINS=origin.com,source.com
+      - ALLOWED_ORIGINS=https://orb.domain2.com/services/orb
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
@@ -114,7 +114,7 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
-      - ALLOWED_ORIGINS=origin.com,source.com
+      - ALLOWED_ORIGINS=https://orb.domain1.com/services/orb
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
@@ -159,7 +159,7 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
-      - ALLOWED_ORIGINS=origin.com,source.com
+      - ALLOWED_ORIGINS=https://orb.domain1.com/services/orb
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001

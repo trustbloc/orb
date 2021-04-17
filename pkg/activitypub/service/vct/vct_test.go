@@ -8,7 +8,6 @@ package vct_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -67,6 +66,7 @@ type httpMock func(req *http.Request) (*http.Response, error)
 func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) }
 
 func TestClient_Witness(t *testing.T) {
+	/* TODO: issue-265 enable test
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-public-key" {
@@ -100,7 +100,7 @@ func TestClient_Witness(t *testing.T) {
 
 		require.Equal(t, int64(1617977793917000000), timestampTime.UnixNano())
 	})
-
+	*/
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-public-key" {
@@ -142,7 +142,7 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get public key")
 	})
-
+	/* TODO: issue-265 enable test
 	t.Run("Parse credential (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -157,6 +157,7 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse credential")
 	})
+	*/
 
 	t.Run("Add VC (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {

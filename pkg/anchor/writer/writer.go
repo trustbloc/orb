@@ -9,6 +9,7 @@ package writer
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -39,7 +40,6 @@ type Providers struct {
 	AnchorGraph   anchorGraph
 	DidAnchors    didAnchors
 	AnchorBuilder anchorBuilder
-	ProofHandler  proofHandler
 	Store         vcStore
 	OpProcessor   opProcessor
 	Outbox        outbox
@@ -69,10 +69,6 @@ type didAnchors interface {
 type vcStore interface {
 	Put(vc *verifiable.Credential) error
 	Get(id string) (*verifiable.Credential, error)
-}
-
-type proofHandler interface {
-	RequestProofs(vc *verifiable.Credential, witnesses []string) error
 }
 
 // New returns a new anchor writer.
@@ -114,24 +110,15 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return fmt.Errorf("failed to create witness list: %s", err.Error())
 	}
 
-	// request proofs from witnesses
-	err = c.ProofHandler.RequestProofs(vc, witnesses)
+	// send an offer activity to witnesses (request witnessing anchor credential)
+	err = c.postOfferActivity(vc, witnesses)
 	if err != nil {
-		return fmt.Errorf("failed to request proofs from witnesses: %s", err.Error())
+		return fmt.Errorf("failed to post new offer activity for vc[%s]: %s", vc.ID, err.Error())
 	}
 
 	return nil
 }
 
-// Read reads transactions since transaction time.
-// TODO: This is not used and can be removed from interface if we change observer in sidetree-mock to point
-// to core observer (can be done easily) Concern: Reference app has this interface.
-func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
-	// not used
-	return false, nil
-}
-
-//
 func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]string, error) {
 	// assemble map of latest did anchor references
 	previousAnchors := make(map[string]string)
@@ -251,16 +238,16 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	logger.Debugf("posted cid[%s] to anchor channel", cid)
 
 	// announce anchor credential activity to followers
-	err = c.postActivity(vc, cid)
+	err = c.postCreateActivity(vc, cid)
 	if err != nil {
-		logger.Warnf("failed to post new activity for cid[%s]: %s", cid, err.Error())
+		logger.Warnf("failed to post new create activity for cid[%s]: %s", cid, err.Error())
 
 		return
 	}
 }
 
-// postActivity creates and posts new activity to activity pub.
-func (c *Writer) postActivity(vc *verifiable.Credential, cid string) error { //nolint: interfacer
+// postCreateActivity creates and posts create activity (announces anchor credential to followers).
+func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error { //nolint: interfacer
 	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
 	if err != nil {
 		return fmt.Errorf("failed to parse cid URL: %s", err.Error())
@@ -298,12 +285,77 @@ func (c *Writer) postActivity(vc *verifiable.Credential, cid string) error { //n
 
 	postID, err := c.Outbox.Post(create)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	logger.Debugf("created activity for cid[%s], post id[%s]", cid, postID)
 
 	return nil
+}
+
+// postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
+func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string) error {
+	logger.Debugf("sending anchor credential[%s] to system witnesses plus: %s", vc.ID, witnesses)
+
+	witnessesIRI, err := c.getWitnessesIRI(witnesses)
+	if err != nil {
+		return err
+	}
+
+	bytes, err := vc.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("failed to marshal anchor credential: %s", err.Error())
+	}
+
+	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
+	if err != nil {
+		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+	}
+
+	startTime := time.Now()
+
+	// TODO: configure
+	endTime := startTime.Add(time.Hour)
+
+	offer := vocab.NewOfferActivity(
+		vocab.NewObjectProperty(vocab.WithObject(obj)),
+		vocab.WithTo(witnessesIRI...),
+		vocab.WithStartTime(&startTime),
+		vocab.WithEndTime(&endTime),
+	)
+
+	postID, err := c.Outbox.Post(offer)
+	if err != nil {
+		return nil
+	}
+
+	logger.Debugf("created pre-announce activity for vc[%s], post id[%s]", vc.ID, postID)
+
+	return nil
+}
+
+func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
+	var allWitnesses []*url.URL
+
+	for _, w := range witnesses {
+		witnessIRI, err := url.Parse(w)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse witness path[%s]: %s", w, err.Error())
+		}
+
+		allWitnesses = append(allWitnesses, witnessIRI)
+	}
+
+	// get system witness IRI
+	systemWitnesses, err := url.Parse(c.apServiceIRI.String() + resthandler.WitnessesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse system witness path: %s", err.Error())
+	}
+
+	// add system witnesses (activity pub collection) to the list of witnesses
+	allWitnesses = append(allWitnesses, systemWitnesses)
+
+	return allWitnesses, nil
 }
 
 // getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.
@@ -355,4 +407,12 @@ func getKeys(m map[string]string) []string {
 	}
 
 	return keys
+}
+
+// Read reads transactions since transaction time.
+// TODO: This is not used and can be removed from interface if we change observer in sidetree-mock to point
+// to core observer (can be done easily) Concern: Reference app has this interface.
+func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
+	// not used
+	return false, nil
 }
