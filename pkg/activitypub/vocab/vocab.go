@@ -52,6 +52,8 @@ const (
 	TypeReject Type = "Reject"
 	// TypeLike specifies the 'Like' activity type.
 	TypeLike Type = "Like"
+	// TypeInviteWitness specifies the 'InviteWitness' activity type.
+	TypeInviteWitness Type = "InviteWitness"
 
 	// TypeVerifiableCredential specifies the "VerifiableCredential" object type.
 	TypeVerifiableCredential Type = "VerifiableCredential"

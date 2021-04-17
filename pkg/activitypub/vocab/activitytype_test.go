@@ -24,13 +24,14 @@ var (
 	service1 = testutil.MustParseURL("https://sally.example.com/services/orb")
 	witness1 = testutil.MustParseURL("https://witness1.example.com/services/orb")
 
-	createActivityID = newMockID(service1, "/activities/97bcd005-abb6-423d-a889-18bc1ce84988")
-	followActivityID = newMockID(service1, "/activities/97b3d005-abb6-422d-a889-18bc1ee84988")
-	acceptActivityID = newMockID(service1, "/activities/95b3d005-abb6-423d-a889-18bc1ee84989")
-	rejectActivityID = newMockID(service1, "/activities/75b3d005-abb6-473d-a879-18bc1ee84979")
-	offerActivityID  = newMockID(service1, "/activities/65b3d005-6bb6-673d-6879-18bc1ee84976")
-	undoActivityID   = newMockID(service1, "/activities/77bcd005-abb6-433d-a889-18bc1ce64981")
-	likeActivityID   = newMockID(witness1, "/likes/87bcd005-abb6-433d-a889-18bc1ce84988")
+	createActivityID  = newMockID(service1, "/activities/97bcd005-abb6-423d-a889-18bc1ce84988")
+	followActivityID  = newMockID(service1, "/activities/97b3d005-abb6-422d-a889-18bc1ee84988")
+	witnessActivityID = newMockID(service1, "/activities/37b3d005-abb6-422d-a889-18bc1ee84985")
+	acceptActivityID  = newMockID(service1, "/activities/95b3d005-abb6-423d-a889-18bc1ee84989")
+	rejectActivityID  = newMockID(service1, "/activities/75b3d005-abb6-473d-a879-18bc1ee84979")
+	offerActivityID   = newMockID(service1, "/activities/65b3d005-6bb6-673d-6879-18bc1ee84976")
+	undoActivityID    = newMockID(service1, "/activities/77bcd005-abb6-433d-a889-18bc1ce64981")
+	likeActivityID    = newMockID(witness1, "/likes/87bcd005-abb6-433d-a889-18bc1ce84988")
 )
 
 func TestCreateTypeMarshal(t *testing.T) {
@@ -541,6 +542,50 @@ func TestFollowTypeMarshal(t *testing.T) {
 		context := a.Context()
 		require.NotNil(t, context)
 		context.Contains(ContextActivityStreams)
+
+		to := a.To()
+		require.Len(t, to, 1)
+		require.Equal(t, to[0].String(), org2Service.String())
+
+		require.Equal(t, org1Service.String(), a.Actor().String())
+
+		objProp := a.Object()
+		require.NotNil(t, objProp)
+		require.NotNil(t, objProp.IRI())
+		require.Equal(t, org2Service.String(), objProp.IRI().String())
+	})
+}
+
+func TestWitnessTypeMarshal(t *testing.T) {
+	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
+	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
+
+	t.Run("Marshal", func(t *testing.T) {
+		inviteWitness := NewInviteWitnessActivity(
+			NewObjectProperty(WithIRI(org2Service)),
+			WithID(witnessActivityID),
+			WithActor(org1Service),
+			WithTo(org2Service),
+		)
+
+		bytes, err := canonicalizer.MarshalCanonical(inviteWitness)
+		require.NoError(t, err)
+		t.Log(string(bytes))
+
+		require.Equal(t, testutil.GetCanonical(t, jsonInviteWitness), string(bytes))
+	})
+
+	t.Run("Unmarshal", func(t *testing.T) {
+		a := &ActivityType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonInviteWitness), a))
+		require.NotNil(t, a.Type())
+		require.True(t, a.Type().Is(TypeInviteWitness))
+		require.Equal(t, witnessActivityID.String(), a.ID().String())
+
+		context := a.Context()
+		require.NotNil(t, context)
+		context.Contains(ContextActivityStreams)
+		context.Contains(ContextOrb)
 
 		to := a.To()
 		require.Len(t, to, 1)
@@ -1264,5 +1309,17 @@ const (
   "object": "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988",
   "to": "https://org1.com/services/service2",
   "type": "Undo"
+}`
+
+	jsonInviteWitness = `{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+  ],
+  "actor": "https://org1.com/services/service1",
+  "id": "https://sally.example.com/services/orb/activities/37b3d005-abb6-422d-a889-18bc1ee84985",
+  "object": "https://org1.com/services/service2",
+  "to": "https://org1.com/services/service2",
+  "type": "InviteWitness"
 }`
 )

@@ -765,10 +765,200 @@ func TestService_Offer(t *testing.T) {
 	})
 }
 
+func TestService_InviteWitness(t *testing.T) {
+	log.SetLevel(wmlogger.Module, log.WARNING)
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8401/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8402/services/service2")
+
+	service1, store1, publicKey1, mockProviders1 := newServiceWithMocks(t, "/services/service1", service1IRI)
+
+	defer service1.Stop()
+
+	service2, store2, publicKey2, mockProviders2 := newServiceWithMocks(t, "/services/service2", service2IRI)
+
+	defer service2.Stop()
+
+	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
+	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
+
+	require.NoError(t, store1.PutActor(actor2))
+	require.NoError(t, store2.PutActor(actor1))
+
+	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
+	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
+
+	stop1 := startHTTPServer(t, ":8401", service1.InboxHTTPHandler())
+	defer stop1()
+
+	stop2 := startHTTPServer(t, ":8402", service2.InboxHTTPHandler())
+	defer stop2()
+
+	service1.Start()
+	service2.Start()
+
+	defer service1.Stop()
+	defer service2.Stop()
+
+	t.Run("Accept", func(t *testing.T) {
+		mockProviders2.witnessInvitationAuth.WithAccept()
+
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
+			vocab.WithTo(service2IRI),
+		)
+
+		activityID, err := service1.Outbox().Post(inviteWitness)
+		require.NoError(t, err)
+		require.NotNil(t, activityID)
+
+		time.Sleep(1000 * time.Millisecond)
+
+		it, err := store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err := storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, inviteWitness.ID()))
+
+		it, err = store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, inviteWitness.ID()))
+
+		rit, err := store1.QueryReferences(spi.Witness, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
+		require.NoError(t, err)
+
+		witnesses, err := storeutil.ReadReferences(rit, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, witnesses)
+		require.Truef(t, containsIRI(witnesses, service2IRI), "expecting %s to be a witness of %s", service2IRI, service1IRI)
+
+		rit, err = store2.QueryReferences(spi.Witnessing, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
+		require.NoError(t, err)
+
+		witnessing, err := storeutil.ReadReferences(rit, -1)
+		require.NoError(t, err)
+
+		require.NotEmpty(t, witnessing)
+		require.Truef(t, containsIRI(witnessing, service1IRI), "expecting %s to be witnessing %s",
+			service2IRI, service1IRI)
+
+		// Ensure we have an 'Accept' activity in our inbox
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+
+		for _, a := range activities {
+			if a.Type().Is(vocab.TypeAccept) {
+				acceptedInvitation := a.Object().Activity()
+				require.NotNil(t, acceptedInvitation)
+				require.Equal(t, inviteWitness.ID(), acceptedInvitation.ID())
+			}
+		}
+	})
+
+	t.Run("Reject", func(t *testing.T) {
+		mockProviders1.witnessInvitationAuth.WithReject()
+
+		inviteWitness := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithTo(service1IRI),
+		)
+
+		_, err := service2.Outbox().Post(inviteWitness)
+		require.NoError(t, err)
+
+		// Wait for the message to be processed
+		time.Sleep(500 * time.Millisecond)
+
+		it, err := store2.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service2IRI),
+				spi.WithReferenceType(spi.Outbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err := storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, inviteWitness.ID()))
+
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+		require.True(t, containsActivity(activities, inviteWitness.ID()))
+
+		rit, err := store1.QueryReferences(spi.Witness, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
+		require.NoError(t, err)
+
+		witnesses, err := storeutil.ReadReferences(rit, -1)
+		require.NoError(t, err)
+		require.Falsef(t, containsIRI(witnesses, service1IRI), "expecting %s NOT to be a witness for %s",
+			service1IRI, service2IRI)
+
+		rit, err = store1.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
+		require.NoError(t, err)
+
+		witnessing, err := storeutil.ReadReferences(rit, -1)
+		require.NoError(t, err)
+		require.Falsef(t, containsIRI(witnessing, service2IRI), "expecting %s NOT to be witnessing %s",
+			service1IRI, service2IRI)
+
+		// Ensure we have a 'Reject' activity in our inbox
+		it, err = store1.QueryActivities(
+			spi.NewCriteria(
+				spi.WithObjectIRI(service1IRI),
+				spi.WithReferenceType(spi.Inbox),
+			))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		activities, err = storeutil.ReadActivities(it, -1)
+		require.NoError(t, err)
+
+		for _, a := range activities {
+			if a.Type().Is(vocab.TypeReject) {
+				rejectedInvitation := a.Object().Activity()
+				require.NotNil(t, rejectedInvitation)
+				require.Equal(t, inviteWitness.ID(), rejectedInvitation.ID())
+			}
+		}
+	})
+}
+
 type mockProviders struct {
 	actorRetriever          *mocks.ActorRetriever
 	anchorCredentialHandler *mocks.AnchorCredentialHandler
 	followerAuth            *mocks.ActorAuth
+	witnessInvitationAuth   *mocks.ActorAuth
 	undeliverableHandler    *mocks.UndeliverableHandler
 	proofHandler            *mocks.ProofHandler
 	witnessHandler          *mocks.WitnessHandler
@@ -792,6 +982,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		actorRetriever:          mocks.NewActorRetriever(),
 		anchorCredentialHandler: mocks.NewAnchorCredentialHandler(),
 		followerAuth:            mocks.NewActorAuth(),
+		witnessInvitationAuth:   mocks.NewActorAuth(),
 		undeliverableHandler:    mocks.NewUndeliverableHandler(),
 		proofHandler:            mocks.NewProofHandler(),
 		witnessHandler:          mocks.NewWitnessHandler(),
@@ -823,6 +1014,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
 		service.WithFollowerAuth(providers.followerAuth),
+		service.WithWitnessInvitationAuth(providers.witnessInvitationAuth),
 		service.WithWitness(providers.witnessHandler),
 		service.WithProofHandler(providers.proofHandler),
 	)
