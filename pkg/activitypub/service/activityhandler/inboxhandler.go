@@ -128,12 +128,12 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 
 	actorIRI := activity.Actor()
 
-	hasFollower, err := h.hasReference(actorIRI, refType)
+	hasRef, err := h.hasReference(actorIRI, refType)
 	if err != nil {
 		return err
 	}
 
-	if hasFollower {
+	if hasRef {
 		logger.Infof("[%s] Actor %s already has %s in its %s collection. Replying with 'Accept' activity.",
 			h.ServiceName, actorIRI, h.ServiceIRI, refType)
 
@@ -206,39 +206,20 @@ func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType
 func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Accept' activity: %s", h.ServiceName, accept.ID())
 
-	actorIRI := accept.Actor()
-	if actorIRI == nil {
-		return fmt.Errorf("no actor specified in 'Accept' activity")
+	if err := h.validateAcceptRejectActivity(accept); err != nil {
+		return err
 	}
 
 	activity := accept.Object().Activity()
-	if activity == nil {
-		return fmt.Errorf("no activity specified in the 'object' field of the 'Accept' activity")
-	}
-
-	iri := activity.Actor()
-	if iri == nil {
-		return fmt.Errorf("no actor specified in the object of the 'Accept' activity")
-	}
-
-	// Make sure that the actorIRI in the original activity is this service.
-	// If not then we can ignore the message.
-	if iri.String() != h.ServiceIRI.String() {
-		logger.Infof(
-			"[%s] Not handling 'Accept' %s since the actor %s in the object is not this service %s",
-			h.ServiceName, accept.ID(), iri, h.ServiceIRI)
-
-		return nil
-	}
 
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
-		if err := h.store.AddReference(store.Following, h.ServiceIRI, actorIRI); err != nil {
+		if err := h.store.AddReference(store.Following, h.ServiceIRI, accept.Actor()); err != nil {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
 		}
 
 	case activity.Type().Is(vocab.TypeInviteWitness):
-		if err := h.store.AddReference(store.Witness, h.ServiceIRI, actorIRI); err != nil {
+		if err := h.store.AddReference(store.Witness, h.ServiceIRI, accept.Actor()); err != nil {
 			return fmt.Errorf("handle accept 'Witness' activity %s: %w", accept.ID(), err)
 		}
 
@@ -255,37 +236,42 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Reject' activity: %s", h.ServiceName, reject.ID())
 
-	actor := reject.Actor()
-	if actor == nil {
-		return fmt.Errorf("no actor specified in 'Reject' activity")
+	if err := h.validateAcceptRejectActivity(reject); err != nil {
+		return err
 	}
-
-	follow := reject.Object().Activity()
-	if follow == nil {
-		return fmt.Errorf("no 'Follow' activity specified in the 'object' field of the 'Reject' activity")
-	}
-
-	if !follow.Type().Is(vocab.TypeFollow) {
-		return fmt.Errorf("the 'object' field of the 'Reject' activity must be a 'Follow' type")
-	}
-
-	iri := follow.Actor()
-	if iri == nil {
-		return fmt.Errorf("no actor specified in the original 'Follow' activity of the 'Reject' activity")
-	}
-
-	// Make sure that the actor in the original 'Follow' activity is this service. If not then we can ignore the message.
-	if iri.String() != h.ServiceIRI.String() {
-		logger.Infof(
-			"[%s] Not handling 'Reject' %s since the actor %s in the 'Follow' activity is not this service: %s",
-			h.ServiceName, reject.ID(), iri, h.ServiceIRI)
-
-		return nil
-	}
-
-	logger.Warnf("[%s] %s rejected our request to follow", h.ServiceName, iri)
 
 	h.notify(reject)
+
+	return nil
+}
+
+func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling '%s' activity: %s", h.ServiceName, a.Type(), a.ID())
+
+	actorIRI := a.Actor()
+	if actorIRI == nil {
+		return fmt.Errorf("no actor specified in '%s' activity", a.Type())
+	}
+
+	activity := a.Object().Activity()
+	if activity == nil {
+		return fmt.Errorf("no activity specified in the 'object' field of the '%s' activity", a.Type())
+	}
+
+	if !activity.Type().IsAny(vocab.TypeFollow, vocab.TypeInviteWitness) {
+		return fmt.Errorf("unsupported activity type [%s] in the 'object' field of the 'Accept' activity",
+			activity.Type())
+	}
+
+	iri := activity.Actor()
+	if iri == nil {
+		return fmt.Errorf("no actor specified in the object of the '%s' activity", a.Type())
+	}
+
+	// Make sure that the actorIRI in the original activity is this service.
+	if iri.String() != h.ServiceIRI.String() {
+		return fmt.Errorf("the actor in the object of the '%s' activity is not this service", a.Type())
+	}
 
 	return nil
 }
