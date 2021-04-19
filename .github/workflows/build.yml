@@ -1,0 +1,116 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+name: build
+on:
+  push:
+  pull_request:
+jobs:
+  unitTest:
+    name: Unit test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - name: Setup Go 1.16
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+        id: go
+
+      - uses: actions/checkout@v2
+
+      - name: Run unit test
+        timeout-minutes: 15
+        run: make unit-test
+
+      - name: Upload coverage to Codecov
+        timeout-minutes: 10
+        if: matrix.os == 'ubuntu-latest' && github.repository == 'trustbloc/orb'
+        uses: codecov/codecov-action@v1.3.1
+        with:
+          file: ./coverage.out
+
+  bddTest:
+    name: BDD test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Setup Go 1.16
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+        id: go
+
+      - uses: actions/checkout@v2
+
+      - name: Run bdd test
+        timeout-minutes: 20
+        run: make bdd-test
+
+  checks:
+    name: Checks
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go 1.16
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - uses: actions/checkout@v2
+
+      - name: Run checks
+        timeout-minutes: 10
+        run: make checks
+
+  publish:
+    name: Publish image
+    if: github.event_name == 'push' && (github.repository == 'trustbloc/orb' && github.ref == 'refs/heads/main')
+    needs: [checks, unitTest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set ENV vars
+        run: |
+          TAG=$(git describe --tags --always `git rev-list --tags --max-count=1`)
+          VERSION=$(git rev-parse --short=7 HEAD)
+          if [[ $TAG == $VERSION ]]; then
+              TAG=v0.0.0
+          fi
+          echo "IMAGE_TAG"=$TAG-$VERSION >> $GITHUB_ENV
+          echo "IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/orb >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Github Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.CR_USER }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Build and Push container images
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./images/orb/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            ALPINE_VER=3.12
+            GO_VER=1.16
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_PREFIX }}:latest

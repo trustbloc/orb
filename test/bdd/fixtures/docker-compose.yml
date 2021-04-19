@@ -41,7 +41,7 @@ services:
       - DISCOVERY_DOMAINS=https://orb.domain2.com
     ports:
       - 48326:443
-    command:  /bin/sh -c "sleep 12;orb start"
+    command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain1:/etc/orb/activitypub
@@ -86,7 +86,7 @@ services:
       - DISCOVERY_DOMAINS=https://orb.domain2.com
     ports:
       - 48526:443
-    command:  /bin/sh -c "sleep 15;orb start"
+    command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain1:/etc/orb/activitypub
@@ -131,7 +131,7 @@ services:
       - DISCOVERY_DOMAINS=https://orb.domain1.com
     ports:
       - 48426:443
-    command:  /bin/sh -c "sleep 15;orb start"
+    command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain2:/etc/orb/activitypub
@@ -176,7 +176,7 @@ services:
       - DISCOVERY_DOMAINS=https://orb.domain1.com
     ports:
       - 48626:443
-    command:  /bin/sh -c "sleep 15;orb start"
+    command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain2:/etc/orb/activitypub
