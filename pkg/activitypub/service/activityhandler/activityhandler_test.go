@@ -1109,17 +1109,20 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 func TestHandler_HandleOfferActivity(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
 		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service1IRI, "/activities/123456789"))
+	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 	witness := mocks.NewWitnessHandler()
 
 	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, &apmocks.HTTPTransport{}, spi.WithWitness(witness))
 	require.NotNil(t, h)
+
+	require.NoError(t, h.store.AddReference(store.Witnessing, h.ServiceIRI, service1IRI))
 
 	h.Start()
 	defer h.Stop()
@@ -1277,6 +1280,55 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "object is required")
+	})
+
+	t.Run("Storage error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		activityStore := &mocks.ActivityStore{}
+		activityStore.QueryReferencesReturns(nil, errExpected)
+
+		handler := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithWitness(witness))
+		require.NotNil(t, handler)
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		offer := vocab.NewOfferActivity(
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+		)
+
+		require.True(t, errors.Is(handler.HandleActivity(offer), errExpected))
+	})
+
+	t.Run("Not witnessing actor", func(t *testing.T) {
+		witness.WithProof([]byte(proof))
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		offer := vocab.NewOfferActivity(
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithActor(service3IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+		)
+
+		err = h.HandleActivity(offer)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not in the 'witnessing' collection")
 	})
 }
 

@@ -168,6 +168,13 @@ Feature:
 
   @activitypub_offer
   Scenario: offer/like
+    # domain1 invites domain2 to be a witness
+    Given variable "inviteWitnessID" is assigned a unique ID
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${inviteWitnessActivity}" of type "application/json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
+
+    Then we wait 2 seconds
+
     When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content from file "./fixtures/testdata/offer_activity.json" signed with private key from file "${domain2KeyFile}" using key ID "${domain2KeyID}"
 
     Then we wait 2 seconds

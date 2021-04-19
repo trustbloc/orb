@@ -692,6 +692,7 @@ func TestService_Offer(t *testing.T) {
 
 	require.NoError(t, store1.PutActor(actor2))
 	require.NoError(t, store2.PutActor(actor1))
+	require.NoError(t, store2.AddReference(spi.Witnessing, service2IRI, service1IRI))
 
 	service1.Start()
 	service2.Start()

@@ -359,6 +359,16 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("invalid 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
+	isWitnessing, err := h.hasReference(offer.Actor(), store.Witnessing)
+	if err != nil {
+		return fmt.Errorf("retrieve reference: %w", err)
+	}
+
+	if !isWitnessing {
+		return fmt.Errorf("not handling 'Offer' activity [%s] since [%s] is not in the 'witnessing' collection",
+			offer.ID(), offer.Actor())
+	}
+
 	if time.Now().After(*offer.EndTime()) {
 		return fmt.Errorf("offer [%s] has expired", offer.ID())
 	}
