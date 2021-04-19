@@ -9,6 +9,7 @@ package redelivery
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -75,6 +76,7 @@ type Service struct {
 	notifyChan  chan<- *message.Message
 	entryChan   chan *entry
 	done        chan struct{}
+	wg          sync.WaitGroup
 }
 
 // NewService returns a new redelivery service.
@@ -149,34 +151,51 @@ func (m *Service) start() {
 }
 
 func (m *Service) stop() {
-	close(m.done)
-	close(m.entryChan)
+	m.done <- struct{}{}
+
+	logger.Debugf("[%s] Waiting for monitor to stop ...", m.serviceName)
+
+	<-m.done
 
 	logger.Infof("[%s] Redelivery service stopped", m.serviceName)
 }
 
 func (m *Service) monitor() {
-	for entry := range m.entryChan {
-		go m.redeliver(entry)
+	for {
+		select {
+		case entry := <-m.entryChan:
+			m.wg.Add(1)
+
+			go m.redeliver(entry)
+
+		case <-m.done:
+			logger.Debugf("[%s] Waiting for all tasks to complete ...", m.serviceName)
+
+			m.wg.Wait()
+
+			m.done <- struct{}{}
+
+			logger.Debugf("[%s] ... monitor has stopped", m.serviceName)
+
+			return
+		}
 	}
 }
 
 func (m *Service) redeliver(entry *entry) {
 	logger.Debugf("[%s] Waiting %s to redeliver message %s", m.serviceName, entry.delay, entry.msg.UUID)
 
-	select {
-	case <-time.After(entry.delay):
-		logger.Debugf("[%s] Submitting message %s after waiting %s ...",
-			m.serviceName, entry.msg.UUID, entry.delay)
+	<-time.After(entry.delay)
 
-		m.notifyChan <- entry.msg
+	logger.Debugf("[%s] Submitting message %s after waiting %s ...",
+		m.serviceName, entry.msg.UUID, entry.delay)
 
-		logger.Debugf("[%s] ... submitted message %s after waiting %s",
-			m.serviceName, entry.msg.UUID, entry.delay)
-	case <-m.done:
-		logger.Debugf("[%s] Not redelivering message [%s] since redelivery manager has been closed",
-			m.serviceName, entry.msg.UUID)
-	}
+	m.notifyChan <- entry.msg
+
+	logger.Debugf("[%s] ... submitted message %s after waiting %s",
+		m.serviceName, entry.msg.UUID, entry.delay)
+
+	m.wg.Done()
 }
 
 func (m *Service) backoff(retries int) time.Duration {
