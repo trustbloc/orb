@@ -751,9 +751,8 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(accept),
-			"should have ignored 'Accept' since actor in the activity does not match the target service",
-		)
+		require.EqualError(t, h.HandleActivity(accept),
+			"the actor in the object of the 'Accept' activity is not this service")
 	})
 }
 
@@ -778,7 +777,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Reject Follow -> Success", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -800,6 +799,35 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		require.NotNil(t, subscriber.Activity(reject.ID()))
 
 		it, err := h.store.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+		require.NoError(t, err)
+
+		following, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.True(t, !containsIRI(following, service1IRI))
+	})
+
+	t.Run("Reject Witness -> Success", func(t *testing.T) {
+		follow := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		reject := vocab.NewRejectActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		require.NoError(t, h.HandleActivity(reject))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(reject.ID()))
+
+		it, err := h.store.QueryReferences(store.Witness, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 		require.NoError(t, err)
 
 		following, err := storeutil.ReadReferences(it, -1)
@@ -833,13 +861,14 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(reject),
-			"no 'Follow' activity specified in the 'object' field of the 'Reject' activity")
+			"no activity specified in the 'object' field of the 'Reject' activity")
 	})
 
-	t.Run("Object is not a Follow activity", func(t *testing.T) {
+	t.Run("Unsupported activity type", func(t *testing.T) {
 		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -851,10 +880,10 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(reject),
-			"the 'object' field of the 'Reject' activity must be a 'Follow' type")
+			"unsupported activity type [Announce] in the 'object' field of the 'Accept' activity")
 	})
 
-	t.Run("No actor specified in the Follow activity", func(t *testing.T) {
+	t.Run("No actor specified in the activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -869,11 +898,11 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, h.HandleActivity(reject),
-			"no actor specified in the original 'Follow' activity of the 'Reject' activity")
+			"no actor specified in the object of the 'Reject' activity")
 	})
 
-	t.Run("Follow actor does not match target service IRI in Reject activity", func(t *testing.T) {
-		follow := vocab.NewFollowActivity(
+	t.Run("Actor does not match target service IRI in Reject activity", func(t *testing.T) {
+		follow := vocab.NewInviteWitnessActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service1IRI),
@@ -887,9 +916,8 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(reject),
-			"should have ignored 'Reject' since actor in the 'Follow' does not match the target service",
-		)
+		require.EqualError(t, h.HandleActivity(reject),
+			"the actor in the object of the 'Reject' activity is not this service")
 	})
 }
 
