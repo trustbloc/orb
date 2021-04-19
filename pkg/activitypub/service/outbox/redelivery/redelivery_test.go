@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package redelivery
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,8 +23,6 @@ func TestNewService(t *testing.T) {
 }
 
 func TestService(t *testing.T) {
-	notifyChan := make(chan *message.Message)
-
 	cfg := &Config{
 		MaxRetries:     2,
 		InitialBackoff: 50 * time.Millisecond,
@@ -31,6 +30,8 @@ func TestService(t *testing.T) {
 		BackoffFactor:  1.5,
 		MaxMessages:    20,
 	}
+
+	notifyChan := make(chan *message.Message, cfg.MaxMessages)
 
 	s := NewService("service1", cfg, notifyChan)
 	require.NotNil(t, s)
@@ -99,4 +100,50 @@ func TestBackoff(t *testing.T) {
 	require.Equal(t, cfg.InitialBackoff, s.backoff(0))
 	require.True(t, s.backoff(1) > cfg.InitialBackoff)
 	require.Equal(t, cfg.MaxBackoff, s.backoff(10))
+}
+
+func TestServiceStop(t *testing.T) {
+	cfg := &Config{
+		MaxRetries:     3,
+		InitialBackoff: 50 * time.Millisecond,
+		MaxBackoff:     time.Second,
+		BackoffFactor:  1.5,
+		MaxMessages:    20,
+	}
+
+	notifyChan := make(chan *message.Message, cfg.MaxMessages)
+
+	s := NewService("service1", cfg, notifyChan)
+	require.NotNil(t, s)
+
+	s.Start()
+
+	payload := []byte("payload")
+
+	for i := 0; i < 30; i++ {
+		msg := message.NewMessage(watermill.NewUUID(), payload)
+
+		now := time.Now()
+
+		deliveryTime, err := s.Add(msg)
+		require.NoError(t, err)
+		require.True(t, deliveryTime.After(now.Add(cfg.InitialBackoff)))
+	}
+
+	var count int32
+
+	go func() {
+		for undeliverableMsg := range notifyChan {
+			require.NotNil(t, undeliverableMsg)
+
+			atomic.AddInt32(&count, 1)
+		}
+	}()
+
+	// Stop the service while messages are in flight to ensure there are no race conditions.
+	s.Stop()
+
+	close(notifyChan)
+
+	t.Logf("Got %d undeliverable messages", atomic.LoadInt32(&count))
 }

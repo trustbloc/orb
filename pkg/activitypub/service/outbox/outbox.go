@@ -91,18 +91,18 @@ type httpTransport interface {
 // New returns a new ActivityPub Outbox.
 func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
 	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
-	options := defaultOptions()
-
-	for _, opt := range handlerOpts {
-		opt(options)
-	}
+	options := newHandlerOptions(handlerOpts)
 
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), service.UndeliverableTopic)
 	if err != nil {
 		return nil, err
 	}
 
-	redeliverChan := make(chan *message.Message)
+	if cfg.RedeliveryConfig == nil {
+		cfg.RedeliveryConfig = redelivery.DefaultConfig()
+	}
+
+	redeliverChan := make(chan *message.Message, cfg.RedeliveryConfig.MaxMessages)
 
 	if cfg.MaxConcurrentRequests <= 0 {
 		cfg.MaxConcurrentRequests = defaultConcurrentHTTPRequests
@@ -476,6 +476,16 @@ type noOpUndeliverableHandler struct {
 }
 
 func (h *noOpUndeliverableHandler) HandleUndeliverableActivity(*vocab.ActivityType, string) {
+}
+
+func newHandlerOptions(opts []service.HandlerOpt) *service.Handlers {
+	options := defaultOptions()
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return options
 }
 
 func defaultOptions() *service.Handlers {
