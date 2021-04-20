@@ -36,7 +36,7 @@ func TestNew(t *testing.T) {
 	require.NotNil(t, c)
 }
 
-func TestAnchorCredentialHandler(t *testing.T) {
+func TestWitnessProofHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
@@ -57,7 +57,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		proofHandler := New(providers, vcCh)
 
 		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(""))
+			time.Now(), time.Now(), []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -81,9 +81,28 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		proofHandler := New(providers, vcCh)
 
 		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(""))
+			time.Now(), time.Now(), []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get vc: get error")
+	})
+
+	t.Run("error - unmarshal witness proof", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		providers := &Providers{
+			Store:         vcStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
+			time.Now(), time.Now(), []byte(""))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to unmarshal witness proof for anchor credential")
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
@@ -109,14 +128,14 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		proofHandler := New(providers, vcCh)
 
 		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(""))
+			time.Now(), time.Now(), []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")
 	})
 }
 
-//nolint:gochecknoglobals,lll
-var anchorCred = `
+//nolint:lll
+const anchorCred = `
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1"
@@ -142,4 +161,20 @@ var anchorCred = `
     "verificationMethod": "did:web:abc#CvSyX0VxMCbg-UiYpAVd9OmhaFBXBr5ISpv2RZ2c9DY"
   },
   "type": "VerifiableCredential"
+}`
+
+//nolint:lll
+const witnessProof = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3id.org/jws/v1"
+  ],
+  "proof": {
+    "created": "2021-04-20T20:05:35.055Z",
+    "domain": "http://orb.vct:8077",
+    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PahivkKT6iKdnZDpkLu6uwDWYSdP7frt4l66AXI8mTsBnjgwrf9Pr-y_BkEFqsOMEuwJ3DSFdmAp1eOdTxMfDQ",
+    "proofPurpose": "assertionMethod",
+    "type": "Ed25519Signature2018",
+    "verificationMethod": "did:web:abc.com#2130bhDAK-2jKsOXJiEDG909Jux4rcYEpFsYzVlqdAY"
+  }
 }`
