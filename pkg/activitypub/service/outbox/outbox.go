@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package outbox
 
 import (
@@ -295,7 +301,7 @@ func (h *Outbox) redeliver() {
 
 func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
 	return h.resolveIRIs(
-		h.resolveIRIs(toIRIs, h.resolveActorIRIs),
+		deduplicate(h.resolveIRIs(toIRIs, h.resolveActorIRIs)),
 		func(actorIRI *url.URL) ([]*url.URL, error) {
 			inboxIRI, err := h.resolveInbox(actorIRI)
 			if err != nil {
@@ -470,6 +476,22 @@ func (h *Outbox) validateAndPopulateActivity(activity *vocab.ActivityType) (*voc
 	}
 
 	return activity, nil
+}
+
+func deduplicate(toIRIs []*url.URL) []*url.URL {
+	m := make(map[string]struct{})
+	iris := make([]*url.URL, 0, len(toIRIs))
+
+	for _, iri := range toIRIs {
+		strIRI := iri.String()
+
+		if _, exists := m[strIRI]; !exists {
+			iris = append(iris, iri)
+			m[strIRI] = struct{}{}
+		}
+	}
+
+	return iris
 }
 
 type noOpUndeliverableHandler struct {
