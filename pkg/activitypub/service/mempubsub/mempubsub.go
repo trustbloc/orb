@@ -14,6 +14,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 )
 
@@ -38,8 +39,8 @@ type Config struct {
 }
 
 // DefaultConfig returns the default configuration.
-func DefaultConfig() *Config {
-	return &Config{
+func DefaultConfig() Config {
+	return Config{
 		Timeout:     defaultTimeout,
 		Concurrency: defaultConcurrency,
 		BufferSize:  defaultBufferSize,
@@ -51,31 +52,61 @@ func DefaultConfig() *Config {
 // the load across a cluster, a persistent message queue (such as RabbitMQ or Kafka) should
 // instead be used.
 type PubSub struct {
-	*Config
+	*lifecycle.Lifecycle
+	Config
 
 	serviceName     string
 	msgChansByTopic map[string][]chan *message.Message
 	mutex           sync.RWMutex
+	publishChan     chan *entry
 	ackChan         chan *message.Message
+	doneChan        chan struct{}
+}
+
+type entry struct {
+	topic    string
+	messages []*message.Message
 }
 
 // New returns a new publisher/subscriber.
-func New(name string, cfg *Config) *PubSub {
+func New(name string, cfg Config) *PubSub {
 	m := &PubSub{
 		Config:          cfg,
 		serviceName:     name,
 		msgChansByTopic: make(map[string][]chan *message.Message),
+		publishChan:     make(chan *entry, cfg.BufferSize),
 		ackChan:         make(chan *message.Message, cfg.Concurrency),
+		doneChan:        make(chan struct{}),
 	}
 
-	go m.listen()
+	m.Lifecycle = lifecycle.New("httpsubscriber-"+name, lifecycle.WithStop(m.stop))
+
+	go m.processMessages()
+	go m.processAcks()
+
+	// Start the service immediately.
+	m.Start()
 
 	return m
 }
 
 // Close closes all resources.
 func (p *PubSub) Close() error {
-	logger.Infof("[%s] Closing publisher/subscriber...", p.serviceName)
+	p.Stop()
+
+	return nil
+}
+
+func (p *PubSub) stop() {
+	logger.Infof("[%s] Stopping publisher/subscriber...", p.serviceName)
+
+	p.doneChan <- struct{}{}
+
+	logger.Debugf("[%s] ... waiting for publisher to stop...", p.serviceName)
+
+	<-p.doneChan
+
+	logger.Debugf("[%s] ... closing subscriber channels...", p.serviceName)
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -90,14 +121,16 @@ func (p *PubSub) Close() error {
 
 	close(p.ackChan)
 
-	logger.Infof("[%s] ... publisher/subscriber closed", p.serviceName)
-
-	return nil
+	logger.Infof("[%s] ... publisher/subscriber stopped.", p.serviceName)
 }
 
 // Subscribe subscribes to a topic and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
 func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Message, error) {
+	if p.State() != service.StateStarted {
+		return nil, service.ErrNotStarted
+	}
+
 	logger.Debugf("[%s] Subscribing to topic [%s]", p.serviceName, topic)
 
 	p.mutex.Lock()
@@ -114,12 +147,47 @@ func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Mes
 // immediately after sending the messages to the Go channel(s), although it will
 // block if the concurrency limit (defined by Config.Concurrency) has been reached.
 func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
+	if p.State() != service.StateStarted {
+		return service.ErrNotStarted
+	}
+
+	p.publishChan <- &entry{
+		topic:    topic,
+		messages: messages,
+	}
+
+	return nil
+}
+
+func (p *PubSub) processMessages() {
+	for {
+		select {
+		case entry := <-p.publishChan:
+			p.publish(entry)
+
+		case <-p.doneChan:
+			p.doneChan <- struct{}{}
+
+			logger.Debugf("[%s] ... publisher has stopped", p.serviceName)
+
+			return
+		}
+	}
+}
+
+func (p *PubSub) processAcks() {
+	for msg := range p.ackChan {
+		go p.check(msg)
+	}
+}
+
+func (p *PubSub) publish(entry *entry) {
 	p.mutex.RLock()
-	msgChans := p.msgChansByTopic[topic]
+	msgChans := p.msgChansByTopic[entry.topic]
 	p.mutex.RUnlock()
 
 	for _, msgChan := range msgChans {
-		for _, m := range messages {
+		for _, m := range entry.messages {
 			// Copy the message so that the Ack/Nack is specific to a subscriber
 			msg := m.Copy()
 
@@ -128,14 +196,6 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 			msgChan <- msg
 			p.ackChan <- msg
 		}
-	}
-
-	return nil
-}
-
-func (p *PubSub) listen() {
-	for msg := range p.ackChan {
-		go p.check(msg)
 	}
 }
 
