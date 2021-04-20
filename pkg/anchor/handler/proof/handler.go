@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package proof
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 )
 
 var logger = log.New("proof-handler")
@@ -47,17 +50,24 @@ type monitoringSvc interface {
 func (h *WitnessProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
 	logger.Debugf("received request anchorCredID[%s], proof: %s", anchorCredID, string(proof))
 
+	err := h.MonitoringSvc.Watch(anchorCredID, endTime, proof)
+	if err != nil {
+		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %s", anchorCredID, err.Error())
+	}
+
+	var witnessProof vct.Proof
+
+	err = json.Unmarshal(proof, &witnessProof)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %s", anchorCredID, err.Error())
+	}
+
 	vc, err := h.Store.Get(anchorCredID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve anchor credential[%s]: %s", anchorCredID, err.Error())
 	}
 
-	err = h.MonitoringSvc.Watch(anchorCredID, endTime, proof)
-	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %s", anchorCredID, err.Error())
-	}
-
-	// TODO: issue-264 Add proof to vc here
+	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	h.vcCh <- vc
 
