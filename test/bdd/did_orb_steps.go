@@ -44,7 +44,9 @@ const (
 
 	initialStateSeparator = ":"
 
-	origin = "origin.com"
+	// TODO: issue-261 modify tests to specify anchor origin
+	// currently all Sidetree operation requests are going to domain1
+	origin = "https://orb.domain2.com/services/orb"
 
 	sha2_256 = 18
 
