@@ -46,9 +46,11 @@ func TestTransport_Post(t *testing.T) {
 		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
+		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
+		req.Header["some-header"] = []string{"some value"}
+
 		//nolint:bodyclose
-		resp, err := tp.Post(context.Background(),
-			NewRequest(testutil.MustParseURL("https://domain1.com")), []byte("payload"))
+		resp, err := tp.Post(context.Background(), req, []byte("payload"))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	})
@@ -81,8 +83,11 @@ func TestTransport_Get(t *testing.T) {
 		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
+		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
+		req.Header["some-header"] = []string{"some value"}
+
 		//nolint:bodyclose
-		resp, err := tp.Get(context.Background(), NewRequest(testutil.MustParseURL("https://domain1.com")))
+		resp, err := tp.Get(context.Background(), req)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	})

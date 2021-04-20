@@ -20,6 +20,12 @@ import (
 
 var logger = log.New("activitypub_client")
 
+const (
+	contentTypeHeader          = "Content-Type"
+	acceptHeader               = "Accept"
+	activityStreamsContentType = `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`
+)
+
 // Signer signs an HTTP request and adds the signature to the header of the request.
 type Signer interface {
 	SignRequest(pKey crypto.PrivateKey, pubKeyID string, r *http.Request, body []byte) error
@@ -87,7 +93,11 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 		return nil, fmt.Errorf("new request to %s: %w", r.URL, err)
 	}
 
-	req.Header = r.Header
+	req.Header.Set(contentTypeHeader, activityStreamsContentType)
+
+	for k, v := range r.Header {
+		req.Header[k] = v
+	}
 
 	err = t.postSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, payload)
 	if err != nil {
@@ -106,7 +116,11 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 		return nil, fmt.Errorf("get from %s: %w", r.URL, err)
 	}
 
-	req.Header = r.Header
+	req.Header.Set(acceptHeader, activityStreamsContentType)
+
+	for k, v := range r.Header {
+		req.Header[k] = v
+	}
 
 	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
 
