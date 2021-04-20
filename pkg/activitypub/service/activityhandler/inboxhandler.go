@@ -214,13 +214,13 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
-		if err := h.store.AddReference(store.Following, h.ServiceIRI, accept.Actor()); err != nil {
+		if err := h.handleAcceptFollow(accept); err != nil {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
 		}
 
 	case activity.Type().Is(vocab.TypeInviteWitness):
-		if err := h.store.AddReference(store.Witness, h.ServiceIRI, accept.Actor()); err != nil {
-			return fmt.Errorf("handle accept 'Witness' activity %s: %w", accept.ID(), err)
+		if err := h.handleAcceptInviteWitness(accept); err != nil {
+			return fmt.Errorf("handle accept 'InviteWitness' activity %s: %w", accept.ID(), err)
 		}
 
 	default:
@@ -229,6 +229,40 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	}
 
 	h.notify(accept)
+
+	return nil
+}
+
+func (h *Inbox) handleAcceptFollow(accept *vocab.ActivityType) error {
+	isFollowing, err := h.hasReference(accept.Actor(), store.Following)
+	if err != nil {
+		return fmt.Errorf("query 'Following' for actor %s: %w", accept.Actor(), err)
+	}
+
+	if isFollowing {
+		return fmt.Errorf("actor %s is already in the 'following' collection", accept.Actor())
+	}
+
+	if err := h.store.AddReference(store.Following, h.ServiceIRI, accept.Actor()); err != nil {
+		return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
+	}
+
+	return nil
+}
+
+func (h *Inbox) handleAcceptInviteWitness(accept *vocab.ActivityType) error {
+	isWitness, err := h.hasReference(accept.Actor(), store.Witness)
+	if err != nil {
+		return fmt.Errorf("query 'Witnesses' for actor %s: %w", accept.Actor(), err)
+	}
+
+	if isWitness {
+		return fmt.Errorf("actor %s is already in the 'witnesses' collection", accept.Actor())
+	}
+
+	if err := h.store.AddReference(store.Witness, h.ServiceIRI, accept.Actor()); err != nil {
+		return fmt.Errorf("handle accept 'Witness' activity %s: %w", accept.ID(), err)
+	}
 
 	return nil
 }

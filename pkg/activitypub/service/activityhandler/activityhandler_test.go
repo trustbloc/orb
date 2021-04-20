@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	storemocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -638,6 +639,11 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, containsIRI(following, service1IRI))
+
+		// Post another accept activity with the same actor.
+		err = h.HandleActivity(accept)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "already in the 'following' collection")
 	})
 
 	t.Run("Accept Witness -> Success", func(t *testing.T) {
@@ -668,6 +674,11 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, containsIRI(witnesses, service1IRI))
+
+		// Post another accept activity with the same actor.
+		err = h.HandleActivity(accept)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "already in the 'witnesses' collection")
 	})
 
 	t.Run("No actor in Accept activity", func(t *testing.T) {
@@ -753,6 +764,98 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 
 		require.EqualError(t, h.HandleActivity(accept),
 			"the actor in the object of the 'Accept' activity is not this service")
+	})
+}
+
+func TestHandler_HandleAcceptActivityError(t *testing.T) {
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	ob := mocks.NewOutbox()
+	as := &mocks.ActivityStore{}
+
+	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
+
+	follow := vocab.NewFollowActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	acceptFollow := vocab.NewAcceptActivity(
+		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithActor(service1IRI),
+		vocab.WithTo(service2IRI),
+	)
+
+	inviteWitness := vocab.NewInviteWitnessActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	acceptInviteWitness := vocab.NewAcceptActivity(
+		vocab.NewObjectProperty(vocab.WithActivity(inviteWitness)),
+		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithActor(service1IRI),
+		vocab.WithTo(service2IRI),
+	)
+
+	t.Run("Accept Follow query error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		as.QueryReferencesReturns(nil, errExpected)
+
+		err := h.HandleActivity(acceptFollow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Accept Follow AddReference error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		as.QueryReferencesReturns(&storemocks.ReferenceIterator{}, nil)
+		as.AddReferenceReturns(errExpected)
+
+		err := h.HandleActivity(acceptFollow)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Accept InviteWitness query error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		as.QueryReferencesReturns(nil, errExpected)
+
+		err := h.HandleActivity(acceptInviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Accept InviteWitness AddReference error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		as.QueryReferencesReturns(&storemocks.ReferenceIterator{}, nil)
+		as.AddReferenceReturns(errExpected)
+
+		err := h.HandleActivity(acceptInviteWitness)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 }
 
