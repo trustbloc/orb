@@ -497,6 +497,13 @@ func TestOutbox_PostError(t *testing.T) {
 	})
 }
 
+func TestDeduplicate(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+	service2URL := testutil.MustParseURL("http://localhost:8002/services/service2")
+
+	require.Len(t, deduplicate([]*url.URL{service1URL, service2URL, service1URL, service2URL}), 2)
+}
+
 type testHandler struct {
 	path    string
 	method  string
