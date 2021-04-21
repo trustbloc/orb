@@ -44,14 +44,24 @@ const (
 
 	initialStateSeparator = ":"
 
-	// TODO: issue-261 modify tests to specify anchor origin
-	// currently all Sidetree operation requests are going to domain1
-	origin = "https://orb.domain2.com/services/orb"
-
 	sha2_256 = 18
 
 	anchorTimeDelta = 300
 )
+
+var localURLs = map[string]string{
+	"https://orb.domain1.com":  "https://localhost:48326",
+	"https://orb2.domain1.com": "https://localhost:48526",
+	"https://orb.domain2.com":  "https://localhost:48426",
+	"https://orb2.domain2.com": "https://localhost:48626",
+}
+
+var anchorOriginURLs = map[string]string{
+	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain2.com/services/orb",
+	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain2.com/services/orb",
+	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+}
 
 const addPublicKeysTemplate = `[
 	{
@@ -121,6 +131,7 @@ type DIDOrbSteps struct {
 	canonicalID        string
 	resolutionEndpoint string
 	operationEndpoint  string
+	sidetreeURL        string
 }
 
 // NewDIDSideSteps
@@ -174,9 +185,12 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 }
 
 func (d *DIDOrbSteps) createDIDDocument(url string) error {
-	var err error
-
 	logger.Info("create did document")
+
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
 
 	opaqueDoc, err := d.getOpaqueDocument("createKey")
 	if err != nil {
@@ -188,7 +202,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(url, reqBytes)
+	d.resp, err = restclient.SendRequest(d.sidetreeURL, reqBytes)
 	if err == nil {
 		var req model.CreateRequest
 		e := json.Unmarshal(reqBytes, &req)
@@ -202,7 +216,31 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 	return err
 }
 
+func (d *DIDOrbSteps) setSidetreeURL(url string) error {
+	parts := strings.Split(url, `/sidetree/v1/`)
+
+	if len(parts) != 2 {
+		return fmt.Errorf("wrong format of Sidetree URL: %s", url)
+	}
+
+	externalURL := parts[0]
+
+	localURL, ok := localURLs[externalURL]
+	if !ok {
+		return fmt.Errorf("server URL not configured for: %s", url)
+	}
+
+	d.sidetreeURL = strings.ReplaceAll(url, externalURL, localURL)
+
+	return nil
+}
+
 func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error {
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
+
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -215,11 +253,16 @@ func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(url, req)
+	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
 	return err
 }
 
 func (d *DIDOrbSteps) deactivateDIDDocument(url string) error {
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
+
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -232,11 +275,16 @@ func (d *DIDOrbSteps) deactivateDIDDocument(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(url, req)
+	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
 	return err
 }
 
 func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
+
 	uniqueSuffix, err := d.getUniqueSuffix()
 	if err != nil {
 		return err
@@ -254,7 +302,7 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(url, req)
+	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
 	return err
 }
 
@@ -375,8 +423,12 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
-	var err error
-	d.resp, err = restclient.SendResolveRequest(url + "/" + did)
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
+
+	d.resp, err = restclient.SendResolveRequest(d.sidetreeURL + "/" + did)
 
 	if err == nil && d.resp.Payload != nil {
 		var result document.ResolutionResult
@@ -420,11 +472,15 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(url, alias string) error {
 
 	d.alias = alias
 
-	d.resp, err = restclient.SendResolveRequest(url + "/" + did)
-	return err
+	return d.resolveDIDDocumentWithID(url, did)
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
+	err := d.setSidetreeURL(url)
+	if err != nil {
+		return err
+	}
+
 	did, err := d.getDID()
 	if err != nil {
 		return err
@@ -435,7 +491,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendResolveRequest(url + "/" + did + initialStateSeparator + initialState)
+	d.resp, err = restclient.SendResolveRequest(d.sidetreeURL + "/" + did + initialStateSeparator + initialState)
 	return err
 }
 
@@ -467,6 +523,11 @@ func (d *DIDOrbSteps) getCreateRequest(doc []byte, patches []patch.Patch) ([]byt
 	}
 
 	d.updateKey = updateKey
+
+	origin, ok := anchorOriginURLs[d.sidetreeURL]
+	if !ok {
+		return nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
+	}
 
 	return client.NewCreateRequest(&client.CreateRequestInfo{
 		OpaqueDocument:     string(doc),
@@ -501,6 +562,11 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 	}
 
 	now := time.Now().Unix()
+
+	origin, ok := anchorOriginURLs[d.sidetreeURL]
+	if !ok {
+		return nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
+	}
 
 	recoverRequest, err := client.NewRecoverRequest(&client.RecoverRequestInfo{
 		DidSuffix:          uniqueSuffix,
