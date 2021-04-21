@@ -142,8 +142,8 @@ services:
     networks:
       - orb_net
 
-  orb2-domain2:
-    container_name: orb2.domain2.com
+  orb-domain3:
+    container_name: orb.domain3.com
     image: ${ORB_FIXTURE_IMAGE}:latest
     restart: always
     environment:
@@ -154,21 +154,21 @@ services:
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
-      - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain3.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - DID_NAMESPACE=did:orb
       - DID_ALIASES=did:alias.com
-      - ALLOWED_ORIGINS=https://orb.domain1.com/services/orb
+      - ALLOWED_ORIGINS=https://orb.domain1.com/services/orb,https://orb.domain2.com/services/orb
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=200
       - CAS_URL=ipfs:5001
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
+      - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain2.com
+      - ANCHOR_CREDENTIAL_DOMAIN=domain3.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain2.com:5984
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain3.com:5984
       - DATABASE_PREFIX=orb
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
@@ -179,11 +179,11 @@ services:
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
-      - ./testdata/keys/domain2:/etc/orb/activitypub
+      - ./testdata/keys/domain3:/etc/orb/activitypub
     depends_on:
       - ipfs
       - couchdb.kms.com
-      - couchdb.domain2.com
+      - couchdb.domain3.com
     networks:
       - orb_net
 
@@ -231,6 +231,19 @@ services:
     image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
     ports:
       - ${COUCHDB_DOMAIN2_PORT}:${COUCHDB_PORT}
+    environment:
+      - COUCHDB_USER=${COUCHDB_USERNAME}
+      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
+    volumes:
+      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
+    networks:
+      - orb_net
+
+  couchdb.domain3.com:
+    container_name: couchdb.domain3.com
+    image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
+    ports:
+      - ${COUCHDB_DOMAIN3_PORT}:${COUCHDB_PORT}
     environment:
       - COUCHDB_USER=${COUCHDB_USERNAME}
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}

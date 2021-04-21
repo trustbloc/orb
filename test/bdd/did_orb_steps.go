@@ -53,7 +53,7 @@ var localURLs = map[string]string{
 	"https://orb.domain1.com":  "https://localhost:48326",
 	"https://orb2.domain1.com": "https://localhost:48526",
 	"https://orb.domain2.com":  "https://localhost:48426",
-	"https://orb2.domain2.com": "https://localhost:48626",
+	"https://orb.domain3.com": "https://localhost:48626",
 }
 
 var anchorOriginURLs = map[string]string{
