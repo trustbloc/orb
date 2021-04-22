@@ -967,6 +967,8 @@ type mockProviders struct {
 
 func newServiceWithMocks(t *testing.T, endpoint string,
 	serviceIRI *url.URL) (*Service, spi.Store, *vocab.PublicKeyType, *mockProviders) {
+	t.Helper()
+
 	cfg := &Config{
 		ServiceEndpoint: endpoint,
 		ServiceIRI:      serviceIRI,
@@ -1043,6 +1045,8 @@ func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
 }
 
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
+	t.Helper()
+
 	httpServer := httpserver.New(listenAddress, "", "", "", handlers...)
 
 	require.NoError(t, httpServer.Start())
@@ -1065,7 +1069,7 @@ func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
 func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
 	keyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	block := pem.Block{

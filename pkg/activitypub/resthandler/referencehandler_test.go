@@ -404,6 +404,8 @@ func TestWitnessing_Handler(t *testing.T) {
 }
 
 func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, pageNum, expected string) {
+	t.Helper()
+
 	restorePaging := setPaging(h, page, pageNum)
 	defer restorePaging()
 

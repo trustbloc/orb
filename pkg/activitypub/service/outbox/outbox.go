@@ -9,6 +9,7 @@ package outbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -101,7 +102,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), service.UndeliverableTopic)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	if cfg.RedeliveryConfig == nil {
@@ -239,7 +240,7 @@ func (h *Outbox) publish(id string, activityBytes []byte, to fmt.Stringer) error
 
 	logger.Debugf("[%s] Publishing %s", h.ServiceName, h.Topic)
 
-	return h.publisher.Publish(h.Topic, msg)
+	return h.publisher.Publish(h.Topic, msg) // nolint: wrapcheck
 }
 
 func (h *Outbox) route() {
@@ -316,7 +317,7 @@ func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
 func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 	actor, err := h.activityStore.GetActor(iri)
 	if err != nil {
-		if err != store.ErrNotFound {
+		if !errors.Is(err, store.ErrNotFound) {
 			return nil, fmt.Errorf("unable to load actor %s from storage: %w", iri, err)
 		}
 	}
@@ -331,7 +332,7 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 
 	actor, err = h.client.GetActor(iri)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	// Add the actor to the local store so that we don't have to retrieve it next time.
@@ -368,8 +369,8 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 	// If the IRI is a remote service then attempt to retrieve it from local store.
 	actor, err := h.activityStore.GetActor(iri)
 	if err != nil {
-		if err != store.ErrNotFound {
-			return nil, err
+		if !errors.Is(err, store.ErrNotFound) {
+			return nil, err // nolint: wrapcheck
 		}
 	}
 
@@ -384,10 +385,10 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 
 	it, err := h.client.GetReferences(iri)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
-	return client.ReadReferences(it, h.MaxRecipients)
+	return client.ReadReferences(it, h.MaxRecipients) // nolint: wrapcheck
 }
 
 func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error) {
@@ -494,8 +495,7 @@ func deduplicate(toIRIs []*url.URL) []*url.URL {
 	return iris
 }
 
-type noOpUndeliverableHandler struct {
-}
+type noOpUndeliverableHandler struct{}
 
 func (h *noOpUndeliverableHandler) HandleUndeliverableActivity(*vocab.ActivityType, string) {
 }

@@ -108,7 +108,6 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-//nolint:dupl
 func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL) {
 	activities, err := h.getActivities(objectIRI, id)
 	if err != nil {
@@ -182,7 +181,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 		),
 	)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	defer it.Close()
@@ -206,7 +205,6 @@ func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 	), nil
 }
 
-//nolint:dupl
 func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
 	it, err := h.activityStore.QueryActivities(
 		spi.NewCriteria(
@@ -215,7 +213,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 		), opts...,
 	)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	defer it.Close()
@@ -224,7 +222,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 
 	activities, err := storeutil.ReadActivities(it, options.PageSize)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	items := make([]*vocab.ObjectProperty, len(activities))

@@ -33,7 +33,6 @@ func NewMockID(iri fmt.Stringer, path string) *url.URL {
 }
 
 // NewMockURLs returns the given number of URLs using the given function to format each one.
-//nolint:unparam
 func NewMockURLs(num int, getURI func(i int) string) []*url.URL {
 	results := make([]*url.URL, num)
 
@@ -46,6 +45,8 @@ func NewMockURLs(num int, getURI func(i int) string) []*url.URL {
 
 // GetCanonical converts the given JSON string into a canonical JSON.
 func GetCanonical(t *testing.T, raw string) string {
+	t.Helper()
+
 	var expectedDoc map[string]interface{}
 
 	require.NoError(t, json.Unmarshal([]byte(raw), &expectedDoc))

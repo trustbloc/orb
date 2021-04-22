@@ -170,20 +170,18 @@ func (o *Observer) processAnchor(anchor string, info *verifiable.Credential, suf
 
 	anchorPayload, err := util.GetAnchorSubject(info)
 	if err != nil {
-		return fmt.Errorf("failed to extract anchor payload from anchor[%s] for namespace [%s]: %s",
-			anchor, anchorPayload.Namespace, err.Error())
+		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor, err)
 	}
 
 	pc, err := o.ProtocolClientProvider.ForNamespace(anchorPayload.Namespace)
 	if err != nil {
-		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s",
-			anchorPayload.Namespace, err.Error())
+		return fmt.Errorf("failed to get protocol client for namespace [%s]: %w", anchorPayload.Namespace, err)
 	}
 
 	v, err := pc.Get(anchorPayload.Version)
 	if err != nil {
-		return fmt.Errorf("failed to get protocol version for transaction time [%d]: %s",
-			anchorPayload.Version, err.Error())
+		return fmt.Errorf("failed to get protocol version for transaction time [%d]: %w",
+			anchorPayload.Version, err)
 	}
 
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
@@ -200,7 +198,7 @@ func (o *Observer) processAnchor(anchor string, info *verifiable.Credential, suf
 
 	err = v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
 	if err != nil {
-		return fmt.Errorf("failed to processAnchors core index[%s]: %s", anchorPayload.CoreIndex, err.Error())
+		return fmt.Errorf("failed to processAnchors core index[%s]: %w", anchorPayload.CoreIndex, err)
 	}
 
 	logger.Debugf("successfully processed anchor[%s], core index[%s]", anchor, anchorPayload.CoreIndex)

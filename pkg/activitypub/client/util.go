@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"errors"
 	"net/url"
 )
 
@@ -18,11 +19,11 @@ func ReadReferences(it ReferenceIterator, maxItems int) ([]*url.URL, error) {
 	for maxItems <= 0 || len(refs) < maxItems {
 		ref, err := it.Next()
 		if err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				break
 			}
 
-			return nil, err
+			return nil, err // nolint: wrapcheck
 		}
 
 		refs = append(refs, ref)

@@ -38,7 +38,7 @@ func New(url string) *Client {
 func (m *Client) Write(content []byte) (string, error) {
 	cid, err := m.ipfs.Add(bytes.NewReader(content))
 	if err != nil {
-		return "", err
+		return "", err // nolint: wrapcheck
 	}
 
 	log.Debugf("added content returned cid: %s", cid)
@@ -51,16 +51,16 @@ func (m *Client) Write(content []byte) (string, error) {
 func (m *Client) Read(cid string) ([]byte, error) {
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
-	defer close(reader)
+	defer closeAndLog(reader)
 
-	return ioutil.ReadAll(reader)
+	return ioutil.ReadAll(reader) // nolint: wrapcheck
 }
 
-func close(rc io.Closer) {
+func closeAndLog(rc io.Closer) {
 	if err := rc.Close(); err != nil {
-		log.Warnf("failed to close reader: %s", err.Error())
+		log.Warnf("failed to closeAndLog reader: %s", err.Error())
 	}
 }

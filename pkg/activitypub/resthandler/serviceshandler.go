@@ -153,5 +153,5 @@ func (h *Services) newService() (*vocab.ActorType, error) {
 }
 
 func newID(iri fmt.Stringer, path string) (*url.URL, error) {
-	return url.Parse(iri.String() + path)
+	return url.Parse(iri.String() + path) // nolint: wrapcheck
 }

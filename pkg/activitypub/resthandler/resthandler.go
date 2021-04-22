@@ -314,7 +314,7 @@ func (p paramsBuilder) build() map[string]string {
 
 func getID(path string) getIDFunc {
 	return func(objectIRI *url.URL) (*url.URL, error) {
-		return url.Parse(fmt.Sprintf("%s/%s", objectIRI, path))
+		return url.Parse(fmt.Sprintf("%s/%s", objectIRI, path)) // nolint: wrapcheck
 	}
 }
 
@@ -331,7 +331,7 @@ func getObjectIRIFromParam(baseObjectIRI *url.URL) getObjectIRIFunc {
 			return nil, fmt.Errorf("id not specified in URL")
 		}
 
-		return url.Parse(fmt.Sprintf("%s/%s", baseObjectIRI, id))
+		return url.Parse(fmt.Sprintf("%s/%s", baseObjectIRI, id)) //nolint: wrapcheck
 	}
 }
 

@@ -111,7 +111,6 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-//nolint:dupl
 func (h *Reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.URL) {
 	coll, err := h.getReference(objectIRI, id)
 	if err != nil {
@@ -180,7 +179,7 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 		),
 	)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	defer it.Close()
@@ -204,7 +203,6 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 	), nil
 }
 
-//nolint:dupl
 func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(
 		h.refType,
@@ -212,7 +210,7 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 		opts...,
 	)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	defer it.Close()
@@ -221,7 +219,7 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 
 	refs, err := storeutil.ReadReferences(it, options.PageSize)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	items := make([]*vocab.ObjectProperty, len(refs))

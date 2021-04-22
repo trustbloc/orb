@@ -32,17 +32,17 @@ func New(parser protocol.OperationParser) *Parser {
 
 // Parse parses and validates operation.
 func (p *Parser) Parse(namespace string, operationBuffer []byte) (*operation.Operation, error) {
-	return p.coreParser.Parse(namespace, operationBuffer)
+	return p.coreParser.Parse(namespace, operationBuffer) // nolint: wrapcheck
 }
 
 // GetRevealValue returns this operation reveal value.
 func (p *Parser) GetRevealValue(opBytes []byte) (string, error) {
-	return p.coreParser.GetRevealValue(opBytes)
+	return p.coreParser.GetRevealValue(opBytes) // nolint: wrapcheck
 }
 
 // GetCommitment returns next operation commitment.
 func (p *Parser) GetCommitment(opBytes []byte) (string, error) {
-	return p.coreParser.GetCommitment(opBytes)
+	return p.coreParser.GetCommitment(opBytes) // nolint: wrapcheck
 }
 
 // ParseDID inspects resolution request and returns:
@@ -65,7 +65,7 @@ func (p *Parser) ParseDID(namespace, shortOrLongFormDID string) (string, []byte,
 
 	// if last part is encoded JSON then it is long-form did
 	if isEncodedJSON(lastPart) {
-		return p.coreParser.ParseDID(namespace, shortOrLongFormDID)
+		return p.coreParser.ParseDID(namespace, shortOrLongFormDID) // nolint: wrapcheck
 	}
 
 	// return did with CID

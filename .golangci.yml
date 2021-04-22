@@ -6,8 +6,8 @@
 #
 
 run:
-  concurrency: 4
-  deadline: 3m
+  concurrency: 8
+  deadline: 5m
   issues-exit-code: 1
   tests: true
   build-tags: [""]
@@ -74,6 +74,11 @@ linters:
     - goerr113
     - testpackage
     - noctx
+    - paralleltest
+    - forbidigo
+    - exhaustivestruct
+    - interfacer # linter is deprecated (repository has been archived)
+    - scopelint  # linter is deprecated (repository has been archived)
 
 issues:
   exclude-use-default: false
@@ -85,9 +90,9 @@ issues:
         - gochecknoglobals
 
   exclude:
-    # Allow package logger variables (for now)
-    - \`logger\` is a global variable
     - \`config\` is a global variable
     -  Line contains TODO/BUG/FIXME
     # Add comments for package
     -  at least one file in a package should have a package comment
+    # Allow package logger variables (for now)
+    - logger is a global variable
