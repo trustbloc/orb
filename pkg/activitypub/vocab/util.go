@@ -14,7 +14,7 @@ import (
 func MarshalToDoc(obj interface{}) (Document, error) {
 	bytes, err := json.Marshal(obj)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return UnmarshalToDoc(bytes)
@@ -26,7 +26,7 @@ func UnmarshalToDoc(raw []byte) (Document, error) {
 
 	err := json.Unmarshal(raw, &doc)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return doc, nil
@@ -64,7 +64,7 @@ func MarshalJSON(o interface{}, others ...interface{}) ([]byte, error) {
 		doc.MergeWith(otherDoc)
 	}
 
-	return json.Marshal(doc) // nolint: wrapcheck
+	return json.Marshal(doc)
 }
 
 // UnmarshalJSON unmarshals the given bytes to the set of provided objects.
@@ -72,7 +72,7 @@ func UnmarshalJSON(bytes []byte, objects ...interface{}) error {
 	for _, obj := range objects {
 		err := json.Unmarshal(bytes, obj)
 		if err != nil {
-			return err // nolint: wrapcheck
+			return err
 		}
 	}
 

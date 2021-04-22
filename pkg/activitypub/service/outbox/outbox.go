@@ -102,7 +102,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), service.UndeliverableTopic)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	if cfg.RedeliveryConfig == nil {
@@ -240,7 +240,7 @@ func (h *Outbox) publish(id string, activityBytes []byte, to fmt.Stringer) error
 
 	logger.Debugf("[%s] Publishing %s", h.ServiceName, h.Topic)
 
-	return h.publisher.Publish(h.Topic, msg) // nolint: wrapcheck
+	return h.publisher.Publish(h.Topic, msg)
 }
 
 func (h *Outbox) route() {
@@ -332,7 +332,7 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 
 	actor, err = h.client.GetActor(iri)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	// Add the actor to the local store so that we don't have to retrieve it next time.
@@ -370,7 +370,7 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 	actor, err := h.activityStore.GetActor(iri)
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			return nil, err // nolint: wrapcheck
+			return nil, err
 		}
 	}
 
@@ -385,10 +385,10 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 
 	it, err := h.client.GetReferences(iri)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
-	return client.ReadReferences(it, h.MaxRecipients) // nolint: wrapcheck
+	return client.ReadReferences(it, h.MaxRecipients)
 }
 
 func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error) {

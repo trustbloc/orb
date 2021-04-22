@@ -38,7 +38,7 @@ func New(url string) *Client {
 func (m *Client) Write(content []byte) (string, error) {
 	cid, err := m.ipfs.Add(bytes.NewReader(content))
 	if err != nil {
-		return "", err // nolint: wrapcheck
+		return "", err
 	}
 
 	log.Debugf("added content returned cid: %s", cid)
@@ -51,12 +51,12 @@ func (m *Client) Write(content []byte) (string, error) {
 func (m *Client) Read(cid string) ([]byte, error) {
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	defer closeAndLog(reader)
 
-	return ioutil.ReadAll(reader) // nolint: wrapcheck
+	return ioutil.ReadAll(reader)
 }
 
 func closeAndLog(rc io.Closer) {

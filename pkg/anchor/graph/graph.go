@@ -44,7 +44,7 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 	// TODO: do we need canonical?
 	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
-		return "", err // nolint: wrapcheck
+		return "", err
 	}
 
 	cid, err := g.Cas.Write(anchorBytes)
@@ -61,12 +61,12 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
 	anchorBytes, err := g.Cas.Read(cid)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	logger.Debugf("read anchor[%s]: %s", cid, string(anchorBytes))
 
-	return verifiable.ParseCredential(anchorBytes, // nolint: wrapcheck
+	return verifiable.ParseCredential(anchorBytes,
 		verifiable.WithPublicKeyFetcher(g.Pkf),
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
@@ -94,7 +94,7 @@ func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
 
 		payload, err := util.GetAnchorSubject(node)
 		if err != nil {
-			return nil, err // nolint: wrapcheck
+			return nil, err
 		}
 
 		previousAnchors := payload.PreviousAnchors

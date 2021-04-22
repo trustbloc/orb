@@ -187,7 +187,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 func getPublicKeyPem(pubKey interface{}) ([]byte, error) {
 	keyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return pem.EncodeToMemory(&pem.Block{

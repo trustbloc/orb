@@ -1069,7 +1069,7 @@ func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
 func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
 	keyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	block := pem.Block{

@@ -93,7 +93,7 @@ func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, er
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {
-			return client.Do(httpReq) // nolint: wrapcheck
+			return client.Do(httpReq)
 		},
 	)
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func httpGet(t *testing.T, url, authorizationHdr string) ([]byte, error) {
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {
-			return client.Do(httpReq) // nolint: wrapcheck
+			return client.Do(httpReq)
 		},
 	)
 	require.NoError(t, err)

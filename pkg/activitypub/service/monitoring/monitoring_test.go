@@ -255,7 +255,7 @@ func TestClient_Watch(t *testing.T) {
 
 			records, err := store.Query(tagNotConfirmed)
 			if err != nil {
-				return err //nolint: wrapcheck
+				return err
 			}
 
 			var count int
@@ -414,7 +414,7 @@ func (m *dbMockStore) Delete(key string) error {
 		return m.errDelete()
 	}
 
-	return m.Store.Delete(key) //nolint: wrapcheck
+	return m.Store.Delete(key)
 }
 
 func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (storage.Iterator, error) {
@@ -425,14 +425,14 @@ func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (
 		return nil, m.errQuery()
 	}
 
-	return m.Store.Query(expression, options...) //nolint: wrapcheck
+	return m.Store.Query(expression, options...)
 }
 
 func (m *dbMock) OpenStore(name string) (storage.Store, error) {
 	store, err := m.Provider.OpenStore(name)
 	m.mockStore.Store = store
 
-	return m.mockStore, err // nolint: wrapcheck
+	return m.mockStore, err
 }
 
 type httpMock func(req *http.Request) (*http.Response, error)

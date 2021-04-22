@@ -210,7 +210,7 @@ func unmarshalReference(respBytes []byte) (items []*url.URL, nextPage *url.URL, 
 	obj := &vocab.ObjectType{}
 
 	if err := json.Unmarshal(respBytes, &obj); err != nil {
-		return nil, nil, 0, err // nolint: wrapcheck
+		return nil, nil, 0, err
 	}
 
 	switch {
@@ -247,7 +247,7 @@ func unmarshalCollectionPage(respBytes []byte) ([]*url.URL, *url.URL, error) {
 	obj := &vocab.ObjectType{}
 
 	if err := json.Unmarshal(respBytes, &obj); err != nil {
-		return nil, nil, err // nolint: wrapcheck
+		return nil, nil, err
 	}
 
 	var items []*vocab.ObjectProperty

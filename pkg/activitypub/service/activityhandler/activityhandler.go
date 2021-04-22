@@ -188,11 +188,11 @@ func (h *handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	// The actor isn't in our local store. Retrieve the actor from the remote server.
-	return h.client.GetActor(iri) // nolint: wrapcheck
+	return h.client.GetActor(iri)
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {

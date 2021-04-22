@@ -76,6 +76,7 @@ linters:
     - noctx
     - paralleltest
     - forbidigo
+    - wrapcheck
     - exhaustivestruct
     - interfacer # linter is deprecated (repository has been archived)
     - scopelint  # linter is deprecated (repository has been archived)

@@ -301,7 +301,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		require.Equal(t, log.ERROR, log.GetLevel(""))
 	}()
 
-	require.NoError(t, backoff.Retry(func() error { // nolint: wrapcheck
+	require.NoError(t, backoff.Retry(func() error {
 		_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
 
 		return err

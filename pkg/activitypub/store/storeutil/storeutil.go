@@ -40,7 +40,7 @@ func ReadReferences(it store.ReferenceIterator, maxItems int) ([]*url.URL, error
 				break
 			}
 
-			return nil, err // nolint: wrapcheck
+			return nil, err
 		}
 
 		refs = append(refs, ref)
@@ -61,7 +61,7 @@ func ReadActivities(it store.ActivityIterator, maxItems int) ([]*vocab.ActivityT
 				break
 			}
 
-			return nil, err // nolint: wrapcheck
+			return nil, err
 		}
 
 		activities = append(activities, ref)

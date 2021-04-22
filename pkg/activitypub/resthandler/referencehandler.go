@@ -179,7 +179,7 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 		),
 	)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	defer it.Close()
@@ -210,7 +210,7 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 		opts...,
 	)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	defer it.Close()
@@ -219,7 +219,7 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 
 	refs, err := storeutil.ReadReferences(it, options.PageSize)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	items := make([]*vocab.ObjectProperty, len(refs))

@@ -23,7 +23,7 @@ func ReadReferences(it ReferenceIterator, maxItems int) ([]*url.URL, error) {
 				break
 			}
 
-			return nil, err // nolint: wrapcheck
+			return nil, err
 		}
 
 		refs = append(refs, ref)

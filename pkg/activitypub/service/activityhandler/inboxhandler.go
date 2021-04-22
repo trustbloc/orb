@@ -474,10 +474,9 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 
 	bytes, err := json.Marshal(obj)
 	if err != nil {
-		return err //nolint: wrapcheck
+		return err
 	}
 
-	//nolint: wrapcheck
 	return h.AnchorCredentialHandler.HandleAnchorCredential(target.Object().ID().URL(), target.Object().CID(), bytes)
 }
 
@@ -501,14 +500,14 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
-		return err //nolint: wrapcheck
+		return err
 	}
 
 	defer it.Close()
 
 	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	if len(followers) == 0 {
@@ -544,7 +543,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err //nolint: wrapcheck
+		return err
 	}
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
@@ -561,14 +560,14 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
 	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
-		return err //nolint: wrapcheck
+		return err
 	}
 
 	defer it.Close()
 
 	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	if len(followers) == 0 {
@@ -599,7 +598,7 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err //nolint: wrapcheck
+		return err
 	}
 
 	anchorCredID := ref.Target().Object().ID()
@@ -664,7 +663,7 @@ func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.Ob
 
 	response, err := h.Witness.Witness(bytes)
 	if err != nil {
-		return nil, err //nolint: wrapcheck
+		return nil, err
 	}
 
 	proof, err := vocab.UnmarshalToDoc(response)
@@ -715,7 +714,7 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	anchorCredentialBytes, err := json.Marshal(anchorCredential)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
@@ -725,7 +724,7 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	targetObj := create.Target().Object()
 
-	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(), // nolint: wrapcheck
+	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
 		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
 }
 
