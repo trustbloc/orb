@@ -54,11 +54,30 @@ func TestCreateProviders(t *testing.T) {
 	})
 }
 
-func TestCreateKMS(t *testing.T) {
-	t.Run("fail to open master key store", func(t *testing.T) {
-		localKMS, err := createKMS(&ariesmockstorage.MockStoreProvider{FailNamespace: "masterkey"})
+func TestCreateKMSAndCrypto(t *testing.T) {
+	t.Run("Success (webkms)", func(t *testing.T) {
+		km, cr, err := createKMSAndCrypto("https://example.com", nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, km)
+		require.NotNil(t, cr)
+	})
 
-		require.Nil(t, localKMS)
+	t.Run("Success (local kms)", func(t *testing.T) {
+		km, cr, err := createKMSAndCrypto("", nil, &ariesmockstorage.MockStoreProvider{
+			Store: &ariesmockstorage.MockStore{
+				Store: make(map[string]ariesmockstorage.DBEntry),
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, km)
+		require.NotNil(t, cr)
+	})
+
+	t.Run("fail to open master key store", func(t *testing.T) {
+		km, cr, err := createKMSAndCrypto("", nil, &ariesmockstorage.MockStoreProvider{FailNamespace: "masterkey"})
+
+		require.Nil(t, km)
+		require.Nil(t, cr)
 		require.EqualError(t, err, "failed to open store for name space masterkey")
 	})
 	t.Run("fail to create master key service", func(t *testing.T) {
@@ -69,9 +88,10 @@ func TestCreateKMS(t *testing.T) {
 		err := masterKeyStore.Put("masterkey", []byte(""))
 		require.NoError(t, err)
 
-		localKMS, err := createKMS(&ariesmockstorage.MockStoreProvider{Store: &masterKeyStore})
+		km, cr, err := createKMSAndCrypto("", nil, &ariesmockstorage.MockStoreProvider{Store: &masterKeyStore})
 		require.EqualError(t, err, "masterKeyReader is empty")
-		require.Nil(t, localKMS)
+		require.Nil(t, km)
+		require.Nil(t, cr)
 	})
 }
 

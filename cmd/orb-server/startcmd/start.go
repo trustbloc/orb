@@ -29,14 +29,18 @@ import (
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
+	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
@@ -163,6 +167,38 @@ func createStartCmd() *cobra.Command {
 	}
 }
 
+func createKMSAndCrypto(endpoint string, client *http.Client,
+	store storage.Provider) (kms.KeyManager, acrypto.Crypto, error) {
+	if endpoint != "" {
+		return webkms.New(endpoint, client), webcrypto.New(endpoint, client), nil
+	}
+
+	masterKeyReader, err := prepareMasterKeyReader(store)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	secretLockService, err := local.NewService(masterKeyReader, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	km, err := localkms.New(masterKeyURI, &kmsProvider{
+		storageProvider:   store,
+		secretLockService: secretLockService,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("create kms: %w", err)
+	}
+
+	cr, err := tinkcrypto.New()
+	if err != nil {
+		return nil, nil, fmt.Errorf("create crypto: %w", err)
+	}
+
+	return km, cr, nil
+}
+
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
@@ -174,12 +210,17 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	localKMS, err := createKMS(storeProviders.kmsSecretsProvider)
-	if err != nil {
-		return err
+	// TODO: Configure the HTTP client with TLS
+	httpClient := &http.Client{
+		Timeout: time.Minute,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint: gosec
+			},
+		},
 	}
 
-	crypto, err := tinkcrypto.New()
+	km, cr, err := createKMSAndCrypto(parameters.kmsStoreEndpoint, httpClient, storeProviders.kmsSecretsProvider)
 	if err != nil {
 		return err
 	}
@@ -208,7 +249,7 @@ func startOrbServices(parameters *orbParameters) error {
 		Pkf: func(_, keyID string) (*verifier.PublicKey, error) {
 			kid := keyID[1:]
 
-			pubKeyBytes, err := localKMS.ExportPubKeyBytes(kid)
+			pubKeyBytes, err := km.ExportPubKeyBytes(kid)
 			if err != nil {
 				return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", kid, err.Error())
 			}
@@ -236,7 +277,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// TODO: For now create key at startup, we need different way of handling this key as orb parameter
 	// once we figure out how to expose verification method (webfinger, did:web)
-	keyID, _, err := localKMS.Create(kms.ED25519Type)
+	keyID, _, err := km.Create(kms.ED25519Type)
 	if err != nil {
 		return fmt.Errorf("failed to create anchor credential signing key: %s", err.Error())
 	}
@@ -248,8 +289,8 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingProviders := &vcsigner.Providers{
-		KeyManager: localKMS,
-		Crypto:     crypto,
+		KeyManager: km,
+		Crypto:     cr,
 		DocLoader:  orbDocumentLoader,
 	}
 
@@ -300,16 +341,6 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	apStore := apmemstore.New(apConfig.ServiceEndpoint)
-
-	// TODO: Configure the HTTP client with TLS
-	httpClient := &http.Client{
-		Timeout: time.Minute,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint: gosec
-			},
-		},
-	}
 
 	// TODO: Replace with real signing key (from KMS?).
 	pemBytes, privKey, err := loadTestActivityPubKeys()
@@ -593,34 +624,6 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	}
 
 	return &edgeServiceProvs, nil
-}
-
-func createKMS(kmsSecretsProvider ariesstorage.Provider) (*localkms.LocalKMS, error) {
-	localKMS, err := createLocalKMS(kmsSecretsProvider)
-	if err != nil {
-		return nil, err
-	}
-
-	return localKMS, nil
-}
-
-func createLocalKMS(kmsSecretsStoreProvider ariesstorage.Provider) (*localkms.LocalKMS, error) {
-	masterKeyReader, err := prepareMasterKeyReader(kmsSecretsStoreProvider)
-	if err != nil {
-		return nil, err
-	}
-
-	secretLockService, err := local.NewService(masterKeyReader, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	kmsProv := kmsProvider{
-		storageProvider:   kmsSecretsStoreProvider,
-		secretLockService: secretLockService,
-	}
-
-	return localkms.New(masterKeyURI, kmsProv)
 }
 
 // prepareMasterKeyReader prepares a master key reader for secret lock usage
