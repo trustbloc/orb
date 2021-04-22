@@ -29,10 +29,10 @@ func NewTypeProperty(t ...Type) *TypeProperty {
 // MarshalJSON marshals the type property.
 func (p *TypeProperty) MarshalJSON() ([]byte, error) {
 	if len(p.types) == 1 {
-		return json.Marshal(p.types[0]) // nolint: wrapcheck
+		return json.Marshal(p.types[0])
 	}
 
-	return json.Marshal(p.types) // nolint: wrapcheck
+	return json.Marshal(p.types)
 }
 
 // UnmarshalJSON unmarshals the type property.
@@ -50,7 +50,7 @@ func (p *TypeProperty) UnmarshalJSON(bytes []byte) error {
 
 	err = json.Unmarshal(bytes, &types)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	p.types = types

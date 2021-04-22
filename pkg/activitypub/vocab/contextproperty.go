@@ -80,10 +80,10 @@ func (p *ContextProperty) ContainsAny(contexts ...Context) bool {
 // MarshalJSON marshals the context property.
 func (p *ContextProperty) MarshalJSON() ([]byte, error) {
 	if len(p.contexts) == 1 {
-		return json.Marshal(p.contexts[0]) // nolint: wrapcheck
+		return json.Marshal(p.contexts[0])
 	}
 
-	return json.Marshal(p.contexts) // nolint: wrapcheck
+	return json.Marshal(p.contexts)
 }
 
 // UnmarshalJSON unmarshals the context property.
@@ -101,7 +101,7 @@ func (p *ContextProperty) UnmarshalJSON(bytes []byte) error {
 
 	err = json.Unmarshal(bytes, &contexts)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	p.contexts = contexts

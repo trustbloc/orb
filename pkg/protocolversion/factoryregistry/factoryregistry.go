@@ -59,7 +59,7 @@ func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, o
 
 	logger.Infof("Creating protocol version [%s]", version)
 
-	return v.Create(version, casClient, opStore, anchorGraph, sidetreeCfg) // nolint: wrapcheck
+	return v.Create(version, casClient, opStore, anchorGraph, sidetreeCfg)
 }
 
 // Register registers a protocol factory for a given version.

@@ -197,7 +197,7 @@ func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationM
 
 	keyHandler, err := keyManager.Get(keyID)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return &kmsSigner{keyHandle: keyHandler, crypto: c}, nil
@@ -207,7 +207,7 @@ func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationM
 func (ks *kmsSigner) Sign(data []byte) ([]byte, error) {
 	v, err := ks.crypto.Sign(data, ks.keyHandle)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return v, nil

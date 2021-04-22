@@ -94,13 +94,13 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 
 		opsSoFar, err := p.OpStore.Get(op.UniqueSuffix)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return err // nolint: wrapcheck
+			return err
 		}
 
 		// Get all references for this did from anchor graph starting from Sidetree txn reference
 		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.Reference, op.UniqueSuffix)
 		if err != nil {
-			return err // nolint: wrapcheck
+			return err
 		}
 
 		// check that number of operations in the store matches the number of anchors in the graph for that did

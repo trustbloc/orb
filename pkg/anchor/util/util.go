@@ -24,14 +24,14 @@ func GetAnchorSubject(node *verifiable.Credential) (*subject.Payload, error) {
 
 	customFieldsBytes, err := json.Marshal(customFields)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	var payload subject.Payload
 
 	err = json.Unmarshal(customFieldsBytes, &payload)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return &payload, nil

@@ -165,7 +165,7 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 
 	ad, err := util.ParseAnchorString(anchor)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	payload := &subject.Payload{
@@ -285,7 +285,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 
 	postID, err := c.Outbox.Post(create)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	logger.Debugf("created activity for cid[%s], post id[%s]", cid, postID)
@@ -326,7 +326,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	logger.Debugf("created pre-announce activity for vc[%s], post id[%s]", vc.ID, postID)
@@ -376,7 +376,7 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 		case operation.TypeUpdate, operation.TypeDeactivate:
 			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
 			if err != nil {
-				return nil, err // nolint: wrapcheck
+				return nil, err
 			}
 
 			anchorOriginObj = result.AnchorOrigin

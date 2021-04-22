@@ -261,7 +261,7 @@ func (c *Client) Watch(anchorCredID string, endTime time.Time, proof []byte) err
 	}
 
 	// puts data in the queue, the entity will be picked and checked by the worker later.
-	return c.store.Put(key(e.CredentialID), src, storage.Tag{Name: tagNotConfirmed}) // nolint: wrapcheck
+	return c.store.Put(key(e.CredentialID), src, storage.Tag{Name: tagNotConfirmed})
 }
 
 func key(id string) string {

@@ -571,14 +571,14 @@ func TestUnmarshalAndValidateActivity(t *testing.T) {
 func newHTTPRequest(u string, activity *vocab.ActivityType) (*http.Request, error) {
 	activityBytes, err := json.Marshal(activity)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	msg := message.NewMessage(watermill.NewUUID(), activityBytes)
 
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewBuffer(msg.Payload))
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	req.Header.Set(wmhttp.HeaderUUID, msg.UUID)

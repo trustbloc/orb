@@ -181,7 +181,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 		),
 	)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	defer it.Close()
@@ -213,7 +213,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 		), opts...,
 	)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	defer it.Close()
@@ -222,7 +222,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 
 	activities, err := storeutil.ReadActivities(it, options.PageSize)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	items := make([]*vocab.ObjectProperty, len(activities))

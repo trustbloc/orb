@@ -45,7 +45,7 @@ func (p *URLProperty) URL() *url.URL {
 
 // MarshalJSON marshals the URL property.
 func (p *URLProperty) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.u.String()) // nolint: wrapcheck
+	return json.Marshal(p.u.String())
 }
 
 // UnmarshalJSON unmarshals the URL property.
@@ -54,12 +54,12 @@ func (p *URLProperty) UnmarshalJSON(bytes []byte) error {
 
 	err := json.Unmarshal(bytes, &iri)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	u, err := url.Parse(iri)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	p.u = u
@@ -105,10 +105,10 @@ func (p *URLCollectionProperty) URLs() []*url.URL {
 // MarshalJSON marshals the URL collection.
 func (p *URLCollectionProperty) MarshalJSON() ([]byte, error) {
 	if len(p.urls) == 1 {
-		return json.Marshal(p.urls[0]) // nolint: wrapcheck
+		return json.Marshal(p.urls[0])
 	}
 
-	return json.Marshal(p.urls) // nolint: wrapcheck
+	return json.Marshal(p.urls)
 }
 
 // UnmarshalJSON unmarshals the URL collection.
@@ -126,7 +126,7 @@ func (p *URLCollectionProperty) UnmarshalJSON(bytes []byte) error {
 
 	err = json.Unmarshal(bytes, &iris)
 	if err != nil {
-		return err // nolint: wrapcheck
+		return err
 	}
 
 	p.urls = iris

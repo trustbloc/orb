@@ -80,19 +80,19 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint:funlen
 		verifiable.WithNoCustomSchemaCheck(),
 	)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	tempVC.Proofs = nil
 
 	noProofCred, err := tempVC.MarshalJSON()
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	resp, err := c.vct.AddVC(context.Background(), noProofCred)
 	if err != nil {
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	vc, err := verifiable.ParseCredential(noProofCred,
@@ -140,7 +140,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint:funlen
 		return nil, fmt.Errorf("verify VC timestamp signature: %w", err)
 	}
 
-	return json.Marshal(Proof{ // nolint: wrapcheck
+	return json.Marshal(Proof{
 		Context: []string{ctxSecurity, ctxJWS},
 		Proof:   proof,
 	})

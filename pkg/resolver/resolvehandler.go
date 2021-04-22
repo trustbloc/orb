@@ -55,7 +55,7 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 			r.requestDiscovery(id)
 		}
 
-		return nil, err // nolint: wrapcheck
+		return nil, err
 	}
 
 	return response, nil
