@@ -33,8 +33,8 @@ import (
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 var (
-	host1        = testutil.MustParseURL("https://sally.example.com")
-	anchorCredID = testutil.NewMockID(host1, "/transactions/bafkreihwsn")
+	host1      = testutil.MustParseURL("https://sally.example.com")
+	anchCredID = testutil.NewMockID(host1, "/transactions/bafkreihwsn")
 )
 
 func TestNewInbox(t *testing.T) {
@@ -106,16 +106,17 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
 	}
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
 	activityStore := memstore.New(cfg.ServiceName)
-	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service1IRI, "/activities/123456789"))
+	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-	require.NoError(t, activityStore.AddReference(store.Follower, service1IRI, service3IRI))
+	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
+	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
 	h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
@@ -129,7 +130,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	t.Run("Anchor credential", func(t *testing.T) {
 		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 			vocab.NewObject(
-				vocab.WithID(anchorCredID),
+				vocab.WithID(anchCredID),
 				vocab.WithCID(cid),
 				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
@@ -159,10 +160,10 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
+			require.NotNil(t, anchorCredHandler.AnchorCred(anchCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -188,7 +189,7 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, anchorCredID, cid),
+					vocab.NewAnchorCredentialReference(refID, anchCredID, cid),
 				),
 			),
 			vocab.WithID(newActivityID(service1IRI)),
@@ -205,10 +206,10 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(anchorCredID.String()))
+			require.NotNil(t, anchorCredHandler.AnchorCred(anchCredID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -1046,7 +1047,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	go subscriber.Listen()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -1076,7 +1077,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchorCredID, cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -1107,7 +1108,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
 		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
-			anchorCredID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
+			anchCredID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
 		require.NoError(t, err)
 
@@ -2107,6 +2108,219 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			require.NotNil(t, obSubscriber.Activity(undo.ID()))
+		})
+	})
+}
+
+func TestHandler_AnnounceAnchorCredential(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+
+	t.Run("Anchor credential", func(t *testing.T) {
+		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
+			vocab.NewObject(
+				vocab.WithID(anchCredID),
+				vocab.WithCID(cid),
+				vocab.WithType(vocab.TypeContentAddressedStorage),
+			),
+		))
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		if err != nil {
+			panic(err)
+		}
+
+		published := time.Now()
+
+		create := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTarget(targetProperty),
+			vocab.WithContext(vocab.ContextOrb),
+			vocab.WithTo(service2IRI),
+			vocab.WithPublishedTime(&published),
+		)
+
+		t.Run("Success", func(t *testing.T) {
+			activityStore := memstore.New(cfg.ServiceName)
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			require.NoError(t, h.announceAnchorCredential(create))
+
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
+
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
+		})
+
+		t.Run("Store error", func(t *testing.T) {
+			errExpected := errors.New("injected query error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.QueryReferencesReturns(nil, errExpected)
+
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			err := h.announceAnchorCredential(create)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+
+		t.Run("Store iterator error", func(t *testing.T) {
+			errExpected := errors.New("injected iterator error")
+
+			activityStore := &mocks.ActivityStore{}
+			it := &storemocks.ReferenceIterator{}
+			it.NextReturns(nil, errExpected)
+
+			activityStore.QueryReferencesReturns(it, nil)
+
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			err := h.announceAnchorCredential(create)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+
+		t.Run("No followers", func(t *testing.T) {
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			h := NewInbox(cfg, memstore.New("service1"), ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			require.NoError(t, h.announceAnchorCredential(create))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) == 0)
+		})
+	})
+
+	t.Run("Anchor credential reference", func(t *testing.T) {
+		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
+
+		published := time.Now()
+
+		create := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(
+					vocab.NewAnchorCredentialReference(refID, anchCredID, cid),
+				),
+			),
+			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithContext(vocab.ContextOrb),
+			vocab.WithPublishedTime(&published),
+		)
+
+		t.Run("Success", func(t *testing.T) {
+			activityStore := memstore.New(cfg.ServiceName)
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			require.NoError(t, h.announceAnchorCredentialRef(create))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
+
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
+		})
+
+		t.Run("Store error", func(t *testing.T) {
+			errExpected := errors.New("injected query error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.QueryReferencesReturns(nil, errExpected)
+
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
+			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			require.True(t, errors.Is(h.announceAnchorCredentialRef(create), errExpected))
+		})
+
+		t.Run("No followers", func(t *testing.T) {
+			activityStore := memstore.New(cfg.ServiceName)
+			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			require.NotNil(t, h)
+
+			h.Start()
+			defer h.Stop()
+
+			require.NoError(t, h.announceAnchorCredentialRef(create))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) == 0)
 		})
 	})
 }

@@ -105,7 +105,7 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
-		if err := h.announceAnchorCredentialRef(ref); err != nil {
+		if err := h.announceAnchorCredentialRef(create); err != nil {
 			logger.Warnf("[%s] Unable to announce 'Create' to our followers: %s", h.ServiceIRI, err)
 		}
 
@@ -498,20 +498,13 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 }
 
 func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
-	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+	announceTo, err := h.getAnnounceToList(create)
 	if err != nil {
-		return err
+		return fmt.Errorf("announce anchor credential: %w", err)
 	}
 
-	defer it.Close()
-
-	followers, err := storeutil.ReadReferences(it, -1)
-	if err != nil {
-		return err
-	}
-
-	if len(followers) == 0 {
-		logger.Infof("[%s] No followers to announce 'Create' to", h.ServiceIRI)
+	if len(announceTo) == 0 {
+		logger.Debugf("[%s] No followers to announce 'Create' to", h.ServiceIRI)
 
 		return nil
 	}
@@ -535,11 +528,11 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithTo(followers...),
+		vocab.WithTo(announceTo...),
 		vocab.WithPublishedTime(&published),
 	)
 
-	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, announceTo)
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
@@ -557,24 +550,19 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
-	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
+	announceTo, err := h.getAnnounceToList(create)
 	if err != nil {
-		return err
+		return fmt.Errorf("announce anchor credential: %w", err)
 	}
 
-	defer it.Close()
-
-	followers, err := storeutil.ReadReferences(it, -1)
-	if err != nil {
-		return err
-	}
-
-	if len(followers) == 0 {
-		logger.Infof("[%s] No followers to announce 'Create' to", h.ServiceIRI)
+	if len(announceTo) == 0 {
+		logger.Debugf("[%s] No followers to announce 'Create' to", h.ServiceIRI)
 
 		return nil
 	}
+
+	ref := create.Object().AnchorCredentialReference()
 
 	published := time.Now()
 
@@ -590,11 +578,11 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 				),
 			),
 		),
-		vocab.WithTo(followers...),
+		vocab.WithTo(announceTo...),
 		vocab.WithPublishedTime(&published),
 	)
 
-	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, followers)
+	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, announceTo)
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
@@ -607,7 +595,8 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 
 	err = h.store.AddReference(store.Share, anchorCredID.URL(), activityID)
 	if err != nil {
-		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s", h.ServiceIRI, announce.ID(), anchorCredID)
+		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
+			h.ServiceIRI, announce.ID(), anchorCredID)
 	}
 
 	return nil
@@ -707,6 +696,35 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 		h.ServiceIRI, actorIRI, h.ServiceIRI, refType)
 
 	return nil
+}
+
+func (h *Inbox) getAnnounceToList(create *vocab.ActivityType) ([]*url.URL, error) {
+	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+	if err != nil {
+		return nil, err
+	}
+
+	defer it.Close()
+
+	followers, err := storeutil.ReadReferences(it, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	var announceTo []*url.URL
+
+	for _, follower := range followers {
+		if follower.String() == create.Actor().String() {
+			logger.Debugf("[%s] Not announcing to follower [%s] since it is the originator of the 'Create'",
+				h.ServiceIRI, follower)
+
+			continue
+		}
+
+		announceTo = append(announceTo, follower)
+	}
+
+	return announceTo, nil
 }
 
 func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorCredentialReferenceType, error) {
