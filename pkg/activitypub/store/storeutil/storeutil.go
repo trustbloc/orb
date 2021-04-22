@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package storeutil
 
 import (
+	"errors"
 	"net/url"
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -35,11 +36,11 @@ func ReadReferences(it store.ReferenceIterator, maxItems int) ([]*url.URL, error
 	for i := 0; maxItems <= 0 || i < maxItems; i++ {
 		ref, err := it.Next()
 		if err != nil {
-			if err == store.ErrNotFound {
+			if errors.Is(err, store.ErrNotFound) {
 				break
 			}
 
-			return nil, err
+			return nil, err // nolint: wrapcheck
 		}
 
 		refs = append(refs, ref)
@@ -56,11 +57,11 @@ func ReadActivities(it store.ActivityIterator, maxItems int) ([]*vocab.ActivityT
 	for i := 0; maxItems <= 0 || i < maxItems; i++ {
 		ref, err := it.Next()
 		if err != nil {
-			if err == store.ErrNotFound {
+			if errors.Is(err, store.ErrNotFound) {
 				break
 			}
 
-			return nil, err
+			return nil, err // nolint: wrapcheck
 		}
 
 		activities = append(activities, ref)

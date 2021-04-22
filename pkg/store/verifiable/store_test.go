@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//nolint:gochecknoglobals,lll
 var udCredential = `
 {
   "@context": [
@@ -45,7 +44,6 @@ var udCredential = `
 }
 `
 
-//nolint:gochecknoglobals,lll
 var udCredentialWithoutID = `
 {
   "@context": [
@@ -74,7 +72,7 @@ var udCredentialWithoutID = `
 }
 `
 
-//nolint:gochecknoglobals,lll
+//nolint: lll
 var anchorCred = `
 {
   "@context": [

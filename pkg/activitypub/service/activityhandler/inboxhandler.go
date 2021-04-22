@@ -8,6 +8,7 @@ package activityhandler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
@@ -53,7 +54,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport
 }
 
 // HandleActivity handles the ActivityPub activity in the inbox.
-func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error { //nolint:gocyclo
+func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error { //nolint: cyclop
 	typeProp := activity.Type()
 
 	switch {
@@ -171,8 +172,7 @@ func (h *Inbox) handleWitnessActivity(follow *vocab.ActivityType) error {
 }
 
 func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
-	actorIRI := activity.Actor()
-	if actorIRI == nil {
+	if activity.Actor() == nil {
 		return fmt.Errorf("no actor specified")
 	}
 
@@ -282,8 +282,7 @@ func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling '%s' activity: %s", h.ServiceName, a.Type(), a.ID())
 
-	actorIRI := a.Actor()
-	if actorIRI == nil {
+	if a.Actor() == nil {
 		return fmt.Errorf("no actor specified in '%s' activity", a.Type())
 	}
 
@@ -475,9 +474,10 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 
 	bytes, err := json.Marshal(obj)
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck
 	}
 
+	//nolint: wrapcheck
 	return h.AnchorCredentialHandler.HandleAnchorCredential(target.Object().ID().URL(), target.Object().CID(), bytes)
 }
 
@@ -501,14 +501,14 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck
 	}
 
 	defer it.Close()
 
 	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	if len(followers) == 0 {
@@ -544,7 +544,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck
 	}
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
@@ -561,14 +561,14 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReferenceType) error {
 	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck
 	}
 
 	defer it.Close()
 
 	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	if len(followers) == 0 {
@@ -599,7 +599,7 @@ func (h *Inbox) announceAnchorCredentialRef(ref *vocab.AnchorCredentialReference
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err
+		return err //nolint: wrapcheck
 	}
 
 	anchorCredID := ref.Target().Object().ID()
@@ -664,7 +664,7 @@ func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.Ob
 
 	response, err := h.Witness.Witness(bytes)
 	if err != nil {
-		return nil, err
+		return nil, err //nolint: wrapcheck
 	}
 
 	proof, err := vocab.UnmarshalToDoc(response)
@@ -695,7 +695,7 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 
 	err := h.store.DeleteReference(refType, h.ServiceIRI, actorIRI)
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			logger.Infof("[%s] %s not found in %s collection of %s", h.ServiceName, actorIRI, refType, h.ServiceIRI)
 
 			return nil
@@ -715,7 +715,7 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	anchorCredentialBytes, err := json.Marshal(anchorCredential)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
@@ -725,26 +725,23 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	targetObj := create.Target().Object()
 
-	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
+	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(), // nolint: wrapcheck
 		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
 }
 
-type noOpAnchorCredentialPublisher struct {
-}
+type noOpAnchorCredentialPublisher struct{}
 
 func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(*url.URL, string, []byte) error {
 	return nil
 }
 
-type acceptAllActorsAuth struct {
-}
+type acceptAllActorsAuth struct{}
 
 func (a *acceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
 	return true, nil
 }
 
-type noOpProofHandler struct {
-}
+type noOpProofHandler struct{}
 
 func (p *noOpProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
 	return nil

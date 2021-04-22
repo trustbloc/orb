@@ -106,7 +106,7 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 
 	logger.Debugf("Signed HTTP POST to %s. Headers: %s", r.URL, req.Header)
 
-	return t.client.Do(req)
+	return t.client.Do(req) // nolint: wrapcheck
 }
 
 // Get sends an HTTP GET. The HTTP request is first signed and the signature is added to the request header.
@@ -129,12 +129,11 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
 
-	return t.client.Do(req)
+	return t.client.Do(req) // nolint: wrapcheck
 }
 
 // NoOpSigner is a signer that does nothing. This signer should only be used by tests.
-type NoOpSigner struct {
-}
+type NoOpSigner struct{}
 
 // DefaultSigner returns a default, no-op signer. This signer should only be used by tests.
 func DefaultSigner() *NoOpSigner {

@@ -188,6 +188,8 @@ func TestStore_Actors(t *testing.T) {
 }
 
 func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...*url.URL) {
+	t.Helper()
+
 	require.NotNil(t, it)
 
 	for i := 0; i < len(expectedTypes); i++ {
@@ -204,6 +206,8 @@ func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...*
 }
 
 func checkRefQueryResults(t *testing.T, it spi.ReferenceIterator, expectedIRIs ...*url.URL) {
+	t.Helper()
+
 	require.NotNil(t, it)
 
 	for i := 0; i < len(expectedIRIs); i++ {

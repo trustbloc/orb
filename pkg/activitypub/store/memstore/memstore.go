@@ -156,7 +156,7 @@ func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Crite
 
 	refs, err := storeutil.ReadReferences(it, options.PageSize)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	if len(refs) == 0 {

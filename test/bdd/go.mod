@@ -19,4 +19,4 @@ require (
 
 replace github.com/trustbloc/orb => ../../
 
-go 1.15
+go 1.16

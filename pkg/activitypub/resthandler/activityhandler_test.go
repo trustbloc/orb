@@ -511,6 +511,8 @@ func TestLiked_Handler(t *testing.T) {
 }
 
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
+	t.Helper()
+
 	cfg := &Config{
 		ObjectIRI: serviceIRI,
 		PageSize:  4,

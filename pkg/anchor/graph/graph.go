@@ -44,12 +44,12 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 	// TODO: do we need canonical?
 	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
-		return "", err
+		return "", err // nolint: wrapcheck
 	}
 
 	cid, err := g.Cas.Write(anchorBytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to add anchor to graph: %s", err.Error())
+		return "", fmt.Errorf("failed to add anchor to graph: %w", err)
 	}
 
 	logger.Debugf("added anchor[%s]: %s", cid, string(anchorBytes))
@@ -61,12 +61,12 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
 	anchorBytes, err := g.Cas.Read(cid)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	logger.Debugf("read anchor[%s]: %s", cid, string(anchorBytes))
 
-	return verifiable.ParseCredential(anchorBytes,
+	return verifiable.ParseCredential(anchorBytes, // nolint: wrapcheck
 		verifiable.WithPublicKeyFetcher(g.Pkf),
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
@@ -87,14 +87,14 @@ func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
 	for ok {
 		node, err := g.Read(cur)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s] f: %s", cur, suffix, err.Error())
+			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s] f: %w", cur, suffix, err)
 		}
 
 		refs = append(refs, Anchor{Info: node, CID: cur})
 
 		payload, err := util.GetAnchorSubject(node)
 		if err != nil {
-			return nil, err
+			return nil, err // nolint: wrapcheck
 		}
 
 		previousAnchors := payload.PreviousAnchors

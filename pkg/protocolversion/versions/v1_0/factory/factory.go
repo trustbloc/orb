@@ -27,8 +27,7 @@ import (
 )
 
 // Factory implements version 0.1 of the Sidetree protocol.
-type Factory struct {
-}
+type Factory struct{}
 
 // New returns a version 1.0 implementation of the Sidetree protocol.
 func New() *Factory {

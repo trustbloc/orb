@@ -24,21 +24,21 @@ func GetAnchorSubject(node *verifiable.Credential) (*subject.Payload, error) {
 
 	customFieldsBytes, err := json.Marshal(customFields)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	var payload subject.Payload
 
 	err = json.Unmarshal(customFieldsBytes, &payload)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	return &payload, nil
 }
 
 func getCredentialSubjectCustomFields(node *verifiable.Credential) (map[string]interface{}, error) {
-	payload := node.Subject
+	payload := node.Subject // nolint: ifshort
 	if payload == nil {
 		return nil, fmt.Errorf("missing credential subject")
 	}

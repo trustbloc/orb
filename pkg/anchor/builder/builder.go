@@ -28,7 +28,7 @@ type Params struct {
 // New returns new instance of anchor credential builder.
 func New(signer vcSigner, params Params) (*Builder, error) {
 	if err := verifyBuilderParams(params); err != nil {
-		return nil, fmt.Errorf("failed to verify builder parameters: %s", err.Error())
+		return nil, fmt.Errorf("failed to verify builder parameters: %w", err)
 	}
 
 	return &Builder{
@@ -64,7 +64,7 @@ func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error
 
 	signedVC, err := b.signer.Sign(vc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign credential: %s", err.Error())
+		return nil, fmt.Errorf("failed to sign credential: %w", err)
 	}
 
 	return signedVC, nil

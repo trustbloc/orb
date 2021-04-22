@@ -52,19 +52,19 @@ func (h *WitnessProofHandler) HandleProof(anchorCredID string, startTime, endTim
 
 	err := h.MonitoringSvc.Watch(anchorCredID, endTime, proof)
 	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %s", anchorCredID, err.Error())
+		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
 	}
 
 	var witnessProof vct.Proof
 
 	err = json.Unmarshal(proof, &witnessProof)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %s", anchorCredID, err.Error())
+		return fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %w", anchorCredID, err)
 	}
 
 	vc, err := h.Store.Get(anchorCredID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve anchor credential[%s]: %s", anchorCredID, err.Error())
+		return fmt.Errorf("failed to retrieve anchor credential[%s]: %w", anchorCredID, err)
 	}
 
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
