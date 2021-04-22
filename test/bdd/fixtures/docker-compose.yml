@@ -12,6 +12,7 @@ services:
     image: ${ORB_FIXTURE_IMAGE}:latest
     restart: always
     environment:
+      - ORB_KMS_STORE_ENDPOINT=${ORB_KMS_STORE_ENDPOINT}
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077
       - ORB_HOST_URL=0.0.0.0:443
@@ -57,6 +58,7 @@ services:
     image: ${ORB_FIXTURE_IMAGE}:latest
     restart: always
     environment:
+      - ORB_KMS_STORE_ENDPOINT=${ORB_KMS_STORE_ENDPOINT}
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077
       - ORB_HOST_URL=0.0.0.0:443
@@ -102,6 +104,7 @@ services:
     image: ${ORB_FIXTURE_IMAGE}:latest
     restart: always
     environment:
+      - ORB_KMS_STORE_ENDPOINT=${ORB_KMS_STORE_ENDPOINT}
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_VCT_URL=http://orb.vct:8077
@@ -147,6 +150,7 @@ services:
     image: ${ORB_FIXTURE_IMAGE}:latest
     restart: always
     environment:
+      - ORB_KMS_STORE_ENDPOINT=${ORB_KMS_STORE_ENDPOINT}
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_VCT_URL=http://orb.vct:8077
@@ -304,18 +308,24 @@ services:
 
   orb.kms:
     container_name: orb.kms
+    restart: always
     image: ghcr.io/trustbloc-cicd/kms:0.1.7-snapshot-913aeec
     environment:
       - KMS_BASE_URL=http://orb.kms:7878
       - KMS_HOST_URL=0.0.0.0:7878
-      - KMS_DATABASE_TYPE=mem
-      - KMS_PRIMARY_KEY_DATABASE_TYPE=mem
-      - KMS_LOCAL_KMS_DATABASE_TYPE=mem
+      - KMS_DATABASE_TYPE=couchdb
+      - KMS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMS_PRIMARY_KEY_DATABASE_TYPE=couchdb
+      - KMS_PRIMARY_KEY_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMS_LOCAL_KMS_DATABASE_TYPE=couchdb
+      - KMS_LOCAL_KMS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMS_KEY_MANAGER_STORAGE_TYPE=mem
       - KMS_LOG_LEVEL=debug
     ports:
       - 7878:7878
     entrypoint: ""
+    depends_on:
+      - couchdb.kms.com
     command: /bin/sh -c "kms-rest start"
     networks:
       - orb_net

@@ -30,6 +30,11 @@ const (
 	vctURLFlagUsage = "Verifiable credential transparency URL."
 	vctURLEnvKey    = "ORB_VCT_URL"
 
+	kmsStoreEndpointFlagName  = "kms-store-endpoint"
+	kmsStoreEndpointEnvKey    = "ORB_KMS_STORE_ENDPOINT"
+	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
+
 	externalEndpointFlagName      = "external-endpoint"
 	externalEndpointFlagShorthand = "e"
 	externalEndpointFlagUsage     = "External endpoint that clients use to invoke services." +
@@ -158,6 +163,7 @@ const (
 type orbParameters struct {
 	hostURL                   string
 	vctURL                    string
+	kmsStoreEndpoint          string
 	externalEndpoint          string
 	didNamespace              string
 	didAliases                []string
@@ -204,6 +210,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// no need to check errors for optional flags
+	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true) // nolint: errcheck,lll
 
 	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
 	if err != nil {
@@ -292,6 +301,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	return &orbParameters{
 		hostURL:                   hostURL,
 		vctURL:                    vctURL,
+		kmsStoreEndpoint:          kmsStoreEndpoint,
 		externalEndpoint:          externalEndpoint,
 		tlsKey:                    tlsKey,
 		tlsCertificate:            tlsCertificate,
@@ -390,6 +400,7 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
+	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
