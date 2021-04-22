@@ -125,27 +125,27 @@ func (p *ObjectProperty) AnchorCredentialReference() *AnchorCredentialReferenceT
 // MarshalJSON marshals the 'object' property.
 func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 	if p.iri != nil {
-		return json.Marshal(p.iri)
+		return json.Marshal(p.iri) // nolint: wrapcheck
 	}
 
 	if p.obj != nil {
-		return json.Marshal(p.obj)
+		return json.Marshal(p.obj) // nolint: wrapcheck
 	}
 
 	if p.coll != nil {
-		return json.Marshal(p.coll)
+		return json.Marshal(p.coll) // nolint: wrapcheck
 	}
 
 	if p.orderedColl != nil {
-		return json.Marshal(p.orderedColl)
+		return json.Marshal(p.orderedColl) // nolint: wrapcheck
 	}
 
 	if p.activity != nil {
-		return json.Marshal(p.activity)
+		return json.Marshal(p.activity) // nolint: wrapcheck
 	}
 
 	if p.anchorCredRef != nil {
-		return json.Marshal(p.anchorCredRef)
+		return json.Marshal(p.anchorCredRef) // nolint: wrapcheck
 	}
 
 	return nil, fmt.Errorf("nil object property")
@@ -166,7 +166,7 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 
 	err = json.Unmarshal(bytes, &obj)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	if obj.object.Type == nil {
@@ -199,7 +199,7 @@ func (p *ObjectProperty) unmarshalCollection(bytes []byte) error {
 	coll := &CollectionType{}
 
 	if err := json.Unmarshal(bytes, &coll); err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	p.coll = coll
@@ -211,7 +211,7 @@ func (p *ObjectProperty) unmarshalOrderedCollection(bytes []byte) error {
 	coll := &OrderedCollectionType{}
 
 	if err := json.Unmarshal(bytes, &coll); err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	p.orderedColl = coll
@@ -223,7 +223,7 @@ func (p *ObjectProperty) unmarshalActivity(bytes []byte) error {
 	a := &ActivityType{}
 
 	if err := json.Unmarshal(bytes, &a); err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	p.activity = a
@@ -235,7 +235,7 @@ func (p *ObjectProperty) unmarshalAnchorCredentialReference(bytes []byte) error 
 	ot := &AnchorCredentialReferenceType{}
 
 	if err := json.Unmarshal(bytes, &ot); err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	p.anchorCredRef = ot

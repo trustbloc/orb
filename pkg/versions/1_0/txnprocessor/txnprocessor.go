@@ -45,7 +45,7 @@ func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) 
 
 	txnOps, err := p.OperationProtocolProvider.GetTxnOperations(&sidetreeTxn)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve operations for anchor string[%s]: %s", sidetreeTxn.AnchorString, err)
+		return fmt.Errorf("failed to retrieve operations for anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
 	}
 
 	if len(suffixes) > 0 {
@@ -94,13 +94,13 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 
 		opsSoFar, err := p.OpStore.Get(op.UniqueSuffix)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return err
+			return err // nolint: wrapcheck
 		}
 
 		// Get all references for this did from anchor graph starting from Sidetree txn reference
 		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.Reference, op.UniqueSuffix)
 		if err != nil {
-			return err
+			return err // nolint: wrapcheck
 		}
 
 		// check that number of operations in the store matches the number of anchors in the graph for that did
@@ -126,8 +126,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		batchSuffixes[op.UniqueSuffix] = true
 	}
 
-	err := p.OpStore.Put(ops)
-	if err != nil {
+	if err := p.OpStore.Put(ops); err != nil {
 		return fmt.Errorf("failed to store operation from anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
 	}
 

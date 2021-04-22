@@ -50,7 +50,7 @@ type Providers struct {
 // New returns new instance of VC signer.
 func New(providers *Providers, params SigningParams) (*Signer, error) {
 	if err := verifySigningParams(params); err != nil {
-		return nil, fmt.Errorf("failed to verify signing parameters: %s", err.Error())
+		return nil, fmt.Errorf("failed to verify signing parameters: %w", err)
 	}
 
 	return &Signer{
@@ -197,7 +197,7 @@ func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationM
 
 	keyHandler, err := keyManager.Get(keyID)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	return &kmsSigner{keyHandle: keyHandler, crypto: c}, nil
@@ -207,7 +207,7 @@ func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationM
 func (ks *kmsSigner) Sign(data []byte) ([]byte, error) {
 	v, err := ks.crypto.Sign(data, ks.keyHandle)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	return v, nil

@@ -142,14 +142,14 @@ func (t *ObjectType) UnmarshalJSON(bytes []byte) error {
 
 	err := json.Unmarshal(bytes, header)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	doc := make(Document)
 
 	err = json.Unmarshal(bytes, &doc)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	// Delete all of the reserved ActivityStreams fields

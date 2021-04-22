@@ -51,8 +51,6 @@ func TestNext(t *testing.T) {
 }
 
 func TestClient_Watch(t *testing.T) {
-	t.Parallel()
-
 	const vcID = "id"
 
 	t.Run("Expired", func(t *testing.T) {
@@ -248,7 +246,7 @@ func TestClient_Watch(t *testing.T) {
 			[]byte(`{}`),
 		))
 
-		require.NoError(t, backoff.Retry(func() error { // nolint: wrapcheck
+		require.NoError(t, backoff.Retry(func() error {
 			select {
 			case <-proceed:
 			case <-time.After(time.Second):
@@ -257,7 +255,7 @@ func TestClient_Watch(t *testing.T) {
 
 			records, err := store.Query(tagNotConfirmed)
 			if err != nil {
-				return err
+				return err //nolint: wrapcheck
 			}
 
 			var count int
@@ -320,7 +318,7 @@ func TestClient_Watch(t *testing.T) {
 			[]byte(`{}`),
 		))
 
-		require.NoError(t, backoff.Retry(func() error { // nolint: wrapcheck
+		require.NoError(t, backoff.Retry(func() error {
 			records, err := store.Query(tagNotConfirmed)
 			require.NoError(t, err)
 
@@ -416,7 +414,7 @@ func (m *dbMockStore) Delete(key string) error {
 		return m.errDelete()
 	}
 
-	return m.Store.Delete(key)
+	return m.Store.Delete(key) //nolint: wrapcheck
 }
 
 func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (storage.Iterator, error) {
@@ -427,14 +425,14 @@ func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (
 		return nil, m.errQuery()
 	}
 
-	return m.Store.Query(expression, options...)
+	return m.Store.Query(expression, options...) //nolint: wrapcheck
 }
 
 func (m *dbMock) OpenStore(name string) (storage.Store, error) {
 	store, err := m.Provider.OpenStore(name)
 	m.mockStore.Store = store
 
-	return m.mockStore, err
+	return m.mockStore, err // nolint: wrapcheck
 }
 
 type httpMock func(req *http.Request) (*http.Response, error)

@@ -18,10 +18,7 @@ const (
 	allowedParts = 2
 )
 
-// nolint:gochecknoglobals
-var (
-	integerRegex = regexp.MustCompile(`^[1-9]\d*$`)
-)
+var integerRegex = regexp.MustCompile(`^[1-9]\d*$`)
 
 // AnchorData holds anchored data.
 type AnchorData struct {
@@ -45,7 +42,7 @@ func ParseAnchorString(anchor string) (*AnchorData, error) {
 
 	opsNum, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("parse anchor data[%s] failed: %s", anchor, err.Error())
+		return nil, fmt.Errorf("parse anchor data[%s] failed: %w", anchor, err)
 	}
 
 	return &AnchorData{

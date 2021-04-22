@@ -27,12 +27,12 @@ var logger = log.New("operation-store")
 func New(provider storage.Provider) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open operation store: %s", err.Error())
+		return nil, fmt.Errorf("failed to open operation store: %w", err)
 	}
 
 	config, err := provider.GetStoreConfig(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operation store config: %s", err.Error())
+		return nil, fmt.Errorf("failed to get operation store config: %w", err)
 	}
 
 	if contains(config.TagNames, index) {
@@ -50,11 +50,11 @@ func New(provider storage.Provider) (*Store, error) {
 
 		config, getErr := provider.GetStoreConfig(namespace)
 		if getErr != nil {
-			return nil, fmt.Errorf("failed to get operation store config: %s", getErr.Error())
+			return nil, fmt.Errorf("failed to get operation store config: %w", getErr)
 		}
 
 		if !contains(config.TagNames, index) {
-			return nil, fmt.Errorf("failed to set index: %s", setErr.Error())
+			return nil, fmt.Errorf("failed to set index: %w", setErr)
 		}
 
 		logger.Infof("store index has been configured, some other server has been faster in creating it")
@@ -89,7 +89,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 	for i, op := range ops {
 		value, err := json.Marshal(op)
 		if err != nil {
-			return fmt.Errorf("failed to marshal operation: %s", err.Error())
+			return fmt.Errorf("failed to marshal operation: %w", err)
 		}
 
 		logger.Debugf("adding operation to storage batch: type[%s], suffix[%s], txtime[%d], pg[%d], buffer: %s",
@@ -111,7 +111,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return fmt.Errorf("failed to store operations: %s", err.Error())
+		return fmt.Errorf("failed to store operations: %w", err)
 	}
 
 	logger.Debugf("stored %d operations", len(ops))
@@ -127,12 +127,12 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operations for[%s]: %s", query, err.Error())
+		return nil, fmt.Errorf("failed to get operations for[%s]: %w", query, err)
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("iterator error for suffix[%s] : %s", suffix, err.Error())
+		return nil, fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err)
 	}
 
 	var ops []*operation.AnchoredOperation
@@ -142,22 +142,22 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 
 		value, err = iter.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get iterator value for suffix[%s]: %s", suffix, err.Error())
+			return nil, fmt.Errorf("failed to get iterator value for suffix[%s]: %w", suffix, err)
 		}
 
 		var op operation.AnchoredOperation
 
 		err = json.Unmarshal(value, &op)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal anchored operation from store value for suffix[%s]: %s",
-				suffix, err.Error())
+			return nil, fmt.Errorf("failed to unmarshal anchored operation from store value for suffix[%s]: %w",
+				suffix, err)
 		}
 
 		ops = append(ops, &op)
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterator error for suffix[%s] : %s", suffix, err.Error())
+			return nil, fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err)
 		}
 	}
 

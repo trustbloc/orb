@@ -99,7 +99,7 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 	// store anchor credential
 	err = c.Store.Put(vc)
 	if err != nil {
-		return fmt.Errorf("failed to store anchor credential: %s", err.Error())
+		return fmt.Errorf("failed to store anchor credential: %w", err)
 	}
 
 	logger.Debugf("stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
@@ -107,13 +107,13 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 	// figure out witness list for this anchor file
 	witnesses, err := c.getWitnesses(refs)
 	if err != nil {
-		return fmt.Errorf("failed to create witness list: %s", err.Error())
+		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
 	// send an offer activity to witnesses (request witnessing anchor credential)
 	err = c.postOfferActivity(vc, witnesses)
 	if err != nil {
-		return fmt.Errorf("failed to post new offer activity for vc[%s]: %s", vc.ID, err.Error())
+		return fmt.Errorf("failed to post new offer activity for vc[%s]: %w", vc.ID, err)
 	}
 
 	return nil
@@ -127,7 +127,7 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]str
 
 	anchors, err := c.DidAnchors.Get(suffixes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve latest did anchor references for suffixes[%s]", suffixes) //nolint:lll
+		return nil, fmt.Errorf("failed to retrieve latest did anchor references for suffixes[%s]", suffixes)
 	}
 
 	for i, ref := range refs {
@@ -165,7 +165,7 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 
 	ad, err := util.ParseAnchorString(anchor)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	payload := &subject.Payload{
@@ -178,7 +178,7 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 
 	vc, err := c.AnchorBuilder.Build(payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build anchor credential: %s", err.Error())
+		return nil, fmt.Errorf("failed to build anchor credential: %w", err)
 	}
 
 	return vc, nil
@@ -250,7 +250,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error { //nolint: interfacer
 	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
 	if err != nil {
-		return fmt.Errorf("failed to parse cid URL: %s", err.Error())
+		return fmt.Errorf("failed to parse cid URL: %w", err)
 	}
 
 	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
@@ -263,17 +263,17 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 
 	bytes, err := vc.MarshalJSON()
 	if err != nil {
-		return fmt.Errorf("failed to marshal anchor credential: %s", err.Error())
+		return fmt.Errorf("failed to marshal anchor credential: %w", err)
 	}
 
 	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
 	if err != nil {
-		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+		return fmt.Errorf("failed to create new object with document: %w", err)
 	}
 
 	systemFollowers, err := url.Parse(c.apServiceIRI.String() + resthandler.FollowersPath)
 	if err != nil {
-		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+		return fmt.Errorf("failed to create new object with document: %w", err)
 	}
 
 	create := vocab.NewCreateActivity(
@@ -285,7 +285,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 
 	postID, err := c.Outbox.Post(create)
 	if err != nil {
-		return err
+		return err // nolint: wrapcheck
 	}
 
 	logger.Debugf("created activity for cid[%s], post id[%s]", cid, postID)
@@ -304,12 +304,12 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	bytes, err := vc.MarshalJSON()
 	if err != nil {
-		return fmt.Errorf("failed to marshal anchor credential: %s", err.Error())
+		return fmt.Errorf("failed to marshal anchor credential: %w", err)
 	}
 
 	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
 	if err != nil {
-		return fmt.Errorf("failed to create new object with document: %s", err.Error())
+		return fmt.Errorf("failed to create new object with document: %w", err)
 	}
 
 	startTime := time.Now()
@@ -326,7 +326,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
-		return nil
+		return err // nolint: wrapcheck
 	}
 
 	logger.Debugf("created pre-announce activity for vc[%s], post id[%s]", vc.ID, postID)
@@ -340,7 +340,7 @@ func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 	for _, w := range witnesses {
 		witnessIRI, err := url.Parse(w)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse witness path[%s]: %s", w, err.Error())
+			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", w, err)
 		}
 
 		allWitnesses = append(allWitnesses, witnessIRI)
@@ -349,7 +349,7 @@ func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 	// get system witness IRI
 	systemWitnesses, err := url.Parse(c.apServiceIRI.String() + resthandler.WitnessesPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse system witness path: %s", err.Error())
+		return nil, fmt.Errorf("failed to parse system witness path: %w", err)
 	}
 
 	// add system witnesses (activity pub collection) to the list of witnesses
@@ -376,7 +376,7 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 		case operation.TypeUpdate, operation.TypeDeactivate:
 			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
 			if err != nil {
-				return nil, err
+				return nil, err // nolint: wrapcheck
 			}
 
 			anchorOriginObj = result.AnchorOrigin

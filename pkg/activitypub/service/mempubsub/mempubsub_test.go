@@ -210,7 +210,7 @@ func TestPubSub_Close(t *testing.T) {
 			msg := message.NewMessage(watermill.NewUUID(), []byte("payload1"))
 
 			if err := ps.Publish("topic1", msg); err != nil {
-				if err == service.ErrNotStarted {
+				if errors.Is(err, service.ErrNotStarted) {
 					return
 				}
 

@@ -9,6 +9,7 @@ package inbox
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -173,7 +174,7 @@ func (h *Inbox) handle(msg *message.Message) {
 
 	activityID, err := h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
-		if err != store.ErrNotFound {
+		if !errors.Is(err, store.ErrNotFound) {
 			logger.Errorf("[%s] Error retrieving activity [%s] in message [%s]: %s",
 				h.ServiceEndpoint, activity.ID(), msg.UUID, err)
 

@@ -104,7 +104,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		return fmt.Errorf("cannot stop HTTP server since it hasn't been started")
 	}
 
-	return s.httpServer.Shutdown(ctx)
+	return s.httpServer.Shutdown(ctx) // nolint: wrapcheck
 }
 
 func validateAuthorizationBearerToken(w http.ResponseWriter, r *http.Request, token string) bool {

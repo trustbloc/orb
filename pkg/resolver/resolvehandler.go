@@ -55,7 +55,7 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 			r.requestDiscovery(id)
 		}
 
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	return response, nil
@@ -98,7 +98,7 @@ func (r *ResolveHandler) getNamespace(shortFormDID string) (string, error) {
 func (r *ResolveHandler) getOrbSuffix(shortFormDID string) (string, error) {
 	namespace, err := r.getNamespace(shortFormDID)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	orbSuffix := shortFormDID[len(namespace+delimiter):]

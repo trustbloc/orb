@@ -151,6 +151,8 @@ func TestWellKnown(t *testing.T) {
 //nolint:unparam
 func serveHTTP(t *testing.T, handler common.HTTPRequestHandler, method, path string,
 	req []byte, urlVars map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+
 	httpReq, err := http.NewRequest(
 		method,
 		path,
@@ -167,14 +169,20 @@ func serveHTTP(t *testing.T, handler common.HTTPRequestHandler, method, path str
 }
 
 func getHandler(t *testing.T, op *restapi.Operation, lookup string) common.HTTPHandler {
+	t.Helper()
+
 	return getHandlerWithError(t, op, lookup)
 }
 
 func getHandlerWithError(t *testing.T, op *restapi.Operation, lookup string) common.HTTPHandler {
+	t.Helper()
+
 	return handlerLookup(t, op, lookup)
 }
 
 func handlerLookup(t *testing.T, op *restapi.Operation, lookup string) common.HTTPHandler {
+	t.Helper()
+
 	handlers := op.GetRESTHandlers()
 	require.NotEmpty(t, handlers)
 

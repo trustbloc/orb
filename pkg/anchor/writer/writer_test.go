@@ -605,7 +605,7 @@ func (m *mockOutbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	return activity.ID().URL(), nil
 }
 
-//nolint:gochecknoglobals,lll
+//nolint: lll
 var anchorCred = `
 {
   "@context": [

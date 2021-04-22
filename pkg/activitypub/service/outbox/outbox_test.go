@@ -567,6 +567,8 @@ func paramAsBool(req *http.Request, param string) bool {
 }
 
 func mockServiceRequestHandler(t *testing.T, iri *url.URL) common.HTTPRequestHandler {
+	t.Helper()
+
 	return func(w http.ResponseWriter, req *http.Request) {
 		respBytes, err := json.Marshal(aptestutil.NewMockService(iri))
 		require.NoError(t, err)
@@ -580,6 +582,8 @@ func mockServiceRequestHandler(t *testing.T, iri *url.URL) common.HTTPRequestHan
 }
 
 func mockInboxHandler(t *testing.T, handle func(activity *vocab.ActivityType)) common.HTTPRequestHandler {
+	t.Helper()
+
 	return func(w http.ResponseWriter, req *http.Request) {
 		bytes, err := ioutil.ReadAll(req.Body)
 		require.NoError(t, err)
@@ -596,6 +600,7 @@ func mockInboxHandler(t *testing.T, handle func(activity *vocab.ActivityType)) c
 }
 
 func handleMockCollection(t *testing.T, collID *url.URL, uris []*url.URL, w http.ResponseWriter, req *http.Request) {
+	t.Helper()
 	t.Logf("Got request for %s without paging\n", req.URL.Path)
 
 	respBytes, err := json.Marshal(aptestutil.NewMockCollection(
@@ -614,6 +619,8 @@ func handleMockCollection(t *testing.T, collID *url.URL, uris []*url.URL, w http
 
 func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
 	w http.ResponseWriter, req *http.Request) {
+	t.Helper()
+
 	pageNum, ok := paramAsInt(req, "page-num")
 	if !ok {
 		pageNum = 0

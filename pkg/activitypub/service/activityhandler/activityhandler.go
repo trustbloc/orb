@@ -120,8 +120,7 @@ func (h *handler) Subscribe() <-chan *vocab.ActivityType {
 func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Undo' activity: %s", h.ServiceName, undo.ID())
 
-	actorIRI := undo.Actor()
-	if actorIRI == nil {
+	if undo.Actor() == nil {
 		return fmt.Errorf("no actor specified in 'Undo' activity")
 	}
 
@@ -189,11 +188,11 @@ func (h *handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	// The actor isn't in our local store. Retrieve the actor from the remote server.
-	return h.client.GetActor(iri)
+	return h.client.GetActor(iri) // nolint: wrapcheck
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {

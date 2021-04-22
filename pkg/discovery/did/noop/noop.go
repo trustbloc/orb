@@ -12,8 +12,7 @@ func New() *Discovery {
 }
 
 // Discovery implements noop did discovery.
-type Discovery struct {
-}
+type Discovery struct{}
 
 // RequestDiscovery requests did discovery.
 func (*Discovery) RequestDiscovery(id string) error {

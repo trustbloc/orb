@@ -78,6 +78,8 @@ func TestServer_Start(t *testing.T) {
 // httpPut sends a regular POST request to the sidetree-node
 // - If post request has operation "create" then return sidetree document else no response.
 func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, error) {
+	t.Helper()
+
 	client := &http.Client{}
 
 	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(req))
@@ -91,7 +93,7 @@ func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, er
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {
-			return client.Do(httpReq)
+			return client.Do(httpReq) // nolint: wrapcheck
 		},
 	)
 	require.NoError(t, err)
@@ -101,6 +103,8 @@ func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, er
 
 // httpGet send a regular GET request to the sidetree-node and expects 'side tree document' argument as a response.
 func httpGet(t *testing.T, url, authorizationHdr string) ([]byte, error) {
+	t.Helper()
+
 	client := &http.Client{}
 
 	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
@@ -112,7 +116,7 @@ func httpGet(t *testing.T, url, authorizationHdr string) ([]byte, error) {
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {
-			return client.Do(httpReq)
+			return client.Do(httpReq) // nolint: wrapcheck
 		},
 	)
 	require.NoError(t, err)
@@ -139,7 +143,7 @@ func invokeWithRetry(invoke func() (*http.Response, error)) (*http.Response, err
 	for {
 		resp, err := invoke()
 		if err == nil {
-			return resp, err
+			return resp, nil
 		}
 
 		remainingAttempts--
@@ -151,8 +155,7 @@ func invokeWithRetry(invoke func() (*http.Response, error)) (*http.Response, err
 	}
 }
 
-type mockUpdateHandler struct {
-}
+type mockUpdateHandler struct{}
 
 // Path returns the context path.
 func (h *mockUpdateHandler) Path() string {
@@ -170,8 +173,7 @@ func (h *mockUpdateHandler) Handler() common.HTTPRequestHandler {
 	}
 }
 
-type mockResolveHandler struct {
-}
+type mockResolveHandler struct{}
 
 // Path returns the context path.
 func (h *mockResolveHandler) Path() string {
