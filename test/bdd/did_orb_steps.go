@@ -53,7 +53,7 @@ var localURLs = map[string]string{
 	"https://orb.domain1.com":  "https://localhost:48326",
 	"https://orb2.domain1.com": "https://localhost:48526",
 	"https://orb.domain2.com":  "https://localhost:48426",
-	"https://orb.domain3.com": "https://localhost:48626",
+	"https://orb.domain3.com":  "https://localhost:48626",
 }
 
 var anchorOriginURLs = map[string]string{
@@ -225,6 +225,13 @@ func (d *DIDOrbSteps) setSidetreeURL(url string) error {
 
 	externalURL := parts[0]
 
+	if strings.Contains(externalURL, "localhost") {
+		// already internal url - nothing to do
+		d.sidetreeURL = url
+
+		return nil
+	}
+
 	localURL, ok := localURLs[externalURL]
 	if !ok {
 		return fmt.Errorf("server URL not configured for: %s", url)
@@ -358,6 +365,31 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 }
 
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
+	did, err := d.getDID()
+	if err != nil {
+		return fmt.Errorf("failed to get test did: %w", err)
+	}
+
+	const maxRetries = 10
+	for i := 1; i <= maxRetries; i++ {
+		err = d.checkSuccessRespHelper(msg, contains)
+		if err == nil {
+			return nil
+		}
+
+		time.Sleep(time.Second)
+		logger.Infof("retrying check success response - attempt %d", i)
+
+		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, did)
+		if resolveErr != nil {
+			return resolveErr
+		}
+	}
+
+	return err
+}
+
+func (d *DIDOrbSteps) checkSuccessRespHelper(msg string, contains bool) error {
 	if d.resp.ErrorMsg != "" {
 		return fmt.Errorf("error resp %s", d.resp.ErrorMsg)
 	}
@@ -429,6 +461,8 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 	}
 
 	d.resp, err = restclient.SendResolveRequest(d.sidetreeURL + "/" + did)
+
+	logger.Infof("sending request: %s", d.sidetreeURL+"/"+did)
 
 	if err == nil && d.resp.Payload != nil {
 		var result document.ResolutionResult
