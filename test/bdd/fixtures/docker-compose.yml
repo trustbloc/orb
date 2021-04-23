@@ -198,7 +198,7 @@ services:
   ipfs:
     container_name: ipfs
     #TODO: this image doesn't work on ARM64 yet (investigate images)
-    image: ipfs/go-ipfs
+    image: ipfs/go-ipfs:master-2021-04-22-eea198f
     environment:
       - IPFS_PATH=/data/ipfs
     volumes:
@@ -262,7 +262,7 @@ services:
 
   orb.mysql:
     container_name: orb.mysql
-    image: mysql:latest
+    image: mysql:8.0.24
     restart: always
     cap_add:
       - SYS_NICE
@@ -279,7 +279,7 @@ services:
   # https://console.cloud.google.com/gcr/images/trillian-opensource-ci
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: gcr.io/trillian-opensource-ci/log_server:latest
+    image: gcr.io/trillian-opensource-ci/log_server:eacf01ddf6503e04cda3ee941d94820f139c7737
     restart: always
     command:
       - --mysql_uri=root@tcp(orb.mysql:3306)/test
@@ -296,7 +296,7 @@ services:
   # https://console.cloud.google.com/gcr/images/trillian-opensource-ci
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: gcr.io/trillian-opensource-ci/log_signer:latest
+    image: gcr.io/trillian-opensource-ci/log_signer:eacf01ddf6503e04cda3ee941d94820f139c7737
     restart: always
     command:
       - --mysql_uri=root@tcp(orb.mysql:3306)/test
