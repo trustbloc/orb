@@ -48,6 +48,7 @@ services:
       - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
       - ipfs
+      - orb.kms
       - couchdb.kms.com
       - couchdb.domain1.com
     networks:
@@ -94,6 +95,7 @@ services:
       - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
       - ipfs
+      - orb.kms
       - couchdb.kms.com
       - couchdb.domain1.com
     networks:
@@ -140,6 +142,7 @@ services:
       - ./testdata/keys/domain2:/etc/orb/activitypub
     depends_on:
       - ipfs
+      - orb.kms
       - couchdb.kms.com
       - couchdb.domain2.com
     networks:
@@ -186,6 +189,7 @@ services:
       - ./testdata/keys/domain3:/etc/orb/activitypub
     depends_on:
       - ipfs
+      - orb.kms
       - couchdb.kms.com
       - couchdb.domain3.com
     networks:
@@ -309,17 +313,22 @@ services:
   orb.kms:
     container_name: orb.kms
     restart: always
-    image: ghcr.io/trustbloc-cicd/kms:0.1.7-snapshot-6aeea55
+    image: ghcr.io/trustbloc-cicd/kms:0.1.7-snapshot-bff24d1
     environment:
       - KMS_BASE_URL=http://orb.kms:7878
       - KMS_HOST_URL=0.0.0.0:7878
       - KMS_DATABASE_TYPE=couchdb
       - KMS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMS_DATABASE_PREFIX=keystore
       - KMS_PRIMARY_KEY_DATABASE_TYPE=couchdb
       - KMS_PRIMARY_KEY_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk
       - KMS_LOCAL_KMS_DATABASE_TYPE=couchdb
       - KMS_LOCAL_KMS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
-      - KMS_KEY_MANAGER_STORAGE_TYPE=mem
+      - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal
+      - KMS_KEY_MANAGER_STORAGE_TYPE=couchdb
+      - KMS_KEY_MANAGER_STORAGE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
+      - KMS_KEY_MANAGER_STORAGE_PREFIX=kmskm
       - KMS_LOG_LEVEL=debug
     ports:
       - 7878:7878
