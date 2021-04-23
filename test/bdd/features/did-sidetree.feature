@@ -128,6 +128,9 @@ Feature:
       Then check success response contains "#did"
       Then we wait 2 seconds
 
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      Then check success response contains "#did"
+
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
       Then we wait 2 seconds
 
