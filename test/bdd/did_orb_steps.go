@@ -377,6 +377,11 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 			return nil
 		}
 
+		if !strings.Contains(d.sidetreeURL, "identifiers") {
+			// retries are for resolution only
+			return err
+		}
+
 		time.Sleep(time.Second)
 		logger.Infof("retrying check success response - attempt %d", i)
 
@@ -450,6 +455,14 @@ func (d *DIDOrbSteps) checkSuccessRespHelper(msg string, contains bool) error {
 	}
 
 	logger.Infof("passed check that success response MUST%s contain %s", action, msg)
+
+	return nil
+}
+
+func (d *DIDOrbSteps) checkResponseIsSuccess() error {
+	if d.resp.ErrorMsg != "" {
+		return fmt.Errorf("error resp %s", d.resp.ErrorMsg)
+	}
 
 	return nil
 }
@@ -844,4 +857,6 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to deactivate DID document$`, d.deactivateDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to recover DID document$`, d.recoverDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
+	s.Step(`^check for request success`, d.checkResponseIsSuccess)
+
 }

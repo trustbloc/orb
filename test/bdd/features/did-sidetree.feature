@@ -70,6 +70,7 @@ Feature:
     Then check success response contains "#did"
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to deactivate DID document
+    Then check for request success
     Then we wait 2 seconds
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
@@ -86,6 +87,7 @@ Feature:
     Then check success response contains "canonicalId"
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
+    Then check for request success
     Then we wait 2 seconds
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
@@ -106,6 +108,7 @@ Feature:
       Then check success response contains "canonicalId"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "newKey" to DID document
+      Then check for request success
       Then we wait 2 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
@@ -116,6 +119,7 @@ Feature:
       Then check success response contains "#canonicalId"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove public key with ID "newKey" from DID document
+      Then check for request success
       Then we wait 2 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
@@ -132,12 +136,14 @@ Feature:
       Then check success response contains "#did"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
+      Then check for request success
       Then we wait 2 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "newService"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove service endpoint with ID "newService" from DID document
+      Then check for request success
       Then we wait 2 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
