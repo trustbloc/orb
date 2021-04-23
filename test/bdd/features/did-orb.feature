@@ -49,7 +49,7 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#did"
 
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
       Then check success response contains "canonicalId"
@@ -58,7 +58,7 @@ Feature:
       Then check success response contains "#canonicalId"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
-      Then we wait 6 seconds
+      Then we wait 2 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "recoveryKey"
@@ -75,7 +75,7 @@ Feature:
       When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
       Then check error response contains "not found"
 
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
       Then check success response contains "#canonicalId"
       Then check success response contains "recoveryKey"
@@ -87,12 +87,12 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#did"
 
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
 
       # check that document is available on the first server of domain2
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
 
@@ -103,12 +103,12 @@ Feature:
       When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#did"
 
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
 
       # check that document is available on the first server of domain1
-      Then we wait 6 seconds
+      Then we wait 2 seconds
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
 
