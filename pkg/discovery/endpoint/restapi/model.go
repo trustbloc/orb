@@ -29,3 +29,21 @@ type WebFingerLink struct {
 	Rel  string `json:"rel,omitempty"`
 	Href string `json:"href,omitempty"`
 }
+
+// RawDoc did document.
+type RawDoc struct {
+	Context              string               `json:"@context"`
+	ID                   string               `json:"id"`
+	VerificationMethod   []verificationMethod `json:"verificationMethod"`
+	Authentication       []string             `json:"authentication"`
+	AssertionMethod      []string             `json:"assertionMethod"`
+	CapabilityDelegation []string             `json:"capabilityDelegation"`
+	CapabilityInvocation []string             `json:"capabilityInvocation"`
+}
+
+type verificationMethod struct {
+	ID              string `json:"id"`
+	Controller      string `json:"controller"`
+	Type            string `json:"type"`
+	PublicKeyBase58 string `json:"publicKeyBase58"`
+}

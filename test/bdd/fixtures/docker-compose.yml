@@ -346,6 +346,9 @@ services:
       - VCT_API_HOST=0.0.0.0:8077
       - VCT_LOG_ID=${VCT_LOG_ID}
       - VCT_LOG_ENDPOINT=orb.trillian.log.server:8090
+      - VCT_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
+    volumes:
+      - ./keys/tls:/etc/orb/tls
     ports:
       - 8077:8077
     command: start

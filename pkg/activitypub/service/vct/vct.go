@@ -73,29 +73,13 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 }
 
 // Witness credentials.
-func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint:funlen
-	// TODO: issue-265 Remove this code when did:web resolution done
-	tempVC, err := verifiable.ParseCredential(anchorCred,
-		verifiable.WithDisabledProofCheck(),
-		verifiable.WithNoCustomSchemaCheck(),
-	)
+func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
+	resp, err := c.vct.AddVC(context.Background(), anchorCred)
 	if err != nil {
 		return nil, err
 	}
 
-	tempVC.Proofs = nil
-
-	noProofCred, err := tempVC.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.vct.AddVC(context.Background(), noProofCred)
-	if err != nil {
-		return nil, err
-	}
-
-	vc, err := verifiable.ParseCredential(noProofCred,
+	vc, err := verifiable.ParseCredential(anchorCred,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithNoCustomSchemaCheck(),
 	)
@@ -135,7 +119,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint:funlen
 
 	timestamp := uint64(timestampTime.UnixNano()) / uint64(time.Millisecond)
 	// verifies the signature by given timestamp from the proof and original credentials.
-	err = vct.VerifyVCTimestampSignatureFromBytes(resp.Signature, pubKey, timestamp, noProofCred)
+	err = vct.VerifyVCTimestampSignatureFromBytes(resp.Signature, pubKey, timestamp, anchorCred)
 	if err != nil {
 		return nil, fmt.Errorf("verify VC timestamp signature: %w", err)
 	}
