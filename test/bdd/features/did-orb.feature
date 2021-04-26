@@ -116,3 +116,13 @@ Feature:
       # check that document is available on the second server of domain1
       When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
+
+    @concurrent_requests_scenario
+    Scenario: concurrent requests
+
+     # write to multiple servers
+     #  TODO: Add https://orb2.domain1.com/sidetree/v1/operations after activity pub storage changes
+     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+     Then we wait 5 seconds
+     #  TODO: Add https://orb2.domain1.com/sidetree/v1/identifiers after activity pub storage changes
+     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
