@@ -19,6 +19,8 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
+var errDuplicateAnchorCredential = errors.New("anchor credential already handled")
+
 // Inbox handles activities posted to the inbox.
 type Inbox struct {
 	*handler
@@ -129,7 +131,7 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 
 	actorIRI := activity.Actor()
 
-	hasRef, err := h.hasReference(actorIRI, refType)
+	hasRef, err := h.hasReference(h.ServiceIRI, actorIRI, refType)
 	if err != nil {
 		return err
 	}
@@ -214,12 +216,12 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
-		if err := h.handleAcceptFollow(accept); err != nil {
+		if err := h.handleAccept(accept, store.Following); err != nil {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
 		}
 
 	case activity.Type().Is(vocab.TypeInviteWitness):
-		if err := h.handleAcceptInviteWitness(accept); err != nil {
+		if err := h.handleAccept(accept, store.Witness); err != nil {
 			return fmt.Errorf("handle accept 'InviteWitness' activity %s: %w", accept.ID(), err)
 		}
 
@@ -233,35 +235,19 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) handleAcceptFollow(accept *vocab.ActivityType) error {
-	isFollowing, err := h.hasReference(accept.Actor(), store.Following)
+func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.ReferenceType) error {
+	exists, err := h.hasReference(h.ServiceIRI, accept.Actor(), refType)
 	if err != nil {
-		return fmt.Errorf("query 'Following' for actor %s: %w", accept.Actor(), err)
+		return fmt.Errorf("query '%s' for actor %s: %w", refType, accept.Actor(), err)
 	}
 
-	if isFollowing {
-		return fmt.Errorf("actor %s is already in the 'following' collection", accept.Actor())
+	if exists {
+		return fmt.Errorf("actor %s is already in the '%s' collection", accept.Actor(), refType)
 	}
 
-	if err := h.store.AddReference(store.Following, h.ServiceIRI, accept.Actor()); err != nil {
-		return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
-	}
-
-	return nil
-}
-
-func (h *Inbox) handleAcceptInviteWitness(accept *vocab.ActivityType) error {
-	isWitness, err := h.hasReference(accept.Actor(), store.Witness)
+	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor())
 	if err != nil {
-		return fmt.Errorf("query 'Witnesses' for actor %s: %w", accept.Actor(), err)
-	}
-
-	if isWitness {
-		return fmt.Errorf("actor %s is already in the 'witnesses' collection", accept.Actor())
-	}
-
-	if err := h.store.AddReference(store.Witness, h.ServiceIRI, accept.Actor()); err != nil {
-		return fmt.Errorf("handle accept 'Witness' activity %s: %w", accept.ID(), err)
+		return fmt.Errorf("handle accept '%s' activity %s: %w", refType, accept.ID(), err)
 	}
 
 	return nil
@@ -341,20 +327,29 @@ func (h *Inbox) postReject(activity *vocab.ActivityType, toIRI *url.URL) error {
 	return nil
 }
 
-func (h *Inbox) hasReference(actorIRI *url.URL, refType store.ReferenceType) (bool, error) {
+func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.ReferenceType) (bool, error) {
 	it, err := h.store.QueryReferences(refType,
 		store.NewCriteria(
-			store.WithObjectIRI(h.ServiceIRI),
-			store.WithReferenceIRI(actorIRI),
+			store.WithObjectIRI(objectIRI),
+			store.WithReferenceIRI(refIRI),
 		),
 	)
 	if err != nil {
-		return false, fmt.Errorf("unable to retrieve existing follower: %w", err)
+		return false, fmt.Errorf("query references: %w", err)
 	}
 
 	defer it.Close()
 
-	return it.TotalItems() > 0, nil
+	_, err = it.Next()
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("get next reference: %w", err)
+	}
+
+	return true, nil
 }
 
 func (h *Inbox) handleAnnounceActivity(announce *vocab.ActivityType) error {
@@ -392,7 +387,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("invalid 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	isWitnessing, err := h.hasReference(offer.Actor(), store.Witnessing)
+	isWitnessing, err := h.hasReference(h.ServiceIRI, offer.Actor(), store.Witnessing)
 	if err != nil {
 		return fmt.Errorf("retrieve reference: %w", err)
 	}
@@ -472,12 +467,35 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
 	}
 
+	targetIRI := target.Object().ID().URL()
+
+	ok, err := h.hasReference(targetIRI, h.ServiceIRI, store.AnchorCredential)
+	if err != nil {
+		return fmt.Errorf("has anchor credential [%s]: %w", targetIRI, err)
+	}
+
+	if ok {
+		return fmt.Errorf("handle anchor credential [%s]: %w", targetIRI, errDuplicateAnchorCredential)
+	}
+
 	bytes, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
 
-	return h.AnchorCredentialHandler.HandleAnchorCredential(target.Object().ID().URL(), target.Object().CID(), bytes)
+	err = h.AnchorCredentialHandler.HandleAnchorCredential(targetIRI, target.Object().CID(), bytes)
+	if err != nil {
+		return fmt.Errorf("handler anchor credential: %w", err)
+	}
+
+	logger.Debugf("[%s] Storing anchor credential reference [%s]", h.ServiceName, targetIRI)
+
+	err = h.store.AddReference(store.AnchorCredential, targetIRI, h.ServiceIRI)
+	if err != nil {
+		return fmt.Errorf("store anchor credential reference: %w", err)
+	}
+
+	return nil
 }
 
 func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
@@ -490,7 +508,10 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 
 		ref := item.AnchorCredentialReference()
 		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
-			return err
+			// Continue processing other anchor credentials on duplicate error.
+			if !errors.Is(err, errDuplicateAnchorCredential) {
+				return err
+			}
 		}
 	}
 

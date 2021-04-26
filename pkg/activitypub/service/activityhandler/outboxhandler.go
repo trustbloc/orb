@@ -40,12 +40,42 @@ func (h *Outbox) HandleActivity(activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
 	switch {
+	case typeProp.Is(vocab.TypeCreate):
+		return h.handleCreateActivity(activity)
 	case typeProp.Is(vocab.TypeUndo):
 		return h.handleUndoActivity(activity)
 	default:
 		// Nothing to do for activity.
 		return nil
 	}
+}
+
+func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
+
+	obj := create.Object()
+
+	var target *vocab.ObjectProperty
+
+	switch {
+	case obj.Type().Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
+		target = create.Target()
+
+	case obj.Type().Is(vocab.TypeAnchorCredentialRef):
+		target = obj.AnchorCredentialReference().Target()
+
+	default:
+		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", obj.Type(), create.ID())
+	}
+
+	logger.Debugf("[%s] Storing anchor credential reference [%s]", h.ServiceName, target.Object().ID())
+
+	err := h.store.AddReference(store.AnchorCredential, target.Object().ID().URL(), h.ServiceIRI)
+	if err != nil {
+		return fmt.Errorf("store anchor credential reference: %w", err)
+	}
+
+	return nil
 }
 
 func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType) error {
