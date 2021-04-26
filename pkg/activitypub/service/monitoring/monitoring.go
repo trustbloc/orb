@@ -62,6 +62,11 @@ func New(provider storage.Provider, vcStore vcStore, opts ...Opt) (*Client, erro
 		return nil, fmt.Errorf("open store: %w", err)
 	}
 
+	err = provider.SetStoreConfig(storeName, storage.StoreConfiguration{TagNames: []string{tagNotConfirmed}})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set store configuration: %w", err)
+	}
+
 	client := &Client{
 		store:   store,
 		vcStore: vcStore,
@@ -168,7 +173,7 @@ func (c *Client) handleEntities() error {
 		return fmt.Errorf("query %q entities: %w", tagNotConfirmed, err)
 	}
 
-	defer records.Close() // nolint: errcheck
+	defer storage.Close(records, logger)
 
 	for Next(records) {
 		var src []byte

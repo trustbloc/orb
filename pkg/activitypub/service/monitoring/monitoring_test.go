@@ -18,9 +18,9 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-	mockstore "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
@@ -40,8 +40,12 @@ func TestNew(t *testing.T) {
 
 	client.Close()
 
-	client, err = New(&mockstore.MockStoreProvider{ErrOpenStoreHandle: errors.New("error")}, nil)
+	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil)
 	require.EqualError(t, err, "open store: error")
+	require.Nil(t, client)
+
+	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil)
+	require.EqualError(t, err, "failed to set store configuration: error")
 	require.Nil(t, client)
 }
 
@@ -436,6 +440,10 @@ func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (
 
 func (m *dbMock) OpenStore(_ string) (storage.Store, error) {
 	return m.mockStore, nil
+}
+
+func (m *dbMock) SetStoreConfig(string, storage.StoreConfiguration) error {
+	return nil
 }
 
 type httpMock func(req *http.Request) (*http.Response, error)
