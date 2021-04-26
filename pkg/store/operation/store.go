@@ -30,51 +30,14 @@ func New(provider storage.Provider) (*Store, error) {
 		return nil, fmt.Errorf("failed to open operation store: %w", err)
 	}
 
-	config, err := provider.GetStoreConfig(namespace)
+	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index}})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operation store config: %w", err)
-	}
-
-	if contains(config.TagNames, index) {
-		logger.Infof("store index has been configured")
-
-		return &Store{store: store}, nil
-	}
-
-	logger.Infof("store index has not yet been configured, creating index...")
-
-	setErr := provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index}})
-	if setErr != nil {
-		logger.Infof("checking if some other server may have been faster in creating index, set index error: %s",
-			setErr.Error())
-
-		config, getErr := provider.GetStoreConfig(namespace)
-		if getErr != nil {
-			return nil, fmt.Errorf("failed to get operation store config: %w", getErr)
-		}
-
-		if !contains(config.TagNames, index) {
-			return nil, fmt.Errorf("failed to set index: %w", setErr)
-		}
-
-		logger.Infof("store index has been configured, some other server has been faster in creating it")
-	} else {
-		logger.Infof("successfully created index")
+		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
 	return &Store{
 		store: store,
 	}, nil
-}
-
-func contains(values []string, value string) bool {
-	for _, val := range values {
-		if val == value {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Store is db implementation of operation store.
