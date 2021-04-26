@@ -42,9 +42,10 @@ type signatureVerifier interface {
 
 // Config holds configuration parameters for the Inbox.
 type Config struct {
-	ServiceEndpoint string
-	ServiceIRI      *url.URL
-	Topic           string
+	ServiceEndpoint        string
+	ServiceIRI             *url.URL
+	Topic                  string
+	VerifyActorInSignature bool
 }
 
 // Inbox implements the ActivityPub inbox.
@@ -165,7 +166,7 @@ func (h *Inbox) handle(msg *message.Message) {
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
-		logger.Errorf("[%s] Error validating activity for message [%s]", h.ServiceEndpoint, msg.UUID)
+		logger.Errorf("[%s] Error validating activity for message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
 
 		msg.Nack()
 
@@ -225,18 +226,20 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 		return nil, fmt.Errorf("unmarshal activity: %w", err)
 	}
 
-	actorIRI := msg.Metadata[httpsubscriber.ActorIRIKey]
-	if actorIRI == "" {
-		return nil, fmt.Errorf("no actorIRI specified in message context")
-	}
+	if h.VerifyActorInSignature {
+		actorIRI := msg.Metadata[httpsubscriber.ActorIRIKey]
+		if actorIRI == "" {
+			return nil, fmt.Errorf("no actorIRI specified in message context")
+		}
 
-	if activity.Actor() == nil {
-		return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
-	}
+		if activity.Actor() == nil {
+			return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
+		}
 
-	if activity.Actor().String() != actorIRI {
-		return nil, fmt.Errorf("actor in activity [%s] does not match the actor in the HTTP signature [%s]",
-			activity.ID(), actorIRI)
+		if activity.Actor().String() != actorIRI {
+			return nil, fmt.Errorf("actor in activity [%s] does not match the actor in the HTTP signature [%s]",
+				activity.ID(), actorIRI)
+		}
 	}
 
 	return activity, nil

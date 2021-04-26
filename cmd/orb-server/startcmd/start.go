@@ -8,19 +8,14 @@ package startcmd
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -53,9 +48,7 @@ import (
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
-	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
-	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
@@ -350,19 +343,17 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apStore := apmemstore.New(apConfig.ServiceEndpoint)
 
-	// TODO: Replace with real signing key (from KMS?).
-	pemBytes, privKey, err := loadTestActivityPubKeys()
-	if err != nil {
-		// This should only happen in the start unit test.
-		logger.Errorf("Unable to load signing key: %s", err)
-	}
+	// TODO: Replace with public key from KMS.
+	pemBytes := []byte(publicKeyPem)
 
-	t := transport.New(httpClient, privKey, apServicePublicKeyIRI,
-		httpsig.NewSigner(httpsig.DefaultGetSignerConfig()),
-		httpsig.NewSigner(httpsig.DefaultPostSignerConfig()),
+	// FIXME: Use dummy signer for now until https://github.com/trustbloc/orb/issues/233 is implemented.
+	t := transport.New(httpClient, nil, apServicePublicKeyIRI,
+		&transport.NoOpSigner{},
+		&transport.NoOpSigner{},
 	)
 
-	sigVerifier := httpsig.NewVerifier(httpsig.DefaultVerifierConfig(), client.New(t))
+	// FIXME: Use dummy verifier for now until https://github.com/trustbloc/orb/issues/233 is implemented.
+	sigVerifier := &noOpVerifier{}
 
 	monitoringSvc, err := monitoring.New(storeProviders.provider, vcStore, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
@@ -696,73 +687,13 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 	return u
 }
 
-// TODO: Remove - this is a temporary function.
-func loadTestActivityPubKeys() ([]byte, crypto.PrivateKey, error) {
-	privKey, err := privateKeyFromFile("/etc/orb/activitypub/private-key.pem")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pubKey, err := publicKeyFromFile("/etc/orb/activitypub/public-key.pem")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	keyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	pemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:    "PUBLIC KEY",
-		Headers: nil,
-		Bytes:   keyBytes,
-	})
-
-	return pemBytes, privKey, nil
+type noOpVerifier struct {
 }
 
-// TODO: Remove - this is a temporary function.
-func publicKeyFromFile(file string) (crypto.PublicKey, error) {
-	keyBytes, err := ioutil.ReadFile(filepath.Clean(file))
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(keyBytes)
-	if block == nil {
-		return nil, fmt.Errorf("public key not found")
-	}
-
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey, ok := key.(crypto.PublicKey)
-	if !ok {
-		return nil, errors.New("invalid public key")
-	}
-
-	return publicKey, nil
+func (v *noOpVerifier) VerifyRequest(_ *http.Request) (*url.URL, error) {
+	return nil, nil
 }
 
-// TODO: Remove - this is a temporary function.
-func privateKeyFromFile(file string) (crypto.PrivateKey, error) {
-	keyBytes, err := ioutil.ReadFile(filepath.Clean(file))
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(keyBytes)
-	if block == nil {
-		return nil, fmt.Errorf("private key not found")
-	}
-
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
-}
+const publicKeyPem = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA3FKE2r94LiR0GfqTTT9wttMyUfEQk/7yMtG2JIqzZyI=
+-----END PUBLIC KEY-----`
