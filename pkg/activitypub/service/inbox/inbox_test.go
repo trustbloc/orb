@@ -499,7 +499,8 @@ func TestInbox_Error(t *testing.T) {
 func TestUnmarshalAndValidateActivity(t *testing.T) {
 	activityID := testutil.MustParseURL("https://example1.com/activities/activity1")
 
-	ib, e := New(&Config{}, memstore.New(""), mocks.NewPubSub(), nil, nil)
+	ib, e := New(&Config{VerifyActorInSignature: true}, memstore.New(""), mocks.NewPubSub(),
+		nil, nil)
 	require.NoError(t, e)
 	require.NotNil(t, ib)
 

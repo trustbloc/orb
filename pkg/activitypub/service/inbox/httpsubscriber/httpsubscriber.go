@@ -123,7 +123,9 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg.Metadata[ActorIRIKey] = actorIRI.String()
+	if actorIRI != nil {
+		msg.Metadata[ActorIRIKey] = actorIRI.String()
+	}
 
 	logger.Debugf("[%s] Handling message [%s] from actor [%s]", s.ServiceEndpoint, msg.UUID, actorIRI)
 
