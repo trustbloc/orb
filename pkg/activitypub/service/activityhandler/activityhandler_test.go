@@ -98,12 +98,21 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 	})
 }
 
-func TestHandler_HandleCreateActivity(t *testing.T) {
+func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
+
+	target1ID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+	target2ID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+	target3ID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3tgdathcprnbvatyau6h6mu7ipjhhodcdbyhoy")
+	target4ID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3vgdathcprnbvatyaw6h6mo7ipjhhodcdbyhoy")
 
 	cfg := &Config{
 		ServiceName: "service2",
@@ -128,39 +137,22 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	go subscriber.Listen()
 
 	t.Run("Anchor credential", func(t *testing.T) {
-		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
-			vocab.NewObject(
-				vocab.WithID(anchCredID),
-				vocab.WithCID(cid),
-				vocab.WithType(vocab.TypeContentAddressedStorage),
-			),
-		))
-
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
 		if err != nil {
 			panic(err)
 		}
 
-		published := time.Now()
-
-		create := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTarget(targetProperty),
-			vocab.WithContext(vocab.ContextOrb),
-			vocab.WithTo(service2IRI),
-			vocab.WithPublishedTime(&published),
-		)
-
 		t.Run("Success", func(t *testing.T) {
+			create := newMockCreateActivity(service1IRI, service2IRI, target1ID,
+				vocab.NewObjectProperty(vocab.WithObject(obj)))
+
 			require.NoError(t, h.HandleActivity(create))
 
 			time.Sleep(50 * time.Millisecond)
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(anchCredID.String()))
+			require.NotNil(t, anchorCredHandler.AnchorCred(target1ID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
 			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
@@ -169,9 +161,20 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			refs, err := storeutil.ReadReferences(it, -1)
 			require.NoError(t, err)
 			require.NotEmpty(t, refs)
+
+			it, err = activityStore.QueryReferences(store.AnchorCredential,
+				store.NewCriteria(store.WithObjectIRI(target1ID)))
+			require.NoError(t, err)
+
+			refs, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
+			create := newMockCreateActivity(service1IRI, service2IRI, target2ID,
+				vocab.NewObjectProperty(vocab.WithObject(obj)))
+
 			errExpected := fmt.Errorf("injected anchor cred handler error")
 
 			anchorCredHandler.WithError(errExpected)
@@ -182,37 +185,37 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential reference", func(t *testing.T) {
-		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
-
-		published := time.Now()
-
-		create := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, anchCredID, cid),
-				),
-			),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithContext(vocab.ContextOrb),
-			vocab.WithPublishedTime(&published),
-		)
+		refID := testutil.MustParseURL(
+			"https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
 
 		t.Run("Success", func(t *testing.T) {
+			create := newMockCreateActivity(service1IRI, service2IRI, target3ID, vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(
+					vocab.NewAnchorCredentialReference(refID, target3ID, cid),
+				),
+			))
+
 			require.NoError(t, h.HandleActivity(create))
 
 			time.Sleep(50 * time.Millisecond)
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(anchCredID.String()))
+			require.NotNil(t, anchorCredHandler.AnchorCred(target1ID.String()))
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(target3ID)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
+
+			it, err = activityStore.QueryReferences(store.AnchorCredential,
+				store.NewCriteria(store.WithObjectIRI(target3ID)))
+			require.NoError(t, err)
+
+			refs, err = storeutil.ReadReferences(it, -1)
 			require.NoError(t, err)
 			require.NotEmpty(t, refs)
 		})
@@ -223,25 +226,122 @@ func TestHandler_HandleCreateActivity(t *testing.T) {
 			anchorCredHandler.WithError(errExpected)
 			defer func() { anchorCredHandler.WithError(nil) }()
 
+			create := newMockCreateActivity(service1IRI, service2IRI, target4ID, vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(
+					vocab.NewAnchorCredentialReference(refID, target4ID, cid),
+				),
+			))
+
 			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
 		})
 	})
 
 	t.Run("Unsupported object type", func(t *testing.T) {
-		published := time.Now()
+		create := newMockCreateActivity(service1IRI, service2IRI, target2ID,
+			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))))
 
-		create := vocab.NewCreateActivity(
+		err := h.HandleActivity(create)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported object type in 'Create' activity")
+	})
+}
+
+func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	targetID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	activityStore := memstore.New(cfg.ServiceName)
+
+	h := NewOutbox(cfg, activityStore, &apmocks.HTTPTransport{})
+
+	h.Start()
+	defer h.Stop()
+
+	t.Run("Anchor credential", func(t *testing.T) {
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		if err != nil {
+			panic(err)
+		}
+
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
+			vocab.NewObjectProperty(vocab.WithObject(obj)))
+
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(create))
+
+			it, err := activityStore.QueryReferences(store.AnchorCredential,
+				store.NewCriteria(store.WithObjectIRI(targetID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
+		})
+	})
+
+	t.Run("Anchor credential reference", func(t *testing.T) {
+		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
+
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(
+					vocab.NewAnchorCredentialReference(refID, targetID, cid),
+				),
+			))
+
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, h.HandleActivity(create))
+
+			it, err := activityStore.QueryReferences(store.AnchorCredential,
+				store.NewCriteria(store.WithObjectIRI(targetID)))
+			require.NoError(t, err)
+
+			refs, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+			require.NotEmpty(t, refs)
+		})
+	})
+
+	t.Run("Unsupported object type", func(t *testing.T) {
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithContext(vocab.ContextOrb),
-			vocab.WithTo(service2IRI),
-			vocab.WithPublishedTime(&published),
 		)
 
 		err := h.HandleActivity(create)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported object type in 'Create' activity")
+	})
+
+	t.Run("Anchor credential storage error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected storage error")
+
+		s := &mocks.ActivityStore{}
+		s.AddReferenceReturns(errExpected)
+
+		obHandler := NewOutbox(cfg, s, &apmocks.HTTPTransport{})
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		if err != nil {
+			panic(err)
+		}
+
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+		)
+
+		err = obHandler.HandleActivity(create)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 }
 
@@ -644,7 +744,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		// Post another accept activity with the same actor.
 		err = h.HandleActivity(accept)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "already in the 'following' collection")
+		require.Contains(t, err.Error(), "already in the 'FOLLOWING' collection")
 	})
 
 	t.Run("Accept Witness -> Success", func(t *testing.T) {
@@ -679,7 +779,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		// Post another accept activity with the same actor.
 		err = h.HandleActivity(accept)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "already in the 'witnesses' collection")
+		require.Contains(t, err.Error(), "already in the 'WITNESS' collection")
 	})
 
 	t.Run("No actor in Accept activity", func(t *testing.T) {
@@ -830,7 +930,9 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	t.Run("Accept Follow AddReference error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected storage error")
 
-		as.QueryReferencesReturns(&storemocks.ReferenceIterator{}, nil)
+		it := &storemocks.ReferenceIterator{}
+		it.NextReturns(nil, store.ErrNotFound)
+		as.QueryReferencesReturns(it, nil)
 		as.AddReferenceReturns(errExpected)
 
 		err := h.HandleActivity(acceptFollow)
@@ -851,7 +953,9 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	t.Run("Accept InviteWitness AddReference error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected storage error")
 
-		as.QueryReferencesReturns(&storemocks.ReferenceIterator{}, nil)
+		it := &storemocks.ReferenceIterator{}
+		it.NextReturns(nil, store.ErrNotFound)
+		as.QueryReferencesReturns(it, nil)
 		as.AddReferenceReturns(errExpected)
 
 		err := h.HandleActivity(acceptInviteWitness)
@@ -1029,6 +1133,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
+	targetID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+	target2ID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwkhwinurpgfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+
 	cfg := &Config{
 		ServiceName: "service1",
 		ServiceIRI:  service1IRI,
@@ -1036,9 +1145,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{},
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &apmocks.HTTPTransport{},
 		spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
+
+	require.NoError(t, h.store.AddReference(store.AnchorCredential, target2ID, h.ServiceIRI))
 
 	h.Start()
 	defer h.Stop()
@@ -1047,11 +1158,15 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	go subscriber.Listen()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchCredID, cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), targetID, cid)
+		duplicateRef := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), target2ID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(ref),
+			),
+			vocab.NewObjectProperty(
+				vocab.WithAnchorCredentialReference(duplicateRef),
 			),
 		}
 
@@ -1074,10 +1189,18 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		require.NotNil(t, subscriber.Activity(announce.ID()))
+
+		it, err := h.store.QueryReferences(store.AnchorCredential,
+			store.NewCriteria(store.WithObjectIRI(targetID)))
+		require.NoError(t, err)
+
+		refs, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, refs)
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), anchCredID, cid)
+		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), targetID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -1108,7 +1231,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
 		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
-			anchCredID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
+			targetID, cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
 		require.NoError(t, err)
 
@@ -2119,6 +2242,9 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
+	targetID := testutil.MustParseURL(
+		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
+
 	cfg := &Config{
 		ServiceName: "service2",
 		ServiceIRI:  service2IRI,
@@ -2127,29 +2253,13 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
 	t.Run("Anchor credential", func(t *testing.T) {
-		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
-			vocab.NewObject(
-				vocab.WithID(anchCredID),
-				vocab.WithCID(cid),
-				vocab.WithType(vocab.TypeContentAddressedStorage),
-			),
-		))
-
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
 		if err != nil {
 			panic(err)
 		}
 
-		published := time.Now()
-
-		create := vocab.NewCreateActivity(
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTarget(targetProperty),
-			vocab.WithContext(vocab.ContextOrb),
-			vocab.WithTo(service2IRI),
-			vocab.WithPublishedTime(&published),
 		)
 
 		t.Run("Success", func(t *testing.T) {
@@ -2242,19 +2352,12 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 	t.Run("Anchor credential reference", func(t *testing.T) {
 		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
 
-		published := time.Now()
-
-		create := vocab.NewCreateActivity(
+		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
 			vocab.NewObjectProperty(
 				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, anchCredID, cid),
+					vocab.NewAnchorCredentialReference(refID, targetID, cid),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithContext(vocab.ContextOrb),
-			vocab.WithPublishedTime(&published),
 		)
 
 		t.Run("Success", func(t *testing.T) {
@@ -2277,7 +2380,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchCredID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(targetID)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -2402,6 +2505,26 @@ func newActivityID(id fmt.Stringer) *url.URL {
 
 func newTransactionID(id fmt.Stringer) *url.URL {
 	return testutil.NewMockID(id, uuid.New().String())
+}
+
+func newMockCreateActivity(actorIRI, toIRI, targetIRI *url.URL, objProp *vocab.ObjectProperty) *vocab.ActivityType {
+	published := time.Now()
+
+	return vocab.NewCreateActivity(
+		objProp,
+		vocab.WithID(newActivityID(actorIRI)),
+		vocab.WithActor(actorIRI),
+		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithObject(
+			vocab.NewObject(
+				vocab.WithID(targetIRI),
+				vocab.WithCID(cid),
+				vocab.WithType(vocab.TypeContentAddressedStorage),
+			),
+		))),
+		vocab.WithContext(vocab.ContextOrb),
+		vocab.WithTo(toIRI),
+		vocab.WithPublishedTime(&published),
+	)
 }
 
 const anchorCredential1 = `{
