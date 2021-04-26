@@ -41,3 +41,16 @@ type webFingerResp struct { // nolint: unused,deadcode
 	// in: body
 	Body *WebFingerResponse
 }
+
+// wellKnownDIDReq model
+//
+// swagger:parameters wellKnownDIDReq
+type wellKnownDIDReq struct{} // nolint: unused,deadcode
+
+// wellKnownDIDResp model
+//
+// swagger:response wellKnownDIDResp
+type wellKnownDIDResp struct { // nolint: unused,deadcode
+	// in: body
+	Body *RawDoc
+}

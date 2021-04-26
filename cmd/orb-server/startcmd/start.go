@@ -110,6 +110,9 @@ const (
 	activityPubTransactionsPath = "/transactions"
 
 	casPath = "/cas"
+
+	kmsKeyType             = kms.ED25519Type
+	verificationMethodType = "Ed25519VerificationKey2018"
 )
 
 type server interface {
@@ -277,13 +280,18 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// TODO: For now create key at startup, we need different way of handling this key as orb parameter
 	// once we figure out how to expose verification method (webfinger, did:web)
-	keyID, _, err := km.Create(kms.ED25519Type)
+	keyID, _, err := km.Create(kmsKeyType)
 	if err != nil {
 		return fmt.Errorf("failed to create anchor credential signing key: %s", err.Error())
 	}
 
+	u, err := url.Parse(parameters.externalEndpoint)
+	if err != nil {
+		return fmt.Errorf("parse external endpoint: %w", err)
+	}
+
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:abc.com#" + keyID,
+		VerificationMethod: "did:web:" + u.Host + "#" + keyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
@@ -451,14 +459,25 @@ func startOrbServices(parameters *orbParameters) error {
 		localdiscovery.New(didCh),
 	)
 
+	pubKey, err := km.ExportPubKeyBytes(keyID)
+	if err != nil {
+		return fmt.Errorf("failed to export pub key: %w", err)
+	}
+
 	// create discovery rest api
-	endpointDiscoveryOp := discoveryrest.New(&discoveryrest.Config{
+	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{
+		PubKey:                    pubKey,
+		VerificationMethodType:    verificationMethodType,
+		KID:                       keyID,
 		ResolutionPath:            baseResolvePath,
 		OperationPath:             baseUpdatePath,
 		BaseURL:                   parameters.externalEndpoint,
 		DiscoveryDomains:          parameters.discoveryDomains,
 		DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
 	})
+	if err != nil {
+		return fmt.Errorf("discovery rest: %w", err)
+	}
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 

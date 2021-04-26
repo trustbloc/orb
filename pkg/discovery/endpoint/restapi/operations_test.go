@@ -22,21 +22,32 @@ import (
 const (
 	wellKnownEndpoint = "/.well-known/did-orb"
 	webFingerEndpoint = "/.well-known/webfinger"
+	webDIDEndpoint    = "/.well-known/did.json"
 )
 
 func TestGetRESTHandlers(t *testing.T) {
-	c := restapi.New(&restapi.Config{})
-	require.Equal(t, 2, len(c.GetRESTHandlers()))
+	t.Run("Error", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{BaseURL: "://"})
+		require.EqualError(t, err, "parse base URL: parse \"://\": missing protocol scheme")
+		require.Nil(t, c)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com"})
+		require.NoError(t, err)
+		require.Equal(t, 3, len(c.GetRESTHandlers()))
+	})
 }
 
 func TestWebFinger(t *testing.T) {
 	t.Run("test resource query string not exists", func(t *testing.T) {
-		c := restapi.New(&restapi.Config{
+		c, err := restapi.New(&restapi.Config{
 			OperationPath:  "/op",
 			ResolutionPath: "/resolve",
 			BaseURL:        "http://base",
-		},
-		)
+		})
+
+		require.NoError(t, err)
 
 		handler := getHandler(t, c, webFingerEndpoint)
 
@@ -47,12 +58,12 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test resource not found", func(t *testing.T) {
-		c := restapi.New(&restapi.Config{
+		c, err := restapi.New(&restapi.Config{
 			OperationPath:  "/op",
 			ResolutionPath: "/resolve",
 			BaseURL:        "http://base",
-		},
-		)
+		})
+		require.NoError(t, err)
 
 		handler := getHandler(t, c, webFingerEndpoint)
 
@@ -63,12 +74,12 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test resource not found", func(t *testing.T) {
-		c := restapi.New(&restapi.Config{
+		c, err := restapi.New(&restapi.Config{
 			OperationPath:  "/op",
 			ResolutionPath: "/resolve",
 			BaseURL:        "http://base",
-		},
-		)
+		})
+		require.NoError(t, err)
 
 		handler := getHandler(t, c, webFingerEndpoint)
 
@@ -79,14 +90,14 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test resolution resource", func(t *testing.T) {
-		c := restapi.New(&restapi.Config{
+		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
-		},
-		)
+		})
+		require.NoError(t, err)
 
 		handler := getHandler(t, c, webFingerEndpoint)
 
@@ -103,14 +114,14 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test operation resource", func(t *testing.T) {
-		c := restapi.New(&restapi.Config{
+		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
-		},
-		)
+		})
+		require.NoError(t, err)
 
 		handler := getHandler(t, c, webFingerEndpoint)
 
@@ -127,13 +138,32 @@ func TestWebFinger(t *testing.T) {
 	})
 }
 
+func TestWellKnownDID(t *testing.T) {
+	c, err := restapi.New(&restapi.Config{
+		BaseURL: "https://example.com",
+	})
+	require.NoError(t, err)
+
+	handler := getHandler(t, c, webDIDEndpoint)
+
+	rr := serveHTTP(t, handler.Handler(), http.MethodGet, webDIDEndpoint, nil, nil)
+
+	var w restapi.RawDoc
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+	require.Equal(t, w.ID, "did:web:example.com")
+	require.Len(t, w.VerificationMethod, 1)
+}
+
 func TestWellKnown(t *testing.T) {
-	c := restapi.New(&restapi.Config{
+	c, err := restapi.New(&restapi.Config{
 		OperationPath:  "/op",
 		ResolutionPath: "/resolve",
 		BaseURL:        "http://base",
-	},
-	)
+	})
+	require.NoError(t, err)
 
 	handler := getHandler(t, c, wellKnownEndpoint)
 

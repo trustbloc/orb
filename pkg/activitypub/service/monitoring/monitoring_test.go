@@ -202,7 +202,7 @@ func TestClient_Watch(t *testing.T) {
 	t.Run("Worker handles queue", func(t *testing.T) {
 		proceed := make(chan struct{})
 
-		db := newDBMock()
+		db := newDBMock(t)
 		db.mockStore.errQuery = func() error {
 			db.mockStore.errQuery = nil
 			close(proceed)
@@ -273,7 +273,7 @@ func TestClient_Watch(t *testing.T) {
 	})
 
 	t.Run("Worker handles queue (expired)", func(t *testing.T) {
-		db := newDBMock()
+		db := newDBMock(t)
 		db.mockStore.errDelete = func() error {
 			db.mockStore.errDelete = nil
 
@@ -392,10 +392,16 @@ type dbMock struct {
 	mockStore *dbMockStore
 }
 
-func newDBMock() *dbMock {
+func newDBMock(t *testing.T) *dbMock {
+	t.Helper()
+
+	p := mem.NewProvider()
+	store, err := p.OpenStore("mock-db")
+	require.NoError(t, err)
+
 	return &dbMock{
-		Provider:  mem.NewProvider(),
-		mockStore: &dbMockStore{mu: &sync.Mutex{}},
+		Provider:  p,
+		mockStore: &dbMockStore{Store: store, mu: &sync.Mutex{}},
 	}
 }
 
@@ -428,11 +434,8 @@ func (m *dbMockStore) Query(expression string, options ...storage.QueryOption) (
 	return m.Store.Query(expression, options...)
 }
 
-func (m *dbMock) OpenStore(name string) (storage.Store, error) {
-	store, err := m.Provider.OpenStore(name)
-	m.mockStore.Store = store
-
-	return m.mockStore, err
+func (m *dbMock) OpenStore(_ string) (storage.Store, error) {
+	return m.mockStore, nil
 }
 
 type httpMock func(req *http.Request) (*http.Response, error)

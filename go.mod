@@ -15,6 +15,7 @@ require (
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210409151411-eeeb8508bd87
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210412201938-efffe3eafcd1
 	github.com/ipfs/go-ipfs-api v0.2.0
+	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/piprate/json-gold v0.4.0
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.7.0

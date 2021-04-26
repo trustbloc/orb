@@ -8,6 +8,7 @@ package vct_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -25,9 +26,9 @@ import (
 const mockResponse = `{
    "svct_version":0,
    "id":"bC2kzaBgvf10aYkcnLJaqulTh1a1oLeABtcwosjgDoc=",
-   "timestamp":1617977793917,
+   "timestamp":1619006293939,
    "extensions":"",
-   "signature":"ewoJCSAgICJhbGdvcml0aG0iOnsKCQkJICAiaGFzaCI6IlNIQTI1NiIsCgkJCSAgInNpZ25hdHVyZSI6IkVDRFNBIiwKCQkJICAidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyIKCQkgICB9LAoJCSAgICJzaWduYXR1cmUiOiJzMGptV3pmK3VDNS9RNU5yNldiWHhDb3FsdE1NS2dJeUV3a05GWEwyd2l2ZS9TbS83OUxRdm50NldrTnZhdVNRWCtVMlc1c0krL0oySlY4WFhzOWYyUT09IgoJCX0="
+   "signature":"ewoJCSAgICJhbGdvcml0aG0iOnsKCQkJICAiaGFzaCI6IlNIQTI1NiIsCgkJCSAgInNpZ25hdHVyZSI6IkVDRFNBIiwKCQkJICAidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyIKCQkgICB9LAoJCSAgICJzaWduYXR1cmUiOiJsOE5meFZDaFBIN2ZHNGNJZDZpTkliZ3BiUnp4b3YrcndvemRMNHI1bFJOWEdpT1R5N2lBbjIrWmc4NFZ3a0pvZUpXdkxHeU8yYTNXWm5RS3ROdS9MZz09IgoJCX0="
 }`
 
 // nolint: lll
@@ -66,11 +67,10 @@ type httpMock func(req *http.Request) (*http.Response, error)
 func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) }
 
 func TestClient_Witness(t *testing.T) {
-	/* TODO: issue-265 enable test
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-public-key" {
-				pubKey := `"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="`
+				pubKey := `"BLlG6D6mEemsE4/jqrW4yrHy98dJ0WzPVxrHohWMdQCPMBR2/93IueMq1XycbaDTHfUsgC5YdVjw3/EY0VfWc2U="`
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -98,9 +98,8 @@ func TestClient_Witness(t *testing.T) {
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
-		require.Equal(t, int64(1617977793917000000), timestampTime.UnixNano())
+		require.Equal(t, int64(1619006293939000000), timestampTime.UnixNano())
 	})
-	*/
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-public-key" {
@@ -142,7 +141,6 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get public key")
 	})
-	/* TODO: issue-265 enable test
 	t.Run("Parse credential (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -157,7 +155,6 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse credential")
 	})
-	*/
 
 	t.Run("Add VC (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
