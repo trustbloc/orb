@@ -13,6 +13,8 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	mrand "math/rand"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -127,11 +129,11 @@ type DIDOrbSteps struct {
 	resp               *restclient.HttpRespone
 	bddContext         *BDDContext
 	alias              string
-	uniqueSuffix       string
 	canonicalID        string
 	resolutionEndpoint string
 	operationEndpoint  string
 	sidetreeURL        string
+	dids               []string
 }
 
 // NewDIDSideSteps
@@ -192,15 +194,18 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 		return err
 	}
 
-	opaqueDoc, err := d.getOpaqueDocument("createKey")
+	opaqueDoc, err := getOpaqueDocument("createKey")
 	if err != nil {
 		return err
 	}
 
-	reqBytes, err := d.getCreateRequest(opaqueDoc, nil)
+	recoveryKey, updateKey, reqBytes, err := getCreateRequest(d.sidetreeURL, opaqueDoc, nil)
 	if err != nil {
 		return err
 	}
+
+	d.recoveryKey = recoveryKey
+	d.updateKey = updateKey
 
 	d.resp, err = restclient.SendRequest(d.sidetreeURL, reqBytes)
 	if err == nil {
@@ -217,29 +222,36 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 }
 
 func (d *DIDOrbSteps) setSidetreeURL(url string) error {
+	localURL, err := d.getLocalURL(url)
+	if err != nil {
+		return err
+	}
+
+	d.sidetreeURL = localURL
+
+	return nil
+}
+
+func (d *DIDOrbSteps) getLocalURL(url string) (string, error) {
 	parts := strings.Split(url, `/sidetree/v1/`)
 
 	if len(parts) != 2 {
-		return fmt.Errorf("wrong format of Sidetree URL: %s", url)
+		return "", fmt.Errorf("wrong format of Sidetree URL: %s", url)
 	}
 
 	externalURL := parts[0]
 
 	if strings.Contains(externalURL, "localhost") {
 		// already internal url - nothing to do
-		d.sidetreeURL = url
-
-		return nil
+		return url, nil
 	}
 
 	localURL, ok := localURLs[externalURL]
 	if !ok {
-		return fmt.Errorf("server URL not configured for: %s", url)
+		return "", fmt.Errorf("server URL not configured for: %s", url)
 	}
 
-	d.sidetreeURL = strings.ReplaceAll(url, externalURL, localURL)
-
-	return nil
+	return strings.ReplaceAll(url, externalURL, localURL), nil
 }
 
 func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error {
@@ -299,7 +311,7 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 
 	logger.Infof("recover did document")
 
-	opaqueDoc, err := d.getOpaqueDocument("recoveryKey")
+	opaqueDoc, err := getOpaqueDocument("recoveryKey")
 	if err != nil {
 		return err
 	}
@@ -556,27 +568,23 @@ func (d *DIDOrbSteps) getInitialState() (string, error) {
 	return encoder.EncodeToString(bytes), nil
 }
 
-func (d *DIDOrbSteps) getCreateRequest(doc []byte, patches []patch.Patch) ([]byte, error) {
+func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.PrivateKey, *ecdsa.PrivateKey, []byte, error) {
 	recoveryKey, recoveryCommitment, err := generateKeyAndCommitment()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-
-	d.recoveryKey = recoveryKey
 
 	updateKey, updateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	d.updateKey = updateKey
-
-	origin, ok := anchorOriginURLs[d.sidetreeURL]
+	origin, ok := anchorOriginURLs[url]
 	if !ok {
-		return nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
+		return nil, nil, nil, fmt.Errorf("anchor origin not configured for %s", url)
 	}
 
-	return client.NewCreateRequest(&client.CreateRequestInfo{
+	reqBytes, err := client.NewCreateRequest(&client.CreateRequestInfo{
 		OpaqueDocument:     string(doc),
 		Patches:            patches,
 		RecoveryCommitment: recoveryCommitment,
@@ -584,6 +592,12 @@ func (d *DIDOrbSteps) getCreateRequest(doc []byte, patches []patch.Patch) ([]byt
 		MultihashCode:      sha2_256,
 		AnchorOrigin:       origin,
 	})
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return recoveryKey, updateKey, reqBytes, nil
 }
 
 func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqueSuffix string) ([]byte, error) {
@@ -770,7 +784,7 @@ func getRemoveServiceEndpointsPatch(keyID string) (patch.Patch, error) {
 	return patch.NewRemoveServiceEndpointsPatch(removeServices)
 }
 
-func (d *DIDOrbSteps) getOpaqueDocument(keyID string) ([]byte, error) {
+func getOpaqueDocument(keyID string) ([]byte, error) {
 	// create general + auth JWS verification key
 	jwsPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -840,6 +854,135 @@ func prettyPrint(result *document.ResolutionResult) error {
 	return nil
 }
 
+func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency int) error {
+	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, strURLs, concurrency)
+
+	urls := strings.Split(strURLs, ",")
+
+	p := NewWorkerPool(concurrency)
+
+	p.Start()
+
+	for i := 0; i < num; i++ {
+		randomURL := urls[mrand.Intn(len(urls))]
+
+		localURL, err := d.getLocalURL(randomURL)
+		if err != nil {
+			return err
+		}
+
+		p.Submit(&createDIDRequest{
+			url: localURL,
+		})
+	}
+
+	p.Stop()
+
+	logger.Infof("got %d responses for %d requests", len(p.responses), num)
+
+	if len(p.responses) != num {
+		return fmt.Errorf("expecting %d responses but got %d", num, len(p.responses))
+	}
+
+	for _, resp := range p.responses {
+		req := resp.Request.(*createDIDRequest)
+		if resp.Err != nil {
+			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			return resp.Err
+		}
+
+		did := resp.Resp.(string)
+		logger.Infof("got DID from [%s]: %s", req.url, did)
+		d.dids = append(d.dids, did)
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
+	logger.Infof("verifying the %d DID document(s) that were created", len(d.dids))
+
+	urls := strings.Split(strURLs, ",")
+
+	for _, did := range d.dids {
+		randomURL := urls[mrand.Intn(len(urls))]
+
+		localURL, err := d.getLocalURL(randomURL)
+		if err != nil {
+			return err
+		}
+
+		if err := d.verifyDID(localURL, did); err != nil {
+			return err
+		}
+	}
+
+	d.dids = nil
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyDID(url, did string) error {
+	logger.Infof("verifying DID %s from %s", did, url)
+
+	resp, err := restclient.SendResolveRequestWithRetry(url+"/"+did, 30, http.StatusNotFound)
+	if err != nil {
+		return fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to resolve DID [%s] - Status code %d: %s", did, resp.StatusCode, resp.ErrorMsg)
+	}
+
+	var rr document.ResolutionResult
+	err = json.Unmarshal(resp.Payload, &rr)
+	if err != nil {
+		return err
+	}
+
+	_, ok := rr.DocumentMetadata["canonicalId"]
+	if !ok {
+		return fmt.Errorf("document metadata is missing field 'canonicalId': %s", resp.Payload)
+	}
+
+	logger.Infof(".. successfully verified DID %s from %s", did, url)
+
+	return nil
+}
+
+type createDIDRequest struct {
+	url string
+}
+
+func (r *createDIDRequest) Invoke() (interface{}, error) {
+	logger.Infof("creating DID document at %s", r.url)
+
+	opaqueDoc, err := getOpaqueDocument("key1")
+	if err != nil {
+		return nil, err
+	}
+
+	_, _, reqBytes, err := getCreateRequest(r.url, opaqueDoc, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := restclient.SendRequest(r.url, reqBytes)
+	if err != nil {
+		return "", err
+	}
+
+	logger.Infof("... got DID document: %s", resp.Payload)
+
+	var rr document.ResolutionResult
+	err = json.Unmarshal(resp.Payload, &rr)
+	if err != nil {
+		return "", err
+	}
+
+	return rr.Document.ID(), nil
+}
+
 // RegisterSteps registers orb steps
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
@@ -858,5 +1001,6 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to recover DID document$`, d.recoverDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
-
+	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
+	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
 }
