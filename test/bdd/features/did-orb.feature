@@ -118,11 +118,37 @@ Feature:
       Then check success response contains "#did"
 
     @concurrent_requests_scenario
-    Scenario: concurrent requests
+    Scenario: concurrent requests plus server shutdown tests
 
-     # write to multiple servers
-     #  TODO: Add https://orb2.domain1.com/sidetree/v1/operations after activity pub storage changes
+     # write batch of DIDs to multiple servers and check them
+     # TODO: When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
      When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
      Then we wait 5 seconds
-     #  TODO: Add https://orb2.domain1.com/sidetree/v1/identifiers after activity pub storage changes
+     # TODO: Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+
+     Then container "orb-domain1" is stopped
+     Then container "orb2-domain1" is stopped
+     Then container "orb-domain2" is stopped
+     Then container "ipfs" is stopped
+
+     Then we wait 3 seconds
+
+     Then container "orb-domain1" is started
+     Then container "orb2-domain1" is started
+     Then container "orb-domain2" is started
+     Then container "ipfs" is started
+
+     Then we wait 5 seconds
+
+     # now that servers re-started we should check for DIDs that were created before shutdowns
+     # TODO: Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+
+     # write batch of DIDs to multiple servers again and check them
+     # TODO: When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+
+     Then we wait 5 seconds
+     # TODO: Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
      Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created

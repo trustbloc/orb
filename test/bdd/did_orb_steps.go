@@ -859,6 +859,8 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 
 	urls := strings.Split(strURLs, ",")
 
+	d.dids = nil
+
 	p := NewWorkerPool(concurrency)
 
 	p.Start()
@@ -916,8 +918,6 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 			return err
 		}
 	}
-
-	d.dids = nil
 
 	return nil
 }
