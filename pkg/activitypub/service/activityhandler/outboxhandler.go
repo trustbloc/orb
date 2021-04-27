@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
-	"errors"
 	"fmt"
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -89,16 +88,10 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 	}
 
 	if err := h.store.DeleteReference(refType, h.ServiceIRI, iri); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			logger.Infof("[%s] %s not found in %s collection of %s", h.ServiceName, iri, refType, h.ServiceIRI)
-
-			return nil
-		}
-
 		return fmt.Errorf("unable to delete %s from %s's collection of %s", iri, h.ServiceIRI, refType)
 	}
 
-	logger.Debugf("[%s] %s was successfully deleted from %s's collection of %s",
+	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
 		h.ServiceIRI, iri, h.ServiceIRI, refType)
 
 	return nil

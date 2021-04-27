@@ -182,7 +182,12 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 		return nil, err
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	firstURL, err := h.getPageURL(id, -1)
 	if err != nil {
@@ -213,7 +218,12 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 		return nil, err
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	options := storeutil.GetQueryOptions(opts...)
 

@@ -62,8 +62,7 @@ type Store interface {
 	QueryActivities(query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
 	// AddReference adds the reference of the given type to the given object.
 	AddReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
-	// DeleteReference deletes the reference of the given type from the given object. If the reference
-	// is not found then ErrNotFound is returned.
+	// DeleteReference deletes the reference of the given type from the given object.
 	DeleteReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	// QueryReferences returns the list of references of the given type according to the given query.
 	QueryReferences(refType ReferenceType, query *Criteria, opts ...QueryOpt) (ReferenceIterator, error)
@@ -175,7 +174,7 @@ type ActivityIterator interface {
 	// Next returns the next activity or an ErrNotFound error if there are no more items.
 	Next() (*vocab.ActivityType, error)
 	// Close closes the iterator.
-	Close()
+	Close() error
 }
 
 // ReferenceIterator defines the query results iterator for reference queries.
@@ -185,5 +184,5 @@ type ReferenceIterator interface {
 	// Next returns the next reference or an ErrNotFound error if there are no more items.
 	Next() (*url.URL, error)
 	// Close closes the iterator.
-	Close()
+	Close() error
 }

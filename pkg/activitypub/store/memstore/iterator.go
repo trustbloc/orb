@@ -29,22 +29,26 @@ func (it *iterator) TotalItems() int {
 	return it.totalItems
 }
 
-func (it *iterator) Close() {
+func (it *iterator) Close() error {
+	return nil
 }
 
-type activityIterator struct {
+// ActivityIterator is used to iterator over activities.
+type ActivityIterator struct {
 	*iterator
 	results []*vocab.ActivityType
 }
 
-func newActivityIterator(results []*vocab.ActivityType, totalItems int) *activityIterator {
-	return &activityIterator{
+// NewActivityIterator creates a new ActivityIterator.
+func NewActivityIterator(results []*vocab.ActivityType, totalItems int) *ActivityIterator {
+	return &ActivityIterator{
 		iterator: newIterator(totalItems),
 		results:  results,
 	}
 }
 
-func (it *activityIterator) Next() (*vocab.ActivityType, error) {
+// Next returns the next activity or an ErrNotFound error if there are no more items.
+func (it *ActivityIterator) Next() (*vocab.ActivityType, error) {
 	if it.current >= len(it.results)-1 {
 		return nil, spi.ErrNotFound
 	}
@@ -54,19 +58,22 @@ func (it *activityIterator) Next() (*vocab.ActivityType, error) {
 	return it.results[it.current], nil
 }
 
-type referenceIterator struct {
+// ReferenceIterator is used to iterator over references.
+type ReferenceIterator struct {
 	*iterator
 	results []*url.URL
 }
 
-func newReferenceIterator(results []*url.URL, totalItems int) *referenceIterator {
-	return &referenceIterator{
+// NewReferenceIterator creates a new ReferenceIterator.
+func NewReferenceIterator(results []*url.URL, totalItems int) *ReferenceIterator {
+	return &ReferenceIterator{
 		iterator: newIterator(totalItems),
 		results:  results,
 	}
 }
 
-func (it *referenceIterator) Next() (*url.URL, error) {
+// Next returns the next reference or an ErrNotFound error if there are no more items.
+func (it *ReferenceIterator) Next() (*url.URL, error) {
 	if it.current >= len(it.results)-1 {
 		return nil, spi.ErrNotFound
 	}

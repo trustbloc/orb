@@ -29,7 +29,7 @@ func TestActivityIterator(t *testing.T) {
 
 	results := []*vocab.ActivityType{activity1, activity2}
 
-	it := newActivityIterator(results, 5)
+	it := NewActivityIterator(results, 5)
 	require.NotNil(t, it)
 	require.Equal(t, 5, it.TotalItems())
 
@@ -48,7 +48,7 @@ func TestActivityIterator(t *testing.T) {
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
 
-	require.NotPanics(t, it.Close)
+	require.NoError(t, it.Close())
 }
 
 func TestReferenceIterator(t *testing.T) {
@@ -57,7 +57,7 @@ func TestReferenceIterator(t *testing.T) {
 
 	results := []*url.URL{ref1, ref2}
 
-	it := newReferenceIterator(results, 5)
+	it := NewReferenceIterator(results, 5)
 	require.NotNil(t, it)
 	require.Equal(t, 5, it.TotalItems())
 
@@ -76,5 +76,5 @@ func TestReferenceIterator(t *testing.T) {
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, a)
 
-	require.NotPanics(t, it.Close)
+	require.NoError(t, it.Close())
 }
