@@ -40,6 +40,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
+	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -54,6 +55,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
+	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
@@ -341,7 +343,23 @@ func startOrbServices(parameters *orbParameters) error {
 		MaxWitnessDelay: defaultMaxWitnessDelay,
 	}
 
-	apStore := apmemstore.New(apConfig.ServiceEndpoint)
+	var apStore activitypubspi.Store
+
+	if parameters.dbParameters.databaseType == databaseTypeCouchDBOption {
+		couchDBProvider, err := ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
+			ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix+"_"+apConfig.ServiceEndpoint),
+			ariescouchdbstorage.WithLogger(logger))
+		if err != nil {
+			return fmt.Errorf("failed to create CouchDB storage provider for ActivityPub: %w", err)
+		}
+
+		apStore, err = apariesstore.New(couchDBProvider, apConfig.ServiceEndpoint)
+		if err != nil {
+			return fmt.Errorf("failed to create in-memory storage provider for ActivityPub: %w", err)
+		}
+	} else {
+		apStore = apmemstore.New(apConfig.ServiceEndpoint)
+	}
 
 	// TODO: Replace with public key from KMS.
 	pemBytes := []byte(publicKeyPem)

@@ -184,7 +184,12 @@ func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 		return nil, err
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	firstURL, err := h.getPageURL(id, -1)
 	if err != nil {
@@ -216,7 +221,12 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 		return nil, err
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	options := storeutil.GetQueryOptions(opts...)
 

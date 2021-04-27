@@ -161,7 +161,7 @@ func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Crite
 	}
 
 	if len(refs) == 0 {
-		return newActivityIterator(nil, it.TotalItems()), nil
+		return NewActivityIterator(nil, it.TotalItems()), nil
 	}
 
 	ait := s.activityStore.query(
@@ -208,11 +208,11 @@ func (s *activityStore) get(activityID string) (*vocab.ActivityType, error) {
 	return a, nil
 }
 
-func (s *activityStore) query(query *spi.Criteria, opts ...spi.QueryOpt) *activityIterator {
+func (s *activityStore) query(query *spi.Criteria, opts ...spi.QueryOpt) *ActivityIterator {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	return newActivityIterator(activityQueryResults(s.activities).filter(query, opts...))
+	return NewActivityIterator(activityQueryResults(s.activities).filter(query, opts...))
 }
 
 type referenceStore struct {
@@ -251,7 +251,7 @@ func (s *referenceStore) delete(actor, iri fmt.Stringer) error {
 		}
 	}
 
-	return spi.ErrNotFound
+	return nil
 }
 
 func (s *referenceStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
@@ -262,7 +262,7 @@ func (s *referenceStore) query(query *spi.Criteria, opts ...spi.QueryOpt) (spi.R
 		return nil, fmt.Errorf("object IRI is required")
 	}
 
-	return newReferenceIterator(refQueryResults(s.irisByObject[query.ObjectIRI.String()]).filter(query, opts...)), nil
+	return NewReferenceIterator(refQueryResults(s.irisByObject[query.ObjectIRI.String()]).filter(query, opts...)), nil
 }
 
 type activityQueryFilter struct {

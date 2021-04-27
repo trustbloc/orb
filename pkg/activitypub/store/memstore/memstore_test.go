@@ -129,7 +129,6 @@ func TestStore_Reference(t *testing.T) {
 	checkRefQueryResults(t, it)
 
 	require.NoError(t, s.AddReference(spi.Follower, actor2, actor3))
-	require.EqualError(t, s.DeleteReference(spi.Follower, actor2, actor1), spi.ErrNotFound.Error())
 
 	it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor2)))
 	require.NoError(t, err)

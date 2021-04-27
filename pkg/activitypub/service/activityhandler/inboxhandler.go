@@ -338,7 +338,12 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 		return false, fmt.Errorf("query references: %w", err)
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	_, err = it.Next()
 	if err != nil {
@@ -704,16 +709,10 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 
 	err := h.store.DeleteReference(refType, h.ServiceIRI, actorIRI)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			logger.Infof("[%s] %s not found in %s collection of %s", h.ServiceName, actorIRI, refType, h.ServiceIRI)
-
-			return nil
-		}
-
 		return fmt.Errorf("unable to delete %s from %s's collection of %s", actorIRI, h.ServiceIRI, refType)
 	}
 
-	logger.Debugf("[%s] %s was successfully deleted from %s's collection of %s",
+	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
 		h.ServiceIRI, actorIRI, h.ServiceIRI, refType)
 
 	return nil
@@ -725,7 +724,12 @@ func (h *Inbox) getAnnounceToList(create *vocab.ActivityType) ([]*url.URL, error
 		return nil, err
 	}
 
-	defer it.Close()
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
 
 	followers, err := storeutil.ReadReferences(it, -1)
 	if err != nil {
