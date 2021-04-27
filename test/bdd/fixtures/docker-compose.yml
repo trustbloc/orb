@@ -34,8 +34,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain1.com:5984
-      - DATABASE_PREFIX=orb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_PREFIX=domain1
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
@@ -50,7 +50,7 @@ services:
       - ipfs
       - orb.kms
       - couchdb.kms.com
-      - couchdb.domain1.com
+      - couchdb.shared.com
     networks:
       - orb_net
 
@@ -81,8 +81,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain1.com:5984
-      - DATABASE_PREFIX=orb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_PREFIX=domain1
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
@@ -97,7 +97,7 @@ services:
       - ipfs
       - orb.kms
       - couchdb.kms.com
-      - couchdb.domain1.com
+      - couchdb.shared.com
     networks:
       - orb_net
 
@@ -128,8 +128,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       - ANCHOR_CREDENTIAL_DOMAIN=domain2.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain2.com:5984
-      - DATABASE_PREFIX=orb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_PREFIX=domain2
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
@@ -144,7 +144,7 @@ services:
       - ipfs
       - orb.kms
       - couchdb.kms.com
-      - couchdb.domain2.com
+      - couchdb.shared.com
     networks:
       - orb_net
 
@@ -175,8 +175,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       - ANCHOR_CREDENTIAL_DOMAIN=domain3.com
       - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.domain3.com:5984
-      - DATABASE_PREFIX=orb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_PREFIX=domain3
       - KMSSECRETS_DATABASE_TYPE=couchdb
       - KMSSECRETS_DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - KMSSECRETS_DATABASE_PREFIX=orbkms
@@ -191,7 +191,7 @@ services:
       - ipfs
       - orb.kms
       - couchdb.kms.com
-      - couchdb.domain3.com
+      - couchdb.shared.com
     networks:
       - orb_net
 
@@ -221,37 +221,11 @@ services:
     networks:
       - orb_net
 
-  couchdb.domain1.com:
-    container_name: couchdb.domain1.com
+  couchdb.shared.com:
+    container_name: couchdb.shared.com
     image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
     ports:
-      - ${COUCHDB_DOMAIN1_PORT}:${COUCHDB_PORT}
-    environment:
-      - COUCHDB_USER=${COUCHDB_USERNAME}
-      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
-    volumes:
-      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
-    networks:
-      - orb_net
-
-  couchdb.domain2.com:
-    container_name: couchdb.domain2.com
-    image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
-    ports:
-      - ${COUCHDB_DOMAIN2_PORT}:${COUCHDB_PORT}
-    environment:
-      - COUCHDB_USER=${COUCHDB_USERNAME}
-      - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
-    volumes:
-      - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
-    networks:
-      - orb_net
-
-  couchdb.domain3.com:
-    container_name: couchdb.domain3.com
-    image: ${COUCHDB_IMAGE}:${COUCHDB_IMAGE_TAG}
-    ports:
-      - ${COUCHDB_DOMAIN3_PORT}:${COUCHDB_PORT}
+      - ${COUCHDB_SHARED_PORT}:${COUCHDB_PORT}
     environment:
       - COUCHDB_USER=${COUCHDB_USERNAME}
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
