@@ -236,6 +236,14 @@ func TestStore_Activity(t *testing.T) {
 			vocab.WithID(activityID3))
 		require.NoError(t, s.AddActivity(activity3))
 
+		// Before adding references, confirm that a query by reference returns no results
+		it, err := s.QueryActivities(
+			spi.NewCriteria(spi.WithReferenceType(spi.Inbox), spi.WithObjectIRI(serviceID1)))
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		checkActivityQueryResultsInOrder(t, it)
+
 		require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID1))
 		require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID2))
 		require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID3))
