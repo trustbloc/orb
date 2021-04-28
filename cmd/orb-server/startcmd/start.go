@@ -26,15 +26,18 @@ import (
 	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
+	"github.com/hyperledger/aries-framework-go/pkg/vdr"
+	vdrweb "github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
@@ -278,22 +281,13 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
 
+	vdr := vdr.New(
+		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New()}),
+	)
+
 	graphProviders := &graph.Providers{
-		Cas: casClient,
-		// TODO: For now fetch signing public key from local KMS (this will handled differently later on: webfinger or did:web)
-		Pkf: func(_, keyID string) (*verifier.PublicKey, error) {
-			kid := keyID[1:]
-
-			pubKeyBytes, err := km.ExportPubKeyBytes(kid)
-			if err != nil {
-				return nil, fmt.Errorf("failed to export public key[%s] from kms: %s", kid, err.Error())
-			}
-
-			return &verifier.PublicKey{
-				Type:  kms.ED25519,
-				Value: pubKeyBytes,
-			}, nil
-		},
+		Cas:       casClient,
+		Pkf:       verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
 		DocLoader: orbDocumentLoader,
 	}
 
@@ -611,6 +605,15 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	pcp.Add(parameters.didNamespace, orbpc.New(protocolVersions))
 
 	return pcp, nil
+}
+
+type webVDR struct {
+	http *http.Client
+	*vdrweb.VDR
+}
+
+func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocResolution, error) {
+	return w.VDR.Read(didID, append(opts, vdrapi.WithOption(vdrweb.HTTPClientOpt, w.http))...)
 }
 
 type kmsProvider struct {
