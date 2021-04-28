@@ -18,8 +18,10 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210409151411-eeeb8508bd87
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210422144621-1355c6f90b44
+	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/mr-tron/base58 v1.2.0
+	github.com/multiformats/go-multihash v0.0.14
 	github.com/ory/dockertest/v3 v3.6.3
 	github.com/piprate/json-gold v0.4.0
 	github.com/rs/cors v1.7.0
