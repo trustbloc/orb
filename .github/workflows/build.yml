@@ -78,14 +78,26 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set ENV vars
+      - name: Get current published version
         run: |
           TAG=$(git describe --tags --always `git rev-list --tags --max-count=1`)
           VERSION=$(git rev-parse --short=7 HEAD)
           if [[ $TAG == $VERSION ]]; then
               TAG=v0.0.0
           fi
-          echo "IMAGE_TAG"=$TAG-$VERSION >> $GITHUB_ENV
+          echo "CURRENT_SEMVER=${TAG:1}" >> $GITHUB_ENV
+
+      - name: Bump published version
+        id: bump_version
+        uses: christian-draeger/increment-semantic-version@1.0.2
+        with:
+          current-version: "${{ env.CURRENT_SEMVER }}"
+          version-fragment: 'feature'
+
+      - name: Set ENV vars
+        run: |
+          VERSION=$(git rev-parse --short=7 HEAD)
+          echo "IMAGE_TAG"=v${{ steps.bump_version.outputs.next-version }}-snapshot-$VERSION >> $GITHUB_ENV
           echo "IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/orb >> $GITHUB_ENV
 
       - name: Set up QEMU
