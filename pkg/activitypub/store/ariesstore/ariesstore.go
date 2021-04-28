@@ -284,7 +284,7 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 	}
 
 	if len(refs) == 0 {
-		return &activityIterator{}, nil
+		return memstore.NewActivityIterator(nil, 0), nil
 	}
 
 	activityIDs := make([]string, len(refs))
