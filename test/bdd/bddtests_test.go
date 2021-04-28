@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,15 +17,6 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/messages-go/v10"
-)
-
-// vctService docker service name from fixtures/docker-compose.yml
-const (
-	vctService = "orb.vct"
-	kmsService = "orb.kms"
-
-	createTree     = "./scripts/pre_setup.sh"
-	createKMSStore = "./scripts/create_kms_store.sh"
 )
 
 var context *BDDContext
@@ -53,39 +43,7 @@ func TestMain(m *testing.M) {
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
-				if err := context.Composition().Up(kmsService); err != nil {
-					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
-				}
-
-				logger.Infof("Creating kms store")
-				resKMS, err := exec.Command(createKMSStore).CombinedOutput() //nolint: gosec
-				if err != nil {
-					logger.Fatal(err)
-				}
-
-				logger.Infof("ORB_KMS_STORE_ENDPOINT: %s", strings.TrimSpace(string(resKMS)))
-
-				if err = os.Setenv("ORB_KMS_STORE_ENDPOINT", strings.TrimSpace(string(resKMS))); err != nil {
-					logger.Fatal(err)
-				}
-
 				if err := context.Composition().Up(); err != nil {
-					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
-				}
-
-				logger.Infof("Creating tree log id")
-				res, err := exec.Command(createTree).CombinedOutput() //nolint: gosec
-				if err != nil {
-					logger.Fatal(err)
-				}
-
-				logger.Infof("VCT_LOG_ID: %s", strings.TrimSpace(string(res)))
-
-				if err = os.Setenv("VCT_LOG_ID", strings.TrimSpace(string(res))); err != nil {
-					logger.Fatal(err)
-				}
-
-				if err := context.Composition().Up(vctService); err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 

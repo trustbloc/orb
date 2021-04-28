@@ -266,26 +266,72 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 }
 
 func TestStartCmdCreateKMSFailure(t *testing.T) {
-	startCmd := GetStartCmd()
+	t.Run("KMS fails (DB)", func(t *testing.T) {
+		startCmd := GetStartCmd()
 
-	args := []string{
-		"--" + hostURLFlagName, "localhost:8080",
-		"--" + casURLFlagName, "localhost:8081",
-		"--" + vctURLFlagName, "localhost:8081",
-		"--" + didNamespaceFlagName, "namespace",
-		"--" + databaseTypeFlagName, databaseTypeMemOption,
-		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
-		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		"--" + anchorCredentialURLFlagName, "peer.com",
-		"--" + kmsSecretsDatabaseURLFlagName, "badURL",
-	}
-	startCmd.SetArgs(args)
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + kmsSecretsDatabaseURLFlagName, "badURL",
+		}
+		startCmd.SetArgs(args)
 
-	err := startCmd.Execute()
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "failed to ping couchDB")
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "failed to ping couchDB")
+	})
+
+	t.Run("KMS fails (create kid)", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + kmsStoreEndpointFlagName, "https://vct.example.com",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "create kid: init config value for")
+	})
+
+	t.Run("KMS fails (create remote store)", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + kmsEndpointFlagName, "https://vct.example.com",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "init config value for \"web-key-store\"")
+	})
 }
 
 func TestStartCmdValidArgsEnvVar(t *testing.T) {

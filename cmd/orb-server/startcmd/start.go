@@ -7,9 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
-	"bytes"
 	"crypto/tls"
-	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/tink/go/subtle/random"
+	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
@@ -35,12 +34,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -57,6 +55,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
@@ -108,6 +107,9 @@ const (
 
 	kmsKeyType             = kms.ED25519Type
 	verificationMethodType = "Ed25519VerificationKey2018"
+
+	webKeyStoreKey = "web-key-store"
+	kidKey         = "kid"
 )
 
 type server interface {
@@ -165,18 +167,40 @@ func createStartCmd() *cobra.Command {
 	}
 }
 
-func createKMSAndCrypto(endpoint string, client *http.Client,
-	store storage.Provider) (kms.KeyManager, acrypto.Crypto, error) {
-	if endpoint != "" {
-		return webkms.New(endpoint, client), webcrypto.New(endpoint, client), nil
+// BuildKMSURL builds kms URL.
+func BuildKMSURL(base, uri string) string {
+	if strings.HasPrefix(uri, "/") {
+		return base + uri
 	}
 
-	masterKeyReader, err := prepareMasterKeyReader(store)
-	if err != nil {
-		return nil, nil, err
+	return uri
+}
+
+func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
+	store storage.Provider, cfg storage.Store) (kms.KeyManager, acrypto.Crypto, error) {
+	if parameters.kmsEndpoint != "" || parameters.kmsStoreEndpoint != "" {
+		if parameters.kmsStoreEndpoint != "" {
+			return webkms.New(parameters.kmsStoreEndpoint, client), webcrypto.New(parameters.kmsStoreEndpoint, client), nil
+		}
+
+		var keystoreURL string
+
+		err := getOrInit(cfg, webKeyStoreKey, &keystoreURL, func() (interface{}, error) {
+			location, _, err := webkms.CreateKeyStore(client, parameters.kmsEndpoint, uuid.New().String(), "")
+
+			return location, err
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("get or init: %w", err)
+		}
+
+		keystoreURL = BuildKMSURL(parameters.kmsEndpoint, keystoreURL)
+		parameters.kmsStoreEndpoint = keystoreURL
+
+		return webkms.New(keystoreURL, client), webcrypto.New(keystoreURL, client), nil
 	}
 
-	secretLockService, err := local.NewService(masterKeyReader, nil)
+	secretLockService, err := prepareKeyLock(parameters.secretLockKeyPath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -197,6 +221,14 @@ func createKMSAndCrypto(endpoint string, client *http.Client,
 	return km, cr, nil
 }
 
+func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
+	return getOrInit(cfg, kidKey, &parameters.keyID, func() (interface{}, error) {
+		keyID, _, err := km.Create(kmsKeyType)
+
+		return keyID, err
+	})
+}
+
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
@@ -206,6 +238,11 @@ func startOrbServices(parameters *orbParameters) error {
 	storeProviders, err := createStoreProviders(parameters)
 	if err != nil {
 		return err
+	}
+
+	configStore, err := storeProviders.provider.OpenStore("orb-config")
+	if err != nil {
+		return fmt.Errorf("open store: %w", err)
 	}
 
 	// TODO: Configure the HTTP client with TLS
@@ -218,7 +255,7 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 	}
 
-	km, cr, err := createKMSAndCrypto(parameters.kmsStoreEndpoint, httpClient, storeProviders.kmsSecretsProvider)
+	km, cr, err := createKMSAndCrypto(parameters, httpClient, storeProviders.kmsSecretsProvider, configStore)
 	if err != nil {
 		return err
 	}
@@ -273,11 +310,10 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", parameters.didNamespace, err.Error())
 	}
 
-	// TODO: For now create key at startup, we need different way of handling this key as orb parameter
-	// once we figure out how to expose verification method (webfinger, did:web)
-	keyID, _, err := km.Create(kmsKeyType)
-	if err != nil {
-		return fmt.Errorf("failed to create anchor credential signing key: %s", err.Error())
+	if parameters.keyID == "" {
+		if err = createKID(km, parameters, configStore); err != nil {
+			return fmt.Errorf("create kid: %w", err)
+		}
 	}
 
 	u, err := url.Parse(parameters.externalEndpoint)
@@ -286,7 +322,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:" + u.Host + "#" + keyID,
+		VerificationMethod: "did:web:" + u.Host + "#" + parameters.keyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
@@ -468,7 +504,7 @@ func startOrbServices(parameters *orbParameters) error {
 		localdiscovery.New(didCh),
 	)
 
-	pubKey, err := km.ExportPubKeyBytes(keyID)
+	pubKey, err := km.ExportPubKeyBytes(parameters.keyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
@@ -477,7 +513,7 @@ func startOrbServices(parameters *orbParameters) error {
 	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{
 		PubKey:                    pubKey,
 		VerificationMethodType:    verificationMethodType,
-		KID:                       keyID,
+		KID:                       parameters.keyID,
 		ResolutionPath:            baseResolvePath,
 		OperationPath:             baseUpdatePath,
 		BaseURL:                   parameters.externalEndpoint,
@@ -578,11 +614,11 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 }
 
 type kmsProvider struct {
-	storageProvider   ariesstorage.Provider
+	storageProvider   storage.Provider
 	secretLockService secretlock.Service
 }
 
-func (k kmsProvider) StorageProvider() ariesstorage.Provider {
+func (k kmsProvider) StorageProvider() storage.Provider {
 	return k.storageProvider
 }
 
@@ -591,8 +627,8 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 }
 
 type storageProviders struct {
-	provider           ariesstorage.Provider
-	kmsSecretsProvider ariesstorage.Provider
+	provider           storage.Provider
+	kmsSecretsProvider storage.Provider
 }
 
 //nolint: gocyclo
@@ -625,6 +661,10 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			" run start --help to see the available options")
 	}
 
+	if parameters.kmsStoreEndpoint != "" || parameters.kmsEndpoint != "" {
+		return &edgeServiceProvs, nil
+	}
+
 	switch { //nolint: dupl
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMemOption):
 		edgeServiceProvs.kmsSecretsProvider = ariesmemstorage.NewProvider()
@@ -654,33 +694,45 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	return &edgeServiceProvs, nil
 }
 
-// prepareMasterKeyReader prepares a master key reader for secret lock usage
-func prepareMasterKeyReader(kmsSecretsStoreProvider ariesstorage.Provider) (*bytes.Reader, error) {
-	masterKeyStore, err := kmsSecretsStoreProvider.OpenStore(masterKeyStoreName)
+func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (interface{}, error)) error {
+	src, err := cfg.Get(key)
+	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
+		return fmt.Errorf("get config value for %q: %w", key, err)
+	}
+
+	if err == nil {
+		return json.Unmarshal(src, v)
+	}
+
+	val, err := initFn()
+	if err != nil {
+		return fmt.Errorf("init config value for %q: %w", key, err)
+	}
+
+	src, err = json.Marshal(val)
+	if err != nil {
+		return fmt.Errorf("marshal config value for %q: %w", key, err)
+	}
+
+	if err = cfg.Put(key, src); err != nil {
+		return fmt.Errorf("marshal config value for %q: %w", key, err)
+	}
+
+	return getOrInit(cfg, key, v, initFn)
+}
+
+// prepareKeyLock prepares a key lock usage.
+func prepareKeyLock(keyPath string) (secretlock.Service, error) {
+	if keyPath == "" {
+		return &noop.NoLock{}, nil
+	}
+
+	masterKeyReader, err := local.MasterKeyFromPath(keyPath)
 	if err != nil {
 		return nil, err
 	}
 
-	masterKey, err := masterKeyStore.Get(masterKeyDBKeyName)
-	if err != nil {
-		if errors.Is(err, ariesstorage.ErrDataNotFound) {
-			logger.Infof("master key[%s] not found, creating new one ...", masterKeyDBKeyName)
-
-			masterKeyRaw := random.GetRandomBytes(uint32(masterKeyNumBytes))
-			masterKey = []byte(base64.URLEncoding.EncodeToString(masterKeyRaw))
-
-			putErr := masterKeyStore.Put(masterKeyDBKeyName, masterKey)
-			if putErr != nil {
-				return nil, putErr
-			}
-		} else {
-			return nil, err
-		}
-	}
-
-	masterKeyReader := bytes.NewReader(masterKey)
-
-	return masterKeyReader, nil
+	return local.NewService(masterKeyReader, nil)
 }
 
 type mockTxnProvider struct {
