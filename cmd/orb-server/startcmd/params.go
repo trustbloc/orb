@@ -35,6 +35,21 @@ const (
 	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
 		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
 
+	kmsEndpointFlagName  = "kms-endpoint"
+	kmsEndpointEnvKey    = "ORB_KMS_ENDPOINT"
+	kmsEndpointFlagUsage = "Remote KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
+
+	keyIDFlagName  = "key-id"
+	keyIDEnvKey    = "ORB_KEY_ID"
+	keyIDFlagUsage = "Key ID (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + keyIDEnvKey
+
+	secretLockKeyPathFlagName  = "secret-lock-key-path"
+	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
+	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + secretLockKeyPathEnvKey
+
 	externalEndpointFlagName      = "external-endpoint"
 	externalEndpointFlagShorthand = "e"
 	externalEndpointFlagUsage     = "External endpoint that clients use to invoke services." +
@@ -163,6 +178,9 @@ const (
 type orbParameters struct {
 	hostURL                   string
 	vctURL                    string
+	keyID                     string
+	secretLockKeyPath         string
+	kmsEndpoint               string
 	kmsStoreEndpoint          string
 	externalEndpoint          string
 	didNamespace              string
@@ -212,7 +230,10 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	// no need to check errors for optional flags
-	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true) // nolint: errcheck,lll
+	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true)    // nolint: errcheck,lll
+	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                   // nolint: errcheck,lll
+	keyID, _ := cmdutils.GetUserSetVarFromString(cmd, keyIDFlagName, keyIDEnvKey, true)                                     // nolint: errcheck,lll
+	secretLockKeyPath, _ := cmdutils.GetUserSetVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey, true) // nolint: errcheck,lll
 
 	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
 	if err != nil {
@@ -260,7 +281,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	didAliases := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
 
-	dbParams, err := getDBParameters(cmd)
+	dbParams, err := getDBParameters(cmd, kmsStoreEndpoint != "" || kmsEndpoint != "")
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +322,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	return &orbParameters{
 		hostURL:                   hostURL,
 		vctURL:                    vctURL,
+		kmsEndpoint:               kmsEndpoint,
+		keyID:                     keyID,
+		secretLockKeyPath:         secretLockKeyPath,
 		kmsStoreEndpoint:          kmsStoreEndpoint,
 		externalEndpoint:          externalEndpoint,
 		tlsKey:                    tlsKey,
@@ -350,7 +374,7 @@ func getAnchorCredentialParameters(cmd *cobra.Command) (*anchorCredentialParams,
 	}, nil
 }
 
-func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
+func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error) {
 	databaseType, err := cmdutils.GetUserSetVarFromString(cmd, databaseTypeFlagName,
 		databaseTypeEnvKey, false)
 	if err != nil {
@@ -370,7 +394,7 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	}
 
 	keyDatabaseType, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
-		kmsSecretsDatabaseTypeEnvKey, false)
+		kmsSecretsDatabaseTypeEnvKey, kmOptional)
 	if err != nil {
 		return nil, err
 	}
@@ -401,6 +425,9 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
+	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
+	startCmd.Flags().String(keyIDFlagName, "", keyIDFlagUsage)
+	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
