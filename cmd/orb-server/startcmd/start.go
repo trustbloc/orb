@@ -67,7 +67,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
-	"github.com/trustbloc/orb/pkg/context/cas"
+	ipfscas "github.com/trustbloc/orb/pkg/context/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/context/common"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
@@ -264,7 +264,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// basic providers (CAS + operation store)
-	casClient := cas.New(parameters.casURL)
+	casClient := ipfscas.New(parameters.casURL)
 
 	didAnchors, err := didanchorstore.New(storeProviders.provider)
 	if err != nil {
