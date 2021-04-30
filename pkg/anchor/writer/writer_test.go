@@ -478,6 +478,29 @@ func TestWriter_getWitnesses(t *testing.T) {
 		require.Equal(t, expected, witnesses)
 	})
 
+	t.Run("success - exclude current domain from witness list", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		providers := &Providers{
+			OpProcessor: &mockOpProcessor{},
+		}
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: activityPubURL,
+			},
+		}
+
+		witnesses, err := c.getWitnesses(opRefs)
+		require.NoError(t, err)
+		require.Equal(t, 0, len(witnesses))
+	})
+
 	t.Run("error - operation type not supported", func(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
