@@ -8,7 +8,6 @@ package vcsigner
 
 import (
 	"fmt"
-	"net/http"
 	"testing"
 	"time"
 
@@ -17,8 +16,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	cryptomock "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
-	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/context/loader"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -55,12 +55,18 @@ func TestSigner_New(t *testing.T) {
 func getLoader(t *testing.T) *jsonld.DocumentLoader {
 	t.Helper()
 
-	loader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
-		jsonld.WithRemoteDocumentLoader(ld.NewDefaultDocumentLoader(&http.Client{})),
+	documentLoader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
+		jsonld.WithExtraContexts(jsonld.ContextDocument{
+			URL:     loader.AnchorContextURIV1,
+			Content: []byte(loader.AnchorContextV1),
+		}, jsonld.ContextDocument{
+			URL:     loader.JwsContextURIV1,
+			Content: []byte(loader.JwsContextV1),
+		}),
 	)
 	require.NoError(t, err)
 
-	return loader
+	return documentLoader
 }
 
 func TestSigner_Sign(t *testing.T) {

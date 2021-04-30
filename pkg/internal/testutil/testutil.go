@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/anchor/builder"
+	"github.com/trustbloc/orb/pkg/context/loader"
 )
 
 // MustParseURL parses the given string and returns the URL.
@@ -66,16 +66,16 @@ func GetCanonical(t *testing.T, raw string) string {
 func GetLoader(t *testing.T) *jsonld.DocumentLoader {
 	t.Helper()
 
-	loader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
+	documentLoader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
 		jsonld.WithExtraContexts(jsonld.ContextDocument{
-			URL:     builder.AnchorContextURIV1,
-			Content: []byte(builder.AnchorContextV1),
+			URL:     loader.AnchorContextURIV1,
+			Content: []byte(loader.AnchorContextV1),
 		}, jsonld.ContextDocument{
-			URL:     builder.JwsContextURIV1,
-			Content: []byte(builder.JwsContextV1),
+			URL:     loader.JwsContextURIV1,
+			Content: []byte(loader.JwsContextV1),
 		}),
 	)
 	require.NoError(t, err)
 
-	return loader
+	return documentLoader
 }
