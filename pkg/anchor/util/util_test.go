@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const defVCContext = "https://www.w3.org/2018/credentials/v1"
@@ -41,7 +42,7 @@ func TestGetTransactionPayload(t *testing.T) {
 		vcBytes, err := vc.MarshalJSON()
 		require.NoError(t, err)
 
-		parsedVC, err := verifiable.ParseCredential(vcBytes)
+		parsedVC, err := verifiable.ParseCredential(vcBytes, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
 		anchorSubjectFromVC, err := GetAnchorSubject(parsedVC)

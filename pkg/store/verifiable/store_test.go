@@ -13,6 +13,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	mockstore "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 var udCredential = `
@@ -103,7 +105,7 @@ var anchorCred = `
 
 func TestNew(t *testing.T) {
 	t.Run("test new store", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -111,8 +113,7 @@ func TestNew(t *testing.T) {
 	t.Run("test error from open store", func(t *testing.T) {
 		s, err := New(&mockstore.MockStoreProvider{
 			ErrOpenStoreHandle: fmt.Errorf("failed to open store"),
-		},
-		)
+		}, testutil.GetLoader(t))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
 		require.Nil(t, s)
@@ -121,7 +122,7 @@ func TestNew(t *testing.T) {
 
 func TestStore_Put(t *testing.T) {
 	t.Run("test save vc - success", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		err = s.Put(&verifiable.Credential{ID: "vc1"})
@@ -134,7 +135,7 @@ func TestStore_Put(t *testing.T) {
 			ErrPut: fmt.Errorf("error put"),
 		})
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		err = s.Put(&verifiable.Credential{ID: "vc1"})
@@ -145,10 +146,12 @@ func TestStore_Put(t *testing.T) {
 
 func TestStore_Get(t *testing.T) {
 	t.Run("test success", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		udVC, err := verifiable.ParseCredential([]byte(udCredential))
+		udVC, err := verifiable.ParseCredential([]byte(udCredential),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		err = s.Put(udVC)
@@ -160,10 +163,13 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		err = s.Put(anchorVC)
@@ -175,10 +181,12 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("error - vc without ID", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		udVC, err := verifiable.ParseCredential([]byte(udCredentialWithoutID))
+		udVC, err := verifiable.ParseCredential([]byte(udCredentialWithoutID),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		err = s.Put(udVC)
@@ -192,7 +200,7 @@ func TestStore_Get(t *testing.T) {
 			ErrGet: fmt.Errorf("error get"),
 		})
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vc, err := s.Get("vc1")
@@ -202,7 +210,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("test error from new credential", func(t *testing.T) {
-		s, err := New(mockstore.NewMockStoreProvider())
+		s, err := New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		err = s.Put(&verifiable.Credential{ID: "vc1"})

@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const testDID = "abc"
@@ -51,8 +52,9 @@ func TestGraph_Add(t *testing.T) {
 
 func TestGraph_Read(t *testing.T) {
 	providers := &Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		Cas:       mocks.NewMockCasClient(nil),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -89,8 +91,9 @@ func TestGraph_Read(t *testing.T) {
 
 func TestGraph_GetDidAnchors(t *testing.T) {
 	providers := &Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		Cas:       mocks.NewMockCasClient(nil),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {

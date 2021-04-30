@@ -12,8 +12,12 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+
+	"github.com/trustbloc/orb/pkg/anchor/builder"
 )
 
 // MustParseURL parses the given string and returns the URL.
@@ -56,4 +60,22 @@ func GetCanonical(t *testing.T, raw string) string {
 	require.NoError(t, err)
 
 	return string(bytes)
+}
+
+// GetLoader returns document loader.
+func GetLoader(t *testing.T) *jsonld.DocumentLoader {
+	t.Helper()
+
+	loader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
+		jsonld.WithExtraContexts(jsonld.ContextDocument{
+			URL:     builder.AnchorContextURIV1,
+			Content: []byte(builder.AnchorContextV1),
+		}, jsonld.ContextDocument{
+			URL:     builder.JwsContextURIV1,
+			Content: []byte(builder.JwsContextV1),
+		}),
+	)
+	require.NoError(t, err)
+
+	return loader
 }

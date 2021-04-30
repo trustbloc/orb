@@ -8,12 +8,16 @@ package vcsigner
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	cryptomock "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
+	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,6 +52,17 @@ func TestSigner_New(t *testing.T) {
 	})
 }
 
+func getLoader(t *testing.T) *jsonld.DocumentLoader {
+	t.Helper()
+
+	loader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
+		jsonld.WithRemoteDocumentLoader(ld.NewDefaultDocumentLoader(&http.Client{})),
+	)
+	require.NoError(t, err)
+
+	return loader
+}
+
 func TestSigner_Sign(t *testing.T) {
 	signingParams := SigningParams{
 		VerificationMethod: "did:abc:123#key1",
@@ -58,6 +73,7 @@ func TestSigner_Sign(t *testing.T) {
 	providers := &Providers{
 		KeyManager: &mockkms.KeyManager{},
 		Crypto:     &cryptomock.Crypto{},
+		DocLoader:  getLoader(t),
 	}
 
 	t.Run("success - JSONWebSignature2020", func(t *testing.T) {
@@ -138,6 +154,7 @@ func TestSigner_Sign(t *testing.T) {
 		providersWithCryptoErr := &Providers{
 			KeyManager: &mockkms.KeyManager{},
 			Crypto:     &cryptomock.Crypto{SignErr: fmt.Errorf("failed to sign")},
+			DocLoader:  getLoader(t),
 		}
 
 		c, err := New(providersWithCryptoErr, signingParams)

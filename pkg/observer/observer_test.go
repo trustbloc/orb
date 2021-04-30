@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestStartObserver(t *testing.T) {
@@ -56,8 +57,9 @@ func TestStartObserver(t *testing.T) {
 		var anchors []string
 
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			Cas:       mocks.NewMockCasClient(nil),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -105,8 +107,9 @@ func TestStartObserver(t *testing.T) {
 		var dids []string
 
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			Cas:       mocks.NewMockCasClient(nil),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -153,8 +156,9 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			Cas:       mocks.NewMockCasClient(nil),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -208,8 +212,9 @@ func TestStartObserver(t *testing.T) {
 		var dids, anchors []string
 
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			Cas:       mocks.NewMockCasClient(nil),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -263,8 +268,9 @@ func TestStartObserver(t *testing.T) {
 		var dids []string
 
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			Cas:       mocks.NewMockCasClient(nil),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)

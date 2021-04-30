@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/trustbloc/orb/pkg/activitypub/service/vct"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -85,7 +86,7 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP))
+		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
 
 		resp, err := client.Witness([]byte(mockVC))
 		require.NoError(t, err)
@@ -120,7 +121,7 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP))
+		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -135,7 +136,10 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, WithHTTPClient(mockHTTP))
+		client := New("https://example.com", &mockSigner{},
+			WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)),
+		)
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)

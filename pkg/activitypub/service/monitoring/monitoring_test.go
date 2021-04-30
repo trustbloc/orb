@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
 
@@ -78,7 +79,7 @@ func TestClient_Watch(t *testing.T) {
 	})
 
 	t.Run("VC not found", func(t *testing.T) {
-		vStore, err := vcstore.New(mem.NewProvider())
+		vStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		client, err := New(mem.NewProvider(), vStore)
@@ -92,7 +93,7 @@ func TestClient_Watch(t *testing.T) {
 
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		client, err := New(db, vStore)
@@ -134,7 +135,7 @@ func TestClient_Watch(t *testing.T) {
 
 	t.Run("Escape to queue", func(t *testing.T) {
 		db := mem.NewProvider()
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
@@ -173,7 +174,7 @@ func TestClient_Watch(t *testing.T) {
 
 	t.Run("No audit path (escapes to queue)", func(t *testing.T) {
 		db := mem.NewProvider()
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
@@ -217,7 +218,7 @@ func TestClient_Watch(t *testing.T) {
 		store, err := db.OpenStore(storeName)
 		require.NoError(t, err)
 
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		responses := make(chan string, 4)
@@ -284,7 +285,7 @@ func TestClient_Watch(t *testing.T) {
 			return errors.New("error")
 		}
 
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		store, err := db.OpenStore(storeName)
@@ -343,7 +344,7 @@ func TestClient_Watch(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		db := mem.NewProvider()
-		vStore, err := vcstore.New(db)
+		vStore, err := vcstore.New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
