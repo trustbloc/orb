@@ -8,12 +8,16 @@ package ipfs
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	shell "github.com/ipfs/go-ipfs-api"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
 const timeout = 2
@@ -51,6 +55,10 @@ func (m *Client) Write(content []byte) (string, error) {
 func (m *Client) Read(cid string) ([]byte, error) {
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			return nil, fmt.Errorf("%s: %w", err.Error(), cas.ErrContentNotFound)
+		}
+
 		return nil, err
 	}
 
