@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
@@ -25,7 +26,7 @@ import (
 func TestNew(t *testing.T) {
 	var vcCh chan *verifiable.Credential
 
-	store, err := vcstore.New(mem.NewProvider())
+	store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -40,10 +41,13 @@ func TestWitnessProofHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider())
+		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		err = store.Put(anchorVC)
@@ -70,7 +74,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		provider := &storemocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		vcStore, err := vcstore.New(provider)
+		vcStore, err := vcstore.New(provider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -89,7 +93,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mem.NewProvider())
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -108,10 +112,13 @@ func TestWitnessProofHandler(t *testing.T) {
 	t.Run("error - monitoring error", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider())
+		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		err = store.Put(anchorVC)

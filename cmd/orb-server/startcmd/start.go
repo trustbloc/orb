@@ -39,7 +39,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	vdrweb "github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -351,7 +350,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// used to notify anchor writer about witnessed anchor credential
 	vcCh := make(chan *verifiable.Credential, chBuffer)
 
-	vcStore, err := vcstore.New(storeProviders.provider)
+	vcStore, err := vcstore.New(storeProviders.provider, orbDocumentLoader)
 	if err != nil {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
@@ -423,7 +422,10 @@ func startOrbServices(parameters *orbParameters) error {
 		// TODO: Define all of the ActivityPub handlers
 		apspi.WithProofHandler(proofHander),
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
-		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner, vct.WithHTTPClient(httpClient))),
+		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner,
+			vct.WithHTTPClient(httpClient),
+			vct.WithDocumentLoader(orbDocumentLoader)),
+		),
 		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(credential.New(anchorCh)),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
@@ -554,30 +556,17 @@ func startOrbServices(parameters *orbParameters) error {
 }
 
 // pre-load orb contexts for vc, anchor, jws.
-func loadOrbContexts() (*jld.CachingDocumentLoader, error) {
-	docLoader := verifiable.CachingJSONLDLoader()
-
-	reader, err := ld.DocumentFromReader(strings.NewReader(builder.AnchorContextV1))
-	if err != nil {
-		return nil, fmt.Errorf("failed to preload anchor credential jsonld context: %w", err)
-	}
-
-	docLoader.AddDocument(
-		builder.AnchorContextURIV1,
-		reader,
+func loadOrbContexts() (*jld.DocumentLoader, error) {
+	// TODO: Use storage (store batch of contexts: not implemented)
+	return jld.NewDocumentLoader(ariesmemstorage.NewProvider(),
+		jld.WithExtraContexts(jld.ContextDocument{
+			URL:     builder.AnchorContextURIV1,
+			Content: []byte(builder.AnchorContextV1),
+		}, jld.ContextDocument{
+			URL:     builder.JwsContextURIV1,
+			Content: []byte(builder.JwsContextV1),
+		}),
 	)
-
-	reader, err = ld.DocumentFromReader(strings.NewReader(builder.JwsContextV1))
-	if err != nil {
-		return nil, fmt.Errorf("failed to preload jws jsonld context: %w", err)
-	}
-
-	docLoader.AddDocument(
-		builder.JwsContextURIV1,
-		reader,
-	)
-
-	return docLoader, nil
 }
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {

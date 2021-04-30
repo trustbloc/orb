@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
@@ -19,20 +20,22 @@ const nameSpace = "verifiable"
 var logger = log.New("verifiable-store")
 
 // New returns new instance of verifiable credentials store.
-func New(provider storage.Provider) (*Store, error) {
+func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vc store: %w", err)
 	}
 
 	return &Store{
-		store: store,
+		documentLoader: loader,
+		store:          store,
 	}, nil
 }
 
 // Store implements storage for verifiable credentials.
 type Store struct {
-	store storage.Store
+	store          storage.Store
+	documentLoader ld.DocumentLoader
 }
 
 // Put saves a verifiable credential. If it it already exists it will be overwritten.
@@ -62,7 +65,10 @@ func (s *Store) Get(id string) (*verifiable.Credential, error) {
 		return nil, fmt.Errorf("failed to get vc: %w", err)
 	}
 
-	vc, err := verifiable.ParseCredential(vcBytes, verifiable.WithDisabledProofCheck())
+	vc, err := verifiable.ParseCredential(vcBytes,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(s.documentLoader),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse credential: %w", err)
 	}

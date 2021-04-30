@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
 
@@ -47,7 +48,7 @@ func TestNew(t *testing.T) {
 	casIRI, err := url.Parse(casURL)
 	require.NoError(t, err)
 
-	vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+	vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -63,8 +64,9 @@ func TestNew(t *testing.T) {
 
 func TestWriter_WriteAnchor(t *testing.T) {
 	graphProviders := &graph.Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		Cas:       mocks.NewMockCasClient(nil),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -79,7 +81,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -109,7 +111,10 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		err = c.WriteAnchor("1.anchor", opRefs, 1)
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		vcCh <- anchorVC
@@ -119,7 +124,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -172,7 +177,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ErrPut: fmt.Errorf("error put"),
 		})
 
-		vcStoreWithErr, err := vcstore.New(storeProviderWithErr)
+		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -193,7 +198,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -227,7 +232,7 @@ func TestWriter_handle(t *testing.T) {
 	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -243,7 +248,10 @@ func TestWriter_handle(t *testing.T) {
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c.handle(anchorVC)
@@ -258,7 +266,7 @@ func TestWriter_handle(t *testing.T) {
 			ErrPut: fmt.Errorf("error put"),
 		})
 
-		vcStoreWithErr, err := vcstore.New(storeProviderWithErr)
+		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -271,7 +279,10 @@ func TestWriter_handle(t *testing.T) {
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c.handle(anchorVC)
@@ -281,7 +292,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -294,7 +305,10 @@ func TestWriter_handle(t *testing.T) {
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c.handle(anchorVC)
@@ -304,7 +318,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorCh := make(chan []string, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -317,14 +331,17 @@ func TestWriter_handle(t *testing.T) {
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c.handle(anchorVC)
 	})
 
 	t.Run("error - outbox error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider())
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -340,7 +357,10 @@ func TestWriter_handle(t *testing.T) {
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c.handle(anchorVC)
@@ -362,7 +382,10 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			Outbox: &mockOutbox{},
 		}
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)
@@ -379,7 +402,10 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			Outbox: &mockOutbox{},
 		}
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred), verifiable.WithDisabledProofCheck())
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
 		require.NoError(t, err)
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh)

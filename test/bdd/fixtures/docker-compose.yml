@@ -304,13 +304,14 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.0.0-88d5fa9
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.0-snapshot-eacaec8
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
       - VCT_AUTO_INIT_TREE=true
       - VCT_LOG_ENDPOINT=orb.trillian.log.server:8090
       - VCT_KMS_ENDPOINT=http://orb.kms:7878
+      - VCT_TLS_SYSTEMCERTPOOL=true
       - VCT_DSN=couchdb://${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
       - VCT_DATABASE_PREFIX=vct-db
       - VCT_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem

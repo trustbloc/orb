@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/vct/pkg/client/vct"
 
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -36,22 +37,31 @@ type HTTPClient interface {
 
 // Client represents VCT client.
 type Client struct {
-	signer   signer
-	endpoint string
-	vct      *vct.Client
+	signer         signer
+	endpoint       string
+	documentLoader ld.DocumentLoader
+	vct            *vct.Client
 }
 
 // ClientOpt represents client option func.
 type ClientOpt func(*clientOptions)
 
 type clientOptions struct {
-	http HTTPClient
+	http           HTTPClient
+	documentLoader ld.DocumentLoader
 }
 
 // WithHTTPClient allows providing HTTP client.
 func WithHTTPClient(client HTTPClient) ClientOpt {
 	return func(o *clientOptions) {
 		o.http = client
+	}
+}
+
+// WithDocumentLoader allows providing document loader.
+func WithDocumentLoader(loader ld.DocumentLoader) ClientOpt {
+	return func(o *clientOptions) {
+		o.documentLoader = loader
 	}
 }
 
@@ -66,9 +76,10 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 	}
 
 	return &Client{
-		signer:   signer,
-		endpoint: endpoint,
-		vct:      vct.New(endpoint, vct.WithHTTPClient(op.http)),
+		signer:         signer,
+		endpoint:       endpoint,
+		documentLoader: op.documentLoader,
+		vct:            vct.New(endpoint, vct.WithHTTPClient(op.http)),
 	}
 }
 
@@ -82,6 +93,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
 	vc, err := verifiable.ParseCredential(anchorCred,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithNoCustomSchemaCheck(),
+		verifiable.WithJSONLDDocumentLoader(c.documentLoader),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("parse credential: %w", err)
@@ -119,7 +131,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
 
 	timestamp := uint64(timestampTime.UnixNano()) / uint64(time.Millisecond)
 	// verifies the signature by given timestamp from the proof and original credentials.
-	err = vct.VerifyVCTimestampSignatureFromBytes(resp.Signature, pubKey, timestamp, anchorCred)
+	err = vct.VerifyVCTimestampSignature(resp.Signature, pubKey, timestamp, vc)
 	if err != nil {
 		return nil, fmt.Errorf("verify VC timestamp signature: %w", err)
 	}
