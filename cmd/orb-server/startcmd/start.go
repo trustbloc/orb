@@ -68,6 +68,7 @@ import (
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	ipfscas "github.com/trustbloc/orb/pkg/context/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/context/loader"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
@@ -83,11 +84,7 @@ import (
 )
 
 const (
-	masterKeyURI       = "local-lock://custom/master/key/"
-	masterKeyStoreName = "masterkey"
-	masterKeyDBKeyName = masterKeyStoreName
-
-	masterKeyNumBytes = 32
+	masterKeyURI = "local-lock://custom/master/key/"
 
 	chBuffer = 100
 
@@ -560,11 +557,11 @@ func loadOrbContexts() (*jld.DocumentLoader, error) {
 	// TODO: Use storage (store batch of contexts: not implemented)
 	return jld.NewDocumentLoader(ariesmemstorage.NewProvider(),
 		jld.WithExtraContexts(jld.ContextDocument{
-			URL:     builder.AnchorContextURIV1,
-			Content: []byte(builder.AnchorContextV1),
+			URL:     loader.AnchorContextURIV1,
+			Content: []byte(loader.AnchorContextV1),
 		}, jld.ContextDocument{
-			URL:     builder.JwsContextURIV1,
-			Content: []byte(builder.JwsContextV1),
+			URL:     loader.JwsContextURIV1,
+			Content: []byte(loader.JwsContextV1),
 		}),
 	)
 }

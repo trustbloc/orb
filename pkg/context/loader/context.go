@@ -1,15 +1,11 @@
 /*
 Copyright SecureKey Technologies Inc. All Rights Reserved.
-
 SPDX-License-Identifier: Apache-2.0
 */
 
-package builder
+package loader
 
 const (
-	// this context is pre-loaded by aries framework.
-	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
-
 	// AnchorContextURIV1 is anchor credential context URI.
 	AnchorContextURIV1 = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
 
