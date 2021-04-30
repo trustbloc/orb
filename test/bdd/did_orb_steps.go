@@ -59,8 +59,8 @@ var localURLs = map[string]string{
 }
 
 var anchorOriginURLs = map[string]string{
-	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain2.com/services/orb",
-	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain2.com/services/orb",
+	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 }

@@ -391,7 +391,10 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 		}
 
 		_, ok = uniqueWitnesses[anchorOrigin]
-		if !ok {
+
+		// TODO: Clarify if orb server can witness itself
+		// Remove requesting domain from witness list
+		if !ok && anchorOrigin != c.apServiceIRI.String() {
 			witnesses = append(witnesses, anchorOrigin)
 			uniqueWitnesses[anchorOrigin] = true
 		}

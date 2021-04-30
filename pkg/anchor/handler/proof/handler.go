@@ -67,6 +67,13 @@ func (h *WitnessProofHandler) HandleProof(anchorCredID string, startTime, endTim
 		return fmt.Errorf("failed to retrieve anchor credential[%s]: %w", anchorCredID, err)
 	}
 
+	if len(vc.Proofs) > 1 {
+		// TODO: issue-322 (handle multiple proofs - our witness policy is currently 1)
+		logger.Debugf("Credential[%s] has already been witnessed, nothing to do", vc.ID)
+
+		return nil
+	}
+
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	h.vcCh <- vc
