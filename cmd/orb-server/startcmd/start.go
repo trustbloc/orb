@@ -89,7 +89,7 @@ const (
 
 	chBuffer = 100
 
-	defaultMaxWitnessDelay = 10 * time.Minute
+	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
 )
 
 var logger = log.New("orb-server")
@@ -334,7 +334,7 @@ func startOrbServices(parameters *orbParameters) error {
 		URL:    parameters.anchorCredentialParams.url,
 	}
 
-	vcBuilder, err := builder.New(vcSigner, vcBuilderParams)
+	vcBuilder, err := builder.New(vcBuilderParams)
 	if err != nil {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
@@ -367,7 +367,7 @@ func startOrbServices(parameters *orbParameters) error {
 	apConfig := &apservice.Config{
 		ServiceEndpoint: activityPubServicesPath,
 		ServiceIRI:      apServiceIRI,
-		MaxWitnessDelay: defaultMaxWitnessDelay,
+		MaxWitnessDelay: parameters.maxWitnessDelay,
 	}
 
 	var apStore activitypubspi.Store
@@ -415,15 +415,16 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		vcCh)
 
+	witness := vct.New(parameters.vctURL, vcSigner,
+		vct.WithHTTPClient(httpClient),
+		vct.WithDocumentLoader(orbDocumentLoader))
+
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, sigVerifier,
 		// TODO: Define all of the ActivityPub handlers
 		apspi.WithProofHandler(proofHander),
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
-		apspi.WithWitness(vct.New(parameters.vctURL, vcSigner,
-			vct.WithHTTPClient(httpClient),
-			vct.WithDocumentLoader(orbDocumentLoader)),
-		),
+		apspi.WithWitness(witness),
 		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(credential.New(anchorCh)),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
@@ -439,9 +440,16 @@ func startOrbServices(parameters *orbParameters) error {
 		Store:         vcStore,
 		OpProcessor:   opProcessor,
 		Outbox:        activityPubService.Outbox(),
+		Witness:       witness,
+		Signer:        vcSigner,
+		MonitoringSvc: monitoringSvc,
 	}
 
-	anchorWriter := writer.New(parameters.didNamespace, apServiceIRI, casIRI, anchorWriterProviders, anchorCh, vcCh)
+	anchorWriter := writer.New(parameters.didNamespace,
+		apServiceIRI, casIRI,
+		anchorWriterProviders,
+		anchorCh, vcCh,
+		parameters.maxWitnessDelay)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,

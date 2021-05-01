@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package writer
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -18,9 +19,11 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
 var logger = log.New("anchor-writer")
@@ -28,11 +31,12 @@ var logger = log.New("anchor-writer")
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
-	namespace    string
-	vcCh         <-chan *verifiable.Credential
-	anchorCh     chan []string
-	apServiceIRI *url.URL
-	casIRI       *url.URL
+	namespace       string
+	vcCh            <-chan *verifiable.Credential
+	anchorCh        chan []string
+	apServiceIRI    *url.URL
+	casIRI          *url.URL
+	maxWitnessDelay time.Duration
 }
 
 // Providers contains all of the providers required by the client.
@@ -43,6 +47,21 @@ type Providers struct {
 	Store         vcStore
 	OpProcessor   opProcessor
 	Outbox        outbox
+	Witness       witness
+	Signer        signer
+	MonitoringSvc monitoringSvc
+}
+
+type witness interface {
+	Witness(anchorCred []byte) ([]byte, error)
+}
+
+type signer interface {
+	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
+}
+
+type monitoringSvc interface {
+	Watch(anchorCredID string, endTime time.Time, proof []byte) error
 }
 
 type outbox interface {
@@ -73,14 +92,15 @@ type vcStore interface {
 
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorCh chan []string, vcCh chan *verifiable.Credential) *Writer {
+	anchorCh chan []string, vcCh chan *verifiable.Credential, maxWitnessDelay time.Duration) *Writer {
 	w := &Writer{
-		Providers:    providers,
-		anchorCh:     anchorCh,
-		vcCh:         vcCh,
-		namespace:    namespace,
-		apServiceIRI: apServiceIRI,
-		casIRI:       casURL,
+		Providers:       providers,
+		anchorCh:        anchorCh,
+		vcCh:            vcCh,
+		namespace:       namespace,
+		apServiceIRI:    apServiceIRI,
+		casIRI:          casURL,
+		maxWitnessDelay: maxWitnessDelay,
 	}
 
 	go w.listenForWitnessedAnchorCredentials()
@@ -90,19 +110,24 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
 func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
-	// build anchor credential signed by orb server (org)
+	// build anchor credential
 	vc, err := c.buildCredential(anchor, refs, version)
 	if err != nil {
 		return err
 	}
 
-	// store anchor credential
-	err = c.Store.Put(vc)
-	if err != nil {
-		return fmt.Errorf("failed to store anchor credential: %w", err)
+	// sign credential using local witness log or server public key
+	if c.Witness != nil {
+		vc, err = c.signCredentialWithLocalWitnessLog(vc)
+	} else {
+		vc, err = c.signCredentialWithServerKey(vc)
 	}
 
-	logger.Debugf("stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("signed and stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
 
 	// figure out witness list for this anchor file
 	witnesses, err := c.getWitnesses(refs)
@@ -110,7 +135,7 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	// send an offer activity to witnesses (request witnessing anchor credential)
+	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(vc, witnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for vc[%s]: %w", vc.ID, err)
@@ -179,6 +204,59 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 	vc, err := c.AnchorBuilder.Build(payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build anchor credential: %w", err)
+	}
+
+	return vc, nil
+}
+
+func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifiable.Credential, error) {
+	signedVC, err := c.Signer.Sign(vc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign anchor credential[%s]: %w", vc.ID, err)
+	}
+
+	// store anchor credential
+	err = c.Store.Put(signedVC)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store anchor credential: %w", err)
+	}
+
+	return signedVC, nil
+}
+
+func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*verifiable.Credential, error) {
+	vcBytes, err := vc.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal anchor credential[%s] for local witness: %w", vc.ID, err)
+	}
+
+	// send anchor credential to local witness log
+	proof, err := c.Witness.Witness(vcBytes)
+	if err != nil {
+		return nil, fmt.Errorf("local witnessing failed for anchor credential[%s]: %w", vc.ID, err)
+	}
+
+	var witnessProof vct.Proof
+
+	err = json.Unmarshal(proof, &witnessProof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal local witness proof for anchor credential[%s]: %w", vc.ID, err)
+	}
+
+	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
+
+	// store anchor credential (required for monitoring)
+	err = c.Store.Put(vc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
+	}
+
+	startTime := time.Now()
+	endTime := startTime.Add(c.maxWitnessDelay)
+
+	err = c.MonitoringSvc.Watch(vc.ID, endTime, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup monitoring for local witness for anchor credential[%s]: %w", vc.ID, err)
 	}
 
 	return vc, nil
@@ -313,9 +391,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 	}
 
 	startTime := time.Now()
-
-	// TODO: configure
-	endTime := startTime.Add(time.Hour)
+	endTime := startTime.Add(c.maxWitnessDelay)
 
 	offer := vocab.NewOfferActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
@@ -392,12 +468,13 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 
 		_, ok = uniqueWitnesses[anchorOrigin]
 
-		// TODO: Clarify if orb server can witness itself
-		// Remove requesting domain from witness list
-		if !ok && anchorOrigin != c.apServiceIRI.String() {
-			witnesses = append(witnesses, anchorOrigin)
-			uniqueWitnesses[anchorOrigin] = true
+		// do not add local domain in case of local witness log (already witnessed)
+		if ok || (c.Witness != nil && anchorOrigin == c.apServiceIRI.String()) {
+			continue
 		}
+
+		witnesses = append(witnesses, anchorOrigin)
+		uniqueWitnesses[anchorOrigin] = true
 	}
 
 	return witnesses, nil

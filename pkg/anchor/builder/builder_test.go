@@ -7,14 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package builder
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
-	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -24,20 +21,20 @@ func TestSigner_New(t *testing.T) {
 			URL:    "url",
 		}
 
-		b, err := New(&mockSigner{}, builderParams)
+		b, err := New(builderParams)
 		require.NoError(t, err)
 		require.NotNil(t, b)
 	})
 
 	t.Run("error - missing issuer", func(t *testing.T) {
-		s, err := New(&mockSigner{}, Params{})
+		s, err := New(Params{})
 		require.Error(t, err)
 		require.Nil(t, s)
 		require.Contains(t, err.Error(), "failed to verify builder parameters: missing issuer")
 	})
 
 	t.Run("error - missing URL", func(t *testing.T) {
-		s, err := New(&mockSigner{}, Params{Issuer: "issuer"})
+		s, err := New(Params{Issuer: "issuer"})
 		require.Error(t, err)
 		require.Nil(t, s)
 		require.Contains(t, err.Error(), "failed to verify builder parameters: missing URL")
@@ -51,23 +48,12 @@ func TestBuilder_Build(t *testing.T) {
 	}
 
 	t.Run("success", func(t *testing.T) {
-		b, err := New(&mockSigner{}, builderParams)
+		b, err := New(builderParams)
 		require.NoError(t, err)
 
 		vc, err := b.Build(&subject.Payload{})
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
-	})
-
-	t.Run("error - error from signer", func(t *testing.T) {
-		b, err := New(&mockSigner{Err: errors.New("signer error")},
-			builderParams)
-		require.NoError(t, err)
-
-		vc, err := b.Build(&subject.Payload{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to sign credential: signer error")
-		require.Nil(t, vc)
 	})
 }
 
@@ -87,16 +73,4 @@ func TestSigner_verifyBuilderParams(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing issuer")
 	})
-}
-
-type mockSigner struct {
-	Err error
-}
-
-func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error) {
-	if m.Err != nil {
-		return nil, m.Err
-	}
-
-	return vc, nil
 }
