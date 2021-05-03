@@ -106,7 +106,7 @@ func SendResolveRequestWithRetry(url string, attempts uint8, retryableCode int, 
 			break
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 	}
 
 	return resp, nil
