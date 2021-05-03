@@ -1060,6 +1060,8 @@ github.com/trustbloc/vct v0.0.0-20210421142540-2e6dc314f272 h1:tYwLg1Md9ywqZeliR
 github.com/trustbloc/vct v0.0.0-20210421142540-2e6dc314f272/go.mod h1:iasw5VZKvIspaK2hjo1632lvfxh4UibCrKmuqpJH/TA=
 github.com/trustbloc/vct v0.0.0-20210429132259-eacaec814059 h1:mMnyW3aNuolkNTDMXcqCvGcTyICPcXPSCyJSjPEp/eM=
 github.com/trustbloc/vct v0.0.0-20210429132259-eacaec814059/go.mod h1:wU4hT9o3Vjf4cJlICwHCxkWYGgQsMDLI0+5qx3vzBdE=
+github.com/trustbloc/vct v0.0.0-20210430190325-66a3ac65585a h1:9mTqsQx6P0djpAQPL5zMmTv3hwmwGgSnSSKKc3ixOwM=
+github.com/trustbloc/vct v0.0.0-20210430190325-66a3ac65585a/go.mod h1:wU4hT9o3Vjf4cJlICwHCxkWYGgQsMDLI0+5qx3vzBdE=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

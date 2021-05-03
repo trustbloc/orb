@@ -304,7 +304,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.0-snapshot-eacaec8
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.0-snapshot-66a3ac6
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
