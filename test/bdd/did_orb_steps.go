@@ -394,7 +394,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 			return err
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		logger.Infof("retrying check success response - attempt %d", i)
 
 		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, did)

@@ -454,7 +454,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 }
 
 func (h *Outbox) newActivityID() *url.URL {
-	id, err := url.Parse(fmt.Sprintf("%s/%s", h.ServiceIRI, uuid.New()))
+	id, err := url.Parse(fmt.Sprintf("%s/activities/%s", h.ServiceIRI, uuid.New()))
 	if err != nil {
 		// Should never happen since we've already validated the URLs
 		panic(err)
