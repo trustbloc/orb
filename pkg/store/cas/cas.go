@@ -7,12 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package cas
 
 import (
+	"errors"
 	"fmt"
 
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 )
+
+// ErrContentNotFound is used to indicate that content as a given address could not be found.
+var ErrContentNotFound = errors.New("content not found")
 
 // CAS represents a content-addressable storage provider.
 type CAS struct {
@@ -57,6 +61,10 @@ func (p *CAS) Write(content []byte) (string, error) {
 func (p *CAS) Read(address string) ([]byte, error) {
 	content, err := p.cas.Get(address)
 	if err != nil {
+		if errors.Is(err, ariesstorage.ErrDataNotFound) {
+			return nil, ErrContentNotFound
+		}
+
 		return nil, fmt.Errorf("failed to get content from the underlying storage provider: %w", err)
 	}
 

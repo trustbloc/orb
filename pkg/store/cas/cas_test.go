@@ -12,6 +12,7 @@ import (
 
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
+	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -56,15 +57,29 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.Equal(t, "", address)
 	})
 	t.Run("Fail to get content bytes from underlying storage provider", func(t *testing.T) {
-		provider, err := cas.New(&ariesmockstorage.Provider{
-			OpenStoreReturn: &ariesmockstorage.Store{
-				ErrGet: errors.New("put error"),
-			},
-		})
-		require.NoError(t, err)
+		t.Run("Data not found", func(t *testing.T) {
+			provider, err := cas.New(&ariesmockstorage.Provider{
+				OpenStoreReturn: &ariesmockstorage.Store{
+					ErrGet: ariesstorage.ErrDataNotFound,
+				},
+			})
+			require.NoError(t, err)
 
-		content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
-		require.EqualError(t, err, "failed to get content from the underlying storage provider: put error")
-		require.Nil(t, content)
+			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
+			require.Equal(t, err, cas.ErrContentNotFound)
+			require.Nil(t, content)
+		})
+		t.Run("Other error", func(t *testing.T) {
+			provider, err := cas.New(&ariesmockstorage.Provider{
+				OpenStoreReturn: &ariesmockstorage.Store{
+					ErrGet: errors.New("get error"),
+				},
+			})
+			require.NoError(t, err)
+
+			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
+			require.EqualError(t, err, "failed to get content from the underlying storage provider: get error")
+			require.Nil(t, content)
+		})
 	})
 }

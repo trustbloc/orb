@@ -81,6 +81,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	"github.com/trustbloc/orb/pkg/webcas"
 )
 
 const (
@@ -532,7 +533,8 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewWitnessing(apServiceCfg, apStore, sigVerifier),
 		aphandler.NewLiked(apServiceCfg, apStore, sigVerifier),
 		aphandler.NewLikes(apTxnCfg, apStore, sigVerifier),
-		aphandler.NewShares(apTxnCfg, apStore, sigVerifier))
+		aphandler.NewShares(apTxnCfg, apStore, sigVerifier),
+		webcas.New(casClient))
 
 	handlers = append(handlers,
 		endpointDiscoveryOp.GetRESTHandlers()...)
