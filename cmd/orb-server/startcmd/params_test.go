@@ -233,6 +233,33 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid batch writer timeout format")
 	})
+
+	t.Run("test invalid max witness delay", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + maxWitnessDelayFlagName, "abc",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid max witness delay format")
+	})
+
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -363,6 +390,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + casURLFlagName, "localhost:8081",
 		"--" + batchWriterTimeoutFlagName, "700",
+		"--" + maxWitnessDelayFlagName, "600",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -395,6 +423,9 @@ func setEnvVars(t *testing.T, databaseType string) {
 	require.NoError(t, err)
 
 	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")
+	require.NoError(t, err)
+
+	err = os.Setenv(maxWitnessDelayEnvKey, "600")
 	require.NoError(t, err)
 
 	err = os.Setenv(didNamespaceEnvKey, "namespace")

@@ -17,7 +17,6 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/context/loader"
-	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
 const (
@@ -32,24 +31,18 @@ type Params struct {
 }
 
 // New returns new instance of anchor credential builder.
-func New(signer vcSigner, params Params) (*Builder, error) {
+func New(params Params) (*Builder, error) {
 	if err := verifyBuilderParams(params); err != nil {
 		return nil, fmt.Errorf("failed to verify builder parameters: %w", err)
 	}
 
 	return &Builder{
-		signer: signer,
 		params: params,
 	}, nil
 }
 
-type vcSigner interface {
-	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
-}
-
 // Builder implements building of anchor credential.
 type Builder struct {
-	signer vcSigner
 	params Params
 }
 
@@ -68,12 +61,7 @@ func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error
 		ID:     id,
 	}
 
-	signedVC, err := b.signer.Sign(vc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign credential: %w", err)
-	}
-
-	return signedVC, nil
+	return vc, nil
 }
 
 func verifyBuilderParams(params Params) error {

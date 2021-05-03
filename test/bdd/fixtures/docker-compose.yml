@@ -32,7 +32,8 @@ services:
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
+      # used in case that orb server signs anchor credential (there is no local witness log)
+      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
@@ -76,7 +77,8 @@ services:
       - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain1.com
+      # used in case that orb server signs anchor credential (there is no local witness log)
+      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
@@ -121,7 +123,8 @@ services:
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain2.com
+      # used in case that orb server signs anchor credential (there is no local witness log)
+      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain2
@@ -165,7 +168,8 @@ services:
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      - ANCHOR_CREDENTIAL_DOMAIN=domain3.com
+      # used in case that orb server signs anchor credential (there is no local witness log)
+      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain3.com
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain3

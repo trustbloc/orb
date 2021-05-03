@@ -162,6 +162,11 @@ const (
 	allowedOriginsFlagShorthand = "o"
 	allowedOriginsFlagUsage     = "Allowed origins for this did method. " + commonEnvVarUsageText + allowedOriginsEnvKey
 
+	maxWitnessDelayFlagName      = "max-witness-delay"
+	maxWitnessDelayEnvKey        = "MAX_WITNESS_DELAY"
+	maxWitnessDelayFlagShorthand = "w"
+	maxWitnessDelayFlagUsage     = "Maximum witness response time (in seconds). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
+
 	discoveryDomainsFlagName  = "discovery-domains"
 	discoveryDomainsEnvKey    = "DISCOVERY_DOMAINS"
 	discoveryDomainsFlagUsage = "Discovery domains. " + commonEnvVarUsageText + discoveryDomainsEnvKey
@@ -198,6 +203,7 @@ type orbParameters struct {
 	anchorCredentialParams    *anchorCredentialParams
 	discoveryDomains          []string
 	discoveryMinimumResolvers int
+	maxWitnessDelay           time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -274,6 +280,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
 	}
 
+	maxWitnessDelayStr, err := cmdutils.GetUserSetVarFromString(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	maxWitnessDelay := defaultMaxWitnessDelay
+	if maxWitnessDelayStr != "" {
+		delay, parseErr := strconv.ParseUint(maxWitnessDelayStr, 10, 32)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid max witness delay format: %s", parseErr.Error())
+		}
+
+		maxWitnessDelay = time.Duration(delay) * time.Second
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -340,6 +361,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		logLevel:                  loggingLevel,
 		discoveryDomains:          discoveryDomains,
 		discoveryMinimumResolvers: discoveryMinimumResolvers,
+		maxWitnessDelay:           maxWitnessDelay,
 	}, nil
 }
 
@@ -432,6 +454,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
+	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
