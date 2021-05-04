@@ -46,7 +46,7 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
     Then check success response contains "#canonicalId"
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with alias "did:alias.com"
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with alias "did:orb:alias.com"
     Then check success response contains "#canonicalId"
     Then check success response contains "#aliasdid"
 
