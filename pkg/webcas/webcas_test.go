@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webcas"
 )
 
-const sampleContent = `{
+const sampleAnchorCredential = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
@@ -44,7 +44,30 @@ const sampleContent = `{
     },
     "type": "Anchor"
   },
-  "proof": [{}]                  
+  "proof": [{
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:00Z",
+    "verificationMethod": "did:example:abcd#key",
+    "domain": "sally.example.com",
+    "jws": "eyJ..."
+  },
+  {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:05Z",
+    "verificationMethod": "did:example:abcd#key",
+    "domain": "https://witness1.example.com/ledgers/maple2021",
+    "jws": "eyJ..."
+  },
+  {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:06Z",
+    "verificationMethod": "did:example:efgh#key",
+    "domain": "https://witness2.example.com/ledgers/spruce2021",
+    "jws": "eyJ..."
+  }]                  
 }`
 
 func TestNew(t *testing.T) {
@@ -63,7 +86,7 @@ func TestHandler(t *testing.T) {
 		casClient, err := cas.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		cid, err := casClient.Write([]byte(sampleContent))
+		cid, err := casClient.Write([]byte(sampleAnchorCredential))
 		require.NoError(t, err)
 		require.NotEmpty(t, cid)
 
@@ -88,7 +111,7 @@ func TestHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, response.StatusCode)
-		require.Equal(t, sampleContent, string(responseBody))
+		require.Equal(t, sampleAnchorCredential, string(responseBody))
 	})
 	t.Run("Content not found", func(t *testing.T) {
 		casClient, err := cas.New(mem.NewProvider())

@@ -16,12 +16,12 @@
       "https://www.w3.org/ns/activitystreams",
       "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
-    "id": "https://orb.domain1.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
+    "id": "https://orb.domain1.com/transactions/QmbF6AKvzZ2fV7GubWq9v2P6qLMXyL6Y4ebZY8hrBng7QU",
     "type": "AnchorCredentialReference",
     "target": {
       "type": "ContentAddressedStorage",
-      "id": "https://orb.domain1.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-      "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+      "id": "https://orb.domain1.com/cas/QmbF6AKvzZ2fV7GubWq9v2P6qLMXyL6Y4ebZY8hrBng7QU",
+      "cid": "QmbF6AKvzZ2fV7GubWq9v2P6qLMXyL6Y4ebZY8hrBng7QU"
     }
   }
 }
