@@ -7,8 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package factory
 
 import (
+	"net/url"
+
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
@@ -64,8 +68,10 @@ func (v *Factory) Create(version string, casClient cas.Client, opStore ctxcommon
 
 	orbParser := orboperationparser.New(opParser)
 
+	var casResolver casResolver // TODO: Add implementation.
+
 	cp := compression.New(compression.WithDefaultAlgorithms())
-	op := txnprovider.NewOperationProvider(p, opParser, casClient, cp)
+	op := NewOperationProviderWrapper(p, opParser, casResolver, cp)
 	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser)
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
@@ -95,4 +101,60 @@ func (v *Factory) Create(version string, casClient cas.Client, opStore ctxcommon
 		DocValidator:   dv,
 		DocTransformer: dt,
 	}, nil
+}
+
+type decompressionProvider interface {
+	Decompress(alg string, data []byte) ([]byte, error)
+}
+
+type OperationProviderWrapper struct {
+	*txnprovider.OperationProvider
+
+	protocol.Protocol
+	parser      txnprovider.OperationParser
+	casResolver casResolver
+	dp          decompressionProvider
+}
+
+func NewOperationProviderWrapper(p protocol.Protocol, parser txnprovider.OperationParser, resolver casResolver,
+	dp decompressionProvider) *OperationProviderWrapper {
+	return &OperationProviderWrapper{
+		Protocol:    p,
+		parser:      parser,
+		casResolver: resolver,
+		dp:          dp,
+	}
+}
+
+func (h *OperationProviderWrapper) GetTxnOperations(txn *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) {
+	casURI, err := url.Parse(txn.Reference)
+	if err != nil {
+		return nil, err
+	}
+
+	casClient := newCASClientWrapper(h.casResolver, casURI)
+
+	op := txnprovider.NewOperationProvider(h.Protocol, h.parser, casClient, h.dp)
+
+	return op.GetTxnOperations(txn)
+}
+
+type casResolver interface {
+	Resolve(cid string, uri *url.URL) ([]byte, error)
+}
+
+type casClientWrapper struct {
+	resolver casResolver
+	casURI   *url.URL
+}
+
+func newCASClientWrapper(resolver casResolver, casURI *url.URL) *casClientWrapper {
+	return &casClientWrapper{
+		resolver: resolver,
+		casURI:   casURI,
+	}
+}
+
+func (c *casClientWrapper) Read(cid string) ([]byte, error) {
+	return c.resolver.Resolve(cid, c.casURI)
 }
