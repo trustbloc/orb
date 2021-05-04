@@ -61,6 +61,8 @@ services:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077
       - ORB_HOST_URL=0.0.0.0:443
+      # add delay for starting additional servers within same domain (in seconds)
+      - ORB_STARTUP_DELAY=5
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load

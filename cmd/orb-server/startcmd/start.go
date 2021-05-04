@@ -90,6 +90,8 @@ const (
 	chBuffer = 100
 
 	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
+
+	noStartupDelay = 0 * time.Second // no delay
 )
 
 var logger = log.New("orb-server")
@@ -233,6 +235,11 @@ func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) 
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		SetDefaultLogLevel(logger, parameters.logLevel)
+	}
+
+	if parameters.startupDelay != noStartupDelay {
+		logger.Infof("delaying server start-up for duration: %s", parameters.startupDelay)
+		time.Sleep(parameters.startupDelay)
 	}
 
 	storeProviders, err := createStoreProviders(parameters)

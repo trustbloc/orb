@@ -26,6 +26,11 @@ const (
 	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
 
+	startupDelayFlagName      = "startup-delay"
+	startupDelayEnvKey        = "ORB_STARTUP_DELAY"
+	startupDelayFlagShorthand = "j"
+	startupDelayFlagUsage     = "Orb server start-up delay (in seconds). " + commonEnvVarUsageText + startupDelayEnvKey
+
 	vctURLFlagName  = "vct-url"
 	vctURLFlagUsage = "Verifiable credential transparency URL."
 	vctURLEnvKey    = "ORB_VCT_URL"
@@ -204,6 +209,7 @@ type orbParameters struct {
 	discoveryDomains          []string
 	discoveryMinimumResolvers int
 	maxWitnessDelay           time.Duration
+	startupDelay              time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -295,6 +301,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		maxWitnessDelay = time.Duration(delay) * time.Second
 	}
 
+	startupDelayStr, err := cmdutils.GetUserSetVarFromString(cmd, startupDelayFlagName, startupDelayEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	startupDelay := noStartupDelay
+	if startupDelayStr != "" {
+		delay, parseErr := strconv.ParseUint(startupDelayStr, 10, 32)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid start-up delay format: %s", parseErr.Error())
+		}
+
+		startupDelay = time.Duration(delay) * time.Second
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -362,6 +383,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		discoveryDomains:          discoveryDomains,
 		discoveryMinimumResolvers: discoveryMinimumResolvers,
 		maxWitnessDelay:           maxWitnessDelay,
+		startupDelay:              startupDelay,
 	}, nil
 }
 
@@ -445,6 +467,7 @@ func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error)
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+	startCmd.Flags().StringP(startupDelayFlagName, startupDelayFlagShorthand, "", startupDelayFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
