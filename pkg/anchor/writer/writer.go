@@ -31,12 +31,13 @@ var logger = log.New("anchor-writer")
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
-	namespace       string
-	vcCh            <-chan *verifiable.Credential
-	anchorCh        chan []string
-	apServiceIRI    *url.URL
-	casIRI          *url.URL
-	maxWitnessDelay time.Duration
+	namespace            string
+	vcCh                 <-chan *verifiable.Credential
+	anchorCh             chan []string
+	apServiceIRI         *url.URL
+	casIRI               *url.URL
+	maxWitnessDelay      time.Duration
+	signWithLocalWitness bool
 }
 
 // Providers contains all of the providers required by the client.
@@ -92,15 +93,17 @@ type vcStore interface {
 
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorCh chan []string, vcCh chan *verifiable.Credential, maxWitnessDelay time.Duration) *Writer {
+	anchorCh chan []string, vcCh chan *verifiable.Credential,
+	maxWitnessDelay time.Duration, signWithLocalWitness bool) *Writer {
 	w := &Writer{
-		Providers:       providers,
-		anchorCh:        anchorCh,
-		vcCh:            vcCh,
-		namespace:       namespace,
-		apServiceIRI:    apServiceIRI,
-		casIRI:          casURL,
-		maxWitnessDelay: maxWitnessDelay,
+		Providers:            providers,
+		anchorCh:             anchorCh,
+		vcCh:                 vcCh,
+		namespace:            namespace,
+		apServiceIRI:         apServiceIRI,
+		casIRI:               casURL,
+		maxWitnessDelay:      maxWitnessDelay,
+		signWithLocalWitness: signWithLocalWitness,
 	}
 
 	go w.listenForWitnessedAnchorCredentials()
@@ -116,24 +119,19 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return err
 	}
 
-	// sign credential using local witness log or server public key
-	if c.Witness != nil {
-		vc, err = c.signCredentialWithLocalWitnessLog(vc)
-	} else {
-		vc, err = c.signCredentialWithServerKey(vc)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	logger.Debugf("signed and stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
-
 	// figure out witness list for this anchor file
 	witnesses, err := c.getWitnesses(refs)
 	if err != nil {
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
+
+	// sign credential using local witness log or server public key
+	vc, err = c.signCredential(vc, witnesses)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("signed and stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(vc, witnesses)
@@ -207,6 +205,24 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 	}
 
 	return vc, nil
+}
+
+func (c *Writer) signCredential(vc *verifiable.Credential, witnesses []string) (*verifiable.Credential, error) {
+	if c.Witness != nil && (contains(witnesses, c.apServiceIRI.String()) || c.signWithLocalWitness) {
+		return c.signCredentialWithLocalWitnessLog(vc)
+	}
+
+	return c.signCredentialWithServerKey(vc)
+}
+
+func contains(strings []string, s string) bool {
+	for _, v := range strings {
+		if s == v {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifiable.Credential, error) {
@@ -414,6 +430,11 @@ func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 	var allWitnesses []*url.URL
 
 	for _, w := range witnesses {
+		// do not add local domain as external witness
+		if w == c.apServiceIRI.String() {
+			continue
+		}
+
 		witnessIRI, err := url.Parse(w)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", w, err)
@@ -468,13 +489,10 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 
 		_, ok = uniqueWitnesses[anchorOrigin]
 
-		// do not add local domain in case of local witness log (already witnessed)
-		if ok || (c.Witness != nil && anchorOrigin == c.apServiceIRI.String()) {
-			continue
+		if !ok {
+			witnesses = append(witnesses, anchorOrigin)
+			uniqueWitnesses[anchorOrigin] = true
 		}
-
-		witnesses = append(witnesses, anchorOrigin)
-		uniqueWitnesses[anchorOrigin] = true
 	}
 
 	return witnesses, nil

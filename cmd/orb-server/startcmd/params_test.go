@@ -260,6 +260,33 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid max witness delay format")
 	})
 
+	t.Run("test invalid sign with local witness flag", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + maxWitnessDelayFlagName, "5",
+			"--" + signWithLocalWitnessFlagName, "abc",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid sign with local witness flag value")
+	})
+
 	t.Run("test invalid startup delay format", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -416,6 +443,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + casURLFlagName, "localhost:8081",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
+		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + startupDelayFlagName, "1",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
@@ -452,6 +480,9 @@ func setEnvVars(t *testing.T, databaseType string) {
 	require.NoError(t, err)
 
 	err = os.Setenv(maxWitnessDelayEnvKey, "600")
+	require.NoError(t, err)
+
+	err = os.Setenv(signWithLocalWitnessEnvKey, "true")
 	require.NoError(t, err)
 
 	err = os.Setenv(startupDelayEnvKey, "1")

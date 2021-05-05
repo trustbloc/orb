@@ -172,6 +172,11 @@ const (
 	maxWitnessDelayFlagShorthand = "w"
 	maxWitnessDelayFlagUsage     = "Maximum witness response time (in seconds). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
 
+	signWithLocalWitnessFlagName      = "sign-with-local-witness"
+	signWithLocalWitnessEnvKey        = "SIGN_WITH_LOCAL_WITNESS"
+	signWithLocalWitnessFlagShorthand = "f"
+	signWithLocalWitnessFlagUsage     = "Always sign with local witness flag (default true). " + commonEnvVarUsageText + signWithLocalWitnessEnvKey
+
 	discoveryDomainsFlagName  = "discovery-domains"
 	discoveryDomainsEnvKey    = "DISCOVERY_DOMAINS"
 	discoveryDomainsFlagUsage = "Discovery domains. " + commonEnvVarUsageText + discoveryDomainsEnvKey
@@ -210,6 +215,7 @@ type orbParameters struct {
 	discoveryMinimumResolvers int
 	maxWitnessDelay           time.Duration
 	startupDelay              time.Duration
+	signWithLocalWitness      bool
 }
 
 type anchorCredentialParams struct {
@@ -301,6 +307,20 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		maxWitnessDelay = time.Duration(delay) * time.Second
 	}
 
+	signWithLocalWitnessStr, err := cmdutils.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// default behaviour is to always sign with local witness
+	signWithLocalWitness := true
+	if signWithLocalWitnessStr != "" {
+		signWithLocalWitness, err = strconv.ParseBool(signWithLocalWitnessStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid sign with local witness flag value: %s", err.Error())
+		}
+	}
+
 	startupDelayStr, err := cmdutils.GetUserSetVarFromString(cmd, startupDelayFlagName, startupDelayEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -384,6 +404,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		discoveryMinimumResolvers: discoveryMinimumResolvers,
 		maxWitnessDelay:           maxWitnessDelay,
 		startupDelay:              startupDelay,
+		signWithLocalWitness:      signWithLocalWitness,
 	}, nil
 }
 
@@ -478,6 +499,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
+	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

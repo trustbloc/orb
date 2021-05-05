@@ -456,7 +456,8 @@ func startOrbServices(parameters *orbParameters) error {
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
 		anchorCh, vcCh,
-		parameters.maxWitnessDelay)
+		parameters.maxWitnessDelay,
+		parameters.signWithLocalWitness)
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,
