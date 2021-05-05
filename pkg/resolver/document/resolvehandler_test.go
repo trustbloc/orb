@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package resolver
+package document
 
 //nolint:lll
 //go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Resolver github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler.Resolver
@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
-	"github.com/trustbloc/orb/pkg/resolver/mocks"
+	"github.com/trustbloc/orb/pkg/resolver/document/mocks"
 )
 
 const (

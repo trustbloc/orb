@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/trustbloc/orb/pkg/resolver/document"
+
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
@@ -76,7 +78,6 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
-	"github.com/trustbloc/orb/pkg/resolver"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -433,7 +434,7 @@ func startOrbServices(parameters *orbParameters) error {
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		apspi.WithWitness(witness),
 		// apspi.WithFollowerAuth(followerAuth),
-		apspi.WithAnchorCredentialHandler(credential.New(anchorCh)),
+		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casClient, httpClient)),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
@@ -507,7 +508,7 @@ func startOrbServices(parameters *orbParameters) error {
 		vocab.WithPublicKeyPem(string(pemBytes)),
 	)
 
-	orbResolver := resolver.NewResolveHandler(
+	orbResolver := document.NewResolveHandler(
 		parameters.didNamespace,
 		parameters.didAliases,
 		didDocHandler,
