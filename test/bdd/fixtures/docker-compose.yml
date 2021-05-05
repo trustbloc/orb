@@ -38,7 +38,7 @@ services:
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
       - DISCOVERY_DOMAINS=https://orb.domain2.com
-      - HTTP_SIGNATURES_ENABLED=false
+      - ENABLE_HTTP_SIGNATURES=true
     ports:
       - 48326:443
     command: start
@@ -86,7 +86,7 @@ services:
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
       - DISCOVERY_DOMAINS=https://orb.domain2.com
-      - HTTP_SIGNATURES_ENABLED=false
+      - ENABLE_HTTP_SIGNATURES=true
     ports:
       - 48526:443
     command: start
@@ -133,7 +133,7 @@ services:
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain2
       - DISCOVERY_DOMAINS=https://orb.domain1.com
-      - HTTP_SIGNATURES_ENABLED=false
+      - ENABLE_HTTP_SIGNATURES=true
     ports:
       - 48426:443
     command: start
@@ -179,7 +179,7 @@ services:
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain3
       - DISCOVERY_DOMAINS=https://orb.domain1.com
-      - HTTP_SIGNATURES_ENABLED=false
+      - ENABLE_HTTP_SIGNATURES=true
     ports:
       - 48626:443
     command: start

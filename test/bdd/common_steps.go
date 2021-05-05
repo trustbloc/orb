@@ -11,19 +11,45 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
+	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/tidwall/gjson"
 )
+
+const (
+	databaseTypeCouchDBOption = "couchdb"
+	databaseTypeMYSQLDBOption = "mysql"
+
+	configStoreID = "orb-config"
+
+	webKeyStoreKey = "web-key-store"
+	kidKey         = "kid"
+
+	databaseTypeEnvVar = "DATABASE_TYPE"
+	databaseURLEnvVar  = "DATABASE_URL"
+	kmsEndpointEnvVar  = "ORB_KMS_ENDPOINT"
+)
+
+var domains = map[string]string{
+	"domain1": "https://orb.domain1.com/services/orb/keys/main-key",
+	"domain2": "https://orb.domain2.com/services/orb/keys/main-key",
+	"domain3": "https://orb.domain3.com/services/orb/keys/main-key",
+}
 
 // CommonSteps contain BDDContext
 type CommonSteps struct {
 	BDDContext *BDDContext
 	state      *state
+	httpClient *httpClient
 }
 
 // NewCommonSteps create new CommonSteps struct
@@ -31,6 +57,7 @@ func NewCommonSteps(context *BDDContext, state *state) *CommonSteps {
 	return &CommonSteps{
 		BDDContext: context,
 		state:      state,
+		httpClient: newHTTPClient(state, context),
 	}
 }
 
@@ -323,10 +350,10 @@ func (d *CommonSteps) httpGet(url string) error {
 	return nil
 }
 
-func (d *CommonSteps) httpGetWithSignature(url, privKeyFile, pubKeyID string) error {
+func (d *CommonSteps) httpGetWithSignature(url, pubKeyID string) error {
 	d.state.clearResponse()
 
-	payload, code, _, err := d.doHTTPGetWithSignature(url, privKeyFile, pubKeyID)
+	payload, code, _, err := d.doHTTPGetWithSignature(url, pubKeyID)
 	if err != nil {
 		return err
 	}
@@ -340,8 +367,8 @@ func (d *CommonSteps) httpGetWithSignature(url, privKeyFile, pubKeyID string) er
 	return nil
 }
 
-func (d *CommonSteps) httpGetWithSignatureAndExpectedCode(url, privKeyFile, pubKeyID string, expectingCode int) error {
-	_, code, _, err := d.doHTTPGetWithSignature(url, privKeyFile, pubKeyID)
+func (d *CommonSteps) httpGetWithSignatureAndExpectedCode(url, pubKeyID string, expectingCode int) error {
+	_, code, _, err := d.doHTTPGetWithSignature(url, pubKeyID)
 	if err != nil {
 		return err
 	}
@@ -383,8 +410,8 @@ func (d *CommonSteps) httpPostFileWithExpectedCode(url, path string, expectingCo
 	return nil
 }
 
-func (d *CommonSteps) httpPostFileWithSignature(url, path, privKeyFile, pubKeyID string) error {
-	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID)
+func (d *CommonSteps) httpPostFileWithSignature(url, path, pubKeyID string) error {
+	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, pubKeyID)
 	if err != nil {
 		return err
 	}
@@ -396,8 +423,8 @@ func (d *CommonSteps) httpPostFileWithSignature(url, path, privKeyFile, pubKeyID
 	return nil
 }
 
-func (d *CommonSteps) httpPostFileWithSignatureAndExpectedCode(url, path, privKeyFile, pubKeyID string, expectingCode int) error {
-	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID)
+func (d *CommonSteps) httpPostFileWithSignatureAndExpectedCode(url, path, pubKeyID string, expectingCode int) error {
+	_, code, _, err := d.doHTTPPostFileWithSignature(url, path, pubKeyID)
 	if err != nil {
 		return err
 	}
@@ -435,15 +462,15 @@ func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	return nil
 }
 
-func (d *CommonSteps) httpPostWithSignature(url, data, contentType, privKeyFile, pubKeyID string) error {
+func (d *CommonSteps) httpPostWithSignature(url, data, contentType, domain string) error {
 	d.state.clearResponse()
 
-	err := d.state.resolveVarsInExpression(&data, &privKeyFile, &pubKeyID)
+	err := d.state.resolveVarsInExpression(&data, &domain)
 	if err != nil {
 		return err
 	}
 
-	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, privKeyFile, pubKeyID)
+	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, domain)
 	if err != nil {
 		return err
 	}
@@ -483,7 +510,7 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, ex
 	return nil
 }
 
-func (d *CommonSteps) httpPostWithSignatureAndExpectedCode(url, data, contentType, privKeyFile, pubKeyID string, expectingCode int) error {
+func (d *CommonSteps) httpPostWithSignatureAndExpectedCode(url, data, contentType, domain string, expectingCode int) error {
 	d.state.clearResponse()
 
 	resolved, err := d.state.resolveVars(data)
@@ -493,7 +520,7 @@ func (d *CommonSteps) httpPostWithSignatureAndExpectedCode(url, data, contentTyp
 
 	data = resolved.(string)
 
-	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, privKeyFile, pubKeyID)
+	payload, code, _, err := d.doHTTPPostWithSignature(url, []byte(data), contentType, domain)
 	if err != nil {
 		return err
 	}
@@ -510,14 +537,12 @@ func (d *CommonSteps) httpPostWithSignatureAndExpectedCode(url, data, contentTyp
 }
 
 func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, http.Header, error) {
-	client := newHTTPClient(d.state)
-
 	resolved, err := d.state.resolveVars(url)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := client.Get(resolved.(string))
+	payload, statusCode, header, err := d.httpClient.Get(resolved.(string))
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -527,15 +552,13 @@ func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, http.Header, error) {
 	return payload, statusCode, header, nil
 }
 
-func (d *CommonSteps) doHTTPGetWithSignature(url, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
-	client := newHTTPClient(d.state)
-
-	err := d.state.resolveVarsInExpression(&url, &privKeyFile, &pubKeyID)
+func (d *CommonSteps) doHTTPGetWithSignature(url, domain string) ([]byte, int, http.Header, error) {
+	err := d.state.resolveVarsInExpression(&url, &domain)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := client.GetWithSignature(url, privKeyFile, pubKeyID)
+	payload, statusCode, header, err := d.httpClient.GetWithSignature(url, domain)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -546,14 +569,12 @@ func (d *CommonSteps) doHTTPGetWithSignature(url, privKeyFile, pubKeyID string) 
 }
 
 func (d *CommonSteps) doHTTPPost(url string, content []byte, contentType string) ([]byte, int, http.Header, error) {
-	client := newHTTPClient(d.state)
-
 	resolved, err := d.state.resolveVars(url)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := client.Post(resolved.(string), content, contentType)
+	payload, statusCode, header, err := d.httpClient.Post(resolved.(string), content, contentType)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -563,15 +584,13 @@ func (d *CommonSteps) doHTTPPost(url string, content []byte, contentType string)
 	return payload, statusCode, header, nil
 }
 
-func (d *CommonSteps) doHTTPPostWithSignature(url string, content []byte, contentType, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
-	client := newHTTPClient(d.state)
-
-	err := d.state.resolveVarsInExpression(&url, &privKeyFile, &pubKeyID)
+func (d *CommonSteps) doHTTPPostWithSignature(url string, content []byte, contentType, domain string) ([]byte, int, http.Header, error) {
+	err := d.state.resolveVarsInExpression(&url, &domain)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := client.PostWithSignature(url, content, contentType, privKeyFile, pubKeyID)
+	payload, statusCode, header, err := d.httpClient.PostWithSignature(url, content, contentType, domain)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -582,10 +601,10 @@ func (d *CommonSteps) doHTTPPostWithSignature(url string, content []byte, conten
 }
 
 func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, http.Header, error) {
-	return d.doHTTPPostFileWithSignature(url, path, "", "")
+	return d.doHTTPPostFileWithSignature(url, path, "")
 }
 
-func (d *CommonSteps) doHTTPPostFileWithSignature(url, path, privKeyFile, pubKeyID string) ([]byte, int, http.Header, error) {
+func (d *CommonSteps) doHTTPPostFileWithSignature(url, path, domain string) ([]byte, int, http.Header, error) {
 	d.state.clearResponse()
 
 	logger.Infof("Uploading file [%s] to [%s]", path, url)
@@ -600,7 +619,7 @@ func (d *CommonSteps) doHTTPPostFileWithSignature(url, path, privKeyFile, pubKey
 		return nil, 0, nil, err
 	}
 
-	payload, statusCode, header, err := d.doHTTPPostWithSignature(url, contents, contentType, privKeyFile, pubKeyID)
+	payload, statusCode, header, err := d.doHTTPPostWithSignature(url, contents, contentType, domain)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -654,6 +673,88 @@ func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
 	return nil
 }
 
+func getSignerConfig(domain, pubKeyID string) (*signerConfig, error) {
+	storeProvider, err := newStoreProvider(domain)
+	if err != nil {
+		return nil, fmt.Errorf("new store provider: %w", err)
+	}
+
+	cfgStore, err := storeProvider.OpenStore(configStoreID)
+	if err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
+
+	keyID, err := getConfig(cfgStore, kidKey)
+	if err != nil {
+		return nil, fmt.Errorf("get config value for %q: %w", kidKey, err)
+	}
+
+	kmsURL, err := getConfig(cfgStore, webKeyStoreKey)
+	if err != nil {
+		return nil, fmt.Errorf("get config value for %q: %w", webKeyStoreKey, err)
+	}
+
+	u, err := url.Parse(kmsURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse KMS URL: %w", err)
+	}
+
+	kmsEndpoint := os.Getenv(kmsEndpointEnvVar)
+	if kmsEndpoint == "" {
+		return nil, fmt.Errorf("env var not set: %s", kmsEndpointEnvVar)
+	}
+
+	kmsURL = fmt.Sprintf("%s%s", kmsEndpoint, u.Path)
+
+	logger.Infof("[%s] Using KMS URL: %s", domain, kmsURL)
+
+	return &signerConfig{
+		kmsStoreURL: kmsURL,
+		kmsKeyID:    keyID,
+		publicKeyID: pubKeyID,
+	}, nil
+}
+
+func getConfig(store storage.Store, key string) (string, error) {
+	src, err := store.Get(key)
+	if err != nil {
+		return "", fmt.Errorf("get config value for %q: %w", kidKey, err)
+	}
+
+	var value string
+
+	err = json.Unmarshal(src, &value)
+	if err != nil {
+		return "", fmt.Errorf("unmarshal KMS URL: %w", err)
+	}
+
+	return value, nil
+}
+
+func newStoreProvider(domain string) (storage.Provider, error) {
+	databaseType := os.Getenv(databaseTypeEnvVar)
+	databaseURL := os.Getenv(databaseURLEnvVar)
+
+	if databaseType == "" {
+		return nil, fmt.Errorf("env var not set: %s", databaseTypeEnvVar)
+	}
+
+	if databaseURL == "" {
+		return nil, fmt.Errorf("env var not set: %s", databaseURLEnvVar)
+	}
+
+	switch databaseType {
+	case databaseTypeCouchDBOption:
+		return ariescouchdbstorage.NewProvider(databaseURL, ariescouchdbstorage.WithDBPrefix(domain))
+
+	case databaseTypeMYSQLDBOption:
+		return ariesmysqlstorage.NewProvider(databaseURL, ariesmysqlstorage.WithDBPrefix(domain))
+
+	default:
+		return nil, fmt.Errorf("unsupported database type [%s]", databaseType)
+	}
+}
+
 // RegisterSteps register steps
 func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
@@ -681,16 +782,16 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
-	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpGetWithSignature)
-	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithSignatureAndExpectedCode)
+	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with KMS key from "([^"]*)"$`, d.httpGetWithSignature)
+	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with KMS key from "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithSignatureAndExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPostFile)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithExpectedCode)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpPostWithSignature)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)"$`, d.httpPostFileWithSignature)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithSignatureAndExpectedCode)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with private key from file "([^"]*)" using key ID "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithSignatureAndExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with KMS key from "([^"]*)"$`, d.httpPostWithSignature)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with KMS key from "([^"]*)"$`, d.httpPostFileWithSignature)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" signed with KMS key from "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithSignatureAndExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with KMS key from "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithSignatureAndExpectedCode)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
 }
