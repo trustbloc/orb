@@ -482,7 +482,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		err := h.HandleActivity(follow)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "this service is not the target object for the 'Undo'")
+		require.Contains(t, err.Error(), "this service is not the target object for the 'Follow'")
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {
@@ -655,7 +655,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 
 		err := h.HandleActivity(inviteWitness)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "this service is not the target object for the 'Undo'")
+		require.Contains(t, err.Error(), "this service is not the target object for the 'InviteWitness'")
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {

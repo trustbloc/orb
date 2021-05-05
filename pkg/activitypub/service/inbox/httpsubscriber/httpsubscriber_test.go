@@ -45,7 +45,7 @@ func TestNew(t *testing.T) {
 
 func TestSubscriber_HandleAck(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
-	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
@@ -74,7 +74,7 @@ func TestSubscriber_HandleAck(t *testing.T) {
 
 func TestSubscriber_HandleNack(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
-	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
@@ -103,7 +103,7 @@ func TestSubscriber_HandleNack(t *testing.T) {
 
 func TestSubscriber_HandleRequestTimeout(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
-	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
@@ -134,7 +134,7 @@ func TestSubscriber_HandleRequestTimeout(t *testing.T) {
 
 func TestSubscriber_UnmarshalError(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
-	sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
@@ -161,7 +161,7 @@ func TestSubscriber_UnmarshalError(t *testing.T) {
 func TestSubscriber_Close(t *testing.T) {
 	t.Run("Publish when stopped", func(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
-		sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+		sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 		require.NotNil(t, s)
@@ -192,7 +192,7 @@ func TestSubscriber_Close(t *testing.T) {
 
 	t.Run("Respond when stopped", func(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
-		sigVerifier.VerifyRequestReturns(testutil.MustParseURL(serviceURL), nil)
+		sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
 		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 		require.NotNil(t, s)
@@ -216,11 +216,9 @@ func TestSubscriber_Close(t *testing.T) {
 	})
 }
 
-func TestSubscriber_HTTPSignatureError(t *testing.T) {
-	errExpected := fmt.Errorf("injected verifier error")
-
+func TestSubscriber_InvalidHTTPSignature(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
-	sigVerifier.VerifyRequestReturns(nil, errExpected)
+	sigVerifier.VerifyRequestReturns(false, nil, nil)
 
 	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
 	require.NotNil(t, s)
@@ -244,5 +242,36 @@ func TestSubscriber_HTTPSignatureError(t *testing.T) {
 
 	result := rw.Result()
 	require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+	require.NoError(t, result.Body.Close())
+}
+
+func TestSubscriber_HTTPSignatureError(t *testing.T) {
+	errExpected := fmt.Errorf("injected verifier error")
+
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(false, nil, errExpected)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	require.NotNil(t, s)
+
+	defer s.Stop()
+
+	msgChan, err := s.Subscribe(context.Background(), "")
+	require.NoError(t, err)
+	require.NotNil(t, msgChan)
+
+	go func() {
+		for msg := range msgChan {
+			msg.Ack()
+		}
+	}()
+
+	rw := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+
+	s.handleMessage(rw, req)
+
+	result := rw.Result()
+	require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 	require.NoError(t, result.Body.Close())
 }

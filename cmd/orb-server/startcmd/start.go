@@ -7,8 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"context"
+	"crypto/ed25519"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,6 +47,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/orb/pkg/activitypub/client"
+	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -93,6 +99,8 @@ const (
 	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
 
 	noStartupDelay = 0 * time.Second // no delay
+
+	defaulthttpSignaturesEnabled = true
 )
 
 var logger = log.New("orb-server")
@@ -373,9 +381,10 @@ func startOrbServices(parameters *orbParameters) error {
 	apTransactionsIRI := mustParseURL(parameters.externalEndpoint, activityPubTransactionsPath)
 
 	apConfig := &apservice.Config{
-		ServiceEndpoint: activityPubServicesPath,
-		ServiceIRI:      apServiceIRI,
-		MaxWitnessDelay: parameters.maxWitnessDelay,
+		ServiceEndpoint:        activityPubServicesPath,
+		ServiceIRI:             apServiceIRI,
+		MaxWitnessDelay:        parameters.maxWitnessDelay,
+		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 	}
 
 	var apStore activitypubspi.Store
@@ -396,17 +405,21 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore = apmemstore.New(apConfig.ServiceEndpoint)
 	}
 
-	// TODO: Replace with public key from KMS.
-	pemBytes := []byte(publicKeyPem)
+	pubKey, err := km.ExportPubKeyBytes(parameters.keyID)
+	if err != nil {
+		return fmt.Errorf("failed to export pub key: %w", err)
+	}
 
-	// FIXME: Use dummy signer for now until https://github.com/trustbloc/orb/issues/233 is implemented.
-	t := transport.New(httpClient, nil, apServicePublicKeyIRI,
-		&transport.NoOpSigner{},
-		&transport.NoOpSigner{},
-	)
+	publicKey, err := getActivityPubPublicKey(pubKey, apServiceIRI, apServicePublicKeyIRI)
+	if err != nil {
+		return fmt.Errorf("get public key: %w", err)
+	}
 
-	// FIXME: Use dummy verifier for now until https://github.com/trustbloc/orb/issues/233 is implemented.
-	sigVerifier := &noOpVerifier{}
+	apGetSigner, apPostSigner := getActivityPubSigners(parameters, km, cr)
+
+	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
+
+	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
 
 	monitoringSvc, err := monitoring.New(storeProviders.provider, vcStore, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
@@ -428,13 +441,13 @@ func startOrbServices(parameters *orbParameters) error {
 		vct.WithDocumentLoader(orbDocumentLoader))
 
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, sigVerifier,
-		// TODO: Define all of the ActivityPub handlers
+		apStore, t, apSigVerifier,
 		apspi.WithProofHandler(proofHander),
-		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		apspi.WithWitness(witness),
-		// apspi.WithFollowerAuth(followerAuth),
 		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casClient, httpClient)),
+		// TODO: Define the following ActivityPub handlers.
+		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
+		// apspi.WithFollowerAuth(followerAuth),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
@@ -490,10 +503,11 @@ func startOrbServices(parameters *orbParameters) error {
 		opProcessor,
 	)
 
-	apServiceCfg := &aphandler.Config{
-		BasePath:  activityPubServicesPath,
-		ObjectIRI: apServiceIRI,
-		PageSize:  100, // TODO: Make configurable
+	apEndpointCfg := &aphandler.Config{
+		BasePath:               activityPubServicesPath,
+		ObjectIRI:              apServiceIRI,
+		VerifyActorInSignature: parameters.httpSignaturesEnabled,
+		PageSize:               100, // TODO: Make configurable
 	}
 
 	apTxnCfg := &aphandler.Config{
@@ -502,23 +516,12 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:  100, // TODO: Make configurable
 	}
 
-	publicKey := vocab.NewPublicKey(
-		vocab.WithID(apServicePublicKeyIRI),
-		vocab.WithOwner(apServiceIRI),
-		vocab.WithPublicKeyPem(string(pemBytes)),
-	)
-
 	orbResolver := document.NewResolveHandler(
 		parameters.didNamespace,
 		parameters.didAliases,
 		didDocHandler,
 		localdiscovery.New(didCh),
 	)
-
-	pubKey, err := km.ExportPubKeyBytes(parameters.keyID)
-	if err != nil {
-		return fmt.Errorf("failed to export pub key: %w", err)
-	}
 
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{
@@ -540,18 +543,18 @@ func startOrbServices(parameters *orbParameters) error {
 	handlers = append(handlers, diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
 		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apServiceCfg, apStore, publicKey),
-		aphandler.NewPublicKeys(apServiceCfg, apStore, publicKey),
-		aphandler.NewFollowers(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewFollowing(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewOutbox(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewInbox(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewWitnesses(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewWitnessing(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewLiked(apServiceCfg, apStore, sigVerifier),
-		aphandler.NewLikes(apTxnCfg, apStore, sigVerifier),
-		aphandler.NewShares(apTxnCfg, apStore, sigVerifier),
-		aphandler.NewPostOutbox(apServiceCfg, activityPubService.Outbox(), sigVerifier),
+		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
+		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),
+		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewFollowing(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewOutbox(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewInbox(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewLikes(apTxnCfg, apStore, apSigVerifier),
+		aphandler.NewShares(apTxnCfg, apStore, apSigVerifier),
+		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apSigVerifier),
 		webcas.New(casClient),
 	)
 
@@ -767,13 +770,63 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 	return u
 }
 
+func getActivityPubPublicKey(pubKey []byte, apServiceIRI, apServicePublicKeyIRI *url.URL) (*vocab.PublicKeyType, error) {
+	pubDerKey, err := x509.MarshalPKIXPublicKey(ed25519.PublicKey(pubKey))
+	if err != nil {
+		return nil, fmt.Errorf("marshal pub key: %w", err)
+	}
+
+	pemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubDerKey,
+	})
+
+	return vocab.NewPublicKey(
+		vocab.WithID(apServicePublicKeyIRI),
+		vocab.WithOwner(apServiceIRI),
+		vocab.WithPublicKeyPem(string(pemBytes)),
+	), nil
+}
+
+type signer interface {
+	SignRequest(pubKeyID string, req *http.Request) error
+}
+
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
+}
+
+func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
+	cr acrypto.Crypto) (getSigner signer, postSigner signer) {
+	if parameters.httpSignaturesEnabled {
+		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.keyID)
+		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.keyID)
+	} else {
+		getSigner = &transport.NoOpSigner{}
+		postSigner = &transport.NoOpSigner{}
+	}
+
+	return
+}
+
+type httpTransport interface {
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
+}
+
+func getActivityPubVerifier(parameters *orbParameters, km kms.KeyManager,
+	cr acrypto.Crypto, t httpTransport) signatureVerifier {
+	if parameters.httpSignaturesEnabled {
+		return httpsig.NewVerifier(client.New(t), cr, km)
+	}
+
+	logger.Warnf("HTTP signature verification for ActivityPub is disabled.")
+
+	return &noOpVerifier{}
+}
+
 type noOpVerifier struct {
 }
 
-func (v *noOpVerifier) VerifyRequest(_ *http.Request) (*url.URL, error) {
-	return nil, nil
+func (v *noOpVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
+	return true, nil, nil
 }
-
-const publicKeyPem = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA3FKE2r94LiR0GfqTTT9wttMyUfEQk/7yMtG2JIqzZyI=
------END PUBLIC KEY-----`

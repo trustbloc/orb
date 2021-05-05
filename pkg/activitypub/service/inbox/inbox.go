@@ -37,7 +37,7 @@ type pubSub interface {
 }
 
 type signatureVerifier interface {
-	VerifyRequest(req *http.Request) (*url.URL, error)
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
 // Config holds configuration parameters for the Inbox.
@@ -226,14 +226,14 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 		return nil, fmt.Errorf("unmarshal activity: %w", err)
 	}
 
+	if activity.Actor() == nil {
+		return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
+	}
+
 	if h.VerifyActorInSignature {
 		actorIRI := msg.Metadata[httpsubscriber.ActorIRIKey]
 		if actorIRI == "" {
 			return nil, fmt.Errorf("no actorIRI specified in message context")
-		}
-
-		if activity.Actor() == nil {
-			return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
 		}
 
 		if activity.Actor().String() != actorIRI {

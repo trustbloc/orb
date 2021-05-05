@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -137,8 +138,11 @@ func TestFollowers_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
 	t.Run("Success", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -164,7 +168,7 @@ func TestFollowers_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewFollowers(cfg, s, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, s, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -178,7 +182,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -198,7 +202,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -218,7 +222,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -234,6 +238,42 @@ func TestFollowers_Handler(t *testing.T) {
 
 		result := rw.Result()
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Verify signature error", func(t *testing.T) {
+		errExpected := errors.New("injected verifier error")
+
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, errExpected)
+
+		h := NewFollowers(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Invalid signature", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, nil)
+
+		h := NewFollowers(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 }
@@ -254,7 +294,10 @@ func TestFollowers_PageHandler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+	h := NewFollowers(cfg, activityStore, verifier)
 	require.NotNil(t, h)
 
 	t.Run("First page -> Success", func(t *testing.T) {
@@ -292,7 +335,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, s, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, s, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -314,7 +357,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewFollowers(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -354,7 +397,10 @@ func TestWitnesses_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnesses(cfg, activityStore, &mocks.SignatureVerifier{})
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+	h := NewWitnesses(cfg, activityStore, verifier)
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -387,7 +433,10 @@ func TestWitnessing_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnessing(cfg, activityStore, &mocks.SignatureVerifier{})
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+	h := NewWitnessing(cfg, activityStore, verifier)
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {

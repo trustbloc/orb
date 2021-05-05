@@ -9,7 +9,6 @@ package transport
 import (
 	"bytes"
 	"context"
-	"crypto"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,7 +27,7 @@ const (
 
 // Signer signs an HTTP request and adds the signature to the header of the request.
 type Signer interface {
-	SignRequest(pKey crypto.PrivateKey, pubKeyID string, r *http.Request, body []byte) error
+	SignRequest(pubKeyID string, req *http.Request) error
 }
 
 type httpClient interface {
@@ -40,16 +39,13 @@ type Transport struct {
 	client      httpClient
 	getSigner   Signer
 	postSigner  Signer
-	privateKey  crypto.PrivateKey
 	publicKeyID *url.URL
 }
 
 // New returns a new transport.
-func New(client httpClient, privateKey crypto.PrivateKey, publicKeyID *url.URL,
-	getSigner, postSigner Signer) *Transport {
+func New(client httpClient, publicKeyID *url.URL, getSigner, postSigner Signer) *Transport {
 	return &Transport{
 		client:      client,
-		privateKey:  privateKey,
 		publicKeyID: publicKeyID,
 		getSigner:   getSigner,
 		postSigner:  postSigner,
@@ -99,7 +95,7 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 		req.Header[k] = v
 	}
 
-	err = t.postSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, payload)
+	err = t.postSigner.SignRequest(t.publicKeyID.String(), req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -124,7 +120,7 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 
 	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
 
-	err = t.getSigner.SignRequest(t.privateKey, t.publicKeyID.String(), req, nil)
+	err = t.getSigner.SignRequest(t.publicKeyID.String(), req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -141,6 +137,6 @@ func DefaultSigner() *NoOpSigner {
 }
 
 // SignRequest does nothing.
-func (s *NoOpSigner) SignRequest(crypto.PrivateKey, string, *http.Request, []byte) error {
+func (s *NoOpSigner) SignRequest(pubKeyID string, req *http.Request) error {
 	return nil
 }

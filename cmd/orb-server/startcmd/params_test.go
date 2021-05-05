@@ -312,6 +312,31 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid start-up delay format")
 	})
+	t.Run("test invalid enable-http-signatures", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + httpSignaturesEnabledFlagName, "invalid bool",
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for enable-http-signatures")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {

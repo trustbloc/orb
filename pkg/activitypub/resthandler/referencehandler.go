@@ -43,7 +43,7 @@ func NewWitnessing(cfg *Config, activityStore spi.Store, verifier signatureVerif
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
 
 type signatureVerifier interface {
-	VerifyRequest(req *http.Request) (*url.URL, error)
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
 // Reference implements a REST handler that retrieves references as a collection of IRIs.
@@ -77,9 +77,17 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 }
 
 func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
-	_, err := h.verifier.VerifyRequest(req)
+	ok, _, err := h.verifier.VerifyRequest(req)
 	if err != nil {
-		logger.Warnf("[%s] Invalid HTTP signature: %s", h.endpoint, err)
+		logger.Errorf("[%s] Error verifying HTTP signature: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	if !ok {
+		logger.Infof("[%s] Invalid HTTP signature: %s", h.endpoint)
 
 		w.WriteHeader(http.StatusUnauthorized)
 

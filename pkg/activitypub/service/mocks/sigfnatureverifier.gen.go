@@ -8,24 +8,26 @@ import (
 )
 
 type SignatureVerifier struct {
-	VerifyRequestStub        func(req *http.Request) (*url.URL, error)
+	VerifyRequestStub        func(req *http.Request) (bool, *url.URL, error)
 	verifyRequestMutex       sync.RWMutex
 	verifyRequestArgsForCall []struct {
 		req *http.Request
 	}
 	verifyRequestReturns struct {
-		result1 *url.URL
-		result2 error
+		result1 bool
+		result2 *url.URL
+		result3 error
 	}
 	verifyRequestReturnsOnCall map[int]struct {
-		result1 *url.URL
-		result2 error
+		result1 bool
+		result2 *url.URL
+		result3 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *SignatureVerifier) VerifyRequest(req *http.Request) (*url.URL, error) {
+func (fake *SignatureVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	fake.verifyRequestMutex.Lock()
 	ret, specificReturn := fake.verifyRequestReturnsOnCall[len(fake.verifyRequestArgsForCall)]
 	fake.verifyRequestArgsForCall = append(fake.verifyRequestArgsForCall, struct {
@@ -37,9 +39,9 @@ func (fake *SignatureVerifier) VerifyRequest(req *http.Request) (*url.URL, error
 		return fake.VerifyRequestStub(req)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.verifyRequestReturns.result1, fake.verifyRequestReturns.result2
+	return fake.verifyRequestReturns.result1, fake.verifyRequestReturns.result2, fake.verifyRequestReturns.result3
 }
 
 func (fake *SignatureVerifier) VerifyRequestCallCount() int {
@@ -54,26 +56,29 @@ func (fake *SignatureVerifier) VerifyRequestArgsForCall(i int) *http.Request {
 	return fake.verifyRequestArgsForCall[i].req
 }
 
-func (fake *SignatureVerifier) VerifyRequestReturns(result1 *url.URL, result2 error) {
+func (fake *SignatureVerifier) VerifyRequestReturns(result1 bool, result2 *url.URL, result3 error) {
 	fake.VerifyRequestStub = nil
 	fake.verifyRequestReturns = struct {
-		result1 *url.URL
-		result2 error
-	}{result1, result2}
+		result1 bool
+		result2 *url.URL
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *SignatureVerifier) VerifyRequestReturnsOnCall(i int, result1 *url.URL, result2 error) {
+func (fake *SignatureVerifier) VerifyRequestReturnsOnCall(i int, result1 bool, result2 *url.URL, result3 error) {
 	fake.VerifyRequestStub = nil
 	if fake.verifyRequestReturnsOnCall == nil {
 		fake.verifyRequestReturnsOnCall = make(map[int]struct {
-			result1 *url.URL
-			result2 error
+			result1 bool
+			result2 *url.URL
+			result3 error
 		})
 	}
 	fake.verifyRequestReturnsOnCall[i] = struct {
-		result1 *url.URL
-		result2 error
-	}{result1, result2}
+		result1 bool
+		result2 *url.URL
+		result3 error
+	}{result1, result2, result3}
 }
 
 func (fake *SignatureVerifier) Invocations() map[string][][]interface{} {

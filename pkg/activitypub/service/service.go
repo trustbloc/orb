@@ -48,6 +48,7 @@ type Config struct {
 	RetryOpts                 *redelivery.Config
 	PubSubFactory             PubSubFactory
 	ActivityHandlerBufferSize int
+	VerifyActorInSignature    bool
 
 	// MaxWitnessDelay is the maximum delay that the witnessed transaction becomes included into the ledger.
 	MaxWitnessDelay time.Duration
@@ -69,7 +70,7 @@ type httpTransport interface {
 }
 
 type signatureVerifier interface {
-	VerifyRequest(req *http.Request) (*url.URL, error)
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
 // New returns a new ActivityPub service.
@@ -108,9 +109,10 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 
 	ib, err := inbox.New(
 		&inbox.Config{
-			ServiceEndpoint: cfg.ServiceEndpoint + resthandler.InboxPath,
-			ServiceIRI:      cfg.ServiceIRI,
-			Topic:           activitiesTopic,
+			ServiceEndpoint:        cfg.ServiceEndpoint + resthandler.InboxPath,
+			ServiceIRI:             cfg.ServiceIRI,
+			Topic:                  activitiesTopic,
+			VerifyActorInSignature: cfg.VerifyActorInSignature,
 		},
 		activityStore,
 		newPubSub(cfg, cfg.ServiceEndpoint+resthandler.InboxPath),

@@ -7,81 +7,81 @@ SPDX-License-Identifier: Apache-2.0
 package httpsig
 
 import (
-	"crypto"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-fed/httpsig"
+	"github.com/hyperledger/aries-framework-go/pkg/crypto"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
 var logger = log.New("activitypub_httpsig")
 
 const (
-	dateHeader        = "Date"
-	defaultExpiration = 60 * time.Second
+	dateHeader = "Date"
 )
 
 // DefaultGetSignerConfig returns the default configuration for signing HTTP GET requests.
 func DefaultGetSignerConfig() SignerConfig {
 	return SignerConfig{
-		Algorithms: []httpsig.Algorithm{httpsig.ED25519},
-		Headers:    []string{"(request-target)", "Date"},
+		Headers: []string{"(request-target)", "Date"},
 	}
 }
 
 // DefaultPostSignerConfig returns the default configuration for signing HTTP POST requests.
 func DefaultPostSignerConfig() SignerConfig {
 	return SignerConfig{
-		Algorithms:      []httpsig.Algorithm{httpsig.ED25519},
-		DigestAlgorithm: httpsig.DigestSha256,
-		Headers:         []string{"(request-target)", "Date", "Digest"},
+		Headers: []string{"(request-target)", "Date", "Digest"},
 	}
 }
 
 // SignerConfig contains the configuration for signing HTTP requests.
 type SignerConfig struct {
-	Algorithms      []httpsig.Algorithm
-	DigestAlgorithm httpsig.DigestAlgorithm
-	Headers         []string
-	Expiration      time.Duration
+	Headers []string
+}
+
+type signer interface {
+	Sign(secretKeyID string, r *http.Request) error
 }
 
 // Signer signs HTTP requests.
 type Signer struct {
 	SignerConfig
+	signer func() signer
 }
 
 // NewSigner returns a new signer.
-func NewSigner(cfg SignerConfig) *Signer {
-	s := &Signer{
+func NewSigner(cfg SignerConfig, cr crypto.Crypto, km kms.KeyManager, keyID string) *Signer {
+	algo := NewSignerAlgorithm(cr, km, keyID)
+	secretRetriever := &SecretRetriever{}
+
+	return &Signer{
 		SignerConfig: cfg,
-	}
+		signer: func() signer {
+			// Return a new instance for each signature since the HTTP signature
+			// implementation is not thread safe.
+			hs := httpsig.NewHTTPSignatures(secretRetriever)
+			hs.SetDefaultSignatureHeaders(cfg.Headers)
+			hs.SetSignatureHashAlgorithm(algo)
 
-	if s.Expiration == 0 {
-		s.Expiration = defaultExpiration
+			return hs
+		},
 	}
-
-	return s
 }
 
 // SignRequest signs an HTTP request.
-func (s *Signer) SignRequest(pKey crypto.PrivateKey, pubKeyID string, req *http.Request, body []byte) error {
-	signer, algo, err := httpsig.NewSigner(s.Algorithms, s.DigestAlgorithm, s.Headers,
-		httpsig.Signature, int64(s.Expiration.Seconds()))
-	if err != nil {
-		return fmt.Errorf("new signer: %w", err)
-	}
-
-	logger.Debugf("Signing request for %s. Public key ID [%s], algorithm [%s]", req.RequestURI, pubKeyID, algo)
+func (s *Signer) SignRequest(pubKeyID string, req *http.Request) error {
+	logger.Debugf("Signing request for %s. Public key ID [%s]", req.RequestURI, pubKeyID)
 
 	req.Header.Add(dateHeader, date())
 
-	err = signer.SignRequest(pKey, pubKeyID, req, body)
-	if err != nil {
-		return fmt.Errorf("sign request: %w", err)
+	if err := s.signer().Sign(pubKeyID, req); err != nil {
+		return fmt.Errorf("sign request with public key ID [%s]: %w", pubKeyID, err)
 	}
+
+	logger.Debugf("Signed request. Headers: %s", req.Header)
 
 	return nil
 }

@@ -43,8 +43,9 @@ func TestOutbox_Handler(t *testing.T) {
 	service2IRI := testutil.MustParseURL("https://example2.com/services/orb")
 
 	cfg := &Config{
-		BasePath:  "/services/orb",
-		ObjectIRI: serviceIRI,
+		BasePath:               "/services/orb",
+		ObjectIRI:              serviceIRI,
+		VerifyActorInSignature: true,
 	}
 
 	ob := &mocks.Outbox{}
@@ -60,7 +61,7 @@ func TestOutbox_Handler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(serviceIRI, nil)
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, verifier)
 
@@ -74,11 +75,9 @@ func TestOutbox_Handler(t *testing.T) {
 		require.NoError(t, result.Body.Close())
 	})
 
-	t.Run("HTTP signature verifier error", func(t *testing.T) {
-		errExpected := errors.New("injected signature verifier error")
-
+	t.Run("Invalid HTTP signature", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(nil, errExpected)
+		verifier.VerifyRequestReturns(false, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, verifier)
 
@@ -92,9 +91,27 @@ func TestOutbox_Handler(t *testing.T) {
 		require.NoError(t, result.Body.Close())
 	})
 
+	t.Run("HTTP signature verifier error", func(t *testing.T) {
+		errExpected := errors.New("injected signature verifier error")
+
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, errExpected)
+
+		h := NewPostOutbox(cfg, ob, verifier)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
 	t.Run("No activity in request -> error", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(serviceIRI, nil)
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, verifier)
 
@@ -110,7 +127,7 @@ func TestOutbox_Handler(t *testing.T) {
 
 	t.Run("Outbox Post error", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(serviceIRI, nil)
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		errExpected := errors.New("injected outbox error")
 
@@ -129,9 +146,25 @@ func TestOutbox_Handler(t *testing.T) {
 		require.NoError(t, result.Body.Close())
 	})
 
+	t.Run("Invalid actor IRI", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, service2IRI, nil)
+
+		h := NewPostOutbox(cfg, ob, verifier)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
 	t.Run("Nil actor in activity", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(serviceIRI, nil)
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, verifier)
 
@@ -155,7 +188,7 @@ func TestOutbox_Handler(t *testing.T) {
 
 	t.Run("Invalid actor in activity", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
-		verifier.VerifyRequestReturns(serviceIRI, nil)
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, verifier)
 

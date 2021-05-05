@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -169,8 +170,11 @@ func TestActivities_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
 	t.Run("Success", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -196,7 +200,7 @@ func TestActivities_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewOutbox(cfg, s, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, s, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -210,7 +214,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -230,7 +234,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -250,7 +254,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -268,10 +272,49 @@ func TestActivities_Handler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
+
+	t.Run("Verify signature error", func(t *testing.T) {
+		errExpected := errors.New("injected verifier error")
+
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, errExpected)
+
+		h := NewOutbox(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Invalid signature", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, nil)
+
+		h := NewOutbox(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
 }
 
 func TestActivities_PageHandler(t *testing.T) {
 	activityStore := memstore.New("")
+
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 	for _, activity := range newMockCreateActivities(19) {
 		require.NoError(t, activityStore.AddActivity(activity))
@@ -313,7 +356,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, s, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, s, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -335,7 +378,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewOutbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -378,8 +421,11 @@ func TestShares_Handler(t *testing.T) {
 		PageSize:  4,
 	}
 
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
 	t.Run("Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewShares(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		restore := setIDParam(objectID)
@@ -425,8 +471,11 @@ func TestShares_PageHandler(t *testing.T) {
 		PageSize:  4,
 	}
 
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
 	t.Run("First page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewShares(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "")
@@ -453,7 +502,7 @@ func TestShares_PageHandler(t *testing.T) {
 	})
 
 	t.Run("By page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, &mocks.SignatureVerifier{})
+		h := NewShares(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "1")
@@ -498,7 +547,10 @@ func TestLiked_Handler(t *testing.T) {
 		PageSize:  2,
 	}
 
-	h := NewLiked(cfg, activityStore, &mocks.SignatureVerifier{})
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+	h := NewLiked(cfg, activityStore, verifier)
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -518,7 +570,10 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 		PageSize:  4,
 	}
 
-	h := NewOutbox(cfg, as, &mocks.SignatureVerifier{})
+	verifier := &mocks.SignatureVerifier{}
+	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+	h := NewOutbox(cfg, as, verifier)
 	require.NotNil(t, h)
 
 	restorePaging := setPaging(h.handler, page, pageNum)

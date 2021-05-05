@@ -186,6 +186,12 @@ const (
 	discoveryMinimumResolversFlagUsage = "Discovery minimum resolvers number." +
 		commonEnvVarUsageText + discoveryMinimumResolversEnvKey
 
+	httpSignaturesEnabledFlagName  = "enable-http-signatures"
+	httpSignaturesEnabledEnvKey    = "HTTP_SIGNATURES_ENABLED"
+	httpSignaturesEnabledShorthand = "p"
+	httpSignaturesEnabledUsage     = `Set to "true" to enable HTTP signatures in ActivityPub. ` +
+		commonEnvVarUsageText + httpSignaturesEnabledEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -216,6 +222,7 @@ type orbParameters struct {
 	maxWitnessDelay           time.Duration
 	startupDelay              time.Duration
 	signWithLocalWitness      bool
+	httpSignaturesEnabled     bool
 }
 
 type anchorCredentialParams struct {
@@ -336,6 +343,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		startupDelay = time.Duration(delay) * time.Second
 	}
 
+	httpSignaturesEnabledStr, err := cmdutils.GetUserSetVarFromString(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	httpSignaturesEnabled := defaulthttpSignaturesEnabled
+	if httpSignaturesEnabledStr != "" {
+		enable, parseErr := strconv.ParseBool(httpSignaturesEnabledStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", httpSignaturesEnabledFlagName, parseErr)
+		}
+
+		httpSignaturesEnabled = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -405,6 +427,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		maxWitnessDelay:           maxWitnessDelay,
 		startupDelay:              startupDelay,
 		signWithLocalWitness:      signWithLocalWitness,
+		httpSignaturesEnabled:     httpSignaturesEnabled,
 	}, nil
 }
 
@@ -500,6 +523,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
+	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
