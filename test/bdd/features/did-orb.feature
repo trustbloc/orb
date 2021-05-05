@@ -14,22 +14,22 @@ Feature:
     # domain2 server follows domain1 server
     Given variable "followID" is assigned a unique ID
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json" signed with KMS key from "domain2"
 
     # domain1 server follows domain2 server
     Given variable "followID" is assigned a unique ID
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${followID}","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${followActivity}" of type "application/json" signed with KMS key from "domain1"
 
     # domain1 invites domain2 to be a witness
     Given variable "inviteWitnessID" is assigned a unique ID
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json" signed with KMS key from "domain1"
 
     # domain2 invites domain1 to be a witness
     Given variable "inviteWitnessID" is assigned a unique ID
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json" signed with KMS key from "domain2"
 
     Then we wait 3 seconds
 

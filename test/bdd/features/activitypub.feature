@@ -53,48 +53,48 @@ Feature:
     # domain2 follows domain1
     Given variable "followID" is assigned a unique ID
     Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json" signed with KMS key from "domain2"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollection"
     And the JSON path "id" of the response equals "${domain1IRI}/inbox"
     And the JSON path "first" of the response equals "${domain1IRI}/inbox?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/${followID}"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain1IRI}/followers"
     And the JSON path "first" of the response equals "${domain1IRI}/followers?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain2IRI}"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/following"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/following" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain2IRI}/following"
     And the JSON path "first" of the response equals "${domain2IRI}/following?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain1IRI}"
 
     Given variable "undoID" is assigned a unique ID
     And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${undoID}","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain2IRI}/activities/${followID}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/following?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain1IRI}"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain2IRI}"
 
@@ -102,76 +102,90 @@ Feature:
   Scenario: create/announce
     # domain2 follows domain1
     Given variable "followDomain1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followDomain1Activity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followDomain1Activity}" of type "application/json" signed with KMS key from "domain2"
 
     # domain3 follows domain2
-    Given variable "followDomain2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48626/services/orb/outbox" with content "${followDomain2Activity}" of type "application/json"
+    Given variable "follow2ID" is assigned a unique ID
+    And variable "followDomain2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","id":"${domain3IRI}/activities/${follow2ID}","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+    When an HTTP POST is sent to "https://localhost:48626/services/orb/outbox" with content "${followDomain2Activity}" of type "application/json" signed with KMS key from "domain3"
 
     Then we wait 2 seconds
 
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/followers?page=true" signed with KMS key from "domain3"
+    Then the JSON path "type" of the response equals "CollectionPage"
+    And the JSON path "items" of the response contains "${domain3IRI}"
+
     # Post 'Create' activity to domain1's outbox
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content from file "./fixtures/testdata/create_activity.json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content from file "./fixtures/testdata/create_activity.json" signed with KMS key from "domain1"
 
     Then we wait 2 seconds
 
     # A 'Create' activity should have been posted to domain1's followers (domain2).
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/77bdd005-bbb6-223d-b889-58bc1de84985"
 
     # An 'Announce' activity should have been posted to domain2's followers (domain3).
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/outbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/outbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
 
     # An 'Announce' activity should have been received by domain3 since it's a follower of domain2.
-    When an HTTP GET is sent to "https://localhost:48626/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48626/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
+
+    And variable "undoFollow2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${domain3IRI}/activities/${follow2ID}"}'
+    When an HTTP POST is sent to "https://localhost:48626/services/orb/outbox" with content "${undoFollow2Activity}" of type "application/json" signed with KMS key from "domain3"
+
+    Then we wait 2 seconds
+
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/followers?page=true" signed with KMS key from "domain3"
+    Then the JSON path "type" of the response equals "CollectionPage"
+    And the JSON path "items" of the response does not contain "${domain3IRI}"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo
     # domain1 invites domain2 to be a witness
     Given variable "inviteWitnessID" is assigned a unique ID
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json" signed with KMS key from "domain1"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/${inviteWitnessID}"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain1IRI}/witnesses"
     And the JSON path "first" of the response equals "${domain1IRI}/witnesses?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain2IRI}"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "Collection"
     And the JSON path "id" of the response equals "${domain2IRI}/witnessing"
     And the JSON path "first" of the response equals "${domain2IRI}/witnessing?page=true"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain1IRI}"
 
     Given variable "undoWitnessID" is assigned a unique ID
     And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${undoWitnessID}","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain1IRI}/activities/${inviteWitnessID}"}'
-    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48326/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json" signed with KMS key from "domain1"
 
     Then we wait 3 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/witnesses?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain2IRI}"
 
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/witnessing?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain1IRI}"
 
@@ -180,50 +194,46 @@ Feature:
     # domain2 invites domain1 to be a witness
     Given variable "inviteWitnessID" is assigned a unique ID
     Given variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json" signed with KMS key from "domain2"
 
     Then we wait 2 seconds
 
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/${inviteWitnessID}"
 
-    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content from file "./fixtures/testdata/offer_activity.json"
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content from file "./fixtures/testdata/offer_activity.json" signed with KMS key from "domain2"
 
     Then we wait 2 seconds
 
     # The 'Offer' activity should be in the inbox of domain1.
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
 
     # The 'Like' should be in the 'liked' collection of domain1.
-    When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true"
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/liked?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Like"
     And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
 
     # A 'Like' activity should be in the inbox of domain2.
-    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true"
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/inbox?page=true" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Like"
     And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
 
-#  @activitypub_httpsig
-#  Scenario: Tests HTTP signature verification
-#    Given variable "followID" is assigned a unique ID
-#    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-#
-#    # No signature on POST
-#    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
-#
-#    # Invalid signature on POST
-#    When an HTTP POST is sent to "https://localhost:48326/services/orb/inbox" with content "${followActivity}" of type "application/json" signed with private key from file "${domain1KeyFile}" using key ID "${domain2KeyID}" and the returned status code is 401
-#
-#    # No signature on GET
-#    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" and the returned status code is 401
-#    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" and the returned status code is 401
-#
-#    # Invalid signature on GET
-#    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" signed with private key from file "${domain2KeyFile}" using key ID "${domain1KeyID}" and the returned status code is 401
-#    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" signed with private key from file "${domain2KeyFile}" using key ID "${domain1KeyID}" and the returned status code is 401
+  @activitypub_httpsig
+  Scenario: Tests HTTP signature verification
+    Given variable "followID" is assigned a unique ID
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+
+    # No signature on POST
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
+
+    # Invalid signature on POST
+    When an HTTP POST is sent to "https://localhost:48426/services/orb/outbox" with content "${followActivity}" of type "application/json" signed with KMS key from "domain1" and the returned status code is 401
+
+    # No signature on GET
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" and the returned status code is 401
+    When an HTTP GET is sent to "https://localhost:48326/services/orb/followers" and the returned status code is 401
