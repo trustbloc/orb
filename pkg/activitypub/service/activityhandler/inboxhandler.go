@@ -185,7 +185,7 @@ func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
 
 	// Make sure that the IRI is targeting this service. If not then ignore the message
 	if iri.String() != h.ServiceIRI.String() {
-		return fmt.Errorf("this service is not the target object for the 'Undo'")
+		return fmt.Errorf("this service is not the target object for the '%s'", activity.Type())
 	}
 
 	return nil

@@ -58,9 +58,17 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 }
 
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
-	_, err := h.verifier.VerifyRequest(req)
+	ok, actorIRI, err := h.verifier.VerifyRequest(req)
 	if err != nil {
 		logger.Errorf("[%s] Error verifying HTTP signature: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	if !ok {
+		logger.Infof("[%s] Invalid HTTP signature", h.endpoint)
 
 		w.WriteHeader(http.StatusUnauthorized)
 
@@ -78,7 +86,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 
 	logger.Debugf("[%s] Posting activity %s", h.endpoint, activityBytes)
 
-	activity, err := h.unmarshalAndValidateActivity(activityBytes)
+	activity, err := h.unmarshalAndValidateActivity(actorIRI, activityBytes)
 	if err != nil {
 		logger.Errorf("[%s] Invalid activity: %s", h.endpoint, err)
 
@@ -97,7 +105,13 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Outbox) unmarshalAndValidateActivity(activityBytes []byte) (*vocab.ActivityType, error) {
+func (h *Outbox) unmarshalAndValidateActivity(actorIRI *url.URL, activityBytes []byte) (*vocab.ActivityType, error) {
+	if h.VerifyActorInSignature {
+		if h.ObjectIRI.String() != actorIRI.String() {
+			return nil, fmt.Errorf("only actor [%s] may post to this outbox", h.ObjectIRI)
+		}
+	}
+
 	activity := &vocab.ActivityType{}
 
 	err := json.Unmarshal(activityBytes, activity)

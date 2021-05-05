@@ -9,7 +9,6 @@ require (
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0
-	github.com/go-fed/httpsig v1.1.1-0.20201223112313-55836744818e
 	github.com/go-kivik/couchdb/v3 v3.2.7 // indirect
 	github.com/go-kivik/kivik/v3 v3.2.3
 	github.com/google/uuid v1.2.0
@@ -18,6 +17,7 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210422133815-2ef2d99cb692
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210422144621-1355c6f90b44
+	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/mr-tron/base58 v1.2.0

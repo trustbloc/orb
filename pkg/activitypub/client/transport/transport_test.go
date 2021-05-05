@@ -24,7 +24,7 @@ import (
 const publicKeyID = "https://alice.example.com/services/orb/keys/main-key"
 
 func TestNew(t *testing.T) {
-	tp := New(http.DefaultClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+	tp := New(http.DefaultClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 	require.NotNil(t, tp)
 }
 
@@ -43,7 +43,7 @@ func TestTransport_Post(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
 		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
@@ -61,7 +61,7 @@ func TestTransport_Post(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), signer, signer)
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
@@ -80,7 +80,7 @@ func TestTransport_Get(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
 		require.NotNil(t, tp)
 
 		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
@@ -98,7 +98,7 @@ func TestTransport_Get(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, nil, testutil.MustParseURL(publicKeyID), signer, signer)
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose

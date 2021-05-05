@@ -74,9 +74,17 @@ func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 }
 
 func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
-	_, err := h.verifier.VerifyRequest(req)
+	ok, _, err := h.verifier.VerifyRequest(req)
 	if err != nil {
-		logger.Warnf("[%s] Invalid HTTP signature: %s", h.endpoint, err)
+		logger.Errorf("[%s] Error verifying HTTP signature: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	if !ok {
+		logger.Infof("[%s] Invalid HTTP signature", h.endpoint)
 
 		w.WriteHeader(http.StatusUnauthorized)
 

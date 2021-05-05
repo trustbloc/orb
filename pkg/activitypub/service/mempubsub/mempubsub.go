@@ -21,7 +21,7 @@ import (
 var logger = log.New("activitypub_service")
 
 const (
-	defaultTimeout     = 5 * time.Second
+	defaultTimeout     = 10 * time.Second
 	defaultConcurrency = 20
 	defaultBufferSize  = 20
 )

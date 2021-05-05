@@ -12,27 +12,28 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"net/http"
 	"testing"
 
+	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
+	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/mocks"
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-func TestVerifier_VerifyRequest(t *testing.T) {
+//go:generate counterfeiter -o ../servicemocks/httpsigverifier.gen.go --fake-name HTTPSignatureVerifier . verifier
+
+func TestNewVerifier(t *testing.T) {
 	actorIRI := testutil.MustParseURL("https://example.com/services/orb")
 	pubKeyIRI := testutil.NewMockID(actorIRI, "/keys/main-key")
 
-	signer := NewSigner(DefaultPostSignerConfig())
-	require.NotNil(t, signer)
-
-	payload := []byte("payload")
-
-	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	pubKey, _, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	pubKeyPem, err := getPublicKeyPem(pubKey)
@@ -44,117 +45,163 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		vocab.WithPublicKeyPem(string(pubKeyPem)),
 	)
 
-	retriever := mocks.NewActorRetriever().
+	retriever := servicemocks.NewActorRetriever().
+		WithPublicKey(publicKey).
+		WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(publicKey)))
+
+	v := NewVerifier(retriever, &mockcrypto.Crypto{}, &mockkms.KeyManager{})
+	require.NotNil(t, v)
+}
+
+func TestVerifier_VerifyRequest(t *testing.T) {
+	const keyID = "123456"
+
+	actorIRI := testutil.MustParseURL("https://example.com/services/orb")
+	pubKeyIRI := testutil.NewMockID(actorIRI, "/keys/main-key")
+
+	signer := NewSigner(DefaultGetSignerConfig(), &mockcrypto.Crypto{}, &mockkms.KeyManager{}, keyID)
+	require.NotNil(t, signer)
+
+	payload := []byte("payload")
+
+	pubKey, _, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	pubKeyPem, err := getPublicKeyPem(pubKey)
+	require.NoError(t, err)
+
+	publicKey := vocab.NewPublicKey(
+		vocab.WithID(pubKeyIRI),
+		vocab.WithOwner(actorIRI),
+		vocab.WithPublicKeyPem(string(pubKeyPem)),
+	)
+
+	retriever := servicemocks.NewActorRetriever().
 		WithPublicKey(publicKey).
 		WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(publicKey)))
 
 	t.Run("Success", func(t *testing.T) {
-		v := NewVerifier(DefaultVerifierConfig(), retriever)
-		require.NotNil(t, v)
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, publicKey.ID.String(), req, payload))
+		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
 
-		actorID, err := v.VerifyRequest(req)
+		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)
+		require.True(t, ok)
 		require.NotNil(t, actorID)
 		require.Equal(t, actorIRI.String(), actorID.String())
 	})
 
-	t.Run("Invalid key ID", func(t *testing.T) {
-		v := NewVerifier(DefaultVerifierConfig(), retriever)
-		require.NotNil(t, v)
+	t.Run("Failed verification", func(t *testing.T) {
+		cr := &mockcrypto.Crypto{}
+		km := &mockkms.KeyManager{}
+
+		v := NewVerifier(retriever, cr, km)
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, "invalid key \nID", req, payload))
+		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
 
-		actorID, err := v.VerifyRequest(req)
-		require.Error(t, err)
+		ok, actorID, err := v.VerifyRequest(req)
+		require.NoError(t, err)
+		require.False(t, ok)
 		require.Nil(t, actorID)
-		require.Contains(t, err.Error(), "invalid control character in URL")
 	})
 
-	t.Run("Invalid public key pem", func(t *testing.T) {
-		invalidPubKey := vocab.NewPublicKey(
-			vocab.WithID(pubKeyIRI),
-			vocab.WithOwner(actorIRI),
-			vocab.WithPublicKeyPem("invalid"),
-		)
-
-		v := NewVerifier(
-			DefaultVerifierConfig(),
-			mocks.NewActorRetriever().
-				WithPublicKey(invalidPubKey).
-				WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(invalidPubKey))),
-		)
-		require.NotNil(t, v)
+	t.Run("Key ID not found in signature header", func(t *testing.T) {
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, invalidPubKey.ID.String(), req, payload))
+		req.Header["Signature"] = []string{"some header"}
 
-		actorID, err := v.VerifyRequest(req)
-		require.Error(t, err)
+		ok, actorID, err := v.VerifyRequest(req)
+		require.NoError(t, err)
+		require.False(t, ok)
 		require.Nil(t, actorID)
-		require.Contains(t, err.Error(), "invalid public key for ID")
+	})
+
+	t.Run("Invalid key ID", func(t *testing.T) {
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
+
+		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
+		require.NoError(t, err)
+
+		req.Header["Signature"] = []string{fmt.Sprintf(`keyId="%s"`, []byte{0})}
+
+		ok, actorID, err := v.VerifyRequest(req)
+		require.NoError(t, err)
+		require.False(t, ok)
+		require.Nil(t, actorID)
 	})
 
 	t.Run("Public key not found -> error", func(t *testing.T) {
-		v := NewVerifier(DefaultVerifierConfig(), retriever)
-		require.NotNil(t, v)
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, "https://domainx/key1", req, payload))
+		require.NoError(t, signer.SignRequest("https://domainx/key1", req))
 
-		actorID, err := v.VerifyRequest(req)
+		ok, actorID, err := v.VerifyRequest(req)
 		require.Error(t, err)
+		require.False(t, ok)
 		require.Contains(t, err.Error(), "not found")
 		require.Nil(t, actorID)
 	})
 
 	t.Run("Actor not found -> error", func(t *testing.T) {
-		v := NewVerifier(
-			DefaultVerifierConfig(),
-			mocks.NewActorRetriever().WithPublicKey(publicKey),
-		)
-		require.NotNil(t, v)
+		v := &Verifier{
+			actorRetriever: servicemocks.NewActorRetriever().WithPublicKey(publicKey),
+			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, publicKey.ID.String(), req, payload))
+		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
 
-		actorID, err := v.VerifyRequest(req)
+		ok, actorID, err := v.VerifyRequest(req)
 		require.Error(t, err)
+		require.False(t, ok)
 		require.Nil(t, actorID)
 		require.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("Actor nil public key -> error", func(t *testing.T) {
-		v := NewVerifier(
-			DefaultVerifierConfig(),
-			mocks.NewActorRetriever().
+		v := &Verifier{
+			actorRetriever: servicemocks.NewActorRetriever().
 				WithPublicKey(publicKey).
 				WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(nil))),
-		)
-		require.NotNil(t, v)
+			verifier: func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, publicKey.ID.String(), req, payload))
+		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
 
-		actorID, err := v.VerifyRequest(req)
-		require.Error(t, err)
+		ok, actorID, err := v.VerifyRequest(req)
+		require.NoError(t, err)
+		require.False(t, ok)
 		require.Nil(t, actorID)
-		require.Contains(t, err.Error(), "owner has nil key")
 	})
 
 	t.Run("Actor key mismatch -> error", func(t *testing.T) {
@@ -164,23 +211,22 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 			vocab.WithPublicKeyPem(string(pubKeyPem)),
 		)
 
-		v := NewVerifier(
-			DefaultVerifierConfig(),
-			mocks.NewActorRetriever().
+		v := &Verifier{
+			actorRetriever: servicemocks.NewActorRetriever().
 				WithPublicKey(publicKey).
 				WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(actorPublicKey))),
-		)
-		require.NotNil(t, v)
+			verifier: func() verifier { return &mocks.HTTPSignatureVerifier{} },
+		}
 
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(privKey, publicKey.ID.String(), req, payload))
+		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
 
-		actorID, err := v.VerifyRequest(req)
-		require.Error(t, err)
+		ok, actorID, err := v.VerifyRequest(req)
+		require.NoError(t, err)
+		require.False(t, ok)
 		require.Nil(t, actorID)
-		require.Contains(t, err.Error(), "public key of actor does not match the public key ID in the request")
 	})
 }
 

@@ -38,7 +38,7 @@ type Config struct {
 }
 
 type signatureVerifier interface {
-	VerifyRequest(req *http.Request) (*url.URL, error)
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
 // Subscriber implements a subscriber for Watermill that handles HTTP requests.
@@ -105,9 +105,17 @@ func (s *Subscriber) Handler() common.HTTPRequestHandler {
 }
 
 func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
-	actorIRI, err := s.verifier.VerifyRequest(r)
+	ok, actorIRI, err := s.verifier.VerifyRequest(r)
 	if err != nil {
-		logger.Warnf("[%s] Invalid HTTP signature: %s", s.ServiceEndpoint, err)
+		logger.Errorf("[%s] Error verifying HTTP signature: %s", s.ServiceEndpoint, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	if !ok {
+		logger.Infof("[%s] Invalid HTTP signature", s.ServiceEndpoint)
 
 		w.WriteHeader(http.StatusUnauthorized)
 

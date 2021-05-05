@@ -53,9 +53,10 @@ const (
 
 // Config contains configuration parameters for the handler.
 type Config struct {
-	BasePath  string
-	ObjectIRI *url.URL
-	PageSize  int
+	BasePath               string
+	ObjectIRI              *url.URL
+	PageSize               int
+	VerifyActorInSignature bool
 }
 
 type handler struct {

@@ -2,19 +2,16 @@
 package mocks
 
 import (
-	"crypto"
 	"net/http"
 	"sync"
 )
 
 type HTTPSigner struct {
-	SignRequestStub        func(pKey crypto.PrivateKey, pubKeyID string, r *http.Request, body []byte) error
+	SignRequestStub        func(pubKeyID string, req *http.Request) error
 	signRequestMutex       sync.RWMutex
 	signRequestArgsForCall []struct {
-		pKey     crypto.PrivateKey
 		pubKeyID string
-		r        *http.Request
-		body     []byte
+		req      *http.Request
 	}
 	signRequestReturns struct {
 		result1 error
@@ -26,24 +23,17 @@ type HTTPSigner struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *HTTPSigner) SignRequest(pKey crypto.PrivateKey, pubKeyID string, r *http.Request, body []byte) error {
-	var bodyCopy []byte
-	if body != nil {
-		bodyCopy = make([]byte, len(body))
-		copy(bodyCopy, body)
-	}
+func (fake *HTTPSigner) SignRequest(pubKeyID string, req *http.Request) error {
 	fake.signRequestMutex.Lock()
 	ret, specificReturn := fake.signRequestReturnsOnCall[len(fake.signRequestArgsForCall)]
 	fake.signRequestArgsForCall = append(fake.signRequestArgsForCall, struct {
-		pKey     crypto.PrivateKey
 		pubKeyID string
-		r        *http.Request
-		body     []byte
-	}{pKey, pubKeyID, r, bodyCopy})
-	fake.recordInvocation("SignRequest", []interface{}{pKey, pubKeyID, r, bodyCopy})
+		req      *http.Request
+	}{pubKeyID, req})
+	fake.recordInvocation("SignRequest", []interface{}{pubKeyID, req})
 	fake.signRequestMutex.Unlock()
 	if fake.SignRequestStub != nil {
-		return fake.SignRequestStub(pKey, pubKeyID, r, body)
+		return fake.SignRequestStub(pubKeyID, req)
 	}
 	if specificReturn {
 		return ret.result1
@@ -57,10 +47,10 @@ func (fake *HTTPSigner) SignRequestCallCount() int {
 	return len(fake.signRequestArgsForCall)
 }
 
-func (fake *HTTPSigner) SignRequestArgsForCall(i int) (crypto.PrivateKey, string, *http.Request, []byte) {
+func (fake *HTTPSigner) SignRequestArgsForCall(i int) (string, *http.Request) {
 	fake.signRequestMutex.RLock()
 	defer fake.signRequestMutex.RUnlock()
-	return fake.signRequestArgsForCall[i].pKey, fake.signRequestArgsForCall[i].pubKeyID, fake.signRequestArgsForCall[i].r, fake.signRequestArgsForCall[i].body
+	return fake.signRequestArgsForCall[i].pubKeyID, fake.signRequestArgsForCall[i].req
 }
 
 func (fake *HTTPSigner) SignRequestReturns(result1 error) {

@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
+	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -983,6 +985,8 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	serviceIRI *url.URL) (*Service, spi.Store, *vocab.PublicKeyType, *mockProviders) {
 	t.Helper()
 
+	const kmsKey1 = "123456"
+
 	cfg := &Config{
 		ServiceEndpoint: endpoint,
 		ServiceIRI:      serviceIRI,
@@ -1005,7 +1009,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		witnessHandler:          mocks.NewWitnessHandler(),
 	}
 
-	pubKeyBytes, privKey1, err := ed25519.GenerateKey(rand.Reader)
+	pubKeyBytes, privKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
 
 	pemBytes, err := publicKeyToPEM(pubKeyBytes)
@@ -1017,17 +1021,21 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		vocab.WithPublicKeyPem(string(pemBytes)),
 	)
 
-	trnspt := transport.New(http.DefaultClient, privKey1,
-		publicKey.ID.URL(),
-		httpsig.NewSigner(httpsig.DefaultGetSignerConfig()),
-		httpsig.NewSigner(httpsig.DefaultPostSignerConfig()),
-	)
+	cr := &mockcrypto.Crypto{SignFn: func(bytes []byte, i interface{}) ([]byte, error) {
+		return ed25519.Sign(privKey, bytes), nil
+	}}
 
-	sigVerifier := httpsig.NewVerifier(httpsig.DefaultVerifierConfig(), providers.actorRetriever)
+	km := &mockkms.KeyManager{}
+
+	trnspt := transport.New(http.DefaultClient,
+		publicKey.ID.URL(),
+		httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, kmsKey1),
+		httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, kmsKey1),
+	)
 
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
-	s, err := New(cfg, activityStore, trnspt, sigVerifier,
+	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
 		service.WithFollowerAuth(providers.followerAuth),
