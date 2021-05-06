@@ -40,6 +40,7 @@ var (
 func TestNewInbox(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
 		BufferSize:  100,
 	}
 
@@ -80,6 +81,7 @@ func TestNewOutbox(t *testing.T) {
 func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",
+		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
 	}
 
 	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
@@ -2387,53 +2389,15 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			require.NotEmpty(t, refs)
 		})
 
-		t.Run("Store error", func(t *testing.T) {
-			errExpected := errors.New("injected query error")
+		t.Run("Add to 'shares' error -> ignore", func(t *testing.T) {
+			errExpected := errors.New("injected store error")
 
 			activityStore := &mocks.ActivityStore{}
-			activityStore.QueryReferencesReturns(nil, errExpected)
+			activityStore.AddReferenceReturns(errExpected)
 
 			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
 			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
-			require.NotNil(t, h)
-
-			h.Start()
-			defer h.Stop()
-
-			err := h.announceAnchorCredential(create)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), errExpected.Error())
-		})
-
-		t.Run("Store iterator error", func(t *testing.T) {
-			errExpected := errors.New("injected iterator error")
-
-			activityStore := &mocks.ActivityStore{}
-			it := &storemocks.ReferenceIterator{}
-			it.NextReturns(nil, errExpected)
-
-			activityStore.QueryReferencesReturns(it, nil)
-
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
-
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
-			require.NotNil(t, h)
-
-			h.Start()
-			defer h.Stop()
-
-			err := h.announceAnchorCredential(create)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), errExpected.Error())
-		})
-
-		t.Run("No followers", func(t *testing.T) {
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
-
-			h := NewInbox(cfg, memstore.New("service1"), ob, &apmocks.HTTPTransport{},
 				spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
 
@@ -2441,10 +2405,6 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			defer h.Stop()
 
 			require.NoError(t, h.announceAnchorCredential(create))
-
-			time.Sleep(50 * time.Millisecond)
-
-			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) == 0)
 		})
 	})
 
@@ -2487,16 +2447,13 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			require.NotEmpty(t, refs)
 		})
 
-		t.Run("Store error", func(t *testing.T) {
-			errExpected := errors.New("injected query error")
+		t.Run("Add to 'shares' error -> ignore", func(t *testing.T) {
+			errExpected := errors.New("injected store error")
 
 			activityStore := &mocks.ActivityStore{}
-			activityStore.QueryReferencesReturns(nil, errExpected)
+			activityStore.AddReferenceReturns(errExpected)
 
 			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
-
-			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
-			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
 			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
@@ -2504,25 +2461,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			h.Start()
 			defer h.Stop()
 
-			require.True(t, errors.Is(h.announceAnchorCredentialRef(create), errExpected))
-		})
-
-		t.Run("No followers", func(t *testing.T) {
-			activityStore := memstore.New(cfg.ServiceName)
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
-
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
-			require.NotNil(t, h)
-
-			h.Start()
-			defer h.Stop()
-
 			require.NoError(t, h.announceAnchorCredentialRef(create))
-
-			time.Sleep(50 * time.Millisecond)
-
-			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) == 0)
 		})
 	})
 }
