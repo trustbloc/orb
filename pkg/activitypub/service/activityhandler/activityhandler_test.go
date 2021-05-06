@@ -359,8 +359,6 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	// Add Service2 & Service3 to Service1's store since we haven't implemented actor resolution yet and
-	// Service1 needs to retrieve the requesting actors.
 	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
 
@@ -720,6 +718,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
+		// Make sure the activity is in our outbox or else it will fail check.
+		require.NoError(t, as.AddActivity(follow))
+		require.NoError(t, as.AddReference(store.Outbox, h.ServiceIRI, follow.ID().URL()))
+
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
 			vocab.WithID(newActivityID(service1IRI)),
@@ -754,6 +756,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
+
+		// Make sure the activity is in our outbox or else it will fail check.
+		require.NoError(t, as.AddActivity(inviteWitness))
+		require.NoError(t, as.AddReference(store.Outbox, h.ServiceIRI, inviteWitness.ID().URL()))
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(inviteWitness)),
@@ -868,6 +874,91 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	})
 }
 
+func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	ob := mocks.NewOutbox()
+	as := &mocks.ActivityStore{}
+
+	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	follow := vocab.NewFollowActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	accept := vocab.NewAcceptActivity(
+		vocab.NewObjectProperty(vocab.WithActivity(follow)),
+		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithActor(service1IRI),
+		vocab.WithTo(service2IRI),
+	)
+
+	t.Run("Query error", func(t *testing.T) {
+		errExpected := errors.New("injected query error")
+
+		as.QueryActivitiesReturns(nil, errExpected)
+
+		err := h.HandleActivity(accept)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Not found", func(t *testing.T) {
+		it := memstore.NewActivityIterator(nil, -1)
+
+		as.QueryActivitiesReturns(it, nil)
+
+		require.True(t, errors.Is(h.HandleActivity(accept), store.ErrNotFound))
+	})
+
+	t.Run("Actor mismatch", func(t *testing.T) {
+		f := vocab.NewFollowActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(follow.ID().URL()),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		it := memstore.NewActivityIterator([]*vocab.ActivityType{f}, -1)
+
+		as.QueryActivitiesReturns(it, nil)
+
+		err := h.HandleActivity(accept)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "actors do not match")
+	})
+
+	t.Run("Type mismatch", func(t *testing.T) {
+		f := vocab.NewInviteWitnessActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(follow.ID().URL()),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		it := memstore.NewActivityIterator([]*vocab.ActivityType{f}, -1)
+
+		as.QueryActivitiesReturns(it, nil)
+
+		err := h.HandleActivity(accept)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "types do not match")
+	})
+}
+
 func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
@@ -918,6 +1009,8 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	)
 
 	t.Run("Accept Follow query error", func(t *testing.T) {
+		as.QueryActivitiesReturns(memstore.NewActivityIterator([]*vocab.ActivityType{follow}, 1), nil)
+
 		errExpected := fmt.Errorf("injected storage error")
 
 		as.QueryReferencesReturns(nil, errExpected)
@@ -928,6 +1021,8 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	})
 
 	t.Run("Accept Follow AddReference error", func(t *testing.T) {
+		as.QueryActivitiesReturns(memstore.NewActivityIterator([]*vocab.ActivityType{follow}, 1), nil)
+
 		errExpected := fmt.Errorf("injected storage error")
 
 		it := &storemocks.ReferenceIterator{}
@@ -941,6 +1036,8 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	})
 
 	t.Run("Accept InviteWitness query error", func(t *testing.T) {
+		as.QueryActivitiesReturns(memstore.NewActivityIterator([]*vocab.ActivityType{inviteWitness}, 1), nil)
+
 		errExpected := fmt.Errorf("injected storage error")
 
 		as.QueryReferencesReturns(nil, errExpected)
@@ -951,6 +1048,8 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	})
 
 	t.Run("Accept InviteWitness AddReference error", func(t *testing.T) {
+		as.QueryActivitiesReturns(memstore.NewActivityIterator([]*vocab.ActivityType{inviteWitness}, 1), nil)
+
 		errExpected := fmt.Errorf("injected storage error")
 
 		it := &storemocks.ReferenceIterator{}

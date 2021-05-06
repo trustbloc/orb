@@ -214,6 +214,12 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 
 	activity := accept.Object().Activity()
 
+	// Make sure that the original activity was posted to our outbox, otherwise it may be an attempt
+	// to forcefully add an unsolicited follower/witness.
+	if err := h.ensureActivityInOutbox(activity); err != nil {
+		return fmt.Errorf("ensure target activity of 'Accept' is in outbox %s: %w", activity.ID(), err)
+	}
+
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
 		if err := h.handleAccept(accept, store.Following); err != nil {
@@ -752,6 +758,43 @@ func (h *Inbox) getAnnounceToList(create *vocab.ActivityType) ([]*url.URL, error
 	return announceTo, nil
 }
 
+func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) error {
+	obActivity, err := h.getActivityFromOutbox(activity.ID().URL())
+	if err != nil {
+		return fmt.Errorf("get activity from outbox: %w", err)
+	}
+
+	// Ensure the activity in the outbox is the same as the given activity.
+	err = ensureSameActivity(obActivity, activity)
+	if err != nil {
+		return fmt.Errorf("activity not the same as the one in outbox: %w", err)
+	}
+
+	return nil
+}
+
+func (h *Inbox) getActivityFromOutbox(activityIRI *url.URL) (*vocab.ActivityType, error) {
+	it, err := h.store.QueryActivities(store.NewCriteria(
+		store.WithReferenceType(store.Outbox),
+		store.WithObjectIRI(h.ServiceIRI),
+		store.WithReferenceIRI(activityIRI)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query outbox: %w", err)
+	}
+
+	activities, err := storeutil.ReadActivities(it, -1)
+	if err != nil {
+		return nil, fmt.Errorf("read activities: %w", err)
+	}
+
+	if len(activities) == 0 {
+		return nil, store.ErrNotFound
+	}
+
+	return activities[0], nil
+}
+
 func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorCredentialReferenceType, error) {
 	anchorCredential := create.Object().Object()
 
@@ -769,6 +812,18 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
 		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
+}
+
+func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
+	if a1.Actor().String() != a2.Actor().String() {
+		return fmt.Errorf("actors do not match: [%s] and [%s]", a1.Actor(), a2.Actor())
+	}
+
+	if !a1.Type().Is(a2.Type().Types()...) || !a2.Type().Is(a1.Type().Types()...) {
+		return fmt.Errorf("types do not match: %s and %s", a1.Type(), a2.Type())
+	}
+
+	return nil
 }
 
 type noOpAnchorCredentialPublisher struct{}
