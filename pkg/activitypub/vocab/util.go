@@ -7,17 +7,19 @@ SPDX-License-Identifier: Apache-2.0
 package vocab
 
 import (
+	"bytes"
 	"encoding/json"
+	"strings"
 )
 
 // MarshalToDoc marshals the given object to a Document.
 func MarshalToDoc(obj interface{}) (Document, error) {
-	bytes, err := json.Marshal(obj)
+	b, err := json.Marshal(obj)
 	if err != nil {
 		return nil, err
 	}
 
-	return UnmarshalToDoc(bytes)
+	return UnmarshalToDoc(b)
 }
 
 // UnmarshalToDoc unmarshals the given bytes to a Document.
@@ -64,17 +66,31 @@ func MarshalJSON(o interface{}, others ...interface{}) ([]byte, error) {
 		doc.MergeWith(otherDoc)
 	}
 
-	return json.Marshal(doc)
+	return Marshal(doc)
 }
 
 // UnmarshalJSON unmarshals the given bytes to the set of provided objects.
-func UnmarshalJSON(bytes []byte, objects ...interface{}) error {
+func UnmarshalJSON(b []byte, objects ...interface{}) error {
 	for _, obj := range objects {
-		err := json.Unmarshal(bytes, obj)
+		err := json.Unmarshal(b, obj)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// Marshal marshals the given object to a JSON representation without
+// escaping characters such as '&', '<' and '>'.
+func Marshal(o interface{}) ([]byte, error) {
+	b := &bytes.Buffer{}
+	encoder := json.NewEncoder(b)
+	encoder.SetEscapeHTML(false)
+
+	if err := encoder.Encode(o); err != nil {
+		return nil, err
+	}
+
+	return []byte(strings.TrimSuffix(b.String(), "\n")), nil
 }

@@ -83,6 +83,28 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	})
 }
 
+func TestMarshal(t *testing.T) {
+	const expectedDoc = `{"id":"https://example.com?page=true&page-num=0","name":"Alice"}`
+
+	doc := Document{
+		"name": "Alice",
+		"id":   "https://example.com?page=true&page-num=0",
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		docBytes, err := Marshal(doc)
+		require.NoError(t, err)
+		require.Equal(t, expectedDoc, string(docBytes))
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		docBytes, err := Marshal(TestMarshal)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported type")
+		require.Empty(t, docBytes)
+	})
+}
+
 type mockObject1 struct {
 	Field1 string
 	Field2 int
