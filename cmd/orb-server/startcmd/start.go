@@ -555,6 +555,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewLikes(apTxnCfg, apStore, apSigVerifier),
 		aphandler.NewShares(apTxnCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apSigVerifier),
+		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(casClient),
 	)
 

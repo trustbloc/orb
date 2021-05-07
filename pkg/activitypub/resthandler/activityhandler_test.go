@@ -562,6 +562,127 @@ func TestLiked_Handler(t *testing.T) {
 	})
 }
 
+func TestNewActivity(t *testing.T) {
+	h := NewActivity(&Config{BasePath: basePath}, memstore.New(""), &mocks.SignatureVerifier{})
+	require.NotNil(t, h)
+	require.Equal(t, basePath+ActivitiesPath, h.Path())
+	require.Equal(t, http.MethodGet, h.Method())
+	require.NotNil(t, h.Handler())
+}
+
+func TestActivity_Handler(t *testing.T) {
+	id := "abd35f29-032f-4e22-8f52-df00365323bc"
+
+	activityID := testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", id))
+	activity := newMockActivity(vocab.TypeCreate, activityID)
+
+	cfg := &Config{
+		ObjectIRI: serviceIRI,
+		BasePath:  basePath,
+	}
+
+	activityStore := memstore.New("")
+	require.NoError(t, activityStore.AddActivity(activity))
+
+	t.Run("Success", func(t *testing.T) {
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{})
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(id)
+		defer restoreID()
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, activityJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("No activity ID -> BadRequest", func(t *testing.T) {
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{})
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Activity ID not found -> NotFound", func(t *testing.T) {
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{})
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam("123")
+		defer restoreID()
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusNotFound, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Store error", func(t *testing.T) {
+		as := &mocks.ActivityStore{}
+		as.GetActivityReturns(nil, errors.New("injected store error"))
+
+		h := NewActivity(cfg, as, &mocks.SignatureVerifier{})
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(id)
+		defer restoreID()
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Marshal error", func(t *testing.T) {
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{})
+		require.NotNil(t, h)
+
+		errExpected := fmt.Errorf("injected marshal error")
+
+		h.marshal = func(v interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(id)
+		defer restoreID()
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+}
+
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
 	t.Helper()
 
@@ -633,7 +754,9 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 		)
 	}
 
-	return vocab.NewCreateActivity(vocab.NewObjectProperty(), vocab.WithID(id))
+	return vocab.NewCreateActivity(vocab.NewObjectProperty(
+		vocab.WithIRI(testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn"))),
+		vocab.WithID(id))
 }
 
 func getStaticTime() time.Time {
@@ -1046,5 +1169,12 @@ const (
     "domain": "https://witness1.example.com/ledgers/maple2021",
     "jws": "eyJ..."
   }
+}`
+
+	activityJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/activities/abd35f29-032f-4e22-8f52-df00365323bc",
+  "object": "http://sally.example.com/transactions/bafkreihwsn",
+  "type": "Create"
 }`
 )

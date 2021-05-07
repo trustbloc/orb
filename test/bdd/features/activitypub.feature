@@ -57,6 +57,10 @@ Feature:
 
     Then we wait 3 seconds
 
+    When an HTTP GET is sent to "https://localhost:48426/services/orb/activities/${followID}" signed with KMS key from "domain1"
+    Then the JSON path "id" of the response equals "${domain2IRI}/activities/${followID}"
+    And the JSON path "type" of the response equals "Follow"
+
     When an HTTP GET is sent to "https://localhost:48326/services/orb/inbox" signed with KMS key from "domain1"
     Then the JSON path "type" of the response equals "OrderedCollection"
     And the JSON path "id" of the response equals "${domain1IRI}/inbox"
