@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,6 +17,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 var logger = log.New("activitypub_resthandler")
@@ -81,7 +81,7 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestH
 		activityStore: s,
 		handler:       h,
 		verifier:      verifier,
-		marshal:       json.Marshal,
+		marshal:       vocab.Marshal,
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()
 		},
