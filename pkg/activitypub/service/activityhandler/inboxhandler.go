@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -26,7 +27,8 @@ type Inbox struct {
 	*handler
 	*service.Handlers
 
-	outbox service.Outbox
+	outbox       service.Outbox
+	followersIRI *url.URL
 }
 
 // NewInbox returns a new ActivityPub inbox activity handler.
@@ -38,9 +40,16 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport
 		opt(options)
 	}
 
+	followersIRI, err := url.Parse(cfg.ServiceIRI.String() + resthandler.FollowersPath)
+	if err != nil {
+		// This would only happen at startup and it would be a result of bad configuration.
+		panic(fmt.Errorf("followers IRI: %w", err))
+	}
+
 	h := &Inbox{
-		outbox:   outbox,
-		Handlers: options,
+		outbox:       outbox,
+		Handlers:     options,
+		followersIRI: followersIRI,
 	}
 
 	h.handler = newHandler(cfg, s, t,
@@ -523,6 +532,9 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 			if !errors.Is(err, errDuplicateAnchorCredential) {
 				return err
 			}
+
+			logger.Infof("[%s] Ignoring duplicate anchor credential [%s]",
+				h.ServiceIRI, ref.Target().Object().ID())
 		}
 	}
 
@@ -530,17 +542,6 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 }
 
 func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
-	announceTo, err := h.getAnnounceToList(create)
-	if err != nil {
-		return fmt.Errorf("announce anchor credential: %w", err)
-	}
-
-	if len(announceTo) == 0 {
-		logger.Debugf("[%s] No followers to announce 'Create' to", h.ServiceIRI)
-
-		return nil
-	}
-
 	ref, err := newAnchorCredentialReferenceFromCreate(create)
 	if err != nil {
 		return err
@@ -560,11 +561,9 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithTo(announceTo...),
+		vocab.WithTo(h.followersIRI),
 		vocab.WithPublishedTime(&published),
 	)
-
-	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, announceTo)
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
@@ -583,17 +582,6 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 }
 
 func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
-	announceTo, err := h.getAnnounceToList(create)
-	if err != nil {
-		return fmt.Errorf("announce anchor credential: %w", err)
-	}
-
-	if len(announceTo) == 0 {
-		logger.Debugf("[%s] No followers to announce 'Create' to", h.ServiceIRI)
-
-		return nil
-	}
-
 	ref := create.Object().AnchorCredentialReference()
 
 	published := time.Now()
@@ -610,11 +598,9 @@ func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithTo(announceTo...),
+		vocab.WithTo(h.followersIRI),
 		vocab.WithPublishedTime(&published),
 	)
-
-	logger.Debugf("[%s] Posting 'Announce' to followers %s", h.ServiceIRI, announceTo)
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
@@ -722,40 +708,6 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 		h.ServiceIRI, actorIRI, h.ServiceIRI, refType)
 
 	return nil
-}
-
-func (h *Inbox) getAnnounceToList(create *vocab.ActivityType) ([]*url.URL, error) {
-	it, err := h.store.QueryReferences(store.Follower, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		err = it.Close()
-		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
-		}
-	}()
-
-	followers, err := storeutil.ReadReferences(it, -1)
-	if err != nil {
-		return nil, err
-	}
-
-	var announceTo []*url.URL
-
-	for _, follower := range followers {
-		if follower.String() == create.Actor().String() {
-			logger.Debugf("[%s] Not announcing to follower [%s] since it is the originator of the 'Create'",
-				h.ServiceIRI, follower)
-
-			continue
-		}
-
-		announceTo = append(announceTo, follower)
-	}
-
-	return announceTo, nil
 }
 
 func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) error {

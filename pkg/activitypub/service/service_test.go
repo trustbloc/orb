@@ -53,6 +53,7 @@ var (
 func TestNewService(t *testing.T) {
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
+		ServiceIRI:      testutil.MustParseURL("http://localhost:8301/services/service1"),
 		PubSubFactory: func(serviceName string) PubSub {
 			return mocks.NewPubSub()
 		},
