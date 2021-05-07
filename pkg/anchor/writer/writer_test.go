@@ -21,8 +21,11 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -58,10 +61,10 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		AnchorGraph:   graph.New(&graph.Providers{}),
-		DidAnchors:    memdidanchor.New(),
-		AnchorBuilder: &mockTxnBuilder{},
-		Store:         vcStore,
+		AnchorGraph:     graph.New(&graph.Providers{}),
+		DidAnchors:      memdidanchor.New(),
+		AnchorBuilder:   &mockTxnBuilder{},
+		VerifiableStore: vcStore,
 	}
 
 	c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -91,14 +94,16 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			OpProcessor:     &mockOpProcessor{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			MonitoringSvc:   &mockMonitoring{},
+			WitnessStore:    &mockWitnessStore{},
+			ActivityStore:   &mockActivityStore{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
@@ -112,7 +117,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			{
 				UniqueSuffix: "did-2",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
+				AnchorOrigin: "origin-2.com",
+			},
+			{
+				UniqueSuffix: "did-3",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: c.apServiceIRI.String(),
 			},
 		}
 
@@ -136,15 +146,17 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			Witness:       &mockWitness{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			OpProcessor:     &mockOpProcessor{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			MonitoringSvc:   &mockMonitoring{},
+			Witness:         &mockWitness{},
+			WitnessStore:    &mockWitnessStore{},
+			ActivityStore:   &mockActivityStore{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
@@ -177,15 +189,17 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Witness:       &mockWitness{},
-			MonitoringSvc: &mockMonitoring{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			OpProcessor:     &mockOpProcessor{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			Witness:         &mockWitness{},
+			MonitoringSvc:   &mockMonitoring{},
+			WitnessStore:    &mockWitnessStore{},
+			ActivityStore:   &mockActivityStore{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -223,14 +237,16 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    &mockDidAnchor{},
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			Store:         vcStore,
-			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      &mockDidAnchor{},
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			MonitoringSvc:   &mockMonitoring{},
+			WitnessStore:    &mockWitnessStore{},
+			ActivityStore:   &mockActivityStore{},
+			VerifiableStore: vcStore,
+			OpProcessor:     &mockOpProcessor{Err: errors.New("operation processor error")},
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -293,15 +309,15 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Witness:       &mockWitness{},
-			MonitoringSvc: &mockMonitoring{Err: fmt.Errorf("monitoring error")},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			OpProcessor:     &mockOpProcessor{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			Witness:         &mockWitness{},
+			MonitoringSvc:   &mockMonitoring{Err: fmt.Errorf("monitoring error")},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -345,12 +361,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStoreWithErr,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -373,14 +389,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Witness:       &mockWitness{},
-			MonitoringSvc: &mockMonitoring{},
-			Store:         vcStoreWithErr,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			Witness:         &mockWitness{},
+			MonitoringSvc:   &mockMonitoring{},
+			VerifiableStore: vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -398,12 +414,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -433,12 +449,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStore,
 		}
 
 		anchorCh := make(chan []string, 100)
@@ -468,12 +484,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStoreWithErr,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -495,12 +511,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   &mockAnchorGraph{Err: errors.New("txn graph error")},
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStore,
+			AnchorGraph:     &mockAnchorGraph{Err: errors.New("txn graph error")},
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -522,12 +538,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    &mockDidAnchor{Err: errors.New("did references error")},
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      &mockDidAnchor{Err: errors.New("did references error")},
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			VerifiableStore: vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -546,11 +562,11 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{Err: errors.New("outbox error")},
-			Store:         vcStore,
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			Outbox:          &mockOutbox{Err: errors.New("outbox error")},
+			VerifiableStore: vcStore,
 		}
 
 		anchorCh := make(chan []string, 100)
@@ -580,7 +596,9 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
-			Outbox: &mockOutbox{},
+			Outbox:        &mockOutbox{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -614,6 +632,102 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		err = c.postOfferActivity(anchorVC, []string{":xyz"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing protocol scheme")
+	})
+
+	t.Run("error - get system URI error", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		providers := &Providers{
+			Outbox:        &mockOutbox{},
+			ActivityStore: &mockActivityStore{},
+			WitnessStore:  &mockWitnessStore{},
+		}
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		c := New(namespace, &url.URL{Host: "?!?"}, casIRI, providers, anchorCh, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
+
+		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to parse system witness path")
+	})
+
+	t.Run("error - witness proof store error", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		providers := &Providers{
+			Outbox:        &mockOutbox{},
+			WitnessStore:  &mockWitnessStore{Err: fmt.Errorf("witness store error")},
+			ActivityStore: &mockActivityStore{},
+		}
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+
+		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to store witnesses for vcID[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error")
+	})
+
+	t.Run("error - activity store error", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		providers := &Providers{
+			Outbox:        &mockOutbox{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{Err: fmt.Errorf("activity store error")},
+		}
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+
+		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to query references for system witnesses: activity store error")
+	})
+
+	t.Run("error - post offer to outbox error", func(t *testing.T) {
+		anchorCh := make(chan []string, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		providers := &Providers{
+			Outbox:        &mockOutbox{Err: fmt.Errorf("outbox error")},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+		}
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+
+		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to post offer for vcID[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: outbox error")
 	})
 }
 
@@ -734,7 +848,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 	})
 }
 
-func TestWriter_getWitnessesIRI(t *testing.T) {
+func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 	apServiceIRI, err := url.Parse(activityPubURL)
 	require.NoError(t, err)
 
@@ -746,30 +860,26 @@ func TestWriter_getWitnessesIRI(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		witnesses := []string{"origin-1.com", "origin-2.com"}
 
-		witnessesIRI, err := c.getWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 		require.NoError(t, err)
 
-		// two from witness list plus system witness
-		require.Equal(t, 3, len(witnessesIRI))
-
-		// last one in the list is system witnesses collection
-		require.Equal(t, witnessesIRI[2].String(), "http://localhost/services/orb/witnesses")
+		// two from witness list
+		require.Equal(t, 2, len(witnessesIRI))
 	})
 
 	t.Run("success - exclude current domain from witness list", func(t *testing.T) {
 		witnesses := []string{activityPubURL}
 
-		witnessesIRI, err := c.getWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 		require.NoError(t, err)
 
-		// only system witness
-		require.Equal(t, 1, len(witnessesIRI))
+		require.Equal(t, 0, len(witnessesIRI))
 	})
 
 	t.Run("error - invalid url", func(t *testing.T) {
 		witnesses := []string{":xyz"}
 
-		witnessesIRI, err := c.getWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 		require.Error(t, err)
 		require.Nil(t, witnessesIRI)
 		require.Contains(t, err.Error(), "missing protocol scheme")
@@ -905,6 +1015,40 @@ type mockMonitoring struct {
 func (m *mockMonitoring) Watch(_ string, _ time.Time, _ []byte) error {
 	if m.Err != nil {
 		return m.Err
+	}
+
+	return nil
+}
+
+type mockActivityStore struct {
+	Err error
+}
+
+func (a *mockActivityStore) QueryReferences(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) { // nolint: lll
+	if a.Err != nil {
+		return nil, a.Err
+	}
+
+	systemWitnessIRI, err := url.Parse("origin-2.com")
+	if err != nil {
+		return nil, err
+	}
+
+	iter := &apmocks.ReferenceIterator{}
+
+	iter.NextReturnsOnCall(0, systemWitnessIRI, nil)
+	iter.NextReturnsOnCall(1, nil, spi.ErrNotFound)
+
+	return iter, nil
+}
+
+type mockWitnessStore struct {
+	Err error
+}
+
+func (w *mockWitnessStore) Put(vcID string, witnesses []*proof.WitnessProof) error {
+	if w.Err != nil {
+		return w.Err
 	}
 
 	return nil

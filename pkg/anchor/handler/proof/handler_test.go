@@ -8,6 +8,7 @@ package proof
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -22,6 +23,11 @@ import (
 )
 
 //go:generate counterfeiter -o ../mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
+
+const (
+	vcID       = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
+	witnessURL = "http://example.com/orb/services"
+)
 
 func TestNew(t *testing.T) {
 	var vcCh chan *verifiable.Credential
@@ -38,6 +44,9 @@ func TestNew(t *testing.T) {
 }
 
 func TestWitnessProofHandler(t *testing.T) {
+	witnessIRI, err := url.Parse(witnessURL)
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
@@ -60,8 +69,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), time.Now(), []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -87,7 +95,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof("http://orb.domain1.com/vc/9ac66b40-bcc6-4ca8-a9c7-d1fd3eaebafd",
+		err = proofHandler.HandleProof(witnessIRI, "http://orb.domain1.com/vc/9ac66b40-bcc6-4ca8-a9c7-d1fd3eaebafd",
 			time.Now(), time.Now(), []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -111,8 +119,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), time.Now(), []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get vc: get error")
 	})
@@ -130,8 +137,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-			time.Now(), time.Now(), []byte(""))
+		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), time.Now(), []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal witness proof for anchor credential")
 	})
@@ -161,7 +167,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof("http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
+		err = proofHandler.HandleProof(witnessIRI, vcID,
 			time.Now(), time.Now(), []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")

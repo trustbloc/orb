@@ -467,7 +467,8 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("marshal error of result in 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(like.Object().IRI().String(), *like.StartTime(), *like.EndTime(), resultBytes)
+	err = h.ProofHandler.HandleProof(like.Actor(), like.Object().IRI().String(),
+		*like.StartTime(), *like.EndTime(), resultBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
 	}
@@ -792,6 +793,6 @@ func (a *acceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
 
 type noOpProofHandler struct{}
 
-func (p *noOpProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
+func (p *noOpProofHandler) HandleProof(witness *url.URL, anchorCredID string, startTime, endTime time.Time, proof []byte) error { //nolint:lll
 	return nil
 }

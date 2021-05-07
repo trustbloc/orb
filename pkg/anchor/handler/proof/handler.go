@@ -9,6 +9,7 @@ package proof
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -47,8 +48,9 @@ type monitoringSvc interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(anchorCredID string, startTime, endTime time.Time, proof []byte) error {
-	logger.Debugf("received request anchorCredID[%s], proof: %s", anchorCredID, string(proof))
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string, startTime, endTime time.Time, proof []byte) error { //nolint:lll
+	logger.Debugf("received request anchorCredID[%s] from witness[%s], proof: %s",
+		anchorCredID, witness.String(), string(proof))
 
 	err := h.MonitoringSvc.Watch(anchorCredID, endTime, proof)
 	if err != nil {
