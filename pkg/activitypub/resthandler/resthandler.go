@@ -43,6 +43,8 @@ const (
 	SharesPath = "/{id}/shares"
 	// LikesPath specifies the object's 'likes' endpoint.
 	LikesPath = "/{id}/likes"
+	// ActivitiesPath specifies the object's 'activities' endpoint.
+	ActivitiesPath = "/activities/{id}"
 )
 
 const (

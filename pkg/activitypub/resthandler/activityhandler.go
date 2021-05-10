@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -14,6 +16,14 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
+
+// NewActivity returns a new 'activities/{id}' REST handler that retrieves a single activity by ID.
+func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activity {
+	h := &Activity{}
+	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle, verifier)
+
+	return h
+}
 
 // NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
 func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
@@ -261,4 +271,69 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 		vocab.WithNext(next),
 		vocab.WithTotalItems(it.TotalItems()),
 	), nil
+}
+
+// Activity implements a REST handler that retrieves a single activity by ID.
+type Activity struct {
+	*handler
+}
+
+func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
+	activityIRI, err := h.getActivityIRI(req)
+	if err != nil {
+		logger.Debugf("[%s] Get activity IRI: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusBadRequest, nil)
+
+		return
+	}
+
+	activity, err := h.activityStore.GetActivity(activityIRI)
+	if err != nil {
+		if errors.Is(err, spi.ErrNotFound) {
+			logger.Debugf("[%s] Activity ID not found [%s]", h.endpoint, activityIRI)
+
+			h.writeResponse(w, http.StatusNotFound, nil)
+
+			return
+		}
+
+		logger.Errorf("[%s] Unable to retrieve activity [%s]: %s", h.endpoint, activityIRI, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
+	activityBytes, err := h.marshal(activity)
+	if err != nil {
+		logger.Errorf("[%s] Unable to marshal activity [%s]: %s", h.endpoint, activityIRI, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, nil)
+
+		return
+	}
+
+	logger.Debugf("[%s] Returning activity: %s", h.endpoint, activityBytes)
+
+	h.writeResponse(w, http.StatusOK, activityBytes)
+}
+
+func (h *Activity) getActivityIRI(req *http.Request) (*url.URL, error) {
+	id := getIDParam(req)
+
+	if id == "" {
+		return nil, errors.New("activity ID not specified")
+	}
+
+	activityID := fmt.Sprintf("%s/activities/%s", h.ObjectIRI, id)
+
+	logger.Debugf("[%s] Retrieving activity from store [%s]", h.endpoint, activityID)
+
+	activityIRI, err := url.Parse(activityID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid activity ID [%s]: %w", id, err)
+	}
+
+	return activityIRI, nil
 }
