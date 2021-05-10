@@ -24,7 +24,7 @@ import (
 const (
 	domainFlagName      = "domain"
 	domainFileEnvKey    = "ORB_CLI_DOMAIN"
-	domainFileFlagUsage = "URL to the did:trustbloc consortium's domain. " +
+	domainFileFlagUsage = "URL to the did:orb domain. " +
 		" Alternatively, this can be set with the following environment variable: " + domainFileEnvKey
 
 	sidetreeURLFlagName  = "sidetree-url"
@@ -50,12 +50,12 @@ const (
 
 	publicKeyFileFlagName  = "publickey-file"
 	publicKeyFileEnvKey    = "ORB_CLI_PUBLICKEY_FILE"
-	publicKeyFileFlagUsage = "publickey file include public keys for Trustbloc DID " +
+	publicKeyFileFlagUsage = "publickey file include public keys for Orb DID " +
 		" Alternatively, this can be set with the following environment variable: " + publicKeyFileEnvKey
 
 	serviceFileFlagName = "service-file"
 	serviceFileEnvKey   = "ORB_CLI_SERVICE_FILE"
-	serviceFlagUsage    = "publickey file include services for Trustbloc DID " +
+	serviceFlagUsage    = "publickey file include services for Orb DID " +
 		" Alternatively, this can be set with the following environment variable: " + serviceFileEnvKey
 
 	recoveryKeyFlagName  = "recoverykey"
@@ -96,9 +96,9 @@ func GetCreateDIDCmd() *cobra.Command {
 
 func createDIDCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "create-did",
-		Short: "Create TrustBloc DID",
-		Long:  "Create TrustBloc DID",
+		Use:   "create",
+		Short: "Create Orb DID",
+		Long:  "Create Orb DID",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {
