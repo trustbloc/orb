@@ -87,6 +87,7 @@ import (
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
+	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -369,6 +370,11 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
 
+	proofStore, err := proofstore.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("failed to create proof store: %s", err.Error())
+	}
+
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
@@ -428,7 +434,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	defer monitoringSvc.Close()
 
-	proofHander := proof.New(
+	proofHandler := proof.New(
 		&proof.Providers{
 			Store:         vcStore,
 			MonitoringSvc: monitoringSvc,
@@ -442,7 +448,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, apSigVerifier,
-		apspi.WithProofHandler(proofHander),
+		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casClient, httpClient)),
 		// TODO: Define the following ActivityPub handlers.
@@ -455,15 +461,17 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	anchorWriterProviders := &writer.Providers{
-		AnchorGraph:   anchorGraph,
-		DidAnchors:    didAnchors,
-		AnchorBuilder: vcBuilder,
-		Store:         vcStore,
-		OpProcessor:   opProcessor,
-		Outbox:        activityPubService.Outbox(),
-		Witness:       witness,
-		Signer:        vcSigner,
-		MonitoringSvc: monitoringSvc,
+		AnchorGraph:     anchorGraph,
+		DidAnchors:      didAnchors,
+		AnchorBuilder:   vcBuilder,
+		VerifiableStore: vcStore,
+		OpProcessor:     opProcessor,
+		Outbox:          activityPubService.Outbox(),
+		Witness:         witness,
+		Signer:          vcSigner,
+		MonitoringSvc:   monitoringSvc,
+		ActivityStore:   apStore,
+		WitnessStore:    proofStore,
 	}
 
 	anchorWriter := writer.New(parameters.didNamespace,

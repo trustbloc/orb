@@ -20,7 +20,10 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
+	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -42,15 +45,25 @@ type Writer struct {
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	AnchorGraph   anchorGraph
-	DidAnchors    didAnchors
-	AnchorBuilder anchorBuilder
-	Store         vcStore
-	OpProcessor   opProcessor
-	Outbox        outbox
-	Witness       witness
-	Signer        signer
-	MonitoringSvc monitoringSvc
+	AnchorGraph     anchorGraph
+	DidAnchors      didAnchors
+	AnchorBuilder   anchorBuilder
+	VerifiableStore vcStore
+	OpProcessor     opProcessor
+	Outbox          outbox
+	Witness         witness
+	Signer          signer
+	MonitoringSvc   monitoringSvc
+	WitnessStore    witnessStore
+	ActivityStore   activityStore
+}
+
+type activityStore interface {
+	QueryReferences(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error)
+}
+
+type witnessStore interface {
+	Put(vcID string, witnesses []*proof.WitnessProof) error
 }
 
 type witness interface {
@@ -232,7 +245,7 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 	}
 
 	// store anchor credential
-	err = c.Store.Put(signedVC)
+	err = c.VerifiableStore.Put(signedVC)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store anchor credential: %w", err)
 	}
@@ -247,14 +260,14 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	}
 
 	// send anchor credential to local witness log
-	proof, err := c.Witness.Witness(vcBytes)
+	proofBytes, err := c.Witness.Witness(vcBytes)
 	if err != nil {
 		return nil, fmt.Errorf("local witnessing failed for anchor credential[%s]: %w", vc.ID, err)
 	}
 
 	var witnessProof vct.Proof
 
-	err = json.Unmarshal(proof, &witnessProof)
+	err = json.Unmarshal(proofBytes, &witnessProof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal local witness proof for anchor credential[%s]: %w", vc.ID, err)
 	}
@@ -262,7 +275,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	// store anchor credential (required for monitoring)
-	err = c.Store.Put(vc)
+	err = c.VerifiableStore.Put(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
 	}
@@ -270,7 +283,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
 
-	err = c.MonitoringSvc.Watch(vc.ID, endTime, proof)
+	err = c.MonitoringSvc.Watch(vc.ID, endTime, proofBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup monitoring for local witness for anchor credential[%s]: %w", vc.ID, err)
 	}
@@ -294,7 +307,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
 
 	// store anchor credential with witness proofs
-	err := c.Store.Put(vc)
+	err := c.VerifiableStore.Put(vc)
 	if err != nil {
 		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
 
@@ -391,10 +404,22 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string) error {
 	logger.Debugf("sending anchor credential[%s] to system witnesses plus: %s", vc.ID, witnesses)
 
-	witnessesIRI, err := c.getWitnessesIRI(witnesses)
+	batchWitnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 	if err != nil {
 		return err
 	}
+
+	// get system witness IRI
+	systemWitnessesIRI, err := url.Parse(c.apServiceIRI.String() + resthandler.WitnessesPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse system witness path: %w", err)
+	}
+
+	var witnessesIRI []*url.URL
+
+	// add batch witnesses and system witnesses (activity pub collection)
+	witnessesIRI = append(witnessesIRI, batchWitnessesIRI...)
+	witnessesIRI = append(witnessesIRI, systemWitnessesIRI)
 
 	bytes, err := vc.MarshalJSON()
 	if err != nil {
@@ -418,6 +443,11 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
+		return fmt.Errorf("failed to post offer for vcID[%s]: %w", vc.ID, err)
+	}
+
+	err = c.storeWitnesses(vc.ID, batchWitnessesIRI)
+	if err != nil {
 		return err
 	}
 
@@ -426,8 +456,8 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 	return nil
 }
 
-func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
-	var allWitnesses []*url.URL
+func (c *Writer) getBatchWitnessesIRI(witnesses []string) ([]*url.URL, error) {
+	var witnessesIRI []*url.URL
 
 	for _, w := range witnesses {
 		// do not add local domain as external witness
@@ -440,19 +470,10 @@ func (c *Writer) getWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", w, err)
 		}
 
-		allWitnesses = append(allWitnesses, witnessIRI)
+		witnessesIRI = append(witnessesIRI, witnessIRI)
 	}
 
-	// get system witness IRI
-	systemWitnesses, err := url.Parse(c.apServiceIRI.String() + resthandler.WitnessesPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse system witness path: %w", err)
-	}
-
-	// add system witnesses (activity pub collection) to the list of witnesses
-	allWitnesses = append(allWitnesses, systemWitnesses)
-
-	return allWitnesses, nil
+	return witnessesIRI, nil
 }
 
 // getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.
@@ -513,4 +534,73 @@ func getKeys(m map[string]string) []string {
 func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	// not used
 	return false, nil
+}
+
+func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
+	var witnesses []*proof.WitnessProof
+
+	for _, w := range batchWitnesses {
+		witnesses = append(witnesses,
+			&proof.WitnessProof{
+				Type:    proof.TypeBatch,
+				Witness: w.String(),
+			})
+	}
+
+	systemWitnesses, err := c.getSystemWitnesses()
+	if err != nil {
+		return err
+	}
+
+	for _, systemWitnessURI := range systemWitnesses {
+		if !containsURI(batchWitnesses, systemWitnessURI) {
+			witnesses = append(witnesses,
+				&proof.WitnessProof{
+					Type:    proof.TypeSystem,
+					Witness: systemWitnessURI.String(),
+				})
+		}
+	}
+
+	err = c.WitnessStore.Put(vcID, witnesses)
+	if err != nil {
+		return fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err)
+	}
+
+	return nil
+}
+
+func containsURI(values []*url.URL, value *url.URL) bool {
+	for _, v := range values {
+		if v.String() == value.String() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *Writer) getSystemWitnesses() ([]*url.URL, error) {
+	it, err := c.ActivityStore.QueryReferences(spi.Witness,
+		spi.NewCriteria(
+			spi.WithObjectIRI(c.apServiceIRI),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query references for system witnesses: %w", err)
+	}
+
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
+
+	systemWitnessesIRI, err := storeutil.ReadReferences(it, -1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read system witnesses from iterator: %w", err)
+	}
+
+	return systemWitnessesIRI, nil
 }
