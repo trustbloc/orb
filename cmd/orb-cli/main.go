@@ -11,6 +11,9 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/createdidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 )
 
 var logger = log.New("orb-cli")
@@ -31,6 +34,9 @@ func main() {
 	}
 
 	didCmd.AddCommand(createdidcmd.GetCreateDIDCmd())
+	didCmd.AddCommand(updatedidcmd.GetUpdateDIDCmd())
+	didCmd.AddCommand(recoverdidcmd.GetRecoverDIDCmd())
+	didCmd.AddCommand(deactivatedidcmd.GetDeactivateDIDCmd())
 
 	rootCmd.AddCommand(didCmd)
 

@@ -86,8 +86,27 @@ generate-test-keys:
 		--entrypoint "/opt/workspace/orb/scripts/generate_test_keys.sh" \
 		frapsoft/openssl
 
+.PHONY: build-orb-cli-binaries
+build-orb-cli-binaries:
+	@echo "Building orb cli binaries"
+	@cd cmd/orb-cli/;CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o ../../.build/dist/bin/orb-cli-linux-amd64 main.go
+	@cd .build/dist/bin;tar cvzf orb-cli-linux-amd64.tar.gz orb-cli-linux-amd64;rm -rf orb-cli-linux-amd64
+	@cd cmd/orb-cli/;CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o ../../.build/dist/bin/orb-cli-linux-arm64 main.go
+	@cd .build/dist/bin;tar cvzf orb-cli-linux-arm64.tar.gz orb-cli-linux-arm64;rm -rf orb-cli-linux-arm64
+	@cd cmd/orb-cli/;CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o ../../.build/dist/bin/orb-cli-darwin-arm64 main.go
+	@cd .build/dist/bin;tar cvzf orb-cli-darwin-arm64.tar.gz orb-cli-darwin-arm64;rm -rf orb-cli-darwin-arm64
+	@cd cmd/orb-cli/;CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o ../../.build/dist/bin/orb-cli-darwin-amd64 main.go
+	@cd .build/dist/bin;tar cvzf orb-cli-darwin-amd64.tar.gz orb-cli-darwin-amd64;rm -rf orb-cli-darwin-amd64
+	@for f in .build/dist/bin/orb-cli*; do shasum -a 256 $$f > $$f.sha256; done
+
+.PHONY: extract-orb-cli-binaries
+extract-orb-cli-binaries:
+	@echo "Extract orb cli binaries"
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-linux-amd64.tar.gz;mv orb-cli-linux-amd64 ../../extract/
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-amd64.tar.gz;mv orb-cli-darwin-amd64 ../../extract/
+
 .PHONY: bdd-test
-bdd-test: generate-test-keys orb-docker
+bdd-test: generate-test-keys orb-docker build-orb-cli-binaries extract-orb-cli-binaries
 	@scripts/integration.sh
 
 .PHONY: clean

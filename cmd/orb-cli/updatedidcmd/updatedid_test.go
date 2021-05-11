@@ -308,7 +308,7 @@ func signingKeyPasswordArg() []string {
 }
 
 func sidetreeURLArg(value string) []string {
-	return []string{flag + sidetreeURLFlagName, value}
+	return []string{flag + sidetreeURLOpsFlagName, value}
 }
 
 func didURIArg() []string {
