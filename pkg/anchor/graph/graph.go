@@ -8,6 +8,7 @@ package graph
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
@@ -78,10 +79,13 @@ type Anchor struct {
 }
 
 // GetDidAnchors returns all anchors that are referencing did suffix starting from cid.
-func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
+func (g *Graph) GetDidAnchors(webCASURL, suffix string) ([]Anchor, error) {
 	var refs []Anchor
 
-	cur := cid
+	webCASURLSplitBySlashes := strings.Split(webCASURL, "/")
+
+	cur := webCASURLSplitBySlashes[len(webCASURLSplitBySlashes)-1]
+
 	ok := true
 
 	for ok {

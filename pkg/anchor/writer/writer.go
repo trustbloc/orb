@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
@@ -36,7 +37,7 @@ type Writer struct {
 	*Providers
 	namespace            string
 	vcCh                 <-chan *verifiable.Credential
-	anchorCh             chan []string
+	anchorCh             chan []anchorinfo.AnchorInfo
 	apServiceIRI         *url.URL
 	casIRI               *url.URL
 	maxWitnessDelay      time.Duration
@@ -106,7 +107,7 @@ type vcStore interface {
 
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorCh chan []string, vcCh chan *verifiable.Credential,
+	anchorCh chan []anchorinfo.AnchorInfo, vcCh chan *verifiable.Credential,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool) *Writer {
 	w := &Writer{
 		Providers:            providers,
@@ -340,7 +341,15 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	c.anchorCh <- []string{cid}
+	fullWebCASURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
+	if err != nil {
+		logger.Errorf("failed to construct full WebCAS URL from the following two parts: [%s] and [%s]",
+			c.casIRI.String(), cid)
+
+		return
+	}
+
+	c.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: fullWebCASURL}}
 
 	logger.Debugf("posted cid[%s] to anchor channel", cid)
 

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -28,7 +30,7 @@ func TestStartObserver(t *testing.T) {
 	)
 
 	t.Run("test channel close", func(t *testing.T) {
-		anchorCh := make(chan []string, 100)
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 
 		providers := &Providers{
 			TxnProvider: mockLedger{registerForAnchor: anchorCh},
@@ -45,7 +47,7 @@ func TestStartObserver(t *testing.T) {
 	})
 
 	t.Run("success - process batch", func(t *testing.T) {
-		anchorCh := make(chan []string, 100)
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 
 		tp := &mocks.TxnProcessor{}
 
@@ -54,7 +56,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		var anchors []string
+		var anchors []anchorinfo.AnchorInfo
 
 		graphProviders := &graph.Providers{
 			Cas:       mocks.NewMockCasClient(nil),
@@ -68,13 +70,13 @@ func TestStartObserver(t *testing.T) {
 
 		cid, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
-		anchors = append(anchors, cid)
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}})
 
 		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
 
 		cid, err = anchorGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
-		anchors = append(anchors, cid)
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid})
 
 		providers := &Providers{
 			TxnProvider:            mockLedger{registerForAnchor: anchorCh},
@@ -199,7 +201,7 @@ func TestStartObserver(t *testing.T) {
 	})
 
 	t.Run("success - did and anchor", func(t *testing.T) {
-		anchorCh := make(chan []string, 100)
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		didCh := make(chan []string, 100)
 
 		tp := &mocks.TxnProcessor{}
@@ -209,7 +211,8 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		var dids, anchors []string
+		var dids []string
+		var anchors []anchorinfo.AnchorInfo
 
 		graphProviders := &graph.Providers{
 			Cas:       mocks.NewMockCasClient(nil),
@@ -233,7 +236,7 @@ func TestStartObserver(t *testing.T) {
 		cid, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 
-		anchors = append(anchors, cid)
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}})
 		dids = append(dids, cid+":"+did)
 
 		providers := &Providers{
@@ -370,11 +373,11 @@ func TestStartObserver(t *testing.T) {
 }
 
 type mockLedger struct {
-	registerForAnchor chan []string
+	registerForAnchor chan []anchorinfo.AnchorInfo
 	registerForDID    chan []string
 }
 
-func (m mockLedger) RegisterForAnchor() <-chan []string {
+func (m mockLedger) RegisterForAnchor() <-chan []anchorinfo.AnchorInfo {
 	return m.registerForAnchor
 }
 
