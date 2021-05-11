@@ -100,7 +100,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		// Get all references for this did from anchor graph starting from Sidetree txn reference
 		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.Reference, op.UniqueSuffix)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get all DID anchors: %w", err)
 		}
 
 		// check that number of operations in the store matches the number of anchors in the graph for that did
@@ -118,7 +118,11 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		// The genesis time of the protocol that was used for this operation
 		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime
 
-		op.Reference = sidetreeTxn.Reference
+		webCASURLSplitBySlashes := strings.Split(sidetreeTxn.Reference, "/")
+
+		cid := webCASURLSplitBySlashes[len(webCASURLSplitBySlashes)-1]
+
+		op.Reference = cid
 
 		logger.Debugf("updated operation time: %s", op.UniqueSuffix)
 		ops = append(ops, op)

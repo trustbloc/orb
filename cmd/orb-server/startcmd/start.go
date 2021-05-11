@@ -23,8 +23,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/trustbloc/orb/pkg/resolver/document"
-
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
@@ -71,6 +69,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/handler/credential"
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
+	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
@@ -84,6 +83,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
+	"github.com/trustbloc/orb/pkg/resolver/document"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -357,7 +357,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// create anchor channel (used by anchor writer to notify observer about anchors)
-	anchorCh := make(chan []string, chBuffer)
+	anchorCh := make(chan []anchorinfo.AnchorInfo, chBuffer)
 
 	// create did channel (used by resolver to notify observer about "not-found" DIDs)
 	didCh := make(chan []string, chBuffer)
@@ -758,11 +758,11 @@ func prepareKeyLock(keyPath string) (secretlock.Service, error) {
 }
 
 type mockTxnProvider struct {
-	registerForAnchor chan []string
+	registerForAnchor chan []anchorinfo.AnchorInfo
 	registerForDID    chan []string
 }
 
-func (m mockTxnProvider) RegisterForAnchor() <-chan []string {
+func (m mockTxnProvider) RegisterForAnchor() <-chan []anchorinfo.AnchorInfo {
 	return m.registerForAnchor
 }
 

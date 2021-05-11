@@ -39,8 +39,9 @@ func New(casClient casapi.Client, httpClient *http.Client) *Resolver {
 // 1. If data is provided (not nil), then it will be stored via the local CAS. That data passed in will then simply be
 //    returned back to the caller.
 // 2. If data is not provided (is nil), then the local CAS will be checked to see if it has data at the cid provided.
-//    If it does, then it is returned. If it doesn't, then the data will be retrieved by querying the webCASURL
-//    passed in. This data will then get stored in the local CAS. Finally, the data is returned to the caller.
+//    If it does, then it is returned. If it doesn't, and a webCASURL is provided, then the data will be retrieved by
+//    querying the webCASURL. This data will then get stored in the local CAS.
+//    Finally, the data is returned to the caller.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
 func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error) {
@@ -55,19 +56,20 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte,
 
 	// Ensure we have the data stored in the local CAS.
 	dataFromLocal, err := h.localCAS.Read(cid)
-	if err != nil {
-		if errors.Is(err, cas.ErrContentNotFound) {
-			dataFromRemote, errGetAndStoreRemoteData := h.getAndDataFromRemote(webCASURL, cid)
-			if errGetAndStoreRemoteData != nil {
-				return nil, fmt.Errorf("failure while getting and storing data from the remote "+
-					"WebCAS endpoint: %w", errGetAndStoreRemoteData)
-			}
+	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
+		if webCASURL != nil && webCASURL.String() != "" {
+			if errors.Is(err, cas.ErrContentNotFound) {
+				dataFromRemote, errGetAndStoreRemoteData := h.getAndDataFromRemote(webCASURL, cid)
+				if errGetAndStoreRemoteData != nil {
+					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
+						"WebCAS endpoint: %w", errGetAndStoreRemoteData)
+				}
 
-			return dataFromRemote, nil
+				return dataFromRemote, nil
+			}
 		}
 
-		return nil, fmt.Errorf("unexpected failure while checking local CAS for data stored at %s: %w",
-			cid, err)
+		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", cid, err)
 	}
 
 	return dataFromLocal, nil
@@ -99,7 +101,8 @@ func (h *Resolver) getAndDataFromRemote(webCASEndpoint *url.URL, cid string) ([]
 		}
 	} else {
 		return nil, fmt.Errorf("failed to retrieve data from %s. "+
-			"Response status code: %d. Response body: %s", webCASEndpoint, resp.StatusCode, string(responseBody))
+			"Response status code: %d. Response body: %s", webCASEndpoint.String(), resp.StatusCode,
+			string(responseBody))
 	}
 
 	return responseBody, nil

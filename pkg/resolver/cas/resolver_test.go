@@ -107,6 +107,8 @@ func TestResolver_Resolve(t *testing.T) {
 			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", cid))
 			require.NoError(t, err)
 
+			println(id.String())
+
 			data, err := resolver.Resolve(id, cid, nil)
 			require.NoError(t, err)
 			require.Equal(t, string(data), sampleData)
@@ -223,7 +225,7 @@ func TestResolver_Resolve(t *testing.T) {
 			"failed to put content into underlying storage provider: put error")
 		require.Nil(t, data)
 	})
-	t.Run("Unexpected failure when reading from local CAS", func(t *testing.T) {
+	t.Run("Other failure when reading from local CAS", func(t *testing.T) {
 		casClient, err := cas.New(&ariesmockstorage.Provider{
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrGet: errors.New("get error"),
@@ -237,9 +239,9 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 
 		data, err := resolver.Resolve(id, sampleDataCID, nil)
-		require.EqualError(t, err, "unexpected failure while checking local CAS for data stored at "+
-			"QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ: failed to get content from the underlying "+
-			"storage provider: get error")
+		require.EqualError(t, err, "failed to get data stored at "+
+			"QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ from the local CAS: "+
+			"failed to get content from the underlying storage provider: get error")
 		require.Nil(t, data)
 	})
 	t.Run("Fail to execute GET call", func(t *testing.T) {

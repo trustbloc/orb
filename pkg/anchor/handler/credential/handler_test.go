@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -121,7 +122,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *AnchorCredentialHandler {
 	t.Helper()
 
-	anchorCh := make(chan []string, 100)
+	anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 
 	anchorCredentialHandler := New(anchorCh, client, &http.Client{})
 	require.NotNil(t, anchorCredentialHandler)
