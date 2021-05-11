@@ -361,7 +361,7 @@ func servicesFileArg(value string) []string {
 }
 
 func sidetreeURLArg(value string) []string {
-	return []string{flag + sidetreeURLFlagName, value}
+	return []string{flag + sidetreeURLOpsFlagName, value}
 }
 
 func nextUpdateKeyFileFlagNameArg(value string) []string {

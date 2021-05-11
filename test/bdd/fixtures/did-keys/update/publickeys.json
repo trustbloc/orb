@@ -1,0 +1,14 @@
+[
+ {
+ "id": "key2",
+ "type": "JwsVerificationKey2020",
+ "purposes": ["capabilityInvocation"],
+ "jwkPath": "./fixtures/did-keys/update/key2_jwk.json"
+ },
+ {
+  "id": "key3",
+  "type": "Ed25519VerificationKey2018",
+  "purposes": ["authentication"],
+  "jwkPath": "./fixtures/did-keys/update/key3_jwk.json"
+ }
+]

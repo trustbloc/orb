@@ -1,0 +1,10 @@
+[
+  {
+    "id": "svc-recover-id",
+    "type": "type1",
+    "priority": 1,
+    "routingKeys": ["key1"],
+    "recipientKeys": ["key1"],
+    "serviceEndpoint": "http://www.example.com"
+  }
+]

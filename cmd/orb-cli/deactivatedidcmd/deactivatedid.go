@@ -32,10 +32,15 @@ const (
 	domainFileFlagUsage = "URL to the did:orb domain. " +
 		" Alternatively, this can be set with the following environment variable: " + domainFileEnvKey
 
-	sidetreeURLFlagName  = "sidetree-url"
-	sidetreeURLFlagUsage = "Comma-Separated list of sidetree url." +
-		" Alternatively, this can be set with the following environment variable: " + sidetreeURLEnvKey
-	sidetreeURLEnvKey = "ORB_CLI_SIDETREE_URL"
+	sidetreeURLOpsFlagName  = "sidetree-url-operation"
+	sidetreeURLOpsFlagUsage = "Comma-Separated list of sidetree url operation." +
+		" Alternatively, this can be set with the following environment variable: " + sidetreeURLOpsEnvKey
+	sidetreeURLOpsEnvKey = "ORB_CLI_SIDETREE_URL_OPERATION"
+
+	sidetreeURLResFlagName  = "sidetree-url-resolution"
+	sidetreeURLResFlagUsage = "Comma-Separated list of sidetree url resolution." +
+		" Alternatively, this can be set with the following environment variable: " + sidetreeURLResEnvKey
+	sidetreeURLResEnvKey = "ORB_CLI_SIDETREE_URL_Resolution"
 
 	tlsSystemCertPoolFlagName  = "tls-systemcertpool"
 	tlsSystemCertPoolFlagUsage = "Use system certificate pool." +
@@ -131,11 +136,18 @@ func deactivateDIDCmd() *cobra.Command {
 func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	var opts []vdrapi.DIDMethodOption
 
-	sidetreeURL := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLFlagName,
-		sidetreeURLEnvKey)
+	sidetreeURLOps := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLOpsFlagName,
+		sidetreeURLOpsEnvKey)
 
-	if len(sidetreeURL) > 0 {
-		opts = append(opts, vdrapi.WithOption(orb.OperationEndpointsOpt, sidetreeURL))
+	if len(sidetreeURLOps) > 0 {
+		opts = append(opts, vdrapi.WithOption(orb.OperationEndpointsOpt, sidetreeURLOps))
+	}
+
+	sidetreeURLRes := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
+		sidetreeURLResEnvKey)
+
+	if len(sidetreeURLRes) > 0 {
+		opts = append(opts, vdrapi.WithOption(orb.ResolutionEndpointsOpt, sidetreeURLRes))
 	}
 
 	return opts
@@ -173,7 +185,8 @@ func createFlags(startCmd *cobra.Command) {
 		tlsSystemCertPoolFlagUsage)
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(sidetreeWriteTokenFlagName, "", "", sidetreeWriteTokenFlagUsage)
-	startCmd.Flags().StringArrayP(sidetreeURLFlagName, "", []string{}, sidetreeURLFlagUsage)
+	startCmd.Flags().StringArrayP(sidetreeURLOpsFlagName, "", []string{}, sidetreeURLOpsFlagUsage)
+	startCmd.Flags().StringArrayP(sidetreeURLResFlagName, "", []string{}, sidetreeURLResFlagUsage)
 	startCmd.Flags().StringP(signingKeyFlagName, "", "", signingKeyFlagUsage)
 	startCmd.Flags().StringP(signingKeyFileFlagName, "", "", signingKeyFileFlagUsage)
 	startCmd.Flags().StringP(signingKeyPasswordFlagName, "", "", signingKeyPasswordFlagUsage)
