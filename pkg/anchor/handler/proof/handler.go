@@ -31,12 +31,17 @@ type Providers struct {
 	Store         vcStore
 	MonitoringSvc monitoringSvc
 	DocLoader     ld.DocumentLoader
+	WitnessStore  witnessStore
 }
 
 // WitnessProofHandler handles an anchor credential witness proof.
 type WitnessProofHandler struct {
 	*Providers
 	vcCh chan *verifiable.Credential
+}
+
+type witnessStore interface {
+	AddProof(vcID, witness string, p []byte) error
 }
 
 type vcStore interface {
@@ -74,6 +79,11 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 		logger.Debugf("Credential[%s] has already been witnessed, nothing to do", vc.ID)
 
 		return nil
+	}
+
+	err = h.WitnessStore.AddProof(anchorCredID, witness.String(), proof)
+	if err != nil {
+		return fmt.Errorf("failed to add witness[%s] proof for credential[%s]: %w", witness.String(), anchorCredID, err)
 	}
 
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)

@@ -65,6 +65,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			Store:         store,
 			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -91,6 +92,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			Store:         store,
 			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -115,6 +117,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			Store:         vcStore,
 			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -122,6 +125,35 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), time.Now(), []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get vc: get error")
+	})
+
+	t.Run("error - witness store error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = store.Put(anchorVC)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			Store:         store,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{Err: fmt.Errorf("witness store error")},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to add witness[http://example.com/orb/services] proof for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
@@ -172,6 +204,18 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")
 	})
+}
+
+type mockWitnessStore struct {
+	Err error
+}
+
+func (w *mockWitnessStore) AddProof(vcID, witness string, proof []byte) error {
+	if w.Err != nil {
+		return w.Err
+	}
+
+	return nil
 }
 
 //nolint:lll
