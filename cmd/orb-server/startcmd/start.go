@@ -370,7 +370,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
 
-	proofStore, err := proofstore.New(storeProviders.provider)
+	witnessProofStore, err := proofstore.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}
@@ -439,6 +439,7 @@ func startOrbServices(parameters *orbParameters) error {
 			Store:         vcStore,
 			MonitoringSvc: monitoringSvc,
 			DocLoader:     orbDocumentLoader,
+			WitnessStore:  witnessProofStore,
 		},
 		vcCh)
 
@@ -471,7 +472,7 @@ func startOrbServices(parameters *orbParameters) error {
 		Signer:          vcSigner,
 		MonitoringSvc:   monitoringSvc,
 		ActivityStore:   apStore,
-		WitnessStore:    proofStore,
+		WitnessStore:    witnessProofStore,
 	}
 
 	anchorWriter := writer.New(parameters.didNamespace,

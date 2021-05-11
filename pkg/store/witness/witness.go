@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package witness
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -50,6 +51,8 @@ type Store struct {
 func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 	operations := make([]storage.Operation, len(witnesses))
 
+	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+
 	for i, w := range witnesses {
 		value, err := json.Marshal(w)
 		if err != nil {
@@ -64,7 +67,7 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 			Tags: []storage.Tag{
 				{
 					Name:  vcIndex,
-					Value: vcID,
+					Value: vcIDEncoded,
 				},
 			},
 		}
@@ -77,7 +80,7 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 		return fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err)
 	}
 
-	logger.Debugf("stored %d witnesses for vcID[%s]", vcID, len(witnesses))
+	logger.Debugf("stored %d witnesses for vcID[%s]", len(witnesses), vcID)
 
 	return nil
 }
@@ -86,7 +89,9 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 	var err error
 
-	query := fmt.Sprintf("%s:%s", vcIndex, vcID)
+	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+
+	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -142,9 +147,9 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 // AddProof adds proof for anchor credential id and witness.
 func (s *Store) AddProof(vcID, witness string, p []byte) error {
-	var err error
+	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
 
-	query := fmt.Sprintf("%s:%s", vcIndex, vcID)
+	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -188,7 +193,7 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error {
 
 			w.Proof = p
 
-			err = s.store.Put(key, value, storage.Tag{Name: vcIndex, Value: vcID})
+			err = s.store.Put(key, value, storage.Tag{Name: vcIndex, Value: vcIDEncoded})
 			if err != nil {
 				return fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
 					vcID, witness, err)
