@@ -21,6 +21,7 @@ const MainKeyID = "main-key"
 // Services implements the 'services' REST handler to retrieve a given ActivityPub service (actor).
 type Services struct {
 	*handler
+	*authHandler
 
 	publicKey *vocab.PublicKeyType
 }
@@ -28,10 +29,11 @@ type Services struct {
 // NewServices returns a new 'services' REST handler.
 func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
 	h := &Services{
-		publicKey: publicKey,
+		authHandler: newAuthHandler(cfg, "", http.MethodGet, nil),
+		publicKey:   publicKey,
 	}
 
-	h.handler = newHandler("", cfg, activityStore, h.handle, nil)
+	h.handler = newHandler("", cfg, activityStore, h.handle)
 
 	return h
 }
@@ -39,15 +41,22 @@ func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKe
 // NewPublicKeys returns a new public keys REST handler.
 func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
 	h := &Services{
-		publicKey: publicKey,
+		authHandler: newAuthHandler(cfg, "/keys", http.MethodGet, nil),
+		publicKey:   publicKey,
 	}
 
-	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey, nil)
+	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey)
 
 	return h
 }
 
-func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
+func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
+	if !h.authorizeWithBearerToken(req) {
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
 	s, err := h.newService()
 	if err != nil {
 		logger.Errorf("[%s] Invalid service configuration [%s]: %s", h.endpoint, h.ObjectIRI, err)
@@ -70,6 +79,12 @@ func (h *Services) handle(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
+	if !h.authorizeWithBearerToken(req) {
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
 	keyID := getIDParam(req)
 
 	if keyID == "" {

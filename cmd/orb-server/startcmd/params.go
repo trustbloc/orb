@@ -9,10 +9,13 @@ package startcmd
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+
+	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 )
 
 const (
@@ -192,6 +195,16 @@ const (
 	httpSignaturesEnabledUsage     = `Set to "true" to enable HTTP signatures in ActivityPub. ` +
 		commonEnvVarUsageText + httpSignaturesEnabledEnvKey
 
+	authTokensDefFlagName      = "auth-tokens-def"
+	authTokensDefFlagShorthand = "D"
+	authTokensDefFlagUsage     = "Authorization token definitions."
+	authTokensDefEnvKey        = "ORB_AUTH_TOKENS_DEF"
+
+	authTokensFlagName      = "auth-tokens"
+	authTokensFlagShorthand = "A"
+	authTokensFlagUsage     = "Authorization tokens."
+	authTokensEnvKey        = "ORB_AUTH_TOKENS"
+
 	// TODO: Add verification method
 
 )
@@ -223,6 +236,8 @@ type orbParameters struct {
 	startupDelay              time.Duration
 	signWithLocalWitness      bool
 	httpSignaturesEnabled     bool
+	authTokenDefinitions      []*aphandler.AuthTokenDef
+	authTokens                map[string]string
 }
 
 type anchorCredentialParams struct {
@@ -403,6 +418,16 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
+	authTokenDefs, err := getAuthTokenDefinitions(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("authorization token definitions: %w", err)
+	}
+
+	authTokens, err := getAuthTokens(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("authorization tokens: %w", err)
+	}
+
 	return &orbParameters{
 		hostURL:                   hostURL,
 		vctURL:                    vctURL,
@@ -428,6 +453,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		startupDelay:              startupDelay,
 		signWithLocalWitness:      signWithLocalWitness,
 		httpSignaturesEnabled:     httpSignaturesEnabled,
+		authTokenDefinitions:      authTokenDefs,
+		authTokens:                authTokens,
 	}, nil
 }
 
@@ -509,6 +536,71 @@ func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error)
 	}, nil
 }
 
+func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, error) {
+	authTokenDefsStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, authTokensDefFlagName, authTokensDefEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("Auth tokens definition: %s", authTokenDefsStr)
+
+	var authTokenDefs []*aphandler.AuthTokenDef
+
+	for _, defStr := range authTokenDefsStr {
+		parts := strings.Split(defStr, "|")
+		if len(parts) < 1 || len(parts) > 3 {
+			return nil, fmt.Errorf("invalid auth token definition %s: %w", defStr, err)
+		}
+
+		var readTokens []string
+		var writeTokens []string
+
+		if len(parts) > 1 {
+			readTokens = strings.Split(parts[1], "&")
+		}
+
+		if len(parts) > 2 {
+			writeTokens = strings.Split(parts[2], "&")
+		}
+
+		def := &aphandler.AuthTokenDef{
+			EndpointExpression: parts[0],
+			ReadTokens:         readTokens,
+			WriteTokens:        writeTokens,
+		}
+
+		logger.Debugf("Adding auth token definition for endpoint %s - Read Tokens: %s, Write Tokens: %s",
+			def.EndpointExpression, def.ReadTokens, def.WriteTokens)
+
+		authTokenDefs = append(authTokenDefs, def)
+	}
+
+	return authTokenDefs, nil
+}
+
+func getAuthTokens(cmd *cobra.Command) (map[string]string, error) {
+	authTokensStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, authTokensFlagName, authTokensEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	authTokens := make(map[string]string)
+
+	for _, keyValStr := range authTokensStr {
+		keyVal := strings.Split(keyValStr, "=")
+
+		if len(keyVal) != 2 {
+			return nil, fmt.Errorf("invalid auth token string [%s]: %w", authTokensStr, err)
+		}
+
+		logger.Debugf("Adding token %s=%s", keyVal[0], keyVal[1])
+
+		authTokens[keyVal[0]] = keyVal[1]
+	}
+
+	return authTokens, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(startupDelayFlagName, startupDelayFlagShorthand, "", startupDelayFlagUsage)
@@ -545,4 +637,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(LogLevelFlagName, LogLevelFlagShorthand, "", LogLevelPrefixFlagUsage)
 	startCmd.Flags().StringArrayP(discoveryDomainsFlagName, "", []string{}, discoveryDomainsFlagUsage)
 	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)
+	startCmd.Flags().StringArrayP(authTokensDefFlagName, authTokensDefFlagShorthand, nil, authTokensDefFlagUsage)
+	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
 }

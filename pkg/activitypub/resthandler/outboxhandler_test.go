@@ -46,6 +46,22 @@ func TestOutbox_Handler(t *testing.T) {
 		BasePath:               "/services/orb",
 		ObjectIRI:              serviceIRI,
 		VerifyActorInSignature: true,
+		AuthTokensDef: []*AuthTokenDef{
+			{
+				EndpointExpression: "/services/orb/outbox",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+			{
+				EndpointExpression: "/services/orb/inbox",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+		},
+		AuthTokens: map[string]string{
+			"read":  "READ_TOKEN",
+			"admin": "ADMIN_TOKEN",
+		},
 	}
 
 	ob := &mocks.Outbox{}

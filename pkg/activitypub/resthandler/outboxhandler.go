@@ -25,19 +25,19 @@ type outbox interface {
 // Outbox implements a REST handler for posts to a service's outbox.
 type Outbox struct {
 	*Config
+	*authHandler
 
 	endpoint string
 	ob       outbox
-	verifier signatureVerifier
 }
 
 // NewPostOutbox returns a new REST handler to post activities to the outbox.
 func NewPostOutbox(cfg *Config, ob outbox, verifier signatureVerifier) *Outbox {
 	return &Outbox{
-		Config:   cfg,
-		endpoint: fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
-		ob:       ob,
-		verifier: verifier,
+		Config:      cfg,
+		authHandler: newAuthHandler(cfg, "/outbox", http.MethodPost, verifier),
+		endpoint:    fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
+		ob:          ob,
 	}
 }
 
@@ -58,9 +58,9 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 }
 
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
-	ok, actorIRI, err := h.verifier.VerifyRequest(req)
+	ok, actorIRI, err := h.authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error verifying HTTP signature: %s", h.endpoint, err)
+		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
 		w.WriteHeader(http.StatusInternalServerError)
 
@@ -68,7 +68,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		logger.Infof("[%s] Invalid HTTP signature", h.endpoint)
+		logger.Infof("[%s] Unauthorized", h.endpoint)
 
 		w.WriteHeader(http.StatusUnauthorized)
 

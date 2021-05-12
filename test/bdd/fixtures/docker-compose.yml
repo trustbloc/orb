@@ -39,6 +39,27 @@ services:
       - DATABASE_PREFIX=domain1
       - DISCOVERY_DOMAINS=https://orb.domain2.com
       - HTTP_SIGNATURES_ENABLED=true
+
+      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
+      #
+      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
+      #
+      # Where:
+      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
+      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
+      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
+      #
+      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
+      #
+      # Example:
+      #
+      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
+      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
+      # - The client requires an 'admin' token in order to post to the outbox
+      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read&admin|admin,/services/orb/.*|read&admin,/transactions|read&admin
+      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
+      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48326:443
     command: start
@@ -87,6 +108,27 @@ services:
       - DATABASE_PREFIX=domain1
       - DISCOVERY_DOMAINS=https://orb.domain2.com
       - HTTP_SIGNATURES_ENABLED=true
+
+      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
+      #
+      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
+      #
+      # Where:
+      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
+      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
+      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
+      #
+      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
+      #
+      # Example:
+      #
+      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
+      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
+      # - The client requires an 'admin' token in order to post to the outbox
+      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read&admin|admin,/services/orb/.*|read&admin,/transactions|read&admin
+      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
+      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48526:443
     command: start
@@ -134,6 +176,27 @@ services:
       - DATABASE_PREFIX=domain2
       - DISCOVERY_DOMAINS=https://orb.domain1.com
       - HTTP_SIGNATURES_ENABLED=true
+
+      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
+      #
+      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
+      #
+      # Where:
+      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
+      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
+      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
+      #
+      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
+      #
+      # Example:
+      #
+      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
+      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
+      # - The client requires an 'admin' token in order to post to the outbox
+      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read&admin|admin,/services/orb/.*|read&admin,/transactions|read&admin
+      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
+      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48426:443
     command: start
@@ -180,6 +243,27 @@ services:
       - DATABASE_PREFIX=domain3
       - DISCOVERY_DOMAINS=https://orb.domain1.com
       - HTTP_SIGNATURES_ENABLED=true
+
+      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
+      #
+      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
+      #
+      # Where:
+      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
+      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
+      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
+      #
+      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
+      #
+      # Example:
+      #
+      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
+      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
+      # - The client requires an 'admin' token in order to post to the outbox
+      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read&admin|admin,/services/orb/.*|read&admin,/transactions|read&admin
+      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
+      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48626:443
     command: start

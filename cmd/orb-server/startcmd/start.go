@@ -517,12 +517,16 @@ func startOrbServices(parameters *orbParameters) error {
 		ObjectIRI:              apServiceIRI,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 		PageSize:               100, // TODO: Make configurable
+		AuthTokensDef:          parameters.authTokenDefinitions,
+		AuthTokens:             parameters.authTokens,
 	}
 
-	apTxnCfg := &aphandler.Config{
-		BasePath:  activityPubTransactionsPath,
-		ObjectIRI: apTransactionsIRI,
-		PageSize:  100, // TODO: Make configurable
+	apTxnEndpointCfg := &aphandler.Config{
+		BasePath:      activityPubTransactionsPath,
+		ObjectIRI:     apTransactionsIRI,
+		PageSize:      100, // TODO: Make configurable
+		AuthTokensDef: parameters.authTokenDefinitions,
+		AuthTokens:    parameters.authTokens,
 	}
 
 	orbResolver := document.NewResolveHandler(
@@ -561,8 +565,8 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewLikes(apTxnCfg, apStore, apSigVerifier),
-		aphandler.NewShares(apTxnCfg, apStore, apSigVerifier),
+		aphandler.NewLikes(apTxnEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewShares(apTxnEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(casClient),
