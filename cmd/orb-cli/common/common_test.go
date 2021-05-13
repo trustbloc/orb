@@ -12,6 +12,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -274,6 +276,18 @@ func TestGetServices(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, 2, len(services))
+	})
+}
+
+func TestSendRequest(t *testing.T) {
+	t.Run("test error 500", func(t *testing.T) {
+		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+
+		_, err := SendRequest(&http.Client{}, nil, "tk1", http.MethodGet, serv.URL)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "got unexpected response from")
 	})
 }
 
