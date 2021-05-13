@@ -85,10 +85,15 @@ const (
 	didAliasesFlagShorthand = "a"
 	didAliasesFlagUsage     = "Aliases for this did method. " + commonEnvVarUsageText + didAliasesEnvKey
 
-	casURLFlagName      = "cas-url"
-	casURLFlagShorthand = "c"
-	casURLEnvKey        = "CAS_URL"
-	casURLFlagUsage     = "The URL of the Content Addressable Storage(CAS). " + commonEnvVarUsageText + casURLEnvKey
+	casTypeFlagName      = "cas-type"
+	casTypeFlagShorthand = "c"
+	casTypeEnvKey        = "CAS_TYPE"
+	casTypeFlagUsage     = "The type of the Content Addressable Storage(CAS): ipfs or local" + commonEnvVarUsageText + casTypeEnvKey
+
+	ipfsURLFlagName      = "ipfs-url"
+	ipfsURLFlagShorthand = "r"
+	ipfsURLEnvKey        = "IPFS_URL"
+	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage(CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
 
 	batchWriterTimeoutFlagName      = "batch-writer-timeout"
 	batchWriterTimeoutFlagShorthand = "b"
@@ -220,7 +225,8 @@ type orbParameters struct {
 	didNamespace              string
 	didAliases                []string
 	batchWriterTimeout        time.Duration
-	casURL                    string
+	casType                   string
+	ipfsURL                   string
 	dbParameters              *dbParameters
 	token                     string
 	logLevel                  string
@@ -294,7 +300,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	casURL, err := cmdutils.GetUserSetVarFromString(cmd, casURLFlagName, casURLEnvKey, false)
+	casType, err := cmdutils.GetUserSetVarFromString(cmd, casTypeFlagName, casTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +452,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didNamespace:              didNamespace,
 		didAliases:                didAliases,
 		allowedOrigins:            allowedOrigins,
-		casURL:                    casURL,
+		casType:                   casType,
+		ipfsURL:                   ipfsURL,
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,
@@ -616,7 +628,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
-	startCmd.Flags().StringP(casURLFlagName, casURLFlagShorthand, "", casURLFlagUsage)
+	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
+	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
 	startCmd.Flags().StringArrayP(allowedOriginsFlagName, allowedOriginsFlagShorthand, []string{}, allowedOriginsFlagUsage)

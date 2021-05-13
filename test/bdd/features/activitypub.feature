@@ -112,6 +112,7 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain2IRI}"
 
+""" TODO: Enable this test when CIDs for ipfs and local CAS are identical
   @activitypub_create
   Scenario: create/announce
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
@@ -164,6 +165,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
+"""
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

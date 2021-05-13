@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -58,23 +61,26 @@ func TestStartObserver(t *testing.T) {
 
 		var anchors []anchorinfo.AnchorInfo
 
+		casClient := mocks.NewMockCasClient(nil)
+
 		graphProviders := &graph.Providers{
-			Cas:       mocks.NewMockCasClient(nil),
-			Pkf:       pubKeyFetcherFnc,
-			DocLoader: testutil.GetLoader(t),
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1"}
 
-		cid, err := anchorGraph.Add(buildCredential(payload1))
+		cid, _, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}})
 
 		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
 
-		cid, err = anchorGraph.Add(buildCredential(payload2))
+		cid, _, err = anchorGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
 		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid})
 
@@ -108,10 +114,13 @@ func TestStartObserver(t *testing.T) {
 
 		var dids []string
 
+		casClient := mocks.NewMockCasClient(nil)
+
 		graphProviders := &graph.Providers{
-			Cas:       mocks.NewMockCasClient(nil),
-			Pkf:       pubKeyFetcherFnc,
-			DocLoader: testutil.GetLoader(t),
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -125,7 +134,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, err := anchorGraph.Add(buildCredential(payload1))
+		cid, _, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		dids = append(dids, cid+":"+did1, cid+":"+did2)
 
@@ -157,10 +166,13 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
+		casClient := mocks.NewMockCasClient(nil)
+
 		graphProviders := &graph.Providers{
-			Cas:       mocks.NewMockCasClient(nil),
-			Pkf:       pubKeyFetcherFnc,
-			DocLoader: testutil.GetLoader(t),
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -172,14 +184,14 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, err := anchorGraph.Add(buildCredential(payload1))
+		cid, hint, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 
-		previousAnchors[did1] = cid
+		previousAnchors[did1] = hint + ":" + cid
 
 		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, err = anchorGraph.Add(buildCredential(payload2))
+		cid, _, err = anchorGraph.Add(buildCredential(payload2))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -214,12 +226,14 @@ func TestStartObserver(t *testing.T) {
 		var dids []string
 		var anchors []anchorinfo.AnchorInfo
 
-		graphProviders := &graph.Providers{
-			Cas:       mocks.NewMockCasClient(nil),
-			Pkf:       pubKeyFetcherFnc,
-			DocLoader: testutil.GetLoader(t),
-		}
+		casClient := mocks.NewMockCasClient(nil)
 
+		graphProviders := &graph.Providers{
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
+		}
 		anchorGraph := graph.New(graphProviders)
 
 		did := "123"
@@ -233,10 +247,10 @@ func TestStartObserver(t *testing.T) {
 			PreviousAnchors: previousDIDAnchors,
 		}
 
-		cid, err := anchorGraph.Add(buildCredential(payload1))
+		cid, hint, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 
-		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}})
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}, Hint: hint})
 		dids = append(dids, cid+":"+did)
 
 		providers := &Providers{
@@ -270,10 +284,13 @@ func TestStartObserver(t *testing.T) {
 
 		var dids []string
 
+		casClient := mocks.NewMockCasClient(nil)
+
 		graphProviders := &graph.Providers{
-			Cas:       mocks.NewMockCasClient(nil),
-			Pkf:       pubKeyFetcherFnc,
-			DocLoader: testutil.GetLoader(t),
+			CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -287,7 +304,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, err := anchorGraph.Add(buildCredential(payload1))
+		cid, _, err := anchorGraph.Add(buildCredential(payload1))
 		require.NoError(t, err)
 		dids = append(dids, cid+":"+did1, cid+":"+did2)
 
@@ -319,9 +336,13 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
+		casClient := mocks.NewMockCasClient(nil)
+
 		graphProviders := &graph.Providers{
-			Cas: mocks.NewMockCasClient(nil),
-			Pkf: pubKeyFetcherFnc,
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)

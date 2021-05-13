@@ -18,9 +18,9 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 
+	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
-	casresolver "github.com/trustbloc/orb/pkg/resolver/cas"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -31,9 +31,10 @@ func TestFactory_Create(t *testing.T) {
 	casClient := &mocks.CasClient{}
 	opStore := &mocks.OperationStore{}
 	anchorGraph := &mocks.AnchorGraph{}
+	casResolver := &mocks.CASResolver{}
 
 	t.Run("success", func(t *testing.T) {
-		pv, err := f.Create("1.0", casClient, opStore, anchorGraph, config.Sidetree{})
+		pv, err := f.Create("1.0", casClient, casResolver, opStore, anchorGraph, config.Sidetree{})
 		require.NoError(t, err)
 		require.NotNil(t, pv)
 	})
@@ -48,7 +49,7 @@ func TestOperationProviderWrapper_GetTxnOperations(t *testing.T) {
 		}
 
 		anchoredOperations, err := opWrapper.GetTxnOperations(&txn.SidetreeTxn{
-			Reference: "https://orb.domain1.com/cas/QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ",
+			EquivalentReferences: []string{"webcas:orb.domain1.com"},
 		})
 		require.EqualError(t, err, "parse anchor data[] failed: expecting [2] parts, got [1] parts")
 		require.Nil(t, anchoredOperations)
@@ -106,7 +107,7 @@ func TestCasClientWrapper_Read(t *testing.T) {
 func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resolver {
 	t.Helper()
 
-	casResolver := casresolver.New(casClient, &http.Client{})
+	casResolver := casresolver.New(casClient, nil, &http.Client{})
 	require.NotNil(t, casResolver)
 
 	return casResolver

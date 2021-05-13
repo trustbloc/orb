@@ -9,6 +9,7 @@ package writer
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -28,6 +29,8 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -73,10 +76,12 @@ func TestNew(t *testing.T) {
 }
 
 func TestWriter_WriteAnchor(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	graphProviders := &graph.Providers{
-		Cas:       mocks.NewMockCasClient(nil),
-		Pkf:       pubKeyFetcherFnc,
-		DocLoader: testutil.GetLoader(t),
+		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -432,9 +437,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 }
 
 func TestWriter_handle(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	graphProviders := &graph.Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -888,9 +896,12 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 }
 
 func TestWriter_Read(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	graphProviders := &graph.Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
 	}
 
 	providers := &Providers{
@@ -936,12 +947,12 @@ type mockAnchorGraph struct {
 	Err error
 }
 
-func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, error) {
+func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, string, error) {
 	if m.Err != nil {
-		return "", m.Err
+		return "", "", m.Err
 	}
 
-	return "cid", nil
+	return "cid", "hint", nil
 }
 
 type mockDidAnchor struct {

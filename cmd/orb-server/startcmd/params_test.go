@@ -53,23 +53,23 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		require.Contains(t, err.Error(), errMsg)
 	})
 
-	t.Run("test blank cas url arg", func(t *testing.T) {
+	t.Run("test blank cas type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + casURLFlagName, "", "--" + vctURLFlagName, "test"}
+		args := []string{"--" + hostURLFlagName, "test", "--" + casTypeFlagName, "", "--" + vctURLFlagName, "test"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Equal(t, "cas-url value is empty", err.Error())
+		require.Equal(t, "cas-type value is empty", err.Error())
 	})
 
 	t.Run("test blank did namespace arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + casURLFlagName,
-			"test", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName, "",
+			"--" + hostURLFlagName, "test", "--" + casTypeFlagName,
+			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName, "",
 		}
 		startCmd.SetArgs(args)
 
@@ -82,7 +82,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + casURLFlagName, "test", "--" + vctURLFlagName, "test",
+			"--" + hostURLFlagName, "test", "--" + casTypeFlagName, "local", "--" + vctURLFlagName, "test",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, "",
 		}
 		startCmd.SetArgs(args)
@@ -147,7 +147,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		require.Error(t, err)
 		require.Equal(t,
-			"Neither cas-url (command line flag) nor CAS_URL (environment variable) have been set.",
+			"Neither cas-type (command line flag) nor CAS_TYPE (environment variable) have been set.",
 			err.Error())
 	})
 	t.Run("test missing anchor credential issuer arg", func(t *testing.T) {
@@ -155,7 +155,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -177,7 +178,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -200,7 +202,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -222,7 +225,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -246,9 +250,10 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + casTypeFlagName, "ipfs",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + batchWriterTimeoutFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
@@ -274,7 +279,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + maxWitnessDelayFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
@@ -300,7 +306,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + maxWitnessDelayFlagName, "5",
 			"--" + signWithLocalWitnessFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -327,7 +334,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + startupDelayFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
@@ -352,7 +360,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption, "--" + tokenFlagName, "tk1",
 			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -393,12 +402,12 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err = os.Setenv(vctURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
 
-		err = os.Setenv(casURLEnvKey, "")
+		err = os.Setenv(casTypeEnvKey, "")
 		require.NoError(t, err)
 
 		err = startCmd.Execute()
 		require.Error(t, err)
-		require.Equal(t, "CAS_URL value is empty", err.Error())
+		require.Equal(t, "CAS_TYPE value is empty", err.Error())
 	})
 }
 
@@ -408,7 +417,8 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -431,7 +441,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -453,7 +463,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -498,7 +508,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
-		"--" + casURLFlagName, "localhost:8081",
+		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
@@ -531,7 +541,7 @@ func setEnvVars(t *testing.T, databaseType string) {
 	err = os.Setenv(vctURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
-	err = os.Setenv(casURLEnvKey, "cas")
+	err = os.Setenv(casTypeEnvKey, "local")
 	require.NoError(t, err)
 
 	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")

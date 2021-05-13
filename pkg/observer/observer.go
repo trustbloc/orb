@@ -130,21 +130,27 @@ func (o *Observer) processAnchors(anchors []anchorinfo.AnchorInfo) {
 
 func (o *Observer) processDIDs(dids []string) {
 	for _, did := range dids {
-		cid, suffix, err := getDidParts(did)
+		logger.Debugf("processing out-of-system did[%s]", did)
+
+		cidWithHint, suffix, err := getDidParts(did)
 		if err != nil {
 			logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
 
 			return
 		}
 
-		anchors, err := o.AnchorGraph.GetDidAnchors(cid, suffix)
+		anchors, err := o.AnchorGraph.GetDidAnchors(cidWithHint, suffix)
 		if err != nil {
 			logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
 
 			return
 		}
+
+		logger.Debugf("got %d anchors for out-of-system did[%s]", did)
 
 		for _, anchor := range anchors {
+			logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
+
 			// TODO (#364): Pass in a URL here that we can use to resolve data in CAS via WebFinger
 			if err := o.processAnchor(anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
 				anchor.Info, suffix); err != nil {
@@ -159,14 +165,12 @@ func (o *Observer) processDIDs(dids []string) {
 func getDidParts(did string) (cid, suffix string, err error) {
 	const delimiter = ":"
 
-	const partNo = 2
-
-	parts := strings.Split(did, delimiter)
-	if len(parts) != partNo {
+	pos := strings.LastIndex(did, delimiter)
+	if pos == -1 {
 		return "", "", fmt.Errorf("invalid number of parts for did[%s]", did)
 	}
 
-	return parts[0], parts[1], nil
+	return did[0:pos], did[pos+1:], nil
 }
 
 func (o *Observer) processAnchor(anchor anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
@@ -190,12 +194,20 @@ func (o *Observer) processAnchor(anchor anchorinfo.AnchorInfo, info *verifiable.
 
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
+	equivalentRef := anchor.CID
+	if anchor.Hint != "" {
+		equivalentRef = anchor.Hint + ":" + equivalentRef
+	} else {
+		logger.Errorf("investigate: no hint provided for anchor[%s]", anchor.CID)
+	}
+
 	sidetreeTxn := txnapi.SidetreeTxn{
-		TransactionTime:     uint64(info.Issued.Unix()),
-		AnchorString:        ad.GetAnchorString(),
-		Namespace:           anchorPayload.Namespace,
-		ProtocolGenesisTime: anchorPayload.Version,
-		Reference:           anchor.WebCASURL.String(),
+		TransactionTime:      uint64(info.Issued.Unix()),
+		AnchorString:         ad.GetAnchorString(),
+		Namespace:            anchorPayload.Namespace,
+		ProtocolGenesisTime:  anchorPayload.Version,
+		CanonicalReference:   anchor.CID,
+		EquivalentReferences: []string{equivalentRef},
 	}
 
 	logger.Debugf("processing anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)

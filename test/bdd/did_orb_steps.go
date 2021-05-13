@@ -130,6 +130,7 @@ type DIDOrbSteps struct {
 	bddContext         *BDDContext
 	alias              string
 	canonicalID        string
+	equivalentID       []string
 	resolutionEndpoint string
 	operationEndpoint  string
 	sidetreeURL        string
@@ -424,6 +425,7 @@ func (d *DIDOrbSteps) checkSuccessRespHelper(msg string, contains bool) error {
 
 		msg = strings.Replace(msg, "#did", did, -1)
 		msg = strings.Replace(msg, "#canonicalId", d.canonicalID, -1)
+		msg = strings.Replace(msg, "#equivalentId", fmt.Sprintf("%s", d.equivalentID), -1)
 		msg = strings.Replace(msg, "#aliasdid", did, -1)
 
 		var result document.ResolutionResult
@@ -502,6 +504,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 		}
 
 		d.canonicalID = result.DocumentMetadata["canonicalId"].(string)
+		d.equivalentID = document.StringArray(result.DocumentMetadata["equivalentId"])
 	}
 
 	return err
@@ -521,6 +524,13 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalID(url string) error {
 	logger.Infof("resolving did document with canonical id: %s", d.canonicalID)
 
 	return d.resolveDIDDocumentWithID(url, d.canonicalID)
+}
+
+func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentID(url string) error {
+	logger.Infof("resolving did document with equivalent id: %s", d.equivalentID[1])
+
+	// fist id in equivalent id is canonical id, second one is with hints
+	return d.resolveDIDDocumentWithID(url, d.equivalentID[1])
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(url, alias string) error {
@@ -925,7 +935,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 func (d *DIDOrbSteps) verifyDID(url, did string) error {
 	logger.Infof("verifying DID %s from %s", did, url)
 
-	resp, err := restclient.SendResolveRequestWithRetry(url+"/"+did, 30, http.StatusNotFound)
+	resp, err := restclient.SendResolveRequestWithRetry(url+"/"+did, 15, http.StatusNotFound)
 	if err != nil {
 		return fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
 	}
@@ -992,6 +1002,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document$`, d.resolveDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical id$`, d.resolveDIDDocumentWithCanonicalID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent id$`, d.resolveDIDDocumentWithEquivalentID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with alias "([^"]*)"$`, d.resolveDIDDocumentWithAlias)
 	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)

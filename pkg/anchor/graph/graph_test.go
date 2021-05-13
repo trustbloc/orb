@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package graph
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
+	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -29,9 +32,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestGraph_Add(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	providers := &Providers{
-		Cas: mocks.NewMockCasClient(nil),
-		Pkf: pubKeyFetcherFnc,
+		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
+		DocLoader:   testutil.GetLoader(t),
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -44,17 +51,21 @@ func TestGraph_Add(t *testing.T) {
 			Version:        1,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 	})
 }
 
 func TestGraph_Read(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	providers := &Providers{
-		Cas:       mocks.NewMockCasClient(nil),
-		Pkf:       pubKeyFetcherFnc,
-		DocLoader: testutil.GetLoader(t),
+		CasWriter:   caswriter.New(casClient, "ipfs"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
+		DocLoader:   testutil.GetLoader(t),
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -67,9 +78,10 @@ func TestGraph_Read(t *testing.T) {
 			Version:        1,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 
 		vc, err := graph.Read(cid)
 		require.NoError(t, err)
@@ -90,10 +102,13 @@ func TestGraph_Read(t *testing.T) {
 }
 
 func TestGraph_GetDidAnchors(t *testing.T) {
+	casClient := mocks.NewMockCasClient(nil)
+
 	providers := &Providers{
-		Cas:       mocks.NewMockCasClient(nil),
-		Pkf:       pubKeyFetcherFnc,
-		DocLoader: testutil.GetLoader(t),
+		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		Pkf:         pubKeyFetcherFnc,
+		DocLoader:   testutil.GetLoader(t),
 	}
 
 	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {
@@ -106,9 +121,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			Version:        1,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
@@ -125,9 +141,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			Version:        1,
 		}
 
-		anchor1CID, err := graph.Add(buildCredential(payload))
+		anchor1CID, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, anchor1CID)
+		require.NotEmpty(t, anchor1CID)
+		require.NotEmpty(t, hint)
 
 		previousDIDTxns := make(map[string]string)
 		previousDIDTxns[testDID] = anchor1CID
@@ -140,9 +157,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
@@ -164,9 +182,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.NoError(t, err)
@@ -186,9 +205,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		cid, err := graph.Add(buildCredential(payload))
+		cid, hint, err := graph.Add(buildCredential(payload))
 		require.NoError(t, err)
-		require.NotNil(t, cid)
+		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hint)
 
 		didAnchors, err := graph.GetDidAnchors(cid, testDID)
 		require.Error(t, err)

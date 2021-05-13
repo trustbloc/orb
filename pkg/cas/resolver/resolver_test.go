@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package cas_test
+package resolver
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
-	casresolver "github.com/trustbloc/orb/pkg/resolver/cas"
+	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -79,13 +79,13 @@ const sampleData = `{
 const sampleDataCID = "QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ"
 
 func TestNew(t *testing.T) {
-	createNewResolver(t, createInMemoryCAS(t))
+	createNewResolver(t, createInMemoryCAS(t), createInMemoryCAS(t))
 }
 
 func TestResolver_Resolve(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Run("No need to get data from remote since it was passed in", func(t *testing.T) {
-			resolver := createNewResolver(t, createInMemoryCAS(t))
+			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCID))
 			require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, cid)
 
-			resolver := createNewResolver(t, casClient)
+			resolver := createNewResolver(t, casClient, nil)
 
 			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", cid))
 			require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 			// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
 			// for it.
-			resolver := createNewResolver(t, createInMemoryCAS(t))
+			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 			id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, cid))
 			require.NoError(t, err)
@@ -143,8 +143,139 @@ func TestResolver_Resolve(t *testing.T) {
 			require.Equal(t, string(data), sampleData)
 		})
 	})
+
+	t.Run("Had to retrieve data from remote server via hint", func(t *testing.T) {
+		casClient := createInMemoryCAS(t)
+
+		cid, err := casClient.Write([]byte(sampleData))
+		require.NoError(t, err)
+		require.NotEmpty(t, cid)
+
+		webCAS := webcas.New(casClient)
+		require.NotNil(t, webCAS)
+
+		router := mux.NewRouter()
+
+		router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+		// This test server is our "remote Orb server" for this test. Its CAS will have the data we need.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		// The local resolver here has a CAS without the data we need,
+		// so it'll have to ask the remote Orb server for it.
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		testSeverURI, err := url.Parse(testServer.URL)
+		require.NoError(t, err)
+
+		webCasURLFormat = "http://%s:" + testSeverURI.Port() + "/cas/%s"
+		cidWithHint := "webcas:" + testSeverURI.Hostname() + ":" + cid
+
+		data, err := resolver.Resolve(nil, cidWithHint, nil)
+		require.NoError(t, err)
+		require.Equal(t, string(data), sampleData)
+	})
+
+	t.Run("Had to retrieve data from remote server via hint (not found)", func(t *testing.T) {
+		casClient := createInMemoryCAS(t)
+
+		cid, err := casClient.Write([]byte(sampleData))
+		require.NoError(t, err)
+		require.NotEmpty(t, cid)
+
+		// remote server doesn't have cid (clean CAS)
+		webCAS := webcas.New(createInMemoryCAS(t))
+		require.NotNil(t, webCAS)
+
+		router := mux.NewRouter()
+
+		router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+		// This test server is our "remote Orb server" for this test.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		testSeverURI, err := url.Parse(testServer.URL)
+		require.NoError(t, err)
+
+		webCasURLFormat = "http://%s:" + testSeverURI.Port() + "/cas/%s"
+		cidWithHint := "webcas:" + testSeverURI.Hostname() + ":" + cid
+
+		data, err := resolver.Resolve(nil, cidWithHint, nil)
+		require.Error(t, err)
+		require.Nil(t, data)
+		require.Contains(t, err.Error(), "Response status code: 404")
+	})
+
+	t.Run("Had to retrieve data from ipfs via hint", func(t *testing.T) {
+		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, sampleData)
+		}))
+		defer ipfsServer.Close()
+
+		ipfsClient := ipfs.New(ipfsServer.URL)
+		require.NotNil(t, ipfsClient)
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
+
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		require.NoError(t, err)
+		require.Equal(t, string(data), sampleData)
+	})
+
+	t.Run("Had to retrieve data from ipfs via hint but ipfs client not supported", func(t *testing.T) {
+		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, sampleData)
+		}))
+		defer ipfsServer.Close()
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		require.Error(t, err)
+		require.Nil(t, data)
+		require.Contains(t, err.Error(), "ipfs reader is not supported")
+	})
+
+	t.Run("Had to retrieve data from ipfs via hint (ipfs error)", func(t *testing.T) {
+		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer ipfsServer.Close()
+
+		ipfsClient := ipfs.New(ipfsServer.URL)
+		require.NotNil(t, ipfsClient)
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
+
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		require.Error(t, err)
+		require.Nil(t, data)
+		require.Contains(t, err.Error(), "failed to read cid")
+	})
+
+	t.Run("Had to retrieve data from ipfs via hint (hint not supported)", func(t *testing.T) {
+		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, sampleData)
+		}))
+		defer ipfsServer.Close()
+
+		ipfsClient := ipfs.New(ipfsServer.URL)
+		require.NotNil(t, ipfsClient)
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
+
+		data, err := resolver.Resolve(nil, "invalid:"+sampleDataCID, nil)
+		require.Error(t, err)
+		require.Empty(t, data)
+		require.Contains(t, err.Error(), "hint 'invalid' not supported")
+	})
+
 	t.Run("CID doesn't match the provided data", func(t *testing.T) {
-		resolver := createNewResolver(t, createInMemoryCAS(t))
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 		cid := "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
@@ -172,7 +303,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
 		// for it. The remote Orb server's CAS also won't have the data we need.
-		resolver := createNewResolver(t, createInMemoryCAS(t))
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, sampleDataCID))
 		require.NoError(t, err)
@@ -213,7 +344,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
 		// for it.
-		resolver := createNewResolver(t, failingCASClient)
+		resolver := createNewResolver(t, failingCASClient, nil)
 
 		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, cid))
 		require.NoError(t, err)
@@ -233,7 +364,7 @@ func TestResolver_Resolve(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		resolver := createNewResolver(t, casClient)
+		resolver := createNewResolver(t, casClient, nil)
 
 		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCID))
 		require.NoError(t, err)
@@ -247,7 +378,7 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("Fail to execute GET call", func(t *testing.T) {
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
 		// for it.
-		resolver := createNewResolver(t, createInMemoryCAS(t))
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 		id, err := url.Parse("InvalidWebCASEndpoint")
 		require.NoError(t, err)
@@ -260,10 +391,10 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 }
 
-func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resolver {
+func createNewResolver(t *testing.T, casClient casapi.Client, ipfsReader ipfsReader) *Resolver {
 	t.Helper()
 
-	casResolver := casresolver.New(casClient, &http.Client{})
+	casResolver := New(casClient, ipfsReader, &http.Client{})
 	require.NotNil(t, casResolver)
 
 	return casResolver

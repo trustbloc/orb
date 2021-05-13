@@ -18,8 +18,8 @@ import (
 var logger = log.New("orb-resolver")
 
 const (
-	delimiter      = ":"
-	orbSuffixParts = 2
+	delimiter         = ":"
+	minOrbSuffixParts = 2
 )
 
 // ResolveHandler resolves generic documents.
@@ -94,7 +94,8 @@ func (r *ResolveHandler) getNamespace(shortFormDID string) (string, error) {
 	return "", fmt.Errorf("did must start with configured namespace[%s] or aliases%v", r.namespace, r.aliases)
 }
 
-// getOrbSuffix fetches unique portion of ID which is string after namespace. Valid Orb suffix has two parts cid:suffix.
+// getOrbSuffix fetches unique portion of ID which is string after namespace.
+// Valid Orb suffix has two parts cas hint + cid:suffix.
 func (r *ResolveHandler) getOrbSuffix(shortFormDID string) (string, error) {
 	namespace, err := r.getNamespace(shortFormDID)
 	if err != nil {
@@ -104,7 +105,7 @@ func (r *ResolveHandler) getOrbSuffix(shortFormDID string) (string, error) {
 	orbSuffix := shortFormDID[len(namespace+delimiter):]
 
 	parts := strings.Split(orbSuffix, delimiter)
-	if len(parts) != orbSuffixParts {
+	if len(parts) < minOrbSuffixParts {
 		return "", fmt.Errorf("invalid number of parts for orb suffix[%s]", orbSuffix)
 	}
 

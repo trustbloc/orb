@@ -8,14 +8,11 @@ package credential
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 
 	"github.com/trustbloc/edge-core/pkg/log"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
-	casresolver "github.com/trustbloc/orb/pkg/resolver/cas"
 )
 
 var logger = log.New("anchor-credential-handler")
@@ -23,13 +20,16 @@ var logger = log.New("anchor-credential-handler")
 // AnchorCredentialHandler handles a new, published anchor credential.
 type AnchorCredentialHandler struct {
 	anchorCh    chan []anchorinfo.AnchorInfo
-	casResolver *casresolver.Resolver
+	casResolver casResolver
+}
+
+type casResolver interface {
+	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
 }
 
 // New creates new credential handler.
-func New(anchorCh chan []anchorinfo.AnchorInfo, casClient casapi.Client,
-	httpClient *http.Client) *AnchorCredentialHandler {
-	return &AnchorCredentialHandler{anchorCh: anchorCh, casResolver: casresolver.New(casClient, httpClient)}
+func New(anchorCh chan []anchorinfo.AnchorInfo, casResolver casResolver) *AnchorCredentialHandler {
+	return &AnchorCredentialHandler{anchorCh: anchorCh, casResolver: casResolver}
 }
 
 // HandleAnchorCredential handles anchor credential.
@@ -41,8 +41,11 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string
 		return fmt.Errorf("failed to resolve anchor credential: %w", err)
 	}
 
-	// TODO (#364): Pass in webcas:domain instead of full WebCAS URL once WebFinger resolving is ready.
-	h.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: id}}
+	// TODO: Add hint(s) to anchor credential interface and determine if ipfs or webcas based on hint
+	// Since we currently only have cas URLs
+	hint := "webcas:" + id.Host
+
+	h.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: id, Hint: hint}}
 
 	return nil
 }

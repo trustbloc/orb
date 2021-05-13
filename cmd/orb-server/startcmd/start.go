@@ -71,9 +71,11 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
+	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
+	"github.com/trustbloc/orb/pkg/cas/resolver"
+	orbcaswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
-	ipfscas "github.com/trustbloc/orb/pkg/context/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/context/loader"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
@@ -84,6 +86,7 @@ import (
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/resolver/document"
+	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -277,8 +280,28 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	// basic providers (CAS + operation store)
-	casClient := ipfscas.New(parameters.casURL)
+	var coreCasClient casapi.Client
+	var anchorCasWriter *orbcaswriter.CasWriter
+
+	switch parameters.casType {
+	case "ipfs":
+		coreCasClient = ipfscas.New(parameters.ipfsURL)
+		anchorCasWriter = orbcaswriter.New(coreCasClient, "ipfs")
+	case "local":
+		var err error
+
+		coreCasClient, err = casstore.New(storeProviders.provider)
+		if err != nil {
+			return err
+		}
+
+		u, err := url.Parse(parameters.externalEndpoint)
+		if err != nil {
+			return fmt.Errorf("failed to parse external endpoint: %s", err.Error())
+		}
+
+		anchorCasWriter = orbcaswriter.New(coreCasClient, "webcas:"+u.Host)
+	}
 
 	didAnchors, err := didanchorstore.New(storeProviders.provider)
 	if err != nil {
@@ -299,16 +322,24 @@ func startOrbServices(parameters *orbParameters) error {
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New()}),
 	)
 
+	var ipfsReader *ipfscas.Client
+	if parameters.ipfsURL != "" {
+		ipfsReader = ipfscas.New(parameters.ipfsURL)
+	}
+
+	casResolver := resolver.New(coreCasClient, ipfsReader, httpClient)
+
 	graphProviders := &graph.Providers{
-		Cas:       casClient,
-		Pkf:       verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
-		DocLoader: orbDocumentLoader,
+		CasResolver: casResolver,
+		CasWriter:   anchorCasWriter,
+		Pkf:         verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
+		DocLoader:   orbDocumentLoader,
 	}
 
 	anchorGraph := graph.New(graphProviders)
 
 	// get protocol client provider
-	pcp, err := getProtocolClientProvider(parameters, casClient, opStore, anchorGraph)
+	pcp, err := getProtocolClientProvider(parameters, coreCasClient, casResolver, opStore, anchorGraph)
 	if err != nil {
 		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
 	}
@@ -451,7 +482,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore, t, apSigVerifier,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
-		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casClient, httpClient)),
+		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casResolver)),
 		// TODO: Define the following ActivityPub handlers.
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		// apspi.WithFollowerAuth(followerAuth),
@@ -569,7 +600,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewShares(apTxnEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
-		webcas.New(casClient),
+		webcas.New(coreCasClient),
 	)
 
 	handlers = append(handlers,
@@ -604,7 +635,7 @@ func loadOrbContexts() (*jld.DocumentLoader, error) {
 	)
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
 	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
@@ -617,7 +648,7 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 
 	var protocolVersions []protocol.Version
 	for _, version := range versions {
-		pv, err := registry.CreateProtocolVersion(version, casClient, opStore, anchorGraph, sidetreeCfg)
+		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, anchorGraph, sidetreeCfg)
 		if err != nil {
 			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)
 		}

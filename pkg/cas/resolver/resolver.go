@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package cas
+package resolver
 
 import (
 	"errors"
@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -24,13 +25,23 @@ var logger = log.New("cas-resolver")
 // Resolver represents a resolver that can resolve data in a CAS based on a CID and WebCAS URL.
 type Resolver struct {
 	localCAS   casapi.Client
+	ipfsReader ipfsReader
 	httpClient *http.Client
 }
 
+type ipfsReader interface {
+	Read(address string) ([]byte, error)
+}
+
+// TODO: issue-364 Fix with webfinger
+//nolint:gochecknoglobals
+var webCasURLFormat = "https://%s/cas/%s"
+
 // New returns a new Resolver.
-func New(casClient casapi.Client, httpClient *http.Client) *Resolver {
+func New(casClient casapi.Client, ipfsReader ipfsReader, httpClient *http.Client) *Resolver {
 	return &Resolver{
 		localCAS:   casClient,
+		ipfsReader: ipfsReader,
 		httpClient: httpClient,
 	}
 }
@@ -44,7 +55,7 @@ func New(casClient casapi.Client, httpClient *http.Client) *Resolver {
 //    Finally, the data is returned to the caller.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error) {
+func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error) { //nolint:gocyclo,cyclop
 	if data != nil {
 		err := h.storeLocallyAndVerifyCID(data, cid)
 		if err != nil {
@@ -54,12 +65,21 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte,
 		return data, nil
 	}
 
+	logger.Debugf("resolving webCasURL[%v] and cid[%s]", webCASURL, cid)
+
+	localCID := cid
+
+	cidParts := strings.Split(cid, ":")
+	if len(cidParts) > 1 {
+		localCID = cidParts[len(cidParts)-1]
+	}
+
 	// Ensure we have the data stored in the local CAS.
-	dataFromLocal, err := h.localCAS.Read(cid)
+	dataFromLocal, err := h.localCAS.Read(localCID)
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if webCASURL != nil && webCASURL.String() != "" {
 			if errors.Is(err, cas.ErrContentNotFound) {
-				dataFromRemote, errGetAndStoreRemoteData := h.getAndDataFromRemote(webCASURL, cid)
+				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromRemote(webCASURL, localCID)
 				if errGetAndStoreRemoteData != nil {
 					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
 						"WebCAS endpoint: %w", errGetAndStoreRemoteData)
@@ -69,13 +89,67 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte,
 			}
 		}
 
-		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", cid, err)
+		if len(cidParts) > 1 {
+			return h.resolveCIDWithHint(cidParts)
+		}
+
+		if h.ipfsReader != nil {
+			// last resort - try ipfs if reader configured
+			return h.getAndStoreDataFromIPFS(localCID)
+		}
+
+		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", localCID, err)
 	}
 
 	return dataFromLocal, nil
 }
 
-func (h *Resolver) getAndDataFromRemote(webCASEndpoint *url.URL, cid string) ([]byte, error) {
+func (h *Resolver) resolveCIDWithHint(cidParts []string) ([]byte, error) {
+	var dataFromRemote []byte
+
+	switch cidParts[0] {
+	case "webcas":
+		cid := cidParts[2]
+		domain := cidParts[1]
+
+		// TODO: issue-364 fix hard-coded URL when webfinger is available
+		webCASURL, err := url.Parse(fmt.Sprintf(webCasURLFormat, domain, cid))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
+		}
+
+		dataFromRemote, err = h.getAndStoreDataFromRemote(webCASURL, cid)
+		if err != nil {
+			return nil, fmt.Errorf("failure while getting and storing data from the remote "+
+				"WebCAS endpoint: %w", err)
+		}
+
+		logger.Debugf("successfully retrieved data for cid[%s] from webcas domain[%s]", cid, domain)
+
+	case "ipfs":
+		var err error
+
+		cid := cidParts[1]
+
+		if h.ipfsReader == nil {
+			return nil, fmt.Errorf("ipfs reader is not supported")
+		}
+
+		dataFromRemote, err = h.getAndStoreDataFromIPFS(cid)
+		if err != nil {
+			return nil, fmt.Errorf("failure while getting and storing data from ipfs for cid with ipfs hint: %w", err)
+		}
+
+		logger.Debugf("successfully retrieved data for cid[%s] from ipfs", cid)
+
+	default:
+		return nil, fmt.Errorf("hint '%s' not supported", cidParts[0])
+	}
+
+	return dataFromRemote, nil
+}
+
+func (h *Resolver) getAndStoreDataFromRemote(webCASEndpoint *url.URL, cid string) ([]byte, error) {
 	resp, err := h.httpClient.Get(webCASEndpoint.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GET call on %s: %w", webCASEndpoint.String(), err)
@@ -106,6 +180,21 @@ func (h *Resolver) getAndDataFromRemote(webCASEndpoint *url.URL, cid string) ([]
 	}
 
 	return responseBody, nil
+}
+
+func (h *Resolver) getAndStoreDataFromIPFS(cid string) ([]byte, error) {
+	resp, err := h.ipfsReader.Read(cid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read cid[%s] from ipfs: %w", cid, err)
+	}
+
+	err = h.storeLocallyAndVerifyCID(resp, cid)
+	if err != nil {
+		return nil, fmt.Errorf("failure while storing data retrieved from the ipfs: %w",
+			err)
+	}
+
+	return resp, nil
 }
 
 func (h *Resolver) storeLocallyAndVerifyCID(data []byte, cidFromOriginalRequest string) error {
