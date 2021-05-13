@@ -136,6 +136,22 @@ func TestFollowers_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
+		AuthTokensDef: []*AuthTokenDef{
+			{
+				EndpointExpression: "/services/orb/outbox",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+			{
+				EndpointExpression: "/services/orb/.*",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+		},
+		AuthTokens: map[string]string{
+			"read":  "READ_TOKEN",
+			"admin": "ADMIN_TOKEN",
+		},
 	}
 
 	verifier := &mocks.SignatureVerifier{}

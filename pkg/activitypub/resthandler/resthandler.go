@@ -51,7 +51,17 @@ const (
 	pageParam    = "page"
 	pageNumParam = "page-num"
 	idParam      = "id"
+
+	authHeader  = "Authorization"
+	tokenPrefix = "Bearer "
 )
+
+// AuthTokenDef contains authorization bearer token configuration.
+type AuthTokenDef struct {
+	EndpointExpression string   `json:"endpoint"`
+	ReadTokens         []string `json:"read,omitempty"`
+	WriteTokens        []string `json:"write,omitempty"`
+}
 
 // Config contains configuration parameters for the handler.
 type Config struct {
@@ -59,6 +69,8 @@ type Config struct {
 	ObjectIRI              *url.URL
 	PageSize               int
 	VerifyActorInSignature bool
+	AuthTokensDef          []*AuthTokenDef
+	AuthTokens             map[string]string
 }
 
 type handler struct {
@@ -68,26 +80,25 @@ type handler struct {
 	params        map[string]string
 	activityStore spi.Store
 	handler       common.HTTPRequestHandler
-	verifier      signatureVerifier
 	marshal       func(v interface{}) ([]byte, error)
 	writeResponse func(w http.ResponseWriter, status int, body []byte)
 	getParams     func(req *http.Request) map[string][]string
 }
 
-func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler,
-	verifier signatureVerifier, params ...string) *handler {
+func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
 	return &handler{
 		Config:        cfg,
 		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, endpoint),
 		params:        paramsBuilder(params).build(),
 		activityStore: s,
 		handler:       h,
-		verifier:      verifier,
 		marshal:       vocab.Marshal,
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()
 		},
 		writeResponse: func(w http.ResponseWriter, status int, body []byte) {
+			w.WriteHeader(status)
+
 			if len(body) > 0 {
 				if _, err := w.Write(body); err != nil {
 					logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
@@ -97,8 +108,6 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestH
 
 				logger.Debugf("[%s] Wrote response: %s", endpoint, body)
 			}
-
-			w.WriteHeader(status)
 		},
 	}
 }

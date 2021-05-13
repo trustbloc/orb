@@ -49,6 +49,7 @@ type signatureVerifier interface {
 // Reference implements a REST handler that retrieves references as a collection of IRIs.
 type Reference struct {
 	*handler
+	*authHandler
 
 	refType              spi.ReferenceType
 	sortOrder            spi.SortOrder
@@ -63,6 +64,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc,
 	verifier signatureVerifier) *Reference {
 	h := &Reference{
+		authHandler:          newAuthHandler(cfg, path, http.MethodGet, verifier),
 		refType:              refType,
 		sortOrder:            sortOrder,
 		createCollection:     createCollection(ordered),
@@ -71,15 +73,15 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
+	h.handler = newHandler(path, cfg, activityStore, h.handle)
 
 	return h
 }
 
 func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
-	ok, _, err := h.verifier.VerifyRequest(req)
+	ok, _, err := h.authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error verifying HTTP signature: %s", h.endpoint, err)
+		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
 		w.WriteHeader(http.StatusInternalServerError)
 
@@ -87,8 +89,6 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		logger.Infof("[%s] Invalid HTTP signature: %s", h.endpoint)
-
 		w.WriteHeader(http.StatusUnauthorized)
 
 		return

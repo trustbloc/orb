@@ -93,6 +93,39 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	})
 }
 
+func TestAuthTokens(t *testing.T) {
+	startCmd := GetStartCmd()
+
+	args := []string{
+		"--" + authTokensDefFlagName, "/services/orb/keys",
+		"--" + authTokensDefFlagName, "/services/orb/outbox|admin&read|admin",
+		"--" + authTokensFlagName, "admin=ADMIN_TOKEN",
+		"--" + authTokensFlagName, "read=READ_TOKEN",
+	}
+	startCmd.SetArgs(args)
+
+	err := startCmd.Execute()
+
+	authDefs, err := getAuthTokenDefinitions(startCmd)
+	require.NoError(t, err)
+	require.Len(t, authDefs, 2)
+	require.Equal(t, "/services/orb/keys", authDefs[0].EndpointExpression)
+	require.Empty(t, authDefs[0].ReadTokens)
+	require.Empty(t, authDefs[0].WriteTokens)
+	require.Equal(t, "/services/orb/outbox", authDefs[1].EndpointExpression)
+	require.Len(t, authDefs[1].ReadTokens, 2)
+	require.Equal(t, authDefs[1].ReadTokens[0], "admin")
+	require.Equal(t, authDefs[1].ReadTokens[1], "read")
+	require.Len(t, authDefs[1].WriteTokens, 1)
+	require.Equal(t, authDefs[1].ReadTokens[0], "admin")
+
+	authTokens, err := getAuthTokens(startCmd)
+	require.NoError(t, err)
+	require.Len(t, authTokens, 2)
+	require.Equal(t, "ADMIN_TOKEN", authTokens["admin"])
+	require.Equal(t, "READ_TOKEN", authTokens["read"])
+}
+
 func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing host url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()

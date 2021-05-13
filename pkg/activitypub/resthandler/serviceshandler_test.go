@@ -114,6 +114,36 @@ func TestServices_Handler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		cfg := &Config{
+			BasePath:  basePath,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
+			AuthTokensDef: []*AuthTokenDef{
+				{
+					EndpointExpression: "/services/orb",
+					ReadTokens:         []string{"admin", "read"},
+				},
+			},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
+			},
+		}
+
+		h := NewServices(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
 }
 
 func TestPublicKeys_Handler(t *testing.T) {
@@ -199,6 +229,39 @@ func TestPublicKeys_Handler(t *testing.T) {
 
 		result := rw.Result()
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		cfg := &Config{
+			BasePath:  basePath,
+			ObjectIRI: serviceIRI,
+			PageSize:  4,
+			AuthTokensDef: []*AuthTokenDef{
+				{
+					EndpointExpression: "/services/orb/keys",
+					ReadTokens:         []string{"admin", "read"},
+				},
+			},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
+			},
+		}
+
+		h := NewPublicKeys(cfg, activityStore, publicKey)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+		restoreID := setIDParam(MainKeyID)
+		defer restoreID()
+
+		h.handlePublicKey(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 }
