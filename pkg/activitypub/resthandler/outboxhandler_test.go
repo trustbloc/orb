@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,6 +42,7 @@ func TestOutbox_Handler(t *testing.T) {
 	const outboxURL = "https://example1.com/services/orb/outbox"
 
 	service2IRI := testutil.MustParseURL("https://example2.com/services/orb")
+	activityID := testutil.NewMockID(serviceIRI, "/activities/123456789")
 
 	cfg := &Config{
 		BasePath:               "/services/orb",
@@ -64,7 +66,7 @@ func TestOutbox_Handler(t *testing.T) {
 		},
 	}
 
-	ob := &mocks.Outbox{}
+	ob := mocks.NewOutbox().WithActivityID(activityID)
 
 	activity := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
@@ -88,6 +90,14 @@ func TestOutbox_Handler(t *testing.T) {
 
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		var id string
+
+		require.NoError(t, json.Unmarshal(respBytes, &id))
+		require.Equal(t, activityID.String(), id)
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -224,6 +234,44 @@ func TestOutbox_Handler(t *testing.T) {
 
 		result := rw.Result()
 		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Marshal error", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+		h := NewPostOutbox(cfg, ob, verifier)
+		h.marshal = func(v interface{}) ([]byte, error) { return nil, errors.New("injected marshal error") }
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Write response error", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+		h := NewPostOutbox(cfg, ob, verifier)
+		h.writeResponse = func(w http.ResponseWriter, _ []byte) (int, error) {
+			w.WriteHeader(http.StatusInternalServerError)
+
+			return 0, errors.New("injected error")
+		}
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 }

@@ -32,11 +32,12 @@ type signerConfig struct {
 type signFunc = func(req *http.Request) error
 
 type httpClient struct {
-	context *BDDContext
-	state   *state
-	client  *http.Client
-	signers map[string]signFunc
-	mutex   sync.RWMutex
+	context  *BDDContext
+	state    *state
+	client   *http.Client
+	signers  map[string]signFunc
+	mutex    sync.RWMutex
+	mappings map[string]string
 }
 
 func newHTTPClient(state *state, context *BDDContext) *httpClient {
@@ -47,8 +48,9 @@ func newHTTPClient(state *state, context *BDDContext) *httpClient {
 	}
 
 	return &httpClient{
-		state:  state,
-		client: client,
+		state:    state,
+		client:   client,
+		mappings: make(map[string]string),
 	}
 }
 
@@ -58,6 +60,8 @@ func (c *httpClient) Get(url string) ([]byte, int, http.Header, error) {
 
 func (c *httpClient) GetWithSignature(url, domain string) ([]byte, int, http.Header, error) {
 	defer c.client.CloseIdleConnections()
+
+	url = c.resolveURL(url)
 
 	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -103,6 +107,8 @@ func (c *httpClient) Post(url string, data []byte, contentType string) ([]byte, 
 
 func (c *httpClient) PostWithSignature(url string, data []byte, contentType, domain string) ([]byte, int, http.Header, error) {
 	defer c.client.CloseIdleConnections()
+
+	url = c.resolveURL(url)
 
 	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
 
@@ -214,6 +220,30 @@ func (c *httpClient) signer(domain string) (signFunc, error) {
 	}
 
 	return signer, nil
+}
+
+func (c *httpClient) MapDomain(domain string, mapping string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	logger.Infof("Mapping domain %s to %s", domain, mapping)
+
+	c.mappings[domain] = mapping
+}
+
+func (c *httpClient) resolveURL(url string) string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	for domain, mapping := range c.mappings {
+		if strings.Contains(url, domain) {
+			logger.Infof("Mapping %s to %s", domain, mapping)
+
+			return strings.ReplaceAll(url, domain, mapping)
+		}
+	}
+
+	return url
 }
 
 func contentTypeFromFileName(fileName string) (string, error) {
