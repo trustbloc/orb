@@ -10,12 +10,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 )
 
 func TestNewAuthHandler(t *testing.T) {
@@ -45,8 +47,14 @@ func TestNewAuthHandler(t *testing.T) {
 		},
 	}
 
+	activityStore := memstore.New("")
+
 	t.Run("POST with auth token -> success", func(t *testing.T) {
-		h := newAuthHandler(cfg, InboxPath, http.MethodPost, &mocks.SignatureVerifier{})
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
@@ -59,7 +67,11 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("GET with auth token -> success", func(t *testing.T) {
-		h := newAuthHandler(cfg, InboxPath, http.MethodGet, &mocks.SignatureVerifier{})
+		h := newAuthHandler(cfg, InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{},
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
@@ -72,7 +84,11 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("With invalid auth token -> error", func(t *testing.T) {
-		h := newAuthHandler(cfg, InboxPath, http.MethodPost, &mocks.SignatureVerifier{})
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
@@ -88,7 +104,11 @@ func TestNewAuthHandler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, cfg.ObjectIRI, nil)
 
-		h := newAuthHandler(cfg, InboxPath, http.MethodPost, verifier)
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
@@ -105,7 +125,10 @@ func TestNewAuthHandler(t *testing.T) {
 				BasePath:  basePath,
 				ObjectIRI: serviceIRI,
 			},
-			InboxPath, http.MethodPost, &mocks.SignatureVerifier{},
+			InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
 		)
 		require.NotNil(t, h)
 
@@ -130,14 +153,21 @@ func TestNewAuthHandler(t *testing.T) {
 						},
 					},
 				},
-				InboxPath, http.MethodGet, &mocks.SignatureVerifier{},
+				InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{},
+				func(actorIRI *url.URL) (bool, error) {
+					return true, nil
+				},
 			)
 			require.NotNil(t, h)
 		})
 	})
 
 	t.Run("No token and no HTTP signature verifier -> fail", func(t *testing.T) {
-		h := newAuthHandler(cfg, InboxPath, http.MethodPost, nil)
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, nil,
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
@@ -154,7 +184,33 @@ func TestNewAuthHandler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := newAuthHandler(cfg, InboxPath, http.MethodPost, verifier)
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+			func(actorIRI *url.URL) (bool, error) {
+				return true, nil
+			},
+		)
+		require.NotNil(t, h)
+
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+
+		ok, actorIRI, err := h.authorize(req)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.False(t, ok)
+		require.Nil(t, actorIRI)
+	})
+
+	t.Run("Authorize actor error -> fail", func(t *testing.T) {
+		errExpected := errors.New("injected authorize error")
+
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, cfg.ObjectIRI, nil)
+
+		h := newAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+			func(actorIRI *url.URL) (bool, error) {
+				return false, errExpected
+			},
+		)
 		require.NotNil(t, h)
 
 		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)

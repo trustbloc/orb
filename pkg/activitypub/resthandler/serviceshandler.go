@@ -21,7 +21,6 @@ const MainKeyID = "main-key"
 // Services implements the 'services' REST handler to retrieve a given ActivityPub service (actor).
 type Services struct {
 	*handler
-	*authHandler
 
 	publicKey *vocab.PublicKeyType
 }
@@ -29,11 +28,10 @@ type Services struct {
 // NewServices returns a new 'services' REST handler.
 func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
 	h := &Services{
-		authHandler: newAuthHandler(cfg, "", http.MethodGet, nil),
-		publicKey:   publicKey,
+		publicKey: publicKey,
 	}
 
-	h.handler = newHandler("", cfg, activityStore, h.handle)
+	h.handler = newHandler("", cfg, activityStore, h.handle, nil)
 
 	return h
 }
@@ -41,11 +39,10 @@ func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKe
 // NewPublicKeys returns a new public keys REST handler.
 func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
 	h := &Services{
-		authHandler: newAuthHandler(cfg, "/keys", http.MethodGet, nil),
-		publicKey:   publicKey,
+		publicKey: publicKey,
 	}
 
-	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey)
+	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey, nil)
 
 	return h
 }

@@ -272,16 +272,19 @@ Feature:
 
     Then we wait 2 seconds
 
-    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${followID}"}'
-    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
-
     # No signature on GET
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" and the returned status code is 401
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/followers" and the returned status code is 401
 
-    # Valid signature on GET
+    # Valid signature on GET with actor as a follower - should be allowed
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" signed with KMS key from "domain2"
     Then the JSON path "type" of the response equals "OrderedCollection"
+
+    # Valid signature on GET with actor as non-follower/non-witness - should be denied
+    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" signed with KMS key from "domain3" and the returned status code is 401
+
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${followID}"}'
+    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
 
   @activitypub_auth_token
   Scenario: Tests authorization tokens

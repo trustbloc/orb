@@ -164,6 +164,8 @@ func TestActivities_Handler(t *testing.T) {
 		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
 	}
 
+	require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
+
 	cfg := &Config{
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
@@ -187,7 +189,7 @@ func TestActivities_Handler(t *testing.T) {
 	}
 
 	verifier := &mocks.SignatureVerifier{}
-	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+	verifier.VerifyRequestReturns(true, service2IRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		h := NewOutbox(cfg, activityStore, verifier)

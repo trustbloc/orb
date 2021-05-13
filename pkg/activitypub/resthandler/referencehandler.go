@@ -49,7 +49,6 @@ type signatureVerifier interface {
 // Reference implements a REST handler that retrieves references as a collection of IRIs.
 type Reference struct {
 	*handler
-	*authHandler
 
 	refType              spi.ReferenceType
 	sortOrder            spi.SortOrder
@@ -64,7 +63,6 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc,
 	verifier signatureVerifier) *Reference {
 	h := &Reference{
-		authHandler:          newAuthHandler(cfg, path, http.MethodGet, verifier),
 		refType:              refType,
 		sortOrder:            sortOrder,
 		createCollection:     createCollection(ordered),
@@ -73,7 +71,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
 
 	return h
 }
