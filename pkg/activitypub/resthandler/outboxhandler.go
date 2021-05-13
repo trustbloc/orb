@@ -22,22 +22,28 @@ type outbox interface {
 	Post(activity *vocab.ActivityType) (*url.URL, error)
 }
 
+type responseWriter func(http.ResponseWriter, []byte) (int, error)
+
 // Outbox implements a REST handler for posts to a service's outbox.
 type Outbox struct {
 	*Config
 	*authHandler
 
-	endpoint string
-	ob       outbox
+	endpoint      string
+	ob            outbox
+	marshal       func(v interface{}) ([]byte, error)
+	writeResponse responseWriter
 }
 
 // NewPostOutbox returns a new REST handler to post activities to the outbox.
 func NewPostOutbox(cfg *Config, ob outbox, verifier signatureVerifier) *Outbox {
 	return &Outbox{
-		Config:      cfg,
-		authHandler: newAuthHandler(cfg, "/outbox", http.MethodPost, verifier),
-		endpoint:    fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
-		ob:          ob,
+		Config:        cfg,
+		authHandler:   newAuthHandler(cfg, "/outbox", http.MethodPost, verifier),
+		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
+		ob:            ob,
+		marshal:       json.Marshal,
+		writeResponse: func(w http.ResponseWriter, b []byte) (int, error) { return w.Write(b) },
 	}
 }
 
@@ -95,13 +101,27 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = h.ob.Post(activity)
+	activityID, err := h.ob.Post(activity)
 	if err != nil {
 		logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
 
 		w.WriteHeader(http.StatusInternalServerError)
 
 		return
+	}
+
+	activityIDBytes, err := h.marshal(activityID.String())
+	if err != nil {
+		logger.Errorf("[%s] Error marshaling activity ID: %s", h.endpoint, err)
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	_, err = h.writeResponse(w, activityIDBytes)
+	if err != nil {
+		logger.Errorf("[%s] Error writing response for activity [%s]: %s", h.endpoint, activityID, err)
 	}
 }
 

@@ -309,6 +309,20 @@ func (d *CommonSteps) jsonPathOfArrayResponseNotEmpty(path string) error {
 	return fmt.Errorf("JSON path [%s] resolves to an empty array", path)
 }
 
+func (d *CommonSteps) valueOfJSONStringResponseSavedToVar(varName string) error {
+	var value string
+
+	if err := json.Unmarshal([]byte(d.state.getResponse()), &value); err != nil {
+		return fmt.Errorf("invalid JSON string in response [%s]", d.state.getResponse())
+	}
+
+	logger.Infof("Saving [%s] to variable [%s]", value, varName)
+
+	d.state.setVar(varName, value)
+
+	return nil
+}
+
 func (d *CommonSteps) responseEquals(value string) error {
 	if d.state.getResponse() == value {
 		logger.Infof("Response equals expected value [%s]", value)
@@ -673,6 +687,12 @@ func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
 	return nil
 }
 
+func (d *CommonSteps) mapHTTPDomain(domain, mapping string) error {
+	d.httpClient.MapDomain(domain, mapping)
+
+	return nil
+}
+
 func getSignerConfig(domain, pubKeyID string) (*signerConfig, error) {
 	storeProvider, err := newStoreProvider(domain)
 	if err != nil {
@@ -780,6 +800,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the raw response is saved to variable "([^"]*)"$`, d.jsonPathOfRawResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
+	s.Step(`^the value of the JSON string response is saved to variable "([^"]*)"$`, d.valueOfJSONStringResponseSavedToVar)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" signed with KMS key from "([^"]*)"$`, d.httpGetWithSignature)
@@ -794,4 +815,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with KMS key from "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithSignatureAndExpectedCode)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
+	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
 }
