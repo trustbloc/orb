@@ -12,6 +12,7 @@ import (
 
 	"github.com/trustbloc/orb/cmd/orb-cli/createdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 )
@@ -39,6 +40,7 @@ func main() {
 	didCmd.AddCommand(deactivatedidcmd.GetDeactivateDIDCmd())
 
 	rootCmd.AddCommand(didCmd)
+	rootCmd.AddCommand(followcmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-cli: %s", err.Error())

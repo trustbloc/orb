@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 package common
 
 import (
+	"bytes"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -13,7 +15,9 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"path/filepath"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
@@ -21,8 +25,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
 	"github.com/spf13/cobra"
 	gojose "github.com/square/go-jose/v3"
+	"github.com/trustbloc/edge-core/pkg/log"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 )
+
+var logger = log.New("orb-cli")
 
 // PublicKey struct.
 type PublicKey struct {
@@ -79,20 +86,20 @@ func PrivateKeyFromPEM(privateKeyPEM, password []byte) (crypto.PrivateKey, error
 		return nil, fmt.Errorf("private key not found in PEM")
 	}
 
-	bytes := privBlock.Bytes
+	b := privBlock.Bytes
 
 	if len(password) != 0 {
 		var err error
 		// FIXME: x509.DecryptPEMBlock deprecated in go1.16 due to security flaws.
 		//   this should be replaced by a different infrastructure for configuring keys before this goes into prod.
-		bytes, err = x509.DecryptPEMBlock(privBlock, password) //nolint:staticcheck
+		b, err = x509.DecryptPEMBlock(privBlock, password) //nolint:staticcheck
 
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	privKey, err := ParsePrivateKey(bytes)
+	privKey, err := ParsePrivateKey(b)
 	if err != nil {
 		return nil, err
 	}
@@ -224,4 +231,56 @@ func GetServices(serviceFilePath string) ([]docdid.Service, error) {
 	}
 
 	return services, nil
+}
+
+// SendRequest send http request.
+func SendRequest(httpClient *http.Client, req []byte, token, method, endpointURL string) ([]byte, error) {
+	var httpReq *http.Request
+
+	var err error
+
+	if len(req) == 0 {
+		httpReq, err = http.NewRequestWithContext(context.Background(),
+			method, endpointURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create http request: %w", err)
+		}
+	} else {
+		httpReq, err = http.NewRequestWithContext(context.Background(),
+			method, endpointURL, bytes.NewBuffer(req))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create http request: %w", err)
+		}
+	}
+
+	if token != "" {
+		httpReq.Header.Add("Authorization", "Bearer "+token)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	defer closeResponseBody(resp.Body)
+
+	responseBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response : %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("got unexpected response from %s status '%d' body %s",
+			endpointURL, resp.StatusCode, responseBytes)
+	}
+
+	return responseBytes, nil
+}
+
+func closeResponseBody(respBody io.Closer) {
+	if err := respBody.Close(); err != nil {
+		logger.Errorf("Failed to close response body: %v", err)
+	}
 }
