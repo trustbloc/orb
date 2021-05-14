@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/witnesscmd"
 )
 
 var logger = log.New("orb-cli")
@@ -41,6 +42,7 @@ func main() {
 
 	rootCmd.AddCommand(didCmd)
 	rootCmd.AddCommand(followcmd.GetCmd())
+	rootCmd.AddCommand(witnesscmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-cli: %s", err.Error())
