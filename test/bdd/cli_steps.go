@@ -42,6 +42,7 @@ func (e *Steps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check cli recovered DID$`, e.checkRecoveredDID)
 	s.Step(`^check cli deactivated DID$`, e.checkDeactivatedDID)
 	s.Step(`^check cli updated DID$`, e.checkUpdatedDID)
+	s.Step(`^user create "([^"]*)" activity with outbox-url "([^"]*)" actor "([^"]*)" to "([^"]*)" action "([^"]*)"$`, e.createActivity)
 }
 
 func (e *Steps) checkCreatedDID() error {
@@ -277,6 +278,41 @@ func (e *Steps) checkUpdatedDID() error { //nolint: gocyclo
 	}
 
 	return fmt.Errorf("update failed")
+}
+
+func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) error {
+	var args []string
+
+	args = append(args, subCmd,
+		"--outbox-url", outboxURL,
+		"--actor", actor,
+		"--to", to,
+		"--action", action,
+		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
+		"--auth-token", "ADMIN_TOKEN",
+	)
+
+	if action == "Undo" {
+		if subCmd == "follower" {
+			s := strings.Split(e.cliValue, "Follow id: ")
+			id := s[1][1 : len(s[1])-2]
+			args = append(args, "--follow-id", id)
+		} else {
+			s := strings.Split(e.cliValue, "InviteWitness id: ")
+			id := s[1][1 : len(s[1])-2]
+			args = append(args, "--invite-witness-id", id)
+		}
+	}
+
+	value, err := execCMD(args...)
+
+	if err != nil {
+		return err
+	}
+
+	e.cliValue = value
+
+	return nil
 }
 
 func (e *Steps) updateDID() error {
