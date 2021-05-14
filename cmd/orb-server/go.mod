@@ -7,7 +7,7 @@ module github.com/trustbloc/orb/cmd/orb-server
 require (
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/google/uuid v1.2.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210429013345-a595aa0b19c4
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210514172045-dfb48754097a
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210331105523-60637a465684
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210422133815-2ef2d99cb692
