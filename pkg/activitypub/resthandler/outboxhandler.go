@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -36,15 +37,18 @@ type Outbox struct {
 }
 
 // NewPostOutbox returns a new REST handler to post activities to the outbox.
-func NewPostOutbox(cfg *Config, ob outbox, verifier signatureVerifier) *Outbox {
-	return &Outbox{
+func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVerifier) *Outbox {
+	h := &Outbox{
 		Config:        cfg,
-		authHandler:   newAuthHandler(cfg, "/outbox", http.MethodPost, verifier),
 		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
 		ob:            ob,
 		marshal:       json.Marshal,
 		writeResponse: func(w http.ResponseWriter, b []byte) (int, error) { return w.Write(b) },
 	}
+
+	h.authHandler = newAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, h.authorizeActor)
+
+	return h
 }
 
 // Method returns the HTTP method, which is always POST.
@@ -64,7 +68,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 }
 
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
-	ok, actorIRI, err := h.authorize(req)
+	ok, _, err := h.authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
@@ -92,7 +96,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 
 	logger.Debugf("[%s] Posting activity %s", h.endpoint, activityBytes)
 
-	activity, err := h.unmarshalAndValidateActivity(actorIRI, activityBytes)
+	activity, err := h.unmarshalAndValidateActivity(activityBytes)
 	if err != nil {
 		logger.Errorf("[%s] Invalid activity: %s", h.endpoint, err)
 
@@ -125,13 +129,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Outbox) unmarshalAndValidateActivity(actorIRI *url.URL, activityBytes []byte) (*vocab.ActivityType, error) {
-	if h.VerifyActorInSignature {
-		if h.ObjectIRI.String() != actorIRI.String() {
-			return nil, fmt.Errorf("only actor [%s] may post to this outbox", h.ObjectIRI)
-		}
-	}
-
+func (h *Outbox) unmarshalAndValidateActivity(activityBytes []byte) (*vocab.ActivityType, error) {
 	activity := &vocab.ActivityType{}
 
 	err := json.Unmarshal(activityBytes, activity)
@@ -149,4 +147,20 @@ func (h *Outbox) unmarshalAndValidateActivity(actorIRI *url.URL, activityBytes [
 	}
 
 	return activity, nil
+}
+
+func (h *Outbox) authorizeActor(actorIRI *url.URL) (bool, error) {
+	if !h.VerifyActorInSignature {
+		return true, nil
+	}
+
+	// Ensure that the actor is the local service.
+	if actorIRI.String() != h.ObjectIRI.String() {
+		logger.Infof("[%s] Denying access to actor [%s] since only [%s] is allowed to post to the outbox",
+			h.endpoint, actorIRI, h.ObjectIRI)
+
+		return false, nil
+	}
+
+	return true, nil
 }

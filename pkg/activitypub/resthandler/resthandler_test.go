@@ -7,12 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -27,7 +29,7 @@ func TestNewHandler(t *testing.T) {
 	}
 
 	h := newHandler("", cfg, memstore.New(""),
-		func(writer http.ResponseWriter, request *http.Request) {},
+		func(writer http.ResponseWriter, request *http.Request) {}, &mocks.SignatureVerifier{},
 		pageNumParam, pageParam,
 	)
 
@@ -70,7 +72,7 @@ func TestGetCurrentPrevNext(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil)
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
 
 	t.Run("Sort ascending", func(t *testing.T) {
 		t.Run("No page-num", func(t *testing.T) {
@@ -162,7 +164,7 @@ func TestGetIDPrevNextURL(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil)
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
 
 	id := testutil.MustParseURL(fmt.Sprintf("%s%s", cfg.ObjectIRI, ""))
 
@@ -260,6 +262,83 @@ func TestGetIDPrevNextURL(t *testing.T) {
 			require.NotNil(t, next)
 			require.Equal(t, "https://example1.com/services/orb?page=true&page-num=2", next.String())
 		})
+	})
+}
+
+func TestAuthorizeActor(t *testing.T) {
+	cfg := &Config{
+		BasePath:               basePath,
+		ObjectIRI:              serviceIRI,
+		PageSize:               4,
+		VerifyActorInSignature: true,
+	}
+
+	t.Run("Follower", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			activityStore := memstore.New("")
+
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+
+			require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
+
+			ok, err := h.authorizeActor(service2IRI)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+
+		t.Run("Store error", func(t *testing.T) {
+			errExpected := errors.New("injected query error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.QueryReferencesReturnsOnCall(0, nil, errExpected)
+
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+
+			ok, err := h.authorizeActor(service2IRI)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+			require.False(t, ok)
+		})
+	})
+
+	t.Run("Witness", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			activityStore := memstore.New("")
+
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+
+			require.NoError(t, activityStore.AddReference(spi.Witness, serviceIRI, service2IRI))
+
+			ok, err := h.authorizeActor(service2IRI)
+			require.NoError(t, err)
+			require.True(t, ok)
+		})
+
+		t.Run("Store error", func(t *testing.T) {
+			errExpected := errors.New("injected query error")
+
+			activityStore := &mocks.ActivityStore{}
+
+			activityStore.QueryReferencesReturnsOnCall(0, memstore.NewReferenceIterator(nil, 0), nil)
+			activityStore.QueryReferencesReturnsOnCall(1, nil, errExpected)
+
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+
+			ok, err := h.authorizeActor(service2IRI)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+			require.False(t, ok)
+		})
+	})
+
+	t.Run("Neither follower nor witness -> unauthorized", func(t *testing.T) {
+		activityStore := memstore.New("")
+
+		h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+
+		ok, err := h.authorizeActor(service2IRI)
+		require.NoError(t, err)
+		require.False(t, ok)
 	})
 }
 

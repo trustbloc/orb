@@ -19,11 +19,9 @@ import (
 
 // NewActivity returns a new 'activities/{id}' REST handler that retrieves a single activity by ID.
 func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activity {
-	h := &Activity{
-		authHandler: newAuthHandler(cfg, ActivitiesPath, http.MethodGet, verifier),
-	}
+	h := &Activity{}
 
-	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle)
+	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle, verifier)
 
 	return h
 }
@@ -66,7 +64,6 @@ type getObjectIRIFunc func(req *http.Request) (*url.URL, error)
 // Activities implements a REST handler that retrieves activities.
 type Activities struct {
 	*handler
-	*authHandler
 
 	refType      spi.ReferenceType
 	getID        getIDFunc
@@ -77,13 +74,12 @@ type Activities struct {
 func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
 	getObjectIRI getObjectIRIFunc, getID getIDFunc, verifier signatureVerifier) *Activities {
 	h := &Activities{
-		authHandler:  newAuthHandler(cfg, path, http.MethodGet, verifier),
 		refType:      refType,
 		getID:        getID,
 		getObjectIRI: getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
 
 	return h
 }
@@ -279,7 +275,6 @@ func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*voc
 // Activity implements a REST handler that retrieves a single activity by ID.
 type Activity struct {
 	*handler
-	*authHandler
 }
 
 func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {

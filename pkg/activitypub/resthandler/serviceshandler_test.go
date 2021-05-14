@@ -28,6 +28,7 @@ const (
 
 var (
 	serviceIRI   = testutil.MustParseURL("https://example1.com/services/orb")
+	service2IRI  = testutil.MustParseURL("https://example2.com/services/orb")
 	publicKeyIRI = testutil.NewMockID(serviceIRI, "/keys/main-key")
 )
 

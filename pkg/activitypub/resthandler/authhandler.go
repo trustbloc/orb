@@ -12,16 +12,24 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+
+	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 )
 
+type authorizeActorFunc func(actorIRI *url.URL) (bool, error)
+
 type authHandler struct {
-	endpnt     string
-	serviceIRI *url.URL
-	authTokens []string
-	verifier   signatureVerifier
+	*Config
+
+	endpoint       string
+	authTokens     []string
+	verifier       signatureVerifier
+	activityStore  store.Store
+	authorizeActor authorizeActorFunc
 }
 
-func newAuthHandler(cfg *Config, endpoint, method string, verifier signatureVerifier) *authHandler {
+func newAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifier signatureVerifier,
+	authorizeActor authorizeActorFunc) *authHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
 	authTokens, err := resolveAuthTokens(ep, method, cfg.AuthTokensDef, cfg.AuthTokens)
@@ -31,34 +39,47 @@ func newAuthHandler(cfg *Config, endpoint, method string, verifier signatureVeri
 	}
 
 	return &authHandler{
-		endpnt:     ep,
-		serviceIRI: cfg.ObjectIRI,
-		authTokens: authTokens,
-		verifier:   verifier,
+		Config:         cfg,
+		endpoint:       ep,
+		authTokens:     authTokens,
+		verifier:       verifier,
+		activityStore:  s,
+		authorizeActor: authorizeActor,
 	}
 }
 
 func (h *authHandler) authorize(req *http.Request) (bool, *url.URL, error) {
 	if h.authorizeWithBearerToken(req) {
-		logger.Debugf("[%s] Authorization succeeded using bearer token", h.endpnt)
+		logger.Debugf("[%s] Authorization succeeded using bearer token", h.endpoint)
 
 		// The bearer of the token is assumed to be this service. If it isn't then validation
 		// should fail in subsequent checks.
-		return true, h.serviceIRI, nil
+		return true, h.ObjectIRI, nil
 	}
 
-	logger.Debugf("[%s] Authorization failed using bearer token.", h.endpnt)
+	logger.Debugf("[%s] Authorization failed using bearer token.", h.endpoint)
 
 	if h.verifier == nil {
 		return false, nil, nil
 	}
 
-	logger.Debugf("[%s] Checking HTTP signature...", h.endpnt)
+	logger.Debugf("[%s] Checking HTTP signature...", h.endpoint)
 
 	// Check HTTP signature.
 	ok, actorIRI, err := h.verifier.VerifyRequest(req)
 	if err != nil {
 		return false, nil, fmt.Errorf("verify HTTP signature: %w", err)
+	}
+
+	if !ok {
+		logger.Debugf("[%s] Authorization failed using HTTP signature.", h.endpoint)
+
+		return false, nil, nil
+	}
+
+	ok, err = h.authorizeActor(actorIRI)
+	if err != nil {
+		return false, nil, fmt.Errorf("authorize actor [%s]: %w", actorIRI, err)
 	}
 
 	return ok, actorIRI, nil
@@ -67,26 +88,26 @@ func (h *authHandler) authorize(req *http.Request) (bool, *url.URL, error) {
 func (h *authHandler) authorizeWithBearerToken(req *http.Request) bool {
 	// Open access.
 	if len(h.authTokens) == 0 {
-		logger.Debugf("[%s] No auth token required.", h.endpnt)
+		logger.Debugf("[%s] No auth token required.", h.endpoint)
 
 		return true
 	}
 
-	logger.Debugf("[%s] Auth tokens required: %s", h.endpnt, h.authTokens)
+	logger.Debugf("[%s] Auth tokens required: %s", h.endpoint, h.authTokens)
 
 	actHdr := req.Header.Get(authHeader)
 	if actHdr == "" {
-		logger.Debugf("[%s] Bearer token not found in header", h.endpnt)
+		logger.Debugf("[%s] Bearer token not found in header", h.endpoint)
 
 		return false
 	}
 
 	// Compare the header against all tokens. If any match then we allow the request.
 	for _, token := range h.authTokens {
-		logger.Debugf("[%s] Checking token %s", h.endpnt, token)
+		logger.Debugf("[%s] Checking token %s", h.endpoint, token)
 
 		if subtle.ConstantTimeCompare([]byte(actHdr), []byte(tokenPrefix+token)) == 1 {
-			logger.Debugf("[%s] Found token %s", h.endpnt, token)
+			logger.Debugf("[%s] Found token %s", h.endpoint, token)
 
 			return true
 		}

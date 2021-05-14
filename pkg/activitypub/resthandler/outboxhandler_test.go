@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -31,7 +32,7 @@ func TestNewOutboxAdmin(t *testing.T) {
 	ob := &mocks.Outbox{}
 	verifier := &mocks.SignatureVerifier{}
 
-	h := NewPostOutbox(cfg, ob, verifier)
+	h := NewPostOutbox(cfg, ob, memstore.New(""), verifier)
 
 	require.NotNil(t, h.Handler())
 	require.Equal(t, http.MethodPost, h.Method())
@@ -41,7 +42,6 @@ func TestNewOutboxAdmin(t *testing.T) {
 func TestOutbox_Handler(t *testing.T) {
 	const outboxURL = "https://example1.com/services/orb/outbox"
 
-	service2IRI := testutil.MustParseURL("https://example2.com/services/orb")
 	activityID := testutil.NewMockID(serviceIRI, "/activities/123456789")
 
 	cfg := &Config{
@@ -66,6 +66,8 @@ func TestOutbox_Handler(t *testing.T) {
 		},
 	}
 
+	activityStore := memstore.New("")
+
 	ob := mocks.NewOutbox().WithActivityID(activityID)
 
 	activity := vocab.NewFollowActivity(
@@ -81,7 +83,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
@@ -101,11 +103,42 @@ func TestOutbox_Handler(t *testing.T) {
 		require.NoError(t, result.Body.Close())
 	})
 
+	t.Run("Actor verification not required -> Success", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+		cnfg := &Config{
+			BasePath:               "/services/orb",
+			ObjectIRI:              serviceIRI,
+			VerifyActorInSignature: false,
+			AuthTokensDef: []*AuthTokenDef{
+				{
+					EndpointExpression: "/services/orb/outbox",
+					WriteTokens:        []string{"admin"},
+				},
+			},
+			AuthTokens: map[string]string{
+				"admin": "ADMIN_TOKEN",
+			},
+		}
+
+		h := NewPostOutbox(cnfg, ob, activityStore, verifier)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
 	t.Run("Invalid HTTP signature", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
@@ -123,7 +156,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
@@ -139,7 +172,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, nil)
@@ -160,7 +193,7 @@ func TestOutbox_Handler(t *testing.T) {
 		outb := &mocks.Outbox{}
 		outb.WithError(errExpected)
 
-		h := NewPostOutbox(cfg, outb, verifier)
+		h := NewPostOutbox(cfg, outb, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
@@ -176,7 +209,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, service2IRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(activityBytes))
@@ -192,7 +225,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		a := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
@@ -216,7 +249,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 
 		a := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
@@ -241,7 +274,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 		h.marshal = func(v interface{}) ([]byte, error) { return nil, errors.New("injected marshal error") }
 
 		rw := httptest.NewRecorder()
@@ -258,7 +291,7 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-		h := NewPostOutbox(cfg, ob, verifier)
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
 		h.writeResponse = func(w http.ResponseWriter, _ []byte) (int, error) {
 			w.WriteHeader(http.StatusInternalServerError)
 

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -75,24 +76,22 @@ type Config struct {
 
 type handler struct {
 	*Config
+	*authHandler
 
-	endpoint      string
 	params        map[string]string
-	activityStore spi.Store
 	handler       common.HTTPRequestHandler
 	marshal       func(v interface{}) ([]byte, error)
 	writeResponse func(w http.ResponseWriter, status int, body []byte)
 	getParams     func(req *http.Request) map[string][]string
 }
 
-func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestHandler, params ...string) *handler {
-	return &handler{
-		Config:        cfg,
-		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, endpoint),
-		params:        paramsBuilder(params).build(),
-		activityStore: s,
-		handler:       h,
-		marshal:       vocab.Marshal,
+func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequestHandler,
+	verifier signatureVerifier, params ...string) *handler {
+	h := &handler{
+		Config:  cfg,
+		params:  paramsBuilder(params).build(),
+		handler: rh,
+		marshal: vocab.Marshal,
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()
 		},
@@ -110,6 +109,10 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, h common.HTTPRequestH
 			}
 		},
 	}
+
+	h.authHandler = newAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, h.authorizeActor)
+
+	return h
 }
 
 // Path returns the base path of the target URL for this handler.
@@ -248,6 +251,63 @@ func (h *handler) paramAsBool(req *http.Request, param string) bool {
 	}
 
 	return b
+}
+
+func (h *handler) authorizeActor(actorIRI *url.URL) (bool, error) {
+	if !h.VerifyActorInSignature {
+		return true, nil
+	}
+
+	// Ensure that the actor is a follower or a witness, otherwise deny access.
+	isFollower, err := h.hasReference(spi.Follower, actorIRI)
+	if err != nil {
+		return false, fmt.Errorf("check follower: %w", err)
+	}
+
+	if !isFollower {
+		isWitness, err := h.hasReference(spi.Witness, actorIRI)
+		if err != nil {
+			return false, fmt.Errorf("check witness: %w", err)
+		}
+
+		if !isWitness {
+			logger.Infof("[%s] Denying access since actor [%s] is neither a follower or a witness.", h.endpoint, actorIRI)
+
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (h *handler) hasReference(refType spi.ReferenceType, refIRI *url.URL) (bool, error) {
+	it, err := h.activityStore.QueryReferences(refType,
+		spi.NewCriteria(
+			spi.WithObjectIRI(h.ObjectIRI),
+			spi.WithReferenceIRI(refIRI),
+		),
+	)
+	if err != nil {
+		return false, fmt.Errorf("query references: %w", err)
+	}
+
+	defer func() {
+		err = it.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
+
+	_, err = it.Next()
+	if err != nil {
+		if errors.Is(err, spi.ErrNotFound) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("get next reference: %w", err)
+	}
+
+	return true, nil
 }
 
 func getPrevNextAscending(current, first, last int) (int, int) {
