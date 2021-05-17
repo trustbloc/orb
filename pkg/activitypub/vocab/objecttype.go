@@ -104,8 +104,22 @@ func (t *ObjectType) EndTime() *time.Time {
 	return t.object.EndTime
 }
 
+// Urls holds a collection of URLs.
+type Urls []*url.URL
+
+// Contains returns true if the collection of URLs contains the given URL.
+func (u Urls) Contains(v string) bool {
+	for _, iri := range u {
+		if iri.String() == v {
+			return true
+		}
+	}
+
+	return false
+}
+
 // To returns a set of URLs to which the object should be sent.
-func (t *ObjectType) To() []*url.URL {
+func (t *ObjectType) To() Urls {
 	if t.object.To == nil {
 		return nil
 	}

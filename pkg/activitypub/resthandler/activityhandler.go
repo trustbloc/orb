@@ -278,11 +278,20 @@ type Activity struct {
 }
 
 func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
+	authorized, _, err := h.authorize(req)
+	if err != nil {
+		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
+
+		return
+	}
+
 	activityIRI, err := h.getActivityIRI(req)
 	if err != nil {
 		logger.Debugf("[%s] Get activity IRI: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusBadRequest, nil)
+		h.writeResponse(w, http.StatusBadRequest, []byte("Bad Request.\n"))
 
 		return
 	}
@@ -292,23 +301,31 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 		if errors.Is(err, spi.ErrNotFound) {
 			logger.Debugf("[%s] Activity ID not found [%s]", h.endpoint, activityIRI)
 
-			h.writeResponse(w, http.StatusNotFound, nil)
+			h.writeResponse(w, http.StatusNotFound, []byte("Not Found.\n"))
 
 			return
 		}
 
 		logger.Errorf("[%s] Unable to retrieve activity [%s]: %s", h.endpoint, activityIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
 
 		return
+	}
+
+	if !authorized {
+		if !activity.To().Contains(vocab.PublicIRI) {
+			h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorised.\n"))
+
+			return
+		}
 	}
 
 	activityBytes, err := h.marshal(activity)
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal activity [%s]: %s", h.endpoint, activityIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
 
 		return
 	}

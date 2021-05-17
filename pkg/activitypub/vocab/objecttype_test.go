@@ -53,8 +53,8 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		to := obj.To()
 		require.Len(t, to, 2)
-		require.Equal(t, to1.String(), to[0].String())
-		require.Equal(t, to2.String(), to[1].String())
+		require.True(t, to.Contains(to1.String()))
+		require.True(t, to.Contains(to2.String()))
 	})
 
 	t.Run("MarshalJSON", func(t *testing.T) {
