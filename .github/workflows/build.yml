@@ -126,3 +126,13 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_PREFIX }}:latest
+
+      - name: Build binaries
+        run: make build-orb-cli-binaries
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: orb-cli
+          path: |
+            ./.build/dist/bin/orb-cli-darwin-amd64.tar.gz
+            ./.build/dist/bin/orb-cli-linux-amd64.tar.gz
