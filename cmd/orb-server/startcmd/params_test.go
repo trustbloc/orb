@@ -99,6 +99,8 @@ func TestAuthTokens(t *testing.T) {
 	args := []string{
 		"--" + authTokensDefFlagName, "/services/orb/keys",
 		"--" + authTokensDefFlagName, "/services/orb/outbox|admin&read|admin",
+		"--" + authTokensDefFlagName, "/services/orb/inbox||admin",
+		"--" + authTokensDefFlagName, "/services/orb/activities|read&",
 		"--" + authTokensFlagName, "admin=ADMIN_TOKEN",
 		"--" + authTokensFlagName, "read=READ_TOKEN",
 	}
@@ -108,16 +110,26 @@ func TestAuthTokens(t *testing.T) {
 
 	authDefs, err := getAuthTokenDefinitions(startCmd)
 	require.NoError(t, err)
-	require.Len(t, authDefs, 2)
+	require.Len(t, authDefs, 4)
+
 	require.Equal(t, "/services/orb/keys", authDefs[0].EndpointExpression)
 	require.Empty(t, authDefs[0].ReadTokens)
 	require.Empty(t, authDefs[0].WriteTokens)
+
 	require.Equal(t, "/services/orb/outbox", authDefs[1].EndpointExpression)
 	require.Len(t, authDefs[1].ReadTokens, 2)
 	require.Equal(t, authDefs[1].ReadTokens[0], "admin")
 	require.Equal(t, authDefs[1].ReadTokens[1], "read")
 	require.Len(t, authDefs[1].WriteTokens, 1)
 	require.Equal(t, authDefs[1].ReadTokens[0], "admin")
+
+	require.Equal(t, "/services/orb/inbox", authDefs[2].EndpointExpression)
+	require.Len(t, authDefs[2].ReadTokens, 0)
+	require.Len(t, authDefs[2].WriteTokens, 1)
+
+	require.Equal(t, "/services/orb/activities", authDefs[3].EndpointExpression)
+	require.Len(t, authDefs[3].ReadTokens, 1)
+	require.Len(t, authDefs[3].WriteTokens, 0)
 
 	authTokens, err := getAuthTokens(startCmd)
 	require.NoError(t, err)

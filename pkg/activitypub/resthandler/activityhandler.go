@@ -95,7 +95,7 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorised.\n"))
+		h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorized.\n"))
 
 		return
 	}
@@ -315,7 +315,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	if !authorized {
 		if !activity.To().Contains(vocab.PublicIRI) {
-			h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorised.\n"))
+			h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorized.\n"))
 
 			return
 		}

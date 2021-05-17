@@ -556,11 +556,11 @@ func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, err
 		var writeTokens []string
 
 		if len(parts) > 1 {
-			readTokens = strings.Split(parts[1], "&")
+			readTokens = filterEmptyTokens(strings.Split(parts[1], "&"))
 		}
 
 		if len(parts) > 2 {
-			writeTokens = strings.Split(parts[2], "&")
+			writeTokens = filterEmptyTokens(strings.Split(parts[2], "&"))
 		}
 
 		def := &aphandler.AuthTokenDef{
@@ -576,6 +576,18 @@ func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, err
 	}
 
 	return authTokenDefs, nil
+}
+
+func filterEmptyTokens(tokens []string) []string {
+	var nonEmptyTokens []string
+
+	for _, token := range tokens {
+		if token != "" {
+			nonEmptyTokens = append(nonEmptyTokens, token)
+		}
+	}
+
+	return nonEmptyTokens
 }
 
 func getAuthTokens(cmd *cobra.Command) (map[string]string, error) {

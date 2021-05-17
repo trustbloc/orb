@@ -291,6 +291,8 @@ Feature:
     # No auth token or signature on POST
     Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
+    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/inbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
+    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
 
     # Set auth token
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
@@ -306,6 +308,18 @@ Feature:
     # No auth token or signature on GET
     When an HTTP GET is sent to "${followID}" and the returned status code is 401
     And an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" and the returned status code is 401
+
+    # Domain3 doesn't require authorization for reads
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/inbox"
+    Then the JSON path "type" of the response equals "OrderedCollection"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/outbox"
+    Then the JSON path "type" of the response equals "OrderedCollection"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/followers"
+    Then the JSON path "type" of the response equals "Collection"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/witnesses"
+    Then the JSON path "type" of the response equals "Collection"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/liked"
+    Then the JSON path "type" of the response equals "OrderedCollection"
 
     # Activities that are sent to https://www.w3.org/ns/activitystreams#Public don't require authentication
     When an HTTP GET is sent to "${undoFollowID}"
