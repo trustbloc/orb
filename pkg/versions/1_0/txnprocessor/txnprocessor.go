@@ -40,7 +40,7 @@ func New(providers *Providers) *TxnProcessor {
 }
 
 // Process persists all of the operations for the given anchor.
-func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) error {
+func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) error { //nolint:gocritic
 	logger.Debugf("processing sidetree txn:%+v", sidetreeTxn)
 
 	txnOps, err := p.OperationProtocolProvider.GetTxnOperations(&sidetreeTxn)
@@ -77,7 +77,7 @@ func contains(arr []string, v string) bool {
 	return false
 }
 
-func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn txn.SidetreeTxn) error {
+func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn txn.SidetreeTxn) error { //nolint:gocritic,lll
 	logger.Debugf("processing %d transaction operations", len(txnOps))
 
 	batchSuffixes := make(map[string]bool)
@@ -98,7 +98,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		// Get all references for this did from anchor graph starting from Sidetree txn reference
-		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.Reference, op.UniqueSuffix)
+		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.CanonicalReference, op.UniqueSuffix)
 		if err != nil {
 			return fmt.Errorf("failed to get all DID anchors: %w", err)
 		}
@@ -118,11 +118,8 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		// The genesis time of the protocol that was used for this operation
 		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime
 
-		webCASURLSplitBySlashes := strings.Split(sidetreeTxn.Reference, "/")
-
-		cid := webCASURLSplitBySlashes[len(webCASURLSplitBySlashes)-1]
-
-		op.Reference = cid
+		op.CanonicalReference = sidetreeTxn.CanonicalReference
+		op.EquivalentReferences = sidetreeTxn.EquivalentReferences
 
 		logger.Debugf("updated operation time: %s", op.UniqueSuffix)
 		ops = append(ops, op)

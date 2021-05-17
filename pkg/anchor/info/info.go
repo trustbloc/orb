@@ -14,4 +14,5 @@ import (
 type AnchorInfo struct {
 	CID       string
 	WebCASURL *url.URL
+	Hint      string
 }

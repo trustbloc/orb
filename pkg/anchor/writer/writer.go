@@ -88,7 +88,7 @@ type opProcessor interface {
 }
 
 type anchorGraph interface {
-	Add(anchor *verifiable.Credential) (string, error)
+	Add(anchor *verifiable.Credential) (string, string, error)
 }
 
 type anchorBuilder interface {
@@ -229,9 +229,9 @@ func (c *Writer) signCredential(vc *verifiable.Credential, witnesses []string) (
 	return c.signCredentialWithServerKey(vc)
 }
 
-func contains(strings []string, s string) bool {
-	for _, v := range strings {
-		if s == v {
+func contains(values []string, v string) bool {
+	for _, val := range values {
+		if val == v {
 			return true
 		}
 	}
@@ -317,7 +317,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	cid, err := c.AnchorGraph.Add(vc)
+	cid, hint, err := c.AnchorGraph.Add(vc)
 	if err != nil {
 		logger.Errorf("failed to add witnessed anchor credential[%s] to anchor graph: %s", vc.ID, err.Error())
 
@@ -334,7 +334,12 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	// update global did/anchor references
 	suffixes := getKeys(anchorSubject.PreviousAnchors)
 
-	err = c.DidAnchors.Put(suffixes, cid)
+	cidWithHint := cid
+	if hint != "" {
+		cidWithHint = hint + ":" + cid
+	}
+
+	err = c.DidAnchors.Put(suffixes, cidWithHint)
 	if err != nil {
 		logger.Errorf("failed updating did anchor references for anchor credential[%s]: %s", vc.ID, err.Error())
 
@@ -349,7 +354,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	c.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: fullWebCASURL}}
+	c.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: fullWebCASURL, Hint: hint}}
 
 	logger.Debugf("posted cid[%s] to anchor channel", cid)
 

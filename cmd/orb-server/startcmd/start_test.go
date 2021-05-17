@@ -125,7 +125,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + casURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,

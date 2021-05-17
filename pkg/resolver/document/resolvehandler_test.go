@@ -23,7 +23,7 @@ import (
 const (
 	testNS         = "did:orb"
 	testDID        = "did:orb:suffix"
-	testDIDWithCID = "did:orb:cid:suffix"
+	testDIDWithCID = "did:orb:webcas:domain.com:cid:suffix"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {

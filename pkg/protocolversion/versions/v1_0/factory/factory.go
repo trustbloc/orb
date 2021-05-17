@@ -8,7 +8,6 @@ package factory
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -27,7 +26,6 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
-	casresolver "github.com/trustbloc/orb/pkg/resolver/cas"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -43,8 +41,9 @@ func New() *Factory {
 }
 
 // Create creates a new protocol version.
-func (v *Factory) Create(version string, casClient cas.Client, opStore ctxcommon.OperationStore,
-	anchorGraph ctxcommon.AnchorGraph, sidetreeCfg config.Sidetree) (protocol.Version, error) {
+func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
+	opStore ctxcommon.OperationStore, anchorGraph ctxcommon.AnchorGraph,
+	sidetreeCfg config.Sidetree) (protocol.Version, error) {
 	//nolint:gomnd
 	p := protocol.Protocol{
 		GenesisTime:                  0,
@@ -73,7 +72,7 @@ func (v *Factory) Create(version string, casClient cas.Client, opStore ctxcommon
 	orbParser := orboperationparser.New(opParser)
 
 	cp := compression.New(compression.WithDefaultAlgorithms())
-	op := newOperationProviderWrapper(&p, opParser, casresolver.New(casClient, &http.Client{}), cp)
+	op := newOperationProviderWrapper(&p, opParser, casResolver, cp)
 	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser)
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
@@ -115,18 +114,23 @@ type operationProviderWrapper struct {
 
 	*protocol.Protocol
 	parser      txnprovider.OperationParser
-	casResolver *casresolver.Resolver
+	casResolver ctxcommon.CASResolver
 	dp          decompressionProvider
 }
 
 // GetTxnOperations returns transaction operation from the underlying operation provider.
-func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn) ([]*operation.AnchoredOperation,
-	error) {
-	// The WebCAS endpoint will be of the form https://hostname/cas/{CID}.
-	// We just want to remember this domain's CAS endpoint without the CID for the CAS client wrapper below.
-	indexOfLastSlash := strings.LastIndex(transaction.Reference, "/")
+func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) { //nolint:lll
+	webCASEndpoint := ""
 
-	webCASEndpoint := transaction.Reference[:indexOfLastSlash+1]
+	if len(transaction.EquivalentReferences) > 0 {
+		// TODO: issue-364 Fix when webfinger is available
+		casHint := transaction.EquivalentReferences[0]
+
+		if strings.Index(casHint, "webcas:") == 0 {
+			casParts := strings.Split(casHint, ":")
+			webCASEndpoint = fmt.Sprintf("https://%s/cas/", casParts[1])
+		}
+	}
 
 	casClient := &casClientWrapper{
 		resolver:       h.casResolver,
@@ -139,14 +143,20 @@ func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn
 }
 
 type casClientWrapper struct {
-	resolver       *casresolver.Resolver
+	resolver       ctxcommon.CASResolver
 	webCASEndpoint string
 }
 
 func (c *casClientWrapper) Read(cid string) ([]byte, error) {
-	webCASURL, err := url.Parse(c.webCASEndpoint + cid)
-	if err != nil {
-		return nil, fmt.Errorf("%s is not a valid URL: %w", c.webCASEndpoint+cid, err)
+	var webCASURL *url.URL
+
+	if c.webCASEndpoint != "" {
+		var err error
+
+		webCASURL, err = url.Parse(c.webCASEndpoint + cid)
+		if err != nil {
+			return nil, fmt.Errorf("%s is not a valid URL: %w", c.webCASEndpoint+cid, err)
+		}
 	}
 
 	data, err := c.resolver.Resolve(webCASURL, cid, nil)
@@ -157,7 +167,7 @@ func (c *casClientWrapper) Read(cid string) ([]byte, error) {
 	return data, nil
 }
 
-func newOperationProviderWrapper(p *protocol.Protocol, parser *operationparser.Parser, resolver *casresolver.Resolver,
+func newOperationProviderWrapper(p *protocol.Protocol, parser *operationparser.Parser, resolver ctxcommon.CASResolver,
 	cp *compression.Registry) *operationProviderWrapper {
 	return &operationProviderWrapper{
 		Protocol:    p,

@@ -8,12 +8,11 @@ package graph
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/anchor/util"
 )
@@ -27,9 +26,10 @@ type Graph struct {
 
 // Providers for anchor graph.
 type Providers struct {
-	Cas       cas.Client
-	Pkf       verifiable.PublicKeyFetcher
-	DocLoader ld.DocumentLoader
+	CasWriter   casWriter
+	CasResolver casResolver
+	Pkf         verifiable.PublicKeyFetcher
+	DocLoader   ld.DocumentLoader
 }
 
 // New creates new graph manager.
@@ -39,28 +39,36 @@ func New(providers *Providers) *Graph {
 	}
 }
 
+type casResolver interface {
+	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
+}
+
+type casWriter interface {
+	Write(content []byte) (string, string, error)
+}
+
 // Add adds an anchor to the anchor graph.
 // Returns cid that contains anchor information.
-func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
+func (g *Graph) Add(vc *verifiable.Credential) (string, string, error) { //nolint:interfacer
 	// TODO: do we need canonical?
 	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	cid, err := g.Cas.Write(anchorBytes)
+	cid, hint, err := g.CasWriter.Write(anchorBytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to add anchor to graph: %w", err)
+		return "", "", fmt.Errorf("failed to add anchor to graph: %w", err)
 	}
 
 	logger.Debugf("added anchor[%s]: %s", cid, string(anchorBytes))
 
-	return cid, nil
+	return cid, hint, nil
 }
 
 // Read reads anchor.
 func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
-	anchorBytes, err := g.Cas.Read(cid)
+	anchorBytes, err := g.CasResolver.Resolve(nil, cid, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +87,12 @@ type Anchor struct {
 }
 
 // GetDidAnchors returns all anchors that are referencing did suffix starting from cid.
-func (g *Graph) GetDidAnchors(webCASURL, suffix string) ([]Anchor, error) {
+func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
 	var refs []Anchor
 
-	webCASURLSplitBySlashes := strings.Split(webCASURL, "/")
+	logger.Debugf("getting did anchors for cid[%s], suffix[%s]", cid, suffix)
 
-	cur := webCASURLSplitBySlashes[len(webCASURLSplitBySlashes)-1]
-
+	cur := cid
 	ok := true
 
 	for ok {

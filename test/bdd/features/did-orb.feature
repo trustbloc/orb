@@ -40,49 +40,48 @@ Feature:
 
     Then we wait 3 seconds
 
-# TODO (#364): Re-enable these tests once DID documents have a domain that, that we can use via WebFinger to resolve from CAS.
-#    @discover_did
-#    Scenario: discover did
-#      When client discover orb endpoints
-#
-#      Then container "orb-domain3" is stopped
-#      Then we wait 3 seconds
-#
-#      # orb-domain1 keeps accepting requests
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-#      Then check success response contains "#did"
-#
-#      Then we wait 2 seconds
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-#      Then check success response contains "#did"
-#      Then check success response contains "canonicalId"
-#
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-#      Then check success response contains "#canonicalId"
-#
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
-#      Then check for request success
-#      Then we wait 2 seconds
-#
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-#      Then check success response contains "recoveryKey"
-#      Then check success response contains "canonicalId"
-#
-#      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-#      Then check success response contains "#canonicalId"
-#      Then check success response contains "recoveryKey"
-#
-#      Then container "orb-domain3" is started
-#      Then we wait 10 seconds
-#
-#      # resolve did in domain3 - it will trigger did discovery in different organisations
-#      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-#      Then check error response contains "not found"
-#
-#      Then we wait 2 seconds
-#      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-#      Then check success response contains "#canonicalId"
-#      Then check success response contains "recoveryKey"
+    @discover_did
+    Scenario: discover did
+      When client discover orb endpoints
+
+      Then container "orb-domain3" is stopped
+      Then we wait 3 seconds
+
+      # orb-domain1 keeps accepting requests
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#did"
+
+      Then we wait 2 seconds
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      Then check success response contains "#did"
+      Then check success response contains "canonicalId"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
+      Then check for request success
+      Then we wait 2 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      Then check success response contains "recoveryKey"
+      Then check success response contains "canonicalId"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
+      Then check success response contains "recoveryKey"
+
+      Then container "orb-domain3" is started
+      Then we wait 10 seconds
+
+      # resolve did in domain3 - it will trigger did discovery in different organisations
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent id
+      Then check error response contains "not found"
+
+      Then we wait 2 seconds
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
+      Then check success response contains "#canonicalId"
+      Then check success response contains "recoveryKey"
 
     @follow_anchor_writer_domain1
     Scenario: domain2 server follows domain1 server (anchor writer)
@@ -99,7 +98,6 @@ Feature:
       Then we wait 2 seconds
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document
       Then check success response contains "#did"
-
 
     @follow_anchor_writer_domain2
     Scenario: domain1 server follows domain2 server (anchor writer)
