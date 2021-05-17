@@ -288,11 +288,35 @@ Feature:
 
   @activitypub_auth_token
   Scenario: Tests authorization tokens
-    # No auth token or signature on GET
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" and the returned status code is 401
+    # No auth token or signature on POST
+    Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json" and the returned status code is 401
 
     # Set auth token
-    Given the authorization bearer token for "GET" requests to path "/services/orb/inbox" is set to "READ_TOKEN"
+    Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    Then the value of the JSON string response is saved to variable "followID"
+
+    Then we wait 2 seconds
+
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":["${domain1IRI}","https://www.w3.org/ns/activitystreams#Public"],"object":"${followID}"}'
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
+    Then the value of the JSON string response is saved to variable "undoFollowID"
+
+    # No auth token or signature on GET
+    When an HTTP GET is sent to "${followID}" and the returned status code is 401
+    And an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" and the returned status code is 401
+
+    # Activities that are sent to https://www.w3.org/ns/activitystreams#Public don't require authentication
+    When an HTTP GET is sent to "${undoFollowID}"
+    Then the JSON path "type" of the response equals "Undo"
+
+    # Set auth token
+    Given the authorization bearer token for "GET" requests to path "/services/orb/activities" is set to "READ_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/services/orb/inbox" is set to "READ_TOKEN"
+
+    When an HTTP GET is sent to "${followID}"
+    Then the JSON path "type" of the response equals "Follow"
 
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox"
     Then the JSON path "type" of the response equals "OrderedCollection"

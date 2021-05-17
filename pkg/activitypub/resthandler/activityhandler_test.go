@@ -590,9 +590,7 @@ func TestNewActivity(t *testing.T) {
 
 func TestActivity_Handler(t *testing.T) {
 	id := "abd35f29-032f-4e22-8f52-df00365323bc"
-
-	activityID := testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", id))
-	activity := newMockActivity(vocab.TypeCreate, activityID)
+	publicID := "bcd35f29-032f-4e22-8f52-df00365323bc"
 
 	cfg := &Config{
 		ObjectIRI: serviceIRI,
@@ -600,10 +598,19 @@ func TestActivity_Handler(t *testing.T) {
 	}
 
 	activityStore := memstore.New("")
-	require.NoError(t, activityStore.AddActivity(activity))
+
+	require.NoError(t, activityStore.AddActivity(newMockActivity(vocab.TypeCreate,
+		testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", id)))))
+
+	require.NoError(t, activityStore.AddActivity(newMockActivity(vocab.TypeCreate,
+		testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", publicID)),
+		testutil.MustParseURL(vocab.PublicIRI))))
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{})
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, nil, nil)
+
+		h := NewActivity(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -699,6 +706,86 @@ func TestActivity_Handler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, nil, nil)
+
+		cnfg := &Config{
+			BasePath:               basePath,
+			ObjectIRI:              serviceIRI,
+			VerifyActorInSignature: true,
+			AuthTokensDef: []*AuthTokenDef{
+				{
+					EndpointExpression: "/services/orb/activities/.*",
+					ReadTokens:         []string{"read"},
+				},
+			},
+			AuthTokens: map[string]string{
+				"read": "READ_TOKEN",
+			},
+		}
+
+		h := NewActivity(cnfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		t.Run("Non-public activity -> unauthorized", func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+			restoreID := setIDParam(id)
+			defer restoreID()
+
+			h.handle(rw, req)
+
+			result := rw.Result()
+			require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+			require.NoError(t, result.Body.Close())
+		})
+
+		t.Run("Public activity -> success", func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+			restoreID := setIDParam(publicID)
+			defer restoreID()
+
+			h.handle(rw, req)
+
+			result := rw.Result()
+			require.Equal(t, http.StatusOK, result.StatusCode)
+
+			respBytes, err := ioutil.ReadAll(result.Body)
+			require.NoError(t, err)
+
+			t.Logf("%s", respBytes)
+
+			require.Equal(t, testutil.GetCanonical(t, publicActivityJSON), testutil.GetCanonical(t, string(respBytes)))
+			require.NoError(t, result.Body.Close())
+		})
+
+		t.Run("Auth error", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected auth error")
+
+			verifier := &mocks.SignatureVerifier{}
+			verifier.VerifyRequestReturns(false, nil, errExpected)
+
+			h := NewActivity(cnfg, activityStore, verifier)
+			require.NotNil(t, h)
+
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+
+			restoreID := setIDParam(id)
+			defer restoreID()
+
+			h.handle(rw, req)
+
+			result := rw.Result()
+			require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+			require.NoError(t, result.Body.Close())
+		})
+	})
 }
 
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {
@@ -745,9 +832,13 @@ func newMockActivities(t vocab.Type, num int, getURI func(i int) string) []*voca
 	return activities
 }
 
-func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
+func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityType {
 	if t == vocab.TypeAnnounce {
-		return vocab.NewAnnounceActivity(vocab.NewObjectProperty(vocab.WithIRI(id)), vocab.WithID(id))
+		return vocab.NewAnnounceActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(id)),
+			vocab.WithID(id),
+			vocab.WithTo(to...),
+		)
 	}
 
 	if t == vocab.TypeLike {
@@ -766,6 +857,7 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 			vocab.NewObjectProperty(vocab.WithIRI(credID)),
 			vocab.WithID(id),
 			vocab.WithActor(actor),
+			vocab.WithTo(to...),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
 			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -774,7 +866,9 @@ func newMockActivity(t vocab.Type, id *url.URL) *vocab.ActivityType {
 
 	return vocab.NewCreateActivity(vocab.NewObjectProperty(
 		vocab.WithIRI(testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn"))),
-		vocab.WithID(id))
+		vocab.WithID(id),
+		vocab.WithTo(to...),
+	)
 }
 
 func getStaticTime() time.Time {
@@ -1194,5 +1288,13 @@ const (
   "id": "https://example1.com/services/orb/activities/abd35f29-032f-4e22-8f52-df00365323bc",
   "object": "http://sally.example.com/transactions/bafkreihwsn",
   "type": "Create"
+}`
+
+	publicActivityJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/activities/bcd35f29-032f-4e22-8f52-df00365323bc",
+  "object": "http://sally.example.com/transactions/bafkreihwsn",
+  "type": "Create",
+  "to": "https://www.w3.org/ns/activitystreams#Public"
 }`
 )
