@@ -21,7 +21,7 @@ type Validator struct {
 // Validate validates anchor origin object.
 func (v *Validator) Validate(obj interface{}) error {
 	if obj == nil {
-		return nil
+		return fmt.Errorf("anchor origin must be specified")
 	}
 
 	// if allowed origins contains wild-card '*' any origin is allowed

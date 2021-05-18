@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package anchororigin
 
 import (
@@ -9,9 +15,10 @@ import (
 func TestValidator_Validate(t *testing.T) {
 	v := New([]string{"*"})
 
-	t.Run("success - no anchor origin specified", func(t *testing.T) {
+	t.Run("error - no anchor origin specified", func(t *testing.T) {
 		err := v.Validate(nil)
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor origin must be specified")
 	})
 
 	t.Run("success - allow all origins", func(t *testing.T) {
