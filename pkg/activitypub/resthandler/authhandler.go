@@ -26,6 +26,7 @@ type authHandler struct {
 	verifier       signatureVerifier
 	activityStore  store.Store
 	authorizeActor authorizeActorFunc
+	writeResponse  func(w http.ResponseWriter, status int, body []byte)
 }
 
 func newAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifier signatureVerifier,
@@ -45,6 +46,19 @@ func newAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 		verifier:       verifier,
 		activityStore:  s,
 		authorizeActor: authorizeActor,
+		writeResponse: func(w http.ResponseWriter, status int, body []byte) {
+			w.WriteHeader(status)
+
+			if len(body) > 0 {
+				if _, err := w.Write(body); err != nil {
+					logger.Warnf("[%s] Unable to write response: %s", ep, err)
+
+					return
+				}
+
+				logger.Debugf("[%s] Wrote response: %s", ep, body)
+			}
+		},
 	}
 }
 

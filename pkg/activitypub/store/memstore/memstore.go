@@ -38,6 +38,7 @@ func New(serviceName string) *Store {
 		referenceStores: map[spi.ReferenceType]*referenceStore{
 			spi.Inbox:            newReferenceStore(),
 			spi.Outbox:           newReferenceStore(),
+			spi.PublicOutbox:     newReferenceStore(),
 			spi.Follower:         newReferenceStore(),
 			spi.Following:        newReferenceStore(),
 			spi.Witness:          newReferenceStore(),

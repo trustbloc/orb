@@ -25,6 +25,10 @@ const (
 	Inbox ReferenceType = "INBOX"
 	// Outbox indicates that the reference is an activity in a service's outbox.
 	Outbox ReferenceType = "OUTBOX"
+	// PublicOutbox indicates that the reference is an activity posted to the service's outbox and was addressed
+	// to 'https://www.w3.org/ns/activitystreams#Public' and therefore may be accessed by anyone without requiring
+	// authentication.
+	PublicOutbox ReferenceType = "PUBLIC_OUTBOX"
 	// Follower indicates that the reference is an actor that's following the local service.
 	Follower ReferenceType = "FOLLOWER"
 	// Following indicates that the reference is an actor that the local service is following.

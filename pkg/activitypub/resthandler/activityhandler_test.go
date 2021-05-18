@@ -28,6 +28,7 @@ import (
 const (
 	transactionsBaseBath = "/transactions"
 	objectID             = "d607506e-6964-4991-a19f-674952380760"
+	inboxURL             = "https://example.com/services/orb/inbox"
 	outboxURL            = "https://example.com/services/orb/outbox"
 	sharesURL            = "https://example.com/services/orb/followers"
 )
@@ -161,7 +162,7 @@ func TestActivities_Handler(t *testing.T) {
 
 	for _, activity := range newMockCreateActivities(19) {
 		require.NoError(t, activityStore.AddActivity(activity))
-		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
+		require.NoError(t, activityStore.AddReference(spi.Inbox, serviceIRI, activity.ID().URL()))
 	}
 
 	require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
@@ -192,11 +193,11 @@ func TestActivities_Handler(t *testing.T) {
 	verifier.VerifyRequestReturns(true, service2IRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -208,7 +209,7 @@ func TestActivities_Handler(t *testing.T) {
 
 		t.Logf("%s", respBytes)
 
-		require.Equal(t, testutil.GetCanonical(t, outboxJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.Equal(t, testutil.GetCanonical(t, inboxJSON), testutil.GetCanonical(t, string(respBytes)))
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -218,11 +219,11 @@ func TestActivities_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewOutbox(cfg, s, verifier)
+		h := NewInbox(cfg, s, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -232,7 +233,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -242,7 +243,7 @@ func TestActivities_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -252,7 +253,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -262,7 +263,7 @@ func TestActivities_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -272,7 +273,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -282,7 +283,7 @@ func TestActivities_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -297,11 +298,11 @@ func TestActivities_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -314,11 +315,11 @@ func TestActivities_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, nil)
 
-		h := NewOutbox(cfg, activityStore, verifier)
+		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -336,31 +337,31 @@ func TestActivities_PageHandler(t *testing.T) {
 
 	for _, activity := range newMockCreateActivities(19) {
 		require.NoError(t, activityStore.AddActivity(activity))
-		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
+		require.NoError(t, activityStore.AddReference(spi.Inbox, serviceIRI, activity.ID().URL()))
 	}
 
 	t.Run("First page -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "", outboxFirstPageJSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "", inboxFirstPageJSON)
 	})
 
 	t.Run("Page by num -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "3", outboxPage3JSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "3", inboxPage3JSON)
 	})
 
 	t.Run("Page num too large -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "30", outboxPageTooLargeJSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "30", inboxPageTooLargeJSON)
 	})
 
 	t.Run("Last page -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "0", outboxLastPageJSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "0", inboxLastPageJSON)
 	})
 
 	t.Run("Invalid page-num -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "invalid", outboxFirstPageJSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "true", "invalid", inboxFirstPageJSON)
 	})
 
 	t.Run("Invalid page -> Success", func(t *testing.T) {
-		handleActivitiesRequest(t, serviceIRI, activityStore, "invalid", "3", outboxJSON)
+		handleActivitiesRequest(t, serviceIRI, activityStore, "invalid", "3", inboxJSON)
 	})
 
 	t.Run("Store error", func(t *testing.T) {
@@ -412,6 +413,110 @@ func TestActivities_PageHandler(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
 
 		h.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+}
+
+func TestReadOutbox_Handler(t *testing.T) {
+	activityStore := memstore.New("")
+
+	for _, activity := range newMockCreateActivities(14) {
+		require.NoError(t, activityStore.AddActivity(activity))
+		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
+	}
+
+	for _, activity := range newMockCreateActivities(5) {
+		require.NoError(t, activityStore.AddActivity(activity))
+		require.NoError(t, activityStore.AddReference(spi.Outbox, serviceIRI, activity.ID().URL()))
+		require.NoError(t, activityStore.AddReference(spi.PublicOutbox, serviceIRI, activity.ID().URL()))
+	}
+
+	require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
+
+	cfg := &Config{
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
+		PageSize:  4,
+		AuthTokensDef: []*AuthTokenDef{
+			{
+				EndpointExpression: "/services/orb/outbox",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+			{
+				EndpointExpression: "/services/orb/inbox",
+				ReadTokens:         []string{"admin", "read"},
+				WriteTokens:        []string{"admin"},
+			},
+		},
+		AuthTokens: map[string]string{
+			"read":  "READ_TOKEN",
+			"admin": "ADMIN_TOKEN",
+		},
+	}
+
+	t.Run("Authorized -> All items", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, service2IRI, nil)
+
+		h := NewOutbox(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handleOutbox(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, outboxJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Unauthorized -> Public items", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, nil)
+
+		h := NewOutbox(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handleOutbox(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusOK, result.StatusCode)
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+
+		t.Logf("%s", respBytes)
+
+		require.Equal(t, testutil.GetCanonical(t, publicOutboxJSON), testutil.GetCanonical(t, string(respBytes)))
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Authorization error", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(false, nil, errors.New("injected auth error"))
+
+		h := NewOutbox(cfg, activityStore, verifier)
+		require.NotNil(t, h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+
+		h.handleOutbox(rw, req)
 
 		result := rw.Result()
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
@@ -603,8 +708,7 @@ func TestActivity_Handler(t *testing.T) {
 		testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", id)))))
 
 	require.NoError(t, activityStore.AddActivity(newMockActivity(vocab.TypeCreate,
-		testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", publicID)),
-		testutil.MustParseURL(vocab.PublicIRI))))
+		testutil.NewMockID(serviceIRI, fmt.Sprintf("/activities/%s", publicID)), vocab.PublicIRI)))
 
 	t.Run("Success", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
@@ -799,7 +903,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewOutbox(cfg, as, verifier)
+	h := NewInbox(cfg, as, verifier)
 	require.NotNil(t, h)
 
 	restorePaging := setPaging(h.handler, page, pageNum)
@@ -890,10 +994,28 @@ const (
   "last": "https://example1.com/services/orb/outbox?page=true&page-num=0"
 }`
 
-	outboxFirstPageJSON = `{
+	publicOutboxJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/outbox?page=true&page-num=4",
-  "next": "https://example1.com/services/orb/outbox?page=true&page-num=3",
+  "id": "https://example1.com/services/orb/outbox",
+  "type": "OrderedCollection",
+  "totalItems": 5,
+  "first": "https://example1.com/services/orb/outbox?page=true",
+  "last": "https://example1.com/services/orb/outbox?page=true&page-num=0"
+}`
+
+	inboxJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/inbox",
+  "type": "OrderedCollection",
+  "totalItems": 19,
+  "first": "https://example1.com/services/orb/inbox?page=true",
+  "last": "https://example1.com/services/orb/inbox?page=true&page-num=0"
+}`
+
+	inboxFirstPageJSON = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example1.com/services/orb/inbox?page=true&page-num=4",
+  "next": "https://example1.com/services/orb/inbox?page=true&page-num=3",
   "orderedItems": [
     {
       "@context": "https://www.w3.org/ns/activitystreams",
@@ -972,9 +1094,9 @@ const (
   "type": "OrderedCollectionPage"
 }`
 
-	outboxLastPageJSON = `{
+	inboxLastPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/outbox?page=true&page-num=0",
+  "id": "https://example1.com/services/orb/inbox?page=true&page-num=0",
   "orderedItems": [
     {
       "@context": "https://www.w3.org/ns/activitystreams",
@@ -1031,15 +1153,15 @@ const (
       "type": "Create"
     }
   ],
-  "prev": "https://example1.com/services/orb/outbox?page=true&page-num=1",
+  "prev": "https://example1.com/services/orb/inbox?page=true&page-num=1",
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`
 
-	outboxPage3JSON = `{
+	inboxPage3JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/outbox?page=true&page-num=3",
-  "next": "https://example1.com/services/orb/outbox?page=true&page-num=2",
+  "id": "https://example1.com/services/orb/inbox?page=true&page-num=3",
+  "next": "https://example1.com/services/orb/inbox?page=true&page-num=2",
   "orderedItems": [
     {
       "@context": "https://www.w3.org/ns/activitystreams",
@@ -1114,14 +1236,14 @@ const (
       "type": "Create"
     }
   ],
-  "prev": "https://example1.com/services/orb/outbox?page=true&page-num=4",
+  "prev": "https://example1.com/services/orb/inbox?page=true&page-num=4",
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`
-	outboxPageTooLargeJSON = `{
+	inboxPageTooLargeJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/outbox?page=true&page-num=30",
-  "next": "https://example1.com/services/orb/outbox?page=true&page-num=4",
+  "id": "https://example1.com/services/orb/inbox?page=true&page-num=30",
+  "next": "https://example1.com/services/orb/inbox?page=true&page-num=4",
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`

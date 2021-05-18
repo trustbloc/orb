@@ -81,13 +81,13 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
@@ -96,7 +96,7 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error getting object IRI: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -105,7 +105,7 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -117,13 +117,13 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.URL) {
+func (h *Reference) handleReference(w http.ResponseWriter, objectIRI, id *url.URL) {
 	coll, err := h.getReference(objectIRI, id)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
 			h.endpoint, h.refType, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -133,15 +133,15 @@ func (h *Reference) handleReference(rw http.ResponseWriter, objectIRI, id *url.U
 		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
 			h.endpoint, h.refType, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	h.writeResponse(rw, http.StatusOK, collBytes)
+	h.writeResponse(w, http.StatusOK, collBytes)
 }
 
-func (h *Reference) handleReferencePage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
+func (h *Reference) handleReferencePage(w http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
 	var page interface{}
 
 	var err error
@@ -159,7 +159,7 @@ func (h *Reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
 			h.endpoint, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -169,15 +169,14 @@ func (h *Reference) handleReferencePage(rw http.ResponseWriter, req *http.Reques
 		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
 			h.endpoint, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	h.writeResponse(rw, http.StatusOK, pageBytes)
+	h.writeResponse(w, http.StatusOK, pageBytes)
 }
 
-//nolint:dupl
 func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 	it, err := h.activityStore.QueryReferences(h.refType,
 		spi.NewCriteria(

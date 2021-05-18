@@ -205,14 +205,9 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 
 	logger.Debugf("[%s] Posting activity: %s", h.ServiceName, activityBytes)
 
-	err = h.activityStore.AddActivity(activity)
+	err = h.storeActivity(activity)
 	if err != nil {
 		return nil, fmt.Errorf("store activity: %w", err)
-	}
-
-	err = h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL())
-	if err != nil {
-		return nil, fmt.Errorf("add reference to activity: %w", err)
 	}
 
 	err = h.activityHandler.HandleActivity(activity)
@@ -229,6 +224,24 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	}
 
 	return activity.ID().URL(), nil
+}
+
+func (h *Outbox) storeActivity(activity *vocab.ActivityType) error {
+	if err := h.activityStore.AddActivity(activity); err != nil {
+		return fmt.Errorf("store activity: %w", err)
+	}
+
+	if err := h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+		return fmt.Errorf("add reference to activity: %w", err)
+	}
+
+	if activity.To().Contains(vocab.PublicIRI) {
+		if err := h.activityStore.AddReference(store.PublicOutbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+			return fmt.Errorf("add reference to activity: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (h *Outbox) publish(id string, activityBytes []byte, to fmt.Stringer) error {
@@ -345,7 +358,7 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 }
 
 func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
-	if iri.String() == vocab.PublicIRI {
+	if iri.String() == vocab.PublicIRI.String() {
 		// Should not attempt to publish to the 'Public' URI.
 		logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, iri)
 

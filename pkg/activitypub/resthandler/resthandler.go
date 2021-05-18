@@ -55,6 +55,11 @@ const (
 
 	authHeader  = "Authorization"
 	tokenPrefix = "Bearer "
+
+	notFoundResponse            = "Not Found.\n"
+	unauthorizedResponse        = "Unauthorized.\n"
+	badRequestResponse          = "Bad Request.\n"
+	internalServerErrorResponse = "Internal Server Error.\n"
 )
 
 // AuthTokenDef contains authorization bearer token configuration.
@@ -78,11 +83,10 @@ type handler struct {
 	*Config
 	*authHandler
 
-	params        map[string]string
-	handler       common.HTTPRequestHandler
-	marshal       func(v interface{}) ([]byte, error)
-	writeResponse func(w http.ResponseWriter, status int, body []byte)
-	getParams     func(req *http.Request) map[string][]string
+	params    map[string]string
+	handler   common.HTTPRequestHandler
+	marshal   func(v interface{}) ([]byte, error)
+	getParams func(req *http.Request) map[string][]string
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequestHandler,
@@ -94,19 +98,6 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequest
 		marshal: vocab.Marshal,
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()
-		},
-		writeResponse: func(w http.ResponseWriter, status int, body []byte) {
-			w.WriteHeader(status)
-
-			if len(body) > 0 {
-				if _, err := w.Write(body); err != nil {
-					logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
-
-					return
-				}
-
-				logger.Debugf("[%s] Wrote response: %s", endpoint, body)
-			}
 		},
 	}
 

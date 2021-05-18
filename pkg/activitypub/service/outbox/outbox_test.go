@@ -210,7 +210,7 @@ func TestOutbox_Post(t *testing.T) {
 			),
 		),
 		vocab.WithTo(
-			testutil.MustParseURL(vocab.PublicIRI),
+			vocab.PublicIRI,
 			testutil.NewMockID(service1URL, resthandler.FollowersPath),
 			testutil.NewMockID(service1URL, resthandler.WitnessesPath),
 			testutil.NewMockID(service2URL, resthandler.WitnessesPath),
@@ -331,6 +331,30 @@ func TestOutbox_PostError(t *testing.T) {
 		ob.Start()
 
 		activity := vocab.NewCreateActivity(nil)
+
+		activityID, err := ob.Post(activity)
+		require.True(t, errors.Is(err, errExpected))
+		require.Nil(t, activityID)
+
+		time.Sleep(100 * time.Millisecond)
+
+		ob.Stop()
+	})
+
+	t.Run("Add public reference error", func(t *testing.T) {
+		errExpected := errors.New("injected store error")
+
+		activityStore := &mocks.ActivityStore{}
+		activityStore.AddReferenceReturnsOnCall(1, errExpected)
+
+		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
+			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+		require.NoError(t, err)
+		require.NotNil(t, ob)
+
+		ob.Start()
+
+		activity := vocab.NewCreateActivity(nil, vocab.WithTo(vocab.PublicIRI))
 
 		activityID, err := ob.Post(activity)
 		require.True(t, errors.Is(err, errExpected))

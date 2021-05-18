@@ -429,7 +429,7 @@ func openStores(provider ariesstorage.Provider) (stores, error) {
 
 func openReferenceStores(provider ariesstorage.Provider) (map[spi.ReferenceType]ariesstorage.Store, error) {
 	referenceTypes := []spi.ReferenceType{
-		spi.Inbox, spi.Outbox, spi.Follower, spi.Following, spi.Witness,
+		spi.Inbox, spi.Outbox, spi.PublicOutbox, spi.Follower, spi.Following, spi.Witness,
 		spi.Witnessing, spi.Like, spi.Liked, spi.Share, spi.AnchorCredential,
 	}
 

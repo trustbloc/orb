@@ -38,6 +38,20 @@ func TestDocument_MergeWith(t *testing.T) {
 	require.Equal(t, 4, doc1[field4])
 }
 
+func TestMustParseURL(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		const iri = "https://example.com"
+
+		require.Equal(t, iri, MustParseURL(iri).String())
+	})
+
+	t.Run("Panic", func(t *testing.T) {
+		require.Panics(t, func() {
+			MustParseURL(string([]byte{0}))
+		})
+	})
+}
+
 func getStaticTime() time.Time {
 	loc, err := time.LoadLocation("UTC")
 	if err != nil {

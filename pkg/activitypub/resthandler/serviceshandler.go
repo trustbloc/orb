@@ -49,7 +49,7 @@ func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.Public
 
 func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 	if !h.authorizeWithBearerToken(req) {
-		w.WriteHeader(http.StatusUnauthorized)
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
@@ -58,7 +58,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Invalid service configuration [%s]: %s", h.endpoint, h.ObjectIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -67,7 +67,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.ObjectIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 
 func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	if !h.authorizeWithBearerToken(req) {
-		w.WriteHeader(http.StatusUnauthorized)
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
@@ -87,7 +87,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	if keyID == "" {
 		logger.Infof("[%s] Key ID not specified [%s]", h.endpoint, h.ObjectIRI)
 
-		h.writeResponse(w, http.StatusBadRequest, nil)
+		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
@@ -97,7 +97,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	if keyID != MainKeyID {
 		logger.Infof("[%s] Public key [%s] not found for [%s]", h.endpoint, h.ObjectIRI, keyID)
 
-		h.writeResponse(w, http.StatusNotFound, nil)
+		h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
 		return
 	}
@@ -106,7 +106,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal public key [%s]: %s", h.endpoint, h.ObjectIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
