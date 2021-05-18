@@ -49,38 +49,37 @@ Feature:
 
       # orb-domain1 keeps accepting requests
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-      Then check success response contains "#did"
+      Then check success response contains "#interimDID"
 
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-      Then check success response contains "#canonicalId"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "recoveryKey"
-      Then check success response contains "canonicalId"
-
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-      Then check success response contains "#canonicalId"
-      Then check success response contains "recoveryKey"
+      Then check success response contains "#canonicalDID"
 
       Then container "orb-domain3" is started
       Then we wait 10 seconds
 
       # resolve did in domain3 - it will trigger did discovery in different organisations
-      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent id
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
       Then check error response contains "not found"
 
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-      Then check success response contains "#canonicalId"
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "recoveryKey"
+
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
 
     @follow_anchor_writer_domain1
@@ -88,36 +87,36 @@ Feature:
 
       # send create request to domain1
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-      Then check success response contains "#did"
+      Then check success response contains "#interimDID"
 
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#canonicalDID"
 
       # check that document is available on the first server of domain2
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
 
     @follow_anchor_writer_domain2
     Scenario: domain1 server follows domain2 server (anchor writer)
 
       # send create request to domain2
       When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to create DID document
-      Then check success response contains "#did"
+      Then check success response contains "#interimDID"
 
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#canonicalDID"
 
       # check that document is available on the first server of domain1
       Then we wait 2 seconds
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
 
       # check that document is available on the second server of domain1
-      When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
 
     @concurrent_requests_scenario
     Scenario: concurrent requests plus server shutdown tests

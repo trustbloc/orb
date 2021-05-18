@@ -26,7 +26,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/commitment"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 	"github.com/trustbloc/sidetree-core-go/pkg/encoder"
 	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 	"github.com/trustbloc/sidetree-core-go/pkg/patch"
@@ -127,22 +126,25 @@ type DIDOrbSteps struct {
 	updateKey          *ecdsa.PrivateKey
 	resp               *httpResponse
 	bddContext         *BDDContext
-	alias              string
-	canonicalID        string
-	equivalentID       []string
+	interimDID         string
+	canonicalDID       string
+	equivalentDID      []string
+	retryDID           string
 	resolutionEndpoint string
 	operationEndpoint  string
 	sidetreeURL        string
 	dids               []string
 	httpClient         *httpClient
+	didPrintEnabled    bool
 }
 
 // NewDIDSideSteps
 func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOrbSteps {
 	return &DIDOrbSteps{
-		bddContext: context,
-		namespace:  namespace,
-		httpClient: newHTTPClient(state, context),
+		bddContext:      context,
+		namespace:       namespace,
+		httpClient:      newHTTPClient(state, context),
+		didPrintEnabled: true,
 	}
 }
 
@@ -228,7 +230,17 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 			return e
 		}
 
+		var result document.ResolutionResult
+		err = json.Unmarshal(d.resp.Payload, &result)
+		if err != nil {
+			return err
+		}
+
+		d.prettyPrint(&result)
+
 		d.createRequest = &req
+		d.interimDID = result.Document["id"].(string)
+		d.equivalentDID = document.StringArray(result.DocumentMetadata["equivalentId"])
 	}
 
 	return err
@@ -390,12 +402,10 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 }
 
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
-	did, err := d.getDID()
-	if err != nil {
-		return fmt.Errorf("failed to get test did: %w", err)
-	}
+	var err error
 
 	const maxRetries = 10
+
 	for i := 1; i <= maxRetries; i++ {
 		err = d.checkSuccessRespHelper(msg, contains)
 		if err == nil {
@@ -410,7 +420,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 		time.Sleep(2 * time.Second)
 		logger.Infof("retrying check success response - attempt %d", i)
 
-		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, did)
+		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, d.retryDID)
 		if resolveErr != nil {
 			return resolveErr
 		}
@@ -424,24 +434,13 @@ func (d *DIDOrbSteps) checkSuccessRespHelper(msg string, contains bool) error {
 		return fmt.Errorf("error resp %s", d.resp.ErrorMsg)
 	}
 
-	if msg == "#did" || msg == "#aliasdid" || msg == "#emptydoc" || msg == "#canonicalId" {
-		ns := d.namespace
-		if msg == "#aliasdid" {
-			ns = d.alias
-		}
+	if msg == "#interimDID" || msg == "#canonicalDID" || msg == "#emptydoc" {
 
-		did, err := d.getDIDWithNamespace(ns)
-		if err != nil {
-			return err
-		}
-
-		msg = strings.Replace(msg, "#did", did, -1)
-		msg = strings.Replace(msg, "#canonicalId", d.canonicalID, -1)
-		msg = strings.Replace(msg, "#equivalentId", fmt.Sprintf("%s", d.equivalentID), -1)
-		msg = strings.Replace(msg, "#aliasdid", did, -1)
+		msg = strings.Replace(msg, "#canonicalDID", d.canonicalDID, -1)
+		msg = strings.Replace(msg, "#interimDID", d.interimDID, -1)
 
 		var result document.ResolutionResult
-		err = json.Unmarshal(d.resp.Payload, &result)
+		err := json.Unmarshal(d.resp.Payload, &result)
 		if err != nil {
 			return err
 		}
@@ -510,59 +509,47 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 			return err
 		}
 
-		err = prettyPrint(&result)
+		err = d.prettyPrint(&result)
 		if err != nil {
 			return err
 		}
 
-		d.canonicalID = result.DocumentMetadata["canonicalId"].(string)
-		d.equivalentID = document.StringArray(result.DocumentMetadata["equivalentId"])
+		d.canonicalDID = result.DocumentMetadata["canonicalId"].(string)
+		d.equivalentDID = document.StringArray(result.DocumentMetadata["equivalentId"])
 	}
 
 	return err
 }
 
-func (d *DIDOrbSteps) resolveDIDDocument(url string) error {
-	did, err := d.getDID()
-	if err != nil {
-		return err
-	}
+func (d *DIDOrbSteps) resolveDIDDocumentWithInterimDID(url string) error {
+	logger.Infof("resolving did document with did: %s", d.interimDID)
 
-	logger.Infof("resolving did document with did: %s", did)
-	return d.resolveDIDDocumentWithID(url, did)
+	d.retryDID = d.interimDID
+
+	return d.resolveDIDDocumentWithID(url, d.interimDID)
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalID(url string) error {
-	logger.Infof("resolving did document with canonical id: %s", d.canonicalID)
+func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDID(url string) error {
+	logger.Infof("resolving did document with canonical did: %s", d.canonicalDID)
 
-	return d.resolveDIDDocumentWithID(url, d.canonicalID)
+	d.retryDID = d.canonicalDID
+
+	return d.resolveDIDDocumentWithID(url, d.canonicalDID)
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentID(url string) error {
-	logger.Infof("resolving did document with equivalent id: %s", d.equivalentID[1])
+func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentDID(url string) error {
+	equivalentDID := d.equivalentDID[len(d.equivalentDID)-1]
 
-	// fist id in equivalent id is canonical id, second one is with hints
-	return d.resolveDIDDocumentWithID(url, d.equivalentID[1])
-}
+	logger.Infof("resolving did document with equivalent did: %s", equivalentDID)
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithAlias(url, alias string) error {
-	did, err := d.getDIDWithNamespace(alias)
-	if err != nil {
-		return err
-	}
+	d.retryDID = equivalentDID
 
-	d.alias = alias
-
-	return d.resolveDIDDocumentWithID(url, did)
+	// last equivalent ID is an ID with hints (canonical ID is always the first for published docs)
+	return d.resolveDIDDocumentWithID(url, equivalentDID)
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
 	err := d.setSidetreeURL(url)
-	if err != nil {
-		return err
-	}
-
-	did, err := d.getDID()
 	if err != nil {
 		return err
 	}
@@ -572,7 +559,24 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
 		return err
 	}
 
-	d.resp, err = d.httpClient.Get(d.sidetreeURL + "/" + did + initialStateSeparator + initialState)
+	interimDIDWithInitialValue := d.interimDID + initialStateSeparator + initialState
+
+	logger.Infof("sending request with initial value: %s", d.sidetreeURL+"/"+interimDIDWithInitialValue)
+
+	d.resp, err = d.httpClient.Get(d.sidetreeURL + "/" + interimDIDWithInitialValue)
+	if err == nil && d.resp.Payload != nil {
+		var result document.ResolutionResult
+		err = json.Unmarshal(d.resp.Payload, &result)
+		if err != nil {
+			return err
+		}
+
+		err = d.prettyPrint(&result)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 
@@ -675,20 +679,6 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 	d.updateKey = updateKey
 
 	return recoverRequest, nil
-}
-
-func (d *DIDOrbSteps) getDID() (string, error) {
-	return d.getDIDWithNamespace(didDocNamespace)
-}
-
-func (d *DIDOrbSteps) getDIDWithNamespace(namespace string) (string, error) {
-	uniqueSuffix, err := d.getUniqueSuffix()
-	if err != nil {
-		return "", err
-	}
-
-	didID := namespace + docutil.NamespaceDelimiter + uniqueSuffix
-	return didID, nil
 }
 
 func (d *DIDOrbSteps) getUniqueSuffix() (string, error) {
@@ -865,13 +855,16 @@ func getPubKey(pubKey interface{}) (string, error) {
 	return string(opsPubKeyBytes), nil
 }
 
-func prettyPrint(result *document.ResolutionResult) error {
-	b, err := json.MarshalIndent(result, "", " ")
-	if err != nil {
-		return err
-	}
+func (d *DIDOrbSteps) prettyPrint(result *document.ResolutionResult) error {
+	if d.didPrintEnabled {
 
-	fmt.Println(string(b))
+		b, err := json.MarshalIndent(result, "", " ")
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(string(b))
+	}
 
 	return nil
 }
@@ -1014,10 +1007,9 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
-	s.Step(`^client sends request to "([^"]*)" to resolve DID document$`, d.resolveDIDDocument)
-	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical id$`, d.resolveDIDDocumentWithCanonicalID)
-	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent id$`, d.resolveDIDDocumentWithEquivalentID)
-	s.Step(`^client sends request to "([^"]*)" to resolve DID document with alias "([^"]*)"$`, d.resolveDIDDocumentWithAlias)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did$`, d.resolveDIDDocumentWithCanonicalDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent did$`, d.resolveDIDDocumentWithEquivalentDID)
 	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)

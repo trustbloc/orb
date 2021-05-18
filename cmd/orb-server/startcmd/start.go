@@ -541,6 +541,8 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
+		dochandler.WithDomain(u.Host),
+		dochandler.WithLabel("interim"),
 	)
 
 	apEndpointCfg := &aphandler.Config{
