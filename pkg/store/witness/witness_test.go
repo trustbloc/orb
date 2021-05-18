@@ -213,7 +213,69 @@ func TestStore_AddProof(t *testing.T) {
 		bytes.Equal(wf, witnesses[0].Proof)
 	})
 
+	t.Run("success - multiple witnesses were recorded", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.TypeBatch,
+				Witness: "witness-1",
+			},
+			{
+				Type:    proof.TypeBatch,
+				Witness: "witness-2",
+			},
+		}
+
+		err = s.Put(vcID, witnessProofs)
+		require.NoError(t, err)
+
+		wf := []byte(witnessProof)
+
+		err = s.AddProof(vcID, "witness-1", wf)
+		require.NoError(t, err)
+
+		err = s.AddProof(vcID, "witness-2", wf)
+		require.NoError(t, err)
+
+		witnesses, err := s.Get(vcID)
+		require.NoError(t, err)
+		require.Equal(t, len(witnesses), 2)
+		bytes.Equal(wf, witnesses[0].Proof)
+		bytes.Equal(wf, witnesses[1].Proof)
+	})
+
 	t.Run("error - witness not found", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.TypeBatch,
+				Witness: "witness-1",
+			},
+			{
+				Type:    proof.TypeBatch,
+				Witness: "witness-2",
+			},
+		}
+
+		err = s.Put(vcID, witnessProofs)
+		require.NoError(t, err)
+
+		wf := []byte(witnessProof)
+
+		err = s.AddProof(vcID, "witness-3", wf)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "witness[witness-3] not found for vcID[vcID]")
+	})
+
+	t.Run("error - witness not found (no witnesses for VC)", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider)

@@ -146,7 +146,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 }
 
 // AddProof adds proof for anchor credential id and witness.
-func (s *Store) AddProof(vcID, witness string, p []byte) error {
+func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen,gocyclo,cyclop
 	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
 
 	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
@@ -185,7 +185,9 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error {
 		}
 
 		if w.Witness == witness {
-			key, err := iter.Key()
+			var key string
+
+			key, err = iter.Key()
 			if err != nil {
 				return fmt.Errorf("failed to get key for anchor credential vcID[%s] and witness[%s]: %w",
 					vcID, witness, err)
@@ -202,6 +204,11 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error {
 			logger.Debugf("added proof for anchor credential vcID[%s] and witness[%s]: %s", vcID, witness, string(p))
 
 			return nil
+		}
+
+		ok, err = iter.Next()
+		if err != nil {
+			return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
 		}
 	}
 
