@@ -744,7 +744,6 @@ func TestRejectTypeMarshal(t *testing.T) {
 
 func TestOfferTypeMarshal(t *testing.T) {
 	to := newMockID(service1, "/witnesses")
-	public := testutil.MustParseURL(PublicIRI)
 
 	startTime := getStaticTime()
 	endTime := startTime.Add(1 * time.Minute)
@@ -757,7 +756,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 			NewObjectProperty(WithObject(obj)),
 			WithID(offerActivityID),
 			WithActor(service1),
-			WithTo(to, public),
+			WithTo(to, PublicIRI),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
 		)
@@ -782,7 +781,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 
 		require.Len(t, a.To(), 2)
 		require.Equal(t, a.To()[0].String(), to.String())
-		require.Equal(t, a.To()[1].String(), PublicIRI)
+		require.Equal(t, a.To()[1].String(), PublicIRI.String())
 
 		require.Equal(t, service1.String(), a.Actor().String())
 
@@ -808,7 +807,6 @@ func TestOfferTypeMarshal(t *testing.T) {
 
 func TestLikeTypeMarshal(t *testing.T) {
 	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
-	public := testutil.MustParseURL(PublicIRI)
 	credID := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
 
 	startTime := getStaticTime()
@@ -822,7 +820,7 @@ func TestLikeTypeMarshal(t *testing.T) {
 			NewObjectProperty(WithIRI(credID)),
 			WithID(likeActivityID),
 			WithActor(actor),
-			WithTo(service1, public),
+			WithTo(service1, PublicIRI),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
 			WithResult(NewObjectProperty(WithObject(result))),
@@ -848,7 +846,7 @@ func TestLikeTypeMarshal(t *testing.T) {
 
 		require.Len(t, a.To(), 2)
 		require.Equal(t, a.To()[0].String(), service1.String())
-		require.Equal(t, a.To()[1].String(), PublicIRI)
+		require.Equal(t, a.To()[1].String(), PublicIRI.String())
 
 		require.Equal(t, actor.String(), a.Actor().String())
 

@@ -292,10 +292,8 @@ func TestOutbox_Handler(t *testing.T) {
 		verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 		h := NewPostOutbox(cfg, ob, activityStore, verifier)
-		h.writeResponse = func(w http.ResponseWriter, _ []byte) (int, error) {
+		h.writeResponse = func(w http.ResponseWriter, status int, _ []byte) {
 			w.WriteHeader(http.StatusInternalServerError)
-
-			return 0, errors.New("injected error")
 		}
 
 		rw := httptest.NewRecorder()

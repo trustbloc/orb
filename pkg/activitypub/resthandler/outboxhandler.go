@@ -23,27 +23,23 @@ type outbox interface {
 	Post(activity *vocab.ActivityType) (*url.URL, error)
 }
 
-type responseWriter func(http.ResponseWriter, []byte) (int, error)
-
 // Outbox implements a REST handler for posts to a service's outbox.
 type Outbox struct {
 	*Config
 	*authHandler
 
-	endpoint      string
-	ob            outbox
-	marshal       func(v interface{}) ([]byte, error)
-	writeResponse responseWriter
+	endpoint string
+	ob       outbox
+	marshal  func(v interface{}) ([]byte, error)
 }
 
 // NewPostOutbox returns a new REST handler to post activities to the outbox.
 func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVerifier) *Outbox {
 	h := &Outbox{
-		Config:        cfg,
-		endpoint:      fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
-		ob:            ob,
-		marshal:       json.Marshal,
-		writeResponse: func(w http.ResponseWriter, b []byte) (int, error) { return w.Write(b) },
+		Config:   cfg,
+		endpoint: fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
+		ob:       ob,
+		marshal:  json.Marshal,
 	}
 
 	h.authHandler = newAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, h.authorizeActor)
@@ -72,7 +68,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -80,7 +76,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		logger.Infof("[%s] Unauthorized", h.endpoint)
 
-		w.WriteHeader(http.StatusUnauthorized)
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
@@ -89,7 +85,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error reading request body: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusBadRequest)
+		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
@@ -100,7 +96,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Invalid activity: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusUnauthorized)
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
@@ -109,7 +105,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -118,15 +114,12 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error marshaling activity ID: %s", h.endpoint, err)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	_, err = h.writeResponse(w, activityIDBytes)
-	if err != nil {
-		logger.Errorf("[%s] Error writing response for activity [%s]: %s", h.endpoint, activityID, err)
-	}
+	h.writeResponse(w, http.StatusOK, activityIDBytes)
 }
 
 func (h *Outbox) unmarshalAndValidateActivity(activityBytes []byte) (*vocab.ActivityType, error) {

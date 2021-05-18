@@ -304,7 +304,7 @@ Feature:
     Then we wait 2 seconds
 
     And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":["${domain1IRI}","https://www.w3.org/ns/activitystreams#Public"],"object":"${followID}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json"
     Then the value of the JSON string response is saved to variable "undoFollowID"
 
     # No auth token or signature on GET
@@ -327,12 +327,23 @@ Feature:
     When an HTTP GET is sent to "${undoFollowID}"
     Then the JSON path "type" of the response equals "Undo"
 
-    # Set auth token
+    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
+    # Public activities should be returned
+    Then the JSON path "orderedItems.#.id" of the response contains "${undoFollowID}"
+    # Non-public activities should be excluded with no authentication
+    And the JSON path "orderedItems.#.id" of the response does not contain "${followID}"
+
+    # Set auth tokens
     Given the authorization bearer token for "GET" requests to path "/services/orb/activities" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb/inbox" is set to "READ_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/services/orb/outbox" is set to "READ_TOKEN"
 
     When an HTTP GET is sent to "${followID}"
     Then the JSON path "type" of the response equals "Follow"
 
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox"
     Then the JSON path "type" of the response equals "OrderedCollection"
+
+    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
+    Then the JSON path "orderedItems.#.id" of the response contains "${undoFollowID}"
+    And the JSON path "orderedItems.#.id" of the response contains "${followID}"

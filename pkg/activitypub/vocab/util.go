@@ -9,6 +9,7 @@ package vocab
 import (
 	"bytes"
 	"encoding/json"
+	"net/url"
 	"strings"
 )
 
@@ -93,4 +94,15 @@ func Marshal(o interface{}) ([]byte, error) {
 	}
 
 	return []byte(strings.TrimSuffix(b.String(), "\n")), nil
+}
+
+// MustParseURL parses the string and returns the URL.
+// This function panics if the string is not a valid URL.
+func MustParseURL(raw string) *url.URL {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(err)
+	}
+
+	return u
 }

@@ -20,10 +20,9 @@ const (
 	ContextOrb Context = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
 )
 
-const (
-	// PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
-	PublicIRI = "https://www.w3.org/ns/activitystreams#Public"
-)
+// PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
+//nolint:gochecknoglobals
+var PublicIRI = MustParseURL("https://www.w3.org/ns/activitystreams#Public")
 
 // Type indicates the type of the object.
 type Type string

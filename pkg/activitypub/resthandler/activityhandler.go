@@ -27,9 +27,17 @@ func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifie
 }
 
 // NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
-func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
-	return NewActivities(OutboxPath, spi.Outbox, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("outbox"), verifier)
+func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *ReadOutbox {
+	h := &ReadOutbox{
+		Activities: &Activities{
+			getID:        getID("outbox"),
+			getObjectIRI: getObjectIRI(cfg.ObjectIRI),
+		},
+	}
+
+	h.Activities.handler = newHandler(OutboxPath, cfg, activityStore, h.handleOutbox, verifier)
+
+	return h
 }
 
 // NewInbox returns a new 'inbox' REST handler that retrieves a service's inbox.
@@ -89,22 +97,26 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	if !ok {
-		h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorized.\n"))
+		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
 	}
 
+	h.handleActivityRefsOfType(w, req, h.refType)
+}
+
+func (h *Activities) handleActivityRefsOfType(w http.ResponseWriter, req *http.Request, refType spi.ReferenceType) {
 	objectIRI, err := h.getObjectIRI(req)
 	if err != nil {
 		logger.Errorf("[%s] Error getting ObjectIRI: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -113,25 +125,26 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, nil)
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	if h.isPaging(req) {
-		h.handleActivitiesPage(w, req, objectIRI, id)
+		h.handleActivitiesPage(w, req, objectIRI, id, refType)
 	} else {
-		h.handleActivities(w, req, objectIRI, id)
+		h.handleActivities(w, req, objectIRI, id, refType)
 	}
 }
 
-func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL) {
-	activities, err := h.getActivities(objectIRI, id)
+func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL,
+	refType spi.ReferenceType) {
+	activities, err := h.getActivities(objectIRI, id, refType)
 	if err != nil {
 		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
 			h.endpoint, h.refType, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -141,7 +154,7 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
 			h.endpoint, h.refType, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -149,20 +162,21 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 	h.writeResponse(rw, http.StatusOK, activitiesCollBytes)
 }
 
-func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL) {
+func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL,
+	refType spi.ReferenceType) {
 	var page *vocab.OrderedCollectionPageType
 
 	var err error
 
 	pageNum, ok := h.getPageNum(req)
 	if ok {
-		page, err = h.getPage(objectIRI, id,
+		page, err = h.getPage(objectIRI, id, refType,
 			spi.WithPageSize(h.PageSize),
 			spi.WithPageNum(pageNum),
 			spi.WithSortOrder(spi.SortDescending),
 		)
 	} else {
-		page, err = h.getPage(objectIRI, id,
+		page, err = h.getPage(objectIRI, id, refType,
 			spi.WithPageSize(h.PageSize),
 			spi.WithSortOrder(spi.SortDescending),
 		)
@@ -172,7 +186,7 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
 			h.endpoint, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -182,7 +196,7 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
 			h.endpoint, objectIRI, err)
 
-		h.writeResponse(rw, http.StatusInternalServerError, nil)
+		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -190,9 +204,9 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	h.writeResponse(rw, http.StatusOK, pageBytes)
 }
 
-//nolint:dupl
-func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollectionType, error) {
-	it, err := h.activityStore.QueryReferences(h.refType,
+func (h *Activities) getActivities(objectIRI, id *url.URL,
+	refType spi.ReferenceType) (*vocab.OrderedCollectionType, error) {
+	it, err := h.activityStore.QueryReferences(refType,
 		spi.NewCriteria(
 			spi.WithObjectIRI(objectIRI),
 		),
@@ -227,10 +241,11 @@ func (h *Activities) getActivities(objectIRI, id *url.URL) (*vocab.OrderedCollec
 	), nil
 }
 
-func (h *Activities) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
+func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
+	opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
 	it, err := h.activityStore.QueryActivities(
 		spi.NewCriteria(
-			spi.WithReferenceType(h.refType),
+			spi.WithReferenceType(refType),
 			spi.WithObjectIRI(objectIRI),
 		), opts...,
 	)
@@ -282,7 +297,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -291,7 +306,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Debugf("[%s] Get activity IRI: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusBadRequest, []byte("Bad Request.\n"))
+		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
@@ -301,21 +316,21 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 		if errors.Is(err, spi.ErrNotFound) {
 			logger.Debugf("[%s] Activity ID not found [%s]", h.endpoint, activityIRI)
 
-			h.writeResponse(w, http.StatusNotFound, []byte("Not Found.\n"))
+			h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
 			return
 		}
 
 		logger.Errorf("[%s] Unable to retrieve activity [%s]: %s", h.endpoint, activityIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	if !authorized {
 		if !activity.To().Contains(vocab.PublicIRI) {
-			h.writeResponse(w, http.StatusUnauthorized, []byte("Unauthorized.\n"))
+			h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 			return
 		}
@@ -325,7 +340,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Unable to marshal activity [%s]: %s", h.endpoint, activityIRI, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte("Internal Server Error.\n"))
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -352,4 +367,31 @@ func (h *Activity) getActivityIRI(req *http.Request) (*url.URL, error) {
 	}
 
 	return activityIRI, nil
+}
+
+// ReadOutbox defines an endpoint that retrieves activities from the outbox.
+// The caller has access to all activities if they are authorized, otherwise only public activities are returned.
+type ReadOutbox struct {
+	*Activities
+}
+
+func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
+	ok, _, err := h.authorize(req)
+	if err != nil {
+		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+
+		return
+	}
+
+	if ok {
+		logger.Debugf("[%s] Client authorized. Returning items in outbox.", h.endpoint)
+
+		h.handleActivityRefsOfType(w, req, spi.Outbox)
+	} else {
+		logger.Debugf("[%s] Client not authorized. Returning only items in outbox marked as public.", h.endpoint)
+
+		h.handleActivityRefsOfType(w, req, spi.PublicOutbox)
+	}
 }

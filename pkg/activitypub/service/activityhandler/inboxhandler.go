@@ -433,7 +433,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(anchorCred.ID().URL())),
-		vocab.WithTo(offer.Actor()),
+		vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 		vocab.WithStartTime(&startTime),
 		vocab.WithEndTime(&endTime),
 		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -562,7 +562,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithTo(h.followersIRI),
+		vocab.WithTo(h.followersIRI, vocab.PublicIRI),
 		vocab.WithPublishedTime(&published),
 	)
 
@@ -599,7 +599,7 @@ func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
 				),
 			),
 		),
-		vocab.WithTo(h.followersIRI),
+		vocab.WithTo(h.followersIRI, vocab.PublicIRI),
 		vocab.WithPublishedTime(&published),
 	)
 

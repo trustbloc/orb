@@ -401,7 +401,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
 		vocab.WithTarget(targetProperty),
 		vocab.WithContext(vocab.ContextOrb),
-		vocab.WithTo(systemFollowers),
+		vocab.WithTo(systemFollowers, vocab.PublicIRI),
 	)
 
 	postID, err := c.Outbox.Post(create)
@@ -433,7 +433,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	// add batch witnesses and system witnesses (activity pub collection)
 	witnessesIRI = append(witnessesIRI, batchWitnessesIRI...)
-	witnessesIRI = append(witnessesIRI, systemWitnessesIRI)
+	witnessesIRI = append(witnessesIRI, vocab.PublicIRI, systemWitnessesIRI)
 
 	bytes, err := vc.MarshalJSON()
 	if err != nil {
