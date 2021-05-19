@@ -94,6 +94,11 @@ const (
 	ipfsURLEnvKey        = "IPFS_URL"
 	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage(CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
 
+	cidVersionFlagName  = "cid-version"
+	cidVersionEnvKey    = "CID_VERSION"
+	cidVersionFlagUsage = "The version of the CID format to use for generating CIDs. " +
+		"Supported options: 0, 1. If not set, defaults to 1." + commonEnvVarUsageText + cidVersionEnvKey
+
 	batchWriterTimeoutFlagName      = "batch-writer-timeout"
 	batchWriterTimeoutFlagShorthand = "b"
 	batchWriterTimeoutEnvKey        = "BATCH_WRITER_TIMEOUT"
@@ -221,6 +226,7 @@ type orbParameters struct {
 	batchWriterTimeout        time.Duration
 	casType                   string
 	ipfsURL                   string
+	useV0CIDs                 bool
 	dbParameters              *dbParameters
 	logLevel                  string
 	methodContext             []string
@@ -301,6 +307,19 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
 	if err != nil {
 		return nil, err
+	}
+
+	cidVersionString, err := cmdutils.GetUserSetVarFromString(cmd, cidVersionFlagName, cidVersionEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var useV0CIDs bool
+
+	if cidVersionString == "0" {
+		useV0CIDs = true
+	} else if cidVersionString != "1" && cidVersionString != "" { // default to v1 if no version specified
+		return nil, fmt.Errorf("invalid CID version specified. Must be either 0 or 1")
 	}
 
 	batchWriterTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
@@ -442,6 +461,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		allowedOrigins:            allowedOrigins,
 		casType:                   casType,
 		ipfsURL:                   ipfsURL,
+		useV0CIDs:                 useV0CIDs,
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,
@@ -629,6 +649,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
+	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
 	startCmd.Flags().StringArrayP(allowedOriginsFlagName, allowedOriginsFlagShorthand, []string{}, allowedOriginsFlagUsage)

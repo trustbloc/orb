@@ -71,7 +71,7 @@ const sampleAnchorCredential = `{
 }`
 
 func TestNew(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), false)
 	require.NoError(t, err)
 
 	webCAS := webcas.New(casClient)
@@ -83,7 +83,7 @@ func TestNew(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	t.Run("Content found", func(t *testing.T) {
-		casClient, err := cas.New(mem.NewProvider())
+		casClient, err := cas.New(mem.NewProvider(), false)
 		require.NoError(t, err)
 
 		cid, err := casClient.Write([]byte(sampleAnchorCredential))
@@ -114,7 +114,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, sampleAnchorCredential, string(responseBody))
 	})
 	t.Run("Content not found", func(t *testing.T) {
-		casClient, err := cas.New(mem.NewProvider())
+		casClient, err := cas.New(mem.NewProvider(), false)
 		require.NoError(t, err)
 
 		webCAS := webcas.New(casClient)

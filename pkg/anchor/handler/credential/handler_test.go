@@ -74,7 +74,7 @@ const sampleAnchorCredential = `{
   }]                  
 }`
 
-const sampleAnchorCredentialCID = "QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ"
+const sampleAnchorCredentialCID = "bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne"
 
 func TestNew(t *testing.T) {
 	createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
@@ -116,7 +116,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 			"failure while getting and storing data from the remote WebCAS endpoint: "+
 			"failed to retrieve data from")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ was found: content not found")
+			"no content at bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne was found: content not found")
 	})
 }
 
@@ -136,7 +136,7 @@ func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *Ancho
 func createInMemoryCAS(t *testing.T) casapi.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), false)
 	require.NoError(t, err)
 
 	return casClient

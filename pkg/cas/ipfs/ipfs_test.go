@@ -11,31 +11,69 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
+	dctest "github.com/ory/dockertest/v3"
+	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	c := New("ipfs:5001")
+	c := New("ipfs:5001", false)
 	require.NotNil(t, c)
 }
 
 func TestWrite(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, "{}")
-		}))
-		defer ipfs.Close()
+		pool, ipfsResource := startIPFSDockerContainer(t)
 
-		cas := New(ipfs.URL)
-		require.NotNil(t, cas)
+		defer func() {
+			require.NoError(t, pool.Purge(ipfsResource), "failed to purge IPFS resource")
+		}()
 
-		cid, err := cas.Write([]byte("content"))
-		require.Nil(t, err)
+		t.Run("v1 CIDs", func(t *testing.T) {
+			cas := New("localhost:5001", false)
+			require.NotNil(t, cas)
 
-		read, err := cas.Read(cid)
-		require.Nil(t, err)
-		require.NotNil(t, read)
+			var cid string
+
+			// IPFS will need some time to start up, hence the need for retries.
+
+			err := backoff.Retry(func() error {
+				var err error
+				cid, err = cas.Write([]byte("content"))
+
+				return err
+			}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
+			require.NoError(t, err)
+			require.Equal(t, "bafkreihnoabliopjvscf6irvpwbcxlauirzq7pnwafwt5skdekl3t3e7om", cid)
+
+			read, err := cas.Read(cid)
+			require.Nil(t, err)
+			require.Equal(t, "content", string(read))
+		})
+		t.Run("v0 CIDs", func(t *testing.T) {
+			cas := New("localhost:5001", true)
+			require.NotNil(t, cas)
+
+			var cid string
+
+			// IPFS will need some time to start up, hence the need for retries.
+
+			err := backoff.Retry(func() error {
+				var err error
+				cid, err = cas.Write([]byte("content"))
+
+				return err
+			}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
+			require.NoError(t, err)
+			require.Equal(t, "QmbSnCcHziqhjNRyaunfcCvxPiV3fNL3fWL8nUrp5yqwD5", cid)
+
+			read, err := cas.Read(cid)
+			require.Nil(t, err)
+			require.Equal(t, "content", string(read))
+		})
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {
@@ -44,7 +82,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, false)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -60,7 +98,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, false)
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("cid")
@@ -74,11 +112,33 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, false)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")
 		require.Error(t, err)
 		require.Empty(t, cid)
 	})
+}
+
+func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
+	t.Helper()
+
+	pool, err := dctest.NewPool("")
+	require.NoError(t, err, "failed to create pool")
+
+	ipfsResource, err := pool.RunWithOptions(&dctest.RunOptions{
+		Repository: "ipfs/go-ipfs",
+		Tag:        "master-2021-04-22-eea198f",
+		PortBindings: map[dc.Port][]dc.PortBinding{
+			"5001/tcp": {{HostIP: "", HostPort: "5001"}},
+		},
+	})
+	if err != nil {
+		require.FailNow(t, "Failed to start IPFS Docker image."+
+			" This can happen if there is an IPFS container still running from a previous unit test run."+
+			` Try "docker ps" from the command line and kill the old container if it's still running.`)
+	}
+
+	return pool, ipfsResource
 }

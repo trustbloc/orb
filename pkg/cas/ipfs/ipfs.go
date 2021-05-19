@@ -25,22 +25,29 @@ const timeout = 2
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
 type Client struct {
-	ipfs *shell.Shell
+	ipfs      *shell.Shell
+	useV0CIDs bool
 }
 
 // New creates cas client.
-func New(url string) *Client {
+func New(url string, useV0CIDs bool) *Client {
 	ipfs := shell.NewShell(url)
 
 	ipfs.SetTimeout(timeout * time.Second)
 
-	return &Client{ipfs: ipfs}
+	return &Client{ipfs: ipfs, useV0CIDs: useV0CIDs}
 }
 
 // Write writes the given content to CAS.
 // returns cid which represents the address of the content.
 func (m *Client) Write(content []byte) (string, error) {
-	cid, err := m.ipfs.Add(bytes.NewReader(content))
+	var v1AddOpt []shell.AddOpts
+
+	if !m.useV0CIDs {
+		v1AddOpt = []shell.AddOpts{shell.CidVersion(1)}
+	}
+
+	cid, err := m.ipfs.Add(bytes.NewReader(content), v1AddOpt...)
 	if err != nil {
 		return "", err
 	}
