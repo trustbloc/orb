@@ -110,6 +110,6 @@ func FeatureContext(s *godog.Suite, state *state) {
 	// Context is shared between tests - for now
 	NewCommonSteps(context, state).RegisterSteps(s)
 	NewDockerSteps(context).RegisterSteps(s)
-	NewDIDSideSteps(context, "did:orb").RegisterSteps(s)
-	NewCLISteps(context).RegisterSteps(s)
+	NewDIDSideSteps(context, state, "did:orb").RegisterSteps(s)
+	NewCLISteps(context, state).RegisterSteps(s)
 }
