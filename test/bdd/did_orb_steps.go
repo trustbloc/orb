@@ -36,7 +36,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/model"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/test/bdd/restclient"
 )
 
 var logger = logrus.New()
@@ -126,7 +125,7 @@ type DIDOrbSteps struct {
 	createRequest      *model.CreateRequest
 	recoveryKey        *ecdsa.PrivateKey
 	updateKey          *ecdsa.PrivateKey
-	resp               *restclient.HttpRespone
+	resp               *httpResponse
 	bddContext         *BDDContext
 	alias              string
 	canonicalID        string
@@ -135,17 +134,26 @@ type DIDOrbSteps struct {
 	operationEndpoint  string
 	sidetreeURL        string
 	dids               []string
+	httpClient         *httpClient
 }
 
 // NewDIDSideSteps
-func NewDIDSideSteps(context *BDDContext, namespace string) *DIDOrbSteps {
-	return &DIDOrbSteps{bddContext: context, namespace: namespace}
+func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOrbSteps {
+	return &DIDOrbSteps{
+		bddContext: context,
+		namespace:  namespace,
+		httpClient: newHTTPClient(state, context),
+	}
 }
 
 func (d *DIDOrbSteps) discoverEndpoints() error {
-	resp, err := restclient.SendResolveRequest("https://localhost:48326/.well-known/did-orb")
+	resp, err := d.httpClient.Get("https://localhost:48326/.well-known/did-orb")
 	if err != nil {
 		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received status code %d", resp.StatusCode)
 	}
 
 	var w restapi.WellKnownResponse
@@ -153,11 +161,15 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 		return err
 	}
 
-	resp, err = restclient.SendResolveRequest(
+	resp, err = d.httpClient.Get(
 		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.ResolutionEndpoint)))
 	if err != nil {
 		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received status code %d", resp.StatusCode)
 	}
 
 	var webFingerResponse restapi.WebFingerResponse
@@ -171,7 +183,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 		return fmt.Errorf("webfinger response return wrong link")
 	}
 
-	resp, err = restclient.SendResolveRequest(
+	resp, err = d.httpClient.Get(
 		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.OperationEndpoint)))
 	if err != nil {
@@ -208,7 +220,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 	d.recoveryKey = recoveryKey
 	d.updateKey = updateKey
 
-	d.resp, err = restclient.SendRequest(d.sidetreeURL, reqBytes)
+	d.resp, err = d.httpClient.Post(d.sidetreeURL, reqBytes, "application/json")
 	if err == nil {
 		var req model.CreateRequest
 		e := json.Unmarshal(reqBytes, &req)
@@ -273,7 +285,7 @@ func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
+	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
 	return err
 }
 
@@ -295,7 +307,7 @@ func (d *DIDOrbSteps) deactivateDIDDocument(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
+	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
 	return err
 }
 
@@ -322,7 +334,7 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendRequest(d.sidetreeURL, req)
+	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
 	return err
 }
 
@@ -487,7 +499,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendResolveRequest(d.sidetreeURL + "/" + did)
+	d.resp, err = d.httpClient.Get(d.sidetreeURL + "/" + did)
 
 	logger.Infof("sending request: %s", d.sidetreeURL+"/"+did)
 
@@ -560,7 +572,7 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
 		return err
 	}
 
-	d.resp, err = restclient.SendResolveRequest(d.sidetreeURL + "/" + did + initialStateSeparator + initialState)
+	d.resp, err = d.httpClient.Get(d.sidetreeURL + "/" + did + initialStateSeparator + initialState)
 	return err
 }
 
@@ -884,7 +896,8 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 		}
 
 		p.Submit(&createDIDRequest{
-			url: localURL,
+			url:        localURL,
+			httpClient: d.httpClient,
 		})
 	}
 
@@ -935,7 +948,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 func (d *DIDOrbSteps) verifyDID(url, did string) error {
 	logger.Infof("verifying DID %s from %s", did, url)
 
-	resp, err := restclient.SendResolveRequestWithRetry(url+"/"+did, 15, http.StatusNotFound)
+	resp, err := d.httpClient.GetWithRetry(url+"/"+did, 15, http.StatusNotFound)
 	if err != nil {
 		return fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
 	}
@@ -961,7 +974,8 @@ func (d *DIDOrbSteps) verifyDID(url, did string) error {
 }
 
 type createDIDRequest struct {
-	url string
+	url        string
+	httpClient *httpClient
 }
 
 func (r *createDIDRequest) Invoke() (interface{}, error) {
@@ -977,7 +991,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		return nil, err
 	}
 
-	resp, err := restclient.SendRequest(r.url, reqBytes)
+	resp, err := r.httpClient.Post(r.url, reqBytes, "application/json")
 	if err != nil {
 		return "", err
 	}

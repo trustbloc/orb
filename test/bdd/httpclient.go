@@ -31,6 +31,13 @@ type signerConfig struct {
 
 type signFunc = func(req *http.Request) error
 
+type httpResponse struct {
+	Payload    []byte
+	ErrorMsg   string
+	StatusCode int
+	Header     http.Header
+}
+
 type httpClient struct {
 	context  *BDDContext
 	state    *state
@@ -54,18 +61,18 @@ func newHTTPClient(state *state, context *BDDContext) *httpClient {
 	}
 }
 
-func (c *httpClient) Get(url string) ([]byte, int, http.Header, error) {
+func (c *httpClient) Get(url string) (*httpResponse, error) {
 	return c.GetWithSignature(url, "")
 }
 
-func (c *httpClient) GetWithSignature(url, domain string) ([]byte, int, http.Header, error) {
+func (c *httpClient) GetWithSignature(url, domain string) (*httpResponse, error) {
 	defer c.client.CloseIdleConnections()
 
 	url = c.resolveURL(url)
 
 	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, err
 	}
 
 	c.setAuthTokenHeader(httpReq)
@@ -73,18 +80,18 @@ func (c *httpClient) GetWithSignature(url, domain string) ([]byte, int, http.Hea
 	if domain != "" {
 		sign, err := c.signer(domain)
 		if err != nil {
-			return nil, 0, nil, fmt.Errorf("get with signature: %w", err)
+			return nil, fmt.Errorf("get with signature: %w", err)
 		}
 
 		err = sign(httpReq)
 		if err != nil {
-			return nil, 0, nil, err
+			return nil, err
 		}
 	}
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, err
 	}
 
 	defer func() {
@@ -95,17 +102,61 @@ func (c *httpClient) GetWithSignature(url, domain string) ([]byte, int, http.Hea
 
 	payload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, 0, resp.Header, fmt.Errorf("reading response body failed: %s", err)
+		return nil, fmt.Errorf("reading response body failed: %s", err)
 	}
 
-	return payload, resp.StatusCode, resp.Header, nil
+	if resp.StatusCode != http.StatusOK {
+		return &httpResponse{
+			StatusCode: resp.StatusCode,
+			Header:     resp.Header,
+			ErrorMsg:   string(payload),
+		}, nil
+	}
+
+	return &httpResponse{
+		Payload:    payload,
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+	}, nil
 }
 
-func (c *httpClient) Post(url string, data []byte, contentType string) ([]byte, int, http.Header, error) {
+func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int, retryableCodes ...int) (*httpResponse, error) {
+	var err error
+	var resp *httpResponse
+
+	logger.Infof("resolving: %s", url)
+
+	codes := append(retryableCodes, retryableCode)
+
+	remainingAttempts := attempts
+	for {
+		resp, err = c.Get(url)
+		if err != nil {
+			return nil, err
+		}
+
+		if !containsStatusCode(codes, resp.StatusCode) {
+			break
+		}
+
+		logger.Infof("not found: %s - remaining attempts: %d", url, remainingAttempts)
+
+		remainingAttempts--
+		if remainingAttempts == 0 {
+			break
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	return resp, nil
+}
+
+func (c *httpClient) Post(url string, data []byte, contentType string) (*httpResponse, error) {
 	return c.PostWithSignature(url, data, contentType, "")
 }
 
-func (c *httpClient) PostWithSignature(url string, data []byte, contentType, domain string) ([]byte, int, http.Header, error) {
+func (c *httpClient) PostWithSignature(url string, data []byte, contentType, domain string) (*httpResponse, error) {
 	defer c.client.CloseIdleConnections()
 
 	url = c.resolveURL(url)
@@ -114,7 +165,7 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 
 	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, err
 	}
 
 	httpReq.Header.Set("Content-Type", contentType)
@@ -124,18 +175,18 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 	if domain != "" {
 		sign, err := c.signer(domain)
 		if err != nil {
-			return nil, 0, nil, fmt.Errorf("post with signature: %w", err)
+			return nil, fmt.Errorf("post with signature: %w", err)
 		}
 
 		err = sign(httpReq)
 		if err != nil {
-			return nil, 0, nil, err
+			return nil, err
 		}
 	}
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, err
 	}
 
 	defer func() {
@@ -146,10 +197,22 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 
 	payload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, resp.StatusCode, resp.Header, err
+		return nil, err
 	}
 
-	return payload, resp.StatusCode, resp.Header, nil
+	if resp.StatusCode != http.StatusOK {
+		return &httpResponse{
+			StatusCode: resp.StatusCode,
+			Header:     resp.Header,
+			ErrorMsg:   string(payload),
+		}, nil
+	}
+
+	return &httpResponse{
+		Payload:    payload,
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+	}, nil
 }
 
 // setAuthTokenHeader sets the bearer token in the Authorization header if one
@@ -260,22 +323,32 @@ func contentTypeFromFileName(fileName string) (string, error) {
 	return contentType, nil
 }
 
-func printResponse(statusCode int, payload []byte, header http.Header) {
-	respContentType, ok := header["Content-Type"]
+func printResponse(resp *httpResponse) {
+	respContentType, ok := resp.Header["Content-Type"]
 	if ok {
 		switch {
 		case strings.HasPrefix(respContentType[0], "image/"):
-			logger.Infof("Received status code %d and an image of type [%s]", statusCode, respContentType[0])
+			logger.Infof("Received status code %d and an image of type [%s]", resp.StatusCode, respContentType[0])
 		case strings.HasPrefix(respContentType[0], "text/"):
-			logger.Infof("Received status code %d and a text response: %s", statusCode, payload)
+			logger.Infof("Received status code %d and a text response: %s", resp.StatusCode, resp.Payload)
 		default:
-			logger.Infof("Received status code %d and a response of type [%s]:\n%s", statusCode, respContentType[0], payload)
+			logger.Infof("Received status code %d and a response of type [%s]:\n%s", resp.StatusCode, respContentType[0], resp.Payload)
 		}
 	} else {
-		logger.Infof("Received status code %d and a response with no Content-Type:\n%s", statusCode, payload)
+		logger.Infof("Received status code %d and a response with no Content-Type:\n%s", resp.StatusCode, resp.Payload)
 	}
 }
 
 func date() string {
 	return fmt.Sprintf("%s GMT", time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05"))
+}
+
+func containsStatusCode(codes []int, code int) bool {
+	for _, c := range codes {
+		if c == code {
+			return true
+		}
+	}
+
+	return false
 }

@@ -15,8 +15,6 @@ import (
 
 	"github.com/cucumber/godog"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
-
-	"github.com/trustbloc/orb/test/bdd/restclient"
 )
 
 // Steps is steps for cli BDD tests.
@@ -24,11 +22,15 @@ type Steps struct {
 	bddContext *BDDContext
 	cliValue   string
 	createdDID *ariesdid.Doc
+	httpClient *httpClient
 }
 
 // NewCLISteps returns new agent from client SDK.
-func NewCLISteps(ctx *BDDContext) *Steps {
-	return &Steps{bddContext: ctx}
+func NewCLISteps(ctx *BDDContext, state *state) *Steps {
+	return &Steps{
+		bddContext: ctx,
+		httpClient: newHTTPClient(state, ctx),
+	}
 }
 
 // RegisterSteps registers agent steps.
@@ -138,15 +140,25 @@ func (e *Steps) checkRecoveredDID() error {
 func (e *Steps) resolveDID(did string) (*ariesdid.DocResolution, error) {
 	const maxRetry = 10
 
-	for i := 1; i <= maxRetry; i++ {
-		resp, err := restclient.SendResolveRequest("https://localhost:48326/sidetree/v1/identifiers/" + did)
+	didURL := "https://localhost:48326/sidetree/v1/identifiers/" + did
 
-		if err == nil && resp.StatusCode == 200 {
+	for i := 1; i <= maxRetry; i++ {
+		resp, err := e.httpClient.Get(didURL)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == 200 {
 			return ariesdid.ParseDocumentResolution(resp.Payload)
 		}
 
-		if err != nil || resp.StatusCode != 404 || i == maxRetry {
-			return nil, err
+		if resp.StatusCode != 404 {
+			return nil, fmt.Errorf("%d: %s", resp.StatusCode, resp.ErrorMsg)
+		}
+
+		if i == maxRetry {
+			break
 		}
 
 		time.Sleep(1 * time.Second)
