@@ -34,119 +34,118 @@ Feature:
   Scenario: create valid did doc
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-    Then check success response contains "#did"
+    Then check success response contains "#interimDID"
+    Then check success response contains "equivalentId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check error response contains "not found"
+
     # retrieve document with initial value before it becomes available on the ledger
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with initial state
-    Then check success response contains "#did"
+    Then check success response contains "#interimDID"
     Then check success response does NOT contain "canonicalId"
 
     Then we wait 2 seconds
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-    Then check success response contains "#did"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "canonicalId"
 
     # resolve did on the second server within same domain (organisation)
-    When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document
-    Then check success response contains "#did"
+    When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "canonicalId"
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-    Then check success response contains "#canonicalId"
-
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with alias "did:orb:alias.com"
-    Then check success response contains "#canonicalId"
-    Then check success response contains "#aliasdid"
-
-    # retrieve document with initial value after it becomes available on the ledger
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with initial state
-    Then check success response contains "#did"
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "#canonicalDID"
 
   @create_deactivate_did_doc
   Scenario: deactivate valid did doc
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-    Then check success response contains "#did"
+    Then check success response contains "#interimDID"
     Then we wait 2 seconds
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-    Then check success response contains "#did"
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to deactivate DID document
     Then check for request success
     Then we wait 2 seconds
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "deactivated"
 
   @create_recover_did_doc
   Scenario: recover did doc
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-    Then check success response contains "#did"
+    Then check success response contains "#interimDID"
     Then we wait 2 seconds
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
     Then check for request success
     Then we wait 2 seconds
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "recoveryKey"
     Then check success response contains "canonicalId"
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-    Then check success response contains "#canonicalId"
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "#canonicalDID"
 
     @create_add_remove_public_key
     Scenario: add and remove public keys
       When client discover orb endpoints
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-      Then check success response contains "#did"
+      Then check success response contains "#interimDID"
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "newKey" to DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "newKey"
       Then check success response contains "canonicalId"
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical id
-      Then check success response contains "#canonicalId"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove public key with ID "newKey" from DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newKey"
 
     @create_add_remove_services
     Scenario: add and remove service endpoints
       When client discover orb endpoints
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
-      Then check success response contains "#did"
+      Then check success response contains "#interimDID"
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
-      Then check success response contains "#did"
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#canonicalDID"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "newService"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove service endpoint with ID "newService" from DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"
