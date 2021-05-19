@@ -17,6 +17,8 @@ Feature:
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
 
     # domain2 server follows domain1 server
     Given variable "followID" is assigned a unique ID

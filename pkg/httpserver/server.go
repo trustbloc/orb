@@ -8,7 +8,6 @@ package httpserver
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,11 +17,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"github.com/sirupsen/logrus"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 )
 
-var logger = logrus.New()
+var logger = log.New("httpserver")
 
 const healthCheckEndpoint = "/healthcheck"
 
@@ -35,12 +34,8 @@ type Server struct {
 }
 
 // New returns a new HTTP server.
-func New(url, certFile, keyFile, token string, handlers ...common.HTTPHandler) *Server {
+func New(url, certFile, keyFile string, handlers ...common.HTTPHandler) *Server {
 	router := mux.NewRouter()
-
-	if token != "" {
-		router.Use(authorizationMiddleware(token))
-	}
 
 	for _, handler := range handlers {
 		logger.Infof("Registering handler for [%s]", handler.Path())
@@ -105,32 +100,6 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	return s.httpServer.Shutdown(ctx)
-}
-
-func validateAuthorizationBearerToken(w http.ResponseWriter, r *http.Request, token string) bool {
-	actHdr := r.Header.Get("Authorization")
-	expHdr := "Bearer " + token
-
-	if subtle.ConstantTimeCompare([]byte(actHdr), []byte(expHdr)) != 1 {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Unauthorised.\n")) // nolint:gosec,errcheck
-
-		return false
-	}
-
-	return true
-}
-
-func authorizationMiddleware(token string) mux.MiddlewareFunc {
-	middleware := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if validateAuthorizationBearerToken(w, r, token) {
-				next.ServeHTTP(w, r)
-			}
-		})
-	}
-
-	return middleware
 }
 
 type healthCheckResp struct {

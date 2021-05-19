@@ -19,6 +19,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
 var logger = log.New("activitypub_resthandler")
@@ -62,21 +63,14 @@ const (
 	internalServerErrorResponse = "Internal Server Error.\n"
 )
 
-// AuthTokenDef contains authorization bearer token configuration.
-type AuthTokenDef struct {
-	EndpointExpression string   `json:"endpoint"`
-	ReadTokens         []string `json:"read,omitempty"`
-	WriteTokens        []string `json:"write,omitempty"`
-}
-
 // Config contains configuration parameters for the handler.
 type Config struct {
+	auth.Config
+
 	BasePath               string
 	ObjectIRI              *url.URL
 	PageSize               int
 	VerifyActorInSignature bool
-	AuthTokensDef          []*AuthTokenDef
-	AuthTokens             map[string]string
 }
 
 type handler struct {

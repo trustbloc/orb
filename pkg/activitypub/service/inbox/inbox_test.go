@@ -604,7 +604,7 @@ func newActivityID(serviceName string) *url.URL {
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
 	t.Helper()
 
-	httpServer := httpserver.New(listenAddress, "", "", "", handlers...)
+	httpServer := httpserver.New(listenAddress, "", "", handlers...)
 
 	require.NoError(t, httpServer.Start())
 

@@ -14,8 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
-
-	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
 const (
@@ -137,11 +136,6 @@ const (
 	kmsSecretsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving " +
 		"the underlying KMS secrets database. " + commonEnvVarUsageText + kmsSecretsDatabasePrefixEnvKey
 
-	tokenFlagName  = "api-token"
-	tokenEnvKey    = "ORB_API_TOKEN" //nolint: gosec
-	tokenFlagUsage = "Check for bearer token in the authorization header (optional). " +
-		commonEnvVarUsageText + tokenEnvKey
-
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
 	databaseTypeMYSQLDBOption = "mysql"
@@ -228,7 +222,6 @@ type orbParameters struct {
 	casType                   string
 	ipfsURL                   string
 	dbParameters              *dbParameters
-	token                     string
 	logLevel                  string
 	methodContext             []string
 	baseEnabled               bool
@@ -242,7 +235,7 @@ type orbParameters struct {
 	startupDelay              time.Duration
 	signWithLocalWitness      bool
 	httpSignaturesEnabled     bool
-	authTokenDefinitions      []*aphandler.AuthTokenDef
+	authTokenDefinitions      []*auth.TokenDef
 	authTokens                map[string]string
 }
 
@@ -396,11 +389,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	token, err := cmdutils.GetUserSetVarFromString(cmd, tokenFlagName, tokenEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
 	loggingLevel, err := cmdutils.GetUserSetVarFromString(cmd, LogLevelFlagName, LogLevelEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -457,7 +445,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,
-		token:                     token,
 		logLevel:                  loggingLevel,
 		discoveryDomains:          discoveryDomains,
 		discoveryMinimumResolvers: discoveryMinimumResolvers,
@@ -548,7 +535,7 @@ func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error)
 	}, nil
 }
 
-func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, error) {
+func getAuthTokenDefinitions(cmd *cobra.Command) ([]*auth.TokenDef, error) {
 	authTokenDefsStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, authTokensDefFlagName, authTokensDefEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -556,7 +543,7 @@ func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, err
 
 	logger.Debugf("Auth tokens definition: %s", authTokenDefsStr)
 
-	var authTokenDefs []*aphandler.AuthTokenDef
+	var authTokenDefs []*auth.TokenDef
 
 	for _, defStr := range authTokenDefsStr {
 		parts := strings.Split(defStr, "|")
@@ -575,7 +562,7 @@ func getAuthTokenDefinitions(cmd *cobra.Command) ([]*aphandler.AuthTokenDef, err
 			writeTokens = filterEmptyTokens(strings.Split(parts[2], "&"))
 		}
 
-		def := &aphandler.AuthTokenDef{
+		def := &auth.TokenDef{
 			EndpointExpression: parts[0],
 			ReadTokens:         readTokens,
 			WriteTokens:        writeTokens,
@@ -657,8 +644,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(kmsSecretsDatabaseURLFlagName, kmsSecretsDatabaseURLFlagShorthand, "",
 		kmsSecretsDatabaseURLFlagUsage)
 	startCmd.Flags().StringP(kmsSecretsDatabasePrefixFlagName, "", "", kmsSecretsDatabasePrefixFlagUsage)
-
-	startCmd.Flags().StringP(tokenFlagName, "", "", tokenFlagUsage)
 	startCmd.Flags().StringP(LogLevelFlagName, LogLevelFlagShorthand, "", LogLevelPrefixFlagUsage)
 	startCmd.Flags().StringArrayP(discoveryDomainsFlagName, "", []string{}, discoveryDomainsFlagUsage)
 	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)

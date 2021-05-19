@@ -17,6 +17,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -121,15 +122,17 @@ func TestServices_Handler(t *testing.T) {
 			BasePath:  basePath,
 			ObjectIRI: serviceIRI,
 			PageSize:  4,
-			AuthTokensDef: []*AuthTokenDef{
-				{
-					EndpointExpression: "/services/orb",
-					ReadTokens:         []string{"admin", "read"},
+			Config: auth.Config{
+				AuthTokensDef: []*auth.TokenDef{
+					{
+						EndpointExpression: "/services/orb",
+						ReadTokens:         []string{"admin", "read"},
+					},
 				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
+				AuthTokens: map[string]string{
+					"read":  "READ_TOKEN",
+					"admin": "ADMIN_TOKEN",
+				},
 			},
 		}
 
@@ -238,15 +241,17 @@ func TestPublicKeys_Handler(t *testing.T) {
 			BasePath:  basePath,
 			ObjectIRI: serviceIRI,
 			PageSize:  4,
-			AuthTokensDef: []*AuthTokenDef{
-				{
-					EndpointExpression: "/services/orb/keys",
-					ReadTokens:         []string{"admin", "read"},
+			Config: auth.Config{
+				AuthTokensDef: []*auth.TokenDef{
+					{
+						EndpointExpression: "/services/orb/keys",
+						ReadTokens:         []string{"admin", "read"},
+					},
 				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
+				AuthTokens: map[string]string{
+					"read":  "READ_TOKEN",
+					"admin": "ADMIN_TOKEN",
+				},
 			},
 		}
 

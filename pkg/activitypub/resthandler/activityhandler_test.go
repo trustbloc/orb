@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -171,21 +172,23 @@ func TestActivities_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
-		AuthTokensDef: []*AuthTokenDef{
-			{
-				EndpointExpression: "/services/orb/outbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+		Config: auth.Config{
+			AuthTokensDef: []*auth.TokenDef{
+				{
+					EndpointExpression: "/services/orb/outbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
+				{
+					EndpointExpression: "/services/orb/inbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
 			},
-			{
-				EndpointExpression: "/services/orb/inbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
 			},
-		},
-		AuthTokens: map[string]string{
-			"read":  "READ_TOKEN",
-			"admin": "ADMIN_TOKEN",
 		},
 	}
 
@@ -440,21 +443,23 @@ func TestReadOutbox_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
-		AuthTokensDef: []*AuthTokenDef{
-			{
-				EndpointExpression: "/services/orb/outbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+		Config: auth.Config{
+			AuthTokensDef: []*auth.TokenDef{
+				{
+					EndpointExpression: "/services/orb/outbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
+				{
+					EndpointExpression: "/services/orb/inbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
 			},
-			{
-				EndpointExpression: "/services/orb/inbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
 			},
-		},
-		AuthTokens: map[string]string{
-			"read":  "READ_TOKEN",
-			"admin": "ADMIN_TOKEN",
 		},
 	}
 
@@ -819,14 +824,16 @@ func TestActivity_Handler(t *testing.T) {
 			BasePath:               basePath,
 			ObjectIRI:              serviceIRI,
 			VerifyActorInSignature: true,
-			AuthTokensDef: []*AuthTokenDef{
-				{
-					EndpointExpression: "/services/orb/activities/.*",
-					ReadTokens:         []string{"read"},
+			Config: auth.Config{
+				AuthTokensDef: []*auth.TokenDef{
+					{
+						EndpointExpression: "/services/orb/activities/.*",
+						ReadTokens:         []string{"read"},
+					},
 				},
-			},
-			AuthTokens: map[string]string{
-				"read": "READ_TOKEN",
+				AuthTokens: map[string]string{
+					"read": "READ_TOKEN",
+				},
 			},
 		}
 

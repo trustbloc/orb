@@ -9,6 +9,7 @@
 @orb_cli
 Feature: Using Orb CLI
   Background: Setup
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
 
   @orb_cli_did
   Scenario: test create and update did doc using cli
