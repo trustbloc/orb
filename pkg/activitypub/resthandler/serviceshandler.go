@@ -48,7 +48,7 @@ func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.Public
 }
 
 func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
-	if !h.authorizeWithBearerToken(req) {
+	if !h.tokenVerifier.Verify(req) {
 		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return
@@ -76,7 +76,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
-	if !h.authorizeWithBearerToken(req) {
+	if !h.tokenVerifier.Verify(req) {
 		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
 		return

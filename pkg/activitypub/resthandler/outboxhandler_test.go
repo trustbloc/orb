@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -48,21 +49,23 @@ func TestOutbox_Handler(t *testing.T) {
 		BasePath:               "/services/orb",
 		ObjectIRI:              serviceIRI,
 		VerifyActorInSignature: true,
-		AuthTokensDef: []*AuthTokenDef{
-			{
-				EndpointExpression: "/services/orb/outbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+		Config: auth.Config{
+			AuthTokensDef: []*auth.TokenDef{
+				{
+					EndpointExpression: "/services/orb/outbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
+				{
+					EndpointExpression: "/services/orb/inbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
 			},
-			{
-				EndpointExpression: "/services/orb/inbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
 			},
-		},
-		AuthTokens: map[string]string{
-			"read":  "READ_TOKEN",
-			"admin": "ADMIN_TOKEN",
 		},
 	}
 
@@ -111,14 +114,16 @@ func TestOutbox_Handler(t *testing.T) {
 			BasePath:               "/services/orb",
 			ObjectIRI:              serviceIRI,
 			VerifyActorInSignature: false,
-			AuthTokensDef: []*AuthTokenDef{
-				{
-					EndpointExpression: "/services/orb/outbox",
-					WriteTokens:        []string{"admin"},
+			Config: auth.Config{
+				AuthTokensDef: []*auth.TokenDef{
+					{
+						EndpointExpression: "/services/orb/outbox",
+						WriteTokens:        []string{"admin"},
+					},
 				},
-			},
-			AuthTokens: map[string]string{
-				"admin": "ADMIN_TOKEN",
+				AuthTokens: map[string]string{
+					"admin": "ADMIN_TOKEN",
+				},
 			},
 		}
 

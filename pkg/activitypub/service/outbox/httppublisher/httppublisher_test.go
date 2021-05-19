@@ -44,7 +44,7 @@ func TestPublisher_Publish(t *testing.T) {
 
 	messagesReceived := make(map[string]*message.Message)
 
-	httpServer := httpserver.New(":8100", "", "", "",
+	httpServer := httpserver.New(":8100", "", "",
 		newTestHandler("/services/service1", func(w http.ResponseWriter, req *http.Request) {
 			payload, err := ioutil.ReadAll(req.Body)
 			if err != nil {

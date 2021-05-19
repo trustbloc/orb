@@ -7,22 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
-	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
 type authorizeActorFunc func(actorIRI *url.URL) (bool, error)
 
 type authHandler struct {
 	*Config
+	tokenVerifier *auth.TokenVerifier
 
 	endpoint       string
-	authTokens     []string
 	verifier       signatureVerifier
 	activityStore  store.Store
 	authorizeActor authorizeActorFunc
@@ -33,16 +32,10 @@ func newAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 	authorizeActor authorizeActorFunc) *authHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
-	authTokens, err := resolveAuthTokens(ep, method, cfg.AuthTokensDef, cfg.AuthTokens)
-	if err != nil {
-		// This would occur on startup due to bad configuration, so it's better to panic.
-		panic(fmt.Errorf("resolve authorization tokens: %w", err))
-	}
-
 	return &authHandler{
 		Config:         cfg,
+		tokenVerifier:  auth.NewTokenVerifier(cfg.Config, ep, method),
 		endpoint:       ep,
-		authTokens:     authTokens,
 		verifier:       verifier,
 		activityStore:  s,
 		authorizeActor: authorizeActor,
@@ -63,7 +56,7 @@ func newAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 }
 
 func (h *authHandler) authorize(req *http.Request) (bool, *url.URL, error) {
-	if h.authorizeWithBearerToken(req) {
+	if h.tokenVerifier.Verify(req) {
 		logger.Debugf("[%s] Authorization succeeded using bearer token", h.endpoint)
 
 		// The bearer of the token is assumed to be this service. If it isn't then validation
@@ -97,85 +90,4 @@ func (h *authHandler) authorize(req *http.Request) (bool, *url.URL, error) {
 	}
 
 	return ok, actorIRI, nil
-}
-
-func (h *authHandler) authorizeWithBearerToken(req *http.Request) bool {
-	// Open access.
-	if len(h.authTokens) == 0 {
-		logger.Debugf("[%s] No auth token required.", h.endpoint)
-
-		return true
-	}
-
-	logger.Debugf("[%s] Auth tokens required: %s", h.endpoint, h.authTokens)
-
-	actHdr := req.Header.Get(authHeader)
-	if actHdr == "" {
-		logger.Debugf("[%s] Bearer token not found in header", h.endpoint)
-
-		return false
-	}
-
-	// Compare the header against all tokens. If any match then we allow the request.
-	for _, token := range h.authTokens {
-		logger.Debugf("[%s] Checking token %s", h.endpoint, token)
-
-		if subtle.ConstantTimeCompare([]byte(actHdr), []byte(tokenPrefix+token)) == 1 {
-			logger.Debugf("[%s] Found token %s", h.endpoint, token)
-
-			return true
-		}
-	}
-
-	return false
-}
-
-func resolveAuthTokens(endpoint, method string, authTokensDef []*AuthTokenDef,
-	authTokenMap map[string]string) ([]string, error) {
-	var authTokens []string
-
-	for _, def := range authTokensDef {
-		ok, err := endpointMatches(endpoint, def.EndpointExpression)
-		if err != nil {
-			return nil, err
-		}
-
-		if !ok {
-			continue
-		}
-
-		var tokens []string
-
-		if method == http.MethodPost {
-			tokens = def.WriteTokens
-		} else {
-			tokens = def.ReadTokens
-		}
-
-		for _, tokenID := range tokens {
-			token, ok := authTokenMap[tokenID]
-			if !ok {
-				return nil, fmt.Errorf("token not found: %s", tokenID)
-			}
-
-			authTokens = append(authTokens, token)
-		}
-
-		break
-	}
-
-	logger.Debugf("[%s] Authorization tokens: %s", endpoint, authTokens)
-
-	return authTokens, nil
-}
-
-func endpointMatches(endpoint, pattern string) (bool, error) {
-	ok, err := regexp.MatchString(pattern, endpoint)
-	if err != nil {
-		return false, fmt.Errorf("match endpoint pattern %s: %w", pattern, err)
-	}
-
-	logger.Debugf("[%s] Endpoint matches pattern [%s]: %t", endpoint, pattern, ok)
-
-	return ok, nil
 }

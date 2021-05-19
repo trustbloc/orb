@@ -204,7 +204,7 @@ func TestService_Follow(t *testing.T) {
 	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
 	defer stop1()
 
-	httpServer2 := httpserver.New(":8302", "", "", "", service2.InboxHTTPHandler())
+	httpServer2 := httpserver.New(":8302", "", "", service2.InboxHTTPHandler())
 
 	defer func() {
 		require.NoError(t, httpServer2.Stop(context.Background()))
@@ -1070,7 +1070,7 @@ func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
 	t.Helper()
 
-	httpServer := httpserver.New(listenAddress, "", "", "", handlers...)
+	httpServer := httpserver.New(listenAddress, "", "", handlers...)
 
 	require.NoError(t, httpServer.Start())
 

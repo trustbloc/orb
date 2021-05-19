@@ -335,7 +335,7 @@ func (e *Steps) updateDID() error {
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
 		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--add-publickey-file", "fixtures/did-keys/update/publickeys.json",
-		"--sidetree-write-token", "rw_token", "--signingkey-file", "./fixtures/keys/update/key_encrypted.pem",
+		"--sidetree-write-token", "ADMIN_TOKEN", "--signingkey-file", "./fixtures/keys/update/key_encrypted.pem",
 		"--signingkey-password", "123", "--nextupdatekey-file", "./fixtures/keys/update2/public.pem",
 		"--add-service-file", "fixtures/did-services/update/services.json")
 
@@ -360,7 +360,7 @@ func (e *Steps) recoverDID() error {
 		"--did-anchor-origin", "https://orb.domain2.com/services/orb",
 		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
 		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
-		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "rw_token",
+		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "ADMIN_TOKEN",
 		"--service-file", "fixtures/did-services/recover/services.json",
 		"--nextrecoverkey-file", "./fixtures/keys/recover2/public.pem", "--nextupdatekey-file",
 		"./fixtures/keys/update3/public.pem", "--signingkey-file", "./fixtures/keys/recover/key_encrypted.pem")
@@ -383,7 +383,7 @@ func (e *Steps) deactivateDID() error {
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
 		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
-		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem", "--sidetree-write-token", "rw_token",
+		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem", "--sidetree-write-token", "ADMIN_TOKEN",
 		"--signingkey-file", "./fixtures/keys/recover2/key_encrypted.pem")
 
 	value, err := execCMD(args...)
@@ -403,7 +403,7 @@ func (e *Steps) createDID() error {
 	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain2.com/services/orb",
 		"--sidetree-url", "https://localhost:48326/sidetree/v1/operations", "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/create/publickeys.json",
-		"--sidetree-write-token", "rw_token", "--service-file", "fixtures/did-services/create/services.json",
+		"--sidetree-write-token", "ADMIN_TOKEN", "--service-file", "fixtures/did-services/create/services.json",
 		"--recoverykey-file", "./fixtures/keys/recover/public.pem", "--updatekey-file", "./fixtures/keys/update/public.pem")
 
 	value, err := execCMD(args...)

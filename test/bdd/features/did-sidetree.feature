@@ -32,6 +32,9 @@ Feature:
 
   @create_valid_did_doc
   Scenario: create valid did doc
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
@@ -62,6 +65,9 @@ Feature:
 
   @create_deactivate_did_doc
   Scenario: deactivate valid did doc
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
@@ -79,6 +85,9 @@ Feature:
 
   @create_recover_did_doc
   Scenario: recover did doc
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
@@ -100,6 +109,9 @@ Feature:
 
     @create_add_remove_public_key
     Scenario: add and remove public keys
+      Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+      And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
       When client discover orb endpoints
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#interimDID"
@@ -128,6 +140,9 @@ Feature:
 
     @create_add_remove_services
     Scenario: add and remove service endpoints
+      Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+      And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
       When client discover orb endpoints
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#interimDID"
@@ -149,3 +164,12 @@ Feature:
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"
+
+  @did_sidetree_auth
+  Scenario: Sidetree endpoint authorization
+    Given client discover orb endpoints
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check error response contains "Unauthorized"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/EiAYGECupFQNyJsFXQiTIAkGIoxC4qKpXFWeRHjWVkah2A" and the returned status code is 401

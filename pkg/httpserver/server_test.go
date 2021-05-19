@@ -31,7 +31,6 @@ func TestServer_Start(t *testing.T) {
 	s := New(url,
 		"",
 		"",
-		"tk1",
 		&mockUpdateHandler{},
 		&mockResolveHandler{},
 	)
@@ -41,23 +40,14 @@ func TestServer_Start(t *testing.T) {
 	// Wait for the service to start
 	time.Sleep(time.Second)
 
-	authorizationHdr := "Bearer " + "tk1"
-
-	t.Run("error - unauthorized token ", func(t *testing.T) {
-		resp, err := httpPut(t, clientURL+samplePath, "wrongToken", []byte(""))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Unauthorised")
-		require.Nil(t, resp)
-	})
-
 	t.Run("success - sample operation ", func(t *testing.T) {
-		resp, err := httpPut(t, clientURL+samplePath, authorizationHdr, []byte(""))
+		resp, err := httpPut(t, clientURL+samplePath, []byte(""))
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	})
 
 	t.Run("success - sample resolution", func(t *testing.T) {
-		resp, err := httpGet(t, clientURL+samplePath+"/id", authorizationHdr)
+		resp, err := httpGet(t, clientURL+samplePath+"/id")
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 	})
@@ -77,7 +67,7 @@ func TestServer_Start(t *testing.T) {
 
 // httpPut sends a regular POST request to the sidetree-node
 // - If post request has operation "create" then return sidetree document else no response.
-func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, error) {
+func httpPut(t *testing.T, url string, req []byte) ([]byte, error) {
 	t.Helper()
 
 	client := &http.Client{}
@@ -86,10 +76,6 @@ func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, er
 	require.NoError(t, err)
 
 	httpReq.Header.Set("Content-Type", "application/json")
-
-	if authorizationHdr != "" {
-		httpReq.Header.Add("Authorization", authorizationHdr)
-	}
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {
@@ -102,17 +88,13 @@ func httpPut(t *testing.T, url, authorizationHdr string, req []byte) ([]byte, er
 }
 
 // httpGet send a regular GET request to the sidetree-node and expects 'side tree document' argument as a response.
-func httpGet(t *testing.T, url, authorizationHdr string) ([]byte, error) {
+func httpGet(t *testing.T, url string) ([]byte, error) {
 	t.Helper()
 
 	client := &http.Client{}
 
 	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
 	require.NoError(t, err)
-
-	if authorizationHdr != "" {
-		httpReq.Header.Add("Authorization", authorizationHdr)
-	}
 
 	resp, err := invokeWithRetry(
 		func() (response *http.Response, e error) {

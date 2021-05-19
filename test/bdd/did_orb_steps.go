@@ -223,7 +223,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 	d.updateKey = updateKey
 
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, reqBytes, "application/json")
-	if err == nil {
+	if err == nil && d.resp.StatusCode == http.StatusOK {
 		var req model.CreateRequest
 		e := json.Unmarshal(reqBytes, &req)
 		if e != nil {

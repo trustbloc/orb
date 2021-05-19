@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
 func TestNewAuthHandler(t *testing.T) {
@@ -29,21 +30,23 @@ func TestNewAuthHandler(t *testing.T) {
 		BasePath:               basePath,
 		ObjectIRI:              serviceIRI,
 		VerifyActorInSignature: true,
-		AuthTokensDef: []*AuthTokenDef{
-			{
-				EndpointExpression: "/services/orb/outbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+		Config: auth.Config{
+			AuthTokensDef: []*auth.TokenDef{
+				{
+					EndpointExpression: "/services/orb/outbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
+				{
+					EndpointExpression: "/services/orb/inbox",
+					ReadTokens:         []string{"admin", "read"},
+					WriteTokens:        []string{"admin"},
+				},
 			},
-			{
-				EndpointExpression: "/services/orb/inbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
+			AuthTokens: map[string]string{
+				"read":  "READ_TOKEN",
+				"admin": "ADMIN_TOKEN",
 			},
-		},
-		AuthTokens: map[string]string{
-			"read":  "READ_TOKEN",
-			"admin": "ADMIN_TOKEN",
 		},
 	}
 
@@ -146,10 +149,12 @@ func TestNewAuthHandler(t *testing.T) {
 				&Config{
 					BasePath:  basePath,
 					ObjectIRI: serviceIRI,
-					AuthTokensDef: []*AuthTokenDef{
-						{
-							EndpointExpression: "/services/orb/inbox",
-							ReadTokens:         []string{"admin", "read"},
+					Config: auth.Config{
+						AuthTokensDef: []*auth.TokenDef{
+							{
+								EndpointExpression: "/services/orb/inbox",
+								ReadTokens:         []string{"admin", "read"},
+							},
 						},
 					},
 				},

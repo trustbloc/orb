@@ -45,8 +45,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/orb/pkg/activitypub/client"
-	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -55,7 +53,9 @@ import (
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
@@ -83,6 +83,7 @@ import (
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/resolver/document"
@@ -545,21 +546,24 @@ func startOrbServices(parameters *orbParameters) error {
 		dochandler.WithLabel("interim"),
 	)
 
+	authCfg := auth.Config{
+		AuthTokensDef: parameters.authTokenDefinitions,
+		AuthTokens:    parameters.authTokens,
+	}
+
 	apEndpointCfg := &aphandler.Config{
+		Config:                 authCfg,
 		BasePath:               activityPubServicesPath,
 		ObjectIRI:              apServiceIRI,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 		PageSize:               100, // TODO: Make configurable
-		AuthTokensDef:          parameters.authTokenDefinitions,
-		AuthTokens:             parameters.authTokens,
 	}
 
 	apTxnEndpointCfg := &aphandler.Config{
-		BasePath:      activityPubTransactionsPath,
-		ObjectIRI:     apTransactionsIRI,
-		PageSize:      100, // TODO: Make configurable
-		AuthTokensDef: parameters.authTokenDefinitions,
-		AuthTokens:    parameters.authTokens,
+		Config:    authCfg,
+		BasePath:  activityPubTransactionsPath,
+		ObjectIRI: apTransactionsIRI,
+		PageSize:  100, // TODO: Make configurable
 	}
 
 	orbResolver := document.NewResolveHandler(
@@ -586,8 +590,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 
-	handlers = append(handlers, diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc),
-		diddochandler.NewResolveHandler(baseResolvePath, orbResolver),
+	handlers = append(handlers,
+		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc)),
+		auth.NewHandlerWrapper(authCfg, diddochandler.NewResolveHandler(baseResolvePath, orbResolver)),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
 		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),
@@ -612,7 +617,6 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.hostURL,
 		parameters.tlsCertificate,
 		parameters.tlsKey,
-		parameters.token,
 		handlers...,
 	)
 
