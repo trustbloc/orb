@@ -76,7 +76,7 @@ const sampleData = `{
   }]                  
 }`
 
-const sampleDataCID = "QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ"
+const sampleDataCID = "bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne"
 
 func TestNew(t *testing.T) {
 	createNewResolver(t, createInMemoryCAS(t), createInMemoryCAS(t))
@@ -216,7 +216,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, false)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -246,7 +246,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, false)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -263,7 +263,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, false)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -277,7 +277,7 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("CID doesn't match the provided data", func(t *testing.T) {
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-		cid := "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
+		cid := "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy" // Not a match
 
 		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", cid))
 		require.NoError(t, err)
@@ -285,7 +285,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, err := resolver.Resolve(id, cid, []byte(sampleData))
 		require.EqualError(t, err, "failure while storing the data in the local CAS: "+
 			"successfully stored data into the local CAS, but the CID produced by the local CAS "+
-			"(QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ) does not match the CID from the original request "+
+			"(bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne) does not match the CID from the original request "+
 			"(bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy)")
 		require.Nil(t, data)
 	})
@@ -313,7 +313,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
 			"WebCAS endpoint: failed to retrieve data from")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ was found: content not found")
+			"no content at bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne was found: content not found")
 		require.Nil(t, data)
 	})
 	t.Run("Fail to write to local CAS", func(t *testing.T) {
@@ -339,7 +339,7 @@ func TestResolver_Resolve(t *testing.T) {
 				ErrGet: ariesstorage.ErrDataNotFound,
 				ErrPut: errors.New("put error"),
 			},
-		})
+		}, false)
 		require.NoError(t, err)
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
@@ -361,7 +361,7 @@ func TestResolver_Resolve(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrGet: errors.New("get error"),
 			},
-		})
+		}, false)
 		require.NoError(t, err)
 
 		resolver := createNewResolver(t, casClient, nil)
@@ -371,7 +371,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		data, err := resolver.Resolve(id, sampleDataCID, nil)
 		require.EqualError(t, err, "failed to get data stored at "+
-			"QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ from the local CAS: "+
+			"bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne from the local CAS: "+
 			"failed to get content from the underlying storage provider: get error")
 		require.Nil(t, data)
 	})
@@ -403,7 +403,7 @@ func createNewResolver(t *testing.T, casClient casapi.Client, ipfsReader ipfsRea
 func createInMemoryCAS(t *testing.T) casapi.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), false)
 	require.NoError(t, err)
 
 	return casClient

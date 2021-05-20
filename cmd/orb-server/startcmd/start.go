@@ -286,12 +286,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	switch parameters.casType {
 	case "ipfs":
-		coreCasClient = ipfscas.New(parameters.ipfsURL)
+		coreCasClient = ipfscas.New(parameters.ipfsURL, parameters.useV0CIDs)
 		anchorCasWriter = orbcaswriter.New(coreCasClient, "ipfs")
 	case "local":
 		var err error
 
-		coreCasClient, err = casstore.New(storeProviders.provider)
+		coreCasClient, err = casstore.New(storeProviders.provider, parameters.useV0CIDs)
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var ipfsReader *ipfscas.Client
 	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL)
+		ipfsReader = ipfscas.New(parameters.ipfsURL, false)
 	}
 
 	casResolver := resolver.New(coreCasClient, ipfsReader, httpClient)

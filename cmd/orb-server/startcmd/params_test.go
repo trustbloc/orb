@@ -423,6 +423,34 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	})
 }
 
+func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
+	startCmd := GetStartCmd()
+
+	args := []string{
+		"--" + hostURLFlagName, "localhost:8247",
+		"--" + externalEndpointFlagName, "orb.example.com",
+		"--" + ipfsURLFlagName, "localhost:8081",
+		"--" + casTypeFlagName, "ipfs",
+		"--" + vctURLFlagName, "localhost:8081",
+		"--" + cidVersionFlagName, "-1",
+		"--" + batchWriterTimeoutFlagName, "700",
+		"--" + maxWitnessDelayFlagName, "600",
+		"--" + signWithLocalWitnessFlagName, "false",
+		"--" + startupDelayFlagName, "1",
+		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+		"--" + anchorCredentialDomainFlagName, "domain.com",
+		"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		"--" + anchorCredentialURLFlagName, "peer.com",
+		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+	}
+	startCmd.SetArgs(args)
+
+	err := startCmd.Execute()
+	require.EqualError(t, err, "invalid CID version specified. Must be either 0 or 1")
+}
+
 func TestStartCmdCreateKMSFailure(t *testing.T) {
 	t.Run("KMS fails (DB)", func(t *testing.T) {
 		startCmd := GetStartCmd()
@@ -521,6 +549,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
+		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",

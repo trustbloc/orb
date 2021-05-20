@@ -20,6 +20,8 @@ require (
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
+	github.com/ipfs/go-merkledag v0.2.3
+	github.com/ipfs/go-unixfs v0.2.6
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/ory/dockertest/v3 v3.6.3

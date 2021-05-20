@@ -99,7 +99,7 @@ func TestCasClientWrapper_Read(t *testing.T) {
 			`from the remote WebCAS endpoint: failed to execute GET call on `+
 			`https://orb.domain1.com/cas/QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ: `+
 			`Get "https://orb.domain1.com/cas/QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ": `+
-			`dial tcp: lookup orb.domain1.com:`)
+			`dial tcp:`)
 		require.Nil(t, data)
 	})
 }
@@ -116,7 +116,7 @@ func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resol
 func createInMemoryCAS(t *testing.T) casapi.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), false)
 	require.NoError(t, err)
 
 	return casClient

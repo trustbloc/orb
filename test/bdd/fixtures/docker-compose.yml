@@ -29,6 +29,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - CID_VERSION=${CID_VERSION}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
@@ -98,6 +99,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - CID_VERSION=${CID_VERSION}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
@@ -166,6 +168,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - CID_VERSION=${CID_VERSION}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
@@ -233,6 +236,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - CID_VERSION=${CID_VERSION}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018

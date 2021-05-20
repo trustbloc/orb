@@ -11,7 +11,9 @@ import (
 	"fmt"
 
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/ipfs/go-cid"
+	gocid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-merkledag"
+	"github.com/ipfs/go-unixfs"
 	mh "github.com/multiformats/go-multihash"
 )
 
@@ -19,41 +21,55 @@ import (
 var ErrContentNotFound = errors.New("content not found")
 
 // CAS represents a content-addressable storage provider.
+// TODO (#344) Support writing and reading both v0 and v1 CIDs.
 type CAS struct {
-	cas ariesstorage.Store
+	cas       ariesstorage.Store
+	useV0CIDs bool
 }
 
 // New returns a new CAS that uses the passed in provider as a backing store.
-func New(provider ariesstorage.Provider) (*CAS, error) {
+func New(provider ariesstorage.Provider, useV0CIDs bool) (*CAS, error) {
 	cas, err := provider.OpenStore("cas_store")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
 	}
 
-	return &CAS{cas: cas}, nil
+	return &CAS{cas: cas, useV0CIDs: useV0CIDs}, nil
 }
 
 // Write writes the given content to the underlying storage provider.
 // Returns the address of the content.
+// TODO (#418): Support creating IPFS-compatible CIDs when content is > 256KB.
 func (p *CAS) Write(content []byte) (string, error) {
-	// TODO #318 figure out why the CIDs produced here differ from the ones that IPFS generates.
-	prefix := cid.Prefix{
-		Version:  0,
-		MhType:   mh.SHA2_256,
-		MhLength: -1, // default length
+	var cid string
+	if p.useV0CIDs {
+		// The v0 CID produced below is equal to what an IPFS node would produce, assuming that:
+		// 1. The IPFS node is running with default settings, and
+		// 2. The size of the content passed in here is less than 256KB (the default chunk size).
+		// Two levels of wrapping are needed. First, the raw data is wrapped as a protobuf UnixFS file, then that needs
+		// to be further wrapped as a protobuf DAG node.
+		cid = merkledag.NodeWithData(unixfs.FilePBData(content, uint64(len(content)))).Cid().String()
+	} else {
+		prefix := gocid.Prefix{
+			Version:  1,
+			Codec:    gocid.Raw,
+			MhType:   mh.SHA2_256,
+			MhLength: -1, // default length
+		}
+
+		contentID, err := prefix.Sum(content)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate CID: %w", err)
+		}
+
+		cid = contentID.String()
 	}
 
-	contentID, err := prefix.Sum(content)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate CID: %w", err)
-	}
-
-	err = p.cas.Put(contentID.String(), content)
-	if err != nil {
+	if err := p.cas.Put(cid, content); err != nil {
 		return "", fmt.Errorf("failed to put content into underlying storage provider: %w", err)
 	}
 
-	return contentID.String(), nil
+	return cid, nil
 }
 
 // Read reads the content of the given address from the underlying storage provider.
