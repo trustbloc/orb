@@ -1,7 +1,7 @@
 [
  {
  "id": "key2",
- "type": "JwsVerificationKey2020",
+ "type": "JsonWebKey2020",
  "purposes": ["capabilityInvocation"],
  "jwkPath": "./fixtures/did-keys/update/key2_jwk.json"
  },
