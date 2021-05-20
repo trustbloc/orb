@@ -182,4 +182,10 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check error response contains "Unauthorized"
 
-    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/EiAYGECupFQNyJsFXQiTIAkGIoxC4qKpXFWeRHjWVkah2A" and the returned status code is 401
+    # Unauthorized
+    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/did:orb:QmSvg9rNRDGADLoTsNVt56vCuyYxuf1uernuAWoPcm5oiS:EiDahnXxu4l4iSUXgZKW6nUnSF7_y6QIaY4ePuWEE4bz0Q" and the returned status code is 401
+    When an HTTP GET is sent to "https://orb.domain1.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y" and the returned status code is 401
+
+    # Domain3 is open for reads
+    When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:orb:QmSvg9rNRDGADLoTsNVt56vCuyYxuf1uernuAWoPcm5oiS:EiDahnXxu4l4iSUXgZKW6nUnSF7_y6QIaY4ePuWEE4bz0Q" and the returned status code is 404
+    When an HTTP GET is sent to "https://orb.domain3.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y" and the returned status code is 404

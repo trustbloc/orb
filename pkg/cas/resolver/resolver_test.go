@@ -22,8 +22,13 @@ import (
 	"github.com/stretchr/testify/require"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -125,7 +130,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, cid)
 
-			webCAS := webcas.New(casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -156,7 +161,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, cid)
 
-		webCAS := webcas.New(casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -195,7 +200,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NotEmpty(t, cid)
 
 		// remote server doesn't have cid (clean CAS)
-		webCAS := webcas.New(createInMemoryCAS(t))
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -305,7 +310,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Nil(t, data)
 	})
 	t.Run("Neither local nor remote CAS has the data", func(t *testing.T) {
-		webCAS := webcas.New(createInMemoryCAS(t))
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -338,7 +343,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, cid)
 
-		webCAS := webcas.New(casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -436,7 +441,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, cid)
 
-			webCAS := webcas.New(casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -473,7 +478,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, cid)
 
-			webCAS := webcas.New(casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -509,7 +514,7 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, cid)
 
-			webCAS := webcas.New(casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -550,7 +555,9 @@ func TestResolver_Resolve(t *testing.T) {
 func createNewResolver(t *testing.T, casClient casapi.Client, ipfsReader ipfsReader) *Resolver {
 	t.Helper()
 
-	casResolver := New(casClient, ipfsReader, http.DefaultClient)
+	casResolver := New(casClient, ipfsReader,
+		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()))
 	require.NotNil(t, casResolver)
 
 	return casResolver

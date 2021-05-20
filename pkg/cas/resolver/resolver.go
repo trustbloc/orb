@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resolver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
@@ -27,7 +29,7 @@ const cidWithPossibleHintNumPartsWithDomainPort = 4
 var logger = log.New("cas-resolver")
 
 type httpClient interface {
-	Get(url string) (*http.Response, error)
+	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
 // Resolver represents a resolver that can resolve data in a CAS based on a CID and WebCAS URL.
@@ -162,7 +164,8 @@ func (h *Resolver) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte
 }
 
 func (h *Resolver) getAndStoreDataFromRemote(webCASEndpoint *url.URL, cid string) ([]byte, error) {
-	resp, err := h.httpClient.Get(webCASEndpoint.String())
+	resp, err := h.httpClient.Get(context.Background(), transport.NewRequest(webCASEndpoint,
+		transport.WithHeader(transport.AcceptHeader, transport.LDPlusJSONContentType)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GET call on %s: %w", webCASEndpoint.String(), err)
 	}
@@ -230,10 +233,16 @@ func (h *Resolver) storeLocallyAndVerifyCID(data []byte, cidFromOriginalRequest 
 }
 
 func (h *Resolver) getWebCASURLViaWebFinger(domain, cid string) (*url.URL, error) {
-	webFingerURL := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=%s://%s/cas/%s",
+	u := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=%s://%s/cas/%s",
 		h.webFingerURIScheme, domain, h.webFingerURIScheme, domain, cid)
 
-	resp, err := h.httpClient.Get(webFingerURL)
+	webFingerURL, err := url.Parse(u)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL [%s]: %w", u, err)
+	}
+
+	resp, err := h.httpClient.Get(context.Background(), transport.NewRequest(webFingerURL,
+		transport.WithHeader(transport.AcceptHeader, transport.LDPlusJSONContentType)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response (URL: %s): %w", webFingerURL, err)
 	}

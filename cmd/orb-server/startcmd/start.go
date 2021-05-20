@@ -323,12 +323,25 @@ func startOrbServices(parameters *orbParameters) error {
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New()}),
 	)
 
+	if parameters.keyID == "" {
+		if err = createKID(km, parameters, configStore); err != nil {
+			return fmt.Errorf("create kid: %w", err)
+		}
+	}
+
+	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint,
+		fmt.Sprintf("%s/keys/%s", activityPubServicesPath, aphandler.MainKeyID))
+
+	apGetSigner, apPostSigner := getActivityPubSigners(parameters, km, cr)
+
+	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
+
 	var ipfsReader *ipfscas.Client
 	if parameters.ipfsURL != "" {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, false)
 	}
 
-	casResolver := resolver.New(coreCasClient, ipfsReader, httpClient)
+	casResolver := resolver.New(coreCasClient, ipfsReader, t)
 
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,
@@ -348,12 +361,6 @@ func startOrbServices(parameters *orbParameters) error {
 	pc, err := pcp.ForNamespace(parameters.didNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", parameters.didNamespace, err.Error())
-	}
-
-	if parameters.keyID == "" {
-		if err = createKID(km, parameters, configStore); err != nil {
-			return fmt.Errorf("create kid: %w", err)
-		}
 	}
 
 	u, err := url.Parse(parameters.externalEndpoint)
@@ -413,9 +420,6 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
 
-	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint,
-		fmt.Sprintf("%s/keys/%s", activityPubServicesPath, aphandler.MainKeyID))
-
 	apTransactionsIRI := mustParseURL(parameters.externalEndpoint, activityPubTransactionsPath)
 
 	apConfig := &apservice.Config{
@@ -452,10 +456,6 @@ func startOrbServices(parameters *orbParameters) error {
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
-
-	apGetSigner, apPostSigner := getActivityPubSigners(parameters, km, cr)
-
-	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
 
@@ -611,7 +611,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewShares(apTxnEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
-		webcas.New(coreCasClient),
+		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
 	)
 
 	handlers = append(handlers,

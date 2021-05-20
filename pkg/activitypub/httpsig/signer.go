@@ -73,9 +73,9 @@ func NewSigner(cfg SignerConfig, cr crypto.Crypto, km kms.KeyManager, keyID stri
 
 // SignRequest signs an HTTP request.
 func (s *Signer) SignRequest(pubKeyID string, req *http.Request) error {
-	logger.Debugf("Signing request for %s. Public key ID [%s]", req.RequestURI, pubKeyID)
-
 	req.Header.Add(dateHeader, date())
+
+	logger.Debugf("Signing request for %s. Public key ID [%s]. Headers: %s", req.RequestURI, pubKeyID, req.Header)
 
 	if err := s.signer().Sign(pubKeyID, req); err != nil {
 		return fmt.Errorf("sign request with public key ID [%s]: %w", pubKeyID, err)

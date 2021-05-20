@@ -20,9 +20,14 @@ import (
 var logger = log.New("activitypub_client")
 
 const (
-	contentTypeHeader          = "Content-Type"
-	acceptHeader               = "Accept"
-	activityStreamsContentType = `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`
+	// AcceptHeader specifies the content type that the client is expecting.
+	AcceptHeader = "Accept"
+
+	// LDPlusJSONContentType specifies the linked data plus JSON content type.
+	LDPlusJSONContentType = `application/ld+json`
+
+	// ActivityStreamsContentType is the content type used for activity streams messages.
+	ActivityStreamsContentType = `application/ld+json; profile="https://www.w3.org/ns/activitystreams"`
 )
 
 // Signer signs an HTTP request and adds the signature to the header of the request.
@@ -58,11 +63,33 @@ type Request struct {
 	Header http.Header
 }
 
+type options struct {
+	header http.Header
+}
+
+// Option defines a transport option.
+type Option func(options *options)
+
+// WithHeader specifies a header in the HTTP request.
+func WithHeader(name string, values ...string) Option {
+	return func(options *options) {
+		options.header[name] = values
+	}
+}
+
 // NewRequest returns a new request.
-func NewRequest(toURL *url.URL) *Request {
+func NewRequest(toURL *url.URL, opts ...Option) *Request {
+	options := &options{
+		header: make(http.Header),
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	return &Request{
 		URL:    toURL,
-		Header: make(http.Header),
+		Header: options.header,
 	}
 }
 
@@ -89,8 +116,6 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 		return nil, fmt.Errorf("new request to %s: %w", r.URL, err)
 	}
 
-	req.Header.Set(contentTypeHeader, activityStreamsContentType)
-
 	for k, v := range r.Header {
 		req.Header[k] = v
 	}
@@ -112,18 +137,18 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 		return nil, fmt.Errorf("get from %s: %w", r.URL, err)
 	}
 
-	req.Header.Set(acceptHeader, activityStreamsContentType)
-
 	for k, v := range r.Header {
 		req.Header[k] = v
 	}
 
-	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
+	logger.Debugf("Signing HTTP GET to %s. Headers: %s", r.URL, req.Header)
 
 	err = t.getSigner.SignRequest(t.publicKeyID.String(), req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
+
+	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
 
 	return t.client.Do(req)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -79,9 +80,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	casClient := mocks.NewMockCasClient(nil)
 
 	graphProviders := &graph.Providers{
-		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-		Pkf:         pubKeyFetcherFnc,
+		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+			testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()),
+		),
+		Pkf: pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -482,9 +486,12 @@ func TestWriter_handle(t *testing.T) {
 	casClient := mocks.NewMockCasClient(nil)
 
 	graphProviders := &graph.Providers{
-		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-		Pkf:         pubKeyFetcherFnc,
+		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+			testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()),
+		),
+		Pkf: pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -941,9 +948,12 @@ func TestWriter_Read(t *testing.T) {
 	casClient := mocks.NewMockCasClient(nil)
 
 	graphProviders := &graph.Providers{
-		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-		Pkf:         pubKeyFetcherFnc,
+		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+			testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()),
+		),
+		Pkf: pubKeyFetcherFnc,
 	}
 
 	providers := &Providers{

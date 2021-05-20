@@ -18,8 +18,10 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/config"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
@@ -93,7 +95,10 @@ func TestCasClientWrapper_Read(t *testing.T) {
 func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resolver {
 	t.Helper()
 
-	casResolver := casresolver.New(casClient, nil, &http.Client{})
+	casResolver := casresolver.New(casClient, nil, transport.New(&http.Client{},
+		testutil.MustParseURL("https://example.com/keys/public-key"),
+		transport.DefaultSigner(), transport.DefaultSigner()),
+	)
 	require.NotNil(t, casResolver)
 
 	return casResolver

@@ -93,7 +93,7 @@ func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 }
 
 func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
-	ok, _, err := h.authorize(req)
+	ok, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
@@ -293,7 +293,7 @@ type Activity struct {
 }
 
 func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
-	authorized, _, err := h.authorize(req)
+	authorized, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
@@ -376,7 +376,7 @@ type ReadOutbox struct {
 }
 
 func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
-	ok, _, err := h.authorize(req)
+	ok, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 
