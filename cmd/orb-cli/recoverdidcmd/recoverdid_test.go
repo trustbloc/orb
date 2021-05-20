@@ -28,7 +28,7 @@ const (
  },
  {
   "id": "key2",
-  "type": "JwsVerificationKey2020",
+  "type": "JsonWebKey2020",
   "purposes": ["authentication"],
   "jwkPath": "%s"
  }
