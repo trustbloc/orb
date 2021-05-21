@@ -556,7 +556,7 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 	for _, w := range batchWitnesses {
 		witnesses = append(witnesses,
 			&proof.WitnessProof{
-				Type:    proof.TypeBatch,
+				Type:    proof.WitnessTypeBatch,
 				Witness: w.String(),
 			})
 	}
@@ -570,7 +570,7 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 		if !containsURI(batchWitnesses, systemWitnessURI) {
 			witnesses = append(witnesses,
 				&proof.WitnessProof{
-					Type:    proof.TypeSystem,
+					Type:    proof.WitnessTypeSystem,
 					Witness: systemWitnessURI.String(),
 				})
 		}
