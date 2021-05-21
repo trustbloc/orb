@@ -13,10 +13,10 @@ require (
 	github.com/go-kivik/kivik/v3 v3.2.3
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210514172045-dfb48754097a
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210521144932-511057532375
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210422133815-2ef2d99cb692
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210422144621-1355c6f90b44
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210520055214-ae429bb89bf7
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210520055214-ae429bb89bf7
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
