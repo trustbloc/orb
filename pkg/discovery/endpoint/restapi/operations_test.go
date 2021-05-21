@@ -26,14 +26,20 @@ const (
 )
 
 func TestGetRESTHandlers(t *testing.T) {
-	t.Run("Error", func(t *testing.T) {
+	t.Run("Error - invalid base URL", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{BaseURL: "://"})
 		require.EqualError(t, err, "parse base URL: parse \"://\": missing protocol scheme")
 		require.Nil(t, c)
 	})
 
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Error - empty WebCAS path", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com"})
+		require.EqualError(t, err, "webCAS path cannot be empty")
+		require.Nil(t, c)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com", WebCASPath: "/cas"})
 		require.NoError(t, err)
 		require.Equal(t, 3, len(c.GetRESTHandlers()))
 	})
@@ -44,6 +50,7 @@ func TestWebFinger(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:  "/op",
 			ResolutionPath: "/resolve",
+			WebCASPath:     "/cas",
 			BaseURL:        "http://base",
 		})
 
@@ -61,22 +68,7 @@ func TestWebFinger(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:  "/op",
 			ResolutionPath: "/resolve",
-			BaseURL:        "http://base",
-		})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, webFingerEndpoint)
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, webFingerEndpoint+"?resource=wrong", nil, nil)
-
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), "resource wrong not found")
-	})
-
-	t.Run("test resource not found", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{
-			OperationPath:  "/op",
-			ResolutionPath: "/resolve",
+			WebCASPath:     "/cas",
 			BaseURL:        "http://base",
 		})
 		require.NoError(t, err)
@@ -93,6 +85,7 @@ func TestWebFinger(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
+			WebCASPath:                "/cas",
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
@@ -117,6 +110,7 @@ func TestWebFinger(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
+			WebCASPath:                "/cas",
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
@@ -136,11 +130,43 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, w.Links[1].Href, "http://domain1/op")
 		require.Empty(t, w.Properties)
 	})
+	t.Run("test WebCAS resource", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{
+			OperationPath:             "/op",
+			ResolutionPath:            "/resolve",
+			WebCASPath:                "/cas",
+			BaseURL:                   "http://base",
+			DiscoveryDomains:          []string{"http://domain1"},
+			DiscoveryMinimumResolvers: 2,
+		})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, webFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, webFingerEndpoint+
+			"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+			nil, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var w restapi.WebFingerResponse
+
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+		require.Len(t, w.Links, 3)
+		require.Equal(t, w.Links[0].Href,
+			"http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
+		require.Equal(t, w.Links[1].Href,
+			"http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
+		require.Equal(t, w.Links[2].Href,
+			"http://domain1/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
+		require.Empty(t, w.Properties)
+	})
 }
 
 func TestWellKnownDID(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
-		BaseURL: "https://example.com",
+		BaseURL:    "https://example.com",
+		WebCASPath: "/cas",
 	})
 	require.NoError(t, err)
 
@@ -161,6 +187,7 @@ func TestWellKnown(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
 		OperationPath:  "/op",
 		ResolutionPath: "/resolve",
+		WebCASPath:     "/cas",
 		BaseURL:        "http://base",
 	})
 	require.NoError(t, err)

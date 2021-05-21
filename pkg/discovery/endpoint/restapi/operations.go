@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/mr-tron/base58"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -37,6 +38,11 @@ func New(c *Config) (*Operation, error) {
 		return nil, fmt.Errorf("parse base URL: %w", err)
 	}
 
+	// If the WebCAS path is empty, it'll cause certain WebFinger queries to be matched incorrectly
+	if c.WebCASPath == "" {
+		return nil, fmt.Errorf("webCAS path cannot be empty")
+	}
+
 	return &Operation{
 		pubKey:                    c.PubKey,
 		kid:                       c.KID,
@@ -44,6 +50,7 @@ func New(c *Config) (*Operation, error) {
 		verificationMethodType:    c.VerificationMethodType,
 		resolutionPath:            c.ResolutionPath,
 		operationPath:             c.OperationPath,
+		webCASPath:                c.WebCASPath,
 		baseURL:                   c.BaseURL,
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
@@ -58,6 +65,7 @@ type Operation struct {
 	verificationMethodType    string
 	resolutionPath            string
 	operationPath             string
+	webCASPath                string
 	baseURL                   string
 	discoveryDomains          []string
 	discoveryMinimumResolvers int
@@ -70,6 +78,7 @@ type Config struct {
 	VerificationMethodType    string
 	ResolutionPath            string
 	OperationPath             string
+	WebCASPath                string
 	BaseURL                   string
 	DiscoveryDomains          []string
 	DiscoveryMinimumResolvers int
@@ -175,9 +184,34 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		writeResponse(rw, resp, http.StatusOK)
+	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
+		o.handleWebCASQuery(rw, resource)
 	default:
 		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found", resource))
 	}
+}
+
+func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
+	resourceSplitBySlash := strings.Split(resource, "/")
+
+	cid := resourceSplitBySlash[len(resourceSplitBySlash)-1]
+
+	resp := &WebFingerResponse{
+		Subject: resource,
+		Links: []WebFingerLink{
+			{Rel: "self", Type: "application/ld+json", Href: resource},
+			{Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", o.baseURL, cid)},
+		},
+	}
+
+	for _, v := range o.discoveryDomains {
+		resp.Links = append(resp.Links,
+			WebFingerLink{
+				Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", v, cid),
+			})
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
 }
 
 // writeErrorResponse write error resp.

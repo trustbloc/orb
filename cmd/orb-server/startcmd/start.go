@@ -580,6 +580,7 @@ func startOrbServices(parameters *orbParameters) error {
 		KID:                       parameters.keyID,
 		ResolutionPath:            baseResolvePath,
 		OperationPath:             baseUpdatePath,
+		WebCASPath:                casPath,
 		BaseURL:                   parameters.externalEndpoint,
 		DiscoveryDomains:          parameters.discoveryDomains,
 		DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
