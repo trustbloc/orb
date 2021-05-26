@@ -80,6 +80,7 @@ linters:
     - exhaustivestruct
     - interfacer # linter is deprecated (repository has been archived)
     - scopelint  # linter is deprecated (repository has been archived)
+    - gomoddirectives
 
 issues:
   exclude-use-default: false
