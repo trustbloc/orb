@@ -112,4 +112,5 @@ func FeatureContext(s *godog.Suite, state *state) {
 	NewDockerSteps(context).RegisterSteps(s)
 	NewDIDSideSteps(context, state, "did:orb").RegisterSteps(s)
 	NewCLISteps(context, state).RegisterSteps(s)
+	NewDriverSteps(context, state).RegisterSteps(s)
 }

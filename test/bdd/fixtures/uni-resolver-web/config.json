@@ -1,0 +1,8 @@
+{
+  "drivers": [
+    {
+      "pattern": "^(did:orb:.+)$",
+      "url": "http://orb.driver:8070/resolveDID?did=$1"
+    }
+  ]
+}

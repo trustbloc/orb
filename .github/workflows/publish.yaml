@@ -27,8 +27,8 @@ jobs:
         run: |
           TAG=$(git describe --tags --always `git rev-list --tags --max-count=1`)
           echo "IMAGE_TAG"=$TAG >> $GITHUB_ENV
-          echo "IMAGE_PREFIX"=ghcr.io/trustbloc/orb >> $GITHUB_ENV
-
+          echo "ORB_IMAGE_PREFIX"=ghcr.io/trustbloc/orb >> $GITHUB_ENV
+          echo "ORB_DRIVER_IMAGE_PREFIX"=ghcr.io/trustbloc/orb-driver >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -42,7 +42,7 @@ jobs:
           username: ${{ secrets.CR_USER }}
           password: ${{ secrets.CR_PAT }}
 
-      - name: Build and Push container images
+      - name: Build and Push container orb image
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -53,8 +53,22 @@ jobs:
             GO_VER=1.16
           push: true
           tags: |
-            ${{ env.IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
-            ${{ env.IMAGE_PREFIX }}:latest
+            ${{ env.ORB_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
+            ${{ env.ORB_IMAGE_PREFIX }}:latest
+
+      - name: Build and Push orb driver image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./images/orb-driver/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            ALPINE_VER=3.12
+            GO_VER=1.16
+          push: true
+          tags: |
+            ${{ env.ORB_DRIVER_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
+            ${{ env.ORB_DRIVER_IMAGE_PREFIX }}:latest
 
       - name: Build binaries
         run: make build-orb-cli-binaries

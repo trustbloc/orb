@@ -12,10 +12,11 @@ import (
 	"github.com/cucumber/messages-go/v10"
 )
 
-// BDDContext
+// BDDContext bdd context.
 type BDDContext struct {
 	composition *Composition
 	mutex       sync.RWMutex
+	createdDID  string
 }
 
 // NewBDDContext create new BDDContext
