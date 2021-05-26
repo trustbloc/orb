@@ -38,7 +38,6 @@ services:
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
-      - DISCOVERY_DOMAINS=https://orb.domain2.com
       - HTTP_SIGNATURES_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
@@ -108,7 +107,6 @@ services:
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain1
-      - DISCOVERY_DOMAINS=https://orb.domain2.com
       - HTTP_SIGNATURES_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
@@ -177,7 +175,6 @@ services:
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain2
-      - DISCOVERY_DOMAINS=https://orb.domain1.com
       - HTTP_SIGNATURES_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
@@ -245,7 +242,6 @@ services:
       - DATABASE_TYPE=couchdb
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain3
-      - DISCOVERY_DOMAINS=https://orb.domain1.com
       - HTTP_SIGNATURES_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
@@ -418,6 +414,32 @@ services:
     ports:
       - 8077:8077
     command: start
+    networks:
+      - orb_net
+
+  orb.driver:
+    container_name: orb.driver
+    image: ghcr.io/trustbloc/orb-driver:latest
+    environment:
+      - ORB_DRIVER_HOST_URL=0.0.0.0:8070
+      - ORB_DRIVER_DOMAIN=https://orb.domain1.com
+      - ORB_DRIVER_TLS_SYSTEMCERTPOOL=true
+      - ORB_DRIVER_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
+      - ORB_DRIVER_SIDETREE_TOKEN=READ_TOKEN
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+    ports:
+      - 8070:8070
+    command: start
+    networks:
+      - orb_net
+
+  uni-resolver-web:
+    image: universalresolver/uni-resolver-web:0.3.0
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uni-resolver-web/config.json:/opt/uni-resolver-java/uni-resolver-web/config.json
     networks:
       - orb_net
 

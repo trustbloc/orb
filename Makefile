@@ -24,8 +24,10 @@ GO_VER             = 1.16
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb
+ORB_DRIVER_IMAGE_NAME  ?= trustbloc/orb-driver
 
 ORB_REST_PATH=cmd/orb-server
+ORB_DRIVER_REST_PATH=cmd/orb-driver
 
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
@@ -62,6 +64,20 @@ orb:
 .PHONY: orb-docker
 orb-docker:
 	@docker build -f ./images/orb/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(ORB_IMAGE_NAME):latest \
+	--build-arg GO_VER=$(GO_VER) \
+	--build-arg ALPINE_VER=$(ALPINE_VER) \
+	--build-arg GO_TAGS=$(GO_TAGS) \
+	--build-arg GOPROXY=$(GOPROXY) .
+
+.PHONY: orb-driver
+orb-driver:
+	@echo "Building orb-driver"
+	@mkdir -p ./.build/bin
+	@cd ${ORB_DRIVER_REST_PATH} && go build -o ../../.build/bin/orb-driver main.go
+
+.PHONY: orb-driver-docker
+orb-driver-docker:
+	@docker build -f ./images/orb-driver/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(ORB_DRIVER_IMAGE_NAME):latest \
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) \
 	--build-arg GO_TAGS=$(GO_TAGS) \
@@ -106,7 +122,7 @@ extract-orb-cli-binaries:
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-amd64.tar.gz;mv orb-cli-darwin-amd64 ../../extract/
 
 .PHONY: bdd-test
-bdd-test: generate-test-keys orb-docker build-orb-cli-binaries extract-orb-cli-binaries
+bdd-test: generate-test-keys orb-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
 	@scripts/integration.sh
 
 .PHONY: clean

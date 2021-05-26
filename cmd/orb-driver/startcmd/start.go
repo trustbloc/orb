@@ -53,10 +53,10 @@ const (
 	domainFlagUsage = "discovery endpoint domain"
 	domainEnvKey    = "ORB_DRIVER_DOMAIN"
 
-	sidetreeWriteTokenFlagName  = "sidetree-write-token"
-	sidetreeWriteTokenEnvKey    = "ORB_DRIVER_SIDETREE_WRITE_TOKEN" //nolint: gosec
-	sidetreeWriteTokenFlagUsage = "The sidetree write token." +
-		" Alternatively, this can be set with the following environment variable: " + sidetreeWriteTokenEnvKey
+	sidetreeTokenFlagName  = "sidetree-write-token"
+	sidetreeTokenEnvKey    = "ORB_DRIVER_SIDETREE_TOKEN" //nolint: gosec
+	sidetreeTokenFlagUsage = "The sidetree token." +
+		" Alternatively, this can be set with the following environment variable: " + sidetreeTokenEnvKey
 )
 
 var logger = log.New("orb-driver")
@@ -82,13 +82,13 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 }
 
 type parameters struct {
-	hostURL            string
-	tlsSystemCertPool  bool
-	tlsCACerts         []string
-	discoveryDomain    string
-	sidetreeWriteToken string
-	tlsCertificate     string
-	tlsKey             string
+	hostURL           string
+	tlsSystemCertPool bool
+	tlsCACerts        []string
+	discoveryDomain   string
+	sidetreeToken     string
+	tlsCertificate    string
+	tlsKey            string
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -131,8 +131,8 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 
 	tlsKey := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
 
-	sidetreeWriteToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeWriteTokenFlagName,
-		sidetreeWriteTokenEnvKey)
+	sidetreeToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeTokenFlagName,
+		sidetreeTokenEnvKey)
 
 	discoveryDomain, err := cmdutils.GetUserSetVarFromString(cmd, domainFlagName, domainEnvKey,
 		false)
@@ -141,13 +141,13 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 	}
 
 	return &parameters{
-		hostURL:            hostURL,
-		tlsSystemCertPool:  tlsSystemCertPool,
-		tlsCACerts:         tlsCACerts,
-		discoveryDomain:    discoveryDomain,
-		sidetreeWriteToken: sidetreeWriteToken,
-		tlsCertificate:     tlsCertificate,
-		tlsKey:             tlsKey,
+		hostURL:           hostURL,
+		tlsSystemCertPool: tlsSystemCertPool,
+		tlsCACerts:        tlsCACerts,
+		discoveryDomain:   discoveryDomain,
+		sidetreeToken:     sidetreeToken,
+		tlsCertificate:    tlsCertificate,
+		tlsKey:            tlsKey,
 	}, nil
 }
 
@@ -178,7 +178,7 @@ func createFlags(startCmd *cobra.Command) {
 		tlsSystemCertPoolFlagUsage)
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(domainFlagName, "", "", domainFlagUsage)
-	startCmd.Flags().StringP(sidetreeWriteTokenFlagName, "", "", sidetreeWriteTokenFlagUsage)
+	startCmd.Flags().StringP(sidetreeTokenFlagName, "", "", sidetreeTokenFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, "", "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, "", "", tlsKeyFlagUsage)
 }
@@ -189,7 +189,7 @@ func startDriver(parameters *parameters) error {
 		return err
 	}
 
-	orbVDR, err := orb.New(nil, orb.WithAuthToken(parameters.sidetreeWriteToken),
+	orbVDR, err := orb.New(nil, orb.WithAuthToken(parameters.sidetreeToken),
 		orb.WithDomain(parameters.discoveryDomain),
 		orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
 	if err != nil {

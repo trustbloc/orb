@@ -67,13 +67,24 @@ func GetLoader(t *testing.T) *jsonld.DocumentLoader {
 	t.Helper()
 
 	documentLoader, err := jsonld.NewDocumentLoader(mem.NewProvider(),
-		jsonld.WithExtraContexts(jsonld.ContextDocument{
-			URL:     loader.AnchorContextURIV1,
-			Content: []byte(loader.AnchorContextV1),
-		}, jsonld.ContextDocument{
-			URL:     loader.JwsContextURIV1,
-			Content: []byte(loader.JwsContextV1),
-		}),
+		jsonld.WithExtraContexts(
+			jsonld.ContextDocument{
+				URL:     loader.AnchorContextURIV1,
+				Content: []byte(loader.AnchorContextV1),
+			},
+			jsonld.ContextDocument{
+				URL:     loader.JwsContextURIV1,
+				Content: []byte(loader.JwsContextV1),
+			},
+			jsonld.ContextDocument{
+				URL:     loader.CredentialExamplesContextURI,
+				Content: []byte(loader.CredentialExamplesContextV1),
+			},
+			jsonld.ContextDocument{
+				URL:     loader.OdrlContextURI,
+				Content: []byte(loader.OdrlContext),
+			},
+		),
 	)
 	require.NoError(t, err)
 
