@@ -8,19 +8,31 @@ package proof
 
 // WitnessProof contains anchor credential witness proof.
 type WitnessProof struct {
-	Type    Type
+	Type    WitnessType
 	Witness string
 	Proof   []byte
 }
 
-// Type defines valid values for witness type.
-type Type string
+// WitnessType defines valid values for witness type.
+type WitnessType string
 
 const (
 
-	// TypeBatch captures "batch" witness type.
-	TypeBatch Type = "batch"
+	// WitnessTypeBatch captures "batch" witness type.
+	WitnessTypeBatch WitnessType = "batch"
 
-	// TypeSystem captures "system" witness type.
-	TypeSystem Type = "witness"
+	// WitnessTypeSystem captures "system" witness type.
+	WitnessTypeSystem WitnessType = "witness"
+)
+
+// VCStatus defines valid values for verifiable credential proof collection status.
+type VCStatus string
+
+const (
+
+	// VCStatusInProcess defines "in-process" status.
+	VCStatusInProcess VCStatus = "in-process"
+
+	// VCStatusCompleted defines "completed" status.
+	VCStatusCompleted VCStatus = "completed"
 )

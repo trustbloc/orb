@@ -195,7 +195,7 @@ func TestStore_AddProof(t *testing.T) {
 		require.NoError(t, err)
 
 		testWitness := &proof.WitnessProof{
-			Type:    proof.TypeBatch,
+			Type:    proof.WitnessTypeBatch,
 			Witness: witness,
 		}
 
@@ -221,11 +221,11 @@ func TestStore_AddProof(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.TypeBatch,
+				Type:    proof.WitnessTypeBatch,
 				Witness: "witness-1",
 			},
 			{
-				Type:    proof.TypeBatch,
+				Type:    proof.WitnessTypeBatch,
 				Witness: "witness-2",
 			},
 		}
@@ -256,11 +256,11 @@ func TestStore_AddProof(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.TypeBatch,
+				Type:    proof.WitnessTypeBatch,
 				Witness: "witness-1",
 			},
 			{
-				Type:    proof.TypeBatch,
+				Type:    proof.WitnessTypeBatch,
 				Witness: "witness-2",
 			},
 		}
@@ -343,7 +343,7 @@ func TestStore_AddProof(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		witnessBytes, err := json.Marshal(&proof.WitnessProof{
-			Type:    proof.TypeBatch,
+			Type:    proof.WitnessTypeBatch,
 			Witness: witness,
 		})
 		require.NoError(t, err)
@@ -370,7 +370,7 @@ func TestStore_AddProof(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		witnessBytes, err := json.Marshal(&proof.WitnessProof{
-			Type:    proof.TypeBatch,
+			Type:    proof.WitnessTypeBatch,
 			Witness: witness,
 		})
 		require.NoError(t, err)
@@ -419,7 +419,7 @@ func TestStore_AddProof(t *testing.T) {
 
 func getTestWitness() *proof.WitnessProof {
 	return &proof.WitnessProof{
-		Type:    proof.TypeBatch,
+		Type:    proof.WitnessTypeBatch,
 		Witness: "witness",
 	}
 }
