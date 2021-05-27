@@ -104,7 +104,7 @@ jobs:
           VERSION=$(git rev-parse --short=7 HEAD)
           echo "IMAGE_TAG"=v${{ steps.bump_version.outputs.next-version }}-snapshot-$VERSION >> $GITHUB_ENV
           echo "ORB_IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/orb >> $GITHUB_ENV
-          echo "ORB_DRIVER_IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/orb-driver >> $GITHUB_ENV
+          echo "ORB_DRIVER_IMAGE_PREFIX"=ghcr.io/trustbloc-cicd/orb-did-driver >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 

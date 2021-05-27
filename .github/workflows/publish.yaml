@@ -28,7 +28,7 @@ jobs:
           TAG=$(git describe --tags --always `git rev-list --tags --max-count=1`)
           echo "IMAGE_TAG"=$TAG >> $GITHUB_ENV
           echo "ORB_IMAGE_PREFIX"=ghcr.io/trustbloc/orb >> $GITHUB_ENV
-          echo "ORB_DRIVER_IMAGE_PREFIX"=ghcr.io/trustbloc/orb-driver >> $GITHUB_ENV
+          echo "ORB_DRIVER_IMAGE_PREFIX"=ghcr.io/trustbloc/orb-did-driver >> $GITHUB_ENV
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 

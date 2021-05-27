@@ -31,8 +31,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9
 	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210520185648-ad6fce89b352
-	github.com/trustbloc/vct v0.1.0
-	golang.org/x/net v0.0.0-20210421230115-4e50805a0758 // indirect
+	github.com/trustbloc/vct v0.1.1
 )
 
 go 1.15

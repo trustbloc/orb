@@ -347,7 +347,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc-cicd/vct-log-server:v0.1.0-snapshot-f77a3da
+    image: ghcr.io/trustbloc/vct-log-server:v0.1.1
     restart: always
     command:
       - --quota_system=noop
@@ -364,7 +364,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc-cicd/vct-log-signer:v0.1.0-snapshot-f77a3da
+    image: ghcr.io/trustbloc/vct-log-signer:v0.1.1
     restart: always
     command:
       - --quota_system=noop
@@ -411,7 +411,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc/vct:v0.1.0
+    image: ghcr.io/trustbloc/vct:v0.1.1
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
@@ -432,7 +432,7 @@ services:
 
   orb.driver:
     container_name: orb.driver
-    image: ghcr.io/trustbloc/orb-driver:latest
+    image: ghcr.io/trustbloc/orb-did-driver:latest
     environment:
       - ORB_DRIVER_HOST_URL=0.0.0.0:8070
       - ORB_DRIVER_DOMAIN=https://orb.domain1.com

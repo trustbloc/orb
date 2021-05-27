@@ -24,7 +24,7 @@ GO_VER             = 1.16
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb
-ORB_DRIVER_IMAGE_NAME  ?= trustbloc/orb-driver
+ORB_DRIVER_IMAGE_NAME  ?= trustbloc/orb-did-driver
 
 ORB_REST_PATH=cmd/orb-server
 ORB_DRIVER_REST_PATH=cmd/orb-driver
