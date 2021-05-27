@@ -8,7 +8,6 @@ package factory
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -120,21 +119,17 @@ type operationProviderWrapper struct {
 
 // GetTxnOperations returns transaction operation from the underlying operation provider.
 func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) { //nolint:lll
-	webCASEndpoint := ""
+	casHint := ""
 
 	if len(transaction.EquivalentReferences) > 0 {
-		// TODO: issue-364 Fix when webfinger is available
-		casHint := transaction.EquivalentReferences[0]
+		lastColonIndex := strings.LastIndex(transaction.EquivalentReferences[0], ":")
 
-		if strings.Index(casHint, "webcas:") == 0 {
-			casParts := strings.Split(casHint, ":")
-			webCASEndpoint = fmt.Sprintf("https://%s/cas/", casParts[1])
-		}
+		casHint = transaction.EquivalentReferences[0][:lastColonIndex+1]
 	}
 
 	casClient := &casClientWrapper{
-		resolver:       h.casResolver,
-		webCASEndpoint: webCASEndpoint,
+		resolver:                 h.casResolver,
+		casHintWithTrailingColon: casHint,
 	}
 
 	op := txnprovider.NewOperationProvider(*h.Protocol, h.parser, casClient, h.dp)
@@ -143,23 +138,12 @@ func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn
 }
 
 type casClientWrapper struct {
-	resolver       ctxcommon.CASResolver
-	webCASEndpoint string
+	resolver                 ctxcommon.CASResolver
+	casHintWithTrailingColon string
 }
 
 func (c *casClientWrapper) Read(cid string) ([]byte, error) {
-	var webCASURL *url.URL
-
-	if c.webCASEndpoint != "" {
-		var err error
-
-		webCASURL, err = url.Parse(c.webCASEndpoint + cid)
-		if err != nil {
-			return nil, fmt.Errorf("%s is not a valid URL: %w", c.webCASEndpoint+cid, err)
-		}
-	}
-
-	data, err := c.resolver.Resolve(webCASURL, cid, nil)
+	data, err := c.resolver.Resolve(nil, c.casHintWithTrailingColon+cid, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve CID: %w", err)
 	}
