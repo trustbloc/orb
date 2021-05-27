@@ -181,10 +181,6 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 
 	d.resolutionEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
 
-	if !strings.Contains(webFingerResponse.Links[1].Href, "orb.domain2.com") {
-		return fmt.Errorf("webfinger response return wrong link")
-	}
-
 	resp, err = d.httpClient.Get(
 		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.OperationEndpoint)))
@@ -240,6 +236,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 
 		d.createRequest = &req
 		d.interimDID = result.Document["id"].(string)
+		d.bddContext.createdDID = result.Document["id"].(string)
 		d.equivalentDID = document.StringArray(result.DocumentMetadata["equivalentId"])
 	}
 
