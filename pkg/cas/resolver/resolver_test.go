@@ -20,12 +20,12 @@ import (
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -83,7 +83,8 @@ const (
     "jws": "eyJ..."
   }]                  
 }`
-	sampleDataCID = "bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne"
+	sampleDataCIDv1 = "bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne"
+	sampleDataCIDv0 = "QmW4LWKX9pD1ak6iZG3J7oC6xmp93476Dz1HCnQtMdPnNk"
 
 	httpScheme = "http"
 )
@@ -97,13 +98,24 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("No need to get data from remote since it was passed in", func(t *testing.T) {
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCID))
-			require.NoError(t, err)
+			t.Run("v1", func(t *testing.T) {
+				id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCIDv1))
+				require.NoError(t, err)
 
-			data, err := resolver.Resolve(id, sampleDataCID,
-				[]byte(sampleData))
-			require.NoError(t, err)
-			require.Equal(t, string(data), sampleData)
+				data, err := resolver.Resolve(id, sampleDataCIDv1,
+					[]byte(sampleData))
+				require.NoError(t, err)
+				require.Equal(t, string(data), sampleData)
+			})
+			t.Run("v0", func(t *testing.T) {
+				id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCIDv0))
+				require.NoError(t, err)
+
+				data, err := resolver.Resolve(id, sampleDataCIDv0,
+					[]byte(sampleData))
+				require.NoError(t, err)
+				require.Equal(t, string(data), sampleData)
+			})
 		})
 		t.Run("No need to get data from remote since it was found locally", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
@@ -236,12 +248,12 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL, false)
+		ipfsClient := ipfs.New(ipfsServer.URL)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
 
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
 		require.NoError(t, err)
 		require.Equal(t, string(data), sampleData)
 	})
@@ -254,7 +266,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "ipfs reader is not supported")
@@ -266,12 +278,12 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL, false)
+		ipfsClient := ipfs.New(ipfsServer.URL)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
 
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCID, nil)
+		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "failed to read cid")
@@ -283,12 +295,12 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL, false)
+		ipfsClient := ipfs.New(ipfsServer.URL)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
 
-		data, err := resolver.Resolve(nil, "invalid:"+sampleDataCID, nil)
+		data, err := resolver.Resolve(nil, "invalid:"+sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Empty(t, data)
 		require.Contains(t, err.Error(), "hint 'invalid' not supported")
@@ -325,10 +337,10 @@ func TestResolver_Resolve(t *testing.T) {
 		// for it. The remote Orb server's CAS also won't have the data we need.
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, sampleDataCID))
+		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, sampleDataCIDv1))
 		require.NoError(t, err)
 
-		data, err := resolver.Resolve(id, sampleDataCID, nil)
+		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
 			"WebCAS endpoint: failed to retrieve data from")
@@ -359,7 +371,7 @@ func TestResolver_Resolve(t *testing.T) {
 				ErrGet: ariesstorage.ErrDataNotFound,
 				ErrPut: errors.New("put error"),
 			},
-		}, false)
+		})
 		require.NoError(t, err)
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
@@ -381,15 +393,15 @@ func TestResolver_Resolve(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrGet: errors.New("get error"),
 			},
-		}, false)
+		})
 		require.NoError(t, err)
 
 		resolver := createNewResolver(t, casClient, nil)
 
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCID))
+		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCIDv1))
 		require.NoError(t, err)
 
-		data, err := resolver.Resolve(id, sampleDataCID, nil)
+		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.EqualError(t, err, "failed to get data stored at "+
 			"bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne from the local CAS: "+
 			"failed to get content from the underlying storage provider: get error")
@@ -403,7 +415,7 @@ func TestResolver_Resolve(t *testing.T) {
 		id, err := url.Parse("InvalidWebCASEndpoint")
 		require.NoError(t, err)
 
-		data, err := resolver.Resolve(id, sampleDataCID, nil)
+		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.EqualError(t, err, "failure while getting and storing data from the remote WebCAS endpoint: "+
 			"failed to execute GET call on InvalidWebCASEndpoint: Get "+
 			`"InvalidWebCASEndpoint": unsupported protocol scheme ""`)
@@ -552,7 +564,7 @@ func TestResolver_Resolve(t *testing.T) {
 	})
 }
 
-func createNewResolver(t *testing.T, casClient casapi.Client, ipfsReader ipfsReader) *Resolver {
+func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsReader ipfsReader) *Resolver {
 	t.Helper()
 
 	casResolver := New(casClient, ipfsReader,
@@ -563,10 +575,10 @@ func createNewResolver(t *testing.T, casClient casapi.Client, ipfsReader ipfsRea
 	return casResolver
 }
 
-func createInMemoryCAS(t *testing.T) casapi.Client {
+func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), false)
+	casClient, err := cas.New(mem.NewProvider())
 	require.NoError(t, err)
 
 	return casClient

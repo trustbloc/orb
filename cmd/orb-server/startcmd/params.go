@@ -226,7 +226,7 @@ type orbParameters struct {
 	batchWriterTimeout        time.Duration
 	casType                   string
 	ipfsURL                   string
-	useV0CIDs                 bool
+	cidVersion                int
 	dbParameters              *dbParameters
 	logLevel                  string
 	methodContext             []string
@@ -314,12 +314,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	var useV0CIDs bool
+	var cidVersion int
 
-	if cidVersionString == "0" {
-		useV0CIDs = true
-	} else if cidVersionString != "1" && cidVersionString != "" { // default to v1 if no version specified
+	if cidVersionString == "" {
+		// default to v1 if no version specified
+		cidVersion = 1
+	} else if cidVersionString != "0" && cidVersionString != "1" {
 		return nil, fmt.Errorf("invalid CID version specified. Must be either 0 or 1")
+	} else {
+		cidVersion, err = strconv.Atoi(cidVersionString)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert CID version string to an integer: %w", err)
+		}
 	}
 
 	batchWriterTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
@@ -461,7 +467,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		allowedOrigins:            allowedOrigins,
 		casType:                   casType,
 		ipfsURL:                   ipfsURL,
-		useV0CIDs:                 useV0CIDs,
+		cidVersion:                cidVersion,
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,

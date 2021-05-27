@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	mockstore "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
@@ -34,6 +34,7 @@ import (
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/store/cas"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -77,7 +78,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestWriter_WriteAnchor(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
@@ -483,7 +485,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 }
 
 func TestWriter_handle(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
@@ -945,7 +948,8 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 }
 
 func TestWriter_Read(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),

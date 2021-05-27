@@ -17,6 +17,7 @@ import (
 	shell "github.com/ipfs/go-ipfs-api"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -25,25 +26,38 @@ const timeout = 2
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
 type Client struct {
-	ipfs      *shell.Shell
-	useV0CIDs bool
+	ipfs *shell.Shell
+	opts []extendedcasclient.CIDFormatOption
 }
 
 // New creates cas client.
-func New(url string, useV0CIDs bool) *Client {
+// If no CID version is specified, then v1 will be used by default.
+func New(url string, opts ...extendedcasclient.CIDFormatOption) *Client {
 	ipfs := shell.NewShell(url)
 
 	ipfs.SetTimeout(timeout * time.Second)
 
-	return &Client{ipfs: ipfs, useV0CIDs: useV0CIDs}
+	return &Client{ipfs: ipfs, opts: opts}
 }
 
-// Write writes the given content to CAS.
-// returns cid which represents the address of the content.
+// Write writes the given content to IPFS.
+// Returns the address (CID) of the content.
 func (m *Client) Write(content []byte) (string, error) {
+	return m.WriteWithCIDFormat(content, m.opts...)
+}
+
+// WriteWithCIDFormat writes the given content to IPFS using the provided CID format options.
+// Returns the address (CID) of the content.
+// TODO (#443): Support v1 CID formats (different multibases and multicodecs) other than just the IPFS default.
+func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFormatOption) (string, error) {
+	options, err := getOptions(opts)
+	if err != nil {
+		return "", err
+	}
+
 	var v1AddOpt []shell.AddOpts
 
-	if !m.useV0CIDs {
+	if options.CIDVersion == 1 {
 		v1AddOpt = []shell.AddOpts{shell.CidVersion(1)}
 	}
 
@@ -72,6 +86,24 @@ func (m *Client) Read(cid string) ([]byte, error) {
 	defer closeAndLog(reader)
 
 	return ioutil.ReadAll(reader)
+}
+
+func getOptions(opts []extendedcasclient.CIDFormatOption) (
+	extendedcasclient.CIDFormatOptions, error) {
+	options := extendedcasclient.CIDFormatOptions{CIDVersion: 1}
+
+	for _, option := range opts {
+		if option != nil {
+			option(&options)
+		}
+	}
+
+	if options.CIDVersion != 0 && options.CIDVersion != 1 {
+		return extendedcasclient.CIDFormatOptions{},
+			fmt.Errorf("%d is not a supported CID version. It must be either 0 or 1", options.CIDVersion)
+	}
+
+	return options, nil
 }
 
 func closeAndLog(rc io.Closer) {

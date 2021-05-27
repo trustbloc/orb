@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -27,6 +28,7 @@ import (
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
 func TestStartObserver(t *testing.T) {
@@ -65,7 +67,8 @@ func TestStartObserver(t *testing.T) {
 
 		var anchors []anchorinfo.AnchorInfo
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
@@ -122,7 +125,8 @@ func TestStartObserver(t *testing.T) {
 
 		var dids []string
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
@@ -178,7 +182,8 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
@@ -242,7 +247,8 @@ func TestStartObserver(t *testing.T) {
 		var dids []string
 		var anchors []anchorinfo.AnchorInfo
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
@@ -304,7 +310,8 @@ func TestStartObserver(t *testing.T) {
 
 		var dids []string
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, "webcas:domain.com"),
@@ -362,7 +369,8 @@ func TestStartObserver(t *testing.T) {
 
 		var anchors []anchorinfo.AnchorInfo
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
@@ -417,7 +425,8 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient := mocks.NewMockCasClient(nil)
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),

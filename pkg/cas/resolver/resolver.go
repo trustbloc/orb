@@ -17,14 +17,17 @@ import (
 	"strings"
 
 	"github.com/trustbloc/edge-core/pkg/log"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
-const cidWithPossibleHintNumPartsWithDomainPort = 4
+const (
+	cidWithPossibleHintNumPartsWithDomainPort = 4
+	v0CIDLength                               = 46
+)
 
 var logger = log.New("cas-resolver")
 
@@ -34,7 +37,7 @@ type httpClient interface {
 
 // Resolver represents a resolver that can resolve data in a CAS based on a CID and WebCAS URL.
 type Resolver struct {
-	localCAS           casapi.Client
+	localCAS           extendedcasclient.Client
 	ipfsReader         ipfsReader
 	httpClient         httpClient
 	webFingerURIScheme string
@@ -45,7 +48,7 @@ type ipfsReader interface {
 }
 
 // New returns a new Resolver.
-func New(casClient casapi.Client, ipfsReader ipfsReader, httpClient httpClient) *Resolver {
+func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient httpClient) *Resolver {
 	return &Resolver{
 		localCAS:           casClient,
 		ipfsReader:         ipfsReader,
@@ -213,7 +216,15 @@ func (h *Resolver) getAndStoreDataFromIPFS(cid string) ([]byte, error) {
 }
 
 func (h *Resolver) storeLocallyAndVerifyCID(data []byte, cidFromOriginalRequest string) error {
-	newCIDFromLocalCAS, err := h.localCAS.Write(data)
+	cidVersion := 1
+
+	// TODO: Support v1 formats other than only the default.
+	if len(cidFromOriginalRequest) == v0CIDLength && strings.HasPrefix(cidFromOriginalRequest, "Qm") {
+		cidVersion = 0
+	}
+
+	newCIDFromLocalCAS, err := h.localCAS.WriteWithCIDFormat(data,
+		extendedcasclient.WithCIDVersion(cidVersion))
 	if err != nil {
 		return fmt.Errorf("failed to write data to CAS "+
 			"(and calculate CID in the process of doing so): %w", err)

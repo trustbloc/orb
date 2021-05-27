@@ -18,7 +18,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -26,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -169,7 +169,8 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 }
 
-func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *AnchorCredentialHandler {
+func createNewAnchorCredentialHandler(t *testing.T,
+	client extendedcasclient.Client) *AnchorCredentialHandler {
 	t.Helper()
 
 	anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
@@ -184,10 +185,10 @@ func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *Ancho
 	return anchorCredentialHandler
 }
 
-func createInMemoryCAS(t *testing.T) casapi.Client {
+func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), false)
+	casClient, err := cas.New(mem.NewProvider())
 	require.NoError(t, err)
 
 	return casClient

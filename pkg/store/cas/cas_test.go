@@ -21,6 +21,7 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	localcas "github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -76,12 +77,12 @@ const sampleAnchorCredential = `{
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), false)
+		provider, err := localcas.New(ariesmemstorage.NewProvider())
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
 	t.Run("Fail to store in underlying storage provider", func(t *testing.T) {
-		provider, err := localcas.New(&ariesmockstorage.Provider{ErrOpenStore: errors.New("open store error")}, false)
+		provider, err := localcas.New(&ariesmockstorage.Provider{ErrOpenStore: errors.New("open store error")})
 		require.EqualError(t, err, "failed to open store in underlying storage provider: open store error")
 		require.Nil(t, provider)
 	})
@@ -89,7 +90,7 @@ func TestNew(t *testing.T) {
 
 func TestProvider_Write_Read(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), false)
+		provider, err := localcas.New(ariesmemstorage.NewProvider())
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
@@ -105,7 +106,7 @@ func TestProvider_Write_Read(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrPut: errors.New("put error"),
 			},
-		}, false)
+		})
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
@@ -118,7 +119,7 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: ariesstorage.ErrDataNotFound,
 				},
-			}, false)
+			})
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
@@ -130,13 +131,21 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: errors.New("get error"),
 				},
-			}, false)
+			})
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
 			require.EqualError(t, err, "failed to get content from the underlying storage provider: get error")
 			require.Nil(t, content)
 		})
+	})
+	t.Run("Invalid CID version", func(t *testing.T) {
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), extendedcasclient.WithCIDVersion(2))
+		require.NoError(t, err)
+
+		address, err := provider.Write([]byte("content"))
+		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
+		require.Equal(t, "", address)
 	})
 }
 
@@ -148,10 +157,10 @@ func TestEnsureLocalCASAndIPFSProduceSameCIDs(t *testing.T) {
 	}()
 
 	t.Run("v1", func(t *testing.T) {
-		ensureCIDsAreEqualBetweenLocalCASAndIPFS(t, false)
+		ensureCIDsAreEqualBetweenLocalCASAndIPFS(t)
 	})
 	t.Run("v0", func(t *testing.T) {
-		ensureCIDsAreEqualBetweenLocalCASAndIPFS(t, true)
+		ensureCIDsAreEqualBetweenLocalCASAndIPFS(t, extendedcasclient.WithCIDVersion(0))
 	})
 }
 
@@ -183,25 +192,25 @@ func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
 	return pool, ipfsResource
 }
 
-func ensureCIDsAreEqualBetweenLocalCASAndIPFS(t *testing.T, useV0CIDs bool) {
+func ensureCIDsAreEqualBetweenLocalCASAndIPFS(t *testing.T, opts ...extendedcasclient.CIDFormatOption) {
 	t.Helper()
 
 	smallSimpleData := []byte("content")
 
 	sampleAnchorCredentialBytes := []byte(sampleAnchorCredential)
 
-	cidFromIPFS := addDataToIPFS(t, smallSimpleData, useV0CIDs)
-	cidFromLocalCAS := addDataToLocalCAS(t, smallSimpleData, useV0CIDs)
+	cidFromIPFS := addDataToIPFS(t, smallSimpleData, opts...)
+	cidFromLocalCAS := addDataToLocalCAS(t, smallSimpleData, opts...)
 
 	require.Equal(t, cidFromIPFS, cidFromLocalCAS)
 
-	cidFromIPFS = addDataToIPFS(t, sampleAnchorCredentialBytes, useV0CIDs)
-	cidFromLocalCAS = addDataToLocalCAS(t, sampleAnchorCredentialBytes, useV0CIDs)
+	cidFromIPFS = addDataToIPFS(t, sampleAnchorCredentialBytes, opts...)
+	cidFromLocalCAS = addDataToLocalCAS(t, sampleAnchorCredentialBytes, opts...)
 
 	require.Equal(t, cidFromIPFS, cidFromLocalCAS)
 }
 
-func addDataToIPFS(t *testing.T, data []byte, useV0CIDs bool) string {
+func addDataToIPFS(t *testing.T, data []byte, opts ...extendedcasclient.CIDFormatOption) string {
 	t.Helper()
 
 	shell := ipfsshell.NewShell("localhost:5001")
@@ -211,9 +220,17 @@ func addDataToIPFS(t *testing.T, data []byte, useV0CIDs bool) string {
 	// IPFS will need some time to start up, hence the need for retries.
 	var cid string
 
+	options := extendedcasclient.CIDFormatOptions{CIDVersion: 1}
+
+	for _, option := range opts {
+		if option != nil {
+			option(&options)
+		}
+	}
+
 	var v1AddOpt []ipfsshell.AddOpts
 
-	if !useV0CIDs {
+	if options.CIDVersion == 1 {
 		v1AddOpt = []ipfsshell.AddOpts{ipfsshell.CidVersion(1)}
 	}
 
@@ -228,10 +245,10 @@ func addDataToIPFS(t *testing.T, data []byte, useV0CIDs bool) string {
 	return cid
 }
 
-func addDataToLocalCAS(t *testing.T, data []byte, useV0CIDs bool) string {
+func addDataToLocalCAS(t *testing.T, data []byte, opts ...extendedcasclient.CIDFormatOption) string {
 	t.Helper()
 
-	cas, err := localcas.New(ariesmemstorage.NewProvider(), useV0CIDs)
+	cas, err := localcas.New(ariesmemstorage.NewProvider(), opts...)
 	require.NoError(t, err)
 
 	cid, err := cas.Write(data)

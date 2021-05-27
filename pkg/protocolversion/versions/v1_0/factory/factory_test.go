@@ -12,13 +12,13 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -92,7 +92,7 @@ func TestCasClientWrapper_Read(t *testing.T) {
 	})
 }
 
-func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resolver {
+func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casresolver.Resolver {
 	t.Helper()
 
 	casResolver := casresolver.New(casClient, nil, transport.New(&http.Client{},
@@ -104,10 +104,10 @@ func createNewResolver(t *testing.T, casClient casapi.Client) *casresolver.Resol
 	return casResolver
 }
 
-func createInMemoryCAS(t *testing.T) casapi.Client {
+func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), false)
+	casClient, err := cas.New(mem.NewProvider())
 	require.NoError(t, err)
 
 	return casClient

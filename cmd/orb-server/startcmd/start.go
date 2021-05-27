@@ -71,6 +71,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/cas/resolver"
 	orbcaswriter "github.com/trustbloc/orb/pkg/cas/writer"
@@ -281,17 +282,18 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	var coreCasClient casapi.Client
+	var coreCasClient extendedcasclient.Client
 	var anchorCasWriter *orbcaswriter.CasWriter
 
 	switch parameters.casType {
 	case "ipfs":
-		coreCasClient = ipfscas.New(parameters.ipfsURL, parameters.useV0CIDs)
+		coreCasClient = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 		anchorCasWriter = orbcaswriter.New(coreCasClient, "ipfs")
 	case "local":
 		var err error
 
-		coreCasClient, err = casstore.New(storeProviders.provider, parameters.useV0CIDs)
+		coreCasClient, err = casstore.New(storeProviders.provider,
+			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 		if err != nil {
 			return err
 		}
@@ -338,7 +340,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var ipfsReader *ipfscas.Client
 	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL, false)
+		ipfsReader = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	}
 
 	casResolver := resolver.New(coreCasClient, ipfsReader, t)
