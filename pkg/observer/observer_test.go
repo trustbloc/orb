@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
@@ -23,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
+	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -37,6 +39,7 @@ func TestStartObserver(t *testing.T) {
 
 		providers := &Providers{
 			TxnProvider: mockLedger{registerForAnchor: anchorCh},
+			DidAnchors:  memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -88,6 +91,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForAnchor: anchorCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -142,6 +146,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -198,6 +203,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -257,6 +263,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForAnchor: anchorCh, registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -312,6 +319,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -324,6 +332,60 @@ func TestStartObserver(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 2, tp.ProcessCallCount())
+	})
+
+	t.Run("error - update did anchors error", func(t *testing.T) {
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
+
+		tp := &mocks.TxnProcessor{}
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		var anchors []anchorinfo.AnchorInfo
+
+		casClient := mocks.NewMockCasClient(nil)
+
+		graphProviders := &graph.Providers{
+			CasWriter:   caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+			Pkf:         pubKeyFetcherFnc,
+			DocLoader:   testutil.GetLoader(t),
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1"}
+
+		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}})
+
+		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
+
+		cid, _, err = anchorGraph.Add(buildCredential(payload2))
+		require.NoError(t, err)
+		anchors = append(anchors, anchorinfo.AnchorInfo{CID: cid})
+
+		providers := &Providers{
+			TxnProvider:            mockLedger{registerForAnchor: anchorCh},
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+			DidAnchors:             &mockDidAnchor{Err: fmt.Errorf("did anchor error")},
+		}
+
+		o := New(providers)
+		require.NotNil(t, o)
+
+		o.Start()
+		defer o.Stop()
+
+		anchorCh <- anchors
+		time.Sleep(200 * time.Millisecond)
+
+		require.Equal(t, 1, tp.ProcessCallCount())
 	})
 
 	t.Run("error - cid not found", func(t *testing.T) {
@@ -351,6 +413,7 @@ func TestStartObserver(t *testing.T) {
 			TxnProvider:            mockLedger{registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -378,6 +441,7 @@ func TestStartObserver(t *testing.T) {
 		providers := &Providers{
 			TxnProvider:            mockLedger{registerForDID: didCh},
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			DidAnchors:             memdidanchor.New(),
 		}
 
 		o := New(providers)
@@ -424,4 +488,20 @@ func buildCredential(payload subject.Payload) *verifiable.Credential {
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
 	return nil, nil
+}
+
+type mockDidAnchor struct {
+	Err error
+}
+
+func (m *mockDidAnchor) Put(_ []string, _ string) error {
+	if m.Err != nil {
+		return m.Err
+	}
+
+	return nil
+}
+
+func (m *mockDidAnchor) Get(did []string) ([]string, error) {
+	return []string{"cid"}, nil
 }

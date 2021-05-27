@@ -96,7 +96,6 @@ type anchorBuilder interface {
 }
 
 type didAnchors interface {
-	Put(dids []string, cid string) error
 	Get(did []string) ([]string, error)
 }
 
@@ -324,28 +323,6 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	anchorSubject, err := util.GetAnchorSubject(vc)
-	if err != nil {
-		logger.Errorf("failed to extract txn payload from witnessed anchor credential[%s]: %s", vc.ID, err.Error())
-
-		return
-	}
-
-	// update global did/anchor references
-	suffixes := getKeys(anchorSubject.PreviousAnchors)
-
-	cidWithHint := cid
-	if hint != "" {
-		cidWithHint = hint + ":" + cid
-	}
-
-	err = c.DidAnchors.Put(suffixes, cidWithHint)
-	if err != nil {
-		logger.Errorf("failed updating did anchor references for anchor credential[%s]: %s", vc.ID, err.Error())
-
-		return
-	}
-
 	fullWebCASURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
 	if err != nil {
 		logger.Errorf("failed to construct full WebCAS URL from the following two parts: [%s] and [%s]",
@@ -531,15 +508,6 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 	}
 
 	return witnesses, nil
-}
-
-func getKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
-	return keys
 }
 
 // Read reads transactions since transaction time.

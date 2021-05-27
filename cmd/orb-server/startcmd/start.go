@@ -531,6 +531,7 @@ func startOrbServices(parameters *orbParameters) error {
 		TxnProvider:            mockTxnProvider{registerForAnchor: anchorCh, registerForDID: didCh},
 		ProtocolClientProvider: pcp,
 		AnchorGraph:            anchorGraph,
+		DidAnchors:             didAnchors,
 	}
 
 	observer.New(providers).Start()

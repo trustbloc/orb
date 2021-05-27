@@ -46,11 +46,16 @@ type OperationFilter interface {
 	Filter(uniqueSuffix string, ops []*operation.AnchoredOperation) ([]*operation.AnchoredOperation, error)
 }
 
+type didAnchors interface {
+	Put(dids []string, cid string) error
+}
+
 // Providers contains all of the providers required by the TxnProcessor.
 type Providers struct {
 	TxnProvider            TxnProvider
 	ProtocolClientProvider protocol.ClientProvider
 	AnchorGraph
+	DidAnchors didAnchors
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -216,7 +221,24 @@ func (o *Observer) processAnchor(anchor anchorinfo.AnchorInfo, info *verifiable.
 		return fmt.Errorf("failed to processAnchors core index[%s]: %w", anchorPayload.CoreIndex, err)
 	}
 
+	// update global did/anchor references
+	acSuffixes := getKeys(anchorPayload.PreviousAnchors)
+
+	err = o.DidAnchors.Put(acSuffixes, equivalentRef)
+	if err != nil {
+		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.CID, err)
+	}
+
 	logger.Debugf("successfully processed anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)
 
 	return nil
+}
+
+func getKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	return keys
 }
