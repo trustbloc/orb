@@ -325,43 +325,56 @@ services:
       - SYS_NICE
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
-    volumes:
-      - ./mysql-config:/docker-entrypoint-initdb.d
+      - MYSQL_DATABASE=test
     networks:
       - orb_net
     ports:
       - 3306:3306
 
-  # Tags can be found here
-  # https://console.cloud.google.com/gcr/images/trillian-opensource-ci
+  orb.postgres:
+    container_name: orb.postgres
+    image: postgres:13
+    restart: always
+    volumes:
+      - ./postgres-config/postgres_config.sql:/docker-entrypoint-initdb.d/postgres_config.sql
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=test
+    ports:
+      - 5432:5432
+    networks:
+      - orb_net
+
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: gcr.io/trillian-opensource-ci/log_server:eacf01ddf6503e04cda3ee941d94820f139c7737
+    image: ghcr.io/trustbloc-cicd/vct-log-server:v0.1.0-snapshot-f77a3da
     restart: always
     command:
-      - --mysql_uri=root@tcp(orb.mysql:3306)/test
+      - --quota_system=noop
+      - --storage_system=postgres
+      - --pg_conn_str=user=postgres host=orb.postgres password=password dbname=test port=5432 sslmode=disable
       - --rpc_endpoint=0.0.0.0:8090
-      - --alsologtostderr
+      - --logtostderr
     depends_on:
-      - orb.mysql
+      - orb.postgres
     networks:
       - orb_net
     ports:
       - 8090:8090
 
-  # Tags can be found here
-  # https://console.cloud.google.com/gcr/images/trillian-opensource-ci
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: gcr.io/trillian-opensource-ci/log_signer:eacf01ddf6503e04cda3ee941d94820f139c7737
+    image: ghcr.io/trustbloc-cicd/vct-log-signer:v0.1.0-snapshot-f77a3da
     restart: always
     command:
-      - --mysql_uri=root@tcp(orb.mysql:3306)/test
+      - --quota_system=noop
+      - --storage_system=postgres
+      - --pg_conn_str=user=postgres host=orb.postgres password=password dbname=test port=5432 sslmode=disable
       - --http_endpoint=0.0.0.0:8091
       - --force_master=true
-      - --alsologtostderr
+      - --logtostderr
     depends_on:
-      - orb.mysql
+      - orb.postgres
     networks:
       - orb_net
     ports:
