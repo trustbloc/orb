@@ -4,15 +4,18 @@ package mocks
 import (
 	"sync"
 	"time"
+
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 )
 
 type MonitoringService struct {
-	WatchStub        func(string, time.Time, []byte) error
+	WatchStub        func(*verifiable.Credential, time.Time, string, time.Time) error
 	watchMutex       sync.RWMutex
 	watchArgsForCall []struct {
-		arg1 string
+		arg1 *verifiable.Credential
 		arg2 time.Time
-		arg3 []byte
+		arg3 string
+		arg4 time.Time
 	}
 	watchReturns struct {
 		result1 error
@@ -24,28 +27,25 @@ type MonitoringService struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *MonitoringService) Watch(arg1 string, arg2 time.Time, arg3 []byte) error {
-	var arg3Copy []byte
-	if arg3 != nil {
-		arg3Copy = make([]byte, len(arg3))
-		copy(arg3Copy, arg3)
-	}
+func (fake *MonitoringService) Watch(arg1 *verifiable.Credential, arg2 time.Time, arg3 string, arg4 time.Time) error {
 	fake.watchMutex.Lock()
 	ret, specificReturn := fake.watchReturnsOnCall[len(fake.watchArgsForCall)]
 	fake.watchArgsForCall = append(fake.watchArgsForCall, struct {
-		arg1 string
+		arg1 *verifiable.Credential
 		arg2 time.Time
-		arg3 []byte
-	}{arg1, arg2, arg3Copy})
-	fake.recordInvocation("Watch", []interface{}{arg1, arg2, arg3Copy})
+		arg3 string
+		arg4 time.Time
+	}{arg1, arg2, arg3, arg4})
+	stub := fake.WatchStub
+	fakeReturns := fake.watchReturns
+	fake.recordInvocation("Watch", []interface{}{arg1, arg2, arg3, arg4})
 	fake.watchMutex.Unlock()
-	if fake.WatchStub != nil {
-		return fake.WatchStub(arg1, arg2, arg3)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.watchReturns
 	return fakeReturns.result1
 }
 
@@ -55,17 +55,17 @@ func (fake *MonitoringService) WatchCallCount() int {
 	return len(fake.watchArgsForCall)
 }
 
-func (fake *MonitoringService) WatchCalls(stub func(string, time.Time, []byte) error) {
+func (fake *MonitoringService) WatchCalls(stub func(*verifiable.Credential, time.Time, string, time.Time) error) {
 	fake.watchMutex.Lock()
 	defer fake.watchMutex.Unlock()
 	fake.WatchStub = stub
 }
 
-func (fake *MonitoringService) WatchArgsForCall(i int) (string, time.Time, []byte) {
+func (fake *MonitoringService) WatchArgsForCall(i int) (*verifiable.Credential, time.Time, string, time.Time) {
 	fake.watchMutex.RLock()
 	defer fake.watchMutex.RUnlock()
 	argsForCall := fake.watchArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *MonitoringService) WatchReturns(result1 error) {

@@ -49,24 +49,24 @@ type vcStore interface {
 }
 
 type monitoringSvc interface {
-	Watch(anchorCredID string, endTime time.Time, proof []byte) error
+	Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string, startTime, endTime time.Time, proof []byte) error { //nolint:lll
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error { //nolint:lll
 	logger.Debugf("received request anchorCredID[%s] from witness[%s], proof: %s",
 		anchorCredID, witness.String(), string(proof))
 
-	err := h.MonitoringSvc.Watch(anchorCredID, endTime, proof)
-	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
-	}
-
 	var witnessProof vct.Proof
 
-	err = json.Unmarshal(proof, &witnessProof)
+	err := json.Unmarshal(proof, &witnessProof)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %w", anchorCredID, err)
+	}
+
+	createdTime, err := time.Parse(time.RFC3339, witnessProof.Proof["created"].(string))
+	if err != nil {
+		return fmt.Errorf("parse created: %w", err)
 	}
 
 	vc, err := h.Store.Get(anchorCredID)
@@ -79,6 +79,11 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 		logger.Debugf("Credential[%s] has already been witnessed, nothing to do", vc.ID)
 
 		return nil
+	}
+
+	err = h.MonitoringSvc.Watch(vc, endTime, witnessProof.Proof["domain"].(string), createdTime)
+	if err != nil {
+		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
 	}
 
 	err = h.WitnessStore.AddProof(anchorCredID, witness.String(), proof)

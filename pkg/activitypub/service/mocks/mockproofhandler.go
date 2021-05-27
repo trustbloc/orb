@@ -34,7 +34,7 @@ func (m *ProofHandler) WithError(err error) *ProofHandler {
 }
 
 // HandleProof store the proof and returns any injected error.
-func (m *ProofHandler) HandleProof(witness *url.URL, anchorCredID string, startTime, endTime time.Time, proof []byte) error { //nolint:lll
+func (m *ProofHandler) HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error { //nolint:lll
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

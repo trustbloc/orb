@@ -76,7 +76,7 @@ type signer interface {
 }
 
 type monitoringSvc interface {
-	Watch(anchorCredID string, endTime time.Time, proof []byte) error
+	Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error
 }
 
 type outbox interface {
@@ -284,7 +284,23 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
 
-	err = c.MonitoringSvc.Watch(vc.ID, endTime, proofBytes)
+	var (
+		createdTime time.Time
+		domain      string
+	)
+
+	if created, ok := witnessProof.Proof["created"].(string); ok {
+		createdTime, err = time.Parse(time.RFC3339, created)
+		if err != nil {
+			return nil, fmt.Errorf("parse created: %w", err)
+		}
+	}
+
+	if domainVal, ok := witnessProof.Proof["domain"].(string); ok {
+		domain = domainVal
+	}
+
+	err = c.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup monitoring for local witness for anchor credential[%s]: %w", vc.ID, err)
 	}

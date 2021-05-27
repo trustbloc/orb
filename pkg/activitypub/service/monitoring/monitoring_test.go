@@ -26,7 +26,6 @@ import (
 
 	. "github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
-	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 )
 
 const (
@@ -56,89 +55,59 @@ func TestNext(t *testing.T) {
 }
 
 func TestClient_Watch(t *testing.T) {
-	const vcID = "id"
-
 	t.Run("Expired", func(t *testing.T) {
 		client, err := New(mem.NewProvider(), nil)
 		require.NoError(t, err)
 
-		require.EqualError(t, client.Watch(vcID,
+		require.EqualError(t, client.Watch(&verifiable.Credential{},
 			time.Now().Add(-time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		), "expired")
-	})
-
-	t.Run("Unmarshal proof", func(t *testing.T) {
-		client, err := New(mem.NewProvider(), nil)
-		require.NoError(t, err)
-
-		require.Contains(t, client.Watch(vcID,
-			time.Now().Add(-time.Minute),
-			[]byte(`[]`),
-		).Error(), "json: cannot unmarshal array into Go value ")
-	})
-
-	t.Run("VC not found", func(t *testing.T) {
-		vStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
-		require.NoError(t, err)
-
-		client, err := New(mem.NewProvider(), vStore)
-		require.NoError(t, err)
-
-		require.EqualError(t, client.Watch(vcID,
-			time.Now().Add(time.Minute),
-			[]byte(`{}`),
-		), "get credential \"id\": failed to get vc: data not found")
 	})
 
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
 
-		client, err := New(db, vStore)
+		client, err := New(db, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
 		ID2 := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID1,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID1,
 			Issuer:  verifiable.Issuer{ID: ID1},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID1,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID2,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID2,
 			Issuer:  verifiable.Issuer{ID: ID2},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID2,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
 
 		checkQueue(t, db, 2)
 	})
 
 	t.Run("Escape to queue", func(t *testing.T) {
-		db := mem.NewProvider()
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
 
-		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-sth" {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -155,29 +124,28 @@ func TestClient_Watch(t *testing.T) {
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID,
 			Issuer:  verifiable.Issuer{ID: ID},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
 
 		checkQueue(t, db, 1)
 	})
 
 	t.Run("No audit path (escapes to queue)", func(t *testing.T) {
-		db := mem.NewProvider()
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
 
-		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[]}`)),
 				StatusCode: http.StatusOK,
@@ -187,18 +155,16 @@ func TestClient_Watch(t *testing.T) {
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID,
 			Issuer:  verifiable.Issuer{ID: ID},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
 
 		checkQueue(t, db, 1)
@@ -218,16 +184,15 @@ func TestClient_Watch(t *testing.T) {
 		store, err := db.OpenStore(storeName)
 		require.NoError(t, err)
 
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
-
 		responses := make(chan string, 4)
 		responses <- `{}`
 		responses <- `{}`
 		responses <- `{}`
 		responses <- `{"audit_path":[[]]}`
 
-		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		dl := testutil.GetLoader(t)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
@@ -237,24 +202,22 @@ func TestClient_Watch(t *testing.T) {
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID,
 			Issuer:  verifiable.Issuer{ID: ID},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
 
 		require.NoError(t, backoff.Retry(func() error {
 			select {
 			case <-proceed:
-			case <-time.After(time.Second):
+			case <-time.After(time.Second * 3):
 				t.Error("timeout")
 			}
 
@@ -285,9 +248,6 @@ func TestClient_Watch(t *testing.T) {
 			return errors.New("error")
 		}
 
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
-
 		store, err := db.OpenStore(storeName)
 		require.NoError(t, err)
 
@@ -299,7 +259,9 @@ func TestClient_Watch(t *testing.T) {
 		responses <- `{}`
 		responses <- `{}`
 
-		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		dl := testutil.GetLoader(t)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
@@ -309,19 +271,17 @@ func TestClient_Watch(t *testing.T) {
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID,
 			Issuer:  verifiable.Issuer{ID: ID},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID,
+		},
 			time.Now().Add(time.Millisecond*100),
-			[]byte(`{}`),
-		))
+			"", time.Now()),
+		)
 
 		require.NoError(t, backoff.Retry(func() error {
 			records, err := store.Query(tagNotConfirmed)
@@ -343,11 +303,12 @@ func TestClient_Watch(t *testing.T) {
 	})
 
 	t.Run("Success", func(t *testing.T) {
-		db := mem.NewProvider()
-		vStore, err := vcstore.New(db, testutil.GetLoader(t))
-		require.NoError(t, err)
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
 
-		client, err := New(db, vStore, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
@@ -357,19 +318,48 @@ func TestClient_Watch(t *testing.T) {
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, vStore.Put(&verifiable.Credential{
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: ID,
 			Issuer:  verifiable.Issuer{ID: ID},
 			Issued:  &util.TimeWithTrailingZeroMsec{},
 			Types:   []string{"VerifiableCredential"},
-		}))
-
-		require.NoError(t, client.Watch(ID,
+		},
 			time.Now().Add(time.Minute),
-			[]byte(`{}`),
+			"", time.Now(),
 		))
+
+		checkQueue(t, db, 0)
+	})
+
+	t.Run("Marshal credential (error)", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})))
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.EqualError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: make(chan int),
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWithTrailingZeroMsec{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"", time.Now(),
+		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
 
 		checkQueue(t, db, 0)
 	})

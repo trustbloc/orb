@@ -16,15 +16,12 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/piprate/json-gold/ld"
 	"github.com/sirupsen/logrus"
 	"github.com/trustbloc/vct/pkg/client/vct"
 )
 
 var logger = logrus.New()
-
-type vcStore interface {
-	Get(id string) (*verifiable.Credential, error)
-}
 
 const (
 	storeName       = "monitoring"
@@ -39,10 +36,10 @@ type HTTPClient interface {
 
 // Client for the monitoring.
 type Client struct {
-	store   storage.Store
-	http    HTTPClient
-	vcStore vcStore
-	ticker  *time.Ticker
+	documentLoader ld.DocumentLoader
+	store          storage.Store
+	http           HTTPClient
+	ticker         *time.Ticker
 }
 
 // Opt represents client option func.
@@ -56,7 +53,7 @@ func WithHTTPClient(client HTTPClient) Opt {
 }
 
 // New returns monitoring client.
-func New(provider storage.Provider, vcStore vcStore, opts ...Opt) (*Client, error) {
+func New(provider storage.Provider, documentLoader ld.DocumentLoader, opts ...Opt) (*Client, error) {
 	store, err := provider.OpenStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -68,10 +65,10 @@ func New(provider storage.Provider, vcStore vcStore, opts ...Opt) (*Client, erro
 	}
 
 	client := &Client{
-		store:   store,
-		vcStore: vcStore,
-		ticker:  time.NewTicker(time.Second),
-		http:    &http.Client{Timeout: time.Minute},
+		documentLoader: documentLoader,
+		store:          store,
+		ticker:         time.NewTicker(time.Second),
+		http:           &http.Client{Timeout: time.Minute},
 	}
 
 	for _, opt := range opts {
@@ -92,7 +89,7 @@ type Proof struct {
 }
 
 type entity struct {
-	CredentialID   string    `json:"credential_id"`
+	CredentialRaw  []byte    `json:"credential"`
 	ExpirationDate time.Time `json:"expiration_date"`
 	Domain         string    `json:"domain"`
 	Created        time.Time `json:"created"`
@@ -100,7 +97,7 @@ type entity struct {
 
 var errExpired = errors.New("expired")
 
-func (c *Client) exist(e *entity) error {
+func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 	// validates whether the promise is valid against the end time
 	if time.Now().UnixNano() > e.ExpirationDate.UnixNano() {
 		return errExpired
@@ -108,13 +105,6 @@ func (c *Client) exist(e *entity) error {
 
 	// creates new client based on domain
 	vctClient := vct.New(e.Domain, vct.WithHTTPClient(c.http))
-
-	// gets initial credential from the store
-	// *initial - a credential that was sent to VCT.
-	vc, err := c.vcStore.Get(e.CredentialID)
-	if err != nil {
-		return fmt.Errorf("get credential %q: %w", e.CredentialID, err)
-	}
 
 	// calculates leaf hash for given timestamp and initial credential to be able query proof by hash.
 	hash, err := vct.CalculateLeafHash(uint64(e.Created.UnixNano()/int64(time.Millisecond)), vc)
@@ -189,29 +179,39 @@ func (c *Client) handleEntities() error {
 			continue
 		}
 
-		err = c.exist(e)
+		vc, err := verifiable.ParseCredential(e.CredentialRaw,
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(c.documentLoader),
+		)
+		if err != nil {
+			logger.Errorf("parse credential: %v", err)
+
+			continue
+		}
+
+		err = c.exist(vc, e)
 		if err == nil {
-			logger.Infof("credential %q existence in the Merkle tree confirmed", e.CredentialID)
+			logger.Infof("credential %q existence in the Merkle tree confirmed", vc.ID)
 
 			// removes the entity from the store bc we confirmed that credential is in MT (log above).
-			if err = c.store.Delete(key(e.CredentialID)); err != nil {
-				logger.Errorf("delete credential %q from queue: %v", e.CredentialID, err)
+			if err = c.store.Delete(key(vc.ID)); err != nil {
+				logger.Errorf("delete credential %q from queue: %v", vc.ID, err)
 			}
 
 			continue
 		}
 
 		if !errors.Is(err, errExpired) {
-			logger.Warnf("credential %q existence: %v", e.CredentialID, err)
+			logger.Warnf("credential %q existence: %v", vc.ID, err)
 
 			continue
 		}
 
-		logger.Errorf("credential %q existence in the Merkle tree not confirmed", e.CredentialID)
+		logger.Errorf("credential %q existence in the Merkle tree not confirmed", vc.ID)
 
 		// removes entity from the store bc we failed our promise (log above).
-		if err = c.store.Delete(key(e.CredentialID)); err != nil {
-			logger.Errorf("delete credential %q from queue: %v", e.CredentialID, err)
+		if err = c.store.Delete(key(vc.ID)); err != nil {
+			logger.Errorf("delete credential %q from queue: %v", vc.ID, err)
 		}
 	}
 
@@ -219,46 +219,38 @@ func (c *Client) handleEntities() error {
 }
 
 // Watch starts monitoring.
-func (c *Client) Watch(anchorCredID string, endTime time.Time, proof []byte) error {
-	var p *Proof
-
-	if err := json.Unmarshal(proof, &p); err != nil {
-		return fmt.Errorf("unmarshal proof: %w", err)
-	}
-
+func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
 	e := &entity{
-		CredentialID:   anchorCredID,
 		ExpirationDate: endTime,
 		// TODO: domain probably needs to be discovered by using a web finger.
-		Domain:  p.Data.Domain,
-		Created: p.Data.Created,
+		Domain:  domain,
+		Created: created,
 	}
 
-	err := c.exist(e)
+	err := c.exist(vc, e)
 	// no error means that we have credential in MT, no need to put it in the queue.
 	if err == nil {
-		logger.Infof("credential %q existence in the Merkle tree confirmed", e.CredentialID)
+		logger.Infof("credential %q existence in the Merkle tree confirmed", vc.ID)
 
 		return nil
 	}
 
-	// if error is ErrDataNotFound no need to put data in the queue.
-	// No credential no work.
-	if errors.Is(err, storage.ErrDataNotFound) {
-		logger.Errorf("credential %q existence in the Merkle tree not confirmed", e.CredentialID)
-
-		return err
-	}
-
 	// if error is errExpired no need to put data in the queue.
 	if errors.Is(err, errExpired) {
-		logger.Errorf("credential %q existence in the Merkle tree not confirmed", e.CredentialID)
+		logger.Errorf("credential %q existence in the Merkle tree not confirmed", vc.ID)
 
 		return err
 	}
 
-	logger.Warnf("credential %q existence: %v", e.CredentialID, err)
-	logger.Warnf("credential %q is not in the Merkle tree yet, entity will escape to the queue", e.CredentialID)
+	logger.Warnf("credential %q existence: %v", vc.ID, err)
+	logger.Warnf("credential %q is not in the Merkle tree yet, entity will escape to the queue", vc.ID)
+
+	raw, err := vc.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal credential: %w", err)
+	}
+
+	e.CredentialRaw = raw
 
 	src, err := json.Marshal(e)
 	if err != nil {
@@ -266,7 +258,7 @@ func (c *Client) Watch(anchorCredID string, endTime time.Time, proof []byte) err
 	}
 
 	// puts data in the queue, the entity will be picked and checked by the worker later.
-	return c.store.Put(key(e.CredentialID), src, storage.Tag{Name: tagNotConfirmed})
+	return c.store.Put(key(vc.ID), src, storage.Tag{Name: tagNotConfirmed})
 }
 
 func key(id string) string {

@@ -194,6 +194,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
+		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
+
 		providers := &Providers{
 			AnchorGraph:     anchorGraph,
 			DidAnchors:      memdidanchor.New(),
@@ -201,7 +203,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			OpProcessor:     &mockOpProcessor{},
 			Outbox:          &mockOutbox{},
 			Signer:          &mockSigner{},
-			Witness:         &mockWitness{},
+			Witness:         wit,
 			MonitoringSvc:   &mockMonitoring{},
 			WitnessStore:    &mockWitnessStore{},
 			ActivityStore:   &mockActivityStore{},
@@ -233,6 +235,46 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		vcCh <- anchorVC
+	})
+
+	t.Run("Parse created time (error)", func(t *testing.T) {
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		wit := &mockWitness{proofBytes: []byte(`{"proof": {"created": "021-02-23T:07Z"}}`)}
+
+		providers := &Providers{
+			AnchorGraph:     anchorGraph,
+			DidAnchors:      memdidanchor.New(),
+			AnchorBuilder:   &mockTxnBuilder{},
+			OpProcessor:     &mockOpProcessor{},
+			Outbox:          &mockOutbox{},
+			Signer:          &mockSigner{},
+			Witness:         wit,
+			MonitoringSvc:   &mockMonitoring{},
+			WitnessStore:    &mockWitnessStore{},
+			ActivityStore:   &mockActivityStore{},
+			VerifiableStore: vcStore,
+		}
+
+		c := New(namespace, apServiceIRI, casIRI, providers, nil, nil, testMaxWitnessDelay, signWithLocalWitness)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: activityPubURL,
+			},
+			{
+				UniqueSuffix: "did-2",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: activityPubURL,
+			},
+		}
+
+		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse created: parsing time")
 	})
 
 	t.Run("error - failed to get witness list", func(t *testing.T) {
@@ -1009,12 +1051,17 @@ func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*ver
 }
 
 type mockWitness struct {
-	Err error
+	proofBytes []byte
+	Err        error
 }
 
 func (w *mockWitness) Witness(anchorCred []byte) ([]byte, error) {
 	if w.Err != nil {
 		return nil, w.Err
+	}
+
+	if len(w.proofBytes) != 0 {
+		return w.proofBytes, nil
 	}
 
 	return anchorCred, nil
@@ -1024,7 +1071,7 @@ type mockMonitoring struct {
 	Err error
 }
 
-func (m *mockMonitoring) Watch(_ string, _ time.Time, _ []byte) error {
+func (m *mockMonitoring) Watch(_ *verifiable.Credential, _ time.Time, _ string, _ time.Time) error {
 	if m.Err != nil {
 		return m.Err
 	}

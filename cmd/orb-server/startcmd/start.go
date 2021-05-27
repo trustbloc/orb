@@ -459,7 +459,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
 
-	monitoringSvc, err := monitoring.New(storeProviders.provider, vcStore, monitoring.WithHTTPClient(httpClient))
+	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
 		return fmt.Errorf("monitoring: %w", err)
 	}
@@ -483,7 +483,9 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore, t, apSigVerifier,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
-		apspi.WithAnchorCredentialHandler(credential.New(anchorCh, casResolver)),
+		apspi.WithAnchorCredentialHandler(credential.New(
+			anchorCh, casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
+		)),
 		// TODO: Define the following ActivityPub handlers.
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		// apspi.WithFollowerAuth(followerAuth),
