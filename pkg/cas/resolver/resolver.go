@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resolver
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -17,32 +18,37 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
+const cidWithPossibleHintNumPartsWithDomainPort = 4
+
 var logger = log.New("cas-resolver")
+
+type httpClient interface {
+	Get(url string) (*http.Response, error)
+}
 
 // Resolver represents a resolver that can resolve data in a CAS based on a CID and WebCAS URL.
 type Resolver struct {
-	localCAS   casapi.Client
-	ipfsReader ipfsReader
-	httpClient *http.Client
+	localCAS           casapi.Client
+	ipfsReader         ipfsReader
+	httpClient         httpClient
+	webFingerURIScheme string
 }
 
 type ipfsReader interface {
 	Read(address string) ([]byte, error)
 }
 
-// TODO: issue-364 Fix with webfinger
-//nolint:gochecknoglobals
-var webCasURLFormat = "https://%s/cas/%s"
-
 // New returns a new Resolver.
-func New(casClient casapi.Client, ipfsReader ipfsReader, httpClient *http.Client) *Resolver {
+func New(casClient casapi.Client, ipfsReader ipfsReader, httpClient httpClient) *Resolver {
 	return &Resolver{
-		localCAS:   casClient,
-		ipfsReader: ipfsReader,
-		httpClient: httpClient,
+		localCAS:           casClient,
+		ipfsReader:         ipfsReader,
+		httpClient:         httpClient,
+		webFingerURIScheme: "https",
 	}
 }
 
@@ -55,9 +61,10 @@ func New(casClient casapi.Client, ipfsReader ipfsReader, httpClient *http.Client
 //    Finally, the data is returned to the caller.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error) { //nolint:gocyclo,cyclop
+func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, //nolint:gocyclo,cyclop
+	data []byte) ([]byte, error) {
 	if data != nil {
-		err := h.storeLocallyAndVerifyCID(data, cid)
+		err := h.storeLocallyAndVerifyCID(data, cidWithPossibleHint)
 		if err != nil {
 			return nil, fmt.Errorf("failure while storing the data in the local CAS: %w", err)
 		}
@@ -65,21 +72,21 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte,
 		return data, nil
 	}
 
-	logger.Debugf("resolving webCasURL[%v] and cid[%s]", webCASURL, cid)
+	logger.Debugf("resolving webCasURL[%v] and cid[%s]", webCASURL, cidWithPossibleHint)
 
-	localCID := cid
+	cid := cidWithPossibleHint
 
-	cidParts := strings.Split(cid, ":")
-	if len(cidParts) > 1 {
-		localCID = cidParts[len(cidParts)-1]
+	cidWithPossibleHintParts := strings.Split(cidWithPossibleHint, ":")
+	if len(cidWithPossibleHintParts) > 1 {
+		cid = cidWithPossibleHintParts[len(cidWithPossibleHintParts)-1]
 	}
 
 	// Ensure we have the data stored in the local CAS.
-	dataFromLocal, err := h.localCAS.Read(localCID)
+	dataFromLocal, err := h.localCAS.Read(cid)
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if webCASURL != nil && webCASURL.String() != "" {
 			if errors.Is(err, cas.ErrContentNotFound) {
-				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromRemote(webCASURL, localCID)
+				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromRemote(webCASURL, cid)
 				if errGetAndStoreRemoteData != nil {
 					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
 						"WebCAS endpoint: %w", errGetAndStoreRemoteData)
@@ -89,33 +96,38 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte,
 			}
 		}
 
-		if len(cidParts) > 1 {
-			return h.resolveCIDWithHint(cidParts)
+		if len(cidWithPossibleHintParts) > 1 {
+			return h.resolveCIDWithHint(cidWithPossibleHintParts)
 		}
 
 		if h.ipfsReader != nil {
 			// last resort - try ipfs if reader configured
-			return h.getAndStoreDataFromIPFS(localCID)
+			return h.getAndStoreDataFromIPFS(cid)
 		}
 
-		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", localCID, err)
+		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", cid, err)
 	}
 
 	return dataFromLocal, nil
 }
 
-func (h *Resolver) resolveCIDWithHint(cidParts []string) ([]byte, error) {
+func (h *Resolver) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte, error) {
 	var dataFromRemote []byte
 
-	switch cidParts[0] {
+	switch cidWithPossibleHintParts[0] {
 	case "webcas":
-		cid := cidParts[2]
-		domain := cidParts[1]
+		domain := cidWithPossibleHintParts[1]
 
-		// TODO: issue-364 fix hard-coded URL when webfinger is available
-		webCASURL, err := url.Parse(fmt.Sprintf(webCasURLFormat, domain, cid))
+		// If the domain in the hint contains a port, this will ensure it's included.
+		if len(cidWithPossibleHintParts) == cidWithPossibleHintNumPartsWithDomainPort {
+			domain = fmt.Sprintf("%s:%s", domain, cidWithPossibleHintParts[2])
+		}
+
+		cid := cidWithPossibleHintParts[len(cidWithPossibleHintParts)-1]
+
+		webCASURL, err := h.getWebCASURLViaWebFinger(domain, cid)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
+			return nil, fmt.Errorf("failed to determine WebCAS URL via WebFinger: %w", err)
 		}
 
 		dataFromRemote, err = h.getAndStoreDataFromRemote(webCASURL, cid)
@@ -129,7 +141,7 @@ func (h *Resolver) resolveCIDWithHint(cidParts []string) ([]byte, error) {
 	case "ipfs":
 		var err error
 
-		cid := cidParts[1]
+		cid := cidWithPossibleHintParts[1]
 
 		if h.ipfsReader == nil {
 			return nil, fmt.Errorf("ipfs reader is not supported")
@@ -143,7 +155,7 @@ func (h *Resolver) resolveCIDWithHint(cidParts []string) ([]byte, error) {
 		logger.Debugf("successfully retrieved data for cid[%s] from ipfs", cid)
 
 	default:
-		return nil, fmt.Errorf("hint '%s' not supported", cidParts[0])
+		return nil, fmt.Errorf("hint '%s' not supported", cidWithPossibleHintParts[0])
 	}
 
 	return dataFromRemote, nil
@@ -215,4 +227,55 @@ func (h *Resolver) storeLocallyAndVerifyCID(data []byte, cidFromOriginalRequest 
 	}
 
 	return nil
+}
+
+func (h *Resolver) getWebCASURLViaWebFinger(domain, cid string) (*url.URL, error) {
+	webFingerURL := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=%s://%s/cas/%s",
+		h.webFingerURIScheme, domain, h.webFingerURIScheme, domain, cid)
+
+	resp, err := h.httpClient.Get(webFingerURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get response (URL: %s): %w", webFingerURL, err)
+	}
+
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			logger.Errorf("failed to close response body while getting WebCAS URL via WebFinger: %s", err.Error())
+		}
+	}()
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received unexpected status code. URL [%s], "+
+			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
+	}
+
+	webFingerResponse := restapi.WebFingerResponse{}
+
+	err = json.Unmarshal(respBytes, &webFingerResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+	}
+
+	var webCASURLFromWebFinger string
+
+	for _, link := range webFingerResponse.Links {
+		if link.Rel == "working-copy" {
+			webCASURLFromWebFinger = link.Href
+
+			break
+		}
+	}
+
+	webCASURL, err := url.Parse(webCASURLFromWebFinger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
+	}
+
+	return webCASURL, nil
 }

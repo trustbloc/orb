@@ -67,39 +67,25 @@ func TestCasClientWrapper_Read(t *testing.T) {
 		resolver := createNewResolver(t, casClient)
 
 		wrapper := &casClientWrapper{
-			resolver:       resolver,
-			webCASEndpoint: "https://orb.domain1.com/cas/",
+			resolver:                 resolver,
+			casHintWithTrailingColon: "webcas:orb.domain1.com:",
 		}
 
 		data, err := wrapper.Read(cid)
 		require.NoError(t, err)
 		require.Equal(t, "sample data", string(data))
 	})
-	t.Run("fail to parse url", func(t *testing.T) {
-		wrapper := &casClientWrapper{
-			webCASEndpoint: "%",
-		}
-
-		data, err := wrapper.Read("QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ")
-		require.EqualError(t, err, "%QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ is not a valid URL: "+
-			`parse "%QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ": invalid URL escape "%Qm"`)
-		require.Nil(t, data)
-	})
 	t.Run("fail to resolve", func(t *testing.T) {
 		resolver := createNewResolver(t, createInMemoryCAS(t))
 
 		wrapper := &casClientWrapper{
-			resolver:       resolver,
-			webCASEndpoint: "https://orb.domain1.com/cas/",
+			resolver: resolver,
 		}
 
 		data, err := wrapper.Read("QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), `failed to resolve CID: failure while getting and storing data `+
-			`from the remote WebCAS endpoint: failed to execute GET call on `+
-			`https://orb.domain1.com/cas/QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ: `+
-			`Get "https://orb.domain1.com/cas/QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ": `+
-			`dial tcp:`)
+		require.EqualError(t, err, "failed to resolve CID: failed to get data stored at "+
+			"QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ from the local CAS: content not found")
 		require.Nil(t, data)
 	})
 }

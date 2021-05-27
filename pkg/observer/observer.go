@@ -151,7 +151,6 @@ func (o *Observer) processDIDs(dids []string) {
 		for _, anchor := range anchors {
 			logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
 
-			// TODO (#364): Pass in a URL here that we can use to resolve data in CAS via WebFinger
 			if err := o.processAnchor(anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
 				anchor.Info, suffix); err != nil {
 				logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
