@@ -13,7 +13,7 @@ Feature:
 
     Given domain "orb.domain1.com" is mapped to "localhost:48326"
     And domain "orb.domain2.com" is mapped to "localhost:48426"
-    And domain "orb.domain3.com" is mapped to "orb.domain3.com"
+    And domain "orb.domain3.com" is mapped to "localhost:48626"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
@@ -23,10 +23,20 @@ Feature:
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
 
+    # domain1 server follows domain2 server
+    Given variable "followID" is assigned a unique ID
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${followID}","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+
     # domain1 invites domain2 to be a witness
     Given variable "inviteWitnessID" is assigned a unique ID
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+
+    # domain2 invites domain1 to be a witness
+    Given variable "inviteWitnessID" is assigned a unique ID
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     Then we wait 3 seconds
 
@@ -151,18 +161,18 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "#canonicalDID"
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
+      When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "newService"
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove service endpoint with ID "newService" from DID document
+      When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to remove service endpoint with ID "newService" from DID document
       Then check for request success
       Then we wait 2 seconds
 
-      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"
 
   @did_sidetree_auth

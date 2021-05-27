@@ -22,7 +22,7 @@ const (
 	WitnessTypeBatch WitnessType = "batch"
 
 	// WitnessTypeSystem captures "system" witness type.
-	WitnessTypeSystem WitnessType = "witness"
+	WitnessTypeSystem WitnessType = "system"
 )
 
 // VCStatus defines valid values for verifiable credential proof collection status.
