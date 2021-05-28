@@ -17,10 +17,12 @@ import (
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 )
 
 func TestNew(t *testing.T) {
-	c := New("ipfs:5001", false)
+	c := New("ipfs:5001")
 	require.NotNil(t, c)
 }
 
@@ -33,7 +35,7 @@ func TestWrite(t *testing.T) {
 		}()
 
 		t.Run("v1 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", false)
+			cas := New("localhost:5001")
 			require.NotNil(t, cas)
 
 			var cid string
@@ -54,7 +56,7 @@ func TestWrite(t *testing.T) {
 			require.Equal(t, "content", string(read))
 		})
 		t.Run("v0 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", true)
+			cas := New("localhost:5001", extendedcasclient.WithCIDVersion(0))
 			require.NotNil(t, cas)
 
 			var cid string
@@ -82,12 +84,21 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, false)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
 		require.Error(t, err)
 		require.Empty(t, cid)
+	})
+
+	t.Run("invalid CID version", func(t *testing.T) {
+		cas := New("IPFS URL", extendedcasclient.WithCIDVersion(2))
+		require.NotNil(t, cas)
+
+		cid, err := cas.Write([]byte("content"))
+		require.Empty(t, cid)
+		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
 	})
 }
 
@@ -98,7 +109,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, false)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("cid")
@@ -112,7 +123,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, false)
+		cas := New(ipfs.URL)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")

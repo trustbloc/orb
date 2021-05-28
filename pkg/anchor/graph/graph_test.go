@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -22,6 +22,7 @@ import (
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
 const testDID = "abc"
@@ -32,7 +33,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestGraph_Add(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
@@ -59,7 +61,8 @@ func TestGraph_Add(t *testing.T) {
 }
 
 func TestGraph_Read(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "ipfs"),
@@ -102,7 +105,8 @@ func TestGraph_Read(t *testing.T) {
 }
 
 func TestGraph_GetDidAnchors(t *testing.T) {
-	casClient := mocks.NewMockCasClient(nil)
+	casClient, err := cas.New(mem.NewProvider())
+	require.NoError(t, err)
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
