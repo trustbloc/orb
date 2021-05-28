@@ -78,6 +78,10 @@ func TestNewOutbox(t *testing.T) {
 	require.Equal(t, spi.StateStopped, h.State())
 }
 
+func TestNoOpProofHandler_HandleProof(t *testing.T) {
+	require.Nil(t, (&noOpProofHandler{}).HandleProof(nil, "", time.Now(), nil))
+}
+
 func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 	cfg := &Config{
 		ServiceName: "service1",

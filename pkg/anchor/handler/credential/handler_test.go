@@ -11,15 +11,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -91,6 +95,47 @@ func TestAnchorCredentialHandler(t *testing.T) {
 			[]byte(sampleAnchorCredential))
 		require.NoError(t, err)
 	})
+
+	t.Run("Parse created time (error)", func(t *testing.T) {
+		const credCID = "bafkreieymtf5ei5jxcxpnzwv4nazzavcuiaixn2jbq5hiwo45645ozyjny"
+
+		cred := strings.Replace(sampleAnchorCredential, "2021-01-27T09:30:00Z", "2021-27T09:30:00Z", 1)
+
+		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		require.NoError(t, err)
+
+		err = createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(id, credCID,
+			[]byte(cred))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse created: parsing time")
+	})
+
+	t.Run("Ignore time and domain", func(t *testing.T) {
+		const credCID = "bafkreidomqgpskyhclw4ambwxybydq54oodqz3u4fupfhm33neuehfnuqq"
+
+		cred := strings.Replace(strings.Replace(
+			sampleAnchorCredential, `"2021-01-27T09:30:00Z"`, "null", 1,
+		), `"https://witness1.example.com/ledgers/maple2021"`, "null", 1)
+
+		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		require.NoError(t, err)
+
+		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
+			id, credCID, []byte(cred),
+		))
+	})
+
+	t.Run("Got null credentials", func(t *testing.T) {
+		const credCID = "bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
+
+		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		require.NoError(t, err)
+
+		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
+			id, credCID, []byte("null"),
+		))
+	})
+
 	t.Run("Neither local nor remote CAS has the anchor credential", func(t *testing.T) {
 		webCAS := webcas.New(createInMemoryCAS(t))
 		require.NotNil(t, webCAS)
@@ -127,7 +172,7 @@ func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *Ancho
 
 	casResolver := casresolver.New(client, nil, &http.Client{})
 
-	anchorCredentialHandler := New(anchorCh, casResolver)
+	anchorCredentialHandler := New(anchorCh, casResolver, testutil.GetLoader(t), &mocks.MonitoringService{}, time.Second)
 	require.NotNil(t, anchorCredentialHandler)
 
 	return anchorCredentialHandler

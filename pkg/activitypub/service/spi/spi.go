@@ -76,7 +76,7 @@ type WitnessHandler interface {
 
 // ProofHandler handles the given proof for the anchor credential.
 type ProofHandler interface {
-	HandleProof(witness *url.URL, anchorCredID string, startTime time.Time, endTime time.Time, proof []byte) error
+	HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error
 }
 
 // ActivityHandler defines the functions of an Activity handler.
