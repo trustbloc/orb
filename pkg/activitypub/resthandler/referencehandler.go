@@ -77,7 +77,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 }
 
 func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
-	ok, _, err := h.authorize(req)
+	ok, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 

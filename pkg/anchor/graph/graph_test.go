@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package graph
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -36,7 +36,7 @@ func TestGraph_Add(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}
@@ -63,7 +63,7 @@ func TestGraph_Read(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "ipfs"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}
@@ -106,7 +106,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &http.Client{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -67,10 +68,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -121,10 +125,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -174,10 +181,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -235,10 +245,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 		anchorGraph := graph.New(graphProviders)
 
@@ -294,10 +307,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -349,10 +365,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -401,10 +420,13 @@ func TestStartObserver(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
 		graphProviders := &graph.Providers{
-			CasWriter:   caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, &http.Client{}),
-			Pkf:         pubKeyFetcherFnc,
-			DocLoader:   testutil.GetLoader(t),
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
 		}
 
 		anchorGraph := graph.New(graphProviders)

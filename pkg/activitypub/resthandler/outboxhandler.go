@@ -26,7 +26,7 @@ type outbox interface {
 // Outbox implements a REST handler for posts to a service's outbox.
 type Outbox struct {
 	*Config
-	*authHandler
+	*AuthHandler
 
 	endpoint string
 	ob       outbox
@@ -42,7 +42,7 @@ func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVeri
 		marshal:  json.Marshal,
 	}
 
-	h.authHandler = newAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, h.authorizeActor)
+	h.AuthHandler = NewAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, h.authorizeActor)
 
 	return h
 }
@@ -64,7 +64,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 }
 
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
-	ok, _, err := h.authorize(req)
+	ok, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
 

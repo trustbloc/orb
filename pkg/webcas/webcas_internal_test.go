@@ -18,6 +18,9 @@ import (
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -41,6 +44,14 @@ func (s *stringLogger) Errorf(msg string, args ...interface{}) {
 	s.log = fmt.Sprintf(msg, args...)
 }
 
+func (s *stringLogger) Infof(msg string, args ...interface{}) {
+	s.log = fmt.Sprintf(msg, args...)
+}
+
+func (s *stringLogger) Debugf(msg string, args ...interface{}) {
+	s.log = fmt.Sprintf(msg, args...)
+}
+
 func TestWriteResponseFailures(t *testing.T) {
 	t.Run("Fail to write failure response", func(t *testing.T) {
 		t.Run("Status not found", func(t *testing.T) {
@@ -51,10 +62,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 			testLogger := &stringLogger{}
 
-			webCAS := WebCAS{
-				casClient: casClient,
-				logger:    testLogger,
-			}
+			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS.logger = testLogger
 
 			rw := &failingResponseWriter{}
 			req := httptest.NewRequest(http.MethodGet, "/cas", nil)
@@ -70,10 +79,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 			testLogger := &stringLogger{}
 
-			webCAS := WebCAS{
-				casClient: casClient,
-				logger:    testLogger,
-			}
+			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS.logger = testLogger
 
 			rw := &failingResponseWriter{}
 			req := httptest.NewRequest(http.MethodGet, "/cas", nil)
@@ -91,10 +98,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 		testLogger := &stringLogger{}
 
-		webCAS := WebCAS{
-			casClient: casClient,
-			logger:    testLogger,
-		}
+		webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS.logger = testLogger
 
 		rw := &failingResponseWriter{}
 		req := httptest.NewRequest(http.MethodGet, "/cas", nil)

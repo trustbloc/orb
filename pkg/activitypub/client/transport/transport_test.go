@@ -29,7 +29,12 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewRequest(t *testing.T) {
-	require.NotNil(t, NewRequest(testutil.MustParseURL("https://someurl")))
+	req := NewRequest(
+		testutil.MustParseURL("https://someurl"),
+		WithHeader(AcceptHeader, ActivityStreamsContentType),
+	)
+	require.NotNil(t, req)
+	require.Equal(t, []string{ActivityStreamsContentType}, req.Header[AcceptHeader])
 }
 
 func TestDefault(t *testing.T) {

@@ -107,20 +107,10 @@ func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
 }
 
 func (c *Client) get(iri *url.URL) ([]byte, error) {
-	req, err := http.NewRequest(http.MethodGet, iri.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("create HTTP request: %w", err)
-	}
-
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.Get(context.Background(), transport.NewRequest(iri))
+	resp, err := c.Get(context.Background(), transport.NewRequest(iri,
+		transport.WithHeader(transport.AcceptHeader, transport.ActivityStreamsContentType)))
 	if err != nil {
 		return nil, fmt.Errorf("request to %s failed: %w", iri, err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("request to %s returned status code %d", iri, resp.StatusCode)
 	}
 
 	defer func() {
@@ -128,6 +118,12 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 			logger.Warnf("Error closing response body from %s: %s", iri, e)
 		}
 	}()
+
+	logger.Debugf("Got response from %s. Status: %d", iri, resp.StatusCode)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("request to %s returned status code %d", iri, resp.StatusCode)
+	}
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

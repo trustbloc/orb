@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package webcas_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -74,7 +79,7 @@ func TestNew(t *testing.T) {
 	casClient, err := cas.New(mem.NewProvider(), false)
 	require.NoError(t, err)
 
-	webCAS := webcas.New(casClient)
+	webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 	require.NotNil(t, webCAS)
 	require.Equal(t, "/cas/{cid}", webCAS.Path())
 	require.Equal(t, http.MethodGet, webCAS.Method())
@@ -90,7 +95,7 @@ func TestHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, cid)
 
-		webCAS := webcas.New(casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -117,7 +122,7 @@ func TestHandler(t *testing.T) {
 		casClient, err := cas.New(mem.NewProvider(), false)
 		require.NoError(t, err)
 
-		webCAS := webcas.New(casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -140,5 +145,63 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, response.StatusCode)
 		require.Equal(t, "no content at QmeKWPxUJP9M3WJgBuj8ykLtGU37iqur5gZ8cDCi49WJVG was found: "+
 			"content not found", string(responseBody))
+	})
+
+	t.Run("Authorization", func(t *testing.T) {
+		casClient, err := cas.New(mem.NewProvider(), false)
+		require.NoError(t, err)
+
+		cfg := &resthandler.Config{
+			Config: auth.Config{
+				AuthTokensDef: []*auth.TokenDef{
+					{
+						EndpointExpression: "/cas",
+						ReadTokens:         []string{"read"},
+					},
+				},
+				AuthTokens: map[string]string{
+					"read": "READ_TOKEN",
+				},
+			},
+		}
+
+		t.Run("Unauthorized", func(t *testing.T) {
+			webCAS := webcas.New(cfg, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			require.NotNil(t, webCAS)
+
+			router := mux.NewRouter()
+
+			router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+			testServer := httptest.NewServer(router)
+			defer testServer.Close()
+
+			response, err := http.DefaultClient.Get(testServer.URL + "/cas/QmeKWPxUJP9M3WJgBuj8ykLtGU37iqur5gZ8cDCi49WJVG")
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusUnauthorized, response.StatusCode)
+			require.NoError(t, response.Body.Close())
+		})
+
+		t.Run("Authorization error", func(t *testing.T) {
+			sigVerifier := &mocks.SignatureVerifier{}
+			sigVerifier.VerifyRequestReturns(false, nil, errors.New("injected authorization error"))
+
+			webCAS := webcas.New(cfg, memstore.New(""), sigVerifier, casClient)
+			require.NotNil(t, webCAS)
+
+			router := mux.NewRouter()
+
+			router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+			testServer := httptest.NewServer(router)
+			defer testServer.Close()
+
+			response, err := http.DefaultClient.Get(testServer.URL + "/cas/QmeKWPxUJP9M3WJgBuj8ykLtGU37iqur5gZ8cDCi49WJVG")
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusInternalServerError, response.StatusCode)
+			require.NoError(t, response.Body.Close())
+		})
 	})
 }

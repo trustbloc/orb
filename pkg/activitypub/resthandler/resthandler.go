@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -75,7 +74,7 @@ type Config struct {
 
 type handler struct {
 	*Config
-	*authHandler
+	*AuthHandler
 
 	params    map[string]string
 	handler   common.HTTPRequestHandler
@@ -95,7 +94,7 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequest
 		},
 	}
 
-	h.authHandler = newAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, h.authorizeActor)
+	h.AuthHandler = NewAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, nil)
 
 	return h
 }
@@ -236,63 +235,6 @@ func (h *handler) paramAsBool(req *http.Request, param string) bool {
 	}
 
 	return b
-}
-
-func (h *handler) authorizeActor(actorIRI *url.URL) (bool, error) {
-	if !h.VerifyActorInSignature {
-		return true, nil
-	}
-
-	// Ensure that the actor is a follower or a witness, otherwise deny access.
-	isFollower, err := h.hasReference(spi.Follower, actorIRI)
-	if err != nil {
-		return false, fmt.Errorf("check follower: %w", err)
-	}
-
-	if !isFollower {
-		isWitness, err := h.hasReference(spi.Witness, actorIRI)
-		if err != nil {
-			return false, fmt.Errorf("check witness: %w", err)
-		}
-
-		if !isWitness {
-			logger.Infof("[%s] Denying access since actor [%s] is neither a follower or a witness.", h.endpoint, actorIRI)
-
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-func (h *handler) hasReference(refType spi.ReferenceType, refIRI *url.URL) (bool, error) {
-	it, err := h.activityStore.QueryReferences(refType,
-		spi.NewCriteria(
-			spi.WithObjectIRI(h.ObjectIRI),
-			spi.WithReferenceIRI(refIRI),
-		),
-	)
-	if err != nil {
-		return false, fmt.Errorf("query references: %w", err)
-	}
-
-	defer func() {
-		err = it.Close()
-		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
-		}
-	}()
-
-	_, err = it.Next()
-	if err != nil {
-		if errors.Is(err, spi.ErrNotFound) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("get next reference: %w", err)
-	}
-
-	return true, nil
 }
 
 func getPrevNextAscending(current, first, last int) (int, int) {

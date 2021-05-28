@@ -10,12 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	cas "github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -23,12 +26,21 @@ const cidPathVariable = "cid"
 
 type logger interface {
 	Errorf(msg string, args ...interface{})
+	Infof(msg string, args ...interface{})
+	Debugf(msg string, args ...interface{})
+}
+
+type signatureVerifier interface {
+	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
 // WebCAS represents a WebCAS handler + client for the backing CAS.
 type WebCAS struct {
-	casClient casapi.Client
-	logger    logger
+	*resthandler.AuthHandler
+
+	VerifyActorInSignature bool
+	casClient              casapi.Client
+	logger                 logger
 }
 
 // Path returns the HTTP REST endpoint for the WebCAS service.
@@ -48,11 +60,46 @@ func (w *WebCAS) Handler() common.HTTPRequestHandler {
 
 // New returns a new WebCAS, which contains a REST handler that implements WebCAS as defined in
 // https://trustbloc.github.io/did-method-orb/#webcas.
-func New(casClient casapi.Client) *WebCAS {
-	return &WebCAS{casClient: casClient, logger: log.New("webcas")}
+func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier, casClient casapi.Client) *WebCAS {
+	h := &WebCAS{
+		VerifyActorInSignature: authCfg.VerifyActorInSignature,
+		casClient:              casClient,
+		logger:                 log.New("webcas"),
+	}
+
+	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, nil)
+
+	return h
 }
 
 func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
+	ok, _, err := w.Authorize(req)
+	if err != nil {
+		w.logger.Errorf("Error authorizing request from %s: %s", req.URL, err)
+
+		rw.WriteHeader(http.StatusInternalServerError)
+
+		if _, errWrite := rw.Write([]byte("Internal Server Error.\n")); errWrite != nil {
+			w.logger.Errorf("Unable to write response: %s", errWrite)
+		}
+
+		return
+	}
+
+	if !ok {
+		w.logger.Infof("Request from %s is unauthorized", req.URL)
+
+		rw.WriteHeader(http.StatusUnauthorized)
+
+		if _, errWrite := rw.Write([]byte("Unauthorized.\n")); errWrite != nil {
+			w.logger.Errorf("Unable to write response: %s", errWrite)
+		}
+
+		return
+	}
+
+	w.logger.Debugf("Request from %s is authorized", req.URL)
+
 	cid := mux.Vars(req)[cidPathVariable]
 
 	content, err := w.casClient.Read(cid)

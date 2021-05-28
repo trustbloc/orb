@@ -116,16 +116,14 @@ func (p *Publisher) newRequest(_ string, msg *message.Message) (*transport.Reque
 		return nil, fmt.Errorf("parse URL %s: %w", to, err)
 	}
 
-	req := transport.NewRequest(toURL)
-
-	req.Header.Set(wmhttp.HeaderUUID, msg.UUID)
-
 	metadataBytes, err := p.jsonMarshal(msg.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("marshal metadata to JSON: %w", err)
 	}
 
-	req.Header.Set(wmhttp.HeaderMetadata, string(metadataBytes))
-
-	return req, nil
+	return transport.NewRequest(toURL,
+		transport.WithHeader(transport.AcceptHeader, transport.ActivityStreamsContentType),
+		transport.WithHeader(wmhttp.HeaderUUID, msg.UUID),
+		transport.WithHeader(wmhttp.HeaderMetadata, string(metadataBytes)),
+	), nil
 }

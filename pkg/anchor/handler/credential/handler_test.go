@@ -20,6 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -137,7 +141,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Neither local nor remote CAS has the anchor credential", func(t *testing.T) {
-		webCAS := webcas.New(createInMemoryCAS(t))
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &apmocks.SignatureVerifier{}, createInMemoryCAS(t))
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -170,7 +174,9 @@ func createNewAnchorCredentialHandler(t *testing.T, client casapi.Client) *Ancho
 
 	anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 
-	casResolver := casresolver.New(client, nil, &http.Client{})
+	casResolver := casresolver.New(client, nil,
+		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()))
 
 	anchorCredentialHandler := New(anchorCh, casResolver, testutil.GetLoader(t), &mocks.MonitoringService{}, time.Second)
 	require.NotNil(t, anchorCredentialHandler)
