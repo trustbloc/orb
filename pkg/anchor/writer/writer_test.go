@@ -35,6 +35,7 @@ import (
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -67,10 +68,10 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		AnchorGraph:     graph.New(&graph.Providers{}),
-		DidAnchors:      memdidanchor.New(),
-		AnchorBuilder:   &mockTxnBuilder{},
-		VerifiableStore: vcStore,
+		AnchorGraph:   graph.New(&graph.Providers{}),
+		DidAnchors:    memdidanchor.New(),
+		AnchorBuilder: &mockTxnBuilder{},
+		VCStore:       vcStore,
 	}
 
 	c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -105,17 +106,21 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
@@ -157,18 +162,22 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			MonitoringSvc:   &mockMonitoring{},
-			Witness:         &mockWitness{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			MonitoringSvc: &mockMonitoring{},
+			Witness:       &mockWitness{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
@@ -202,18 +211,22 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         wit,
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       wit,
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -243,6 +256,46 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		vcCh <- anchorVC
 	})
 
+	t.Run("error - vc status store error", func(t *testing.T) {
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
+
+		providers := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       wit,
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			VCStatusStore: &mockVCStatusStore{Err: fmt.Errorf("vc status error")},
+		}
+
+		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: activityPubURL,
+			},
+		}
+
+		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to set 'in-process' status for vcID[http://domain.com/vc/123]: vc status error")
+	})
+
 	t.Run("Parse created time (error)", func(t *testing.T) {
 		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -250,17 +303,17 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"created": "021-02-23T:07Z"}}`)}
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         wit,
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       wit,
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, nil, nil, testMaxWitnessDelay, signWithLocalWitness)
@@ -291,16 +344,16 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      &mockDidAnchor{},
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			VerifiableStore: vcStore,
-			OpProcessor:     &mockOpProcessor{Err: errors.New("operation processor error")},
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    &mockDidAnchor{},
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -363,15 +416,15 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         &mockWitness{},
-			MonitoringSvc:   &mockMonitoring{Err: fmt.Errorf("monitoring error")},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       &mockWitness{},
+			MonitoringSvc: &mockMonitoring{Err: fmt.Errorf("monitoring error")},
+			VCStore:       vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -415,12 +468,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStoreWithErr,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -443,14 +496,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         &mockWitness{},
-			MonitoringSvc:   &mockMonitoring{},
-			VerifiableStore: vcStoreWithErr,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       &mockWitness{},
+			MonitoringSvc: &mockMonitoring{},
+			VCStore:       vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -468,12 +521,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -510,12 +563,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStore,
 		}
 
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
@@ -545,12 +598,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStoreWithErr,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStoreWithErr,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -572,12 +625,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     &mockAnchorGraph{Err: errors.New("txn graph error")},
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   &mockAnchorGraph{Err: errors.New("txn graph error")},
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -599,12 +652,12 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      &mockDidAnchor{Err: errors.New("did references error")},
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    &mockDidAnchor{Err: errors.New("did references error")},
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStore,
 		}
 
 		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
@@ -623,11 +676,11 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{Err: errors.New("outbox error")},
-			VerifiableStore: vcStore,
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{Err: errors.New("outbox error")},
+			VCStore:       vcStore,
 		}
 
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
@@ -656,10 +709,14 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{},
+			VCStatusStore: vcStatusStore,
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -1122,6 +1179,18 @@ type mockWitnessStore struct {
 func (w *mockWitnessStore) Put(vcID string, witnesses []*proof.WitnessProof) error {
 	if w.Err != nil {
 		return w.Err
+	}
+
+	return nil
+}
+
+type mockVCStatusStore struct {
+	Err error
+}
+
+func (ss *mockVCStatusStore) AddStatus(vcID string, status proof.VCStatus) error {
+	if ss.Err != nil {
+		return ss.Err
 	}
 
 	return nil

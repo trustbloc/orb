@@ -70,6 +70,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/credential"
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/policy"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
@@ -91,6 +92,7 @@ import (
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
+	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -416,6 +418,11 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}
 
+	vcStatusStore, err := vcstatus.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("failed to create vc status store: %s", err.Error())
+	}
+
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
 
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
@@ -468,12 +475,21 @@ func startOrbServices(parameters *orbParameters) error {
 
 	defer monitoringSvc.Close()
 
+	// TODO: Make witness policy configurable (issue-448)
+	// For now use default 100% batch and 100% system witnesses
+	witnessPolicy, err := policy.New("")
+	if err != nil {
+		return fmt.Errorf("failed to create witness policy: %s", err.Error())
+	}
+
 	proofHandler := proof.New(
 		&proof.Providers{
-			Store:         vcStore,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: monitoringSvc,
 			DocLoader:     orbDocumentLoader,
 			WitnessStore:  witnessProofStore,
+			WitnessPolicy: witnessPolicy,
 		},
 		vcCh)
 
@@ -498,17 +514,18 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	anchorWriterProviders := &writer.Providers{
-		AnchorGraph:     anchorGraph,
-		DidAnchors:      didAnchors,
-		AnchorBuilder:   vcBuilder,
-		VerifiableStore: vcStore,
-		OpProcessor:     opProcessor,
-		Outbox:          activityPubService.Outbox(),
-		Witness:         witness,
-		Signer:          vcSigner,
-		MonitoringSvc:   monitoringSvc,
-		ActivityStore:   apStore,
-		WitnessStore:    witnessProofStore,
+		AnchorGraph:   anchorGraph,
+		DidAnchors:    didAnchors,
+		AnchorBuilder: vcBuilder,
+		VCStore:       vcStore,
+		VCStatusStore: vcStatusStore,
+		OpProcessor:   opProcessor,
+		Outbox:        activityPubService.Outbox(),
+		Witness:       witness,
+		Signer:        vcSigner,
+		MonitoringSvc: monitoringSvc,
+		ActivityStore: apStore,
+		WitnessStore:  witnessProofStore,
 	}
 
 	anchorWriter := writer.New(parameters.didNamespace,

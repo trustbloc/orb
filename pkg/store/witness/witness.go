@@ -59,7 +59,7 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 			return fmt.Errorf("failed to marshal anchor credential witness: %w", err)
 		}
 
-		logger.Debugf("adding witness to storage batch: %s", w.Witness)
+		logger.Debugf("adding %s witness to storage batch: %s", w.Type, w.Witness)
 
 		op := storage.Operation{
 			Key:   uuid.New().String(),
@@ -168,6 +168,8 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 		return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
 	}
 
+	updatedNo := 0
+
 	for ok {
 		var value []byte
 
@@ -195,15 +197,20 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 			w.Proof = p
 
-			err = s.store.Put(key, value, storage.Tag{Name: vcIndex, Value: vcIDEncoded})
+			witnessProofBytes, marshalErr := json.Marshal(w)
+			if marshalErr != nil {
+				return fmt.Errorf("failed to marshal witness[%s] proof for vcID[%s]: %w", w.Witness, vcID, marshalErr)
+			}
+
+			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: vcIndex, Value: vcIDEncoded})
 			if err != nil {
 				return fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
 					vcID, witness, err)
 			}
 
-			logger.Debugf("added proof for anchor credential vcID[%s] and witness[%s]: %s", vcID, witness, string(p))
+			updatedNo++
 
-			return nil
+			logger.Debugf("added proof for anchor credential vcID[%s] and witness[%s]: %s", vcID, witness, string(p))
 		}
 
 		ok, err = iter.Next()
@@ -212,5 +219,9 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 		}
 	}
 
-	return fmt.Errorf("witness[%s] not found for vcID[%s]", witness, vcID)
+	if updatedNo == 0 {
+		return fmt.Errorf("witness[%s] not found for vcID[%s]", witness, vcID)
+	}
+
+	return nil
 }
