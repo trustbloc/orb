@@ -27,8 +27,9 @@ type ResolveHandler struct {
 	coreResolver dochandler.Resolver
 	discovery    discovery
 
-	namespace string
-	aliases   []string
+	namespace           string
+	aliases             []string
+	unpublishedDIDLabel string
 }
 
 // did discovery service.
@@ -37,12 +38,13 @@ type discovery interface {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, aliases []string, resolver dochandler.Resolver, discovery discovery) *ResolveHandler { //nolint:lll
+func NewResolveHandler(namespace string, aliases []string, unpublishedDIDLabel string, resolver dochandler.Resolver, discovery discovery) *ResolveHandler { //nolint:lll
 	return &ResolveHandler{
-		namespace:    namespace,
-		aliases:      aliases,
-		coreResolver: resolver,
-		discovery:    discovery,
+		namespace:           namespace,
+		aliases:             aliases,
+		unpublishedDIDLabel: unpublishedDIDLabel,
+		coreResolver:        resolver,
+		discovery:           discovery,
 	}
 }
 
@@ -68,6 +70,11 @@ func (r *ResolveHandler) requestDiscovery(id string) {
 		// not proper orb suffix - nothing to do
 		logger.Debugf("get orb suffix from id[%s] error: %s", id, err.Error())
 
+		return
+	}
+
+	if strings.HasPrefix(orbSuffix, r.unpublishedDIDLabel) {
+		// we cannot request discovery for unpublished DIDs - nothing to do
 		return
 	}
 

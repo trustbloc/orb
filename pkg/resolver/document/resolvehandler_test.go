@@ -21,9 +21,12 @@ import (
 )
 
 const (
-	testNS         = "did:orb"
+	testNS    = "did:orb"
+	testLabel = "interim"
+
 	testDID        = "did:orb:suffix"
 	testDIDWithCID = "did:orb:webcas:domain.com:cid:suffix"
+	testInterimDID = "did:orb:interim:suffix"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
@@ -33,7 +36,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, nil, coreHandler, discovery)
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
@@ -46,9 +49,22 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, nil, coreHandler, discovery)
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDID)
+		require.Error(t, err)
+		require.Nil(t, response)
+	})
+
+	t.Run("error - not found error (interim did)", func(t *testing.T) {
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(nil, errors.New("not found"))
+
+		discovery := &mocks.Discovery{}
+
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
+
+		response, err := handler.ResolveDocument(testInterimDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 	})
@@ -59,7 +75,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, nil, coreHandler, discovery)
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDIDWithCID)
 		require.Error(t, err)
@@ -72,7 +88,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did:not-orb", nil, coreHandler, discovery)
+		handler := NewResolveHandler("did:not-orb", nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDIDWithCID)
 		require.Error(t, err)
@@ -85,7 +101,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did:not-orb", []string{testNS}, coreHandler, discovery)
+		handler := NewResolveHandler("did:not-orb", []string{testNS}, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDIDWithCID)
 		require.Error(t, err)
@@ -99,7 +115,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 		discovery.RequestDiscoveryReturns(errors.New("discovery error"))
 
-		handler := NewResolveHandler(testNS, nil, coreHandler, discovery)
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDIDWithCID)
 		require.Error(t, err)
@@ -112,7 +128,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, nil, coreHandler, discovery)
+		handler := NewResolveHandler(testNS, nil, testLabel, coreHandler, discovery)
 
 		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)

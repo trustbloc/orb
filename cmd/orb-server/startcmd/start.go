@@ -109,6 +109,8 @@ const (
 	noStartupDelay = 0 * time.Second // no delay
 
 	defaulthttpSignaturesEnabled = true
+
+	unpublishedDIDLabel = "interim"
 )
 
 var logger = log.New("orb-server")
@@ -565,7 +567,7 @@ func startOrbServices(parameters *orbParameters) error {
 		batchWriter,
 		opProcessor,
 		dochandler.WithDomain(u.Host),
-		dochandler.WithLabel("interim"),
+		dochandler.WithLabel(unpublishedDIDLabel),
 	)
 
 	authCfg := auth.Config{
@@ -591,6 +593,7 @@ func startOrbServices(parameters *orbParameters) error {
 	orbResolver := document.NewResolveHandler(
 		parameters.didNamespace,
 		parameters.didAliases,
+		unpublishedDIDLabel,
 		didDocHandler,
 		localdiscovery.New(didCh),
 	)
