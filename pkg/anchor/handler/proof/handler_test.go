@@ -17,12 +17,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
+	"github.com/trustbloc/orb/pkg/anchor/policy"
+	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
+	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
+	"github.com/trustbloc/orb/pkg/store/witness"
 )
 
 //go:generate counterfeiter -o ../mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
+//go:generate counterfeiter -o ../mocks/vcstatus.gen.go --fake-name VCStatusStore . vcStatusStore
 
 const (
 	vcID       = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
@@ -36,7 +41,7 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		Store: store,
+		VCStore: store,
 	}
 
 	c := New(providers, vcCh)
@@ -47,10 +52,10 @@ func TestWitnessProofHandler(t *testing.T) {
 	witnessIRI, err := url.Parse(witnessURL)
 	require.NoError(t, err)
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("success - witness policy not satisfied", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -59,13 +64,29 @@ func TestWitnessProofHandler(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		err = store.Put(anchorVC)
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(vcID, emptyWitnessProofs)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			Store:         store,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: &mockWitnessPolicy{eval: false},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -74,10 +95,10 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("success - ignore if already witnessed", func(t *testing.T) {
+	t.Run("success - witness policy satisfied", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		anchorVC, err := verifiable.ParseCredential(
@@ -86,20 +107,286 @@ func TestWitnessProofHandler(t *testing.T) {
 			verifiable.WithDisabledProofCheck())
 		require.NoError(t, err)
 
-		err = store.Put(anchorVC)
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New("")
 		require.NoError(t, err)
 
 		providers := &Providers{
-			Store:         store,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
 		}
 
 		proofHandler := New(providers, vcCh)
 
-		err = proofHandler.HandleProof(witnessIRI, "http://orb.domain1.com/vc/9ac66b40-bcc6-4ca8-a9c7-d1fd3eaebafd",
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
 		require.NoError(t, err)
+	})
+
+	t.Run("success - vc status is completed", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusCompleted)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{eval: true},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			time.Now(), []byte(witnessProof))
+		require.NoError(t, err)
+	})
+
+	t.Run("error - get vc status error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New("")
+		require.NoError(t, err)
+
+		mockVCStatusStore := &mocks.VCStatusStore{}
+		mockVCStatusStore.GetStatusReturns("", fmt.Errorf("get vc status error"))
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: mockVCStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf(
+			"failed to get status for anchor credential[%s]: get vc status error", anchorVC.ID))
+	})
+
+	t.Run("error - second get vc status error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New("")
+		require.NoError(t, err)
+
+		mockVCStatusStore := &mocks.VCStatusStore{}
+		mockVCStatusStore.GetStatusReturnsOnCall(0, proofapi.VCStatusInProcess, nil)
+		mockVCStatusStore.GetStatusReturnsOnCall(1, "", fmt.Errorf("second get vc status error"))
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: mockVCStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf(
+			"failed to get status for anchor credential[%s]: second get vc status error", anchorVC.ID))
+	})
+
+	t.Run("error - set vc status to complete error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New("")
+		require.NoError(t, err)
+
+		mockVCStatusStore := &mocks.VCStatusStore{}
+		mockVCStatusStore.AddStatusReturns(fmt.Errorf("add vc status error"))
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: mockVCStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf(
+			"failed to change status to 'completed' for credential[%s]: add vc status error", anchorVC.ID))
+	})
+
+	t.Run("error - witness policy error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf(
+			"failed to evaluate witness policy for credential[%s]: witness policy error", anchorVC.ID))
+	})
+
+	t.Run("error - vc status not found store error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore, // error will be returned b/c we didn't set "in-process" status for vc
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, "testVC",
+			time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "status not found for vcID: testVC")
 	})
 
 	t.Run("error - store error", func(t *testing.T) {
@@ -114,10 +401,18 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(provider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
 		providers := &Providers{
-			Store:         vcStore,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -127,10 +422,10 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to get vc: get error")
 	})
 
-	t.Run("error - witness store error", func(t *testing.T) {
+	t.Run("error - witness store add proof error", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -139,13 +434,21 @@ func TestWitnessProofHandler(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		err = store.Put(anchorVC)
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			Store:         store,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{Err: fmt.Errorf("witness store error")},
+			WitnessStore:  &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
+			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -156,15 +459,61 @@ func TestWitnessProofHandler(t *testing.T) {
 			"failed to add witness[http://example.com/orb/services] proof for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
 	})
 
+	t.Run("error - witness store add proof error", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
+			WitnessPolicy: &mockWitnessPolicy{},
+		}
+
+		proofHandler := New(providers, vcCh)
+
+		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to get witness proofs for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
+	})
+
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
 		providers := &Providers{
-			Store:         vcStore,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -177,7 +526,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	t.Run("error - monitoring error", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -186,15 +535,24 @@ func TestWitnessProofHandler(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		err = store.Put(anchorVC)
+		err = vcStore.Put(anchorVC)
 		require.NoError(t, err)
 
 		monitoringSvc := &mocks.MonitoringService{}
 		monitoringSvc.WatchReturns(fmt.Errorf("monitoring error"))
 
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
 		providers := &Providers{
-			Store:         store,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
 			MonitoringSvc: monitoringSvc,
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
 		proofHandler := New(providers, vcCh)
@@ -206,15 +564,37 @@ func TestWitnessProofHandler(t *testing.T) {
 }
 
 type mockWitnessStore struct {
-	Err error
+	AddProofErr error
+	GetErr      error
 }
 
-func (w *mockWitnessStore) AddProof(vcID, witness string, proof []byte) error {
-	if w.Err != nil {
-		return w.Err
+func (w *mockWitnessStore) AddProof(vcID, witnessID string, proof []byte) error {
+	if w.AddProofErr != nil {
+		return w.AddProofErr
 	}
 
 	return nil
+}
+
+func (w *mockWitnessStore) Get(vcID string) ([]*proofapi.WitnessProof, error) {
+	if w.GetErr != nil {
+		return nil, w.GetErr
+	}
+
+	return nil, nil
+}
+
+type mockWitnessPolicy struct {
+	eval bool
+	Err  error
+}
+
+func (wp *mockWitnessPolicy) Evaluate(_ []*proofapi.WitnessProof) (bool, error) {
+	if wp.Err != nil {
+		return false, wp.Err
+	}
+
+	return wp.eval, nil
 }
 
 //nolint:lll

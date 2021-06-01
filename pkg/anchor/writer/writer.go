@@ -46,17 +46,18 @@ type Writer struct {
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	AnchorGraph     anchorGraph
-	DidAnchors      didAnchors
-	AnchorBuilder   anchorBuilder
-	VerifiableStore vcStore
-	OpProcessor     opProcessor
-	Outbox          outbox
-	Witness         witness
-	Signer          signer
-	MonitoringSvc   monitoringSvc
-	WitnessStore    witnessStore
-	ActivityStore   activityStore
+	AnchorGraph   anchorGraph
+	DidAnchors    didAnchors
+	AnchorBuilder anchorBuilder
+	VCStore       vcStore
+	VCStatusStore vcStatusStore
+	OpProcessor   opProcessor
+	Outbox        outbox
+	Witness       witness
+	Signer        signer
+	MonitoringSvc monitoringSvc
+	WitnessStore  witnessStore
+	ActivityStore activityStore
 }
 
 type activityStore interface {
@@ -102,6 +103,10 @@ type didAnchors interface {
 type vcStore interface {
 	Put(vc *verifiable.Credential) error
 	Get(id string) (*verifiable.Credential, error)
+}
+
+type vcStatusStore interface {
+	AddStatus(vcID string, status proof.VCStatus) error
 }
 
 // New returns a new anchor writer.
@@ -245,7 +250,7 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 	}
 
 	// store anchor credential
-	err = c.VerifiableStore.Put(signedVC)
+	err = c.VCStore.Put(signedVC)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store anchor credential: %w", err)
 	}
@@ -275,7 +280,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	// store anchor credential (required for monitoring)
-	err = c.VerifiableStore.Put(vc)
+	err = c.VCStore.Put(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
 	}
@@ -323,7 +328,7 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
 
 	// store anchor credential with witness proofs
-	err := c.VerifiableStore.Put(vc)
+	err := c.VCStore.Put(vc)
 	if err != nil {
 		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
 
@@ -551,13 +556,11 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 	}
 
 	for _, systemWitnessURI := range systemWitnesses {
-		if !containsURI(batchWitnesses, systemWitnessURI) {
-			witnesses = append(witnesses,
-				&proof.WitnessProof{
-					Type:    proof.WitnessTypeSystem,
-					Witness: systemWitnessURI.String(),
-				})
-		}
+		witnesses = append(witnesses,
+			&proof.WitnessProof{
+				Type:    proof.WitnessTypeSystem,
+				Witness: systemWitnessURI.String(),
+			})
 	}
 
 	err = c.WitnessStore.Put(vcID, witnesses)
@@ -565,17 +568,12 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 		return fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err)
 	}
 
-	return nil
-}
-
-func containsURI(values []*url.URL, value *url.URL) bool {
-	for _, v := range values {
-		if v.String() == value.String() {
-			return true
-		}
+	err = c.VCStatusStore.AddStatus(vcID, proof.VCStatusInProcess)
+	if err != nil {
+		return fmt.Errorf("failed to set 'in-process' status for vcID[%s]: %w", vcID, err)
 	}
 
-	return false
+	return nil
 }
 
 func (c *Writer) getSystemWitnesses() ([]*url.URL, error) {
