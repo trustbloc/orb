@@ -13,6 +13,7 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/createdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/ipfskeygencmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/witnesscmd"
@@ -35,12 +36,22 @@ func main() {
 		},
 	}
 
+	ipfsCmd := &cobra.Command{
+		Use: "ipfs",
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.HelpFunc()(cmd, args)
+		},
+	}
+
+	ipfsCmd.AddCommand(ipfskeygencmd.GetCmd())
+
 	didCmd.AddCommand(createdidcmd.GetCreateDIDCmd())
 	didCmd.AddCommand(updatedidcmd.GetUpdateDIDCmd())
 	didCmd.AddCommand(recoverdidcmd.GetRecoverDIDCmd())
 	didCmd.AddCommand(deactivatedidcmd.GetDeactivateDIDCmd())
 
 	rootCmd.AddCommand(didCmd)
+	rootCmd.AddCommand(ipfsCmd)
 	rootCmd.AddCommand(followcmd.GetCmd())
 	rootCmd.AddCommand(witnesscmd.GetCmd())
 
