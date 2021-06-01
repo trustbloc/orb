@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -55,6 +56,7 @@ type Inbox struct {
 
 	router          *message.Router
 	httpSubscriber  *httpsubscriber.Subscriber
+	pubSub          pubSub
 	msgChannel      <-chan *message.Message
 	activityHandler service.ActivityHandler
 	activityStore   store.Store
@@ -68,6 +70,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		Config:          cfg,
 		activityHandler: activityHandler,
 		activityStore:   s,
+		pubSub:          pubSub,
 		jsonUnmarshal:   json.Unmarshal,
 	}
 
@@ -168,7 +171,8 @@ func (h *Inbox) handle(msg *message.Message) {
 	if err != nil {
 		logger.Errorf("[%s] Error validating activity for message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
 
-		msg.Nack()
+		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
+		msg.Ack()
 
 		return
 	}
@@ -186,36 +190,35 @@ func (h *Inbox) handle(msg *message.Message) {
 	} else {
 		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activityID, msg.UUID)
 
-		msg.Nack()
-
-		return
-	}
-
-	if err := h.activityStore.AddActivity(activity); err != nil {
-		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
-
-		msg.Nack()
-
-		return
-	}
-
-	if err := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL()); err != nil {
-		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), err)
-
-		msg.Nack()
-
-		return
-	}
-
-	if err := h.activityHandler.HandleActivity(activity); err != nil {
-		logger.Warnf("[%s] Error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
-
-		msg.Nack()
-	} else {
-		logger.Debugf("[%s] Successfully handled message [%s]", h.ServiceEndpoint, msg.UUID)
-
 		msg.Ack()
+
+		return
 	}
+
+	if e := h.activityHandler.HandleActivity(activity); e != nil {
+		if aperrors.IsTransient(e) {
+			logger.Warnf("[%s] Transient error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, e)
+
+			// Nack the message so that it may be retried (potentially on a different server).
+			msg.Nack()
+
+			return
+		}
+
+		logger.Warnf("[%s] Persistent error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, e)
+	}
+
+	logger.Debugf("[%s] Successfully handled message [%s]. Adding activity to inbox...", h.ServiceEndpoint, msg.UUID)
+
+	if e := h.activityStore.AddActivity(activity); e != nil {
+		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
+	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL()); e != nil {
+		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
+	}
+
+	// An Ack is sent on successful processing (even if an error occurs while attempting to store the activity to
+	// the inbox) and in the case of a persistent error (so that a retry is not attempted).
+	msg.Ack()
 }
 
 func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.ActivityType, error) {

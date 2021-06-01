@@ -94,6 +94,11 @@ const (
 	ipfsURLEnvKey        = "IPFS_URL"
 	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage(CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
 
+	mqURLFlagName      = "mq-url"
+	mqURLFlagShorthand = "q"
+	mqURLEnvKey        = "MQ_URL"
+	mqURLFlagUsage     = "The URL of the message broker. " + commonEnvVarUsageText + mqURLEnvKey
+
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
 	cidVersionFlagUsage = "The version of the CID format to use for generating CIDs. " +
@@ -227,6 +232,7 @@ type orbParameters struct {
 	casType                   string
 	ipfsURL                   string
 	cidVersion                int
+	mqURL                     string
 	dbParameters              *dbParameters
 	logLevel                  string
 	methodContext             []string
@@ -305,6 +311,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -468,6 +479,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		casType:                   casType,
 		ipfsURL:                   ipfsURL,
 		cidVersion:                cidVersion,
+		mqURL:                     mqURL,
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,
@@ -655,6 +667,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
+	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

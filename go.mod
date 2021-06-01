@@ -6,6 +6,7 @@ module github.com/trustbloc/orb
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.4
+	github.com/ThreeDotsLabs/watermill-amqp v1.1.1
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0

@@ -19,6 +19,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -131,7 +132,13 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 
 	activity, err := h.store.GetActivity(activityID)
 	if err != nil {
-		return fmt.Errorf("unable to retrieve activity %s from storage: %w", activityID, err)
+		e := fmt.Errorf("unable to retrieve activity %s from storage: %w", activityID, err)
+
+		if errors.Is(err, store.ErrNotFound) {
+			return e
+		}
+
+		return aperrors.NewTransient(e)
 	}
 
 	if activity.Actor().String() != undo.Actor().String() {
@@ -188,7 +195,7 @@ func (h *handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
 	}
 
 	if !errors.Is(err, store.ErrNotFound) {
-		return nil, err
+		return nil, aperrors.NewTransient(err)
 	}
 
 	// The actor isn't in our local store. Retrieve the actor from the remote server.

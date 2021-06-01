@@ -130,9 +130,12 @@ github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWX
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/Stebalien/go-bitfield v0.0.1/go.mod h1:GNjFpasyUVkHMsfEOk8EFLJ9syQ6SI+XWrX9Wf2XH0s=
+github.com/ThreeDotsLabs/watermill v1.0.2/go.mod h1:vZCPh7eN0P7r2qKau4SfmcUZ83+3JXWkRl4BiWUlqFw=
 github.com/ThreeDotsLabs/watermill v1.1.0/go.mod h1:Qd1xNFxolCAHCzcMrm6RnjW0manbvN+DJVWc1MWRFlI=
 github.com/ThreeDotsLabs/watermill v1.2.0-rc.4 h1:hX8toeERHfnrZFvCXdWRQCYgoNExQoi5vtf5+rbGaA8=
 github.com/ThreeDotsLabs/watermill v1.2.0-rc.4/go.mod h1:sl2PSceOQJ8BreN60hCnU2WixFNOYJOQDY1J3hvyVCs=
+github.com/ThreeDotsLabs/watermill-amqp v1.1.1 h1:wlrYlQDf6ZgdYoVPbrBaOnSMqxkQJZXDS6qugIin4o0=
+github.com/ThreeDotsLabs/watermill-amqp v1.1.1/go.mod h1:Qbu3JDlr6vIOxHJjhfsSHsrdF/ToJLYoaYek8X5Wnto=
 github.com/ThreeDotsLabs/watermill-http v1.1.3 h1:2jHbbE+gbq7pKWBCtOxeHTWSBNrS44Oh7QOzuAeHH/g=
 github.com/ThreeDotsLabs/watermill-http v1.1.3/go.mod h1:mkQ9CC0pxTZerNwr281rBoOy355vYt/lePkmYSX/BRg=
 github.com/VictoriaMetrics/fastcache v1.5.7 h1:4y6y0G8PRzszQUYIQHHssv/jgPHAb5qQuuDNdCbyAgw=
@@ -1376,6 +1379,7 @@ github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 h1:wD1IWQwAhdWcl
 github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693/go.mod h1:6hSY48PjDm4UObWmGLyJE9DxYVKTgR9kbCspXXJEhcU=
 github.com/src-d/gcfg v1.4.0/go.mod h1:p/UMsR43ujA89BJY9duynAwIpvqEujIH/jFlfL7jWoI=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
+github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271 h1:WhxRHzgeVGETMlmVfqhRn8RIeeNoPr2Czh33I4Zdccw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/handy v0.0.0-20190108123426-d5acb3125c2a/go.mod h1:qNTQ5P5JnDBl6z3cMAg/SywNDC5ABu5ApDIw6lUbRmI=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

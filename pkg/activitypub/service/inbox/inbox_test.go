@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,6 +25,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
@@ -152,6 +154,7 @@ func TestInbox_Handle(t *testing.T) {
 	require.Equal(t, spi.StateStopped, ib.State())
 }
 
+//nolint:gocyclo,cyclop
 func TestInbox_Error(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
@@ -227,10 +230,7 @@ func TestInbox_Error(t *testing.T) {
 			Topic:           "activities",
 		}
 
-		objIRI, err := url.Parse("http://example.com//services/service1/object1")
-		if err != nil {
-			panic(err)
-		}
+		objIRI := testutil.MustParseURL("http://example.com//services/service1/object1")
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}
@@ -352,10 +352,9 @@ func TestInbox_Error(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(time.Second):
-			t.Error("timeout")
 		}
 
-		require.Len(t, undeliverableMessages, 1)
+		require.Empty(t, undeliverableMessages)
 	})
 
 	t.Run("PubSub subscribe error", func(t *testing.T) {
@@ -447,10 +446,21 @@ func TestInbox_Error(t *testing.T) {
 			Topic:           "activities",
 		}
 
-		objIRI, err := url.Parse("http://example.com//services/service1/object1")
-		if err != nil {
-			panic(err)
-		}
+		objIRI := testutil.MustParseURL("http://example.com//services/service1/object1")
+
+		pubSub := mocks.NewPubSub()
+		undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+		require.NoError(t, err)
+
+		var undeliverableMessages []*message.Message
+
+		done := make(chan struct{})
+		go func() {
+			for msg := range undeliverableChan {
+				undeliverableMessages = append(undeliverableMessages, msg)
+				close(done)
+			}
+		}()
 
 		errExpected := fmt.Errorf("injected store error")
 
@@ -461,7 +471,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -493,6 +503,93 @@ func TestInbox_Error(t *testing.T) {
 		require.NotNil(t, resp)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
+
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("timeout")
+		}
+
+		require.Len(t, undeliverableMessages, 1)
+	})
+
+	t.Run("Transient error", func(t *testing.T) {
+		const service1URL = "http://localhost:8208/services/service1"
+
+		service1InboxURL := service1URL + resthandler.InboxPath
+
+		cfg := &Config{
+			ServiceEndpoint: "/services/service1/inbox",
+			ServiceIRI:      testutil.MustParseURL(service1URL),
+			Topic:           "activities",
+		}
+
+		objIRI := testutil.MustParseURL("http://example.com//services/service1/object1")
+
+		pubSub := mocks.NewPubSub()
+		undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+		require.NoError(t, err)
+
+		var undeliverableMessages []*message.Message
+
+		done := make(chan struct{})
+		go func() {
+			for msg := range undeliverableChan {
+				undeliverableMessages = append(undeliverableMessages, msg)
+				close(done)
+			}
+		}()
+
+		errExpected := aperrors.NewTransient(errors.New("injected transient error"))
+
+		activityHandler := &mocks.ActivityHandler{}
+		activityHandler.HandleActivityReturns(errExpected)
+		activityStore := &mocks.ActivityStore{}
+		activityStore.GetActivityReturns(nil, store.ErrNotFound)
+
+		sigVerifier := &mocks.SignatureVerifier{}
+		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
+		require.NoError(t, err)
+		require.NotNil(t, ib)
+
+		ib.Start()
+		defer ib.Stop()
+
+		stop := startHTTPServer(t, ":8208", ib.HTTPHandler())
+		defer stop()
+
+		time.Sleep(500 * time.Millisecond)
+
+		activity := vocab.NewCreateActivity(
+			vocab.NewObjectProperty(
+				vocab.WithObject(
+					vocab.NewObject(
+						vocab.WithIRI(objIRI),
+					),
+				),
+			),
+			vocab.WithID(newActivityID(cfg.ServiceEndpoint)),
+			vocab.WithActor(cfg.ServiceIRI),
+		)
+
+		req, err := newHTTPRequest(service1InboxURL, activity)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("timeout")
+		}
+
+		require.Len(t, undeliverableMessages, 1)
 	})
 }
 
