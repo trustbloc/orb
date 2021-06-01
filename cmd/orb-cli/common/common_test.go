@@ -285,7 +285,7 @@ func TestSendRequest(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 
-		_, err := SendRequest(&http.Client{}, nil, "tk1", http.MethodGet, serv.URL)
+		_, err := SendRequest(&http.Client{}, nil, map[string]string{"k1": "v1"}, http.MethodGet, serv.URL)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "got unexpected response from")
 	})

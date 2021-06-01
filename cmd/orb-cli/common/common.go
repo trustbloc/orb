@@ -234,7 +234,8 @@ func GetServices(serviceFilePath string) ([]docdid.Service, error) {
 }
 
 // SendRequest send http request.
-func SendRequest(httpClient *http.Client, req []byte, token, method, endpointURL string) ([]byte, error) {
+func SendRequest(httpClient *http.Client, req []byte, headers map[string]string, method,
+	endpointURL string) ([]byte, error) {
 	var httpReq *http.Request
 
 	var err error
@@ -253,11 +254,9 @@ func SendRequest(httpClient *http.Client, req []byte, token, method, endpointURL
 		}
 	}
 
-	if token != "" {
-		httpReq.Header.Add("Authorization", "Bearer "+token)
+	for k, v := range headers {
+		httpReq.Header.Add(k, v)
 	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := httpClient.Do(httpReq)
 	if err != nil {

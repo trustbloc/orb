@@ -159,7 +159,12 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 				return err
 			}
 
-			resp, err := common.SendRequest(httpClient, reqBytes, authToken, http.MethodPost,
+			headers := make(map[string]string)
+			if authToken != "" {
+				headers["Authorization"] = "Bearer " + authToken
+			}
+
+			resp, err := common.SendRequest(httpClient, reqBytes, headers, http.MethodPost,
 				outboxURL)
 			if err != nil {
 				return fmt.Errorf("failed to send http request: %w", err)
