@@ -69,6 +69,7 @@ func TestGenerateKey(t *testing.T) {
 		var args []string
 		args = append(args, ipfsURL("wrongurl")...)
 		args = append(args, keyName("k1")...)
+		args = append(args, keyDir(os.TempDir())...)
 
 		cmd.SetArgs(args)
 		err := cmd.Execute()

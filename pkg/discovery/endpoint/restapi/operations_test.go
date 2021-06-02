@@ -130,6 +130,33 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, w.Links[1].Href, "http://domain1/op")
 		require.Empty(t, w.Properties)
 	})
+
+	t.Run("test ipns webfinger document", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{
+			OperationPath:       "/op",
+			ResolutionPath:      "/resolve",
+			BaseURL:             "http://base",
+			WebCASPath:          "/cas",
+			DiscoveryVctDomains: []string{"http://vct1"},
+			VctURL:              "http://vct",
+		})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, webFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, webFingerEndpoint+"?resource=http://base", nil, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var w restapi.WebFingerResponse
+
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+		require.Equal(t, "http://vct", w.Subject)
+		require.Equal(t, "http://vct", w.Links[0].Href)
+		require.Equal(t, "http://vct1", w.Links[1].Href)
+		require.Equal(t, "vct-v1", w.Properties["https://trustbloc.dev/ns/ledger-type"].(string))
+	})
+
 	t.Run("test WebCAS resource", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",

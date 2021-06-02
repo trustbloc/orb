@@ -618,6 +618,8 @@ func startOrbServices(parameters *orbParameters) error {
 		BaseURL:                   parameters.externalEndpoint,
 		DiscoveryDomains:          parameters.discoveryDomains,
 		DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
+		VctURL:                    parameters.vctURL,
+		DiscoveryVctDomains:       parameters.discoveryVctDomains,
 	})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)
