@@ -58,6 +58,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
+	"github.com/trustbloc/orb/pkg/activitypub/service/amqp"
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
@@ -438,6 +439,14 @@ func startOrbServices(parameters *orbParameters) error {
 		ServiceIRI:             apServiceIRI,
 		MaxWitnessDelay:        parameters.maxWitnessDelay,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
+	}
+
+	if parameters.mqURL != "" {
+		apConfig.PubSubFactory = func(serviceName string) apservice.PubSub {
+			logger.Infof("[%s] Creating new AMQP publisher/subscriber at URL [%s]", serviceName, parameters.mqURL)
+
+			return amqp.New(serviceName, amqp.Config{URI: parameters.mqURL})
+		}
 	}
 
 	var apStore activitypubspi.Store

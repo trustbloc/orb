@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
+	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -1923,7 +1924,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), store.ErrNotFound.Error())
+		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
 
 	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
@@ -1949,6 +1950,54 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not supported")
+	})
+
+	t.Run("Transient error", func(t *testing.T) {
+		inboxCfg := &Config{
+			ServiceName: "inbox1",
+			ServiceIRI:  service1IRI,
+		}
+
+		errExpected := errors.New("injected storage error")
+
+		s := &mocks.ActivityStore{}
+		s.GetActivityReturns(nil, errExpected)
+		s.GetActorReturns(nil, errExpected)
+
+		ob := mocks.NewOutbox().WithError(errExpected)
+
+		inboxHandler := NewInbox(inboxCfg, s, ob, nil)
+		require.NotNil(t, inboxHandler)
+
+		undo := vocab.NewUndoActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(newActivityID(service3IRI))),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := inboxHandler.HandleActivity(undo)
+		require.True(t, aperrors.IsTransient(err))
+
+		_, err = inboxHandler.resolveActor(service1IRI)
+		require.True(t, aperrors.IsTransient(err))
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		if err != nil {
+			panic(err)
+		}
+
+		create := newMockCreateActivity(service1IRI, service2IRI,
+			testutil.MustParseURL(
+				"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"),
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+		)
+
+		err = inboxHandler.announceAnchorCredential(create)
+		require.True(t, aperrors.IsTransient(err))
+
+		err = inboxHandler.announceAnchorCredentialRef(create)
+		require.True(t, aperrors.IsTransient(err))
 	})
 
 	t.Run("Inbox Undo Follow", func(t *testing.T) {

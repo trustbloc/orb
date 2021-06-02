@@ -15,7 +15,7 @@ import (
 )
 
 // UndeliverableTopic is the topic to which to post undeliverable messages.
-const UndeliverableTopic = "undeliverable"
+const UndeliverableTopic = "undeliverable_activities"
 
 // ErrNotStarted indicates that an attempt was made to invoke a service that has not been started
 // or is still in the process of starting.

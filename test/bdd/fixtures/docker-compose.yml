@@ -29,6 +29,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - MQ_URL=amqp://guest:guest@orb.mq.domain1.com:5672/
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
@@ -71,6 +72,7 @@ services:
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
+      - orb.mq.domain1.com
     networks:
       - orb_net
 
@@ -98,6 +100,7 @@ services:
       - BATCH_WRITER_TIMEOUT=200
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - MQ_URL=amqp://guest:guest@orb.mq.domain1.com:5672/
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
@@ -141,6 +144,7 @@ services:
       - couchdb.kms.com
       - couchdb.shared.com
       - orb-domain1
+      - orb.mq.domain1.com
     networks:
       - orb_net
 
@@ -453,6 +457,15 @@ services:
       - "8080:8080"
     volumes:
       - ./uni-resolver-web/config.json:/opt/uni-resolver-java/uni-resolver-web/config.json
+    networks:
+      - orb_net
+
+  orb.mq.domain1.com:
+    container_name: orb.mq.domain1.com
+    image: rabbitmq:3.8.16
+    ports:
+      - 5672:5672
+    restart: unless-stopped
     networks:
       - orb_net
 

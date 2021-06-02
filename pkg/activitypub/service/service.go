@@ -29,7 +29,10 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-const activitiesTopic = "activities"
+const (
+	inboxActivitiesTopic  = "inbox_activities"
+	outboxActivitiesTopic = "outbox_activities"
+)
 
 // PubSub defines the functions for a publisher/subscriber.
 type PubSub interface {
@@ -88,7 +91,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 		&outbox.Config{
 			ServiceName:      cfg.ServiceEndpoint,
 			ServiceIRI:       cfg.ServiceIRI,
-			Topic:            activitiesTopic,
+			Topic:            outboxActivitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
 		activityStore, newPubSub(cfg, cfg.ServiceEndpoint+resthandler.OutboxPath),
@@ -111,7 +114,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 		&inbox.Config{
 			ServiceEndpoint:        cfg.ServiceEndpoint + resthandler.InboxPath,
 			ServiceIRI:             cfg.ServiceIRI,
-			Topic:                  activitiesTopic,
+			Topic:                  inboxActivitiesTopic,
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
 		},
 		activityStore,

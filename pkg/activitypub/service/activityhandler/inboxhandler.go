@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"time"
 
+	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -202,7 +203,7 @@ func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
 
 func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType, refType store.ReferenceType) error {
 	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL()); err != nil {
-		return fmt.Errorf("unable to store reference: %w", err)
+		return aperrors.NewTransient(fmt.Errorf("unable to store reference: %w", err))
 	}
 
 	if err := h.store.PutActor(actor); err != nil {
@@ -262,7 +263,7 @@ func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.Reference
 
 	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor())
 	if err != nil {
-		return fmt.Errorf("handle accept '%s' activity %s: %w", refType, accept.ID(), err)
+		return aperrors.NewTransient(fmt.Errorf("handle accept '%s' activity %s: %w", refType, accept.ID(), err))
 	}
 
 	return nil
@@ -321,7 +322,7 @@ func (h *Inbox) postAccept(activity *vocab.ActivityType, toIRI *url.URL) error {
 	logger.Debugf("[%s] Publishing 'Accept' activity to %s", h.ServiceName, toIRI)
 
 	if _, err := h.outbox.Post(acceptActivity); err != nil {
-		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
+		return aperrors.NewTransient(fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err))
 	}
 
 	return nil
@@ -336,7 +337,7 @@ func (h *Inbox) postReject(activity *vocab.ActivityType, toIRI *url.URL) error {
 	logger.Debugf("[%s] Publishing 'Reject' activity to %s", h.ServiceName, toIRI)
 
 	if _, err := h.outbox.Post(reject); err != nil {
-		return fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err)
+		return aperrors.NewTransient(fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err))
 	}
 
 	return nil
@@ -350,7 +351,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 		),
 	)
 	if err != nil {
-		return false, fmt.Errorf("query references: %w", err)
+		return false, aperrors.NewTransient(fmt.Errorf("query references: %w", err))
 	}
 
 	defer func() {
@@ -366,7 +367,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 			return false, nil
 		}
 
-		return false, fmt.Errorf("get next reference: %w", err)
+		return false, aperrors.NewTransient(fmt.Errorf("get next reference: %w", err))
 	}
 
 	return true, nil
@@ -441,12 +442,13 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	activityID, err := h.outbox.Post(like)
 	if err != nil {
-		return fmt.Errorf("unable to reply with 'Like' to %s for offer [%s]: %w", offer.Actor(), offer.ID(), err)
+		return aperrors.NewTransient(fmt.Errorf("unable to reply with 'Like' to %s for offer [%s]: %w",
+			offer.Actor(), offer.ID(), err))
 	}
 
 	err = h.store.AddReference(store.Liked, h.ServiceIRI, activityID)
 	if err != nil {
-		return fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err)
+		return aperrors.NewTransient(fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err))
 	}
 
 	h.notify(offer)
@@ -474,7 +476,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 
 	err = h.store.AddReference(store.Like, h.ServiceIRI, like.ID().URL())
 	if err != nil {
-		return fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err)
+		return aperrors.NewTransient(fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err))
 	}
 
 	h.notify(like)
@@ -491,7 +493,7 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 
 	ok, err := h.hasReference(targetIRI, h.ServiceIRI, store.AnchorCredential)
 	if err != nil {
-		return fmt.Errorf("has anchor credential [%s]: %w", targetIRI, err)
+		return aperrors.NewTransient(fmt.Errorf("has anchor credential [%s]: %w", targetIRI, err))
 	}
 
 	if ok {
@@ -512,7 +514,7 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 
 	err = h.store.AddReference(store.AnchorCredential, targetIRI, h.ServiceIRI)
 	if err != nil {
-		return fmt.Errorf("store anchor credential reference: %w", err)
+		return aperrors.NewTransient(fmt.Errorf("store anchor credential reference: %w", err))
 	}
 
 	return nil
@@ -567,7 +569,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err
+		return aperrors.NewTransient(err)
 	}
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
@@ -604,7 +606,7 @@ func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
 
 	activityID, err := h.outbox.Post(announce)
 	if err != nil {
-		return err
+		return aperrors.NewTransient(err)
 	}
 
 	anchorCredID := ref.Target().Object().ID()
@@ -701,7 +703,8 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 
 	err := h.store.DeleteReference(refType, h.ServiceIRI, actorIRI)
 	if err != nil {
-		return fmt.Errorf("unable to delete %s from %s's collection of %s", actorIRI, h.ServiceIRI, refType)
+		return aperrors.NewTransient(fmt.Errorf("unable to delete %s from %s's collection of %s",
+			actorIRI, h.ServiceIRI, refType))
 	}
 
 	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
@@ -713,7 +716,11 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) error {
 	obActivity, err := h.getActivityFromOutbox(activity.ID().URL())
 	if err != nil {
-		return fmt.Errorf("get activity from outbox: %w", err)
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("get activity from outbox: %w", err)
+		}
+
+		return aperrors.NewTransient(fmt.Errorf("get activity from outbox: %w", err))
 	}
 
 	// Ensure the activity in the outbox is the same as the given activity.
