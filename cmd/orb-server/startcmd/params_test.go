@@ -40,19 +40,6 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		require.Equal(t, "host-url value is empty", err.Error())
 	})
 
-	t.Run("test blank cas url arg", func(t *testing.T) {
-		startCmd := GetStartCmd()
-
-		args := []string{"--" + hostURLFlagName, "test"}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-		require.Error(t, err)
-
-		const errMsg = "vct-url (command line flag) nor ORB_VCT_URL (environment variable) have been set."
-		require.Contains(t, err.Error(), errMsg)
-	})
-
 	t.Run("test blank cas type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
