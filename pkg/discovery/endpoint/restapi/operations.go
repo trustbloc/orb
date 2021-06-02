@@ -28,6 +28,7 @@ const (
 
 const (
 	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
+	ledgerType   = "https://trustbloc.dev/ns/ledger-type"
 	context      = "https://w3id.org/did/v1"
 )
 
@@ -52,8 +53,10 @@ func New(c *Config) (*Operation, error) {
 		operationPath:             c.OperationPath,
 		webCASPath:                c.WebCASPath,
 		baseURL:                   c.BaseURL,
+		vctURL:                    c.VctURL,
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
+		discoveryVctDomains:       c.DiscoveryVctDomains,
 	}, nil
 }
 
@@ -67,7 +70,9 @@ type Operation struct {
 	operationPath             string
 	webCASPath                string
 	baseURL                   string
+	vctURL                    string
 	discoveryDomains          []string
+	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
 }
 
@@ -80,7 +85,9 @@ type Config struct {
 	OperationPath             string
 	WebCASPath                string
 	BaseURL                   string
+	VctURL                    string
 	DiscoveryDomains          []string
+	DiscoveryVctDomains       []string
 	DiscoveryMinimumResolvers int
 }
 
@@ -140,7 +147,7 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 // Responses:
 //    default: genericError
 //        200: webFingerResp
-func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
+func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) { //nolint:funlen
 	queryValue := r.URL.Query()["resource"]
 	if len(queryValue) == 0 {
 		writeErrorResponse(rw, http.StatusBadRequest, "resource query string not found")
@@ -186,6 +193,24 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 		writeResponse(rw, resp, http.StatusOK)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
+	case resource == o.baseURL:
+		resp := &WebFingerResponse{
+			Subject:    o.vctURL,
+			Properties: map[string]interface{}{ledgerType: "vct-v1"},
+			Links: []WebFingerLink{
+				{Rel: "self", Href: o.vctURL},
+			},
+		}
+
+		for _, v := range o.discoveryVctDomains {
+			resp.Links = append(resp.Links, WebFingerLink{
+				Rel:  "alternate",
+				Href: v,
+			})
+		}
+
+		writeResponse(rw, resp, http.StatusOK)
+
 	default:
 		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found", resource))
 	}

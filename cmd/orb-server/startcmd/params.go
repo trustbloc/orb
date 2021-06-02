@@ -193,6 +193,10 @@ const (
 	discoveryDomainsEnvKey    = "DISCOVERY_DOMAINS"
 	discoveryDomainsFlagUsage = "Discovery domains. " + commonEnvVarUsageText + discoveryDomainsEnvKey
 
+	discoveryVctDomainsFlagName  = "discovery-vct-domains"
+	discoveryVctDomainsEnvKey    = "DISCOVERY_VCT_DOMAINS"
+	discoveryVctDomainsFlagUsage = "Discovery vctdomains. " + commonEnvVarUsageText + discoveryVctDomainsEnvKey
+
 	discoveryMinimumResolversFlagName  = "discovery-minimum-resolvers"
 	discoveryMinimumResolversEnvKey    = "DISCOVERY_MINIMUM_RESOLVERS"
 	discoveryMinimumResolversFlagUsage = "Discovery minimum resolvers number." +
@@ -242,6 +246,7 @@ type orbParameters struct {
 	tlsKey                    string
 	anchorCredentialParams    *anchorCredentialParams
 	discoveryDomains          []string
+	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
 	maxWitnessDelay           time.Duration
 	startupDelay              time.Duration
@@ -442,6 +447,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	discoveryDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
 
+	discoveryVctDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryVctDomainsFlagName, discoveryVctDomainsEnvKey)
+
 	discoveryMinimumResolversStr := cmdutils.GetUserSetOptionalVarFromString(cmd, discoveryMinimumResolversFlagName,
 		discoveryMinimumResolversEnvKey)
 
@@ -485,6 +492,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		dbParameters:              dbParams,
 		logLevel:                  loggingLevel,
 		discoveryDomains:          discoveryDomains,
+		discoveryVctDomains:       discoveryVctDomains,
 		discoveryMinimumResolvers: discoveryMinimumResolvers,
 		maxWitnessDelay:           maxWitnessDelay,
 		startupDelay:              startupDelay,
@@ -686,6 +694,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(kmsSecretsDatabasePrefixFlagName, "", "", kmsSecretsDatabasePrefixFlagUsage)
 	startCmd.Flags().StringP(LogLevelFlagName, LogLevelFlagShorthand, "", LogLevelPrefixFlagUsage)
 	startCmd.Flags().StringArrayP(discoveryDomainsFlagName, "", []string{}, discoveryDomainsFlagUsage)
+	startCmd.Flags().StringArrayP(discoveryVctDomainsFlagName, "", []string{}, discoveryVctDomainsFlagUsage)
 	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensDefFlagName, authTokensDefFlagShorthand, nil, authTokensDefFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
