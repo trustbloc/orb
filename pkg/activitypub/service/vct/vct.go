@@ -147,3 +147,17 @@ type Proof struct {
 	Context []string         `json:"@context"`
 	Proof   verifiable.Proof `json:"proof"`
 }
+
+// NoOpClient represents VCT noOp client.
+type NoOpClient struct{}
+
+// NewNoOpClient returns the NoOpClient.
+func NewNoOpClient() *NoOpClient {
+	return &NoOpClient{}
+}
+
+// Witness credentials.
+func (c *NoOpClient) Witness(cred []byte) ([]byte, error) {
+	// provides an empty payload to satisfy all consumers
+	return []byte(`{}`), nil
+}

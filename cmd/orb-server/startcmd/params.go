@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -269,12 +270,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	vctURL, err := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, false)
-	if err != nil {
-		return nil, err
-	}
-
 	// no need to check errors for optional flags
+	vctURL, _ := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, true)
 	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true)    // nolint: errcheck,lll
 	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                   // nolint: errcheck,lll
 	keyID, _ := cmdutils.GetUserSetVarFromString(cmd, keyIDFlagName, keyIDEnvKey, true)                                     // nolint: errcheck,lll

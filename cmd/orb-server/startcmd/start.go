@@ -495,9 +495,13 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		vcCh)
 
-	witness := vct.New(parameters.vctURL, vcSigner,
-		vct.WithHTTPClient(httpClient),
-		vct.WithDocumentLoader(orbDocumentLoader))
+	var witness apspi.WitnessHandler = vct.NewNoOpClient()
+
+	if parameters.vctURL != "" {
+		witness = vct.New(parameters.vctURL, vcSigner,
+			vct.WithHTTPClient(httpClient),
+			vct.WithDocumentLoader(orbDocumentLoader))
+	}
 
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, apSigVerifier,

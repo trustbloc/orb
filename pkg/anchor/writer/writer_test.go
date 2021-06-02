@@ -408,6 +408,33 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to sign anchor credential[http://domain.com/vc/123]: signer error")
 	})
 
+	t.Run("success - monitoring is not started (no proof)", func(t *testing.T) {
+		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		providersWithErr := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			Witness:       &mockWitness{proofBytes: []byte(`{}`)},
+			VCStatusStore: &mockVCStatusStore{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+		}
+
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+
+		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		require.NoError(t, err)
+	})
+
 	t.Run("error - local witness (monitoring error)", func(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
@@ -422,7 +449,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			OpProcessor:   &mockOpProcessor{},
 			Outbox:        &mockOutbox{},
 			Signer:        &mockSigner{},
-			Witness:       &mockWitness{},
+			Witness: &mockWitness{
+				proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`),
+			},
+			VCStatusStore: &mockVCStatusStore{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
 			MonitoringSvc: &mockMonitoring{Err: fmt.Errorf("monitoring error")},
 			VCStore:       vcStore,
 		}

@@ -176,6 +176,12 @@ func TestClient_Witness(t *testing.T) {
 	})
 }
 
+func TestNewNoOpClient(t *testing.T) {
+	res, err := NewNoOpClient().Witness(nil)
+	require.NoError(t, err)
+	require.Equal(t, `{}`, string(res))
+}
+
 type mockSigner struct {
 	Err error
 }

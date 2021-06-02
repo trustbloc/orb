@@ -178,6 +178,38 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("success - no proof", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			WitnessStore:  &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{{Proof: []byte(`{}`)}}},
+			WitnessPolicy: &mockWitnessPolicy{eval: true},
+		}
+
+		require.NoError(t, New(providers, vcCh).HandleProof(witnessIRI, anchorVC.ID, time.Now(), []byte(`{}`)))
+		require.Len(t, (<-vcCh).Proofs, len(anchorVC.Proofs))
+	})
+
 	t.Run("error - get vc status error", func(t *testing.T) {
 		vcCh := make(chan *verifiable.Credential, 100)
 
@@ -564,8 +596,9 @@ func TestWitnessProofHandler(t *testing.T) {
 }
 
 type mockWitnessStore struct {
-	AddProofErr error
-	GetErr      error
+	WitnessProof []*proofapi.WitnessProof
+	AddProofErr  error
+	GetErr       error
 }
 
 func (w *mockWitnessStore) AddProof(vcID, witnessID string, proof []byte) error {
@@ -581,7 +614,7 @@ func (w *mockWitnessStore) Get(vcID string) ([]*proofapi.WitnessProof, error) {
 		return nil, w.GetErr
 	}
 
-	return nil, nil
+	return w.WitnessProof, nil
 }
 
 type mockWitnessPolicy struct {

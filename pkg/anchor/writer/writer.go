@@ -277,16 +277,20 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		return nil, fmt.Errorf("failed to unmarshal local witness proof for anchor credential[%s]: %w", vc.ID, err)
 	}
 
-	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
-
+	// TODO: need to review this logic, monitoring does not use it
 	// store anchor credential (required for monitoring)
 	err = c.VCStore.Put(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
 	}
 
-	startTime := time.Now()
-	endTime := startTime.Add(c.maxWitnessDelay)
+	// if vct is not enabled witness will return an empty proof, we should not include it to vc
+	// and we should not start a monitoring, so we exit.
+	if len(witnessProof.Proof) == 0 {
+		return vc, nil
+	}
+
+	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	var (
 		createdTime time.Time
@@ -304,7 +308,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		domain = domainVal
 	}
 
-	err = c.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
+	err = c.MonitoringSvc.Watch(vc, time.Now().Add(c.maxWitnessDelay), domain, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup monitoring for local witness for anchor credential[%s]: %w", vc.ID, err)
 	}
