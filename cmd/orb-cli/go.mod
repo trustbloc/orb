@@ -9,6 +9,7 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210526192148-2e6367c4d320
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210505173234-006b2f4723fd
 	github.com/ipfs/go-ipfs-api v0.2.0
+	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/multiformats/go-multiaddr v0.3.1 // indirect
 	github.com/spf13/cobra v1.1.3
