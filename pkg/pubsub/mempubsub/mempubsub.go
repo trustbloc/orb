@@ -14,8 +14,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 var logger = log.New("activitypub_service")
@@ -127,8 +127,8 @@ func (p *PubSub) stop() {
 // Subscribe subscribes to a topic and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
 func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Message, error) {
-	if p.State() != service.StateStarted {
-		return nil, service.ErrNotStarted
+	if p.State() != lifecycle.StateStarted {
+		return nil, lifecycle.ErrNotStarted
 	}
 
 	logger.Debugf("[%s] Subscribing to topic [%s]", p.serviceName, topic)
@@ -147,8 +147,8 @@ func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Mes
 // immediately after sending the messages to the Go channel(s), although it will
 // block if the concurrency limit (defined by Config.Concurrency) has been reached.
 func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
-	if p.State() != service.StateStarted {
-		return service.ErrNotStarted
+	if p.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
 	}
 
 	p.publishChan <- &entry{
@@ -222,7 +222,7 @@ func (p *PubSub) check(msg *message.Message) {
 
 func (p *PubSub) postToUndeliverable(msg *message.Message) {
 	p.mutex.RLock()
-	msgChans := p.msgChansByTopic[service.UndeliverableTopic]
+	msgChans := p.msgChansByTopic[spi.UndeliverableTopic]
 	p.mutex.RUnlock()
 
 	// When sending to the undeliverable queue, we don't want to block since this may result in a deadlock.

@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 const (
@@ -33,14 +33,14 @@ func TestNew(t *testing.T) {
 	s := New(&Config{ServiceEndpoint: endpoint}, &mocks.SignatureVerifier{})
 	require.NotNil(t, s)
 
-	require.Equal(t, spi.StateStarted, s.State())
+	require.Equal(t, lifecycle.StateStarted, s.State())
 	require.Equal(t, http.MethodPost, s.Method())
 	require.Equal(t, endpoint, s.Path())
 	require.NotNil(t, endpoint, s.Handler())
 
 	require.NoError(t, s.Close())
 
-	require.Equal(t, spi.StateStopped, s.State())
+	require.Equal(t, lifecycle.StateStopped, s.State())
 }
 
 func TestSubscriber_HandleAck(t *testing.T) {

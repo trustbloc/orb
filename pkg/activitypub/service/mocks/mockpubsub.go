@@ -14,7 +14,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 const (
@@ -126,7 +126,7 @@ func (m *MockPubSub) Close() error {
 
 func (m *MockPubSub) handleUndeliverable() {
 	for msg := range m.undeliverableChan {
-		msgChan, ok := m.MsgChan[service.UndeliverableTopic]
+		msgChan, ok := m.MsgChan[spi.UndeliverableTopic]
 		if !ok {
 			continue
 		}

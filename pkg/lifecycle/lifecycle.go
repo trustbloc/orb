@@ -7,14 +7,31 @@ SPDX-License-Identifier: Apache-2.0
 package lifecycle
 
 import (
+	"errors"
 	"sync/atomic"
 
 	"github.com/trustbloc/edge-core/pkg/log"
-
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 )
 
 var logger = log.New("activitypub_service")
+
+// ErrNotStarted indicates that an attempt was made to invoke a service that has not been started
+// or is still in the process of starting.
+var ErrNotStarted = errors.New("service has not started")
+
+// State is the state of the service.
+type State = uint32
+
+const (
+	// StateNotStarted indicates that the service has not been started.
+	StateNotStarted State = 0
+	// StateStarting indicates that the service is in the process of starting.
+	StateStarting State = 1
+	// StateStarted indicates that the service has been started.
+	StateStarted State = 2
+	// StateStopped indicates that the service has been stopped.
+	StateStopped State = 3
+)
 
 type options struct {
 	start func()
@@ -64,7 +81,7 @@ func New(name string, opts ...Opt) *Lifecycle {
 
 // Start starts the service.
 func (h *Lifecycle) Start() {
-	if !atomic.CompareAndSwapUint32(&h.state, spi.StateNotStarted, spi.StateStarting) {
+	if !atomic.CompareAndSwapUint32(&h.state, StateNotStarted, StateStarting) {
 		logger.Debugf("[%s] Service already started", h.name)
 
 		return
@@ -76,12 +93,12 @@ func (h *Lifecycle) Start() {
 
 	logger.Debugf("[%s] ... service started", h.name)
 
-	atomic.StoreUint32(&h.state, spi.StateStarted)
+	atomic.StoreUint32(&h.state, StateStarted)
 }
 
 // Stop stops the service.
 func (h *Lifecycle) Stop() {
-	if !atomic.CompareAndSwapUint32(&h.state, spi.StateStarted, spi.StateStopped) {
+	if !atomic.CompareAndSwapUint32(&h.state, StateStarted, StateStopped) {
 		logger.Debugf("[%s] Service already stopped", h.name)
 
 		return
@@ -95,6 +112,6 @@ func (h *Lifecycle) Stop() {
 }
 
 // State returns the state of the service.
-func (h *Lifecycle) State() spi.State {
+func (h *Lifecycle) State() State {
 	return atomic.LoadUint32(&h.state)
 }

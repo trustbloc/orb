@@ -26,7 +26,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -34,6 +33,8 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 )
 
 const pageSize = 2
@@ -96,11 +97,11 @@ func TestOutbox_StartStop(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Equal(t, spi.StateStarted, ob.State())
+	require.Equal(t, lifecycle.StateStarted, ob.State())
 
 	ob.Stop()
 
-	require.Equal(t, spi.StateStopped, ob.State())
+	require.Equal(t, lifecycle.StateStopped, ob.State())
 }
 
 func TestOutbox_Post(t *testing.T) {
@@ -289,7 +290,7 @@ func TestOutbox_PostError(t *testing.T) {
 		activity := vocab.NewCreateActivity(nil)
 
 		activityID, err := ob.Post(activity)
-		require.True(t, errors.Is(err, spi.ErrNotStarted))
+		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
 		require.Nil(t, activityID)
 	})
 

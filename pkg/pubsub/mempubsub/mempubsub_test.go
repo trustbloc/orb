@@ -17,7 +17,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/stretchr/testify/require"
 
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 func TestPubSub_Publish(t *testing.T) {
@@ -63,7 +64,7 @@ func TestPubSub_Publish(t *testing.T) {
 		msgChan, err := ps.Subscribe(context.Background(), "topic1")
 		require.NoError(t, err)
 
-		undeliverableChan, err := ps.Subscribe(context.Background(), service.UndeliverableTopic)
+		undeliverableChan, err := ps.Subscribe(context.Background(), spi.UndeliverableTopic)
 		require.NoError(t, err)
 
 		var mutex sync.Mutex
@@ -113,7 +114,7 @@ func TestPubSub_Publish(t *testing.T) {
 		msgChan, err := ps.Subscribe(context.Background(), "topic1")
 		require.NoError(t, err)
 
-		undeliverableChan, err := ps.Subscribe(context.Background(), service.UndeliverableTopic)
+		undeliverableChan, err := ps.Subscribe(context.Background(), spi.UndeliverableTopic)
 		require.NoError(t, err)
 
 		var mutex sync.Mutex
@@ -169,7 +170,7 @@ func TestPubSub_Error(t *testing.T) {
 		require.NoError(t, ps.Close())
 
 		msgChan, err := ps.Subscribe(context.Background(), "topic1")
-		require.True(t, errors.Is(err, service.ErrNotStarted))
+		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
 		require.Nil(t, msgChan)
 	})
 
@@ -179,7 +180,7 @@ func TestPubSub_Error(t *testing.T) {
 		require.NoError(t, ps.Close())
 
 		err := ps.Publish("topic1", message.NewMessage("123", nil))
-		require.True(t, errors.Is(err, service.ErrNotStarted))
+		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
 	})
 }
 
@@ -210,7 +211,7 @@ func TestPubSub_Close(t *testing.T) {
 			msg := message.NewMessage(watermill.NewUUID(), []byte("payload1"))
 
 			if err := ps.Publish("topic1", msg); err != nil {
-				if errors.Is(err, service.ErrNotStarted) {
+				if errors.Is(err, lifecycle.ErrNotStarted) {
 					return
 				}
 

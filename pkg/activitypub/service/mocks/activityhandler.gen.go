@@ -6,6 +6,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 type ActivityHandler struct {
@@ -15,14 +16,14 @@ type ActivityHandler struct {
 	StopStub         func()
 	stopMutex        sync.RWMutex
 	stopArgsForCall  []struct{}
-	StateStub        func() spi.State
+	StateStub        func() lifecycle.State
 	stateMutex       sync.RWMutex
 	stateArgsForCall []struct{}
 	stateReturns     struct {
-		result1 spi.State
+		result1 lifecycle.State
 	}
 	stateReturnsOnCall map[int]struct {
-		result1 spi.State
+		result1 lifecycle.State
 	}
 	HandleActivityStub        func(activity *vocab.ActivityType) error
 	handleActivityMutex       sync.RWMutex
@@ -80,7 +81,7 @@ func (fake *ActivityHandler) StopCallCount() int {
 	return len(fake.stopArgsForCall)
 }
 
-func (fake *ActivityHandler) State() spi.State {
+func (fake *ActivityHandler) State() lifecycle.State {
 	fake.stateMutex.Lock()
 	ret, specificReturn := fake.stateReturnsOnCall[len(fake.stateArgsForCall)]
 	fake.stateArgsForCall = append(fake.stateArgsForCall, struct{}{})
@@ -101,22 +102,22 @@ func (fake *ActivityHandler) StateCallCount() int {
 	return len(fake.stateArgsForCall)
 }
 
-func (fake *ActivityHandler) StateReturns(result1 spi.State) {
+func (fake *ActivityHandler) StateReturns(result1 lifecycle.State) {
 	fake.StateStub = nil
 	fake.stateReturns = struct {
-		result1 spi.State
+		result1 lifecycle.State
 	}{result1}
 }
 
-func (fake *ActivityHandler) StateReturnsOnCall(i int, result1 spi.State) {
+func (fake *ActivityHandler) StateReturnsOnCall(i int, result1 lifecycle.State) {
 	fake.StateStub = nil
 	if fake.stateReturnsOnCall == nil {
 		fake.stateReturnsOnCall = make(map[int]struct {
-			result1 spi.State
+			result1 lifecycle.State
 		})
 	}
 	fake.stateReturnsOnCall[i] = struct {
-		result1 spi.State
+		result1 lifecycle.State
 	}{result1}
 }
 

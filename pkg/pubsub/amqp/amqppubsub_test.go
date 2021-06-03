@@ -20,7 +20,7 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 const (
@@ -51,8 +51,8 @@ func TestAMQP(t *testing.T) {
 		require.NoError(t, p.Close())
 
 		_, err = p.Subscribe(context.Background(), topic)
-		require.True(t, errors.Is(err, spi.ErrNotStarted))
-		require.True(t, errors.Is(p.Publish(topic, msg), spi.ErrNotStarted))
+		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
+		require.True(t, errors.Is(p.Publish(topic, msg), lifecycle.ErrNotStarted))
 	})
 
 	t.Run("Connection failure", func(t *testing.T) {

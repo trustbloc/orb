@@ -27,14 +27,15 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/httppublisher"
-	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
-	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
+	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 var logger = log.New("activitypub_service")
@@ -100,7 +101,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := newHandlerOptions(handlerOpts)
 
-	undeliverableChan, err := pubSub.Subscribe(context.Background(), service.UndeliverableTopic)
+	undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
 	if err != nil {
 		return nil, err
 	}
@@ -189,8 +190,8 @@ func (h *Outbox) stop() {
 // If the activity does not specify an ID then a unique ID will be generated. The 'actor' of the
 // activity is also assigned to the service IRI of the outbox.
 func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
-	if h.State() != service.StateStarted {
-		return nil, service.ErrNotStarted
+	if h.State() != lifecycle.StateStarted {
+		return nil, lifecycle.ErrNotStarted
 	}
 
 	activity, err := h.validateAndPopulateActivity(activity)

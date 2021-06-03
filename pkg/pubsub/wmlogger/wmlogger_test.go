@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger/mocks"
+	"github.com/trustbloc/orb/pkg/pubsub/wmlogger/mocks"
 )
 
 //go:generate counterfeiter -o ./mocks/logger.gen.go --fake-name Logger github.com/trustbloc/edge-core/pkg/log.Logger

@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 // Outbox implements a mock Outbox.
@@ -73,6 +73,6 @@ func (m *Outbox) Stop() {
 }
 
 // State always returns StateStarted.
-func (m *Outbox) State() spi.State {
-	return spi.StateStarted
+func (m *Outbox) State() lifecycle.State {
+	return lifecycle.StateStarted
 }

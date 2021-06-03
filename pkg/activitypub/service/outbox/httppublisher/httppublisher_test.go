@@ -23,18 +23,18 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 func TestNew(t *testing.T) {
 	p := New("service1", transport.Default())
 	require.NotNil(t, p)
 	require.NotNil(t, p.httpTransport)
-	require.Equal(t, spi.StateStarted, p.State())
+	require.Equal(t, lifecycle.StateStarted, p.State())
 
 	require.NoError(t, p.Close())
-	require.Equal(t, spi.StateStopped, p.State())
+	require.Equal(t, lifecycle.StateStopped, p.State())
 }
 
 func TestPublisher_Publish(t *testing.T) {

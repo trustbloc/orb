@@ -16,9 +16,8 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
-	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 var logger = log.New("activitypub_service")
@@ -75,8 +74,8 @@ func New(name string, cfg Config) *PubSub {
 // Subscribe subscribes to a topic and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
 func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
-	if p.State() != service.StateStarted {
-		return nil, service.ErrNotStarted
+	if p.State() != lifecycle.StateStarted {
+		return nil, lifecycle.ErrNotStarted
 	}
 
 	logger.Debugf("[%s] Subscribing to topic [%s]", p.serviceName, topic)
@@ -86,8 +85,8 @@ func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.M
 
 // Publish publishes the given messages to the given topic.
 func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
-	if p.State() != service.StateStarted {
-		return service.ErrNotStarted
+	if p.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
 	}
 
 	logger.Debugf("[%s] Publishing messages to topic [%s]", p.serviceName, topic)

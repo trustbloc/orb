@@ -20,13 +20,13 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox"
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
-	"github.com/trustbloc/orb/pkg/activitypub/service/mempubsub"
 	"github.com/trustbloc/orb/pkg/activitypub/service/outbox"
-	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 )
 
 const (

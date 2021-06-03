@@ -25,16 +25,17 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 //go:generate counterfeiter -o ../mocks/activityhandler.gen.go --fake-name ActivityHandler ../spi ActivityHandler
@@ -53,7 +54,7 @@ func TestInbox_StartStop(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
-	require.Equal(t, spi.StateNotStarted, ib.State())
+	require.Equal(t, lifecycle.StateNotStarted, ib.State())
 
 	ib.Start()
 
@@ -62,11 +63,11 @@ func TestInbox_StartStop(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Equal(t, spi.StateStarted, ib.State())
+	require.Equal(t, lifecycle.StateStarted, ib.State())
 
 	ib.Stop()
 
-	require.Equal(t, spi.StateStopped, ib.State())
+	require.Equal(t, lifecycle.StateStopped, ib.State())
 }
 
 func TestInbox_Handle(t *testing.T) {
@@ -151,7 +152,7 @@ func TestInbox_Handle(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Equal(t, spi.StateStopped, ib.State())
+	require.Equal(t, lifecycle.StateStopped, ib.State())
 }
 
 //nolint:gocyclo,cyclop
@@ -540,7 +541,7 @@ func TestInbox_Error(t *testing.T) {
 			}
 		}()
 
-		errExpected := aperrors.NewTransient(errors.New("injected transient error"))
+		errExpected := orberrors.NewTransient(errors.New("injected transient error"))
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityHandler.HandleActivityReturns(errExpected)

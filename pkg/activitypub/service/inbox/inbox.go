@@ -20,13 +20,13 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
-	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 var logger = log.New("activitypub_service")
@@ -196,7 +196,7 @@ func (h *Inbox) handle(msg *message.Message) {
 	}
 
 	if e := h.activityHandler.HandleActivity(activity); e != nil {
-		if aperrors.IsTransient(e) {
+		if orberrors.IsTransient(e) {
 			logger.Warnf("[%s] Transient error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, e)
 
 			// Nack the message so that it may be retried (potentially on a different server).
