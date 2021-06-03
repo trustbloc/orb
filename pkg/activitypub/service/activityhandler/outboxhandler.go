@@ -9,9 +9,9 @@ package activityhandler
 import (
 	"fmt"
 
-	"github.com/trustbloc/orb/pkg/activitypub/errors"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 // Outbox handles activities posted to the outbox.
@@ -72,7 +72,7 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 
 	err := h.store.AddReference(store.AnchorCredential, target.Object().ID().URL(), h.ServiceIRI)
 	if err != nil {
-		return errors.NewTransient(fmt.Errorf("store anchor credential reference: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("store anchor credential reference: %w", err))
 	}
 
 	return nil
@@ -89,7 +89,8 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 	}
 
 	if err := h.store.DeleteReference(refType, h.ServiceIRI, iri); err != nil {
-		return errors.NewTransient(fmt.Errorf("unable to delete %s from %s's collection of %s", iri, h.ServiceIRI, refType))
+		return orberrors.NewTransient(fmt.Errorf("unable to delete %s from %s's collection of %s",
+			iri, h.ServiceIRI, refType))
 	}
 
 	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",

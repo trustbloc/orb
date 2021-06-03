@@ -15,8 +15,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
-	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 var logger = log.New("activitypub_service")
@@ -106,8 +105,8 @@ func NewService(serviceName string, cfg *Config, notifyChan chan<- *message.Mess
 // the number of messages already being redelivered has reached the MaxMessages limit then this function will
 // block until a previously added message has been processed.
 func (m *Service) Add(msg *message.Message) (time.Time, error) {
-	if m.State() != service.StateStarted {
-		return time.Time{}, service.ErrNotStarted
+	if m.State() != lifecycle.StateStarted {
+		return time.Time{}, lifecycle.ErrNotStarted
 	}
 
 	redeliveryAttempts := 0

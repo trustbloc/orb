@@ -19,7 +19,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
-	aperrors "github.com/trustbloc/orb/pkg/activitypub/errors"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -28,7 +27,9 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
@@ -48,15 +49,15 @@ func TestNewInbox(t *testing.T) {
 	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
-	require.Equal(t, spi.StateNotStarted, h.State())
+	require.Equal(t, lifecycle.StateNotStarted, h.State())
 
 	h.Start()
 
-	require.Equal(t, spi.StateStarted, h.State())
+	require.Equal(t, lifecycle.StateStarted, h.State())
 
 	h.Stop()
 
-	require.Equal(t, spi.StateStopped, h.State())
+	require.Equal(t, lifecycle.StateStopped, h.State())
 }
 
 func TestNewOutbox(t *testing.T) {
@@ -68,15 +69,15 @@ func TestNewOutbox(t *testing.T) {
 	h := NewOutbox(cfg, &mocks.ActivityStore{}, &apmocks.HTTPTransport{})
 	require.NotNil(t, h)
 
-	require.Equal(t, spi.StateNotStarted, h.State())
+	require.Equal(t, lifecycle.StateNotStarted, h.State())
 
 	h.Start()
 
-	require.Equal(t, spi.StateStarted, h.State())
+	require.Equal(t, lifecycle.StateStarted, h.State())
 
 	h.Stop()
 
-	require.Equal(t, spi.StateStopped, h.State())
+	require.Equal(t, lifecycle.StateStopped, h.State())
 }
 
 func TestNoOpProofHandler_HandleProof(t *testing.T) {
@@ -1977,10 +1978,10 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		)
 
 		err := inboxHandler.HandleActivity(undo)
-		require.True(t, aperrors.IsTransient(err))
+		require.True(t, orberrors.IsTransient(err))
 
 		_, err = inboxHandler.resolveActor(service1IRI)
-		require.True(t, aperrors.IsTransient(err))
+		require.True(t, orberrors.IsTransient(err))
 
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
 		if err != nil {
@@ -1994,10 +1995,10 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		)
 
 		err = inboxHandler.announceAnchorCredential(create)
-		require.True(t, aperrors.IsTransient(err))
+		require.True(t, orberrors.IsTransient(err))
 
 		err = inboxHandler.announceAnchorCredentialRef(create)
-		require.True(t, aperrors.IsTransient(err))
+		require.True(t, orberrors.IsTransient(err))
 	})
 
 	t.Run("Inbox Undo Follow", func(t *testing.T) {

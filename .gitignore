@@ -32,3 +32,4 @@ test/bdd/fixtures/keys
 test/bdd/fixtures/data
 
 /coverage.txt
+/cmd/orb-cli/ipfskeygencmd/k1.key

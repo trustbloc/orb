@@ -7,32 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 import (
-	"errors"
 	"net/url"
 	"time"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-)
-
-// UndeliverableTopic is the topic to which to post undeliverable messages.
-const UndeliverableTopic = "undeliverable_activities"
-
-// ErrNotStarted indicates that an attempt was made to invoke a service that has not been started
-// or is still in the process of starting.
-var ErrNotStarted = errors.New("service has not started")
-
-// State is the state of the service.
-type State = uint32
-
-const (
-	// StateNotStarted indicates that the service has not been started.
-	StateNotStarted State = 0
-	// StateStarting indicates that the service is in the process of starting.
-	StateStarting State = 1
-	// StateStarted indicates that the service has been started.
-	StateStarted State = 2
-	// StateStopped indicates that the service has been stopped.
-	StateStopped State = 3
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 // ServiceLifecycle defines the functions of a service lifecycle.
@@ -42,7 +21,7 @@ type ServiceLifecycle interface {
 	// Stop stops the service.
 	Stop()
 	// State returns the state of the service.
-	State() State
+	State() lifecycle.State
 }
 
 // Outbox defines the functions for an ActivityPub outbox.

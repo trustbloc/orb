@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/lifecycle"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 var logger = log.New("activitypub_service")

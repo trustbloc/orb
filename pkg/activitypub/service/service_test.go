@@ -31,9 +31,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/redelivery"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
-	"github.com/trustbloc/orb/pkg/activitypub/service/wmlogger"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -41,6 +39,9 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
+	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
@@ -71,11 +72,11 @@ func TestNewService(t *testing.T) {
 
 	service1.Start()
 
-	require.Equal(t, service.StateStarted, service1.State())
+	require.Equal(t, lifecycle.StateStarted, service1.State())
 
 	service1.Stop()
 
-	require.Equal(t, service.StateStopped, service1.State())
+	require.Equal(t, lifecycle.StateStopped, service1.State())
 }
 
 func TestService_Create(t *testing.T) {
@@ -314,7 +315,7 @@ func TestService_Follow(t *testing.T) {
 				break
 			}
 
-			if !errors.Is(err, service.ErrNotStarted) {
+			if !errors.Is(err, lifecycle.ErrNotStarted) {
 				t.Fatal(err)
 			}
 
