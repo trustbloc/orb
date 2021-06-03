@@ -112,6 +112,8 @@ const (
 	defaulthttpSignaturesEnabled = true
 
 	unpublishedDIDLabel = "interim"
+
+	defaultPolicyCacheExpiry = 30 * time.Second
 )
 
 var logger = log.New("orb-server")
@@ -486,9 +488,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	defer monitoringSvc.Close()
 
-	// TODO: Make witness policy configurable (issue-448)
-	// For now use default 100% batch and 100% system witnesses
-	witnessPolicy, err := policy.New("")
+	witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 	if err != nil {
 		return fmt.Errorf("failed to create witness policy: %s", err.Error())
 	}

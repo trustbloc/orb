@@ -30,8 +30,10 @@ import (
 //go:generate counterfeiter -o ../mocks/vcstatus.gen.go --fake-name VCStatusStore . vcStatusStore
 
 const (
-	vcID       = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
-	witnessURL = "http://example.com/orb/services"
+	vcID                     = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
+	witnessURL               = "http://example.com/orb/services"
+	configStoreName          = "orb-config"
+	defaultPolicyCacheExpiry = 5 * time.Second
 )
 
 func TestNew(t *testing.T) {
@@ -50,6 +52,9 @@ func TestNew(t *testing.T) {
 
 func TestWitnessProofHandler(t *testing.T) {
 	witnessIRI, err := url.Parse(witnessURL)
+	require.NoError(t, err)
+
+	configStore, err := mem.NewProvider().OpenStore(configStoreName)
 	require.NoError(t, err)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
@@ -124,7 +129,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
 		require.NoError(t, err)
 
-		witnessPolicy, err := policy.New("")
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -233,7 +238,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
 		require.NoError(t, err)
 
-		witnessPolicy, err := policy.New("")
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
 		mockVCStatusStore := &mocks.VCStatusStore{}
@@ -279,7 +284,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
 		require.NoError(t, err)
 
-		witnessPolicy, err := policy.New("")
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
 		mockVCStatusStore := &mocks.VCStatusStore{}
@@ -326,7 +331,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
 		require.NoError(t, err)
 
-		witnessPolicy, err := policy.New("")
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
 		mockVCStatusStore := &mocks.VCStatusStore{}

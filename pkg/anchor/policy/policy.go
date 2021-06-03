@@ -7,158 +7,69 @@ SPDX-License-Identifier: Apache-2.0
 package policy
 
 import (
+	"errors"
 	"fmt"
-	"strconv"
-	"strings"
+	"time"
 
+	"github.com/bluele/gcache"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/pkg/anchor/policy/config"
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 )
 
 // WitnessPolicy evaluates witness policy.
 type WitnessPolicy struct {
-	minNumberSystem int
-	minNumberBatch  int
-
-	minPercentSystem int
-	minPercentBatch  int
-
-	operator operatorFnc
+	configStore storage.Store
+	cache       gCache
+	cacheExpiry time.Duration
 }
 
-// Gate values.
 const (
-	OutOf      = "OutOf"
-	MinPercent = "MinPercent"
+	maxPercent = 100
 
-	AND = "AND"
-	OR  = "OR"
+	policyKey = "witness-policy"
+
+	defaultCacheSize = 10
 )
 
-// Role values.
-const (
-	RoleBatch  = "batch"
-	RoleSystem = "system"
-)
+var logger = log.New("witness-policy")
 
-const maxPercent = 100
-
-type operatorFnc func(a, b bool) bool
+type gCache interface {
+	Get(key interface{}) (interface{}, error)
+	SetWithExpire(interface{}, interface{}, time.Duration) error
+}
 
 // New parses witness policy from policy string.
-func New(policy string) (*WitnessPolicy, error) {
-	// default policy is 100% batch and 100% system witnesses
+func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPolicy, error) {
 	wp := &WitnessPolicy{
-		minPercentBatch:  maxPercent,
-		minPercentSystem: maxPercent,
-		operator:         and,
+		configStore: configStore,
+		cacheExpiry: policyCacheExpiry,
 	}
 
-	if policy == "" {
-		return wp, nil
+	wp.cache = gcache.New(defaultCacheSize).ARC().LoaderExpireFunc(wp.loadWitnessPolicy).Build()
+
+	policy, _, err := wp.loadWitnessPolicy(policyKey)
+	if err != nil {
+		return nil, err
 	}
 
-	tokens := strings.Split(policy, " ")
-
-	for _, token := range tokens {
-		err := wp.processToken(token)
-		if err != nil {
-			return nil, err
-		}
+	err = wp.cache.SetWithExpire(policyKey, policy, policyCacheExpiry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set expiry entry in policy cache: %w", err)
 	}
 
 	return wp, nil
 }
 
-func (wp *WitnessPolicy) processToken(token string) error {
-	switch t := token; {
-	case strings.HasPrefix(t, OutOf):
-		err := wp.processOutOf(token)
-		if err != nil {
-			return err
-		}
-	case strings.HasPrefix(t, MinPercent):
-		err := wp.processMinPercent(token)
-		if err != nil {
-			return err
-		}
-	case t == AND:
-		wp.operator = and
-	case t == OR:
-		wp.operator = or
-	default:
-		return fmt.Errorf("rule not supported: %s", token)
-	}
-
-	return nil
-}
-
-// processOutOf rule (e.g. OutOf(2,system) rule means that proofs from at least 2 system witnesses are required.
-func (wp *WitnessPolicy) processOutOf(token string) error {
-	insideBrackets := token[len(OutOf)+1 : len(token)-1]
-
-	outOfArgs := strings.Split(insideBrackets, ",")
-
-	const outOfArgsNo = 2
-	if len(outOfArgs) != outOfArgsNo {
-		return fmt.Errorf("expected 2 but got %d arguments for OutOf policy", len(outOfArgs))
-	}
-
-	minNo, err := strconv.Atoi(outOfArgs[0])
-	if err != nil {
-		return fmt.Errorf("first argument for OutOf policy must be an integer: %w", err)
-	}
-
-	switch outOfArgs[1] {
-	case RoleSystem:
-		wp.minNumberSystem = minNo
-
-	case RoleBatch:
-		wp.minNumberBatch = minNo
-
-	default:
-		return fmt.Errorf("role '%s' not supported for OutOf policy", outOfArgs[1])
-	}
-
-	return nil
-}
-
-// processMinPercent will process minimum percent rule.
-// e.g. MinPercent(0.2,system) rule means that proofs from at least 20% of system witnesses are required.
-func (wp *WitnessPolicy) processMinPercent(token string) error {
-	insideBrackets := token[len(MinPercent)+1 : len(token)-1]
-
-	minPercentArgs := strings.Split(insideBrackets, ",")
-
-	const minPercentArgsNo = 2
-	if len(minPercentArgs) != minPercentArgsNo {
-		return fmt.Errorf("expected 2 but got %d arguments for MinPercent policy", len(minPercentArgs))
-	}
-
-	minPercent, err := strconv.Atoi(minPercentArgs[0])
-	if err != nil {
-		return fmt.Errorf("first argument for OutOf policy must be an integer between 0 and 100: %w", err)
-	}
-
-	if minPercent < 0 || minPercent > 100 {
-		return fmt.Errorf("first argument for OutOf policy must be an integer between 0 and 100")
-	}
-
-	switch minPercentArgs[1] {
-	case RoleSystem:
-		wp.minPercentSystem = minPercent
-
-	case RoleBatch:
-		wp.minPercentBatch = minPercent
-
-	default:
-		return fmt.Errorf("role '%s' not supported for MinPercent policy", minPercentArgs[1])
-	}
-
-	return nil
-}
-
 // Evaluate evaluates if witness policy has been satisfied for provided witnesses.
 func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error) {
+	cfg, err := wp.getWitnessPolicyConfig()
+	if err != nil {
+		return false, err
+	}
+
 	totalSystemWitnesses := 0
 	collectedSystemWitnesses := 0
 
@@ -183,10 +94,49 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 		}
 	}
 
-	batchCondition := evaluate(collectedBatchWitnesses, totalBatchWitnesses, wp.minNumberBatch, wp.minPercentBatch)
-	systemCondition := evaluate(collectedSystemWitnesses, totalSystemWitnesses, wp.minNumberSystem, wp.minPercentSystem)
+	batchCondition := evaluate(collectedBatchWitnesses, totalBatchWitnesses, cfg.MinNumberBatch, cfg.MinPercentBatch)
+	systemCondition := evaluate(collectedSystemWitnesses, totalSystemWitnesses, cfg.MinNumberSystem, cfg.MinPercentSystem)
 
-	return wp.operator(batchCondition, systemCondition), nil
+	return cfg.Operator(batchCondition, systemCondition), nil
+}
+
+func (wp *WitnessPolicy) loadWitnessPolicy(key interface{}) (interface{}, *time.Duration, error) {
+	witnessPolicy, err := wp.configStore.Get(key.(string))
+	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
+		return nil, nil, err
+	}
+
+	policy := ""
+	if witnessPolicy != nil {
+		policy = string(witnessPolicy)
+	}
+
+	logger.Debugf("loaded witness policy from store: %s", policy)
+
+	return policy, &wp.cacheExpiry, nil
+}
+
+func (wp *WitnessPolicy) getWitnessPolicyConfig() (*config.WitnessPolicyConfig, error) {
+	value, err := wp.cache.Get(policyKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve policy from policy cache: %w", err)
+	}
+
+	if value == nil {
+		return nil, fmt.Errorf("failed to retrieve policy from policy cache (nil value)")
+	}
+
+	policy, ok := value.(string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected interface '%T' for witness policy value in policy cache", value)
+	}
+
+	policyCfg, err := config.Parse(policy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse policy config from policy[%s]: %w", policy, err)
+	}
+
+	return policyCfg, nil
 }
 
 func evaluate(collected, total, minNumber, minPercent int) bool {
@@ -197,12 +147,4 @@ func evaluate(collected, total, minNumber, minPercent int) bool {
 
 	return (minNumber != 0 && collected >= minNumber) ||
 		percentCollected >= minPercent/maxPercent
-}
-
-func and(a, b bool) bool {
-	return a && b
-}
-
-func or(a, b bool) bool {
-	return a || b
 }

@@ -7,75 +7,63 @@ SPDX-License-Identifier: Apache-2.0
 package policy
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
+	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
+)
+
+const (
+	defaultPolicyCacheExpiry = 5 * time.Second
+	configStoreName          = "orb-config"
 )
 
 func TestNew(t *testing.T) {
-	wp, err := New("OutOf(2,system)")
-	require.NoError(t, err)
-	require.NotNil(t, wp)
+	t.Run("success", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
 
-	wp, err = New("OutOf(a,system)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "first argument for OutOf policy must be an integer")
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+	})
 
-	wp, err = New("OutOf(2,batch)")
-	require.NoError(t, err)
-	require.NotNil(t, wp)
+	t.Run("success - call to cache loader function", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
 
-	wp, err = New("OutOf(2,invalid)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "role 'invalid' not supported for OutOf policy")
+		wp, err := New(configStore, 1*time.Second)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
 
-	wp, err = New("OutOf(2,system,other)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "expected 2 but got 3 arguments for OutOf")
+		err = configStore.Put(policyKey, []byte("MinPercent(30,system) AND MinPercent(70,batch)"))
+		require.NoError(t, err)
 
-	wp, err = New("OutOf(a,system)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "first argument for OutOf policy must be an integer")
+		time.Sleep(2 * time.Second)
+	})
 
-	wp, err = New("MinPercent(70,batch)")
-	require.NoError(t, err)
-	require.NotNil(t, wp)
+	t.Run("error - config store error", func(t *testing.T) {
+		configStore := &storemocks.Store{}
+		configStore.GetReturns(nil, fmt.Errorf("get error"))
 
-	wp, err = New("MinPercent(70,invalid)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "role 'invalid' not supported for MinPercent policy")
-
-	wp, err = New("MinPercent(invalid,batch)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "first argument for OutOf policy must be an integer between 0 and 100: strconv.Atoi")
-
-	wp, err = New("MinPercent(150,batch)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "first argument for OutOf policy must be an integer between 0 and 100")
-
-	wp, err = New("MinPercent(20,system,other)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "expected 2 but got 3 arguments for MinPercent")
-
-	wp, err = New("Test(2,3)")
-	require.Error(t, err)
-	require.Nil(t, wp)
-	require.Contains(t, err.Error(), "rule not supported: Test(2,3)")
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.Error(t, err)
+		require.Nil(t, wp)
+		require.Contains(t, err.Error(), "get error")
+	})
 }
 
 func TestEvaluate(t *testing.T) {
 	t.Run("success - default policy satisfied (100% batch and 100% system)", func(t *testing.T) {
-		wp, err := New("")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -98,7 +86,10 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy not satisfied (no proofs)", func(t *testing.T) {
-		wp, err := New("OutOf(1,system)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -127,7 +118,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy not satisfied (no system proofs)", func(t *testing.T) {
-		wp, err := New("OutOf(1,system)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -158,7 +155,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied (all batch witness proofs(default), one system witness proof)", func(t *testing.T) {
-		wp, err := New("OutOf(1,system)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, 1*time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -190,7 +193,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied (50% batch witness proofs, 50% system witness proofs)", func(t *testing.T) {
-		wp, err := New("MinPercent(50,system) AND MinPercent(50,batch)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -221,7 +230,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied (50% batch witness proofs or 50% system witness proofs)", func(t *testing.T) {
-		wp, err := New("MinPercent(50,system) OR MinPercent(50,batch)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -251,7 +266,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied (50% batch witness proofs or 50% system witness proofs)", func(t *testing.T) {
-		wp, err := New("MinPercent(50,system) OR MinPercent(50,batch)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -277,7 +298,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied (all batch witness proofs(default), one system witness proof)", func(t *testing.T) {
-		wp, err := New("OutOf(1,system)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -309,7 +336,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - no system witnesses provided", func(t *testing.T) {
-		wp, err := New("MinPercent(50,system) AND MinPercent(50,batch)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -327,7 +360,13 @@ func TestEvaluate(t *testing.T) {
 	})
 
 	t.Run("success - no batch witnesses provided", func(t *testing.T) {
-		wp, err := New("MinPercent(50,system) AND MinPercent(50,batch)")
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
@@ -343,4 +382,181 @@ func TestEvaluate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, true, ok)
 	})
+
+	t.Run("success - update policy in the config store (policy change test)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(policyKey, []byte("OutOf(0,batch) AND OutOf(1,system)"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, 1*time.Second)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness-1",
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness-1",
+				Proof:   []byte("proof"),
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+
+		// change policy to 1 system witness and 1 batch witness
+		err = configStore.Put(policyKey, []byte("OutOf(1,batch) AND OutOf(1,system)"))
+		require.NoError(t, err)
+
+		// wait for cache to refresh entry
+		time.Sleep(2 * time.Second)
+
+		// policy should return false since there is not enough system proofs
+		ok, err = wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, false, ok)
+
+		witnessProofs[0].Proof = []byte("added proof")
+		ok, err = wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("error - get policy from cache error", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		wp.cache = &mockCache{GetErr: fmt.Errorf("get policy from cache error")}
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "witness-1",
+				Proof:   []byte("proof"),
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "witness-1",
+				Proof:   []byte("proof"),
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.Error(t, err)
+		require.Equal(t, false, ok)
+		require.Contains(t, err.Error(), "failed to retrieve policy from policy cache: get policy from cache error")
+	})
+}
+
+func TestGetWitnessPolicyConfig(t *testing.T) {
+	t.Run("success - policy config retrieved from the cache", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		cfg, err := wp.getWitnessPolicyConfig()
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+	})
+
+	t.Run("error - failed to retrieve policy from policy cache (nil value)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		wp.cache = &mockCache{}
+
+		cfg, err := wp.getWitnessPolicyConfig()
+		require.Error(t, err)
+		require.Nil(t, cfg)
+		require.Contains(t, err.Error(), "failed to retrieve policy from policy cache (nil value)")
+	})
+
+	t.Run("error - get witness policy from cache error", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		wp.cache = &mockCache{GetErr: fmt.Errorf("get error")}
+
+		cfg, err := wp.getWitnessPolicyConfig()
+		require.Error(t, err)
+		require.Nil(t, cfg)
+		require.Contains(t, err.Error(), "get error")
+	})
+
+	t.Run("error - unexpected interface for witness policy value", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		wp.cache = &mockCache{GetValue: []byte("not string")}
+
+		cfg, err := wp.getWitnessPolicyConfig()
+		require.Error(t, err)
+		require.Nil(t, cfg)
+		require.Contains(t, err.Error(),
+			"unexpected interface '[]uint8' for witness policy value in policy cache")
+	})
+
+	t.Run("error - parse witness policy error (rule not supported)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		// rule not supported - parse fails
+		wp.cache = &mockCache{GetValue: "Test(a,b)"}
+
+		cfg, err := wp.getWitnessPolicyConfig()
+		require.Error(t, err)
+		require.Nil(t, cfg)
+		require.Contains(t, err.Error(), "rule not supported: Test(a,b)")
+	})
+}
+
+type mockCache struct {
+	GetErr   error
+	SetErr   error
+	GetValue interface{}
+}
+
+func (mc *mockCache) Get(interface{}) (interface{}, error) {
+	if mc.GetErr != nil {
+		return nil, mc.GetErr
+	}
+
+	return mc.GetValue, nil
+}
+
+func (mc *mockCache) SetWithExpire(interface{}, interface{}, time.Duration) error {
+	if mc.SetErr != nil {
+		return mc.SetErr
+	}
+
+	return nil
 }
