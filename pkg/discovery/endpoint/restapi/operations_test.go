@@ -133,12 +133,13 @@ func TestWebFinger(t *testing.T) {
 
 	t.Run("test ipns webfinger document", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
-			OperationPath:       "/op",
-			ResolutionPath:      "/resolve",
-			BaseURL:             "http://base",
-			WebCASPath:          "/cas",
-			DiscoveryVctDomains: []string{"http://vct1"},
-			VctURL:              "http://vct",
+			OperationPath:             "/op",
+			ResolutionPath:            "/resolve",
+			BaseURL:                   "http://base",
+			WebCASPath:                "/cas",
+			DiscoveryDomains:          []string{"http://domain1"},
+			VctURL:                    "http://vct",
+			DiscoveryMinimumResolvers: 2,
 		})
 		require.NoError(t, err)
 
@@ -151,10 +152,13 @@ func TestWebFinger(t *testing.T) {
 		var w restapi.WebFingerResponse
 
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
-		require.Equal(t, "http://vct", w.Subject)
-		require.Equal(t, "http://vct", w.Links[0].Href)
-		require.Equal(t, "http://vct1", w.Links[1].Href)
-		require.Equal(t, "vct-v1", w.Properties["https://trustbloc.dev/ns/ledger-type"].(string))
+		require.Equal(t, "http://base", w.Subject)
+		require.Equal(t, "http://base/resolve", w.Links[0].Href)
+		require.Equal(t, "http://domain1/resolve", w.Links[1].Href)
+		require.Equal(t, "http://base/witness", w.Properties["https://trustbloc.dev/ns/witness"].(string))
+		require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
+		require.Equal(t, "http://base/cas", w.Properties["https://trustbloc.dev/ns/cas"].(string))
+		require.Equal(t, "http://base/vct", w.Properties["https://trustbloc.dev/ns/vct"].(string))
 	})
 
 	t.Run("test WebCAS resource", func(t *testing.T) {
