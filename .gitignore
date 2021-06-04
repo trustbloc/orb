@@ -30,6 +30,7 @@ docker-compose.log
 test/bdd/fixtures/keys
 
 test/bdd/fixtures/data
+test/bdd/fixtures/export
 
 /coverage.txt
 /cmd/orb-cli/ipfskeygencmd/k1.key
