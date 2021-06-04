@@ -7,8 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package bdd
 
 import (
+	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -17,9 +20,20 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/messages-go/v10"
+	jsonldcontext "github.com/hyperledger/aries-framework-go/pkg/client/jsonld/context"
+
+	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 )
 
-var context *BDDContext
+var bddContext *BDDContext
+
+// services that will be populated with the contexts.
+var services = []string{
+	"http://localhost:8077",   // vct
+	"https://localhost:48326", // orb domain-1
+	"https://localhost:48426", // orb domain-2
+	"https://localhost:48626", // orb domain-2
+}
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -43,7 +57,7 @@ func TestMain(m *testing.M) {
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
-				if err := context.Composition().Up(); err != nil {
+				if err := bddContext.Composition().Up(); err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 
@@ -55,11 +69,17 @@ func TestMain(m *testing.M) {
 				fmt.Println(fmt.Sprintf("docker-compose up with tags=%s ... waiting for orb to start for %d seconds", tags, testSleep))
 				time.Sleep(time.Second * time.Duration(testSleep))
 			}
+
+			for _, service := range services {
+				if err := AddJSONLDContexts(service); err != nil {
+					panic(err)
+				}
+			}
 		})
 
 		s.AfterSuite(func() {
 			if compose {
-				composition := context.Composition()
+				composition := bddContext.Composition()
 				if err := composition.GenerateLogs(); err != nil {
 					logger.Warnf("Error generating logs: %s", err)
 				}
@@ -93,7 +113,7 @@ func TestMain(m *testing.M) {
 
 func FeatureContext(s *godog.Suite, state *state) {
 	var err error
-	context, err = NewBDDContext()
+	bddContext, err = NewBDDContext()
 	if err != nil {
 		panic(fmt.Sprintf("Error returned from NewBDDContext: %s", err))
 	}
@@ -105,12 +125,22 @@ func FeatureContext(s *godog.Suite, state *state) {
 		panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 	}
 
-	context.SetComposition(composition)
+	bddContext.SetComposition(composition)
 
 	// Context is shared between tests - for now
-	NewCommonSteps(context, state).RegisterSteps(s)
-	NewDockerSteps(context).RegisterSteps(s)
-	NewDIDSideSteps(context, state, "did:orb").RegisterSteps(s)
-	NewCLISteps(context, state).RegisterSteps(s)
-	NewDriverSteps(context, state).RegisterSteps(s)
+	NewCommonSteps(bddContext, state).RegisterSteps(s)
+	NewDockerSteps(bddContext).RegisterSteps(s)
+	NewDIDSideSteps(bddContext, state, "did:orb").RegisterSteps(s)
+	NewCLISteps(bddContext, state).RegisterSteps(s)
+	NewDriverSteps(bddContext, state).RegisterSteps(s)
+}
+
+// AddJSONLDContexts imports extra contexts for the service instance.
+func AddJSONLDContexts(serviceURL string) error {
+	return jsonldcontext.NewClient(serviceURL, jsonldcontext.WithHTTPClient(&http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
+		},
+	})).Add(context.Background(), ldcontext.MustGetAll()...)
 }

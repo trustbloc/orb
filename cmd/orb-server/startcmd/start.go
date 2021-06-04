@@ -79,13 +79,13 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/orb/pkg/context/loader"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
+	"github.com/trustbloc/orb/pkg/ldcontextrest"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -323,7 +323,8 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	orbDocumentLoader, err := loadOrbContexts()
+	// NOTE: Changing this storage requires changing storage for 'ldcontextrest.New' as well.
+	orbDocumentLoader, err := jld.NewDocumentLoader(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
@@ -629,6 +630,13 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("discovery rest: %w", err)
 	}
 
+	// NOTE: We are using the same storage as we use for ld document loader.
+	// Changing this storage requires changing storage for ld document loader as well.
+	ctxRest, err := ldcontextrest.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("ldcontext rest: %w", err)
+	}
+
 	handlers := make([]restcommon.HTTPHandler, 0)
 
 	handlers = append(handlers,
@@ -649,6 +657,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
+		ctxRest,
 	)
 
 	handlers = append(handlers,
@@ -666,20 +675,6 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	return srv.Start(httpServer)
-}
-
-// pre-load orb contexts for vc, anchor, jws.
-func loadOrbContexts() (*jld.DocumentLoader, error) {
-	// TODO: Use storage (store batch of contexts: not implemented)
-	return jld.NewDocumentLoader(ariesmemstorage.NewProvider(),
-		jld.WithExtraContexts(jld.ContextDocument{
-			URL:     loader.AnchorContextURIV1,
-			Content: []byte(loader.AnchorContextV1),
-		}, jld.ContextDocument{
-			URL:     loader.JwsContextURIV1,
-			Content: []byte(loader.JwsContextV1),
-		}),
-	)
 }
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
