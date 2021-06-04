@@ -1,0 +1,53 @@
+{
+  "url": "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
+  "content": {
+    "@context": {
+      "@version": 1.1,
+      "@protected": true,
+      "AnchorCredential": {
+        "@id": "https://trustbloc.dev/ns/orb#AnchorCredential",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type"
+        }
+      },
+      "Anchor": {
+        "@id": "https://trustbloc.dev/ns/orb#Anchor",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type",
+          "orb": "https://trustbloc.dev/ns/orb#",
+          "coreIndex": "orb:coreIndex",
+          "operationCount": "orb:operationCount",
+          "namespace": "orb:namespace",
+          "previousAnchors": "orb:previousAnchors",
+          "version": "orb:version"
+        }
+      },
+      "AnchorCredentialReference": {
+        "@id": "https://trustbloc.dev/ns/orb#AnchorCredentialReference",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type"
+        }
+      },
+      "ContentAddressedStorage": {
+        "@id": "https://trustbloc.dev/ns/orb#ContentAddressedStorage",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type",
+          "orb": "https://trustbloc.dev/ns/orb#",
+          "cid": "orb:contentIdentifier"
+        }
+      }
+    }
+  }
+}

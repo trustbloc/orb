@@ -16,12 +16,15 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
 	"github.com/trustbloc/orb/pkg/anchor/subject"
-	"github.com/trustbloc/orb/pkg/context/loader"
 )
 
 const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
+	// anchorContextURIV1 is anchor credential context URI.
+	anchorContextURIV1 = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	// jwsContextURIV1 is jws context.
+	jwsContextURIV1 = "https://w3id.org/jws/v1"
 )
 
 // Params holds required parameters for building anchor credential.
@@ -52,7 +55,7 @@ func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential", "AnchorCredential"},
-		Context: []string{vcContextURIV1, loader.AnchorContextURIV1, loader.JwsContextURIV1},
+		Context: []string{vcContextURIV1, anchorContextURIV1, jwsContextURIV1},
 		Subject: payload,
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,
