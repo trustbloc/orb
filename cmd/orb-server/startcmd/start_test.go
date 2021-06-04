@@ -9,7 +9,10 @@ import (
 	"errors"
 	"testing"
 
-	ariesmockstorage "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
+
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,15 +29,21 @@ func TestCreateProviders(t *testing.T) {
 	})
 	t.Run("test error from create new kms secrets couchdb", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
-			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: databaseTypeCouchDBOption}})
+			dbParameters: &dbParameters{
+				databaseType:           databaseTypeMemOption,
+				kmsSecretsDatabaseType: databaseTypeCouchDBOption,
+			},
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test error from create new kms secrets mysql", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
-			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: databaseTypeMYSQLDBOption}})
+			dbParameters: &dbParameters{
+				databaseType:           databaseTypeMemOption,
+				kmsSecretsDatabaseType: databaseTypeMYSQLDBOption,
+			},
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "DB URL for new mySQL DB provider can't be blank")
 	})
@@ -45,8 +54,11 @@ func TestCreateProviders(t *testing.T) {
 	})
 	t.Run("test invalid kms secrets database type", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
-			dbParameters: &dbParameters{databaseType: databaseTypeMemOption,
-				kmsSecretsDatabaseType: "data1"}})
+			dbParameters: &dbParameters{
+				databaseType:           databaseTypeMemOption,
+				kmsSecretsDatabaseType: "data1",
+			},
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
 	})
@@ -63,26 +75,22 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 	})
 
 	t.Run("Success (local kms)", func(t *testing.T) {
-		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, &ariesmockstorage.MockStoreProvider{
-			Store: &ariesmockstorage.MockStore{
-				Store: make(map[string]ariesmockstorage.DBEntry),
-			},
-		}, &ariesmockstorage.MockStore{
-			Store: make(map[string]ariesmockstorage.DBEntry),
-		})
+		cfgStore, err := mem.NewProvider().OpenStore("cfg")
+		require.NoError(t, err)
+
+		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, mem.NewProvider(), cfgStore)
 		require.NoError(t, err)
 		require.NotNil(t, km)
 		require.NotNil(t, cr)
 	})
 
 	t.Run("Fail to create kms", func(t *testing.T) {
-		masterKeyStore := ariesmockstorage.MockStore{
-			Store: make(map[string]ariesmockstorage.DBEntry),
-		}
+		masterKeyStore, err := mem.NewProvider().OpenStore("masterkeystore")
+		require.NoError(t, err)
 
-		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, &ariesmockstorage.MockStoreProvider{
-			ErrOpenStoreHandle: errors.New("test error"),
-		}, &masterKeyStore)
+		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, &ariesmockstorage.Provider{
+			ErrOpenStore: errors.New("test error"),
+		}, masterKeyStore)
 		require.EqualError(t, err, "create kms: new: failed to ceate local kms: test error")
 		require.Nil(t, km)
 		require.Nil(t, cr)
@@ -90,24 +98,26 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 }
 
 func TestGetOrInit(t *testing.T) {
-	var testErr = errors.New("error")
+	testErr := errors.New("error")
 
 	require.True(t, errors.Is(getOrInit(
-		&ariesmockstorage.MockStore{ErrGet: testErr}, "key", nil, func() (interface{}, error) {
+		&ariesmockstorage.Store{ErrGet: testErr}, "key", nil, func() (interface{}, error) {
 			return "", nil
 		},
 	), testErr))
 
 	require.True(t, errors.Is(getOrInit(
-		&ariesmockstorage.MockStore{ErrPut: testErr}, "key", nil, func() (interface{}, error) {
+		&ariesmockstorage.Store{ErrGet: ariesspi.ErrDataNotFound, ErrPut: testErr}, "key", nil,
+		func() (interface{}, error) {
 			return nil, nil
 		},
 	), testErr))
 
+	cfgStore, err := mem.NewProvider().OpenStore("cfg")
+	require.NoError(t, err)
+
 	require.Contains(t, getOrInit(
-		&ariesmockstorage.MockStore{
-			Store: make(map[string]ariesmockstorage.DBEntry),
-		}, "key", nil, func() (interface{}, error) {
+		cfgStore, "key", nil, func() (interface{}, error) {
 			return map[string]interface{}{"test": make(chan int)}, nil
 		},
 	).Error(), "marshal config value for \"key\"")

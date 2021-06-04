@@ -75,15 +75,16 @@ func (fake *Provider) Close() error {
 	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
 	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
 	}{})
+	stub := fake.CloseStub
+	fakeReturns := fake.closeReturns
 	fake.recordInvocation("Close", []interface{}{})
 	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.closeReturns
 	return fakeReturns.result1
 }
 
@@ -127,15 +128,16 @@ func (fake *Provider) GetOpenStores() []storage.Store {
 	ret, specificReturn := fake.getOpenStoresReturnsOnCall[len(fake.getOpenStoresArgsForCall)]
 	fake.getOpenStoresArgsForCall = append(fake.getOpenStoresArgsForCall, struct {
 	}{})
+	stub := fake.GetOpenStoresStub
+	fakeReturns := fake.getOpenStoresReturns
 	fake.recordInvocation("GetOpenStores", []interface{}{})
 	fake.getOpenStoresMutex.Unlock()
-	if fake.GetOpenStoresStub != nil {
-		return fake.GetOpenStoresStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.getOpenStoresReturns
 	return fakeReturns.result1
 }
 
@@ -180,15 +182,16 @@ func (fake *Provider) GetStoreConfig(arg1 string) (storage.StoreConfiguration, e
 	fake.getStoreConfigArgsForCall = append(fake.getStoreConfigArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.GetStoreConfigStub
+	fakeReturns := fake.getStoreConfigReturns
 	fake.recordInvocation("GetStoreConfig", []interface{}{arg1})
 	fake.getStoreConfigMutex.Unlock()
-	if fake.GetStoreConfigStub != nil {
-		return fake.GetStoreConfigStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getStoreConfigReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -243,15 +246,16 @@ func (fake *Provider) OpenStore(arg1 string) (storage.Store, error) {
 	fake.openStoreArgsForCall = append(fake.openStoreArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	stub := fake.OpenStoreStub
+	fakeReturns := fake.openStoreReturns
 	fake.recordInvocation("OpenStore", []interface{}{arg1})
 	fake.openStoreMutex.Unlock()
-	if fake.OpenStoreStub != nil {
-		return fake.OpenStoreStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.openStoreReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -307,15 +311,16 @@ func (fake *Provider) SetStoreConfig(arg1 string, arg2 storage.StoreConfiguratio
 		arg1 string
 		arg2 storage.StoreConfiguration
 	}{arg1, arg2})
+	stub := fake.SetStoreConfigStub
+	fakeReturns := fake.setStoreConfigReturns
 	fake.recordInvocation("SetStoreConfig", []interface{}{arg1, arg2})
 	fake.setStoreConfigMutex.Unlock()
-	if fake.SetStoreConfigStub != nil {
-		return fake.SetStoreConfigStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.setStoreConfigReturns
 	return fakeReturns.result1
 }
 

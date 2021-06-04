@@ -249,7 +249,11 @@ func TestOutbox_Post(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, it)
-	require.Equal(t, 1, it.TotalItems())
+
+	totalItems, err := it.TotalItems()
+	require.NoError(t, err)
+
+	require.Equal(t, 1, totalItems)
 
 	time.Sleep(100 * time.Millisecond)
 

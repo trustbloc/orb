@@ -25,8 +25,8 @@ func newIterator(totalItems int) *iterator {
 	}
 }
 
-func (it *iterator) TotalItems() int {
-	return it.totalItems
+func (it *iterator) TotalItems() (int, error) {
+	return it.totalItems, nil
 }
 
 func (it *iterator) Close() error {

@@ -54,6 +54,18 @@ type Iterator struct {
 		result1 []storage.Tag
 		result2 error
 	}
+	TotalItemsStub        func() (int, error)
+	totalItemsMutex       sync.RWMutex
+	totalItemsArgsForCall []struct {
+	}
+	totalItemsReturns struct {
+		result1 int
+		result2 error
+	}
+	totalItemsReturnsOnCall map[int]struct {
+		result1 int
+		result2 error
+	}
 	ValueStub        func() ([]byte, error)
 	valueMutex       sync.RWMutex
 	valueArgsForCall []struct {
@@ -75,15 +87,16 @@ func (fake *Iterator) Close() error {
 	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
 	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
 	}{})
+	stub := fake.CloseStub
+	fakeReturns := fake.closeReturns
 	fake.recordInvocation("Close", []interface{}{})
 	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.closeReturns
 	return fakeReturns.result1
 }
 
@@ -127,15 +140,16 @@ func (fake *Iterator) Key() (string, error) {
 	ret, specificReturn := fake.keyReturnsOnCall[len(fake.keyArgsForCall)]
 	fake.keyArgsForCall = append(fake.keyArgsForCall, struct {
 	}{})
+	stub := fake.KeyStub
+	fakeReturns := fake.keyReturns
 	fake.recordInvocation("Key", []interface{}{})
 	fake.keyMutex.Unlock()
-	if fake.KeyStub != nil {
-		return fake.KeyStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.keyReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -182,15 +196,16 @@ func (fake *Iterator) Next() (bool, error) {
 	ret, specificReturn := fake.nextReturnsOnCall[len(fake.nextArgsForCall)]
 	fake.nextArgsForCall = append(fake.nextArgsForCall, struct {
 	}{})
+	stub := fake.NextStub
+	fakeReturns := fake.nextReturns
 	fake.recordInvocation("Next", []interface{}{})
 	fake.nextMutex.Unlock()
-	if fake.NextStub != nil {
-		return fake.NextStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.nextReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -237,15 +252,16 @@ func (fake *Iterator) Tags() ([]storage.Tag, error) {
 	ret, specificReturn := fake.tagsReturnsOnCall[len(fake.tagsArgsForCall)]
 	fake.tagsArgsForCall = append(fake.tagsArgsForCall, struct {
 	}{})
+	stub := fake.TagsStub
+	fakeReturns := fake.tagsReturns
 	fake.recordInvocation("Tags", []interface{}{})
 	fake.tagsMutex.Unlock()
-	if fake.TagsStub != nil {
-		return fake.TagsStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.tagsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -287,20 +303,77 @@ func (fake *Iterator) TagsReturnsOnCall(i int, result1 []storage.Tag, result2 er
 	}{result1, result2}
 }
 
+func (fake *Iterator) TotalItems() (int, error) {
+	fake.totalItemsMutex.Lock()
+	ret, specificReturn := fake.totalItemsReturnsOnCall[len(fake.totalItemsArgsForCall)]
+	fake.totalItemsArgsForCall = append(fake.totalItemsArgsForCall, struct {
+	}{})
+	stub := fake.TotalItemsStub
+	fakeReturns := fake.totalItemsReturns
+	fake.recordInvocation("TotalItems", []interface{}{})
+	fake.totalItemsMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *Iterator) TotalItemsCallCount() int {
+	fake.totalItemsMutex.RLock()
+	defer fake.totalItemsMutex.RUnlock()
+	return len(fake.totalItemsArgsForCall)
+}
+
+func (fake *Iterator) TotalItemsCalls(stub func() (int, error)) {
+	fake.totalItemsMutex.Lock()
+	defer fake.totalItemsMutex.Unlock()
+	fake.TotalItemsStub = stub
+}
+
+func (fake *Iterator) TotalItemsReturns(result1 int, result2 error) {
+	fake.totalItemsMutex.Lock()
+	defer fake.totalItemsMutex.Unlock()
+	fake.TotalItemsStub = nil
+	fake.totalItemsReturns = struct {
+		result1 int
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *Iterator) TotalItemsReturnsOnCall(i int, result1 int, result2 error) {
+	fake.totalItemsMutex.Lock()
+	defer fake.totalItemsMutex.Unlock()
+	fake.TotalItemsStub = nil
+	if fake.totalItemsReturnsOnCall == nil {
+		fake.totalItemsReturnsOnCall = make(map[int]struct {
+			result1 int
+			result2 error
+		})
+	}
+	fake.totalItemsReturnsOnCall[i] = struct {
+		result1 int
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *Iterator) Value() ([]byte, error) {
 	fake.valueMutex.Lock()
 	ret, specificReturn := fake.valueReturnsOnCall[len(fake.valueArgsForCall)]
 	fake.valueArgsForCall = append(fake.valueArgsForCall, struct {
 	}{})
+	stub := fake.ValueStub
+	fakeReturns := fake.valueReturns
 	fake.recordInvocation("Value", []interface{}{})
 	fake.valueMutex.Unlock()
-	if fake.ValueStub != nil {
-		return fake.ValueStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.valueReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -353,6 +426,8 @@ func (fake *Iterator) Invocations() map[string][][]interface{} {
 	defer fake.nextMutex.RUnlock()
 	fake.tagsMutex.RLock()
 	defer fake.tagsMutex.RUnlock()
+	fake.totalItemsMutex.RLock()
+	defer fake.totalItemsMutex.RUnlock()
 	fake.valueMutex.RLock()
 	defer fake.valueMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

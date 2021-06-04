@@ -5,7 +5,7 @@
 module github.com/trustbloc/orb/cmd/orb-cli
 
 require (
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210603061245-f77269180c6f
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210604191029-fce55e13c101
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210526192148-2e6367c4d320
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210505173234-006b2f4723fd
 	github.com/ipfs/go-ipfs-api v0.2.0

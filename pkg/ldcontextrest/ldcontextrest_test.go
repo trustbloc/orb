@@ -13,16 +13,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	client, err := New(&storage.MockStoreProvider{ErrOpenStoreHandle: errors.New("error")})
+	client, err := New(&mock.Provider{ErrOpenStore: errors.New("error")})
 	require.Error(t, err)
 	require.Nil(t, client)
 
-	client, err = New(storage.NewMockStoreProvider())
+	client, err = New(mem.NewProvider())
 	require.NoError(t, err)
 	require.NotNil(t, client)
 

@@ -161,8 +161,13 @@ func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Crite
 		return nil, err
 	}
 
+	totalItems, err := it.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from reference iterator: %w", err)
+	}
+
 	if len(refs) == 0 {
-		return NewActivityIterator(nil, it.TotalItems()), nil
+		return NewActivityIterator(nil, totalItems), nil
 	}
 
 	ait := s.activityStore.query(
@@ -170,7 +175,7 @@ func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Crite
 		spi.WithSortOrder(options.SortOrder))
 
 	// Set 'totalItems' to the 'totalItems' returned in the original reference query, which may be based on paging.
-	ait.totalItems = it.TotalItems()
+	ait.totalItems = totalItems
 
 	return ait, nil
 }

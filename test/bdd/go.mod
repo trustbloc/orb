@@ -9,10 +9,10 @@ require (
 	github.com/cucumber/messages-go/v10 v10.0.3
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.2.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210603061245-f77269180c6f
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210527163239-7c95eede0f1c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210520055214-ae429bb89bf7
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210604191029-fce55e13c101
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210604210836-c2fd1343db18
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210604210836-c2fd1343db18
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210604191029-fce55e13c101
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.7.0

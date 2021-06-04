@@ -16,9 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -897,6 +899,43 @@ func TestActivity_Handler(t *testing.T) {
 			require.NoError(t, result.Body.Close())
 		})
 	})
+}
+
+func TestGetActivities(t *testing.T) {
+	store, err := ariesstore.New(&mock.Provider{
+		OpenStoreReturn: &mock.Store{
+			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
+		},
+	}, "")
+	require.NoError(t, err)
+
+	activitiesHandler := Activities{handler: &handler{AuthHandler: &AuthHandler{activityStore: store}}}
+
+	activities, err := activitiesHandler.getActivities(&url.URL{}, &url.URL{}, spi.Inbox)
+	require.EqualError(t, err, "failed to get total items from reference query: total items error")
+	require.Nil(t, activities)
+}
+
+func TestActivityHandlerGetPage(t *testing.T) {
+	ariesStore, err := ariesstore.New(&mock.Provider{
+		OpenStoreReturn: &mock.Store{
+			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
+		},
+	}, "")
+	require.NoError(t, err)
+
+	mockActivityIterator, err := ariesStore.QueryActivities(&spi.Criteria{})
+	require.NoError(t, err)
+
+	mockActivityStore := mocks.ActivityStore{}
+
+	mockActivityStore.QueryActivitiesReturns(mockActivityIterator, nil)
+
+	activitiesHandler := Activities{handler: &handler{AuthHandler: &AuthHandler{activityStore: &mockActivityStore}}}
+
+	page, err := activitiesHandler.getPage(&url.URL{}, &url.URL{}, spi.Inbox)
+	require.EqualError(t, err, "failed to get total items from activity query: total items error")
+	require.Nil(t, page)
 }
 
 func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, page, pageNum, expected string) {

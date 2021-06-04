@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-	mockstore "github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -64,7 +64,7 @@ func TestNew(t *testing.T) {
 	casIRI, err := url.Parse(casURL)
 	require.NoError(t, err)
 
-	vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+	vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -103,7 +103,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -159,7 +159,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -206,7 +206,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
@@ -260,7 +260,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
@@ -297,7 +297,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("Parse created time (error)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"created": "021-02-23T:07Z"}}`)}
@@ -340,7 +340,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -412,7 +412,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -439,7 +439,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -491,10 +491,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		storeProviderWithErr := mockstore.NewCustomMockStoreProvider(&mockstore.MockStore{
-			Store:  make(map[string]mockstore.DBEntry),
-			ErrPut: fmt.Errorf("error put"),
-		})
+		storeProviderWithErr := &mockstore.Provider{
+			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put")},
+		}
 
 		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -519,10 +518,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		storeProviderWithErr := mockstore.NewCustomMockStoreProvider(&mockstore.MockStore{
-			Store:  make(map[string]mockstore.DBEntry),
-			ErrPut: fmt.Errorf("error put (local witness)"),
-		})
+		storeProviderWithErr := &mockstore.Provider{
+			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put (local witness)")},
+		}
 
 		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -549,7 +547,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -591,7 +589,7 @@ func TestWriter_handle(t *testing.T) {
 	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -621,10 +619,9 @@ func TestWriter_handle(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		storeProviderWithErr := mockstore.NewCustomMockStoreProvider(&mockstore.MockStore{
-			Store:  make(map[string]mockstore.DBEntry),
-			ErrPut: fmt.Errorf("error put"),
-		})
+		storeProviderWithErr := &mockstore.Provider{
+			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put")},
+		}
 
 		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -653,7 +650,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -680,7 +677,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -704,7 +701,7 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - outbox error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mockstore.NewMockStoreProvider(), testutil.GetLoader(t))
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{

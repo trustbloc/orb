@@ -242,7 +242,7 @@ func TestStore_Activity(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, it)
 
-		checkActivityQueryResultsInOrder(t, it)
+		checkActivityQueryResultsInOrder(t, it, 0)
 
 		require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID1))
 		require.NoError(t, s.AddReference(spi.Inbox, serviceID1, activityID2))
@@ -254,10 +254,7 @@ func TestStore_Activity(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, it)
 
-				checkActivityQueryResultsInOrder(t, it, activityID1, activityID2, activityID3)
-
-				// Currently Aries store doesn't TotalItems, so it always returns 0.
-				require.Equal(t, 0, it.TotalItems())
+				checkActivityQueryResultsInOrder(t, it, 3, activityID1, activityID2, activityID3)
 
 				// With CouchDB, closing the iterator isn't necessary. Instead of calling it.Close() for every test,
 				// We'll just check it once here in order to increase code coverage.
@@ -268,21 +265,31 @@ func TestStore_Activity(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, it)
 
-				checkActivityQueryResultsInOrder(t, it, activityID3, activityID2, activityID1)
-
-				// Currently Aries store doesn't TotalItems, so it always returns 0.
-				require.Equal(t, 0, it.TotalItems())
+				checkActivityQueryResultsInOrder(t, it, 3, activityID3, activityID2, activityID1)
 			})
 		})
 
 		t.Run("Query by reference", func(t *testing.T) {
 			t.Run("Ascending (default) order", func(t *testing.T) {
-				it, err := s.QueryActivities(
-					spi.NewCriteria(spi.WithReferenceType(spi.Inbox), spi.WithObjectIRI(serviceID1)))
-				require.NoError(t, err)
-				require.NotNil(t, it)
+				t.Run("Default page size", func(t *testing.T) {
+					it, err := s.QueryActivities(
+						spi.NewCriteria(spi.WithReferenceType(spi.Inbox), spi.WithObjectIRI(serviceID1)))
+					require.NoError(t, err)
+					require.NotNil(t, it)
 
-				checkActivityQueryResultsInOrder(t, it, activityID1, activityID2, activityID3)
+					checkActivityQueryResultsInOrder(t, it, 3, activityID1, activityID2, activityID3)
+				})
+				t.Run("Page size 2", func(t *testing.T) {
+					it, err := s.QueryActivities(
+						spi.NewCriteria(spi.WithReferenceType(spi.Inbox), spi.WithObjectIRI(serviceID1)),
+						spi.WithPageSize(2))
+					require.NoError(t, err)
+					require.NotNil(t, it)
+
+					// Note that the expected total items is still 3, despite the different page size.
+					// Total items is based on the total matching references.
+					checkActivityQueryResultsInOrder(t, it, 3, activityID1, activityID2)
+				})
 			})
 			t.Run("Descending order", func(t *testing.T) {
 				it, err := s.QueryActivities(
@@ -291,7 +298,23 @@ func TestStore_Activity(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, it)
 
-				checkActivityQueryResultsInOrder(t, it, activityID3, activityID2, activityID1)
+				checkActivityQueryResultsInOrder(t, it, 3, activityID3, activityID2, activityID1)
+			})
+			t.Run("Fail to get total items from reference iterator", func(t *testing.T) {
+				mockAriesStore, err := ariesstore.New(&mock.Provider{
+					OpenStoreReturn: &mock.Store{
+						QueryReturn: &mock.Iterator{
+							ErrTotalItems: errors.New("total items error"),
+						},
+					},
+				}, serviceName)
+				require.NoError(t, err)
+
+				it, err := mockAriesStore.QueryActivities(
+					spi.NewCriteria(spi.WithReferenceType(spi.Inbox), spi.WithObjectIRI(serviceID1)))
+				require.EqualError(t, err,
+					"failed to get total items from reference iterator: total items error")
+				require.Nil(t, it)
 			})
 		})
 	})
@@ -441,9 +464,7 @@ func TestStore_Reference(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, it)
 
-		checkReferenceQueryResultsInOrder(t, it)
-		// Currently Aries store doesn't support TotalItems, so it always returns 0.
-		require.Equal(t, 0, it.TotalItems())
+		checkReferenceQueryResultsInOrder(t, it, 0)
 
 		require.NoError(t, s.AddReference(spi.Follower, actor1, actor2))
 		require.NoError(t, s.AddReference(spi.Follower, actor1, actor3))
@@ -451,45 +472,45 @@ func TestStore_Reference(t *testing.T) {
 		it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor1)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor2, actor3)
+		checkReferenceQueryResultsInOrder(t, it, 2, actor2, actor3)
 
 		// Try the same query as above, but in descending order this time
 		it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor1)),
 			spi.WithSortOrder(spi.SortDescending))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor3, actor2)
+		checkReferenceQueryResultsInOrder(t, it, 2, actor3, actor2)
 
 		it, err = s.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actor1)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it)
+		checkReferenceQueryResultsInOrder(t, it, 0)
 
 		require.NoError(t, s.AddReference(spi.Following, actor1, actor2))
 
 		it, err = s.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actor1)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor2)
+		checkReferenceQueryResultsInOrder(t, it, 1, actor2)
 
 		require.NoError(t, s.DeleteReference(spi.Follower, actor1, actor2))
 
 		it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor1)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor3)
+		checkReferenceQueryResultsInOrder(t, it, 1, actor3)
 
 		it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor2)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it)
+		checkReferenceQueryResultsInOrder(t, it, 0)
 
 		require.NoError(t, s.AddReference(spi.Follower, actor2, actor3))
 
 		it, err = s.QueryReferences(spi.Follower, spi.NewCriteria(spi.WithObjectIRI(actor2)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor3)
+		checkReferenceQueryResultsInOrder(t, it, 1, actor3)
 
 		// With CouchDB, closing the iterator isn't necessary. Instead of calling it.Close() again and again above,
 		// We'll run it.Close() just once at the end in order to increase code coverage.
@@ -501,7 +522,7 @@ func TestStore_Reference(t *testing.T) {
 			spi.NewCriteria(spi.WithObjectIRI(actor2), spi.WithReferenceIRI(actor3)))
 		require.NoError(t, err)
 
-		checkReferenceQueryResultsInOrder(t, it, actor3)
+		checkReferenceQueryResultsInOrder(t, it, 1, actor3)
 	})
 	t.Run("Fail to add reference", func(t *testing.T) {
 		t.Run("Fail to store in underlying storage", func(t *testing.T) {
@@ -585,7 +606,11 @@ func TestStore_Reference(t *testing.T) {
 	})
 }
 
-func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, expectedActivities ...*url.URL) {
+// expectedActivities is with respect to the query's page settings.
+// Since Iterator.TotalItems' count is not affected by page settings, expectedTotalItems must be passed in explicitly.
+// It can't be determined by looking at the length of expectedActivities.
+func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, expectedTotalItems int,
+	expectedActivities ...*url.URL) {
 	t.Helper()
 
 	require.NotNil(t, it)
@@ -597,13 +622,21 @@ func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, exp
 		require.Equal(t, expectedActivities[i].String(), retrievedActivity.ID().URL().String())
 	}
 
+	totalItems, err := it.TotalItems()
+	require.NoError(t, err)
+	require.Equal(t, expectedTotalItems, totalItems)
+
 	retrievedActivity, err := it.Next()
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, retrievedActivity)
 }
 
-func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, expectedIRIs ...*url.URL) {
+// expectedIRIs is with respect to the query's page settings.
+// Since Iterator.TotalItems' count is not affected by page settings, expectedTotalItems must be passed in explicitly.
+// It can't be determined by looking at the length of expectedIRIs.
+func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, expectedTotalItems int,
+	expectedIRIs ...*url.URL) {
 	t.Helper()
 
 	require.NotNil(t, it)
@@ -614,6 +647,10 @@ func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, e
 		require.NotNil(t, iri)
 		require.Equal(t, expectedIRIs[i].String(), iri.String())
 	}
+
+	totalItems, err := it.TotalItems()
+	require.NoError(t, err)
+	require.Equal(t, expectedTotalItems, totalItems)
 
 	iri, err := it.Next()
 	require.Error(t, err)
