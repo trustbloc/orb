@@ -28,7 +28,9 @@ const (
 
 const (
 	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
-	ledgerType   = "https://trustbloc.dev/ns/ledger-type"
+	witnessType  = "https://trustbloc.dev/ns/witness"
+	casType      = "https://trustbloc.dev/ns/cas"
+	vctType      = "https://trustbloc.dev/ns/vct"
 	context      = "https://w3id.org/did/v1"
 )
 
@@ -195,17 +197,22 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) { 
 		o.handleWebCASQuery(rw, resource)
 	case resource == o.baseURL:
 		resp := &WebFingerResponse{
-			Subject:    o.vctURL,
-			Properties: map[string]interface{}{ledgerType: "vct-v1"},
+			Subject: o.baseURL,
+			Properties: map[string]interface{}{
+				witnessType:  fmt.Sprintf("%s/witness", o.baseURL),
+				casType:      fmt.Sprintf("%s%s", o.baseURL, o.webCASPath),
+				minResolvers: o.discoveryMinimumResolvers,
+				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
+			},
 			Links: []WebFingerLink{
-				{Rel: "self", Href: o.vctURL},
+				{Rel: "self", Href: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath)},
 			},
 		}
 
-		for _, v := range o.discoveryVctDomains {
+		for _, v := range o.discoveryDomains {
 			resp.Links = append(resp.Links, WebFingerLink{
 				Rel:  "alternate",
-				Href: v,
+				Href: fmt.Sprintf("%s%s", v, o.resolutionPath),
 			})
 		}
 
