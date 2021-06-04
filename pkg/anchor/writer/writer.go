@@ -457,14 +457,17 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 		vocab.WithEndTime(&endTime),
 	)
 
-	postID, err := c.Outbox.Post(offer)
-	if err != nil {
-		return fmt.Errorf("failed to post offer for vcID[%s]: %w", vc.ID, err)
-	}
-
+	// store witnesses before posting offers because handlers sometimes get invoked before
+	// witnesses and vc status are stored
 	err = c.storeWitnesses(vc.ID, batchWitnessesIRI)
 	if err != nil {
 		return err
+	}
+
+	postID, err := c.Outbox.Post(offer)
+	if err != nil {
+		// TODO: Offers were not sent - delete vc status and witness store entries (issue-452)
+		return fmt.Errorf("failed to post offer for vcID[%s]: %w", vc.ID, err)
 	}
 
 	logger.Debugf("created pre-announce activity for vc[%s], post id[%s]", vc.ID, postID)

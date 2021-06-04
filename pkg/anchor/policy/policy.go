@@ -27,9 +27,10 @@ type WitnessPolicy struct {
 }
 
 const (
-	maxPercent = 100
+	// WitnessPolicyKey is witness policy key in config store.
+	WitnessPolicyKey = "witness-policy"
 
-	policyKey = "witness-policy"
+	maxPercent = 100
 
 	defaultCacheSize = 10
 )
@@ -50,12 +51,12 @@ func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPo
 
 	wp.cache = gcache.New(defaultCacheSize).ARC().LoaderExpireFunc(wp.loadWitnessPolicy).Build()
 
-	policy, _, err := wp.loadWitnessPolicy(policyKey)
+	policy, _, err := wp.loadWitnessPolicy(WitnessPolicyKey)
 	if err != nil {
 		return nil, err
 	}
 
-	err = wp.cache.SetWithExpire(policyKey, policy, policyCacheExpiry)
+	err = wp.cache.SetWithExpire(WitnessPolicyKey, policy, policyCacheExpiry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set expiry entry in policy cache: %w", err)
 	}
@@ -117,7 +118,7 @@ func (wp *WitnessPolicy) loadWitnessPolicy(key interface{}) (interface{}, *time.
 }
 
 func (wp *WitnessPolicy) getWitnessPolicyConfig() (*config.WitnessPolicyConfig, error) {
-	value, err := wp.cache.Get(policyKey)
+	value, err := wp.cache.Get(WitnessPolicyKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve policy from policy cache: %w", err)
 	}

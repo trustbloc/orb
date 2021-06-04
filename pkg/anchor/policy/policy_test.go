@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, wp)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(30,system) AND MinPercent(70,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(30,system) AND MinPercent(70,batch)"))
 		require.NoError(t, err)
 
 		time.Sleep(2 * time.Second)
@@ -121,7 +121,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -158,7 +158,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, 1*time.Second)
@@ -196,7 +196,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -233,7 +233,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -269,7 +269,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,system) OR MinPercent(50,batch)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -301,7 +301,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("OutOf(1,system)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -339,7 +339,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -363,7 +363,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,system) AND MinPercent(50,batch)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, defaultPolicyCacheExpiry)
@@ -387,7 +387,7 @@ func TestEvaluate(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		err = configStore.Put(policyKey, []byte("OutOf(0,batch) AND OutOf(1,system)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(0,batch) AND OutOf(1,system)"))
 		require.NoError(t, err)
 
 		wp, err := New(configStore, 1*time.Second)
@@ -411,7 +411,7 @@ func TestEvaluate(t *testing.T) {
 		require.Equal(t, true, ok)
 
 		// change policy to 1 system witness and 1 batch witness
-		err = configStore.Put(policyKey, []byte("OutOf(1,batch) AND OutOf(1,system)"))
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,batch) AND OutOf(1,system)"))
 		require.NoError(t, err)
 
 		// wait for cache to refresh entry
