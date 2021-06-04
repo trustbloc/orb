@@ -284,13 +284,15 @@ services:
   ipfs:
     container_name: ipfs
     #TODO: this image doesn't work on ARM64 yet (investigate images)
-    image: ipfs/go-ipfs:master-2021-04-22-eea198f
-    environment:
-      - IPFS_PATH=/data/ipfs
+    image: ipfs/go-ipfs:v0.8.0
+    ports:
+      - "4001:4001"
+      - "4001:4001/udp"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:5001:5001"
     volumes:
       - ./data/ipfs:/data/ipfs
-    ports:
-      - "5001:5001"
+      - ./export:/export
     networks:
       - orb_net
 
@@ -453,7 +455,7 @@ services:
   uni-resolver-web:
     image: universalresolver/uni-resolver-web:0.3.0
     ports:
-      - "8080:8080"
+      - "8062:8080"
     volumes:
       - ./uni-resolver-web/config.json:/opt/uni-resolver-java/uni-resolver-web/config.json
     networks:

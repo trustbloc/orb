@@ -45,7 +45,7 @@ func (e *DriverSteps) checkCreatedDID() error {
 func (e *DriverSteps) resolveDIDUniversalResolver(did string) (*ariesdid.DocResolution, error) {
 	const maxRetry = 10
 
-	didURL := "http://localhost:8080/1.0/identifiers/" + did
+	didURL := "http://localhost:8062/1.0/identifiers/" + did
 
 	for i := 1; i <= maxRetry; i++ {
 		resp, err := e.httpClient.Get(didURL)
