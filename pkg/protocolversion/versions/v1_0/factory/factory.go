@@ -85,7 +85,6 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 		&txnprocessor.Providers{
 			OpStore:                   opStore,
 			OperationProtocolProvider: op,
-			AnchorGraph:               anchorGraph,
 		},
 	)
 

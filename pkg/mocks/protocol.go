@@ -186,7 +186,6 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 		&txnprocessor.Providers{
 			OpStore:                   m.opStore,
 			OperationProtocolProvider: op,
-			AnchorGraph:               m.anchorGraph,
 		},
 	)
 

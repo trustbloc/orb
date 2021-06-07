@@ -7,21 +7,55 @@ SPDX-License-Identifier: Apache-2.0
 package txnprocessor
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
-
-	"github.com/trustbloc/orb/pkg/anchor/graph"
 )
 
-const anchorString = "1.coreIndexURI"
+const (
+	anchorString = "1.coreIndexURI"
+	canonicalRef = "ref"
+	suffix       = "abc"
+)
 
 func TestTxnProcessor_Process(t *testing.T) {
-	t.Run("test error from txn operations provider", func(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		providers := &Providers{
+			OpStore:                   &mockOperationStore{},
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+		}
+
+		p := New(providers)
+		err := p.Process(txn.SidetreeTxn{})
+		require.NoError(t, err)
+	})
+
+	t.Run("success - suffix provided (for did discovery)", func(t *testing.T) {
+		providers := &Providers{
+			OpStore:                   &mockOperationStore{},
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+		}
+
+		p := New(providers)
+		err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, suffix)
+		require.NoError(t, err)
+	})
+
+	t.Run("success - suffix provided not in batch (filtered)", func(t *testing.T) {
+		providers := &Providers{
+			OpStore:                   &mockOperationStore{},
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+		}
+
+		p := New(providers)
+		err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, "different")
+		require.NoError(t, err)
+	})
+
+	t.Run("error - error from txn operations provider", func(t *testing.T) {
 		errExpected := fmt.Errorf("txn operations provider error")
 
 		opp := &mockTxnOpsProvider{
@@ -46,7 +80,6 @@ func TestProcessTxnOperations(t *testing.T) {
 			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
 				return fmt.Errorf("put error")
 			}},
-			AnchorGraph: &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -56,42 +89,25 @@ func TestProcessTxnOperations(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to store operation from anchor string")
 	})
 
-	t.Run("error - error retrieving cid from anchor graph", func(t *testing.T) {
+	t.Run("test error from operationStore Get", func(t *testing.T) {
 		providers := &Providers{
-			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
-				return fmt.Errorf("put error")
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+			OpStore: &mockOperationStore{getFunc: func(suffix string) ([]*operation.AnchoredOperation, error) {
+				return nil, fmt.Errorf("get error")
 			}},
-			AnchorGraph: &mockAnchorGraph{Err: errors.New("graph error")},
 		}
 
 		p := New(providers)
-		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
+		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: suffix}},
 			txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "graph error")
+		require.Contains(t, err.Error(), "get error")
 	})
 
-	t.Run("error - discrepancy between did anchors in the graph and operation store", func(t *testing.T) {
-		providers := &Providers{
-			OpStore: &mockOperationStore{putFunc: func(ops []*operation.AnchoredOperation) error {
-				return fmt.Errorf("put error")
-			}},
-			AnchorGraph: &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "one"}, {CID: "two"}}},
-		}
-
-		p := New(providers)
-		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
-			txn.SidetreeTxn{AnchorString: anchorString})
-		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"discrepancy between previous anchors in the graph[1] and anchored operations[0] for did: abc")
-	})
-
-	t.Run("test success", func(t *testing.T) {
+	t.Run("success - new operation added", func(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
-			AnchorGraph:               &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -102,11 +118,33 @@ func TestProcessTxnOperations(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("success - operation already processed", func(t *testing.T) {
+		providers := &Providers{
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+			OpStore: &mockOperationStore{getFunc: func(suffix string) ([]*operation.AnchoredOperation, error) {
+				return []*operation.AnchoredOperation{
+					{UniqueSuffix: suffix, CanonicalReference: canonicalRef},
+				}, nil
+			}},
+		}
+
+		p := New(providers)
+		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(
+			&txn.SidetreeTxn{
+				AnchorString:       anchorString,
+				CanonicalReference: canonicalRef,
+			})
+		require.NoError(t, err)
+
+		err = p.processTxnOperations(batchOps,
+			txn.SidetreeTxn{AnchorString: anchorString, CanonicalReference: canonicalRef})
+		require.NoError(t, err)
+	})
+
 	t.Run("success - multiple operations with same suffix in transaction operations", func(t *testing.T) {
 		providers := &Providers{
 			OperationProtocolProvider: &mockTxnOpsProvider{},
 			OpStore:                   &mockOperationStore{},
-			AnchorGraph:               &mockAnchorGraph{DidAnchors: []graph.Anchor{{CID: "cid"}}},
 		}
 
 		p := New(providers)
@@ -153,21 +191,9 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 	}
 
 	op := &operation.AnchoredOperation{
-		UniqueSuffix: "abc",
+		UniqueSuffix:       suffix,
+		CanonicalReference: canonicalRef,
 	}
 
 	return []*operation.AnchoredOperation{op}, nil
-}
-
-type mockAnchorGraph struct {
-	DidAnchors []graph.Anchor
-	Err        error
-}
-
-func (m *mockAnchorGraph) GetDidAnchors(cid, suffix string) ([]graph.Anchor, error) {
-	if m.Err != nil {
-		return nil, m.Err
-	}
-
-	return m.DidAnchors, nil
 }
