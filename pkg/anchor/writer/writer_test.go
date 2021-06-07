@@ -864,6 +864,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			Outbox:        &mockOutbox{Err: fmt.Errorf("outbox error")},
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{},
+			VCStatusStore: &mockVCStatusStore{},
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),

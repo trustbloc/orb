@@ -71,6 +71,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/policy"
+	policyhandler "github.com/trustbloc/orb/pkg/anchor/policy/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
@@ -657,6 +658,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
+		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
 		ctxRest,
 	)
 
