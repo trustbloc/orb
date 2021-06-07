@@ -7,10 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -23,12 +25,6 @@ import (
 )
 
 var logger = log.New("orb-observer")
-
-// TxnProvider interface to access orb txn.
-type TxnProvider interface {
-	RegisterForAnchor() <-chan []anchorinfo.AnchorInfo
-	RegisterForDID() <-chan []string
-}
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
@@ -50,120 +46,123 @@ type didAnchors interface {
 	Put(dids []string, cid string) error
 }
 
+// Publisher publishes anchors and DIDs to a message queue for processing.
+type Publisher interface {
+	PublishAnchor(anchor *anchorinfo.AnchorInfo) error
+	PublishDID(did string) error
+}
+
+type pubSub interface {
+	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	Publish(topic string, messages ...*message.Message) error
+	Close() error
+}
+
 // Providers contains all of the providers required by the TxnProcessor.
 type Providers struct {
-	TxnProvider            TxnProvider
 	ProtocolClientProvider protocol.ClientProvider
 	AnchorGraph
 	DidAnchors didAnchors
+	PubSub     pubSub
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
 type Observer struct {
 	*Providers
 
-	stopCh chan struct{}
+	pubSub *PubSub
 }
 
 // New returns a new observer.
-func New(providers *Providers) *Observer {
-	return &Observer{
+func New(providers *Providers) (*Observer, error) {
+	o := &Observer{
 		Providers: providers,
-		stopCh:    make(chan struct{}, 1),
 	}
+
+	ps, err := NewPubSub(providers.PubSub, o.handleAnchor, o.processDID)
+	if err != nil {
+		return nil, err
+	}
+
+	o.pubSub = ps
+
+	return o, nil
 }
 
 // Start starts observer routines.
 func (o *Observer) Start() {
-	go o.listen(o.TxnProvider.RegisterForAnchor(), o.TxnProvider.RegisterForDID())
+	o.pubSub.Start()
 }
 
 // Stop stops the observer.
 func (o *Observer) Stop() {
-	o.stopCh <- struct{}{}
+	o.pubSub.Stop()
 }
 
-func (o *Observer) listen(anchorCh <-chan []anchorinfo.AnchorInfo, didCh <-chan []string) {
-	for {
-		select {
-		case <-o.stopCh:
-			logger.Infof("The observer has been stopped. Exiting.")
+// Publisher returns the publisher that adds anchors and DIDs to a message queue for processing.
+func (o *Observer) Publisher() Publisher {
+	return o.pubSub
+}
 
-			return
+func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
+	logger.Debugf("observing anchor: %s", anchor.CID)
 
-		case anchors, ok := <-anchorCh:
-			if !ok {
-				logger.Warnf("Anchor channel was closed. Exiting.")
+	anchorInfo, err := o.AnchorGraph.Read(anchor.CID)
+	if err != nil {
+		// TODO: Determine if error is transient so that it can be retried (issue #472).
+		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.CID, err.Error())
 
-				return
-			}
-
-			o.processAnchors(anchors)
-
-		case dids, ok := <-didCh:
-			if !ok {
-				logger.Warnf("DID channel was closed. Exiting.")
-
-				return
-			}
-
-			o.processDIDs(dids)
-		}
+		return err
 	}
+
+	logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.CID)
+
+	if err := o.processAnchor(anchor, anchorInfo); err != nil {
+		// TODO: Determine if error is transient so that it can be retried (issue #472).
+		logger.Warnf(err.Error())
+
+		return err
+	}
+
+	return nil
 }
 
-func (o *Observer) processAnchors(anchors []anchorinfo.AnchorInfo) {
+func (o *Observer) processDID(did string) error {
+	logger.Debugf("processing out-of-system did[%s]", did)
+
+	cidWithHint, suffix, err := getDidParts(did)
+	if err != nil {
+		logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
+
+		return err
+	}
+
+	anchors, err := o.AnchorGraph.GetDidAnchors(cidWithHint, suffix)
+	if err != nil {
+		logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
+
+		// TODO: Determine if error is transient so that it can be retried (issue #472).
+
+		return err
+	}
+
+	logger.Debugf("got %d anchors for out-of-system did[%s]", did)
+
 	for _, anchor := range anchors {
-		logger.Debugf("observing anchor: %s", anchor.CID)
+		logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
 
-		anchorInfo, err := o.AnchorGraph.Read(anchor.CID)
-		if err != nil {
-			logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.CID, err.Error())
+		if err := o.processAnchor(&anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
+			anchor.Info, suffix); err != nil {
+			logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
 
-			continue
-		}
-
-		logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.CID)
-
-		if err := o.processAnchor(anchor, anchorInfo); err != nil {
-			logger.Warnf(err.Error())
+			// TODO: Determine if error is transient. If so we can return the error and a retry will occur (issue #472).
+			// If the error is persistent then continue with the next anchor.
 
 			continue
 		}
 	}
-}
 
-func (o *Observer) processDIDs(dids []string) {
-	for _, did := range dids {
-		logger.Debugf("processing out-of-system did[%s]", did)
-
-		cidWithHint, suffix, err := getDidParts(did)
-		if err != nil {
-			logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
-
-			return
-		}
-
-		anchors, err := o.AnchorGraph.GetDidAnchors(cidWithHint, suffix)
-		if err != nil {
-			logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
-
-			return
-		}
-
-		logger.Debugf("got %d anchors for out-of-system did[%s]", did)
-
-		for _, anchor := range anchors {
-			logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
-
-			if err := o.processAnchor(anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
-				anchor.Info, suffix); err != nil {
-				logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
-
-				continue
-			}
-		}
-	}
+	return nil
 }
 
 func getDidParts(did string) (cid, suffix string, err error) {
@@ -177,7 +176,7 @@ func getDidParts(did string) (cid, suffix string, err error) {
 	return did[0:pos], did[pos+1:], nil
 }
 
-func (o *Observer) processAnchor(anchor anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
+func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
 	logger.Debugf("processing anchor[%s], suffixes: %s", anchor.CID, suffixes)
 
 	anchorPayload, err := util.GetAnchorSubject(info)

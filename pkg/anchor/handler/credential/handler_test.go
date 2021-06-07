@@ -24,13 +24,15 @@ import (
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
-	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
+
+//go:generate counterfeiter -o ../../mocks/anchorPublisher.gen.go --fake-name AnchorPublisher . anchorPublisher
 
 const sampleAnchorCredential = `{
   "@context": [
@@ -173,13 +175,12 @@ func createNewAnchorCredentialHandler(t *testing.T,
 	client extendedcasclient.Client) *AnchorCredentialHandler {
 	t.Helper()
 
-	anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
-
 	casResolver := casresolver.New(client, nil,
 		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 			transport.DefaultSigner(), transport.DefaultSigner()))
 
-	anchorCredentialHandler := New(anchorCh, casResolver, testutil.GetLoader(t), &mocks.MonitoringService{}, time.Second)
+	anchorCredentialHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+		&mocks.MonitoringService{}, time.Second)
 	require.NotNil(t, anchorCredentialHandler)
 
 	return anchorCredentialHandler

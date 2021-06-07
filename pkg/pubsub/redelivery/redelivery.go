@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-var logger = log.New("activitypub_service")
+var logger = log.New("pubsub")
 
 const (
 	metadataRedeliveryAttempts = "redelivery_attempts"
