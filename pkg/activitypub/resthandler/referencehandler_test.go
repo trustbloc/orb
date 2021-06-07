@@ -15,9 +15,11 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
@@ -469,6 +471,42 @@ func TestWitnessing_Handler(t *testing.T) {
 	t.Run("Page by num -> Success", func(t *testing.T) {
 		handleRequest(t, h.handler, h.handle, "true", "3", witnessingPage3JSON)
 	})
+}
+
+func TestGetReference(t *testing.T) {
+	store, err := ariesstore.New(&mock.Provider{
+		OpenStoreReturn: &mock.Store{
+			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
+		},
+	}, "")
+	require.NoError(t, err)
+
+	referenceHandler := Reference{
+		handler: &handler{AuthHandler: &AuthHandler{activityStore: store}},
+		refType: spi.Inbox,
+	}
+
+	reference, err := referenceHandler.getReference(&url.URL{}, &url.URL{})
+	require.EqualError(t, err, "failed to get total items from reference query: total items error")
+	require.Nil(t, reference)
+}
+
+func TestReferenceHandlerGetPage(t *testing.T) {
+	ariesStore, err := ariesstore.New(&mock.Provider{
+		OpenStoreReturn: &mock.Store{
+			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
+		},
+	}, "")
+	require.NoError(t, err)
+
+	referenceHandler := Reference{
+		handler: &handler{AuthHandler: &AuthHandler{activityStore: ariesStore}},
+		refType: spi.Inbox,
+	}
+
+	page, err := referenceHandler.getPage(&url.URL{}, &url.URL{})
+	require.EqualError(t, err, "failed to get total items from reference query: total items error")
+	require.Nil(t, page)
 }
 
 func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, pageNum, expected string) {

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -199,7 +200,12 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 		return nil, err
 	}
 
-	lastURL, err := h.getPageURL(id, getLastPageNum(it.TotalItems(), h.PageSize, h.sortOrder))
+	totalItems, err := it.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from reference query: %w", err)
+	}
+
+	lastURL, err := h.getPageURL(id, getLastPageNum(totalItems, h.PageSize, h.sortOrder))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +215,7 @@ func (h *Reference) getReference(objectIRI, id *url.URL) (interface{}, error) {
 		vocab.WithID(id),
 		vocab.WithFirst(firstURL),
 		vocab.WithLast(lastURL),
-		vocab.WithTotalItems(it.TotalItems()),
+		vocab.WithTotalItems(totalItems),
 	), nil
 }
 
@@ -243,7 +249,12 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 		items[i] = vocab.NewObjectProperty(vocab.WithIRI(ref))
 	}
 
-	id, prev, next, err := h.getIDPrevNextURL(id, it.TotalItems(), options)
+	totalItems, err := it.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from reference query: %w", err)
+	}
+
+	id, prev, next, err := h.getIDPrevNextURL(id, totalItems, options)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +264,7 @@ func (h *Reference) getPage(objectIRI, id *url.URL, opts ...spi.QueryOpt) (inter
 		vocab.WithID(id),
 		vocab.WithPrev(prev),
 		vocab.WithNext(next),
-		vocab.WithTotalItems(it.TotalItems()),
+		vocab.WithTotalItems(totalItems),
 	), nil
 }
 

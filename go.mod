@@ -11,14 +11,14 @@ require (
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0
-	github.com/go-kivik/couchdb/v3 v3.2.7 // indirect
+	github.com/go-kivik/couchdb/v3 v3.2.8 // indirect
 	github.com/go-kivik/kivik/v3 v3.2.3
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210603061245-f77269180c6f
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210426192704-553740e279e5
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210520055214-ae429bb89bf7
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210520055214-ae429bb89bf7
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210604191029-fce55e13c101
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210604210836-c2fd1343db18
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210604191029-fce55e13c101
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210604191029-fce55e13c101
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
@@ -34,6 +34,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9
 	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210520185648-ad6fce89b352
 	github.com/trustbloc/vct v0.1.2-0.20210603134018-f1185c05cb54
+	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
 )
 
 go 1.16

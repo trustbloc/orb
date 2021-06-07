@@ -31,15 +31,17 @@ type ReferenceIterator struct {
 		result1 *url.URL
 		result2 error
 	}
-	TotalItemsStub        func() int
+	TotalItemsStub        func() (int, error)
 	totalItemsMutex       sync.RWMutex
 	totalItemsArgsForCall []struct {
 	}
 	totalItemsReturns struct {
 		result1 int
+		result2 error
 	}
 	totalItemsReturnsOnCall map[int]struct {
 		result1 int
+		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -154,7 +156,7 @@ func (fake *ReferenceIterator) NextReturnsOnCall(i int, result1 *url.URL, result
 	}{result1, result2}
 }
 
-func (fake *ReferenceIterator) TotalItems() int {
+func (fake *ReferenceIterator) TotalItems() (int, error) {
 	fake.totalItemsMutex.Lock()
 	ret, specificReturn := fake.totalItemsReturnsOnCall[len(fake.totalItemsArgsForCall)]
 	fake.totalItemsArgsForCall = append(fake.totalItemsArgsForCall, struct {
@@ -167,9 +169,9 @@ func (fake *ReferenceIterator) TotalItems() int {
 		return stub()
 	}
 	if specificReturn {
-		return ret.result1
+		return ret.result1, ret.result2
 	}
-	return fakeReturns.result1
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *ReferenceIterator) TotalItemsCallCount() int {
@@ -178,33 +180,36 @@ func (fake *ReferenceIterator) TotalItemsCallCount() int {
 	return len(fake.totalItemsArgsForCall)
 }
 
-func (fake *ReferenceIterator) TotalItemsCalls(stub func() int) {
+func (fake *ReferenceIterator) TotalItemsCalls(stub func() (int, error)) {
 	fake.totalItemsMutex.Lock()
 	defer fake.totalItemsMutex.Unlock()
 	fake.TotalItemsStub = stub
 }
 
-func (fake *ReferenceIterator) TotalItemsReturns(result1 int) {
+func (fake *ReferenceIterator) TotalItemsReturns(result1 int, result2 error) {
 	fake.totalItemsMutex.Lock()
 	defer fake.totalItemsMutex.Unlock()
 	fake.TotalItemsStub = nil
 	fake.totalItemsReturns = struct {
 		result1 int
-	}{result1}
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *ReferenceIterator) TotalItemsReturnsOnCall(i int, result1 int) {
+func (fake *ReferenceIterator) TotalItemsReturnsOnCall(i int, result1 int, result2 error) {
 	fake.totalItemsMutex.Lock()
 	defer fake.totalItemsMutex.Unlock()
 	fake.TotalItemsStub = nil
 	if fake.totalItemsReturnsOnCall == nil {
 		fake.totalItemsReturnsOnCall = make(map[int]struct {
 			result1 int
+			result2 error
 		})
 	}
 	fake.totalItemsReturnsOnCall[i] = struct {
 		result1 int
-	}{result1}
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *ReferenceIterator) Invocations() map[string][][]interface{} {

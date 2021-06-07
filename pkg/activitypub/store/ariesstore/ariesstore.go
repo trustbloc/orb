@@ -283,8 +283,15 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 		return nil, err
 	}
 
+	// The total item count from the activity iterator should reflect the total items from the original reference query,
+	// regardless of page settings.
+	totalItems, err := iterator.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from reference iterator: %w", err)
+	}
+
 	if len(refs) == 0 {
-		return memstore.NewActivityIterator(nil, 0), nil
+		return memstore.NewActivityIterator(nil, totalItems), nil
 	}
 
 	activityIDs := make([]string, len(refs))
@@ -313,16 +320,15 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 		}
 	}
 
-	return memstore.NewActivityIterator(activities, len(activities)), nil
+	return memstore.NewActivityIterator(activities, totalItems), nil
 }
 
 type activityIterator struct {
 	ariesIterator ariesstorage.Iterator
 }
 
-// TODO (#299) return a real result instead of 0.
-func (a *activityIterator) TotalItems() int {
-	return 0
+func (a *activityIterator) TotalItems() (int, error) {
+	return a.ariesIterator.TotalItems()
 }
 
 func (a *activityIterator) Next() (*vocab.ActivityType, error) {
@@ -358,9 +364,8 @@ type referenceIterator struct {
 	ariesIterator ariesstorage.Iterator
 }
 
-// TODO (#299) return a real result instead of 0.
-func (r *referenceIterator) TotalItems() int {
-	return 0
+func (r *referenceIterator) TotalItems() (int, error) {
+	return r.ariesIterator.TotalItems()
 }
 
 func (r *referenceIterator) Next() (*url.URL, error) {

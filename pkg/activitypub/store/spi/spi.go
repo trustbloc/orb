@@ -174,7 +174,7 @@ func WithActivityIRIs(iris ...*url.URL) CriteriaOpt {
 // ActivityIterator defines the query results iterator for activity queries.
 type ActivityIterator interface {
 	// TotalItems returns the total number of items as a result of the query.
-	TotalItems() int
+	TotalItems() (int, error)
 	// Next returns the next activity or an ErrNotFound error if there are no more items.
 	Next() (*vocab.ActivityType, error)
 	// Close closes the iterator.
@@ -184,7 +184,7 @@ type ActivityIterator interface {
 // ReferenceIterator defines the query results iterator for reference queries.
 type ReferenceIterator interface {
 	// TotalItems returns the total number of items as a result of the query.
-	TotalItems() int
+	TotalItems() (int, error)
 	// Next returns the next reference or an ErrNotFound error if there are no more items.
 	Next() (*url.URL, error)
 	// Close closes the iterator.

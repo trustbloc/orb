@@ -227,7 +227,12 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 		return nil, err
 	}
 
-	lastURL, err := h.getPageURL(id, getLastPageNum(it.TotalItems(), h.PageSize, spi.SortDescending))
+	totalItems, err := it.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from reference query: %w", err)
+	}
+
+	lastURL, err := h.getPageURL(id, getLastPageNum(totalItems, h.PageSize, spi.SortDescending))
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +242,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 		vocab.WithID(id),
 		vocab.WithFirst(firstURL),
 		vocab.WithLast(lastURL),
-		vocab.WithTotalItems(it.TotalItems()),
+		vocab.WithTotalItems(totalItems),
 	), nil
 }
 
@@ -273,7 +278,12 @@ func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
 		items[i] = vocab.NewObjectProperty(vocab.WithActivity(activity))
 	}
 
-	id, prev, next, err := h.getIDPrevNextURL(id, it.TotalItems(), options)
+	totalItems, err := it.TotalItems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total items from activity query: %w", err)
+	}
+
+	id, prev, next, err := h.getIDPrevNextURL(id, totalItems, options)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +293,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
 		vocab.WithID(id),
 		vocab.WithPrev(prev),
 		vocab.WithNext(next),
-		vocab.WithTotalItems(it.TotalItems()),
+		vocab.WithTotalItems(totalItems),
 	), nil
 }
 

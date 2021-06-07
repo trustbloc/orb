@@ -31,7 +31,10 @@ func TestActivityIterator(t *testing.T) {
 
 	it := NewActivityIterator(results, 5)
 	require.NotNil(t, it)
-	require.Equal(t, 5, it.TotalItems())
+
+	totalItems, err := it.TotalItems()
+	require.NoError(t, err)
+	require.Equal(t, 5, totalItems)
 
 	a, err := it.Next()
 	require.NoError(t, err)
@@ -59,7 +62,10 @@ func TestReferenceIterator(t *testing.T) {
 
 	it := NewReferenceIterator(results, 5)
 	require.NotNil(t, it)
-	require.Equal(t, 5, it.TotalItems())
+
+	totalItems, err := it.TotalItems()
+	require.NoError(t, err)
+	require.Equal(t, 5, totalItems)
 
 	ref, err := it.Next()
 	require.NoError(t, err)
