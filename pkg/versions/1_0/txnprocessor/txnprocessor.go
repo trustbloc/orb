@@ -24,7 +24,6 @@ var logger = log.New("orb-txn-processor")
 type Providers struct {
 	OpStore                   common.OperationStore
 	OperationProtocolProvider protocol.OperationProvider
-	AnchorGraph               common.AnchorGraph
 }
 
 // TxnProcessor processes Sidetree transactions by persisting them to an operation store.
@@ -97,21 +96,10 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 			return err
 		}
 
-		// Get all references for this did from anchor graph starting from Sidetree txn reference
-		didRefs, err := p.AnchorGraph.GetDidAnchors(sidetreeTxn.CanonicalReference, op.UniqueSuffix)
-		if err != nil {
-			return fmt.Errorf("failed to get all DID anchors: %w", err)
+		if containsCanonicalReference(opsSoFar, sidetreeTxn.CanonicalReference) {
+			// this operation has already been inserted - ignore it
+			continue
 		}
-
-		// check that number of operations in the store matches the number of anchors in the graph for that did
-		if len(didRefs)-1 != len(opsSoFar) {
-			// TODO: This should not happen if we actively 'observe' batch writers
-			// however if can happen if observer starts starts observing new system and it is not done in order
-			// for now reject this case
-			return fmt.Errorf("discrepancy between previous anchors in the graph[%d] and anchored operations[%d] for did: %s", len(didRefs)-1, len(opsSoFar), op.UniqueSuffix) //nolint:lll
-		}
-
-		// TODO: Should we check that anchored operation reference matches anchored graph
 
 		op.TransactionTime = sidetreeTxn.TransactionTime
 
@@ -132,4 +120,14 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 	}
 
 	return nil
+}
+
+func containsCanonicalReference(ops []*operation.AnchoredOperation, ref string) bool {
+	for _, op := range ops {
+		if op.CanonicalReference == ref {
+			return true
+		}
+	}
+
+	return false
 }
