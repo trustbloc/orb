@@ -8,12 +8,12 @@ package mocks
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
+	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
@@ -24,13 +24,14 @@ const (
 
 // MockPubSub implements a mock publisher-subscriber.
 type MockPubSub struct {
+	*lifecycle.Lifecycle
+
 	Err               error
 	MsgChan           map[string]chan *message.Message
 	mutex             sync.RWMutex
 	Timeout           time.Duration
 	undeliverableChan chan *message.Message
 	done              chan struct{}
-	closed            bool
 }
 
 // NewPubSub returns a mock publisher-subscriber.
@@ -42,7 +43,11 @@ func NewPubSub() *MockPubSub {
 		done:              make(chan struct{}),
 	}
 
+	m.Lifecycle = lifecycle.New("mock_pubsub", lifecycle.WithStop(m.stop))
+
 	go m.handleUndeliverable()
+
+	m.Start()
 
 	return m
 }
@@ -60,12 +65,12 @@ func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message
 		return nil, m.Err
 	}
 
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if m.closed {
-		return nil, fmt.Errorf("closed")
+	if m.State() != lifecycle.StateStarted {
+		return nil, lifecycle.ErrNotStarted
 	}
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	msgChan := make(chan *message.Message, maxBufferSize)
 
@@ -80,12 +85,12 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 		return m.Err
 	}
 
+	if m.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
+	}
+
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
-
-	if m.closed {
-		return fmt.Errorf("closed")
-	}
 
 	msgChan := m.MsgChan[topic]
 
@@ -107,12 +112,12 @@ func (m *MockPubSub) Close() error {
 		return m.Err
 	}
 
-	m.mutex.Lock()
+	m.Stop()
 
-	m.closed = true
+	return nil
+}
 
-	m.mutex.Unlock()
-
+func (m *MockPubSub) stop() {
 	close(m.undeliverableChan)
 
 	<-m.done
@@ -120,8 +125,6 @@ func (m *MockPubSub) Close() error {
 	for _, msgChan := range m.MsgChan {
 		close(msgChan)
 	}
-
-	return nil
 }
 
 func (m *MockPubSub) handleUndeliverable() {
@@ -148,12 +151,12 @@ func (m *MockPubSub) check(msg *message.Message) {
 }
 
 func (m *MockPubSub) postToUndeliverable(msg *message.Message) {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
-	if m.closed {
+	if m.State() != lifecycle.StateStarted {
 		return
 	}
+
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	m.undeliverableChan <- msg
 }

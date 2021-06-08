@@ -62,7 +62,7 @@ func TestStartObserver(t *testing.T) {
 	t.Run("test channel close", func(t *testing.T) {
 		providers := &Providers{
 			DidAnchors: memdidanchor.New(),
-			PubSub:     mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:     mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -115,7 +115,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -172,7 +172,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -234,7 +234,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -292,7 +292,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -348,7 +348,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -405,7 +405,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             &mockDidAnchor{Err: fmt.Errorf("did anchor error")},
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -450,7 +450,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -477,7 +477,7 @@ func TestStartObserver(t *testing.T) {
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)
@@ -508,7 +508,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
-			PubSub:                 mempubsub.New("observer", mempubsub.DefaultConfig()),
+			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
 		o, err := New(providers)

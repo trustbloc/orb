@@ -5,6 +5,7 @@
 module github.com/trustbloc/orb/cmd/orb-server
 
 require (
+	github.com/ThreeDotsLabs/watermill v1.2.0-rc.4
 	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/google/uuid v1.2.0
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210604191029-fce55e13c101

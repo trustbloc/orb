@@ -55,15 +55,12 @@ func TestNewService(t *testing.T) {
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
 		ServiceIRI:      testutil.MustParseURL("http://localhost:8301/services/service1"),
-		PubSubFactory: func(serviceName string) PubSub {
-			return mocks.NewPubSub()
-		},
 	}
 
 	store1 := memstore.New(cfg1.ServiceEndpoint)
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
-	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{},
+	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
 		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 
@@ -1037,7 +1034,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
-	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
+	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km), mocks.NewPubSub(),
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
 		service.WithFollowerAuth(providers.followerAuth),

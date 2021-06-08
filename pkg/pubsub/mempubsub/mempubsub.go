@@ -55,7 +55,6 @@ type PubSub struct {
 	*lifecycle.Lifecycle
 	Config
 
-	serviceName     string
 	msgChansByTopic map[string][]chan *message.Message
 	mutex           sync.RWMutex
 	publishChan     chan *entry
@@ -69,17 +68,16 @@ type entry struct {
 }
 
 // New returns a new publisher/subscriber.
-func New(name string, cfg Config) *PubSub {
+func New(cfg Config) *PubSub {
 	m := &PubSub{
 		Config:          cfg,
-		serviceName:     name,
 		msgChansByTopic: make(map[string][]chan *message.Message),
 		publishChan:     make(chan *entry, cfg.BufferSize),
 		ackChan:         make(chan *message.Message, cfg.Concurrency),
 		doneChan:        make(chan struct{}),
 	}
 
-	m.Lifecycle = lifecycle.New("httpsubscriber-"+name, lifecycle.WithStop(m.stop))
+	m.Lifecycle = lifecycle.New("httpsubscriber", lifecycle.WithStop(m.stop))
 
 	go m.processMessages()
 	go m.processAcks()
@@ -98,15 +96,15 @@ func (p *PubSub) Close() error {
 }
 
 func (p *PubSub) stop() {
-	logger.Infof("[%s] Stopping publisher/subscriber...", p.serviceName)
+	logger.Infof("Stopping publisher/subscriber...")
 
 	p.doneChan <- struct{}{}
 
-	logger.Debugf("[%s] ... waiting for publisher to stop...", p.serviceName)
+	logger.Debugf("... waiting for publisher to stop...")
 
 	<-p.doneChan
 
-	logger.Debugf("[%s] ... closing subscriber channels...", p.serviceName)
+	logger.Debugf("... closing subscriber channels...")
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -121,7 +119,7 @@ func (p *PubSub) stop() {
 
 	close(p.ackChan)
 
-	logger.Infof("[%s] ... publisher/subscriber stopped.", p.serviceName)
+	logger.Infof("... publisher/subscriber stopped.")
 }
 
 // Subscribe subscribes to a topic and returns the Go channel over which messages
@@ -131,7 +129,7 @@ func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Mes
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	logger.Debugf("[%s] Subscribing to topic [%s]", p.serviceName, topic)
+	logger.Debugf("Subscribing to topic [%s]", topic)
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -168,7 +166,7 @@ func (p *PubSub) processMessages() {
 		case <-p.doneChan:
 			p.doneChan <- struct{}{}
 
-			logger.Debugf("[%s] ... publisher has stopped", p.serviceName)
+			logger.Debugf("... publisher has stopped")
 
 			return
 		}
@@ -187,7 +185,7 @@ func (p *PubSub) publish(entry *entry) {
 	p.mutex.RUnlock()
 
 	if len(msgChans) == 0 {
-		logger.Debugf("[%s] No subscribers for topic [%s]", p.serviceName, entry.topic)
+		logger.Debugf("No subscribers for topic [%s]", entry.topic)
 
 		return
 	}
@@ -197,7 +195,7 @@ func (p *PubSub) publish(entry *entry) {
 			// Copy the message so that the Ack/Nack is specific to a subscriber
 			msg := m.Copy()
 
-			logger.Debugf("[%s] Publishing message [%s]", p.serviceName, msg.UUID)
+			logger.Debugf("Publishing message [%s]", msg.UUID)
 
 			msgChan <- msg
 			p.ackChan <- msg
@@ -206,21 +204,19 @@ func (p *PubSub) publish(entry *entry) {
 }
 
 func (p *PubSub) check(msg *message.Message) {
-	logger.Debugf("[%s] Checking for Ack/Nack on message [%s]", p.serviceName, msg.UUID)
+	logger.Debugf("Checking for Ack/Nack on message [%s]", msg.UUID)
 
 	select {
 	case <-msg.Acked():
-		logger.Infof("[%s] Message was successfully acknowledged [%s]", p.serviceName, msg.UUID)
+		logger.Infof("Message was successfully acknowledged [%s]", msg.UUID)
 
 	case <-msg.Nacked():
-		logger.Infof("[%s] Message was not successfully acknowledged. Posting to undeliverable queue [%s]",
-			p.serviceName, msg.UUID)
+		logger.Infof("Message was not successfully acknowledged. Posting to undeliverable queue [%s]", msg.UUID)
 
 		p.postToUndeliverable(msg)
 
 	case <-time.After(p.Timeout):
-		logger.Warnf("[%s] Timed out after %s waiting for Ack/Nack. Posting to undeliverable queue [%s]",
-			p.serviceName, p.Timeout, msg.UUID)
+		logger.Warnf("Timed out after %s waiting for Ack/Nack. Posting to undeliverable queue [%s]", p.Timeout, msg.UUID)
 
 		p.postToUndeliverable(msg)
 	}
@@ -237,11 +233,10 @@ func (p *PubSub) postToUndeliverable(msg *message.Message) {
 	for _, msgChan := range msgChans {
 		select {
 		case msgChan <- msg:
-			logger.Infof("[%s] Message was added to the undeliverable queue [%s]", p.serviceName, msg.UUID)
+			logger.Infof("Message was added to the undeliverable queue [%s]", msg.UUID)
 
 		default:
-			logger.Warnf("[%s] Message could not be added to the undeliverable queue and will be dropped [%s]",
-				p.serviceName, msg.UUID)
+			logger.Warnf("Message could not be added to the undeliverable queue and will be dropped [%s]", msg.UUID)
 		}
 	}
 }
