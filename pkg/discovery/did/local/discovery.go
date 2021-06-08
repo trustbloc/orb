@@ -6,19 +6,21 @@ SPDX-License-Identifier: Apache-2.0
 
 package local
 
+type didPublisher interface {
+	PublishDID(dids string) error
+}
+
 // New creates new local discovery.
-func New(didCh chan []string) *Discovery {
-	return &Discovery{didCh: didCh}
+func New(didPublisher didPublisher) *Discovery {
+	return &Discovery{publisher: didPublisher}
 }
 
 // Discovery implements local did discovery.
 type Discovery struct {
-	didCh chan []string
+	publisher didPublisher
 }
 
 // RequestDiscovery requests did discovery.
 func (d *Discovery) RequestDiscovery(did string) error {
-	d.didCh <- []string{did}
-
-	return nil
+	return d.publisher.PublishDID(did)
 }

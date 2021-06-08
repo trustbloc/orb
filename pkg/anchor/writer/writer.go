@@ -37,7 +37,7 @@ type Writer struct {
 	*Providers
 	namespace            string
 	vcCh                 <-chan *verifiable.Credential
-	anchorCh             chan []anchorinfo.AnchorInfo
+	anchorPublisher      anchorPublisher
 	apServiceIRI         *url.URL
 	casIRI               *url.URL
 	maxWitnessDelay      time.Duration
@@ -109,13 +109,17 @@ type vcStatusStore interface {
 	AddStatus(vcID string, status proof.VCStatus) error
 }
 
+type anchorPublisher interface {
+	PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error
+}
+
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorCh chan []anchorinfo.AnchorInfo, vcCh chan *verifiable.Credential,
+	anchorPublisher anchorPublisher, vcCh chan *verifiable.Credential,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool) *Writer {
 	w := &Writer{
 		Providers:            providers,
-		anchorCh:             anchorCh,
+		anchorPublisher:      anchorPublisher,
 		vcCh:                 vcCh,
 		namespace:            namespace,
 		apServiceIRI:         apServiceIRI,
@@ -317,6 +321,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 }
 
 func (c *Writer) listenForWitnessedAnchorCredentials() {
+	// TODO: This should be converted to use a message queue (issue #477).
 	logger.Debugf("starting witnessed anchored credentials listener")
 
 	for vc := range c.vcCh {
@@ -356,7 +361,14 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		return
 	}
 
-	c.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: fullWebCASURL, Hint: hint}}
+	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{CID: cid, WebCASURL: fullWebCASURL, Hint: hint})
+	if err != nil {
+		logger.Warnf("failed to publish anchors for cid[%s]: %s", cid, err.Error())
+
+		// TODO: How to handle recovery after this and all other errors in this handler
+
+		return
+	}
 
 	logger.Debugf("posted cid[%s] to anchor channel", cid)
 

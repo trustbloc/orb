@@ -90,6 +90,7 @@ import (
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
+	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/resolver/document"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
@@ -406,12 +407,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
-	// create anchor channel (used by anchor writer to notify observer about anchors)
-	anchorCh := make(chan []anchorinfo.AnchorInfo, chBuffer)
-
-	// create did channel (used by resolver to notify observer about "not-found" DIDs)
-	didCh := make(chan []string, chBuffer)
-
 	// used to notify anchor writer about witnessed anchor credential
 	vcCh := make(chan *verifiable.Credential, chBuffer)
 
@@ -514,12 +509,34 @@ func startOrbServices(parameters *orbParameters) error {
 			vct.WithDocumentLoader(orbDocumentLoader))
 	}
 
+	// create new observer and start it
+	providers := &observer.Providers{
+		ProtocolClientProvider: pcp,
+		AnchorGraph:            anchorGraph,
+		DidAnchors:             didAnchors,
+	}
+
+	if parameters.mqURL != "" {
+		// FIXME: Should reuse the same AMQP client as in ActivityPub (issue #473).
+
+		providers.PubSub = amqp.New("observer", amqp.Config{URI: parameters.mqURL})
+	} else {
+		providers.PubSub = mempubsub.New("observer", mempubsub.DefaultConfig())
+	}
+
+	o, err := observer.New(providers)
+	if err != nil {
+		return fmt.Errorf("failed to create observer: %s", err.Error())
+	}
+
+	o.Start()
+
 	activityPubService, err := apservice.New(apConfig,
 		apStore, t, apSigVerifier,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(
-			anchorCh, casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
+			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
 		)),
 		// TODO: Define the following ActivityPub handlers.
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
@@ -548,7 +565,7 @@ func startOrbServices(parameters *orbParameters) error {
 	anchorWriter := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
-		anchorCh, vcCh,
+		o.Publisher(), vcCh,
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness)
 
@@ -564,15 +581,6 @@ func startOrbServices(parameters *orbParameters) error {
 	batchWriter.Start()
 	logger.Infof("started batch writer")
 
-	// create new observer and start it
-	providers := &observer.Providers{
-		TxnProvider:            mockTxnProvider{registerForAnchor: anchorCh, registerForDID: didCh},
-		ProtocolClientProvider: pcp,
-		AnchorGraph:            anchorGraph,
-		DidAnchors:             didAnchors,
-	}
-
-	observer.New(providers).Start()
 	logger.Infof("started observer")
 
 	didDocHandler := dochandler.New(
@@ -610,7 +618,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.didAliases,
 		unpublishedDIDLabel,
 		didDocHandler,
-		localdiscovery.New(didCh),
+		localdiscovery.New(o.Publisher()),
 	)
 
 	// create discovery rest api

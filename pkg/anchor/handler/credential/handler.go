@@ -26,26 +26,30 @@ type monitoringSvc interface {
 
 // AnchorCredentialHandler handles a new, published anchor credential.
 type AnchorCredentialHandler struct {
-	anchorCh       chan []anchorinfo.AnchorInfo
-	casResolver    casResolver
-	maxDelay       time.Duration
-	documentLoader ld.DocumentLoader
-	monitoringSvc  monitoringSvc
+	anchorPublisher anchorPublisher
+	casResolver     casResolver
+	maxDelay        time.Duration
+	documentLoader  ld.DocumentLoader
+	monitoringSvc   monitoringSvc
 }
 
 type casResolver interface {
 	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
 }
 
+type anchorPublisher interface {
+	PublishAnchor(anchor *anchorinfo.AnchorInfo) error
+}
+
 // New creates new credential handler.
-func New(anchorCh chan []anchorinfo.AnchorInfo, casResolver casResolver,
+func New(anchorPublisher anchorPublisher, casResolver casResolver,
 	documentLoader ld.DocumentLoader, monitoringSvc monitoringSvc, maxDelay time.Duration) *AnchorCredentialHandler {
 	return &AnchorCredentialHandler{
-		anchorCh:       anchorCh,
-		maxDelay:       maxDelay,
-		casResolver:    casResolver,
-		documentLoader: documentLoader,
-		monitoringSvc:  monitoringSvc,
+		anchorPublisher: anchorPublisher,
+		maxDelay:        maxDelay,
+		casResolver:     casResolver,
+		documentLoader:  documentLoader,
+		monitoringSvc:   monitoringSvc,
 	}
 }
 
@@ -123,7 +127,5 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string
 	// Since we currently only have cas URLs
 	hint := "webcas:" + id.Host
 
-	h.anchorCh <- []anchorinfo.AnchorInfo{{CID: cid, WebCASURL: id, Hint: hint}}
-
-	return nil
+	return h.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{CID: cid, WebCASURL: id, Hint: hint})
 }

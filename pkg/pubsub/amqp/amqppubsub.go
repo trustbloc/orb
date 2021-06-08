@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
-var logger = log.New("activitypub_service")
+var logger = log.New("pubsub")
 
 const defaultMaxConnectRetries = 15
 

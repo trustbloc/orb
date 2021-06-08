@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
-var logger = log.New("activitypub_service")
+var logger = log.New("pubsub")
 
 const (
 	defaultTimeout     = 10 * time.Second
@@ -185,6 +185,12 @@ func (p *PubSub) publish(entry *entry) {
 	p.mutex.RLock()
 	msgChans := p.msgChansByTopic[entry.topic]
 	p.mutex.RUnlock()
+
+	if len(msgChans) == 0 {
+		logger.Debugf("[%s] No subscribers for topic [%s]", p.serviceName, entry.topic)
+
+		return
+	}
 
 	for _, msgChan := range msgChans {
 		for _, m := range entry.messages {

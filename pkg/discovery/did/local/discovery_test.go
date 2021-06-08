@@ -10,12 +10,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/discovery/did/mocks"
 )
+
+//go:generate counterfeiter -o ../mocks/didPublisher.gen.go --fake-name DIDPublisher . didPublisher
 
 func TestDiscovery_RequestDiscovery(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		didCh := make(chan []string, 100)
-		d := New(didCh)
+		d := New(&mocks.DIDPublisher{})
 
 		err := d.RequestDiscovery("did")
 		require.NoError(t, err)

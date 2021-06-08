@@ -27,7 +27,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
-	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -54,8 +54,6 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	var anchorCh chan []anchorinfo.AnchorInfo
-
 	var vcCh chan *verifiable.Credential
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -74,7 +72,8 @@ func TestNew(t *testing.T) {
 		VCStore:       vcStore,
 	}
 
-	c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+	c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+		testMaxWitnessDelay, signWithLocalWitness)
 	require.NotNil(t, c)
 }
 
@@ -100,7 +99,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success - no local witness configured", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -123,7 +121,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStatusStore: vcStatusStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, false)
 
 		opRefs := []*operation.Reference{
 			{
@@ -156,7 +155,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - local witness configured, sign with default witness is false", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -180,7 +178,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStatusStore: vcStatusStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, false)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, false)
 
 		opRefs := []*operation.Reference{
 			{
@@ -203,7 +202,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - local witness", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -229,7 +227,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStatusStore: vcStatusStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -257,7 +256,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - vc status store error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -280,7 +278,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStatusStore: &mockVCStatusStore{Err: fmt.Errorf("vc status error")},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -316,7 +315,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, nil, nil, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, nil, nil,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -337,7 +337,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - failed to get witness list", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -356,7 +355,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -372,7 +372,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - build anchor credential error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providersWithErr := &Providers{
@@ -383,14 +382,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:        &mockSigner{},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err := c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "failed to build anchor credential: sign error")
 	})
 
 	t.Run("error - anchor credential signing error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providersWithErr := &Providers{
@@ -401,7 +400,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:        &mockSigner{Err: fmt.Errorf("signer error")},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err := c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 
@@ -409,7 +409,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - monitoring is not started (no proof)", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -429,14 +428,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("error - local witness (monitoring error)", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -459,7 +458,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 		require.Error(t, err)
@@ -468,7 +468,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - local witness log error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providersWithErr := &Providers{
@@ -480,7 +479,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:       &mockWitness{Err: fmt.Errorf("witness error")},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err := c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 		require.Contains(t, err.Error(),
@@ -488,7 +488,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - store anchor credential error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		storeProviderWithErr := &mockstore.Provider{
@@ -507,7 +506,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStoreWithErr,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 		require.Error(t, err)
@@ -515,7 +515,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - store anchor credential error (local witness)", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		storeProviderWithErr := &mockstore.Provider{
@@ -536,7 +535,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStoreWithErr,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
 		require.Error(t, err)
@@ -544,7 +544,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - previous did anchor reference not found for non-create operations", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -559,11 +558,61 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 1)
 		require.Contains(t, err.Error(),
 			"previous did anchor reference not found for update operation for did[did:method:abc]")
+	})
+
+	t.Run("error - publish anchor", func(t *testing.T) {
+		vcCh := make(chan *verifiable.Credential, 100)
+
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+		}
+
+		publisher := &anchormocks.AnchorPublisher{}
+		publisher.PublishAnchorReturns(errors.New("injected publisher error"))
+
+		c := New(namespace, apServiceIRI, casIRI, providers, publisher, vcCh,
+			testMaxWitnessDelay, false)
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: "origin.com",
+			},
+		}
+
+		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		vcCh <- anchorVC
 	})
 }
 
@@ -601,10 +650,10 @@ func TestWriter_handle(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
 			verifiable.WithDisabledProofCheck(),
@@ -616,7 +665,6 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - save anchor credential to store error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		storeProviderWithErr := &mockstore.Provider{
@@ -635,7 +683,8 @@ func TestWriter_handle(t *testing.T) {
 			VCStore:       vcStoreWithErr,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
 			verifiable.WithDisabledProofCheck(),
@@ -647,7 +696,6 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - add anchor credential to txn graph error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -662,7 +710,8 @@ func TestWriter_handle(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
 			verifiable.WithDisabledProofCheck(),
@@ -674,7 +723,6 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - add anchor credential cid to did anchors error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -689,7 +737,8 @@ func TestWriter_handle(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
 			verifiable.WithDisabledProofCheck(),
@@ -712,10 +761,10 @@ func TestWriter_handle(t *testing.T) {
 			VCStore:       vcStore,
 		}
 
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
 			verifiable.WithDisabledProofCheck(),
@@ -735,7 +784,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -754,14 +802,14 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
 		require.NoError(t, err)
 	})
 
 	t.Run("error - get witnesses URIs error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
@@ -774,7 +822,8 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{":xyz"})
 		require.Error(t, err)
@@ -782,7 +831,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	})
 
 	t.Run("error - get system URI error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
@@ -797,7 +845,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, &url.URL{Host: "?!?"}, casIRI, providers, anchorCh, vcCh,
+		c := New(namespace, &url.URL{Host: "?!?"}, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
 			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
@@ -806,7 +854,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	})
 
 	t.Run("error - witness proof store error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
@@ -821,7 +868,8 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
@@ -830,7 +878,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	})
 
 	t.Run("error - activity store error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
@@ -845,7 +892,8 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
@@ -854,7 +902,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	})
 
 	t.Run("error - post offer to outbox error", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		providers := &Providers{
@@ -870,7 +917,8 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
@@ -887,7 +935,6 @@ func TestWriter_getWitnesses(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -900,7 +947,8 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -942,7 +990,6 @@ func TestWriter_getWitnesses(t *testing.T) {
 	})
 
 	t.Run("error - operation type not supported", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -953,7 +1000,8 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -969,7 +1017,6 @@ func TestWriter_getWitnesses(t *testing.T) {
 	})
 
 	t.Run("error - unexpected interface for anchor origin", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
 		opMap := map[string]*protocol.ResolutionModel{
@@ -980,7 +1027,8 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		opRefs := []*operation.Reference{
 			{
@@ -1000,10 +1048,10 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 	apServiceIRI, err := url.Parse(activityPubURL)
 	require.NoError(t, err)
 
-	anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 	vcCh := make(chan *verifiable.Credential, 100)
 
-	c := New(namespace, apServiceIRI, nil, &Providers{}, anchorCh, vcCh, testMaxWitnessDelay, true)
+	c := New(namespace, apServiceIRI, nil, &Providers{}, &anchormocks.AnchorPublisher{}, vcCh,
+		testMaxWitnessDelay, true)
 
 	t.Run("success", func(t *testing.T) {
 		witnesses := []string{"origin-1.com", "origin-2.com"}
@@ -1059,10 +1107,10 @@ func TestWriter_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		anchorCh := make(chan []anchorinfo.AnchorInfo, 100)
 		vcCh := make(chan *verifiable.Credential, 100)
 
-		c := New(namespace, apServiceIRI, casIRI, providers, anchorCh, vcCh, testMaxWitnessDelay, signWithLocalWitness)
+		c := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, vcCh,
+			testMaxWitnessDelay, signWithLocalWitness)
 
 		more, entries := c.Read(-1)
 		require.False(t, more)

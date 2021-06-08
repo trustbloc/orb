@@ -13,7 +13,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 )
 
-var logger = log.New("activitypub_service")
+var logger = log.New("lifecycle")
 
 // ErrNotStarted indicates that an attempt was made to invoke a service that has not been started
 // or is still in the process of starting.
