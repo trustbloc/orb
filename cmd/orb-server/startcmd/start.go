@@ -501,13 +501,10 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		vcCh)
 
-	var witness apspi.WitnessHandler = vct.NewNoOpClient()
-
-	if parameters.vctURL != "" {
-		witness = vct.New(parameters.vctURL, vcSigner,
-			vct.WithHTTPClient(httpClient),
-			vct.WithDocumentLoader(orbDocumentLoader))
-	}
+	witness := vct.New(parameters.vctURL, vcSigner,
+		vct.WithHTTPClient(httpClient),
+		vct.WithDocumentLoader(orbDocumentLoader),
+	)
 
 	// create new observer and start it
 	providers := &observer.Providers{

@@ -101,6 +101,29 @@ func TestClient_Witness(t *testing.T) {
 
 		require.Equal(t, int64(1619006293939000000), timestampTime.UnixNano())
 	})
+	t.Run("Success (no vct)", func(t *testing.T) {
+		client := New("", &mockSigner{}, WithDocumentLoader(testutil.GetLoader(t)))
+
+		resp, err := client.Witness([]byte(mockVC))
+		require.NoError(t, err)
+
+		var p Proof
+		require.NoError(t, json.Unmarshal(resp, &p))
+
+		require.Len(t, p.Context, 2)
+		require.Empty(t, p.Proof["domain"])
+		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
+		require.NoError(t, err)
+
+		require.NotEmpty(t, timestampTime.UnixNano())
+	})
+	t.Run("Parse credential (error)", func(t *testing.T) {
+		client := New("", &mockSigner{})
+
+		_, err := client.Witness([]byte(`[]`))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parse credential")
+	})
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-public-key" {
@@ -174,12 +197,6 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.EqualError(t, err, "add VC: error")
 	})
-}
-
-func TestNewNoOpClient(t *testing.T) {
-	res, err := NewNoOpClient().Witness(nil)
-	require.NoError(t, err)
-	require.Equal(t, `{}`, string(res))
 }
 
 type mockSigner struct {

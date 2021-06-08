@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -75,21 +76,22 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 		fn(op)
 	}
 
+	var vctClient *vct.Client
+
+	// TODO: endpoint should be resolved using webfinger.
+	if strings.TrimSpace(endpoint) != "" {
+		vctClient = vct.New(endpoint, vct.WithHTTPClient(op.http))
+	}
+
 	return &Client{
 		signer:         signer,
 		endpoint:       endpoint,
 		documentLoader: op.documentLoader,
-		vct:            vct.New(endpoint, vct.WithHTTPClient(op.http)),
+		vct:            vctClient,
 	}
 }
 
-// Witness credentials.
-func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
-	resp, err := c.vct.AddVC(context.Background(), anchorCred)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Credential, error) {
 	vc, err := verifiable.ParseCredential(anchorCred,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithNoCustomSchemaCheck(),
@@ -102,12 +104,39 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
 	// adds linked data proof
 	vc, err = c.signer.Sign(vc,
 		// sets created time from the VCT.
-		vcsigner.WithCreated(time.Unix(0, int64(resp.Timestamp)*int64(time.Millisecond))),
+		vcsigner.WithCreated(time.Unix(0, timestamp)),
 		vcsigner.WithSignatureRepresentation(verifiable.SignatureJWS),
 		vcsigner.WithDomain(c.endpoint),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("add proof to credential: %w", err)
+	}
+
+	return vc, nil
+}
+
+// Witness credentials.
+func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
+	if c.vct == nil {
+		vc, err := c.addProof(anchorCred, time.Now().UnixNano())
+		if err != nil {
+			return nil, fmt.Errorf("add proof: %w", err)
+		}
+
+		return json.Marshal(Proof{
+			Context: []string{ctxSecurity, ctxJWS},
+			Proof:   vc.Proofs[len(vc.Proofs)-1], // gets the latest proof
+		})
+	}
+
+	resp, err := c.vct.AddVC(context.Background(), anchorCred)
+	if err != nil {
+		return nil, err
+	}
+
+	vc, err := c.addProof(anchorCred, int64(resp.Timestamp)*int64(time.Millisecond))
+	if err != nil {
+		return nil, fmt.Errorf("add proof: %w", err)
 	}
 
 	// TODO: public key probably needs to be discovered by using a web finger.
@@ -146,18 +175,4 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
 type Proof struct {
 	Context []string         `json:"@context"`
 	Proof   verifiable.Proof `json:"proof"`
-}
-
-// NoOpClient represents VCT noOp client.
-type NoOpClient struct{}
-
-// NewNoOpClient returns the NoOpClient.
-func NewNoOpClient() *NoOpClient {
-	return &NoOpClient{}
-}
-
-// Witness credentials.
-func (c *NoOpClient) Witness(cred []byte) ([]byte, error) {
-	// provides an empty payload to satisfy all consumers
-	return []byte(`{}`), nil
 }

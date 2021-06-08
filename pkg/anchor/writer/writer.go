@@ -288,12 +288,6 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
 	}
 
-	// if vct is not enabled witness will return an empty proof, we should not include it to vc
-	// and we should not start a monitoring, so we exit.
-	if len(witnessProof.Proof) == 0 {
-		return vc, nil
-	}
-
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
 	var (
