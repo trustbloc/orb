@@ -61,14 +61,14 @@ func TestClient_Watch(t *testing.T) {
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{},
 			time.Now().Add(-time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		), "expired")
 	})
 
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
 
-		client, err := New(db, testutil.GetLoader(t))
+		client, err := New(db, testutil.GetLoader(t), WithHTTPClient(&http.Client{Timeout: time.Second}))
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
@@ -83,7 +83,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		))
 
 		require.NoError(t, client.Watch(&verifiable.Credential{
@@ -95,7 +95,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		))
 
 		checkQueue(t, db, 2)
@@ -133,7 +133,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		))
 
 		checkQueue(t, db, 1)
@@ -164,7 +164,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		))
 
 		checkQueue(t, db, 1)
@@ -280,7 +280,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Millisecond*100),
-			"", time.Now()),
+			"https://vct.com", time.Now()),
 		)
 
 		require.NoError(t, backoff.Retry(func() error {
@@ -358,7 +358,7 @@ func TestClient_Watch(t *testing.T) {
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Minute),
-			"", time.Now(),
+			"https://vct.com", time.Now(),
 		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
 
 		checkQueue(t, db, 0)

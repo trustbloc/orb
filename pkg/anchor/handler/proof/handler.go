@@ -97,17 +97,22 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 		return fmt.Errorf("failed to add witness[%s] proof for credential[%s]: %w", witness.String(), anchorCredID, err)
 	}
 
-	// if no proof nothing to monitor, so we exit
-	if len(witnessProof.Proof) == 0 {
-		return h.handleWitnessPolicy(vc)
+	var created string
+	if createdVal, ok := witnessProof.Proof["created"].(string); ok {
+		created = createdVal
 	}
 
-	createdTime, err := time.Parse(time.RFC3339, witnessProof.Proof["created"].(string))
+	createdTime, err := time.Parse(time.RFC3339, created)
 	if err != nil {
 		return fmt.Errorf("parse created: %w", err)
 	}
 
-	err = h.MonitoringSvc.Watch(vc, endTime, witnessProof.Proof["domain"].(string), createdTime)
+	var domain string
+	if domainVal, ok := witnessProof.Proof["domain"].(string); ok {
+		domain = domainVal
+	}
+
+	err = h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 	if err != nil {
 		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
 	}
@@ -164,11 +169,6 @@ func addProofs(vc *verifiable.Credential, proofs []*proofapi.WitnessProof) (*ver
 		err := json.Unmarshal(p.Proof, &witnessProof)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %w", vc.ID, err)
-		}
-
-		// ignore empty proofs, empty proofs can be only if the service is working without vct.
-		if len(witnessProof.Proof) == 0 {
-			continue
 		}
 
 		vc.Proofs = append(vc.Proofs, witnessProof.Proof)

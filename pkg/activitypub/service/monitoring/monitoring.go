@@ -220,6 +220,11 @@ func (c *Client) handleEntities() error {
 
 // Watch starts monitoring.
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
+	// no domain nothing to verify
+	if domain == "" {
+		return nil
+	}
+
 	e := &entity{
 		ExpirationDate: endTime,
 		// TODO: domain probably needs to be discovered by using a web finger.
