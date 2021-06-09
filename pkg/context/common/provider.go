@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 )
@@ -28,4 +29,16 @@ type AnchorGraph interface {
 // CASResolver interface to resolve cid.
 type CASResolver interface {
 	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
+}
+
+// CASReader interface to read from content addressable storage.
+type CASReader interface {
+	Read(key string) ([]byte, error)
+}
+
+// ClientVersion contains the protocol and corresponding implementations that are compatible with this client version.
+type ClientVersion interface {
+	Version() string
+	Protocol() protocol.Protocol
+	OperationProvider() protocol.OperationProvider
 }

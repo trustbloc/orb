@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
+	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -43,26 +44,7 @@ func New() *Factory {
 func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
 	opStore ctxcommon.OperationStore, anchorGraph ctxcommon.AnchorGraph,
 	sidetreeCfg config.Sidetree) (protocol.Version, error) {
-	//nolint:gomnd
-	p := protocol.Protocol{
-		GenesisTime:                  0,
-		MultihashAlgorithms:          []uint{18},
-		MaxOperationCount:            5000,
-		MaxOperationSize:             2500,
-		MaxOperationHashLength:       100,
-		MaxDeltaSize:                 1700,
-		MaxCasURILength:              100,
-		CompressionAlgorithm:         "GZIP",
-		MaxChunkFileSize:             10000000,
-		MaxProvisionalIndexFileSize:  1000000,
-		MaxCoreIndexFileSize:         1000000,
-		MaxProofFileSize:             2500000,
-		Patches:                      []string{"add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch"}, //nolint:lll
-		SignatureAlgorithms:          []string{"EdDSA", "ES256", "ES256K"},
-		KeyAlgorithms:                []string{"Ed25519", "P-256", "secp256k1"},
-		MaxMemoryDecompressionFactor: 3,
-		NonceSize:                    16,
-	}
+	p := protocolcfg.GetProtocolConfig()
 
 	opParser := operationparser.New(p,
 		operationparser.WithAnchorTimeValidator(anchortime.New(p.MaxOperationTimeDelta)),
