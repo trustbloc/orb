@@ -21,3 +21,4 @@ export CAS_TYPE=ipfs
 
 go test -count=1 -v -cover . -p 1 -timeout=20m -race
 cd $PWD
+

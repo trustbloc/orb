@@ -66,6 +66,9 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "canonicalId"
 
+    # test for orb client resolving anchor origin from ipfs
+    When client sends request to "localhost:5001" to request anchor origin
+
     # resolve did on the second server within same domain (organisation)
     When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "canonicalId"

@@ -16,6 +16,7 @@ import (
 	mrand "math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/sirupsen/logrus"
 
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/commitment"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
@@ -34,7 +37,10 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/model"
 
+	"github.com/trustbloc/orb/internal/pkg/ldcontext"
+	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/orbclient"
 )
 
 var logger = logrus.New()
@@ -195,6 +201,62 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	d.operationEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
 
 	return nil
+}
+
+func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
+	logger.Info("requesting anchor origin")
+
+	if os.Getenv("CAS_TYPE") != "ipfs" {
+		logger.Info("ignoring 'request anchor origin' test case since cas type is NOT set to 'ifps'")
+		return nil
+	}
+
+	cid, suffix, err := extractCIDAndSuffix(d.canonicalDID)
+	if err != nil {
+		return err
+	}
+
+	docLoader, err := jsonld.NewDocumentLoader(
+		mem.NewProvider(), jsonld.WithExtraContexts(ldcontext.MustGetAll()...),
+	)
+
+	casClient := ipfs.New(url)
+
+	orbClient, err := orbclient.New(didDocNamespace, casClient,
+		orbclient.WithJSONLDDocumentLoader(docLoader),
+		orbclient.WithDisableProofCheck(true))
+	if err != nil {
+		return err
+	}
+
+	anchorOriginObj, err := orbClient.GetAnchorOrigin(cid, suffix)
+	if err != nil {
+		return err
+	}
+
+	anchorOrigin, ok := anchorOriginObj.(string)
+	if !ok {
+		return fmt.Errorf("unexpected interface '%T' for anchor origin object", anchorOriginObj)
+	}
+
+	logger.Infof("got anchor origin: %s", anchorOrigin)
+
+	expectedOrigin := "https://orb.domain1.com/services/orb"
+	if anchorOrigin != expectedOrigin {
+		return fmt.Errorf("anchor origin: expected %s, got %s", expectedOrigin, anchorOrigin)
+	}
+
+	return err
+}
+
+func extractCIDAndSuffix(canonicalID string) (string, string, error) {
+	parts := strings.Split(canonicalID, ":")
+
+	if len(parts) != 4 {
+		return "", "", fmt.Errorf("expected 4 got %d parts for canonical ID", len(parts))
+	}
+
+	return parts[2], parts[3], nil
 }
 
 func (d *DIDOrbSteps) createDIDDocument(url string) error {
@@ -1000,6 +1062,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 // RegisterSteps registers orb steps
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
+	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
