@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
@@ -138,8 +139,10 @@ const (
 	kidKey         = "kid"
 )
 
-type server interface {
-	Start(srv *httpserver.Server) error
+type pubSub interface {
+	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	Publish(topic string, messages ...*message.Message) error
+	Close() error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
@@ -440,12 +443,12 @@ func startOrbServices(parameters *orbParameters) error {
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 	}
 
-	if parameters.mqURL != "" {
-		apConfig.PubSubFactory = func(serviceName string) apservice.PubSub {
-			logger.Infof("[%s] Creating new AMQP publisher/subscriber at URL [%s]", serviceName, parameters.mqURL)
+	var pubSub pubSub
 
-			return amqp.New(serviceName, amqp.Config{URI: parameters.mqURL})
-		}
+	if parameters.mqURL != "" {
+		pubSub = amqp.New(amqp.Config{URI: parameters.mqURL})
+	} else {
+		pubSub = mempubsub.New(mempubsub.DefaultConfig())
 	}
 
 	var apStore activitypubspi.Store
@@ -511,14 +514,7 @@ func startOrbServices(parameters *orbParameters) error {
 		ProtocolClientProvider: pcp,
 		AnchorGraph:            anchorGraph,
 		DidAnchors:             didAnchors,
-	}
-
-	if parameters.mqURL != "" {
-		// FIXME: Should reuse the same AMQP client as in ActivityPub (issue #473).
-
-		providers.PubSub = amqp.New("observer", amqp.Config{URI: parameters.mqURL})
-	} else {
-		providers.PubSub = mempubsub.New("observer", mempubsub.DefaultConfig())
+		PubSub:                 pubSub,
 	}
 
 	o, err := observer.New(providers)
@@ -529,7 +525,7 @@ func startOrbServices(parameters *orbParameters) error {
 	o.Start()
 
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, apSigVerifier,
+		apStore, t, apSigVerifier, pubSub,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(

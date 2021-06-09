@@ -23,7 +23,7 @@ import (
 //go:generate counterfeiter -o ../mocks/pubsub.gen.go --fake-name PubSub . pubSub
 
 func TestPubSub(t *testing.T) {
-	p := mempubsub.New("observer", mempubsub.DefaultConfig())
+	p := mempubsub.New(mempubsub.DefaultConfig())
 	require.NotNil(t, p)
 
 	var mutex sync.RWMutex
@@ -103,7 +103,7 @@ func TestPubSub_Error(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		p := mempubsub.New("observer", mempubsub.DefaultConfig())
+		p := mempubsub.New(mempubsub.DefaultConfig())
 		require.NotNil(t, p)
 
 		ps, err := NewPubSub(p,
@@ -130,7 +130,7 @@ func TestPubSub_Error(t *testing.T) {
 	})
 
 	t.Run("Unmarshal error", func(t *testing.T) {
-		p := mempubsub.New("observer", mempubsub.DefaultConfig())
+		p := mempubsub.New(mempubsub.DefaultConfig())
 		require.NotNil(t, p)
 
 		var mutex sync.RWMutex
@@ -177,7 +177,7 @@ func TestPubSub_Error(t *testing.T) {
 	})
 
 	t.Run("Transient error", func(t *testing.T) {
-		p := mempubsub.New("observer", mempubsub.DefaultConfig())
+		p := mempubsub.New(mempubsub.DefaultConfig())
 		require.NotNil(t, p)
 
 		errExpected := errors.New("injected unmarshal error")

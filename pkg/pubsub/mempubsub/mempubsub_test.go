@@ -26,7 +26,7 @@ func TestPubSub_Publish(t *testing.T) {
 
 	cfg.Timeout = 100 * time.Millisecond
 
-	ps := New("service1", cfg)
+	ps := New(cfg)
 	require.NotNil(t, ps)
 
 	t.Run("Ack", func(t *testing.T) {
@@ -110,6 +110,40 @@ func TestPubSub_Publish(t *testing.T) {
 		require.Equal(t, msg.UUID, m.UUID)
 	})
 
+	t.Run("Nack - no consumer of undeliverable channel", func(t *testing.T) {
+		cnfg := DefaultConfig()
+		cnfg.BufferSize = 0
+
+		pubSub := New(cnfg)
+		require.NotNil(t, pubSub)
+
+		msgChan, err := pubSub.Subscribe(context.Background(), "topic1")
+		require.NoError(t, err)
+
+		_, err = pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+		require.NoError(t, err)
+
+		go func() {
+			for msg := range msgChan {
+				msg.Nack()
+			}
+		}()
+
+		msg := message.NewMessage(watermill.NewUUID(), []byte("payload1"))
+
+		require.NoError(t, pubSub.Publish("topic1", msg))
+
+		time.Sleep(50 * time.Millisecond)
+	})
+
+	t.Run("No consumers", func(t *testing.T) {
+		msg := message.NewMessage(watermill.NewUUID(), []byte("payload1"))
+
+		require.NoError(t, ps.Publish("topic1", msg))
+
+		time.Sleep(50 * time.Millisecond)
+	})
+
 	t.Run("Timeout", func(t *testing.T) {
 		msgChan, err := ps.Subscribe(context.Background(), "topic1")
 		require.NoError(t, err)
@@ -160,12 +194,20 @@ func TestPubSub_Publish(t *testing.T) {
 		require.Equal(t, msg.UUID, m.UUID)
 	})
 
+	t.Run("No subscribers", func(t *testing.T) {
+		msg := message.NewMessage(watermill.NewUUID(), []byte("payload1"))
+
+		require.NoError(t, ps.Publish("topic1", msg))
+
+		time.Sleep(1000 * time.Millisecond)
+	})
+
 	require.NoError(t, ps.Close())
 }
 
 func TestPubSub_Error(t *testing.T) {
 	t.Run("Subscribe when closed -> error", func(t *testing.T) {
-		ps := New("service1", DefaultConfig())
+		ps := New(DefaultConfig())
 		require.NotNil(t, ps)
 		require.NoError(t, ps.Close())
 
@@ -175,7 +217,7 @@ func TestPubSub_Error(t *testing.T) {
 	})
 
 	t.Run("Publish when closed -> error", func(t *testing.T) {
-		ps := New("service1", DefaultConfig())
+		ps := New(DefaultConfig())
 		require.NotNil(t, ps)
 		require.NoError(t, ps.Close())
 
@@ -185,7 +227,7 @@ func TestPubSub_Error(t *testing.T) {
 }
 
 func TestPubSub_Close(t *testing.T) {
-	ps := New("service1", DefaultConfig())
+	ps := New(DefaultConfig())
 	require.NotNil(t, ps)
 
 	msgChan, err := ps.Subscribe(context.Background(), "topic1")

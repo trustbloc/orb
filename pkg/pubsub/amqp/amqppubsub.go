@@ -49,21 +49,19 @@ type PubSub struct {
 	*lifecycle.Lifecycle
 	Config
 
-	serviceName string
-	config      amqp.Config
-	subscriber  subscriber
-	publisher   publisher
+	config     amqp.Config
+	subscriber subscriber
+	publisher  publisher
 }
 
 // New returns a new AMQP publisher/subscriber.
-func New(name string, cfg Config) *PubSub {
+func New(cfg Config) *PubSub {
 	p := &PubSub{
-		Config:      cfg,
-		serviceName: name,
-		config:      amqp.NewDurableQueueConfig(cfg.URI),
+		Config: cfg,
+		config: amqp.NewDurableQueueConfig(cfg.URI),
 	}
 
-	p.Lifecycle = lifecycle.New("amqp-"+name, lifecycle.WithStart(p.start))
+	p.Lifecycle = lifecycle.New("amqp", lifecycle.WithStart(p.start))
 
 	// Start the service immediately.
 	p.Start()
@@ -78,7 +76,7 @@ func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.M
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	logger.Debugf("[%s] Subscribing to topic [%s]", p.serviceName, topic)
+	logger.Debugf("Subscribing to topic [%s]", topic)
 
 	return p.subscriber.Subscribe(ctx, topic)
 }
@@ -89,7 +87,7 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 		return lifecycle.ErrNotStarted
 	}
 
-	logger.Debugf("[%s] Publishing messages to topic [%s]", p.serviceName, topic)
+	logger.Debugf("Publishing messages to topic [%s]", topic)
 
 	return p.publisher.Publish(topic, messages...)
 }
@@ -98,23 +96,23 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 func (p *PubSub) Close() error {
 	p.Stop()
 
-	logger.Debugf("[%s] Closing publisher...", p.serviceName)
+	logger.Debugf("Closing publisher...")
 
 	if err := p.publisher.Close(); err != nil {
-		logger.Warnf("[%s] Error closing publisher: %s", err)
+		logger.Warnf("Error closing publisher: %s", err)
 	}
 
-	logger.Debugf("[%s] Closing subscriber...", p.serviceName)
+	logger.Debugf("Closing subscriber...")
 
 	if err := p.subscriber.Close(); err != nil {
-		logger.Warnf("[%s] Error closing subscriber: %s", err)
+		logger.Warnf("Error closing subscriber: %s", err)
 	}
 
 	return nil
 }
 
 func (p *PubSub) start() {
-	logger.Infof("[%s] Connecting to message queue at %s", p.serviceName, p.config.Connection.AmqpURI)
+	logger.Infof("Connecting to message queue at %s", p.config.Connection.AmqpURI)
 
 	maxRetries := p.MaxConnectRetries
 	if maxRetries == 0 {
@@ -127,15 +125,15 @@ func (p *PubSub) start() {
 		},
 		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetries),
 		func(err error, duration time.Duration) {
-			logger.Infof("[%s] Error connecting to AMQP service %s after %s: %s",
-				p.serviceName, p.config.Connection.AmqpURI, duration, err)
+			logger.Infof("Error connecting to AMQP service %s after %s: %s",
+				p.config.Connection.AmqpURI, duration, err)
 		},
 	)
 	if err != nil {
-		panic(fmt.Sprintf("[%s] Unable to connect to message queue after %d attempts", p.serviceName, maxRetries))
+		panic(fmt.Sprintf("Unable to connect to message queue after %d attempts", maxRetries))
 	}
 
-	logger.Warnf("[%s] Successfully connected to message queue: %s", p.serviceName, p.config.Connection.AmqpURI)
+	logger.Warnf("Successfully connected to message queue: %s", p.config.Connection.AmqpURI)
 }
 
 func (p *PubSub) connect() error {

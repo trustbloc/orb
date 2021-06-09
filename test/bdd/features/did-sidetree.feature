@@ -184,8 +184,8 @@ Feature:
 
     # Unauthorized
     When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/did:orb:QmSvg9rNRDGADLoTsNVt56vCuyYxuf1uernuAWoPcm5oiS:EiDahnXxu4l4iSUXgZKW6nUnSF7_y6QIaY4ePuWEE4bz0Q" and the returned status code is 401
-    When an HTTP GET is sent to "https://orb.domain1.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y" and the returned status code is 401
+    When an HTTP GET is sent to "https://orb.domain1.com/cas/bafkreiatkubvbkdidscmqynkyls3iqaweqvthi7e6mbky2amuw3inxsi3y" and the returned status code is 401
 
     # Domain3 is open for reads
     When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:orb:QmSvg9rNRDGADLoTsNVt56vCuyYxuf1uernuAWoPcm5oiS:EiDahnXxu4l4iSUXgZKW6nUnSF7_y6QIaY4ePuWEE4bz0Q" and the returned status code is 404
-    When an HTTP GET is sent to "https://orb.domain3.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y" and the returned status code is 404
+    When an HTTP GET is sent to "https://orb.domain3.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6nbky2amuw3inxsi3y" and the returned status code is 404

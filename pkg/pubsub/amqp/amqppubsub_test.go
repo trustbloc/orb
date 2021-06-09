@@ -32,7 +32,7 @@ func TestAMQP(t *testing.T) {
 	const topic = "some-topic"
 
 	t.Run("Success", func(t *testing.T) {
-		p := New("", Config{URI: "amqp://guest:guest@localhost:5672/"})
+		p := New(Config{URI: "amqp://guest:guest@localhost:5672/"})
 		require.NotNil(t, p)
 
 		msgChan, err := p.Subscribe(context.Background(), topic)
@@ -57,7 +57,7 @@ func TestAMQP(t *testing.T) {
 
 	t.Run("Connection failure", func(t *testing.T) {
 		require.Panics(t, func() {
-			p := New("", Config{URI: "amqp://guest:guest@localhost:9999/", MaxConnectRetries: 3})
+			p := New(Config{URI: "amqp://guest:guest@localhost:9999/", MaxConnectRetries: 3})
 			require.NotNil(t, p)
 		})
 	})

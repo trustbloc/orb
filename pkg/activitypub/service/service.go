@@ -25,7 +25,6 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/lifecycle"
-	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 )
 
@@ -41,15 +40,11 @@ type PubSub interface {
 	Close() error
 }
 
-// PubSubFactory creates a publisher/subscriber.
-type PubSubFactory func(serviceName string) PubSub
-
 // Config holds the configuration parameters for an ActivityPub service.
 type Config struct {
 	ServiceEndpoint           string
 	ServiceIRI                *url.URL
 	RetryOpts                 *redelivery.Config
-	PubSubFactory             PubSubFactory
 	ActivityHandlerBufferSize int
 	VerifyActorInSignature    bool
 
@@ -78,7 +73,7 @@ type signatureVerifier interface {
 
 // New returns a new ActivityPub service.
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
-	handlerOpts ...spi.HandlerOpt) (*Service, error) {
+	pubSub PubSub, handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceEndpoint,
@@ -94,7 +89,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			Topic:            outboxActivitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
 		},
-		activityStore, newPubSub(cfg, cfg.ServiceEndpoint+resthandler.OutboxPath),
+		activityStore, pubSub,
 		t, outboxHandler, handlerOpts...,
 	)
 	if err != nil {
@@ -117,8 +112,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			Topic:                  inboxActivitiesTopic,
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
 		},
-		activityStore,
-		newPubSub(cfg, cfg.ServiceEndpoint+resthandler.InboxPath),
+		activityStore, pubSub,
 		inboxHandler, sigVerifier,
 	)
 	if err != nil {
@@ -165,12 +159,4 @@ func (s *Service) InboxHTTPHandler() common.HTTPHandler {
 // Subscribe allows a client to receive published activities.
 func (s *Service) Subscribe() <-chan *vocab.ActivityType {
 	return s.activityHandler.Subscribe()
-}
-
-func newPubSub(cfg *Config, serviceName string) PubSub {
-	if cfg.PubSubFactory != nil {
-		return cfg.PubSubFactory(serviceName)
-	}
-
-	return mempubsub.New(serviceName, mempubsub.DefaultConfig())
 }
