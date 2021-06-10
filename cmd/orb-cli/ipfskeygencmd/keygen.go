@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -51,6 +52,11 @@ const (
 	keyDirFlagUsage = "key output dir." +
 		" Alternatively, this can be set with the following environment variable: " + keyDirEnvKey
 	keyDirEnvKey = "ORB_CLI_KEY_OUTPUT_DIR"
+
+	privateKeyED25519FlagName  = "privatekey-ed25519"
+	privateKeyED25519FlagUsage = "ed25519 private key in base64." +
+		" Alternatively, this can be set with the following environment variable: " + privateKeyED25519EnvKey
+	privateKeyED25519EnvKey = "ORB_CLI_PRIVATEKEY_ED25519"
 )
 
 // GetCmd returns the Cobra follow command.
@@ -62,7 +68,7 @@ func GetCmd() *cobra.Command {
 	return cmd
 }
 
-func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
+func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
 		Use:   "key-gen",
 		Short: "generate IPFS key",
@@ -97,10 +103,32 @@ func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 			keyDir := cmdutils.GetUserSetOptionalVarFromString(cmd, keyDirFlagName,
 				keyDirEnvKey)
 
+			ed25519PrivateKey := cmdutils.GetUserSetOptionalVarFromString(cmd, privateKeyED25519FlagName,
+				privateKeyED25519EnvKey)
+
 			priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 			if err != nil {
 				return err
 			}
+
+			if ed25519PrivateKey != "" {
+				k, errDecode := base64.RawStdEncoding.DecodeString(ed25519PrivateKey)
+				if errDecode != nil {
+					return errDecode
+				}
+
+				priv, err = crypto.UnmarshalEd25519PrivateKey(k)
+				if err != nil {
+					return err
+				}
+			}
+
+			rawPrivateKey, err := priv.Raw()
+			if err != nil {
+				return err
+			}
+
+			base64PrivateKey := base64.RawStdEncoding.EncodeToString(rawPrivateKey)
 
 			encoded, err := crypto.MarshalPrivateKey(priv)
 			if err != nil {
@@ -144,6 +172,8 @@ func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 			if err != nil {
 				return fmt.Errorf("failed to send http request: %w", err)
 			}
+
+			fmt.Printf("success ed25519 key: %s\n", base64PrivateKey)
 
 			return nil
 		},
@@ -205,4 +235,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(ipfsURLFlagName, "", "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(keyNameFlagName, "", "", keyNameFlagUsage)
 	startCmd.Flags().StringP(keyDirFlagName, "", "", keyDirFlagUsage)
+	startCmd.Flags().StringP(privateKeyED25519FlagName, "", "", privateKeyED25519FlagUsage)
 }
