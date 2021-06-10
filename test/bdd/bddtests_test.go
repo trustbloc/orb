@@ -142,5 +142,5 @@ func AddJSONLDContexts(serviceURL string) error {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
 		},
-	})).Add(context.Background(), ldcontext.MustGetAll()...)
+	})).Add(context.Background(), ldcontext.MustGetExtra()...)
 }

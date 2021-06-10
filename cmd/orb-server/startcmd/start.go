@@ -53,7 +53,9 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
+	vctclient "github.com/trustbloc/vct/pkg/client/vct"
 
+	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
@@ -328,8 +330,12 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
+	defaultContexts := ldcontext.MustGetDefault()
+
 	// NOTE: Changing this storage requires changing storage for 'ldcontextrest.New' as well.
-	orbDocumentLoader, err := jld.NewDocumentLoader(storeProviders.provider)
+	orbDocumentLoader, err := jld.NewDocumentLoader(storeProviders.provider,
+		jld.WithExtraContexts(defaultContexts...),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
@@ -508,6 +514,14 @@ func startOrbServices(parameters *orbParameters) error {
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 	)
+
+	if parameters.vctURL != "" {
+		err = vctclient.New(parameters.vctURL, vctclient.WithHTTPClient(httpClient)).
+			AddJSONLDContexts(context.Background(), defaultContexts...)
+		if err != nil {
+			return fmt.Errorf("failed to add contexts: %w", err)
+		}
+	}
 
 	// create new observer and start it
 	providers := &observer.Providers{

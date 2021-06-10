@@ -24,7 +24,7 @@ const (
 	// anchorContextURIV1 is anchor credential context URI.
 	anchorContextURIV1 = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
 	// jwsContextURIV1 is jws context.
-	jwsContextURIV1 = "https://w3id.org/jws/v1"
+	jwsContextURIV1 = "https://w3id.org/security/jws/v1"
 )
 
 // Params holds required parameters for building anchor credential.

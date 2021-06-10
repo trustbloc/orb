@@ -428,7 +428,7 @@ func getTestWitness() *proof.WitnessProof {
 const witnessProof = `{
   "@context": [
     "https://w3id.org/security/v1",
-    "https://w3id.org/jws/v1"
+    "https://w3id.org/security/jws/v1"
   ],
   "proof": {
     "created": "2021-04-20T20:05:35.055Z",

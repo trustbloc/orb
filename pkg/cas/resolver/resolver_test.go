@@ -38,7 +38,7 @@ const (
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
-    "https://w3id.org/jws/v1"
+    "https://w3id.org/security/jws/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
   "type": [
@@ -83,10 +83,9 @@ const (
     "jws": "eyJ..."
   }]                  
 }`
-	sampleDataCIDv1 = "bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne"
-	sampleDataCIDv0 = "QmW4LWKX9pD1ak6iZG3J7oC6xmp93476Dz1HCnQtMdPnNk"
-
-	httpScheme = "http"
+	sampleDataCIDv1 = "bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce"
+	sampleDataCIDv0 = "QmTcU88RwoPzEuLar92g7wiTG9suWwuTwHn6szDBERpzkp"
+	httpScheme      = "http"
 )
 
 func TestNew(t *testing.T) {
@@ -317,7 +316,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, err := resolver.Resolve(id, cid, []byte(sampleData))
 		require.EqualError(t, err, "failure while storing the data in the local CAS: "+
 			"successfully stored data into the local CAS, but the CID produced by the local CAS "+
-			"(bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne) does not match the CID from the original request "+
+			"(bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce) does not match the CID from the original request "+
 			"(bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy)")
 		require.Nil(t, data)
 	})
@@ -345,7 +344,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
 			"WebCAS endpoint: failed to retrieve data from")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne was found: content not found")
+			"no content at bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce was found: content not found")
 		require.Nil(t, data)
 	})
 	t.Run("Fail to write to local CAS", func(t *testing.T) {
@@ -403,7 +402,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.EqualError(t, err, "failed to get data stored at "+
-			"bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne from the local CAS: "+
+			"bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce from the local CAS: "+
 			"failed to get content from the underlying storage provider: get error")
 		require.Nil(t, data)
 	})
@@ -441,9 +440,9 @@ func TestResolver_Resolve(t *testing.T) {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "failed to determine WebCAS URL via WebFinger: "+
 				"failed to get response (URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
-				`ExistentDomain/cas/bafkreibnpiiqwd6v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne): Get "http://`+
-				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/bafkreibnpiiqwd6"+
-				`v75h4nzd4txia2hncoxlihv2e6qdbeiruyfb2i7qkne": dial tcp: lookup NonExistentDomain`)
+				`ExistentDomain/cas/bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce): Get "http://`+
+				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/bafkreibvw52uq"+
+				`clnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce": dial tcp: lookup NonExistentDomain`)
 			require.Nil(t, data)
 		})
 		t.Run("unexpected status code", func(t *testing.T) {
