@@ -404,6 +404,12 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err = os.Setenv(casTypeEnvKey, "")
 		require.NoError(t, err)
 
+		defer func() {
+			require.NoError(t, os.Unsetenv(hostURLEnvKey))
+			require.NoError(t, os.Unsetenv(vctURLEnvKey))
+			require.NoError(t, os.Unsetenv(casTypeEnvKey))
+		}()
+
 		err = startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "CAS_TYPE value is empty", err.Error())
@@ -541,6 +547,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + startupDelayFlagName, "1",
+		"--" + casTypeFlagName, "local",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -564,9 +571,6 @@ func TestStartCmdValidArgs(t *testing.T) {
 
 func setEnvVars(t *testing.T, databaseType string) {
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
-	require.NoError(t, err)
-
-	err = os.Setenv(vctURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
 	err = os.Setenv(casTypeEnvKey, "local")

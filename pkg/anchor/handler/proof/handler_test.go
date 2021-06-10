@@ -638,7 +638,7 @@ const anchorCredTwoProofs = `
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
-    "https://w3id.org/jws/v1"
+    "https://w3id.org/security/jws/v1"
   ],
   "credentialSubject": {
     "coreIndex": "QmTTXin1m7Afk3mQJPMZQdCQAafid7eUNsUDYVcLdSRU2s",
@@ -680,7 +680,7 @@ const anchorCredTwoProofs = `
 const witnessProof = `{
   "@context": [
     "https://w3id.org/security/v1",
-    "https://w3id.org/jws/v1"
+    "https://w3id.org/security/jws/v1"
   ],
   "proof": {
     "created": "2021-04-20T20:05:35.055Z",
