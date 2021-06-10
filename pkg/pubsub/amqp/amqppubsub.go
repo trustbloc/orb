@@ -9,6 +9,7 @@ package amqp
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill-amqp/pkg/amqp"
@@ -17,6 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
@@ -52,6 +54,8 @@ type PubSub struct {
 	config     amqp.Config
 	subscriber subscriber
 	publisher  publisher
+	pools      []*pooledSubscriber
+	mutex      sync.RWMutex
 }
 
 // New returns a new AMQP publisher/subscriber.
@@ -61,7 +65,9 @@ func New(cfg Config) *PubSub {
 		config: amqp.NewDurableQueueConfig(cfg.URI),
 	}
 
-	p.Lifecycle = lifecycle.New("amqp", lifecycle.WithStart(p.start))
+	p.Lifecycle = lifecycle.New("amqp",
+		lifecycle.WithStart(p.start),
+		lifecycle.WithStop(p.stop))
 
 	// Start the service immediately.
 	p.Start()
@@ -72,13 +78,43 @@ func New(cfg Config) *PubSub {
 // Subscribe subscribes to a topic and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
 func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+	return p.SubscribeWithOpts(ctx, topic)
+}
+
+// SubscribeWithOpts subscribes to a topic using the given options, and returns the Go channel over which messages
+// are sent. The returned channel will be closed when Close() is called on this struct.
+func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
+	opts ...spi.Option) (<-chan *message.Message, error) {
 	if p.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	logger.Debugf("Subscribing to topic [%s]", topic)
+	options := &spi.Options{}
 
-	return p.subscriber.Subscribe(ctx, topic)
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	if options.PoolSize == 0 {
+		logger.Debugf("Subscribing to topic [%s]", topic)
+
+		return p.subscriber.Subscribe(ctx, topic)
+	}
+
+	logger.Debugf("Creating subscriber pool for topic [%s], Size [%d]", topic, options.PoolSize)
+
+	pool, err := newPooledSubscriber(ctx, options.PoolSize, p.subscriber, topic)
+	if err != nil {
+		return nil, fmt.Errorf("subscriber pool: %w", err)
+	}
+
+	p.mutex.Lock()
+	p.pools = append(p.pools, pool)
+	p.mutex.Unlock()
+
+	pool.start()
+
+	return pool.msgChan, nil
 }
 
 // Publish publishes the given messages to the given topic.
@@ -96,6 +132,10 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 func (p *PubSub) Close() error {
 	p.Stop()
 
+	return nil
+}
+
+func (p *PubSub) stop() {
 	logger.Debugf("Closing publisher...")
 
 	if err := p.publisher.Close(); err != nil {
@@ -108,7 +148,14 @@ func (p *PubSub) Close() error {
 		logger.Warnf("Error closing subscriber: %s", err)
 	}
 
-	return nil
+	logger.Debugf("Closing pools...")
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	for _, s := range p.pools {
+		s.stop()
+	}
 }
 
 func (p *PubSub) start() {

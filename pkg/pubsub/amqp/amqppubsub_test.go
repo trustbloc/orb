@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 const (
@@ -29,9 +31,9 @@ const (
 )
 
 func TestAMQP(t *testing.T) {
-	const topic = "some-topic"
-
 	t.Run("Success", func(t *testing.T) {
+		const topic = "some-topic"
+
 		p := New(Config{URI: "amqp://guest:guest@localhost:5672/"})
 		require.NotNil(t, p)
 
@@ -59,6 +61,63 @@ func TestAMQP(t *testing.T) {
 		require.Panics(t, func() {
 			p := New(Config{URI: "amqp://guest:guest@localhost:9999/", MaxConnectRetries: 3})
 			require.NotNil(t, p)
+		})
+	})
+
+	t.Run("Pooled subscriber -> success", func(t *testing.T) {
+		const (
+			n     = 100
+			topic = "pooled"
+		)
+
+		publishedMessages := &sync.Map{}
+		receivedMessages := &sync.Map{}
+
+		p := New(Config{
+			URI: "amqp://guest:guest@localhost:5672/",
+		})
+		require.NotNil(t, p)
+		defer func() {
+			require.NoError(t, p.Close())
+		}()
+
+		msgChan, err := p.SubscribeWithOpts(context.Background(), topic, spi.WithPool(10))
+		require.NoError(t, err)
+
+		var wg sync.WaitGroup
+		wg.Add(n)
+
+		go func(msgChan <-chan *message.Message) {
+			for m := range msgChan {
+				go func(msg *message.Message) {
+					receivedMessages.Store(msg.UUID, msg)
+
+					// Add a delay to simulate processing.
+					time.Sleep(100 * time.Millisecond)
+
+					msg.Ack()
+
+					wg.Done()
+				}(m)
+			}
+		}(msgChan)
+
+		for i := 0; i < n; i++ {
+			go func() {
+				msg := message.NewMessage(watermill.NewUUID(), []byte("some payload"))
+				publishedMessages.Store(msg.UUID, msg)
+
+				require.NoError(t, p.Publish(topic, msg))
+			}()
+		}
+
+		wg.Wait()
+
+		publishedMessages.Range(func(msgID, _ interface{}) bool {
+			_, ok := receivedMessages.Load(msgID)
+			require.Truef(t, ok, "message not received: %s", msgID)
+
+			return true
 		})
 	})
 }
