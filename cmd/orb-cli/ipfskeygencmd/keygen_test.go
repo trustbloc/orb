@@ -83,6 +83,8 @@ func TestGenerateKey(t *testing.T) {
 
 		var args []string
 		args = append(args, ipfsURL(serv.URL)...)
+		args = append(args,
+			privateKey("6dFbUloT+39dRpeCAu8gVYNJu3CXD/6SJsBGSSpe0k4ON1FS5idB/HHMkjYAsrBXm+34xT1NTGFTPX3mZFsiLA")...)
 		args = append(args, keyName("k1")...)
 		args = append(args, keyDir(os.TempDir())...)
 
@@ -95,6 +97,10 @@ func TestGenerateKey(t *testing.T) {
 
 func ipfsURL(value string) []string {
 	return []string{flag + ipfsURLFlagName, value}
+}
+
+func privateKey(value string) []string {
+	return []string{flag + privateKeyED25519FlagName, value}
 }
 
 func keyName(value string) []string {
