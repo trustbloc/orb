@@ -124,7 +124,13 @@ func (p *PubSub) stop() {
 
 // Subscribe subscribes to a topic and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
-func (p *PubSub) Subscribe(_ context.Context, topic string) (<-chan *message.Message, error) {
+func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+	return p.SubscribeWithOpts(ctx, topic)
+}
+
+// SubscribeWithOpts subscribes to a topic and returns the Go channel over which messages
+// are sent. The returned channel will be closed when Close() is called on this struct.
+func (p *PubSub) SubscribeWithOpts(_ context.Context, topic string, _ ...spi.Option) (<-chan *message.Message, error) {
 	if p.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}

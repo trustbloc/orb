@@ -56,7 +56,6 @@ type Inbox struct {
 
 	router          *message.Router
 	httpSubscriber  *httpsubscriber.Subscriber
-	pubSub          pubSub
 	msgChannel      <-chan *message.Message
 	activityHandler service.ActivityHandler
 	activityStore   store.Store
@@ -70,7 +69,6 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		Config:          cfg,
 		activityHandler: activityHandler,
 		activityStore:   s,
-		pubSub:          pubSub,
 		jsonUnmarshal:   json.Unmarshal,
 	}
 
