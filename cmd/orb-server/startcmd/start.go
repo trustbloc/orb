@@ -83,6 +83,7 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/context/opqueue"
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	anchorhandler "github.com/trustbloc/orb/pkg/didanchor/resthandler"
@@ -95,6 +96,7 @@ import (
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/resolver/document"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
@@ -144,6 +146,7 @@ const (
 
 type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
 }
@@ -151,6 +154,7 @@ type pubSub interface {
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct {
 	activityPubService apspi.ServiceLifecycle
+	pubSub             pubSub
 }
 
 // Start starts the http server
@@ -168,6 +172,10 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 
 	// Wait for interrupt
 	<-interrupt
+
+	if err := s.pubSub.Close(); err != nil {
+		logger.Warnf("Error closing publisher/subscriber: %s", err)
+	}
 
 	s.activityPubService.Stop()
 
@@ -577,9 +585,14 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness)
 
+	opQueue, err := opqueue.New(opqueue.Config{PoolSize: parameters.opQueuePoolSize}, pubSub)
+	if err != nil {
+		return fmt.Errorf("failed to create operation queue: %s", err.Error())
+	}
+
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,
-		sidetreecontext.New(pc, anchorWriter),
+		sidetreecontext.New(pc, anchorWriter, opQueue),
 		batch.WithBatchTimeout(parameters.batchWriterTimeout))
 	if err != nil {
 		return fmt.Errorf("failed to create batch writer: %s", err.Error())
@@ -691,6 +704,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	srv := &HTTPServer{
 		activityPubService: activityPubService,
+		pubSub:             pubSub,
 	}
 
 	return srv.Start(httpServer)

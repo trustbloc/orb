@@ -81,7 +81,7 @@ Feature:
       Then check success response contains "#canonicalDID"
 
       # Wait long enough so that domain1 gives up attempting to deliver the anchor credential to domain3
-      Then we wait 5 seconds
+      Then we wait 2 seconds
 
       Then container "orb-domain3" is started
       Then we wait 10 seconds
@@ -139,9 +139,18 @@ Feature:
     Scenario: concurrent requests plus server shutdown tests
 
      # write batch of DIDs to multiple servers and check them
-     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-     Then we wait 5 seconds
-     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+     When client sends request to "https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+     And we wait 5 seconds
+
+     # Enable the following code after #477 has been implemented since, currently the witnessed anchor credential queue
+     # has no retry mechanism and messages may be lost.
+#     And we wait 2 seconds
+#     # Stop orb2.domain1. The other instance in the domain should process any pending operations since
+#     # we're using a durable operation queue.
+#     Then container "orb2-domain1" is stopped
+#     And we wait 10 seconds
+
+     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
      Then container "orb-domain1" is stopped
      Then container "orb2-domain1" is stopped

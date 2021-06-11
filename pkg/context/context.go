@@ -10,15 +10,14 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch/cutter"
-	"github.com/trustbloc/sidetree-core-go/pkg/batch/opqueue"
 )
 
 // New returns a new server context.
-func New(pc protocol.Client, aw batch.AnchorWriter) *ServerContext {
+func New(pc protocol.Client, aw batch.AnchorWriter, opQueue cutter.OperationQueue) *ServerContext {
 	return &ServerContext{
 		ProtocolClient: pc,
 		AnchorWriter:   aw,
-		OpQueue:        &opqueue.MemQueue{},
+		OpQueue:        opQueue,
 	}
 }
 
@@ -26,7 +25,7 @@ func New(pc protocol.Client, aw batch.AnchorWriter) *ServerContext {
 type ServerContext struct {
 	ProtocolClient protocol.Client
 	AnchorWriter   batch.AnchorWriter
-	OpQueue        *opqueue.MemQueue
+	OpQueue        cutter.OperationQueue
 }
 
 // Protocol returns the ProtocolClient.

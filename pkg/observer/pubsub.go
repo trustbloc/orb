@@ -60,7 +60,6 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 	h.Lifecycle = lifecycle.New("observer",
 		lifecycle.WithStart(h.start),
-		lifecycle.WithStop(h.stop),
 	)
 
 	anchorCredChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
@@ -111,16 +110,6 @@ func (h *PubSub) PublishDID(did string) error {
 func (h *PubSub) start() {
 	// Start the message listener
 	go h.listen()
-}
-
-func (h *PubSub) stop() {
-	if err := h.publisher.Close(); err != nil {
-		logger.Warnf("Error closing publisher: %s", err)
-
-		return
-	}
-
-	logger.Debugf("Closed publisher")
 }
 
 func (h *PubSub) listen() {

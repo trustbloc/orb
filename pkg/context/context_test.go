@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/batch/opqueue"
 )
 
 func TestNew(t *testing.T) {
-	c := New(nil, nil)
+	c := New(nil, nil, &opqueue.MemQueue{})
 	require.NotNil(t, c)
 
 	require.Equal(t, nil, c.Anchor())
