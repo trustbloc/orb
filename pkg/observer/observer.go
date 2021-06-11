@@ -43,7 +43,7 @@ type OperationFilter interface {
 }
 
 type didAnchors interface {
-	Put(dids []string, cid string) error
+	PutBulk(dids []string, cid string) error
 }
 
 // Publisher publishes anchors and DIDs to a message queue for processing.
@@ -223,7 +223,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	// update global did/anchor references
 	acSuffixes := getKeys(anchorPayload.PreviousAnchors)
 
-	err = o.DidAnchors.Put(acSuffixes, equivalentRef)
+	err = o.DidAnchors.PutBulk(acSuffixes, equivalentRef)
 	if err != nil {
 		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.CID, err)
 	}

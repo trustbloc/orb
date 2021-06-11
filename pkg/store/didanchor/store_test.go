@@ -13,6 +13,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/didanchor"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -40,18 +41,18 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestStore_Put(t *testing.T) {
+func TestStore_PutAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
 		require.NoError(t, err)
 	})
 
-	t.Run("error - store error ", func(t *testing.T) {
+	t.Run("error - store error", func(t *testing.T) {
 		store := &mocks.Store{}
 		store.BatchReturns(fmt.Errorf("batch error"))
 
@@ -61,23 +62,23 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
 }
 
-func TestStore_Get(t *testing.T) {
-	t.Run("test success", func(t *testing.T) {
+func TestStore_GetAll(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
 		require.NoError(t, err)
 
-		anchors, err := s.Get([]string{"suffix-1", "suffix-2"})
+		anchors, err := s.GetBulk([]string{"suffix-1", "suffix-2"})
 		require.NoError(t, err)
 		require.Equal(t, "cid", anchors[0])
 		require.Equal(t, "cid", anchors[1])
@@ -89,16 +90,16 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put([]string{"suffix-1"}, "cid")
+		err = s.PutBulk([]string{"suffix-1"}, "cid")
 		require.NoError(t, err)
 
-		anchors, err := s.Get([]string{"suffix-1", "suffix-2"})
+		anchors, err := s.GetBulk([]string{"suffix-1", "suffix-2"})
 		require.NoError(t, err)
 		require.Equal(t, "cid", anchors[0])
 		require.Equal(t, "", anchors[1])
 	})
 
-	t.Run("error - store error ", func(t *testing.T) {
+	t.Run("error - store error", func(t *testing.T) {
 		store := &mocks.Store{}
 		store.GetBulkReturns(nil, fmt.Errorf("batch error"))
 
@@ -108,9 +109,53 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		anchors, err := s.Get([]string{"suffix"})
+		anchors, err := s.GetBulk([]string{"suffix"})
 		require.Error(t, err)
 		require.Nil(t, anchors)
 		require.Contains(t, err.Error(), "batch error")
+	})
+}
+
+func TestStore_Get(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
+		require.NoError(t, err)
+
+		anchor, err := s.Get("suffix-1")
+		require.NoError(t, err)
+		require.Equal(t, "cid", anchor)
+	})
+
+	t.Run("error - anchor cid not found", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		anchor, err := s.Get("non-existent")
+		require.Error(t, err)
+		require.Empty(t, anchor)
+		require.Equal(t, err, didanchor.ErrDataNotFound)
+	})
+
+	t.Run("error - store error", func(t *testing.T) {
+		store := &mocks.Store{}
+		store.GetReturns(nil, fmt.Errorf("store error"))
+
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		anchors, err := s.Get("suffix")
+		require.Error(t, err)
+		require.Empty(t, anchors)
+		require.Contains(t, err.Error(), "store error")
 	})
 }

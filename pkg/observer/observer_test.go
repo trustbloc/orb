@@ -549,14 +549,10 @@ type mockDidAnchor struct {
 	Err error
 }
 
-func (m *mockDidAnchor) Put(_ []string, _ string) error {
+func (m *mockDidAnchor) PutBulk(_ []string, _ string) error {
 	if m.Err != nil {
 		return m.Err
 	}
 
 	return nil
-}
-
-func (m *mockDidAnchor) Get(did []string) ([]string, error) {
-	return []string{"cid"}, nil
 }
