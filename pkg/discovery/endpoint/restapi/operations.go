@@ -149,7 +149,7 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 // Responses:
 //    default: genericError
 //        200: webFingerResp
-func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) { //nolint:funlen
+func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 	queryValue := r.URL.Query()["resource"]
 	if len(queryValue) == 0 {
 		writeErrorResponse(rw, http.StatusBadRequest, "resource query string not found")
@@ -157,8 +157,10 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) { 
 		return
 	}
 
-	resource := queryValue[0]
+	o.writeResponseForResourceRequest(rw, queryValue[0])
+}
 
+func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) { //nolint:funlen
 	switch {
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
 		resp := &WebFingerResponse{
@@ -195,11 +197,13 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) { 
 		writeResponse(rw, resp, http.StatusOK)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
+	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/services/orb")):
+		o.handleWitnessQuery(rw, resource)
 	case resource == o.baseURL:
 		resp := &WebFingerResponse{
 			Subject: o.baseURL,
 			Properties: map[string]interface{}{
-				witnessType:  fmt.Sprintf("%s/witness", o.baseURL),
+				witnessType:  fmt.Sprintf("%s/services/orb", o.baseURL),
 				casType:      fmt.Sprintf("%s%s", o.baseURL, o.webCASPath),
 				minResolvers: o.discoveryMinimumResolvers,
 				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
@@ -241,6 +245,17 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 			WebFingerLink{
 				Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", v, cid),
 			})
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
+}
+
+func (o *Operation) handleWitnessQuery(rw http.ResponseWriter, resource string) {
+	resp := &WebFingerResponse{
+		Subject: resource,
+		Links: []WebFingerLink{
+			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/services/orb", o.baseURL)},
+		},
 	}
 
 	writeResponse(rw, resp, http.StatusOK)

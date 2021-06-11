@@ -155,7 +155,7 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, "http://base", w.Subject)
 		require.Equal(t, "http://base/resolve", w.Links[0].Href)
 		require.Equal(t, "http://domain1/resolve", w.Links[1].Href)
-		require.Equal(t, "http://base/witness", w.Properties["https://trustbloc.dev/ns/witness"].(string))
+		require.Equal(t, "http://base/services/orb", w.Properties["https://trustbloc.dev/ns/witness"].(string))
 		require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
 		require.Equal(t, "http://base/cas", w.Properties["https://trustbloc.dev/ns/cas"].(string))
 		require.Equal(t, "http://base/vct", w.Properties["https://trustbloc.dev/ns/vct"].(string))
@@ -190,6 +190,34 @@ func TestWebFinger(t *testing.T) {
 			"http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
 		require.Equal(t, w.Links[2].Href,
 			"http://domain1/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y")
+		require.Empty(t, w.Properties)
+	})
+
+	t.Run("test services resource", func(t *testing.T) {
+		c, err := restapi.New(&restapi.Config{
+			OperationPath:             "/op",
+			ResolutionPath:            "/resolve",
+			WebCASPath:                "/cas",
+			BaseURL:                   "http://base",
+			DiscoveryDomains:          []string{"http://domain1"},
+			DiscoveryMinimumResolvers: 2,
+		})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, webFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, webFingerEndpoint+
+			"?resource=http://base/services/orb",
+			nil, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var w restapi.WebFingerResponse
+
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+		require.Len(t, w.Links, 1)
+		require.Equal(t, w.Links[0].Href,
+			"http://base/services/orb")
 		require.Empty(t, w.Properties)
 	})
 }
