@@ -97,7 +97,7 @@ type anchorBuilder interface {
 }
 
 type didAnchors interface {
-	Get(did []string) ([]string, error)
+	GetBulk(did []string) ([]string, error)
 }
 
 type vcStore interface {
@@ -170,7 +170,7 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]str
 
 	suffixes := getSuffixes(refs)
 
-	anchors, err := c.DidAnchors.Get(suffixes)
+	anchors, err := c.DidAnchors.GetBulk(suffixes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve latest did anchor references for suffixes[%s]", suffixes)
 	}
@@ -527,7 +527,6 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 			return nil, fmt.Errorf("operation type '%s' not supported for assembling witness list", ref.Type)
 		}
 
-		// TODO: string or array of strings?
 		anchorOrigin, ok := anchorOriginObj.(string)
 		if !ok {
 			return nil, fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)

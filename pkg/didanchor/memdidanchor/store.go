@@ -8,6 +8,8 @@ package memdidanchor
 
 import (
 	"sync"
+
+	"github.com/trustbloc/orb/pkg/didanchor"
 )
 
 // DidAnchor is in-memory implementation of did/anchor references.
@@ -21,8 +23,8 @@ func New() *DidAnchor {
 	return &DidAnchor{m: make(map[string]string)}
 }
 
-// Put saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
-func (ref *DidAnchor) Put(suffixes []string, cid string) error {
+// PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
+func (ref *DidAnchor) PutBulk(suffixes []string, cid string) error {
 	ref.Lock()
 	defer ref.Unlock()
 
@@ -33,8 +35,8 @@ func (ref *DidAnchor) Put(suffixes []string, cid string) error {
 	return nil
 }
 
-// Get retrieves anchors for specified suffixes.
-func (ref *DidAnchor) Get(suffixes []string) ([]string, error) {
+// GetBulk retrieves anchors for specified suffixes.
+func (ref *DidAnchor) GetBulk(suffixes []string) ([]string, error) {
 	ref.RLock()
 	defer ref.RUnlock()
 
@@ -50,4 +52,17 @@ func (ref *DidAnchor) Get(suffixes []string) ([]string, error) {
 	}
 
 	return anchors, nil
+}
+
+// Get retrieves anchor for specified suffix.
+func (ref *DidAnchor) Get(suffix string) (string, error) {
+	ref.RLock()
+	defer ref.RUnlock()
+
+	anchor, ok := ref.m[suffix]
+	if !ok {
+		return "", didanchor.ErrDataNotFound
+	}
+
+	return anchor, nil
 }

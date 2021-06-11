@@ -7,10 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package didanchor
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/pkg/didanchor"
 )
 
 const nameSpace = "didanchor"
@@ -34,8 +37,8 @@ type Store struct {
 	store storage.Store
 }
 
-// Put saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
-func (s *Store) Put(suffixes []string, cid string) error {
+// PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
+func (s *Store) PutBulk(suffixes []string, cid string) error {
 	operations := make([]storage.Operation, len(suffixes))
 
 	for i, suffix := range suffixes {
@@ -57,8 +60,8 @@ func (s *Store) Put(suffixes []string, cid string) error {
 	return nil
 }
 
-// Get retrieves anchors for specified suffixes.
-func (s *Store) Get(suffixes []string) ([]string, error) {
+// GetBulk retrieves anchors for specified suffixes.
+func (s *Store) GetBulk(suffixes []string) ([]string, error) {
 	anchorBytes, err := s.store.GetBulk(suffixes...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get did anchor reference: %w", err)
@@ -77,4 +80,22 @@ func (s *Store) Get(suffixes []string) ([]string, error) {
 	logger.Debugf("retrieved latest anchors%s for suffixes%s", anchors, suffixes)
 
 	return anchors, nil
+}
+
+// Get retrieves anchor for specified suffix.
+func (s *Store) Get(suffix string) (string, error) {
+	anchorBytes, err := s.store.Get(suffix)
+	if err != nil {
+		if errors.Is(err, storage.ErrDataNotFound) {
+			return "", didanchor.ErrDataNotFound
+		}
+
+		return "", fmt.Errorf("failed to get content from the underlying storage provider: %w", err)
+	}
+
+	anchor := string(anchorBytes)
+
+	logger.Debugf("retrieved latest anchor[%s] for suffix[%s]", anchor, suffix)
+
+	return anchor, nil
 }

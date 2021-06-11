@@ -551,6 +551,44 @@ func (d *DIDOrbSteps) checkResponseIsSuccess() error {
 	return nil
 }
 
+func (d *DIDOrbSteps) getAnchor(url string) error {
+	parts := strings.Split(url, `/anchor`)
+
+	if len(parts) != 2 {
+		return fmt.Errorf("wrong format of anchor URL: %s", url)
+	}
+
+	externalURL := parts[0]
+
+	localURL, ok := localURLs[externalURL]
+	if !ok {
+		return fmt.Errorf("server URL not configured for: %s", url)
+	}
+
+	anchorURL := strings.ReplaceAll(url, externalURL, localURL)
+
+	cid, suffix, err := extractCIDAndSuffix(d.canonicalDID)
+	if err != nil {
+		return err
+	}
+
+	d.resp, err = d.httpClient.Get(anchorURL + "/" + suffix)
+
+	logger.Infof("sending request: %s", anchorURL+"/"+suffix)
+
+	if err == nil && d.resp.Payload != nil {
+		cidWithHint := string(d.resp.Payload)
+
+		if !strings.Contains(cidWithHint, cid) {
+			return fmt.Errorf("expecting cid with hint '%s' to contain '%s'", cidWithHint, cid)
+		}
+
+		logger.Infof("got cid %s for suffix %s", cidWithHint, suffix)
+	}
+
+	return err
+}
+
 func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 	err := d.setSidetreeURL(url)
 	if err != nil {
@@ -1063,6 +1101,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
+	s.Step(`^client sends request to "([^"]*)" to request anchor for suffix$`, d.getAnchor)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
