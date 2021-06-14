@@ -31,6 +31,8 @@ const (
 	witnessType  = "https://trustbloc.dev/ns/witness"
 	casType      = "https://trustbloc.dev/ns/cas"
 	vctType      = "https://trustbloc.dev/ns/vct"
+	originType   = "https://trustbloc.dev/ns/origin"
+	anchorType   = "https://trustbloc.dev/ns/anchor"
 	context      = "https://w3id.org/did/v1"
 )
 
@@ -160,7 +162,8 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 	o.writeResponseForResourceRequest(rw, queryValue[0])
 }
 
-func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) { //nolint:funlen
+//nolint:funlen,gocyclo,cyclop
+func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) {
 	switch {
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
 		resp := &WebFingerResponse{
@@ -199,6 +202,10 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		o.handleWebCASQuery(rw, resource)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/services/orb")):
 		o.handleWitnessQuery(rw, resource)
+	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/anchor")):
+		o.handleAnchorQuery(rw, resource)
+	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/origin")):
+		o.handleOriginQuery(rw, resource)
 	case resource == o.baseURL:
 		resp := &WebFingerResponse{
 			Subject: o.baseURL,
@@ -207,6 +214,8 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 				casType:      fmt.Sprintf("%s%s", o.baseURL, o.webCASPath),
 				minResolvers: o.discoveryMinimumResolvers,
 				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
+				anchorType:   fmt.Sprintf("%s/anchor", o.baseURL),
+				originType:   fmt.Sprintf("%s/origin", o.baseURL),
 			},
 			Links: []WebFingerLink{
 				{Rel: "self", Href: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath)},
@@ -255,6 +264,28 @@ func (o *Operation) handleWitnessQuery(rw http.ResponseWriter, resource string) 
 		Subject: resource,
 		Links: []WebFingerLink{
 			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/services/orb", o.baseURL)},
+		},
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
+}
+
+func (o *Operation) handleAnchorQuery(rw http.ResponseWriter, resource string) {
+	resp := &WebFingerResponse{
+		Subject: resource,
+		Links: []WebFingerLink{
+			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/anchor", o.baseURL)},
+		},
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
+}
+
+func (o *Operation) handleOriginQuery(rw http.ResponseWriter, resource string) {
+	resp := &WebFingerResponse{
+		Subject: resource,
+		Links: []WebFingerLink{
+			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/origin", o.baseURL)},
 		},
 	}
 
