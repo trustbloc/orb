@@ -7,24 +7,39 @@ SPDX-License-Identifier: Apache-2.0
 package proof
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 )
 
 var logger = log.New("proof-handler")
 
+type pubSub interface {
+	Publish(topic string, messages ...*message.Message) error
+	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+}
+
+type vcPublisher interface {
+	Publish(vc *verifiable.Credential) error
+}
+
 // New creates new proof handler.
-func New(providers *Providers, vcChan chan *verifiable.Credential) *WitnessProofHandler {
-	return &WitnessProofHandler{Providers: providers, vcCh: vcChan}
+func New(providers *Providers, pubSub pubSub) *WitnessProofHandler {
+	return &WitnessProofHandler{
+		Providers: providers,
+		publisher: vcpubsub.NewPublisher(pubSub),
+	}
 }
 
 // Providers contains all of the providers required by the handler.
@@ -40,7 +55,7 @@ type Providers struct {
 // WitnessProofHandler handles an anchor credential witness proof.
 type WitnessProofHandler struct {
 	*Providers
-	vcCh chan *verifiable.Credential
+	publisher vcPublisher
 }
 
 type witnessStore interface {
@@ -155,8 +170,10 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 			return fmt.Errorf("failed to change status to 'completed' for credential[%s]: %w", vc.ID, err)
 		}
 
-		// TODO: we may have synchronisation issues here
-		h.vcCh <- vc
+		err = h.publisher.Publish(vc)
+		if err != nil {
+			return fmt.Errorf("publish credential[%s]: %w", vc.ID, err)
+		}
 	}
 
 	return nil

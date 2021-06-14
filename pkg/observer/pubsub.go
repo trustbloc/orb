@@ -62,12 +62,16 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 		lifecycle.WithStart(h.start),
 	)
 
+	logger.Infof("Subscribing to topic [%s]", anchorTopic)
+
 	anchorCredChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", anchorTopic, err)
 	}
 
 	h.anchorCredChan = anchorCredChan
+
+	logger.Infof("Subscribing to topic [%s]", didTopic)
 
 	didChan, err := pubSub.Subscribe(context.Background(), didTopic)
 	if err != nil {
@@ -90,7 +94,12 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 
 	logger.Debugf("Publishing anchors to topic [%s]: %s", anchorTopic, anchorInfo)
 
-	return h.publisher.Publish(anchorTopic, msg)
+	err = h.publisher.Publish(anchorTopic, msg)
+	if err != nil {
+		return errors.NewTransient(err)
+	}
+
+	return nil
 }
 
 // PublishDID publishes the DID to the queue for processing.
@@ -179,11 +188,22 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 }
 
 func (h *PubSub) ackNackMessage(msg *message.Message, err error) {
-	if errors.IsTransient(err) {
+	switch {
+	case err == nil:
+		logger.Debugf("Acking message [%s]", msg.UUID)
+
+		msg.Ack()
+	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
+		logger.Warnf("Nacking message [%s] since it could not be delivered due to a transient error: %s",
+			msg.UUID, err)
+
 		msg.Nack()
-	} else {
+	default:
 		// A persistent message should not be retried.
+		logger.Warnf("Acking message [%s] since it could not be delivered due to a persistent error: %s",
+			msg.UUID, err)
+
 		msg.Ack()
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("anchor-graph")
@@ -58,7 +59,7 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, string, error) { //nolin
 
 	cid, hint, err := g.CasWriter.Write(anchorBytes)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to add anchor to graph: %w", err)
+		return "", "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
 	logger.Debugf("added anchor[%s]: %s", cid, string(anchorBytes))

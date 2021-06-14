@@ -426,9 +426,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
-	// used to notify anchor writer about witnessed anchor credential
-	vcCh := make(chan *verifiable.Credential, chBuffer)
-
 	vcStore, err := vcstore.New(storeProviders.provider, orbDocumentLoader)
 	if err != nil {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
@@ -518,7 +515,7 @@ func startOrbServices(parameters *orbParameters) error {
 			WitnessStore:  witnessProofStore,
 			WitnessPolicy: witnessPolicy,
 		},
-		vcCh)
+		pubSub)
 
 	witness := vct.New(parameters.vctURL, vcSigner,
 		vct.WithHTTPClient(httpClient),
@@ -579,12 +576,16 @@ func startOrbServices(parameters *orbParameters) error {
 		WitnessStore:  witnessProofStore,
 	}
 
-	anchorWriter := writer.New(parameters.didNamespace,
+	anchorWriter, err := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
-		o.Publisher(), vcCh,
+		o.Publisher(), pubSub,
 		parameters.maxWitnessDelay,
-		parameters.signWithLocalWitness)
+		parameters.signWithLocalWitness,
+		orbDocumentLoader)
+	if err != nil {
+		return fmt.Errorf("failed to create writer: %s", err.Error())
+	}
 
 	opQueue, err := opqueue.New(opqueue.Config{PoolSize: parameters.opQueuePoolSize}, pubSub)
 	if err != nil {
