@@ -53,6 +53,11 @@ jobs:
         timeout-minutes: 20
         run: make bdd-test
 
+      - uses: actions/upload-artifact@v2
+        with:
+          name: logs
+          path: test/bdd/docker-compose.log
+
   checks:
     name: Checks
     timeout-minutes: 10
