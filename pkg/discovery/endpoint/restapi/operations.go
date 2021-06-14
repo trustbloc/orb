@@ -28,12 +28,13 @@ const (
 
 const (
 	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
-	witnessType  = "https://trustbloc.dev/ns/witness"
-	casType      = "https://trustbloc.dev/ns/cas"
-	vctType      = "https://trustbloc.dev/ns/vct"
-	originType   = "https://trustbloc.dev/ns/origin"
-	anchorType   = "https://trustbloc.dev/ns/anchor"
-	context      = "https://w3id.org/did/v1"
+	// WitnessType is used to indicate a witness in a WebFinger response.
+	WitnessType = "https://trustbloc.dev/ns/witness"
+	casType     = "https://trustbloc.dev/ns/cas"
+	vctType     = "https://trustbloc.dev/ns/vct"
+	originType  = "https://trustbloc.dev/ns/origin"
+	anchorType  = "https://trustbloc.dev/ns/anchor"
+	context     = "https://w3id.org/did/v1"
 )
 
 // New returns discovery operations.
@@ -210,7 +211,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		resp := &WebFingerResponse{
 			Subject: o.baseURL,
 			Properties: map[string]interface{}{
-				witnessType:  fmt.Sprintf("%s/services/orb", o.baseURL),
+				WitnessType:  fmt.Sprintf("%s/services/orb", o.baseURL),
 				casType:      fmt.Sprintf("%s%s", o.baseURL, o.webCASPath),
 				minResolvers: o.discoveryMinimumResolvers,
 				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
