@@ -106,14 +106,14 @@ Feature:
     When client discover orb endpoints
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
-    Then we wait 2 seconds
+    Then we wait 5 seconds
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
     Then check for request success
-    Then we wait 2 seconds
+    Then we wait 5 seconds
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "recoveryKey"
@@ -161,21 +161,21 @@ Feature:
       When client discover orb endpoints
       When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#interimDID"
-      Then we wait 2 seconds
+      Then we wait 5 seconds
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "#canonicalDID"
 
       When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
       Then check for request success
-      Then we wait 2 seconds
+      Then we wait 5 seconds
 
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "newService"
 
       When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to remove service endpoint with ID "newService" from DID document
       Then check for request success
-      Then we wait 2 seconds
+      Then we wait 5 seconds
 
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"

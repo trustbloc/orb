@@ -100,6 +100,12 @@ const (
 	mqURLEnvKey        = "MQ_URL"
 	mqURLFlagUsage     = "The URL of the message broker. " + commonEnvVarUsageText + mqURLEnvKey
 
+	mqOpPoolFlagName      = "mq-op-pool"
+	mqOpPoolFlagShorthand = "O"
+	mqOpPoolEnvKey        = "MQ_OP_POOL"
+	mqOpPoolFlagUsage     = "The size of the operation queue subscriber pool. If 0 then a pool will not be created. " +
+		commonEnvVarUsageText + mqOpPoolEnvKey
+
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
 	cidVersionFlagUsage = "The version of the CID format to use for generating CIDs. " +
@@ -255,6 +261,7 @@ type orbParameters struct {
 	httpSignaturesEnabled     bool
 	authTokenDefinitions      []*auth.TokenDef
 	authTokens                map[string]string
+	opQueuePoolSize           uint
 }
 
 type anchorCredentialParams struct {
@@ -320,6 +327,20 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
 		return nil, err
+	}
+
+	mqOpPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var mqOpPoolSize int
+
+	if mqOpPoolStr != "" {
+		mqOpPoolSize, err = strconv.Atoi(mqOpPoolStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid value for operation queue pool size [%s]: %w", mqOpPoolStr, err)
+		}
 	}
 
 	cidVersionString, err := cmdutils.GetUserSetVarFromString(cmd, cidVersionFlagName, cidVersionEnvKey, true)
@@ -484,6 +505,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		ipfsURL:                   ipfsURL,
 		cidVersion:                cidVersion,
 		mqURL:                     mqURL,
+		opQueuePoolSize:           uint(mqOpPoolSize),
 		batchWriterTimeout:        batchWriterTimeout,
 		anchorCredentialParams:    anchorCredentialParams,
 		dbParameters:              dbParams,
@@ -673,6 +695,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
+	startCmd.Flags().StringP(mqOpPoolFlagName, mqOpPoolFlagShorthand, "", mqOpPoolFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
