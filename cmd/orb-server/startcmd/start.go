@@ -87,6 +87,7 @@ import (
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	anchorhandler "github.com/trustbloc/orb/pkg/didanchor/resthandler"
+	originhandler "github.com/trustbloc/orb/pkg/didorigin/resthandler"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
@@ -689,6 +690,7 @@ func startOrbServices(parameters *orbParameters) error {
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
 		auth.NewHandlerWrapper(authCfg, anchorhandler.New(didAnchors)),
+		auth.NewHandlerWrapper(authCfg, originhandler.New(didAnchors, pcp, anchorGraph)),
 		ctxRest,
 	)
 
