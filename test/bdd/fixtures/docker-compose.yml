@@ -173,6 +173,9 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - MQ_URL=amqp://guest:guest@orb.mq.domain2.com:5672/
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
+      - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
@@ -215,6 +218,7 @@ services:
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
+      - orb.mq.domain2.com
     networks:
       - orb_net
 
@@ -240,6 +244,9 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - MQ_URL=amqp://guest:guest@orb.mq.domain3.com:5672/
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
+      - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
@@ -282,6 +289,7 @@ services:
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
+      - orb.mq.domain3.com
     networks:
       - orb_net
 
@@ -470,6 +478,24 @@ services:
     image: rabbitmq:3.8.16
     ports:
       - 5672:5672
+    restart: unless-stopped
+    networks:
+      - orb_net
+
+  orb.mq.domain2.com:
+    container_name: orb.mq.domain2.com
+    image: rabbitmq:3.8.16
+    ports:
+      - 5682:5672
+    restart: unless-stopped
+    networks:
+      - orb_net
+
+  orb.mq.domain3.com:
+    container_name: orb.mq.domain3.com
+    image: rabbitmq:3.8.16
+    ports:
+      - 5692:5672
     restart: unless-stopped
     networks:
       - orb_net

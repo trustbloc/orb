@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package writer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -27,6 +30,8 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
+	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -36,7 +41,6 @@ var logger = log.New("anchor-writer")
 type Writer struct {
 	*Providers
 	namespace            string
-	vcCh                 <-chan *verifiable.Credential
 	anchorPublisher      anchorPublisher
 	apServiceIRI         *url.URL
 	casIRI               *url.URL
@@ -113,14 +117,19 @@ type anchorPublisher interface {
 	PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error
 }
 
+type pubSub interface {
+	Publish(topic string, messages ...*message.Message) error
+	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+}
+
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorPublisher anchorPublisher, vcCh chan *verifiable.Credential,
-	maxWitnessDelay time.Duration, signWithLocalWitness bool) *Writer {
+	anchorPublisher anchorPublisher, pubSub pubSub,
+	maxWitnessDelay time.Duration, signWithLocalWitness bool,
+	documentLoader ld.DocumentLoader) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
-		vcCh:                 vcCh,
 		namespace:            namespace,
 		apServiceIRI:         apServiceIRI,
 		casIRI:               casURL,
@@ -128,9 +137,14 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		signWithLocalWitness: signWithLocalWitness,
 	}
 
-	go w.listenForWitnessedAnchorCredentials()
+	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
+	if err != nil {
+		return nil, fmt.Errorf("new subscriber: %w", err)
+	}
 
-	return w
+	s.Start()
+
+	return w, nil
 }
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
@@ -314,20 +328,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) listenForWitnessedAnchorCredentials() {
-	// TODO: This should be converted to use a message queue (issue #477).
-	logger.Debugf("starting witnessed anchored credentials listener")
-
-	for vc := range c.vcCh {
-		logger.Debugf("got witnessed anchor credential: %s", vc.ID)
-
-		c.handle(vc)
-	}
-
-	logger.Debugf("[%s] witnessed anchor credential listener stopped")
-}
-
-func (c *Writer) handle(vc *verifiable.Credential) {
+func (c *Writer) handle(vc *verifiable.Credential) error {
 	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
 
 	// store anchor credential with witness proofs
@@ -335,16 +336,14 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	if err != nil {
 		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
 
-		// TODO: How to handle recovery after this and all other errors in this handler
-
-		return
+		return errors.NewTransient(fmt.Errorf("store witnessed anchor credential[%s]: %w", vc.ID, err))
 	}
 
 	cid, hint, err := c.AnchorGraph.Add(vc)
 	if err != nil {
 		logger.Errorf("failed to add witnessed anchor credential[%s] to anchor graph: %s", vc.ID, err.Error())
 
-		return
+		return fmt.Errorf("add witnessed anchor credential[%s] to anchor graph: %w", vc.ID, err)
 	}
 
 	fullWebCASURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
@@ -352,16 +351,15 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 		logger.Errorf("failed to construct full WebCAS URL from the following two parts: [%s] and [%s]",
 			c.casIRI.String(), cid)
 
-		return
+		return fmt.Errorf("construct full WebCAS URL from the following two parts: [%s] and [%s]: %w",
+			c.casIRI.String(), cid, err)
 	}
 
 	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{CID: cid, WebCASURL: fullWebCASURL, Hint: hint})
 	if err != nil {
 		logger.Warnf("failed to publish anchors for cid[%s]: %s", cid, err.Error())
 
-		// TODO: How to handle recovery after this and all other errors in this handler
-
-		return
+		return fmt.Errorf("publish anchors for cid[%s]: %w", vc.ID, err)
 	}
 
 	logger.Debugf("posted cid[%s] to anchor channel", cid)
@@ -371,8 +369,11 @@ func (c *Writer) handle(vc *verifiable.Credential) {
 	if err != nil {
 		logger.Warnf("failed to post new create activity for cid[%s]: %s", cid, err.Error())
 
-		return
+		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
+		return fmt.Errorf("post create activity for cid[%s]: %w", cid, err)
 	}
+
+	return nil
 }
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).

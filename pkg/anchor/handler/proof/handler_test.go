@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -37,7 +38,7 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	var vcCh chan *verifiable.Credential
+	ps := mempubsub.New(mempubsub.Config{})
 
 	store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
@@ -46,11 +47,14 @@ func TestNew(t *testing.T) {
 		VCStore: store,
 	}
 
-	c := New(providers, vcCh)
+	c := New(providers, ps)
 	require.NotNil(t, c)
 }
 
 func TestWitnessProofHandler(t *testing.T) {
+	ps := mempubsub.New(mempubsub.Config{})
+	defer ps.Stop()
+
 	witnessIRI, err := url.Parse(witnessURL)
 	require.NoError(t, err)
 
@@ -58,8 +62,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -94,15 +96,13 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{eval: false},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
 	t.Run("success - witness policy satisfied", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -140,7 +140,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: witnessPolicy,
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -148,8 +148,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - vc status is completed", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -176,7 +174,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{eval: true},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -184,8 +182,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - get vc status error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -220,7 +216,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: witnessPolicy,
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -230,8 +226,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - second get vc status error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -267,7 +261,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: witnessPolicy,
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -277,8 +271,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - set vc status to complete error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -313,7 +305,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: witnessPolicy,
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -323,8 +315,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness policy error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -351,7 +341,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
 			time.Now(), []byte(witnessProof))
@@ -361,8 +351,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - vc status not found store error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -386,7 +374,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, "testVC",
 			time.Now(), []byte(witnessProof))
@@ -395,8 +383,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - store error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		store := &storemocks.Store{}
 		store.GetReturns(nil, fmt.Errorf("get error"))
 
@@ -420,7 +406,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
 		require.Error(t, err)
@@ -428,8 +414,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -456,7 +440,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
 		require.Error(t, err)
@@ -465,8 +449,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -493,7 +475,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
 		require.Error(t, err)
@@ -502,8 +484,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -521,7 +501,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(""))
 		require.Error(t, err)
@@ -529,8 +509,6 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
-		vcCh := make(chan *verifiable.Credential, 100)
-
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -560,7 +538,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessPolicy: &mockWitnessPolicy{},
 		}
 
-		proofHandler := New(providers, vcCh)
+		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
 		require.Error(t, err)
