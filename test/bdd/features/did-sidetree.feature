@@ -67,6 +67,7 @@ Feature:
     Then check success response contains "canonicalId"
 
     When client sends request to "https://orb.domain1.com/anchor" to request anchor for suffix
+    When client sends request to "https://orb.domain1.com/origin" to request origin for suffix
 
     # test for orb client resolving anchor origin from ipfs
     When client sends request to "localhost:5001" to request anchor origin

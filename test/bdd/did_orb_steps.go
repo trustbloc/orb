@@ -204,7 +204,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 }
 
 func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
-	logger.Info("requesting anchor origin")
+	logger.Info("requesting anchor origin (client)")
 
 	if os.Getenv("CAS_TYPE") != "ipfs" {
 		logger.Info("ignoring 'request anchor origin' test case since cas type is NOT set to 'ifps'")
@@ -306,7 +306,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 }
 
 func (d *DIDOrbSteps) setSidetreeURL(url string) error {
-	localURL, err := d.getLocalURL(url)
+	localURL, err := getLocalURL(url, "/sidetree/v1/")
 	if err != nil {
 		return err
 	}
@@ -316,11 +316,11 @@ func (d *DIDOrbSteps) setSidetreeURL(url string) error {
 	return nil
 }
 
-func (d *DIDOrbSteps) getLocalURL(url string) (string, error) {
-	parts := strings.Split(url, `/sidetree/v1/`)
+func getLocalURL(url, separator string) (string, error) {
+	parts := strings.Split(url, separator)
 
 	if len(parts) != 2 {
-		return "", fmt.Errorf("wrong format of Sidetree URL: %s", url)
+		return "", fmt.Errorf("wrong format of URL: %s", url)
 	}
 
 	externalURL := parts[0]
@@ -552,41 +552,76 @@ func (d *DIDOrbSteps) checkResponseIsSuccess() error {
 }
 
 func (d *DIDOrbSteps) getAnchor(url string) error {
-	parts := strings.Split(url, `/anchor`)
+	logger.Info("requesting latest anchor cid")
 
-	if len(parts) != 2 {
-		return fmt.Errorf("wrong format of anchor URL: %s", url)
+	anchorURL, err := getLocalURL(url, "/anchor")
+	if err != nil {
+		return err
 	}
-
-	externalURL := parts[0]
-
-	localURL, ok := localURLs[externalURL]
-	if !ok {
-		return fmt.Errorf("server URL not configured for: %s", url)
-	}
-
-	anchorURL := strings.ReplaceAll(url, externalURL, localURL)
 
 	cid, suffix, err := extractCIDAndSuffix(d.canonicalDID)
 	if err != nil {
 		return err
 	}
 
-	d.resp, err = d.httpClient.Get(anchorURL + "/" + suffix)
-
-	logger.Infof("sending request: %s", anchorURL+"/"+suffix)
-
-	if err == nil && d.resp.Payload != nil {
-		cidWithHint := string(d.resp.Payload)
-
-		if !strings.Contains(cidWithHint, cid) {
-			return fmt.Errorf("expecting cid with hint '%s' to contain '%s'", cidWithHint, cid)
-		}
-
-		logger.Infof("got cid %s for suffix %s", cidWithHint, suffix)
+	payload, err := d.getPayloadForRequest(anchorURL + "/" + suffix)
+	if err != nil {
+		return err
 	}
 
-	return err
+	cidWithHint := string(payload)
+
+	logger.Infof("got latest anchor cid %s for suffix %s", cidWithHint, suffix)
+
+	if !strings.Contains(cidWithHint, cid) {
+		return fmt.Errorf("expecting cid with hint '%s' to contain '%s'", cidWithHint, cid)
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) getOrigin(url string) error {
+	logger.Info("requesting latest anchor origin")
+
+	originURL, err := getLocalURL(url, "/origin")
+	if err != nil {
+		return err
+	}
+
+	_, suffix, err := extractCIDAndSuffix(d.canonicalDID)
+	if err != nil {
+		return err
+	}
+
+	payload, err := d.getPayloadForRequest(originURL + "/" + suffix)
+	if err != nil {
+		return err
+	}
+
+	origin := string(payload)
+
+	logger.Infof("got latest anchor origin %s for suffix %s", origin, suffix)
+
+	if origin != "https://orb.domain1.com/services/orb" {
+		return fmt.Errorf("unexpected anchor origin: %s", origin)
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) getPayloadForRequest(url string) ([]byte, error) {
+	logger.Infof("sending request: %s", url)
+
+	resp, err := d.httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http status[%d], msg: %s", resp.StatusCode, resp.ErrorMsg)
+	}
+
+	return resp.Payload, nil
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
@@ -980,7 +1015,7 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 	for i := 0; i < num; i++ {
 		randomURL := urls[mrand.Intn(len(urls))]
 
-		localURL, err := d.getLocalURL(randomURL)
+		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
 		if err != nil {
 			return err
 		}
@@ -1022,7 +1057,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 	for _, did := range d.dids {
 		randomURL := urls[mrand.Intn(len(urls))]
 
-		localURL, err := d.getLocalURL(randomURL)
+		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
 		if err != nil {
 			return err
 		}
@@ -1102,6 +1137,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
 	s.Step(`^client sends request to "([^"]*)" to request anchor for suffix$`, d.getAnchor)
+	s.Step(`^client sends request to "([^"]*)" to request origin for suffix$`, d.getOrigin)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
