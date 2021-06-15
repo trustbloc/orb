@@ -85,6 +85,70 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 	return nil
 }
 
+// Delete deletes all witnesses associated with VC ID.
+func (s *Store) Delete(vcID string) error {
+	var err error
+
+	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
+
+	iter, err := s.store.Query(query)
+	if err != nil {
+		return fmt.Errorf("failed to get witnesses for[%s]: %w", query, err)
+	}
+
+	defer func() {
+		err = iter.Close()
+		if err != nil {
+			logger.Errorf("failed to close iterator: %s", err.Error())
+		}
+	}()
+
+	ok, err := iter.Next()
+	if err != nil {
+		return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+	}
+
+	if !ok {
+		logger.Debugf("no witnesses to delete for vcID[%s], nothing to do", vcID)
+
+		return nil
+	}
+
+	var witnessKeys []string
+
+	for ok {
+		var key string
+
+		key, err = iter.Key()
+		if err != nil {
+			return fmt.Errorf("failed to get iterator value for vcID[%s]: %w", vcID, err)
+		}
+
+		witnessKeys = append(witnessKeys, key)
+
+		ok, err = iter.Next()
+		if err != nil {
+			return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+		}
+	}
+
+	operations := make([]storage.Operation, len(witnessKeys))
+
+	for i, k := range witnessKeys {
+		operations[i] = storage.Operation{Key: k}
+	}
+
+	err = s.store.Batch(operations)
+	if err != nil {
+		return fmt.Errorf("failed to delete witnesses for vcID[%s]: %w", vcID, err)
+	}
+
+	logger.Debugf("deleted %d witnesses for vcID[%s]", len(witnessKeys), vcID)
+
+	return nil
+}
+
 // Get retrieves witnesses for the given vc id.
 func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 	var err error

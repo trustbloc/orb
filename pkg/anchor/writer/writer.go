@@ -74,6 +74,7 @@ type activityStore interface {
 
 type witnessStore interface {
 	Put(vcID string, witnesses []*proof.WitnessProof) error
+	Delete(vcID string) error
 }
 
 type witness interface {
@@ -376,6 +377,12 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
 		return fmt.Errorf("post create activity for cid[%s]: %w", cid, err)
+	}
+
+	err = c.WitnessStore.Delete(vc.ID)
+	if err != nil {
+		// this is a clean-up task so no harm if there was an error
+		logger.Warnf("failed to delete witnesses for vc[%s]: %s", vc.ID, err.Error())
 	}
 
 	return nil
