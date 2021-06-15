@@ -576,13 +576,22 @@ func startOrbServices(parameters *orbParameters) error {
 		WitnessStore:  witnessProofStore,
 	}
 
+	// If no local IPFS node is configured, then use the public ipfs.io node as a fallback.
+	// Note that it only allows reads, not writes.
+	if ipfsReader == nil {
+		logger.Infof("no local IPFS node configured. The public ipfs.io node will be used for resolving " +
+			"anchor origins that are specified using IPNS.")
+		ipfsReader = ipfscas.New("http://ipfs.io")
+	}
+
 	anchorWriter, err := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
 		o.Publisher(), pubSub,
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
-		orbDocumentLoader)
+		orbDocumentLoader,
+		ipfsReader)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}

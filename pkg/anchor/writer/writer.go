@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -31,6 +32,8 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
+	"github.com/trustbloc/orb/pkg/cas/ipfs"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -46,6 +49,7 @@ type Writer struct {
 	casIRI               *url.URL
 	maxWitnessDelay      time.Duration
 	signWithLocalWitness bool
+	ipfsReader           *ipfs.Client
 }
 
 // Providers contains all of the providers required by the client.
@@ -126,7 +130,7 @@ type pubSub interface {
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 	anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
-	documentLoader ld.DocumentLoader) (*Writer, error) {
+	documentLoader ld.DocumentLoader, ipfsReader *ipfs.Client) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -135,6 +139,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		casIRI:               casURL,
 		maxWitnessDelay:      maxWitnessDelay,
 		signWithLocalWitness: signWithLocalWitness,
+		ipfsReader:           ipfsReader,
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
@@ -533,6 +538,15 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 			return nil, fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)
 		}
 
+		if strings.HasPrefix(anchorOrigin, "ipns://") {
+			resolvedAnchorOrigin, err := c.resolveAnchorOriginViaIPNS(anchorOrigin)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve anchor origin via IPNS: %w", err)
+			}
+
+			anchorOrigin = resolvedAnchorOrigin
+		}
+
 		_, ok = uniqueWitnesses[anchorOrigin]
 
 		if !ok {
@@ -542,6 +556,41 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 	}
 
 	return witnesses, nil
+}
+
+func (c *Writer) resolveAnchorOriginViaIPNS(anchorOrigin string) (string, error) {
+	anchorOriginSplitBySlashes := strings.Split(anchorOrigin, "//")
+
+	logger.Debugf("Resolving anchor origin from %s", anchorOrigin)
+
+	respBytes, err := c.ipfsReader.Read(fmt.Sprintf("/ipns/%s/.well-known/webfinger",
+		anchorOriginSplitBySlashes[len(anchorOriginSplitBySlashes)-1]))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve WebFinger response via IPNS: %w", err)
+	}
+
+	var webFingerResp discoveryrest.WebFingerResponse
+
+	err = json.Unmarshal(respBytes, &webFingerResp)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+	}
+
+	witnessProperty, exists := webFingerResp.Properties[discoveryrest.WitnessType]
+	if !exists {
+		return "", fmt.Errorf("witness property missing from the WebFinger response "+
+			"obtained by resolving %s", anchorOrigin)
+	}
+
+	witnessPropertyString, ok := witnessProperty.(string)
+	if !ok {
+		return "", fmt.Errorf("failed to assert witness property from the WebFinger response "+
+			"obtained by resolving %s as a string", anchorOrigin)
+	}
+
+	logger.Debugf("Successfully resolved anchor origin %s from %s", witnessPropertyString, anchorOrigin)
+
+	return witnessPropertyString, nil
 }
 
 // Read reads transactions since transaction time.
