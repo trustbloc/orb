@@ -18,6 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -63,7 +64,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 
 	cid, err := m.ipfs.Add(bytes.NewReader(content), v1AddOpt...)
 	if err != nil {
-		return "", err
+		return "", orberrors.NewTransient(err)
 	}
 
 	log.Debugf("added content returned cid: %s", cid)
@@ -80,7 +81,7 @@ func (m *Client) Read(cid string) ([]byte, error) {
 			return nil, fmt.Errorf("%s: %w", err.Error(), cas.ErrContentNotFound)
 		}
 
-		return nil, err
+		return nil, orberrors.NewTransient(err)
 	}
 
 	defer closeAndLog(reader)

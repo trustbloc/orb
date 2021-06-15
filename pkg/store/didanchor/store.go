@@ -14,6 +14,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/didanchor"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const nameSpace = "didanchor"
@@ -52,7 +53,7 @@ func (s *Store) PutBulk(suffixes []string, cid string) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return fmt.Errorf("failed to add cid[%s] to suffixes%s: %w", cid, suffixes, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to add cid[%s] to suffixes%s: %w", cid, suffixes, err))
 	}
 
 	logger.Debugf("updated latest anchor[%s] for suffixes: %s", cid, suffixes)
@@ -64,7 +65,7 @@ func (s *Store) PutBulk(suffixes []string, cid string) error {
 func (s *Store) GetBulk(suffixes []string) ([]string, error) {
 	anchorBytes, err := s.store.GetBulk(suffixes...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get did anchor reference: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get did anchor reference: %w", err))
 	}
 
 	anchors := make([]string, len(suffixes))
@@ -90,7 +91,7 @@ func (s *Store) Get(suffix string) (string, error) {
 			return "", didanchor.ErrDataNotFound
 		}
 
-		return "", fmt.Errorf("failed to get content from the underlying storage provider: %w", err)
+		return "", orberrors.NewTransient(fmt.Errorf("failed to get content from the underlying storage provider: %w", err))
 	}
 
 	anchor := string(anchorBytes)

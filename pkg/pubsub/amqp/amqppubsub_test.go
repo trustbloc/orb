@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"testing"
@@ -27,7 +28,7 @@ import (
 
 const (
 	dockerImage = "rabbitmq"
-	dockerTag   = "3.8.16"
+	dockerTag   = "3-management-alpine"
 )
 
 func TestAMQP(t *testing.T) {
@@ -90,6 +91,13 @@ func TestAMQP(t *testing.T) {
 		go func(msgChan <-chan *message.Message) {
 			for m := range msgChan {
 				go func(msg *message.Message) {
+					// Randomly fail 33% of the messages to test redelivery.
+					if rand.Int31n(10) < 3 { //nolint:gosec
+						msg.Nack()
+
+						return
+					}
+
 					receivedMessages.Store(msg.UUID, msg)
 
 					// Add a delay to simulate processing.
