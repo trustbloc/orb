@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,15 +23,18 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -213,7 +217,7 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		did1 := "xyz"
+		did1 := "jkh"
 
 		previousAnchors := make(map[string]string)
 		previousAnchors[did1] = ""
@@ -522,6 +526,70 @@ func TestStartObserver(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		require.Empty(t, tp.ProcessCallCount())
+	})
+
+	t.Run("PublishDID transient error in process anchor -> error", func(t *testing.T) {
+		tp := &mocks.TxnProcessor{}
+		tp.ProcessReturns(orberrors.NewTransient(errors.New("injected processing error")))
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Protocol.GenesisTime = 1
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		casClient, err := cas.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		graphProviders := &graph.Providers{
+			CasWriter: caswriter.New(casClient, ""),
+			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
+				testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			),
+			Pkf:       pubKeyFetcherFnc,
+			DocLoader: testutil.GetLoader(t),
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		did1 := "xyz"
+
+		previousAnchors := make(map[string]string)
+		previousAnchors[did1] = ""
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+
+		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		require.NoError(t, err)
+
+		pubSub := apmocks.NewPubSub()
+		defer pubSub.Stop()
+
+		undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
+			PubSub:                 pubSub,
+		}
+
+		o, err := New(providers)
+		require.NotNil(t, o)
+		require.NoError(t, err)
+
+		o.Start()
+		defer o.Stop()
+
+		require.NoError(t, o.pubSub.PublishDID(cid+":"+did1))
+
+		select {
+		case msg := <-undeliverableChan:
+			t.Logf("Got undeliverable message: %s", msg.UUID)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("Expecting undeliverable message")
+		}
 	})
 }
 

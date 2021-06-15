@@ -29,7 +29,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
-      - MQ_URL=amqp://guest:guest@orb.mq.domain1.com:5672/
+      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN1}
@@ -102,7 +102,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
-      - MQ_URL=amqp://guest:guest@orb.mq.domain1.com:5672/
+      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN1}
@@ -173,7 +173,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
-      - MQ_URL=amqp://guest:guest@orb.mq.domain2.com:5672/
+      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN2}
@@ -244,7 +244,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
-      - MQ_URL=amqp://guest:guest@orb.mq.domain3.com:5672/
+      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
       - CID_VERSION=${CID_VERSION_DOMAIN3}
@@ -475,27 +475,45 @@ services:
 
   orb.mq.domain1.com:
     container_name: orb.mq.domain1.com
-    image: rabbitmq:3.8.16
+    image: rabbitmq:3-management-alpine
+    environment:
+      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
+    volumes:
+      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
     ports:
       - 5672:5672
+      # Management port
+      - 15672:15672
     restart: unless-stopped
     networks:
       - orb_net
 
   orb.mq.domain2.com:
     container_name: orb.mq.domain2.com
-    image: rabbitmq:3.8.16
+    image: rabbitmq:3-management-alpine
+    environment:
+      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
+    volumes:
+      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
     ports:
       - 5682:5672
+      # Management port
+      - 15682:15672
     restart: unless-stopped
     networks:
       - orb_net
 
   orb.mq.domain3.com:
     container_name: orb.mq.domain3.com
-    image: rabbitmq:3.8.16
+    image: rabbitmq:3-management-alpine
+    environment:
+      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
+    volumes:
+      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
     ports:
       - 5692:5672
+      # Management port
+      - 15692:15672
     restart: unless-stopped
     networks:
       - orb_net

@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("orb-observer")
@@ -109,7 +110,6 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 
 	anchorInfo, err := o.AnchorGraph.Read(anchor.CID)
 	if err != nil {
-		// TODO: Determine if error is transient so that it can be retried (issue #472).
 		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.CID, err.Error())
 
 		return err
@@ -118,7 +118,6 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 	logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.CID)
 
 	if err := o.processAnchor(anchor, anchorInfo); err != nil {
-		// TODO: Determine if error is transient so that it can be retried (issue #472).
 		logger.Warnf(err.Error())
 
 		return err
@@ -141,8 +140,6 @@ func (o *Observer) processDID(did string) error {
 	if err != nil {
 		logger.Warnf("process did failed for did[%s]: %s", did, err.Error())
 
-		// TODO: Determine if error is transient so that it can be retried (issue #472).
-
 		return err
 	}
 
@@ -153,10 +150,12 @@ func (o *Observer) processDID(did string) error {
 
 		if err := o.processAnchor(&anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
 			anchor.Info, suffix); err != nil {
-			logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
+			if errors.IsTransient(err) {
+				// Return an error so that the message is redelivered and retried.
+				return fmt.Errorf("process anchor [%s]: %w", anchor.CID, err)
+			}
 
-			// TODO: Determine if error is transient. If so we can return the error and a retry will occur (issue #472).
-			// If the error is persistent then continue with the next anchor.
+			logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
 
 			continue
 		}

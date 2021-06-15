@@ -17,6 +17,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 // ErrContentNotFound is used to indicate that content as a given address could not be found.
@@ -82,7 +83,7 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 	}
 
 	if err := p.cas.Put(cid, content); err != nil {
-		return "", fmt.Errorf("failed to put content into underlying storage provider: %w", err)
+		return "", orberrors.NewTransient(fmt.Errorf("failed to put content into underlying storage provider: %w", err))
 	}
 
 	return cid, nil
@@ -97,7 +98,7 @@ func (p *CAS) Read(address string) ([]byte, error) {
 			return nil, ErrContentNotFound
 		}
 
-		return nil, fmt.Errorf("failed to get content from the underlying storage provider: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get content from the underlying storage provider: %w", err))
 	}
 
 	return content, nil

@@ -140,7 +140,6 @@ Feature:
 
      # write batch of DIDs to multiple servers and check them
      When client sends request to "https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-     And we wait 2 seconds
 
      # Stop orb2.domain1. The other instance in the domain should process any pending operations since
      # we're using a durable operation queue.

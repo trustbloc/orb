@@ -28,6 +28,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
@@ -385,6 +386,7 @@ func TestResolver_Resolve(t *testing.T) {
 			"failure while storing data retrieved from the remote WebCAS endpoint locally: "+
 			"failed to write data to CAS (and calculate CID in the process of doing so): "+
 			"failed to put content into underlying storage provider: put error")
+		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, data)
 	})
 	t.Run("Other failure when reading from local CAS", func(t *testing.T) {
@@ -404,6 +406,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.EqualError(t, err, "failed to get data stored at "+
 			"bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce from the local CAS: "+
 			"failed to get content from the underlying storage provider: get error")
+		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, data)
 	})
 	t.Run("Fail to execute GET call", func(t *testing.T) {
