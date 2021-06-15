@@ -591,7 +591,8 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader,
-		ipfsReader)
+		ipfsReader,
+		httpClient)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}

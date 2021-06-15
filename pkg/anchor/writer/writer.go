@@ -9,7 +9,10 @@ package writer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -34,9 +37,11 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/errors"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
+
+const maxIPNSResolveLevels = 25
 
 var logger = log.New("anchor-writer")
 
@@ -50,6 +55,7 @@ type Writer struct {
 	maxWitnessDelay      time.Duration
 	signWithLocalWitness bool
 	ipfsReader           *ipfs.Client
+	httpClient           *http.Client
 }
 
 // Providers contains all of the providers required by the client.
@@ -130,7 +136,7 @@ type pubSub interface {
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 	anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
-	documentLoader ld.DocumentLoader, ipfsReader *ipfs.Client) (*Writer, error) {
+	documentLoader ld.DocumentLoader, ipfsReader *ipfs.Client, httpClient *http.Client) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -140,6 +146,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		maxWitnessDelay:      maxWitnessDelay,
 		signWithLocalWitness: signWithLocalWitness,
 		ipfsReader:           ipfsReader,
+		httpClient:           httpClient,
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
@@ -341,7 +348,7 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 	if err != nil {
 		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
 
-		return errors.NewTransient(fmt.Errorf("store witnessed anchor credential[%s]: %w", vc.ID, err))
+		return orberrors.NewTransient(fmt.Errorf("store witnessed anchor credential[%s]: %w", vc.ID, err))
 	}
 
 	cid, hint, err := c.AnchorGraph.Add(vc)
@@ -539,7 +546,7 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 		}
 
 		if strings.HasPrefix(anchorOrigin, "ipns://") {
-			resolvedAnchorOrigin, err := c.resolveAnchorOriginViaIPNS(anchorOrigin)
+			resolvedAnchorOrigin, err := c.resolveAnchorOriginViaIPNS(anchorOrigin, ref.UniqueSuffix)
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve anchor origin via IPNS: %w", err)
 			}
@@ -558,39 +565,109 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 	return witnesses, nil
 }
 
-func (c *Writer) resolveAnchorOriginViaIPNS(anchorOrigin string) (string, error) {
-	anchorOriginSplitBySlashes := strings.Split(anchorOrigin, "//")
+func (c *Writer) resolveAnchorOriginViaIPNS(anchorOriginIPNSAddressWithScheme, suffix string) (string, error) {
+	var finalAnchorOrigin string
 
-	logger.Debugf("Resolving anchor origin from %s", anchorOrigin)
+	var ipnsAddressChain []string
 
+	currentAnchorOriginIPNSAddressWithScheme := anchorOriginIPNSAddressWithScheme
+
+	for i := 0; i < maxIPNSResolveLevels; i++ {
+		anchorOriginIPNSAddress := getJustIPNSAddressWithoutScheme(currentAnchorOriginIPNSAddressWithScheme)
+
+		ipnsAddressChain = append(ipnsAddressChain, anchorOriginIPNSAddress)
+
+		webFingerResp, err := c.resolveWebFingerResponseFromIPNS(anchorOriginIPNSAddress)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve WebFinger response from IPNS. "+
+				"IPNS address chain: %v. Error: %w", ipnsAddressChain, err)
+		}
+
+		origin, err := getProperty(webFingerResp, discoveryrest.OriginType)
+		if err != nil {
+			return "", fmt.Errorf("failed to get origin from WebFinger response. IPNS address chain: %v. "+
+				"Error: %w", ipnsAddressChain, err)
+		}
+
+		originEndpointForSuffix := fmt.Sprintf("%s/%s", origin, suffix)
+
+		newAnchorOriginIPNSAddress, err := c.resolveAnchorOriginIPNSAddressFromOriginEndpoint(originEndpointForSuffix)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve anchor origin from origin endpoint. "+
+				"IPNS address chain: %v. Error: %w", ipnsAddressChain, err)
+		}
+
+		if newAnchorOriginIPNSAddress == anchorOriginIPNSAddressWithScheme {
+			finalAnchorOrigin, err = getProperty(webFingerResp, discoveryrest.WitnessType)
+			if err != nil {
+				return "", fmt.Errorf("failed to get witness property from WebFinger response. "+
+					"IPNS address chain: %v. Error: %w", ipnsAddressChain, err)
+			}
+
+			logger.Debugf("Successfully resolved anchor origin %s from %s. IPNS address chain: %v.",
+				finalAnchorOrigin, anchorOriginIPNSAddressWithScheme, ipnsAddressChain)
+
+			break
+		} else {
+			logger.Debugf("Resolved anchor origin IPNS address %s from %s, but this doesn't match the original "+
+				"anchor origin IPNS address (%s). %s will be resolved next if the max number of resolve levels "+
+				"hasn't been hit yet. Current IPNS address chain: %v.",
+				newAnchorOriginIPNSAddress, currentAnchorOriginIPNSAddressWithScheme,
+				anchorOriginIPNSAddressWithScheme, newAnchorOriginIPNSAddress, ipnsAddressChain)
+			currentAnchorOriginIPNSAddressWithScheme = newAnchorOriginIPNSAddress
+		}
+	}
+
+	if finalAnchorOrigin == "" {
+		return "", fmt.Errorf("max number of recursive resolves (%d) reached. IPNS address chain: %v",
+			maxIPNSResolveLevels, ipnsAddressChain)
+	}
+
+	return finalAnchorOrigin, nil
+}
+
+func (c *Writer) resolveWebFingerResponseFromIPNS(
+	anchorOriginIPNSAddress string) (discoveryrest.WebFingerResponse, error) {
 	respBytes, err := c.ipfsReader.Read(fmt.Sprintf("/ipns/%s/.well-known/webfinger",
-		anchorOriginSplitBySlashes[len(anchorOriginSplitBySlashes)-1]))
+		anchorOriginIPNSAddress))
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve WebFinger response via IPNS: %w", err)
+		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to read from IPFS: %w ", err)
 	}
 
 	var webFingerResp discoveryrest.WebFingerResponse
 
 	err = json.Unmarshal(respBytes, &webFingerResp)
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
 	}
 
-	witnessProperty, exists := webFingerResp.Properties[discoveryrest.WitnessType]
-	if !exists {
-		return "", fmt.Errorf("witness property missing from the WebFinger response "+
-			"obtained by resolving %s", anchorOrigin)
+	return webFingerResp, nil
+}
+
+func (c *Writer) resolveAnchorOriginIPNSAddressFromOriginEndpoint(originEndpointForSuffix string) (string, error) {
+	resp, err := c.httpClient.Get(originEndpointForSuffix)
+	if err != nil {
+		return "", fmt.Errorf("failed to do GET on origin endpoint %s: %w", originEndpointForSuffix, err)
 	}
 
-	witnessPropertyString, ok := witnessProperty.(string)
-	if !ok {
-		return "", fmt.Errorf("failed to assert witness property from the WebFinger response "+
-			"obtained by resolving %s as a string", anchorOrigin)
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body from origin endpoint %s: %w",
+			originEndpointForSuffix, err)
 	}
 
-	logger.Debugf("Successfully resolved anchor origin %s from %s", witnessPropertyString, anchorOrigin)
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warnf("Failed to close response body from %s: %w ", originEndpointForSuffix, err)
+		}
+	}()
 
-	return witnessPropertyString, nil
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("received status code %d from origin endpoint %s",
+			resp.StatusCode, originEndpointForSuffix)
+	}
+
+	return string(respBytes), nil
 }
 
 // Read reads transactions since transaction time.
@@ -661,4 +738,24 @@ func (c *Writer) getSystemWitnesses() ([]*url.URL, error) {
 	}
 
 	return systemWitnessesIRI, nil
+}
+
+func getProperty(webFingerResp discoveryrest.WebFingerResponse, propertyType string) (string, error) {
+	property, exists := webFingerResp.Properties[propertyType]
+	if !exists {
+		return "", fmt.Errorf("property missing")
+	}
+
+	propertyString, ok := property.(string)
+	if !ok {
+		return "", errors.New("failed to assert property as a string")
+	}
+
+	return propertyString, nil
+}
+
+func getJustIPNSAddressWithoutScheme(ipnsAddressWithScheme string) string {
+	ipnsAddressWithSchemeSplitBySlashes := strings.Split(ipnsAddressWithScheme, "//")
+
+	return ipnsAddressWithSchemeSplitBySlashes[len(ipnsAddressWithSchemeSplitBySlashes)-1]
 }

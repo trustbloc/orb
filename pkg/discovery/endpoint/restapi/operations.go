@@ -32,9 +32,10 @@ const (
 	WitnessType = "https://trustbloc.dev/ns/witness"
 	casType     = "https://trustbloc.dev/ns/cas"
 	vctType     = "https://trustbloc.dev/ns/vct"
-	originType  = "https://trustbloc.dev/ns/origin"
-	anchorType  = "https://trustbloc.dev/ns/anchor"
-	context     = "https://w3id.org/did/v1"
+	// OriginType is used to indicate an origin in a WebFinger response.
+	OriginType = "https://trustbloc.dev/ns/origin"
+	anchorType = "https://trustbloc.dev/ns/anchor"
+	context    = "https://w3id.org/did/v1"
 )
 
 // New returns discovery operations.
@@ -216,7 +217,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 				minResolvers: o.discoveryMinimumResolvers,
 				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
 				anchorType:   fmt.Sprintf("%s/anchor", o.baseURL),
-				originType:   fmt.Sprintf("%s/origin", o.baseURL),
+				OriginType:   fmt.Sprintf("%s/origin", o.baseURL),
 			},
 			Links: []WebFingerLink{
 				{Rel: "self", Href: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath)},
