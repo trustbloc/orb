@@ -108,7 +108,7 @@ func TestStore_Get(t *testing.T) {
 		require.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("error - store error ", func(t *testing.T) {
+	t.Run("error - store error", func(t *testing.T) {
 		store := &mocks.Store{}
 		store.QueryReturns(nil, fmt.Errorf("batch error"))
 
@@ -124,7 +124,7 @@ func TestStore_Get(t *testing.T) {
 		require.Contains(t, err.Error(), "batch error")
 	})
 
-	t.Run("error - iterator next() error ", func(t *testing.T) {
+	t.Run("error - iterator next() error", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 		iterator.NextReturns(false, fmt.Errorf("iterator next() error"))
 
@@ -143,7 +143,7 @@ func TestStore_Get(t *testing.T) {
 		require.Contains(t, err.Error(), "iterator next() error")
 	})
 
-	t.Run("error - iterator value() error ", func(t *testing.T) {
+	t.Run("error - iterator value() error", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		iterator.NextReturns(true, nil)
@@ -164,7 +164,7 @@ func TestStore_Get(t *testing.T) {
 		require.Contains(t, err.Error(), "iterator value() error")
 	})
 
-	t.Run("error - unmarshal anchored credential witness error ", func(t *testing.T) {
+	t.Run("error - unmarshal anchored credential witness error", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		iterator.NextReturns(true, nil)
@@ -184,6 +184,116 @@ func TestStore_Get(t *testing.T) {
 		require.Nil(t, ops)
 		require.Contains(t, err.Error(),
 			"failed to unmarshal anchor credential witness from store value for vcID[vcID]")
+	})
+}
+
+func TestStore_Delete(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Put(vcID, []*proof.WitnessProof{getTestWitness()})
+		require.NoError(t, err)
+
+		ops, err := s.Get(vcID)
+		require.NoError(t, err)
+		require.NotEmpty(t, ops)
+
+		err = s.Delete(vcID)
+		require.NoError(t, err)
+
+		ops, err = s.Get(vcID)
+		require.Error(t, err)
+		require.Nil(t, ops)
+		require.Contains(t, err.Error(), "vcID[vcID] not found in the store")
+	})
+
+	t.Run("success - no witnesses found for VC ID", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Delete(vcID)
+		require.NoError(t, err)
+	})
+
+	t.Run("error - query store error", func(t *testing.T) {
+		store := &mocks.Store{}
+		store.QueryReturns(nil, fmt.Errorf("query error"))
+
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Delete(vcID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "query error")
+	})
+
+	t.Run("error - iterator next() error", func(t *testing.T) {
+		iterator := &mocks.Iterator{}
+		iterator.NextReturns(false, fmt.Errorf("iterator next() error"))
+
+		store := &mocks.Store{}
+		store.QueryReturns(iterator, nil)
+
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Delete(vcID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "iterator next() error")
+	})
+
+	t.Run("error - iterator key() error", func(t *testing.T) {
+		iterator := &mocks.Iterator{}
+
+		iterator.NextReturns(true, nil)
+		iterator.KeyReturns("", fmt.Errorf("iterator key() error"))
+
+		store := &mocks.Store{}
+		store.QueryReturns(iterator, nil)
+
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Delete(vcID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "iterator key() error")
+	})
+
+	t.Run("error - batch error", func(t *testing.T) {
+		iterator := &mocks.Iterator{}
+
+		iterator.NextReturnsOnCall(0, true, nil)
+		iterator.NextReturnsOnCall(1, false, nil)
+
+		iterator.KeyReturnsOnCall(0, "key", nil)
+
+		store := &mocks.Store{}
+		store.QueryReturns(iterator, nil)
+		store.BatchReturns(fmt.Errorf("batch error"))
+
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		err = s.Delete(vcID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "batch error")
 	})
 }
 

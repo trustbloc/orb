@@ -926,6 +926,7 @@ func TestWriter_handle(t *testing.T) {
 			Outbox:        &mockOutbox{},
 			Signer:        &mockSigner{},
 			VCStore:       vcStore,
+			WitnessStore:  &mockWitnessStore{},
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1013,6 +1014,7 @@ func TestWriter_handle(t *testing.T) {
 			Outbox:        &mockOutbox{},
 			Signer:        &mockSigner{},
 			VCStore:       vcStore,
+			WitnessStore:  &mockWitnessStore{},
 		}
 
 		errExpected := errors.New("anchor publisher error")
@@ -1061,6 +1063,33 @@ func TestWriter_handle(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "post create activity for cid")
 		require.False(t, orberrors.IsTransient(err))
+	})
+
+	t.Run("error - delete transient data from witness store error", func(t *testing.T) {
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			VCStore:       vcStore,
+			WitnessStore:  &mockWitnessStore{DeleteErr: fmt.Errorf("delete error")},
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		require.NoError(t, c.handle(anchorVC))
 	})
 }
 
@@ -1144,7 +1173,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	t.Run("error - witness proof store error", func(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
-			WitnessStore:  &mockWitnessStore{Err: fmt.Errorf("witness store error")},
+			WitnessStore:  &mockWitnessStore{PutErr: fmt.Errorf("witness store error")},
 			ActivityStore: &mockActivityStore{},
 		}
 
@@ -1532,12 +1561,21 @@ func (a *mockActivityStore) QueryReferences(refType spi.ReferenceType, query *sp
 }
 
 type mockWitnessStore struct {
-	Err error
+	PutErr    error
+	DeleteErr error
 }
 
 func (w *mockWitnessStore) Put(vcID string, witnesses []*proof.WitnessProof) error {
-	if w.Err != nil {
-		return w.Err
+	if w.PutErr != nil {
+		return w.PutErr
+	}
+
+	return nil
+}
+
+func (w *mockWitnessStore) Delete(vcID string) error {
+	if w.DeleteErr != nil {
+		return w.DeleteErr
 	}
 
 	return nil
