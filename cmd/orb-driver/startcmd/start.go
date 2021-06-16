@@ -134,11 +134,7 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 	sidetreeToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeTokenFlagName,
 		sidetreeTokenEnvKey)
 
-	discoveryDomain, err := cmdutils.GetUserSetVarFromString(cmd, domainFlagName, domainEnvKey,
-		false)
-	if err != nil {
-		return nil, err
-	}
+	discoveryDomain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainEnvKey)
 
 	return &parameters{
 		hostURL:           hostURL,

@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const flag = "--"
-
 func TestStartCmd(t *testing.T) {
 	startCmd := GetStartCmd()
 
@@ -32,16 +30,6 @@ func TestStartCmdWithMissingHostArg(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t,
 		"Neither host-url (command line flag) nor ORB_DRIVER_HOST_URL (environment variable) have been set.",
-		err.Error())
-
-	var args []string
-	args = append(args, hostURLArg()...)
-	startCmd.SetArgs(args)
-
-	err = startCmd.Execute()
-	require.Error(t, err)
-	require.Equal(t,
-		"Neither domain (command line flag) nor ORB_DRIVER_DOMAIN (environment variable) have been set.",
 		err.Error())
 }
 
@@ -69,8 +57,4 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 
 	flagAnnotations := flag.Annotations
 	require.Nil(t, flagAnnotations)
-}
-
-func hostURLArg() []string {
-	return []string{flag + hostURLFlagName, "localhost:8080"}
 }
