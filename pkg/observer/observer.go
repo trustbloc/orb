@@ -199,8 +199,6 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	equivalentRef := anchor.CID
 	if anchor.Hint != "" {
 		equivalentRef = anchor.Hint + ":" + equivalentRef
-	} else {
-		logger.Errorf("investigate: no hint provided for anchor[%s]", anchor.CID)
 	}
 
 	sidetreeTxn := txnapi.SidetreeTxn{

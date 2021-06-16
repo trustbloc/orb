@@ -60,6 +60,7 @@ var localURLs = map[string]string{
 	"https://orb2.domain1.com": "https://localhost:48526",
 	"https://orb.domain2.com":  "https://localhost:48426",
 	"https://orb.domain3.com":  "https://localhost:48626",
+	"https://orb.domain4.com":  "https://localhost:48726",
 }
 
 var anchorOriginURLs = map[string]string{
@@ -67,6 +68,7 @@ var anchorOriginURLs = map[string]string{
 	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain4.com/services/orb",
 }
 
 const addPublicKeysTemplate = `[
