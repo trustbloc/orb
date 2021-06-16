@@ -156,7 +156,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
-		return fmt.Errorf("failed to add witness proofs to credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to add witness proofs: %w", err)
 	}
 
 	status, err := h.VCStatusStore.GetStatus(vc.ID)

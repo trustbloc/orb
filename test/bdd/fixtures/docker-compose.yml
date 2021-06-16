@@ -293,6 +293,77 @@ services:
     networks:
       - orb_net
 
+
+  orb-domain4:
+    container_name: orb.domain4.com
+    image: ${ORB_FIXTURE_IMAGE}:latest
+    restart: always
+    environment:
+      - ORB_KMS_ENDPOINT=http://orb.kms:7878
+      - LOG_LEVEL=DEBUG
+      - ORB_HOST_URL=0.0.0.0:443
+      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
+      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
+      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
+      # balancer servicing multiple nodes.
+      - ORB_EXTERNAL_ENDPOINT=https://orb.domain4.com
+      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
+      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - DID_NAMESPACE=did:orb
+      - ALLOWED_ORIGINS=https://orb.domain4.com/services/orb,https://orb.domain1.com/services/orb
+      # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
+      - BATCH_WRITER_TIMEOUT=1000
+      - CAS_TYPE=${CAS_TYPE}
+      - IPFS_URL=ipfs:5001
+      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
+      - MQ_OP_POOL=20
+      - CID_VERSION=${CID_VERSION_DOMAIN2}
+      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain4.com
+      - ANCHOR_CREDENTIAL_URL=http://orb.domain4.com/vc
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      # used in case that orb server signs anchor credential (there is no local witness log)
+      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
+      - DATABASE_TYPE=couchdb
+      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_PREFIX=domain4
+      - HTTP_SIGNATURES_ENABLED=true
+
+      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
+      #
+      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
+      #
+      # Where:
+      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
+      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
+      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
+      #
+      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
+      #
+      # Example:
+      #
+      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
+      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
+      # - The client requires an 'admin' token in order to post to the outbox
+      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
+      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+    ports:
+      - 48726:443
+    command: start
+    volumes:
+      - ./keys/tls:/etc/orb/tls
+      - ./testdata/keys/domain2:/etc/orb/activitypub
+    depends_on:
+      - ipfs
+      - orb.kms
+      - couchdb.kms.com
+      - couchdb.shared.com
+      - orb.mq.domain4.com
+    networks:
+      - orb_net
+
   ipfs:
     container_name: ipfs
     #TODO: this image doesn't work on ARM64 yet (investigate images)
@@ -514,6 +585,21 @@ services:
       - 5692:5672
       # Management port
       - 15692:15672
+    restart: unless-stopped
+    networks:
+      - orb_net
+
+  orb.mq.domain4.com:
+    container_name: orb.mq.domain4.com
+    image: rabbitmq:3-management-alpine
+    environment:
+      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
+    volumes:
+      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
+    ports:
+      - 5694:5672
+      # Management port
+      - 15694:15672
     restart: unless-stopped
     networks:
       - orb_net
