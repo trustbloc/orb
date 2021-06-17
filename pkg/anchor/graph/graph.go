@@ -13,6 +13,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/errors"
@@ -51,18 +52,22 @@ type casWriter interface {
 // Add adds an anchor to the anchor graph.
 // Returns cid that contains anchor information.
 func (g *Graph) Add(vc *verifiable.Credential) (string, string, error) { //nolint:interfacer
-	// TODO: do we need canonical?
 	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to marshal VC: %w", err)
 	}
 
-	cid, hint, err := g.CasWriter.Write(anchorBytes)
+	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorBytes)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal canonical: %w", err)
+	}
+
+	cid, hint, err := g.CasWriter.Write(canonicalBytes)
 	if err != nil {
 		return "", "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debugf("added anchor[%s]: %s", cid, string(anchorBytes))
+	logger.Debugf("added anchor[%s]: %s", cid, string(canonicalBytes))
 
 	return cid, hint, nil
 }
