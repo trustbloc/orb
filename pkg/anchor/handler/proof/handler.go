@@ -85,6 +85,15 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 	logger.Debugf("received request anchorCredID[%s] from witness[%s], proof: %s",
 		anchorCredID, witness.String(), string(proof))
 
+	serverTime := time.Now().Unix()
+
+	if endTime.Unix() < serverTime {
+		// proof came after expiry time so nothing to do here
+		// clean up process for witness store and Sidetree batch files will have to be initiated differently
+		// since we can have scenario that proof never shows up
+		return nil
+	}
+
 	status, err := h.VCStatusStore.GetStatus(anchorCredID)
 	if err != nil {
 		return fmt.Errorf("failed to get status for anchor credential[%s]: %w", anchorCredID, err)
@@ -112,8 +121,17 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 		return fmt.Errorf("failed to add witness[%s] proof for credential[%s]: %w", witness.String(), anchorCredID, err)
 	}
 
+	err = h.setupMonitoring(witnessProof, vc, endTime)
+	if err != nil {
+		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
+	}
+
+	return h.handleWitnessPolicy(vc)
+}
+
+func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Credential, endTime time.Time) error {
 	var created string
-	if createdVal, ok := witnessProof.Proof["created"].(string); ok {
+	if createdVal, ok := wp.Proof["created"].(string); ok {
 		created = createdVal
 	}
 
@@ -123,16 +141,11 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 	}
 
 	var domain string
-	if domainVal, ok := witnessProof.Proof["domain"].(string); ok {
+	if domainVal, ok := wp.Proof["domain"].(string); ok {
 		domain = domainVal
 	}
 
-	err = h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
-	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
-	}
-
-	return h.handleWitnessPolicy(vc)
+	return h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 }
 
 func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) error {

@@ -55,11 +55,13 @@ func TestWitnessProofHandler(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	witnessIRI, err := url.Parse(witnessURL)
-	require.NoError(t, err)
+	witnessIRI, outerErr := url.Parse(witnessURL)
+	require.NoError(t, outerErr)
 
-	configStore, err := mem.NewProvider().OpenStore(configStoreName)
-	require.NoError(t, err)
+	configStore, outerErr := mem.NewProvider().OpenStore(configStoreName)
+	require.NoError(t, outerErr)
+
+	expiryTime := time.Now().Add(60 * time.Second)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -98,7 +100,16 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		require.NoError(t, err)
+	})
+
+	t.Run("success - proof expired", func(t *testing.T) {
+		proofHandler := New(&Providers{}, ps)
+
+		expiredTime := time.Now().Add(-60 * time.Second)
+
+		err := proofHandler.HandleProof(witnessIRI, vcID, expiredTime, nil)
 		require.NoError(t, err)
 	})
 
@@ -143,7 +154,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -177,7 +188,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -219,7 +230,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor credential[%s]: get vc status error", anchorVC.ID))
@@ -264,7 +275,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor credential[%s]: second get vc status error", anchorVC.ID))
@@ -308,7 +319,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to change status to 'completed' for credential[%s]: add vc status error", anchorVC.ID))
@@ -344,7 +355,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to evaluate witness policy for credential[%s]: witness policy error", anchorVC.ID))
@@ -377,7 +388,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, "testVC",
-			time.Now(), []byte(witnessProof))
+			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "status not found for vcID: testVC")
 	})
@@ -408,7 +419,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get vc: get error")
 	})
@@ -442,7 +453,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to add witness[http://example.com/orb/services] proof for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
@@ -477,7 +488,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to get witness proofs for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
@@ -503,7 +514,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(""))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal witness proof for anchor credential")
 	})
@@ -540,7 +551,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, time.Now(), []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")
 	})
