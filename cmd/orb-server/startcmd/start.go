@@ -99,6 +99,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/resolver/document"
+	"github.com/trustbloc/orb/pkg/resolver/resource"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
@@ -592,7 +593,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader,
-		ipfsReader)
+		resource.New(httpClient, ipfsReader))
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
