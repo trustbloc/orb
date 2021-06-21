@@ -192,6 +192,43 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("success - policy satisfied but some witness proofs are empty", func(t *testing.T) {
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{{
+				Type:    proofapi.WitnessTypeSystem,
+				Witness: "witness",
+			}}},
+			WitnessPolicy: &mockWitnessPolicy{eval: true},
+		}
+
+		proofHandler := New(providers, ps)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			expiryTime, []byte(witnessProof))
+		require.NoError(t, err)
+	})
+
 	t.Run("error - get vc status error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -516,7 +553,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(""))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to unmarshal witness proof for anchor credential")
+		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor credential")
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {

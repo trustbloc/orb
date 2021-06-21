@@ -119,6 +119,7 @@ const (
 	noStartupDelay = 0 * time.Second // no delay
 
 	defaulthttpSignaturesEnabled = true
+	defaultDidDiscoveryEnabled   = false
 
 	unpublishedDIDLabel = "interim"
 
@@ -647,10 +648,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	orbResolver := document.NewResolveHandler(
 		parameters.didNamespace,
-		parameters.didAliases,
-		unpublishedDIDLabel,
 		didDocHandler,
 		localdiscovery.New(o.Publisher()),
+		document.WithAliases(parameters.didAliases),
+		document.WithUnpublishedDIDLabel(unpublishedDIDLabel),
+		document.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled),
 	)
 
 	// create discovery rest api

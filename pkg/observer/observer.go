@@ -143,7 +143,7 @@ func (o *Observer) processDID(did string) error {
 		return err
 	}
 
-	logger.Debugf("got %d anchors for out-of-system did[%s]", did)
+	logger.Debugf("got %d anchors for out-of-system did[%s]", len(anchors), did)
 
 	for _, anchor := range anchors {
 		logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)

@@ -108,7 +108,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 
 	err = json.Unmarshal(proof, &witnessProof)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %w", anchorCredID, err)
+		return fmt.Errorf("failed to unmarshal incoming witness proof for anchor credential[%s]: %w", anchorCredID, err)
 	}
 
 	vc, err := h.VCStore.Get(anchorCredID)
@@ -194,14 +194,16 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 
 func addProofs(vc *verifiable.Credential, proofs []*proofapi.WitnessProof) (*verifiable.Credential, error) {
 	for _, p := range proofs {
-		var witnessProof vct.Proof
+		if p.Proof != nil {
+			var witnessProof vct.Proof
 
-		err := json.Unmarshal(p.Proof, &witnessProof)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal witness proof for anchor credential[%s]: %w", vc.ID, err)
+			err := json.Unmarshal(p.Proof, &witnessProof)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal stored witness proof for anchor credential[%s]: %w", vc.ID, err)
+			}
+
+			vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 		}
-
-		vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 	}
 
 	return vc, nil

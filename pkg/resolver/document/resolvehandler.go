@@ -30,6 +30,7 @@ type ResolveHandler struct {
 	namespace           string
 	aliases             []string
 	unpublishedDIDLabel string
+	enableDidDiscovery  bool
 }
 
 // did discovery service.
@@ -37,22 +38,51 @@ type discovery interface {
 	RequestDiscovery(id string) error
 }
 
-// NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, aliases []string, unpublishedDIDLabel string, resolver dochandler.Resolver, discovery discovery) *ResolveHandler { //nolint:lll
-	return &ResolveHandler{
-		namespace:           namespace,
-		aliases:             aliases,
-		unpublishedDIDLabel: unpublishedDIDLabel,
-		coreResolver:        resolver,
-		discovery:           discovery,
+// Option is an option for resolve handler.
+type Option func(opts *ResolveHandler)
+
+// WithEnableDIDDiscovery sets optional did discovery flag.
+func WithEnableDIDDiscovery(enable bool) Option {
+	return func(opts *ResolveHandler) {
+		opts.enableDidDiscovery = enable
 	}
+}
+
+// WithAliases sets optional aliases.
+func WithAliases(aliases []string) Option {
+	return func(opts *ResolveHandler) {
+		opts.aliases = aliases
+	}
+}
+
+// WithUnpublishedDIDLabel sets did label.
+func WithUnpublishedDIDLabel(label string) Option {
+	return func(opts *ResolveHandler) {
+		opts.unpublishedDIDLabel = label
+	}
+}
+
+// NewResolveHandler returns a new document resolve handler.
+func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery, opts ...Option) *ResolveHandler { //nolint:lll
+	rh := &ResolveHandler{
+		namespace:    namespace,
+		coreResolver: resolver,
+		discovery:    discovery,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(rh)
+	}
+
+	return rh
 }
 
 // ResolveDocument resolves a document.
 func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) {
 	response, err := r.coreResolver.ResolveDocument(id)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "not found") && r.enableDidDiscovery {
 			// this can only happen if short form resolution returned not found
 			r.requestDiscovery(id)
 		}
@@ -64,7 +94,6 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 }
 
 func (r *ResolveHandler) requestDiscovery(id string) {
-	// it only makes sense to request discovery if did has cid
 	orbSuffix, err := r.getOrbSuffix(id)
 	if err != nil {
 		// not proper orb suffix - nothing to do
