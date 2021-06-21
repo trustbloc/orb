@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package writer
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,11 +35,11 @@ import (
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
-	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
@@ -59,11 +58,13 @@ const (
 
 	signWithLocalWitness = true
 
-	sampleWebFingerResponseDataFromIPNS = `{"subject":"ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7u` +
-		`yhdre8ateqek","properties":{"https://trustbloc.dev/ns/cas":"https://testnet.orb.local/cas","https://tru` +
+	sampleBaseURLWebFingerResponseData = `{"subject":"%s` +
+		`","properties":{"https://trustbloc.dev/ns/cas":"https://testnet.orb.local/cas","https://tru` +
 		`stbloc.dev/ns/min-resolvers":1,"https://trustbloc.dev/ns/vct":"https://testnet.orb.local/vct","https://` +
-		`trustbloc.dev/ns/witness":"https://testnet.orb.local/services/orb"},"links":[{"rel":"self","href":"http` +
+		`trustbloc.dev/ns/witness":"%s/services/orb"},"links":[{"rel":"self","href":"http` +
 		`s://testnet.orb.local/sidetree/v1/identifiers"}]}`
+	sampleWitnessWebFingerResponseData = `{"subject":"%s","links":` +
+		`[{"rel":"self","type":"application/ld+json","href":"%s/services/orb"}]}`
 )
 
 func TestNew(t *testing.T) {
@@ -104,7 +105,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestWriter_WriteAnchor(t *testing.T) {
+func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop // test file
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
@@ -128,7 +129,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	anchorGraph := graph.New(graphProviders)
 
-	t.Run("success - no local witness configured", func(t *testing.T) {
+	t.Run("success - no local witness configured, "+
+		"witness needs to be resolved via HTTP", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -150,24 +152,36 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, false, testutil.GetLoader(t), resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -175,7 +189,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("success - one anchor origin needs to be resolved via IPNS", func(t *testing.T) {
+	t.Run("success - witness needs to be resolved via IPNS", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
@@ -196,35 +210,36 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			VCStatusStore: vcStatusStore,
 		}
 
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, err = w.Write([]byte(sampleWebFingerResponseDataFromIPNS))
-				require.NoError(t, err)
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						"ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek", testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
 			}))
 		defer testServer.Close()
 
+		testServerURL = testServer.URL
+
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), ipfs.New(testServer.URL))
+			testMaxWitnessDelay, false, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL)))
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
-			},
-			{
-				UniqueSuffix: "did-4",
 				Type:         operation.TypeCreate,
 				AnchorOrigin: "ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			},
@@ -257,14 +272,37 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, false, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -297,19 +335,37 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: activityPubURL,
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: activityPubURL,
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -339,14 +395,37 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: activityPubURL,
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -377,19 +456,37 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, nil, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: activityPubURL,
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: activityPubURL,
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -459,10 +556,34 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		err = c.WriteAnchor("1.anchor",
+			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 
 		require.Contains(t, err.Error(), "failed to sign anchor credential[http://domain.com/vc/123]: signer error")
 	})
@@ -489,10 +610,34 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		err = c.WriteAnchor("1.anchor",
+			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to setup monitoring for local witness for anchor credential[http://domain.com/vc/123]: monitoring error")
@@ -509,10 +654,34 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		err = c.WriteAnchor("1.anchor",
+			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Contains(t, err.Error(),
 			"local witnessing failed for anchor credential[http://domain.com/vc/123]: witness error")
 	})
@@ -535,10 +704,34 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		err = c.WriteAnchor("1.anchor",
+			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put")
 	})
@@ -563,10 +756,34 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", getOperationReferences(), 1)
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		err = c.WriteAnchor("1.anchor",
+			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put (local witness)")
 	})
@@ -618,14 +835,37 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		publisher.PublishAnchorReturns(errors.New("injected publisher error"))
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, publisher, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, false, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
+
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit {
+				case 0:
+					numTimesMockServerHandlerHit++
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+				case 1:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
+					require.NoError(t, err)
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
 
 		opRefs := []*operation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServerURL),
 			},
 		}
 
@@ -655,25 +895,11 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), ipfs.New("SomeIPFSNodeURL"))
+			testMaxWitnessDelay, false, testutil.GetLoader(t),
+			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL")))
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
-			{
-				UniqueSuffix: "did-1",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
-			},
 			{
 				UniqueSuffix: "did-4",
 				Type:         operation.TypeCreate,
@@ -683,211 +909,10 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		err = c.WriteAnchor("1.anchor", opRefs, 1)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to create witness list: failed to resolve anchor origin via "+
-			`IPNS: failed to resolve WebFinger response via IPNS: Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2`+
-			`Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek%2F.well-known%2Fwebfinger": `+
-			"dial tcp: lookup SomeIPFSNodeURL:")
-	})
-
-	t.Run("error - fail to resolve anchor origin via IPNS (WebFinger response unmarshal "+
-		"failure)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
-		require.NoError(t, err)
-
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
-		require.NoError(t, err)
-
-		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			WitnessStore:  &mockWitnessStore{},
-			ActivityStore: &mockActivityStore{},
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-		}
-
-		testServer := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-		defer testServer.Close()
-
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), ipfs.New(testServer.URL))
-		require.NoError(t, err)
-
-		opRefs := []*operation.Reference{
-			{
-				UniqueSuffix: "did-1",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
-			},
-			{
-				UniqueSuffix: "did-4",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
-			},
-		}
-
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
-		require.EqualError(t, err, "failed to create witness list: failed to resolve anchor origin via "+
-			"IPNS: failed to unmarshal WebFinger response: unexpected end of JSON input")
-	})
-
-	t.Run("error - fail to resolve anchor origin via IPNS (witness property missing)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
-		require.NoError(t, err)
-
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
-		require.NoError(t, err)
-
-		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			WitnessStore:  &mockWitnessStore{},
-			ActivityStore: &mockActivityStore{},
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-		}
-
-		testServer := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var webFingerResp discoveryrest.WebFingerResponse
-
-				err = json.Unmarshal([]byte(sampleWebFingerResponseDataFromIPNS), &webFingerResp)
-				require.NoError(t, err)
-
-				delete(webFingerResp.Properties, discoveryrest.WitnessType)
-
-				webFingerRespBytes, errMarshal := json.Marshal(webFingerResp)
-				require.NoError(t, errMarshal)
-
-				_, err = w.Write(webFingerRespBytes)
-				require.NoError(t, err)
-			}))
-		defer testServer.Close()
-
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), ipfs.New(testServer.URL))
-		require.NoError(t, err)
-
-		opRefs := []*operation.Reference{
-			{
-				UniqueSuffix: "did-1",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
-			},
-			{
-				UniqueSuffix: "did-4",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
-			},
-		}
-
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
-		require.EqualError(t, err, "failed to create witness list: failed to resolve anchor origin via "+
-			"IPNS: witness property missing from the WebFinger response obtained by resolving ipns://k51qzi5uqu"+
-			"5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek")
-	})
-
-	t.Run("error - fail to resolve anchor origin via IPNS (fail to assert witness property "+
-		"as a string)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
-		require.NoError(t, err)
-
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
-		require.NoError(t, err)
-
-		providers := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			OpProcessor:   &mockOpProcessor{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			MonitoringSvc: &mockMonitoring{},
-			WitnessStore:  &mockWitnessStore{},
-			ActivityStore: &mockActivityStore{},
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-		}
-
-		testServer := httptest.NewServer(
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var webFingerResp discoveryrest.WebFingerResponse
-
-				err = json.Unmarshal([]byte(sampleWebFingerResponseDataFromIPNS), &webFingerResp)
-				require.NoError(t, err)
-
-				webFingerResp.Properties[discoveryrest.WitnessType] = 0
-
-				webFingerRespBytes, errMarshal := json.Marshal(webFingerResp)
-				require.NoError(t, errMarshal)
-
-				_, err = w.Write(webFingerRespBytes)
-				require.NoError(t, err)
-			}))
-		defer testServer.Close()
-
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, testutil.GetLoader(t), ipfs.New(testServer.URL))
-		require.NoError(t, err)
-
-		opRefs := []*operation.Reference{
-			{
-				UniqueSuffix: "did-1",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin.com",
-			},
-			{
-				UniqueSuffix: "did-2",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-2.com",
-			},
-			{
-				UniqueSuffix: "did-3",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: c.apServiceIRI.String(),
-			},
-			{
-				UniqueSuffix: "did-4",
-				Type:         operation.TypeCreate,
-				AnchorOrigin: "ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
-			},
-		}
-
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
-		require.EqualError(t, err, "failed to create witness list: failed to resolve anchor origin via "+
-			"IPNS: failed to assert witness property from the WebFinger response obtained by resolving ipns://k5"+
-			"1qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek as a string")
+		require.Contains(t, err.Error(), "failed to create witness list: failed to resolve witness: "+
+			`failed to get WebFinger response from IPNS URL: failed to read from IPNS: `+
+			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
+			`l7uyhdre8ateqek%2F.well-known%2Fwebfinger": dial tcp: lookup SomeIPFSNodeURL:`)
 	})
 }
 
@@ -1252,10 +1277,44 @@ func TestWriter_getWitnesses(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
+		var numTimesMockServerHandlerHit int
+
+		var testServerURL string
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch numTimesMockServerHandlerHit % 2 {
+				case 0:
+					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
+						testServerURL, testServerURL)))
+					require.NoError(t, err)
+					numTimesMockServerHandlerHit++
+				case 1:
+					if numTimesMockServerHandlerHit == 11 {
+						_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+							fmt.Sprintf("%s/services/orb", testServerURL),
+							fmt.Sprintf("%s/9", testServerURL))))
+						require.NoError(t, err)
+					} else {
+						_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
+							fmt.Sprintf("%s/services/orb", testServerURL),
+							fmt.Sprintf("%s/%d", testServerURL, numTimesMockServerHandlerHit))))
+						require.NoError(t, err)
+					}
+
+					numTimesMockServerHandlerHit++
+				}
+			}))
+		defer testServer.Close()
+
+		testServerURL = testServer.URL
+
+		testAnchorOrigin := fmt.Sprintf("%s/services/orb", testServerURL)
+
 		opMap := map[string]*protocol.ResolutionModel{
-			"did-1": {AnchorOrigin: "origin-1.com"},
-			"did-2": {AnchorOrigin: "origin-2.com"},
-			"did-3": {AnchorOrigin: "origin-3.com"},
+			"did-1": {AnchorOrigin: testAnchorOrigin},
+			"did-2": {AnchorOrigin: testAnchorOrigin},
+			"did-3": {AnchorOrigin: testAnchorOrigin},
 		}
 
 		providers := &Providers{
@@ -1263,7 +1322,8 @@ func TestWriter_getWitnesses(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t),
+			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -1274,7 +1334,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			{
 				UniqueSuffix: "did-2",
 				Type:         operation.TypeRecover,
-				AnchorOrigin: "new-origin-2.com",
+				AnchorOrigin: testAnchorOrigin,
 			},
 			{
 				UniqueSuffix: "did-3",
@@ -1283,17 +1343,17 @@ func TestWriter_getWitnesses(t *testing.T) {
 			{
 				UniqueSuffix: "did-4",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-4.com",
+				AnchorOrigin: testAnchorOrigin,
 			},
 			{
 				UniqueSuffix: "did-5",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-5.com",
+				AnchorOrigin: testAnchorOrigin,
 			},
 			{
 				UniqueSuffix: "did-6",
 				Type:         operation.TypeCreate,
-				AnchorOrigin: "origin-5.com", // test re-use same origin
+				AnchorOrigin: testAnchorOrigin, // test re-use same origin (this will be the same as the one above)
 			},
 		}
 
@@ -1301,7 +1361,15 @@ func TestWriter_getWitnesses(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 5, len(witnesses))
 
-		expected := []string{"origin-1.com", "new-origin-2.com", "origin-3.com", "origin-4.com", "origin-5.com"}
+		expectedWitnessTemplate := "%s/%d/services/orb"
+
+		expected := []string{
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 1),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 3),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 5),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 7),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 9),
+		}
 		require.Equal(t, expected, witnesses)
 	})
 
@@ -1593,12 +1661,12 @@ func (ss *mockVCStatusStore) AddStatus(vcID string, status proof.VCStatus) error
 	return nil
 }
 
-func getOperationReferences() []*operation.Reference {
+func getOperationReferences(anchorOrigin string) []*operation.Reference {
 	return []*operation.Reference{
 		{
 			UniqueSuffix: "did-1",
 			Type:         operation.TypeCreate,
-			AnchorOrigin: activityPubURL,
+			AnchorOrigin: anchorOrigin,
 		},
 	}
 }
