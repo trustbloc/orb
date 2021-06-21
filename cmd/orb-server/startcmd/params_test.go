@@ -378,6 +378,33 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value for enable-http-signatures")
 	})
+
+	t.Run("test invalid enable-did-discovery", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + enableDidDiscoveryFlagName, "invalid bool",
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for enable-did-discovery")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {

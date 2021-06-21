@@ -215,6 +215,11 @@ const (
 	httpSignaturesEnabledUsage     = `Set to "true" to enable HTTP signatures in ActivityPub. ` +
 		commonEnvVarUsageText + httpSignaturesEnabledEnvKey
 
+	enableDidDiscoveryFlagName = "enable-did-discovery"
+	enableDidDiscoveryEnvKey   = "DID_DISCOVERY_ENABLED"
+	enableDidDiscoveryUsage    = `Set to "true" to enable did discovery. ` +
+		commonEnvVarUsageText + enableDidDiscoveryEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -259,6 +264,7 @@ type orbParameters struct {
 	startupDelay              time.Duration
 	signWithLocalWitness      bool
 	httpSignaturesEnabled     bool
+	didDiscoveryEnabled       bool
 	authTokenDefinitions      []*auth.TokenDef
 	authTokens                map[string]string
 	opQueuePoolSize           uint
@@ -436,6 +442,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpSignaturesEnabled = enable
 	}
 
+	enableDidDiscoveryStr, err := cmdutils.GetUserSetVarFromString(cmd, enableDidDiscoveryFlagName, enableDidDiscoveryEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	didDiscoveryEnabled := defaultDidDiscoveryEnabled
+	if enableDidDiscoveryStr != "" {
+		enable, parseErr := strconv.ParseBool(enableDidDiscoveryStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", enableDidDiscoveryFlagName, parseErr)
+		}
+
+		didDiscoveryEnabled = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -517,6 +538,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		startupDelay:              startupDelay,
 		signWithLocalWitness:      signWithLocalWitness,
 		httpSignaturesEnabled:     httpSignaturesEnabled,
+		didDiscoveryEnabled:       didDiscoveryEnabled,
 		authTokenDefinitions:      authTokenDefs,
 		authTokens:                authTokens,
 	}, nil
@@ -692,6 +714,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
+	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)

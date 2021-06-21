@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
-const timeout = 2
+const timeout = 5
 
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
