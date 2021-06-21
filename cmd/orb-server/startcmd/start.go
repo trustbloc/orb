@@ -72,7 +72,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/handler/credential"
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
-	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	policyhandler "github.com/trustbloc/orb/pkg/anchor/policy/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
@@ -540,7 +539,7 @@ func startOrbServices(parameters *orbParameters) error {
 		PubSub:                 pubSub,
 	}
 
-	o, err := observer.New(providers)
+	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}
@@ -881,19 +880,6 @@ func prepareKeyLock(keyPath string) (secretlock.Service, error) {
 	}
 
 	return local.NewService(masterKeyReader, nil)
-}
-
-type mockTxnProvider struct {
-	registerForAnchor chan []anchorinfo.AnchorInfo
-	registerForDID    chan []string
-}
-
-func (m mockTxnProvider) RegisterForAnchor() <-chan []anchorinfo.AnchorInfo {
-	return m.registerForAnchor
-}
-
-func (m mockTxnProvider) RegisterForDID() <-chan []string {
-	return m.registerForDID
 }
 
 func mustParseURL(basePath, relativePath string) *url.URL {

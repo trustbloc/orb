@@ -271,6 +271,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid batch writer timeout format")
 	})
 
+
 	t.Run("test invalid max witness delay", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -568,6 +569,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
+		"--" + discoveryDomainFlagName, "shared.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
