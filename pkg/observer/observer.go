@@ -59,6 +59,16 @@ type pubSub interface {
 	Close() error
 }
 
+// Option is an option for observer.
+type Option func(opts *Observer)
+
+// WithDiscoveryDomain sets optional discovery domain hint (used for did equivalent ids).
+func WithDiscoveryDomain(domain string) Option {
+	return func(opts *Observer) {
+		opts.discoveryDomain = domain
+	}
+}
+
 // Providers contains all of the providers required by the TxnProcessor.
 type Providers struct {
 	ProtocolClientProvider protocol.ClientProvider
@@ -72,10 +82,12 @@ type Observer struct {
 	*Providers
 
 	pubSub *PubSub
+
+	discoveryDomain string
 }
 
 // New returns a new observer.
-func New(providers *Providers) (*Observer, error) {
+func New(providers *Providers, opts ...Option) (*Observer, error) {
 	o := &Observer{
 		Providers: providers,
 	}
@@ -86,6 +98,11 @@ func New(providers *Providers) (*Observer, error) {
 	}
 
 	o.pubSub = ps
+
+	// apply options
+	for _, opt := range opts {
+		opt(o)
+	}
 
 	return o, nil
 }
@@ -201,13 +218,19 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		equivalentRef = anchor.Hint + ":" + equivalentRef
 	}
 
+	equivalentRefs := []string{equivalentRef}
+	if o.discoveryDomain != "" {
+		// only makes sense to have discovery domain with webcas (may change with ipfs gateway requirements)
+		equivalentRefs = append(equivalentRefs, "webcas:"+o.discoveryDomain)
+	}
+
 	sidetreeTxn := txnapi.SidetreeTxn{
 		TransactionTime:      uint64(info.Issued.Unix()),
 		AnchorString:         ad.GetAnchorString(),
 		Namespace:            anchorPayload.Namespace,
 		ProtocolGenesisTime:  anchorPayload.Version,
 		CanonicalReference:   anchor.CID,
-		EquivalentReferences: []string{equivalentRef},
+		EquivalentReferences: equivalentRefs,
 	}
 
 	logger.Debugf("processing anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)

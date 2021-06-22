@@ -65,6 +65,10 @@ const (
 		" should be resolvable by external clients. Format: HostName[:Port]."
 	externalEndpointEnvKey = "ORB_EXTERNAL_ENDPOINT"
 
+	discoveryDomainFlagName  = "discovery-domain"
+	discoveryDomainFlagUsage = "Discovery domain for this domain." + " Format: HostName"
+	discoveryDomainEnvKey    = "ORB_DISCOVERY_DOMAIN"
+
 	tlsCertificateFlagName      = "tls-certificate"
 	tlsCertificateFlagShorthand = "y"
 	tlsCertificateFlagUsage     = "TLS certificate for ORB server. " + commonEnvVarUsageText + tlsCertificateLEnvKey
@@ -242,6 +246,7 @@ type orbParameters struct {
 	kmsEndpoint               string
 	kmsStoreEndpoint          string
 	externalEndpoint          string
+	discoveryDomain           string
 	didNamespace              string
 	didAliases                []string
 	batchWriterTimeout        time.Duration
@@ -308,6 +313,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	if externalEndpoint == "" {
 		externalEndpoint = hostURL
+	}
+
+	discoveryDomain, err := cmdutils.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
+	if err != nil {
+		return nil, err
 	}
 
 	tlsCertificate, err := cmdutils.GetUserSetVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey, true)
@@ -517,6 +527,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		secretLockKeyPath:         secretLockKeyPath,
 		kmsStoreEndpoint:          kmsStoreEndpoint,
 		externalEndpoint:          externalEndpoint,
+		discoveryDomain:           discoveryDomain,
 		tlsKey:                    tlsKey,
 		tlsCertificate:            tlsCertificate,
 		didNamespace:              didNamespace,
@@ -708,6 +719,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(keyIDFlagName, "", keyIDFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
+	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)

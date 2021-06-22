@@ -672,7 +672,16 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDID(url string) error {
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentDID(url string) error {
+	// interim DID contains one equivalent ID
 	equivalentDID := d.equivalentDID[len(d.equivalentDID)-1]
+
+	// permanent DID has 2 or more equivalent IDs:
+	// first one is canonical ID (Sidetree spec),
+	// second one is with originator hint,
+	// third one is with shared domain hint (if configured)
+	if len(d.equivalentDID) > 1 {
+		equivalentDID = d.equivalentDID[1]
+	}
 
 	logger.Infof("resolving did document with equivalent did: %s", equivalentDID)
 

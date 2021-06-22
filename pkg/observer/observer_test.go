@@ -122,7 +122,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 		}
 
-		o, err := New(providers)
+		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))
 		require.NotNil(t, o)
 		require.NoError(t, err)
 

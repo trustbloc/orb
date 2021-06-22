@@ -63,8 +63,6 @@ func WithDisableProofCheck(disableProofCheck bool) Option {
 }
 
 // New creates new Orb client.
-// TODO: Discuss if we should create cas reader based on ipfs URL or cas reader should be provided here.
-// TODO: It looks like document loader is not optional.
 func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, error) {
 	versions := []string{"1.0"}
 
