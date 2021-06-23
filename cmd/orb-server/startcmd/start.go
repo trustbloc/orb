@@ -99,6 +99,8 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/resolver/document"
 	"github.com/trustbloc/orb/pkg/resolver/resource"
+	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
+	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/operation"
@@ -443,6 +445,12 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
+
+	didAnchoringInfoProvider := didanchorinfo.New(parameters.didNamespace, didAnchors, opProcessor)
+
+	// add any additional supported namespaces to resource registry (for now we have just one)
+	resourceRegistry := registry.New(registry.WithResourceInfoProvider(didAnchoringInfoProvider))
+	logger.Debugf("started resource registry: %+v", resourceRegistry)
 
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
