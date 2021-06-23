@@ -91,6 +91,8 @@ func (a *SignatureHashAlgorithm) Verify(secret httpsig.Secret, data, signature [
 	logger.Debugf("Got key %+v from keyID [%s]", pubKey, secret.KeyID)
 
 	if !ed25519.Verify(pubKey.Value, data, signature) {
+		logger.Infof("Signature verification failed using keyID [%s]: %s", secret.KeyID, err)
+
 		return ErrInvalidSignature
 	}
 

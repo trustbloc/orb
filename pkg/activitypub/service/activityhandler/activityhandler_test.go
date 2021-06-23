@@ -1616,32 +1616,6 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		require.Contains(t, err.Error(), "object is required")
 	})
 
-	t.Run("Storage error", func(t *testing.T) {
-		errExpected := fmt.Errorf("injected storage error")
-
-		activityStore := &mocks.ActivityStore{}
-		activityStore.QueryReferencesReturns(nil, errExpected)
-
-		handler := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithWitness(witness))
-		require.NotNil(t, handler)
-
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-		)
-
-		require.True(t, errors.Is(handler.HandleActivity(offer), errExpected))
-	})
-
 	t.Run("Not witnessing actor", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
 
@@ -1661,8 +1635,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		)
 
 		err = h.HandleActivity(offer)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "not in the 'witnessing' collection")
+		require.NoError(t, err)
 	})
 }
 
