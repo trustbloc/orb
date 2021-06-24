@@ -29,7 +29,6 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -71,7 +70,6 @@ services:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
-      - ipfs
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
@@ -103,7 +101,6 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -145,7 +142,6 @@ services:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain1:/etc/orb/activitypub
     depends_on:
-      - ipfs
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
@@ -175,7 +171,6 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -217,7 +212,6 @@ services:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain2:/etc/orb/activitypub
     depends_on:
-      - ipfs
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
@@ -247,7 +241,6 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -289,7 +282,6 @@ services:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain3:/etc/orb/activitypub
     depends_on:
-      - ipfs
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
@@ -319,7 +311,6 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -361,7 +352,6 @@ services:
       - ./keys/tls:/etc/orb/tls
       - ./testdata/keys/domain2:/etc/orb/activitypub
     depends_on:
-      - ipfs
       - orb.kms
       - couchdb.kms.com
       - couchdb.shared.com
@@ -369,20 +359,6 @@ services:
     networks:
       - orb_net
 
-  ipfs:
-    container_name: ipfs
-    #TODO: this image doesn't work on ARM64 yet (investigate images)
-    image: ipfs/go-ipfs:v0.8.0
-    ports:
-      - "4001:4001"
-      - "4001:4001/udp"
-      - "127.0.0.1:8080:8080"
-      - "127.0.0.1:5001:5001"
-    volumes:
-      - ./data/ipfs:/data/ipfs
-      - ./export:/export
-    networks:
-      - orb_net
 
   couchdb.kms.com:
     container_name: couchdb.kms.com

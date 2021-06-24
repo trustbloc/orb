@@ -18,8 +18,4 @@ export COMPOSE_HTTP_TIMEOUT=120
 cd test/bdd
 go test -count=1 -v -cover . -p 1 -timeout=20m -race
 
-export CAS_TYPE=ipfs
-
-go test -count=1 -v -cover . -p 1 -timeout=20m -race
-cd $PWD
 

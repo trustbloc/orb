@@ -146,14 +146,14 @@ Feature:
 
      Then container "orb-domain1" is stopped
      Then container "orb-domain2" is stopped
-     Then container "ipfs" is stopped
+     # Then container "ipfs" is stopped
 
      Then we wait 3 seconds
 
      Then container "orb-domain1" is started
      Then container "orb2-domain1" is started
      Then container "orb-domain2" is started
-     Then container "ipfs" is started
+     # Then container "ipfs" is started
 
      Then we wait 5 seconds
 
