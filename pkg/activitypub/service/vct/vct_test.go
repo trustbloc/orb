@@ -70,7 +70,7 @@ func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) 
 func TestClient_Witness(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/ct/v1/get-public-key" {
+			if req.URL.Path == "/v1/get-public-key" {
 				pubKey := `"BLlG6D6mEemsE4/jqrW4yrHy98dJ0WzPVxrHohWMdQCPMBR2/93IueMq1XycbaDTHfUsgC5YdVjw3/EY0VfWc2U="`
 
 				return &http.Response{
@@ -126,7 +126,7 @@ func TestClient_Witness(t *testing.T) {
 	})
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/ct/v1/get-public-key" {
+			if req.URL.Path == "/v1/get-public-key" {
 				pubKey := `"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="`
 
 				return &http.Response{
