@@ -14,7 +14,7 @@ services:
     environment:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
-      - ORB_VCT_URL=http://orb.vct:8077
+      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
@@ -86,7 +86,7 @@ services:
     environment:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
-      - ORB_VCT_URL=http://orb.vct:8077
+      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       # add delay for starting additional servers within same domain (in seconds)
       - ORB_STARTUP_DELAY=5
@@ -233,7 +233,7 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
-      - ORB_VCT_URL=http://orb.vct:8077
+      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -440,7 +440,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc/vct-log-server:v0.1.1
+    image: ghcr.io/trustbloc-cicd/vct-log-server:v0.1.0-snapshot-eca8d26
     restart: always
     command:
       - --quota_system=noop
@@ -457,7 +457,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc/vct-log-signer:v0.1.1
+    image: ghcr.io/trustbloc-cicd/vct-log-signer:v0.1.0-snapshot-eca8d26
     restart: always
     command:
       - --quota_system=noop
@@ -504,12 +504,11 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.0-snapshot-f1185c0
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.0-snapshot-eca8d26
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
-      - VCT_AUTO_INIT_TREE=true
-      - VCT_LOG_ENDPOINT=orb.trillian.log.server:8090
+      - VCT_LOGS=maple2020:rw@orb.trillian.log.server:8090
       - VCT_KMS_ENDPOINT=http://orb.kms:7878
       - VCT_TLS_SYSTEMCERTPOOL=true
       - VCT_DSN=couchdb://${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.kms.com:5984
