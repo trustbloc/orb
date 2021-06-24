@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
@@ -164,6 +165,29 @@ func TestHandler(t *testing.T) {
 				},
 			},
 		}
+
+		t.Run("Authorized", func(t *testing.T) {
+			actor := testutil.MustParseURL("https://sally.example.com/services/orb")
+
+			v := &mocks.SignatureVerifier{}
+			v.VerifyRequestReturns(true, actor, nil)
+
+			webCAS := webcas.New(cfg, memstore.New(""), v, casClient)
+			require.NotNil(t, webCAS)
+
+			router := mux.NewRouter()
+
+			router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+			testServer := httptest.NewServer(router)
+			defer testServer.Close()
+
+			response, err := http.DefaultClient.Get(testServer.URL + "/cas/QmeKWPxUJP9M3WJgBuj8ykLtGU37iqur5gZ8cDCi49WJVG")
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusNotFound, response.StatusCode)
+			require.NoError(t, response.Body.Close())
+		})
 
 		t.Run("Unauthorized", func(t *testing.T) {
 			webCAS := webcas.New(cfg, memstore.New(""), &mocks.SignatureVerifier{}, casClient)

@@ -38,9 +38,8 @@ type signatureVerifier interface {
 type WebCAS struct {
 	*resthandler.AuthHandler
 
-	VerifyActorInSignature bool
-	casClient              casapi.Client
-	logger                 logger
+	casClient casapi.Client
+	logger    logger
 }
 
 // Path returns the HTTP REST endpoint for the WebCAS service.
@@ -62,12 +61,21 @@ func (w *WebCAS) Handler() common.HTTPRequestHandler {
 // https://trustbloc.github.io/did-method-orb/#webcas.
 func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier, casClient casapi.Client) *WebCAS {
 	h := &WebCAS{
-		VerifyActorInSignature: authCfg.VerifyActorInSignature,
-		casClient:              casClient,
-		logger:                 log.New("webcas"),
+		casClient: casClient,
+		logger:    log.New("webcas"),
 	}
 
-	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, nil)
+	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier,
+		func(actorIRI *url.URL) (bool, error) {
+			// TODO: Does the actor need to be authorized? If so, how? A witness needs access to the /cas endpoint
+			// but does not need to be part of an actor's 'followers' or 'witnessing' collections (e.g. the case where
+			// an offer is sent to a non-system witness).
+			// So, for now, let all actors through.
+
+			h.logger.Debugf("[%s] Authorized actor [%s]", h.Path(), actorIRI)
+
+			return true, nil
+		})
 
 	return h
 }

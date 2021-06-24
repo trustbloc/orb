@@ -49,11 +49,6 @@ Feature:
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
-    # domain1 invites domain4 to be a witness
-    Given variable "inviteWitnessID" is assigned a unique ID
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"InviteWitness","actor":"${domain1IRI}","to":"${domain4IRI}","object":"${domain4IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
-
     # set witness policy for domain1
     When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
 
@@ -136,6 +131,8 @@ Feature:
 
      # write batch of DIDs to multiple servers and check them
      When client sends request to "https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+     # Remove the following sleep after issue #532 is resolved since messages are sometimes lost during shutdown.
+     And we wait 10 seconds
 
      # Stop orb2.domain1. The other instance in the domain should process any pending operations since
      # we're using a durable operation queue.
