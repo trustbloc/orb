@@ -17,6 +17,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
@@ -46,16 +47,22 @@ type publisher interface {
 	Publish(topic string, messages ...*message.Message) error
 }
 
+type subscriberFactory = func() (subscriber, error)
+
+type publisherFactory = func() (publisher, error)
+
 // PubSub implements a publisher/subscriber that connects to an AMQP-compatible message queue.
 type PubSub struct {
 	*lifecycle.Lifecycle
 	Config
 
-	config     amqp.Config
-	subscriber subscriber
-	publisher  publisher
-	pools      []*pooledSubscriber
-	mutex      sync.RWMutex
+	config           amqp.Config
+	subscriber       subscriber
+	publisher        publisher
+	pools            []*pooledSubscriber
+	mutex            sync.RWMutex
+	createSubscriber subscriberFactory
+	createPublisher  publisherFactory
 }
 
 // New returns a new AMQP publisher/subscriber.
@@ -68,6 +75,9 @@ func New(cfg Config) *PubSub {
 	p.Lifecycle = lifecycle.New("amqp",
 		lifecycle.WithStart(p.start),
 		lifecycle.WithStop(p.stop))
+
+	p.createSubscriber = p.newSubscriber
+	p.createPublisher = p.newPublisher
 
 	// Start the service immediately.
 	p.Start()
@@ -125,7 +135,11 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 
 	logger.Debugf("Publishing messages to topic [%s]", topic)
 
-	return p.publisher.Publish(topic, messages...)
+	if err := p.publisher.Publish(topic, messages...); err != nil {
+		return errors.NewTransient(err)
+	}
+
+	return nil
 }
 
 // Close stops the publisher/subscriber.
@@ -184,18 +198,26 @@ func (p *PubSub) start() {
 }
 
 func (p *PubSub) connect() error {
-	subscriber, err := amqp.NewSubscriber(p.config, wmlogger.New())
+	sub, err := p.createSubscriber()
 	if err != nil {
 		return err
 	}
 
-	publisher, err := amqp.NewPublisher(p.config, wmlogger.New())
+	pub, err := p.createPublisher()
 	if err != nil {
 		return err
 	}
 
-	p.subscriber = subscriber
-	p.publisher = publisher
+	p.subscriber = sub
+	p.publisher = pub
 
 	return nil
+}
+
+func (p *PubSub) newSubscriber() (subscriber, error) {
+	return amqp.NewSubscriber(p.config, wmlogger.New())
+}
+
+func (p *PubSub) newPublisher() (publisher, error) {
+	return amqp.NewPublisher(p.config, wmlogger.New())
 }

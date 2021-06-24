@@ -131,21 +131,17 @@ Feature:
 
      # write batch of DIDs to multiple servers and check them
      When client sends request to "https://orb2.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-     # Remove the following sleep after issue #532 is resolved since messages are sometimes lost during shutdown.
-     And we wait 10 seconds
 
      # Stop orb2.domain1. The other instance in the domain should process any pending operations since
      # we're using a durable operation queue.
      Then container "orb2-domain1" is stopped
-     And we wait 10 seconds
+     And we wait 3 seconds
 
      Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
      Then container "orb-domain1" is stopped
      Then container "orb-domain2" is stopped
      Then container "ipfs" is stopped
-
-     Then we wait 3 seconds
 
      Then container "orb-domain1" is started
      Then container "orb2-domain1" is started

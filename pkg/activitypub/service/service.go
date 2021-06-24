@@ -135,13 +135,13 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 
 func (s *Service) start() {
 	s.activityHandler.Start()
-	s.inbox.Start()
 	s.outbox.Start()
+	s.inbox.Start()
 }
 
 func (s *Service) stop() {
-	s.outbox.Stop()
 	s.inbox.Stop()
+	s.outbox.Stop()
 	s.activityHandler.Stop()
 }
 

@@ -16,6 +16,7 @@ import (
 
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 )
@@ -194,5 +195,20 @@ func TestPubSub_Error(t *testing.T) {
 
 		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"}))
 		require.NoError(t, ps.PublishDID("123456"))
+	})
+
+	t.Run("Not started error", func(t *testing.T) {
+		p := mempubsub.New(mempubsub.DefaultConfig())
+		require.NotNil(t, p)
+
+		ps, err := NewPubSub(p,
+			func(anchor *anchorinfo.AnchorInfo) error { return nil },
+			func(did string) error { return nil },
+		)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+
+		require.EqualError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"}), lifecycle.ErrNotStarted.Error())
+		require.EqualError(t, ps.PublishDID("123456"), lifecycle.ErrNotStarted.Error())
 	})
 }

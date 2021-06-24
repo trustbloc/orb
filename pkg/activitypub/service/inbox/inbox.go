@@ -16,7 +16,6 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
-	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
@@ -95,8 +94,6 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 	}
 
 	router.AddMiddleware(middleware.Recoverer, middleware.CorrelationID)
-
-	router.AddPlugin(plugin.SignalsHandler)
 
 	router.AddHandler(
 		cfg.ServiceEndpoint, cfg.ServiceEndpoint,

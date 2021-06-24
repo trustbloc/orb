@@ -271,7 +271,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid batch writer timeout format")
 	})
 
-
 	t.Run("test invalid max witness delay", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -559,7 +558,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
 
 		return err
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3)))
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5)))
 	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
 }
 

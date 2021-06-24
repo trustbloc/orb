@@ -130,6 +130,70 @@ func TestAMQP(t *testing.T) {
 	})
 }
 
+func TestAMQP_Error(t *testing.T) {
+	const topic = "some-topic"
+
+	t.Run("Subscriber factory error", func(t *testing.T) {
+		errExpected := errors.New("injected subscriber factory error")
+
+		p := &PubSub{
+			createSubscriber: func() (subscriber, error) {
+				return nil, errExpected
+			},
+		}
+
+		require.EqualError(t, p.connect(), errExpected.Error())
+	})
+
+	t.Run("Publisher factory error", func(t *testing.T) {
+		errExpected := errors.New("injected publisher factory error")
+
+		p := &PubSub{
+			createSubscriber: func() (subscriber, error) {
+				return &mockSubscriber{}, nil
+			},
+			createPublisher: func() (publisher, error) {
+				return nil, errExpected
+			},
+		}
+
+		require.EqualError(t, p.connect(), errExpected.Error())
+	})
+
+	t.Run("Subscribe error", func(t *testing.T) {
+		errSubscribe := errors.New("injected subscribe error")
+		errClose := errors.New("injected close error")
+
+		p := &PubSub{
+			Lifecycle:  lifecycle.New("ampq"),
+			subscriber: &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
+			publisher:  &mockPublisher{mockClosable: &mockClosable{}},
+		}
+
+		p.Start()
+		defer p.stop()
+
+		_, err := p.Subscribe(context.Background(), topic)
+		require.EqualError(t, err, errSubscribe.Error())
+	})
+
+	t.Run("Publisher error", func(t *testing.T) {
+		errPublish := errors.New("injected publish error")
+		errClose := errors.New("injected close error")
+
+		p := &PubSub{
+			Lifecycle:  lifecycle.New("ampq"),
+			subscriber: &mockSubscriber{mockClosable: &mockClosable{}},
+			publisher:  &mockPublisher{err: errPublish, mockClosable: &mockClosable{err: errClose}},
+		}
+
+		p.Start()
+		defer p.stop()
+
+		require.EqualError(t, p.Publish(topic), errPublish.Error())
+	})
+}
+
 func TestMain(m *testing.M) {
 	code := 1
 
@@ -160,4 +224,40 @@ func TestMain(m *testing.M) {
 	}()
 
 	code = m.Run()
+}
+
+type mockClosable struct {
+	err error
+}
+
+func (m *mockClosable) Close() error {
+	return m.err
+}
+
+type mockSubscriber struct {
+	*mockClosable
+
+	err error
+}
+
+func (m *mockSubscriber) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	return nil, nil
+}
+
+type mockPublisher struct {
+	*mockClosable
+
+	err error
+}
+
+func (m *mockPublisher) Publish(topic string, messages ...*message.Message) error {
+	if m.err != nil {
+		return m.err
+	}
+
+	return nil
 }
