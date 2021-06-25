@@ -58,7 +58,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 		jsonMarshal:    json.Marshal,
 	}
 
-	h.Lifecycle = lifecycle.New("observer",
+	h.Lifecycle = lifecycle.New("observer-pubsub",
 		lifecycle.WithStart(h.start),
 	)
 
@@ -85,6 +85,10 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 // PublishAnchor publishes the anchor to the queue for processing.
 func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
+	if h.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
+	}
+
 	payload, err := h.jsonMarshal(anchorInfo)
 	if err != nil {
 		return fmt.Errorf("publish anchorInfo: %w", err)
@@ -104,6 +108,10 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 
 // PublishDID publishes the DID to the queue for processing.
 func (h *PubSub) PublishDID(did string) error {
+	if h.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
+	}
+
 	payload, err := h.jsonMarshal(did)
 	if err != nil {
 		return fmt.Errorf("publish DID: %w", err)

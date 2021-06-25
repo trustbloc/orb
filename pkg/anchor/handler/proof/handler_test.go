@@ -362,6 +362,49 @@ func TestWitnessProofHandler(t *testing.T) {
 			"failed to change status to 'completed' for credential[%s]: add vc status error", anchorVC.ID))
 	})
 
+	t.Run("VC status already completed", func(t *testing.T) {
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		anchorVC, err := verifiable.ParseCredential(
+			[]byte(anchorCredTwoProofs),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithDisabledProofCheck())
+		require.NoError(t, err)
+
+		err = vcStore.Put(anchorVC)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		// prepare witness store with 'empty' witness proofs
+		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+
+		mockVCStatusStore := &mocks.VCStatusStore{}
+		mockVCStatusStore.GetStatusReturnsOnCall(0, proofapi.VCStatusInProcess, nil)
+		mockVCStatusStore.GetStatusReturnsOnCall(1, proofapi.VCStatusCompleted, nil)
+
+		providers := &Providers{
+			VCStore:       vcStore,
+			VCStatusStore: mockVCStatusStore,
+			MonitoringSvc: &mocks.MonitoringService{},
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+		}
+
+		proofHandler := New(providers, ps)
+
+		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+			expiryTime, []byte(witnessProof))
+		require.NoError(t, err)
+	})
+
 	t.Run("error - witness policy error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)

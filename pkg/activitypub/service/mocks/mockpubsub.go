@@ -65,12 +65,12 @@ func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message
 		return nil, m.Err
 	}
 
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	if m.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
-
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 
 	msgChan := make(chan *message.Message, maxBufferSize)
 
@@ -85,12 +85,12 @@ func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 		return m.Err
 	}
 
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
 	if m.State() != lifecycle.StateStarted {
 		return lifecycle.ErrNotStarted
 	}
-
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 
 	msgChan := m.MsgChan[topic]
 
@@ -118,6 +118,9 @@ func (m *MockPubSub) Close() error {
 }
 
 func (m *MockPubSub) stop() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	close(m.undeliverableChan)
 
 	<-m.done
@@ -151,12 +154,12 @@ func (m *MockPubSub) check(msg *message.Message) {
 }
 
 func (m *MockPubSub) postToUndeliverable(msg *message.Message) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
 	if m.State() != lifecycle.StateStarted {
 		return
 	}
-
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
 
 	m.undeliverableChan <- msg
 }

@@ -157,14 +157,10 @@ type pubSub interface {
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct {
-	activityPubService apspi.ServiceLifecycle
-	pubSub             pubSub
 }
 
 // Start starts the http server
 func (s *HTTPServer) Start(srv *httpserver.Server) error {
-	s.activityPubService.Start()
-
 	if err := srv.Start(); err != nil {
 		return err
 	}
@@ -176,12 +172,6 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 
 	// Wait for interrupt
 	<-interrupt
-
-	if err := s.pubSub.Close(); err != nil {
-		logger.Warnf("Error closing publisher/subscriber: %s", err)
-	}
-
-	s.activityPubService.Stop()
 
 	return nil
 }
@@ -724,12 +714,30 @@ func startOrbServices(parameters *orbParameters) error {
 		handlers...,
 	)
 
-	srv := &HTTPServer{
-		activityPubService: activityPubService,
-		pubSub:             pubSub,
+	activityPubService.Start()
+
+	srv := &HTTPServer{}
+
+	err = srv.Start(httpServer)
+	if err != nil {
+		return err
 	}
 
-	return srv.Start(httpServer)
+	logger.Infof("Stopping Orb services ...")
+
+	batchWriter.Stop()
+
+	o.Stop()
+
+	activityPubService.Stop()
+
+	if err := pubSub.Close(); err != nil {
+		logger.Warnf("Error closing publisher/subscriber: %s", err)
+	}
+
+	logger.Infof("Stopped Orb services.")
+
+	return nil
 }
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
@@ -856,7 +864,14 @@ func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (inte
 	}
 
 	if err == nil {
-		return json.Unmarshal(src, v)
+		err = json.Unmarshal(src, v)
+		if err != nil {
+			return err
+		}
+
+		logger.Debugf("Using KMS key [%s] with %s", key, src)
+
+		return nil
 	}
 
 	val, err := initFn()
@@ -872,6 +887,14 @@ func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (inte
 	if err = cfg.Put(key, src); err != nil {
 		return fmt.Errorf("marshal config value for %q: %w", key, err)
 	}
+
+	logger.Debugf("Stored KMS key [%s] with %s", key, src)
+
+	// TODO: Find a better way to to this. When there are multiple server instances in the same domain, the KMS key
+	// may have been overwritten by another instance. So after writing the key, sleep a while before checking if
+	// another instance has overwritten the key.
+	// TODO: Maybe make this a config option that's used only for dev/CI.
+	time.Sleep(2 * time.Second)
 
 	return getOrInit(cfg, key, v, initFn)
 }

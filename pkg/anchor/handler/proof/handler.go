@@ -149,6 +149,8 @@ func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Crede
 }
 
 func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) error {
+	logger.Debugf("Handling witness policy for VC [%s]", vc.ID)
+
 	witnessProofs, err := h.WitnessStore.Get(vc.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get witness proofs for credential[%s]: %w", vc.ID, err)
@@ -161,11 +163,14 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 
 	if !ok {
 		// witness policy has not been satisfied - wait for other witness proofs to arrive ...
+		logger.Debugf("Witness policy has not been satisfied for VC [%s]", vc.ID)
+
 		return nil
 	}
 
 	// witness policy has been satisfied so add witness proofs to vc, set 'complete' status for vc
 	// publish witnessed vc to batch writer channel for further processing
+	logger.Debugf("Witness policy has been satisfied for VC [%s]", vc.ID)
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
@@ -177,16 +182,30 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 		return fmt.Errorf("failed to get status for anchor credential[%s]: %w", vc.ID, err)
 	}
 
-	if status != proofapi.VCStatusCompleted {
-		err := h.VCStatusStore.AddStatus(vc.ID, proofapi.VCStatusCompleted)
-		if err != nil {
-			return fmt.Errorf("failed to change status to 'completed' for credential[%s]: %w", vc.ID, err)
-		}
+	logger.Debugf("Current status for VC [%s] is [%s]", vc.ID, status)
 
-		err = h.publisher.Publish(vc)
-		if err != nil {
-			return fmt.Errorf("publish credential[%s]: %w", vc.ID, err)
-		}
+	if status == proofapi.VCStatusCompleted {
+		logger.Debugf("VC status has already been marked as completed for [%s]", vc.ID)
+
+		return nil
+	}
+
+	// Publish the VC before setting the status to completed since, if the publisher returns a transient error,
+	// then this handler would be invoked on another server instance. So, we want the status to remain in-process,
+	// otherwise the handler on the other instance would not publish the VC because it would think that is has
+	// already been processed.
+	logger.Debugf("Publishing VC [%s]", vc.ID)
+
+	err = h.publisher.Publish(vc)
+	if err != nil {
+		return fmt.Errorf("publish credential[%s]: %w", vc.ID, err)
+	}
+
+	logger.Debugf("Setting status to [%s] for [%s]", proofapi.VCStatusCompleted, vc.ID)
+
+	err = h.VCStatusStore.AddStatus(vc.ID, proofapi.VCStatusCompleted)
+	if err != nil {
+		return fmt.Errorf("failed to change status to 'completed' for credential[%s]: %w", vc.ID, err)
 	}
 
 	return nil

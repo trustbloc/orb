@@ -20,7 +20,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
-	"github.com/ThreeDotsLabs/watermill/message/router/plugin"
 	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -149,8 +148,6 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 			return message.Messages{msg}, nil
 		},
 	)
-
-	router.AddPlugin(plugin.SignalsHandler)
 
 	h.router = router
 	h.httpPublisher = httpPublisher
