@@ -89,6 +89,8 @@ import (
 	originhandler "github.com/trustbloc/orb/pkg/didorigin/resthandler"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/document/resolvehandler"
+	"github.com/trustbloc/orb/pkg/document/updatehandler"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/ldcontextrest"
@@ -97,7 +99,6 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
-	"github.com/trustbloc/orb/pkg/resolver/document"
 	"github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
@@ -114,14 +115,13 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	chBuffer = 100
-
 	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
 
 	noStartupDelay = 0 * time.Second // no delay
 
-	defaulthttpSignaturesEnabled = true
-	defaultDidDiscoveryEnabled   = false
+	defaulthttpSignaturesEnabled      = true
+	defaultDidDiscoveryEnabled        = false
+	defaultCreateDocumentStoreEnabled = false
 
 	unpublishedDIDLabel = "interim"
 
@@ -644,14 +644,31 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:  100, // TODO: Make configurable
 	}
 
-	orbResolver := document.NewResolveHandler(
+	var resolveHandlerOpts []resolvehandler.Option
+	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithAliases(parameters.didAliases))
+	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel))
+	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled))
+
+	var updateHandlerOpts []updatehandler.Option
+
+	if parameters.createDocumentStoreEnabled {
+		store, openErr := storeProviders.provider.OpenStore("create-document")
+		if openErr != nil {
+			return fmt.Errorf("failed to open 'create-document' store: %w", openErr)
+		}
+
+		resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithCreateDocumentStore(store))
+		updateHandlerOpts = append(updateHandlerOpts, updatehandler.WithCreateDocumentStore(store))
+	}
+
+	orbDocResolveHandler := resolvehandler.NewResolveHandler(
 		parameters.didNamespace,
 		didDocHandler,
 		localdiscovery.New(o.Publisher()),
-		document.WithAliases(parameters.didAliases),
-		document.WithUnpublishedDIDLabel(unpublishedDIDLabel),
-		document.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled),
+		resolveHandlerOpts...,
 	)
+
+	orbDocUpdateHandler := updatehandler.New(didDocHandler, updateHandlerOpts...)
 
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{
@@ -681,8 +698,8 @@ func startOrbServices(parameters *orbParameters) error {
 	handlers := make([]restcommon.HTTPHandler, 0)
 
 	handlers = append(handlers,
-		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, didDocHandler, pc)),
-		auth.NewHandlerWrapper(authCfg, diddochandler.NewResolveHandler(baseResolvePath, orbResolver)),
+		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc)),
+		auth.NewHandlerWrapper(authCfg, diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler)),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
 		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),

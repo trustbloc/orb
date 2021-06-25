@@ -189,6 +189,7 @@ services:
       - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
       - DATABASE_PREFIX=domain2
       - HTTP_SIGNATURES_ENABLED=true
+      - CREATE_DOCUMENT_STORE_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

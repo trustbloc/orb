@@ -224,6 +224,12 @@ const (
 	enableDidDiscoveryUsage    = `Set to "true" to enable did discovery. ` +
 		commonEnvVarUsageText + enableDidDiscoveryEnvKey
 
+	enableCreateDocumentStoreFlagName = "enable-create-document-store"
+	enableCreateDocumentStoreEnvKey   = "CREATE_DOCUMENT_STORE_ENABLED"
+	enableCreateDocumentStoreUsage    = `Set to "true" to enable create document store. ` +
+		`Used for resolving unpublished created documents.` +
+		commonEnvVarUsageText + enableCreateDocumentStoreEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -239,40 +245,41 @@ const (
 )
 
 type orbParameters struct {
-	hostURL                   string
-	vctURL                    string
-	keyID                     string
-	secretLockKeyPath         string
-	kmsEndpoint               string
-	kmsStoreEndpoint          string
-	externalEndpoint          string
-	discoveryDomain           string
-	didNamespace              string
-	didAliases                []string
-	batchWriterTimeout        time.Duration
-	casType                   string
-	ipfsURL                   string
-	cidVersion                int
-	mqURL                     string
-	dbParameters              *dbParameters
-	logLevel                  string
-	methodContext             []string
-	baseEnabled               bool
-	allowedOrigins            []string
-	tlsCertificate            string
-	tlsKey                    string
-	anchorCredentialParams    *anchorCredentialParams
-	discoveryDomains          []string
-	discoveryVctDomains       []string
-	discoveryMinimumResolvers int
-	maxWitnessDelay           time.Duration
-	startupDelay              time.Duration
-	signWithLocalWitness      bool
-	httpSignaturesEnabled     bool
-	didDiscoveryEnabled       bool
-	authTokenDefinitions      []*auth.TokenDef
-	authTokens                map[string]string
-	opQueuePoolSize           uint
+	hostURL                    string
+	vctURL                     string
+	keyID                      string
+	secretLockKeyPath          string
+	kmsEndpoint                string
+	kmsStoreEndpoint           string
+	externalEndpoint           string
+	discoveryDomain            string
+	didNamespace               string
+	didAliases                 []string
+	batchWriterTimeout         time.Duration
+	casType                    string
+	ipfsURL                    string
+	cidVersion                 int
+	mqURL                      string
+	dbParameters               *dbParameters
+	logLevel                   string
+	methodContext              []string
+	baseEnabled                bool
+	allowedOrigins             []string
+	tlsCertificate             string
+	tlsKey                     string
+	anchorCredentialParams     *anchorCredentialParams
+	discoveryDomains           []string
+	discoveryVctDomains        []string
+	discoveryMinimumResolvers  int
+	maxWitnessDelay            time.Duration
+	startupDelay               time.Duration
+	signWithLocalWitness       bool
+	httpSignaturesEnabled      bool
+	didDiscoveryEnabled        bool
+	createDocumentStoreEnabled bool
+	authTokenDefinitions       []*auth.TokenDef
+	authTokens                 map[string]string
+	opQueuePoolSize            uint
 }
 
 type anchorCredentialParams struct {
@@ -467,6 +474,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didDiscoveryEnabled = enable
 	}
 
+	enableCreateDocStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableCreateDocumentStoreFlagName, enableCreateDocumentStoreEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	createDocumentStoreEnabled := defaultCreateDocumentStoreEnabled
+	if enableCreateDocStoreStr != "" {
+		enable, parseErr := strconv.ParseBool(enableCreateDocStoreStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", enableCreateDocumentStoreFlagName, parseErr)
+		}
+
+		createDocumentStoreEnabled = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -520,38 +542,39 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		hostURL:                   hostURL,
-		vctURL:                    vctURL,
-		kmsEndpoint:               kmsEndpoint,
-		keyID:                     keyID,
-		secretLockKeyPath:         secretLockKeyPath,
-		kmsStoreEndpoint:          kmsStoreEndpoint,
-		externalEndpoint:          externalEndpoint,
-		discoveryDomain:           discoveryDomain,
-		tlsKey:                    tlsKey,
-		tlsCertificate:            tlsCertificate,
-		didNamespace:              didNamespace,
-		didAliases:                didAliases,
-		allowedOrigins:            allowedOrigins,
-		casType:                   casType,
-		ipfsURL:                   ipfsURL,
-		cidVersion:                cidVersion,
-		mqURL:                     mqURL,
-		opQueuePoolSize:           uint(mqOpPoolSize),
-		batchWriterTimeout:        batchWriterTimeout,
-		anchorCredentialParams:    anchorCredentialParams,
-		dbParameters:              dbParams,
-		logLevel:                  loggingLevel,
-		discoveryDomains:          discoveryDomains,
-		discoveryVctDomains:       discoveryVctDomains,
-		discoveryMinimumResolvers: discoveryMinimumResolvers,
-		maxWitnessDelay:           maxWitnessDelay,
-		startupDelay:              startupDelay,
-		signWithLocalWitness:      signWithLocalWitness,
-		httpSignaturesEnabled:     httpSignaturesEnabled,
-		didDiscoveryEnabled:       didDiscoveryEnabled,
-		authTokenDefinitions:      authTokenDefs,
-		authTokens:                authTokens,
+		hostURL:                    hostURL,
+		vctURL:                     vctURL,
+		kmsEndpoint:                kmsEndpoint,
+		keyID:                      keyID,
+		secretLockKeyPath:          secretLockKeyPath,
+		kmsStoreEndpoint:           kmsStoreEndpoint,
+		externalEndpoint:           externalEndpoint,
+		discoveryDomain:            discoveryDomain,
+		tlsKey:                     tlsKey,
+		tlsCertificate:             tlsCertificate,
+		didNamespace:               didNamespace,
+		didAliases:                 didAliases,
+		allowedOrigins:             allowedOrigins,
+		casType:                    casType,
+		ipfsURL:                    ipfsURL,
+		cidVersion:                 cidVersion,
+		mqURL:                      mqURL,
+		opQueuePoolSize:            uint(mqOpPoolSize),
+		batchWriterTimeout:         batchWriterTimeout,
+		anchorCredentialParams:     anchorCredentialParams,
+		dbParameters:               dbParams,
+		logLevel:                   loggingLevel,
+		discoveryDomains:           discoveryDomains,
+		discoveryVctDomains:        discoveryVctDomains,
+		discoveryMinimumResolvers:  discoveryMinimumResolvers,
+		maxWitnessDelay:            maxWitnessDelay,
+		startupDelay:               startupDelay,
+		signWithLocalWitness:       signWithLocalWitness,
+		httpSignaturesEnabled:      httpSignaturesEnabled,
+		didDiscoveryEnabled:        didDiscoveryEnabled,
+		createDocumentStoreEnabled: createDocumentStoreEnabled,
+		authTokenDefinitions:       authTokenDefs,
+		authTokens:                 authTokens,
 	}, nil
 }
 
@@ -727,6 +750,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
+	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
