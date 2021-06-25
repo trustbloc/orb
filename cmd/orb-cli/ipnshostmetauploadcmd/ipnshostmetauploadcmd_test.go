@@ -3,7 +3,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package ipnswebfingeruploadcmd
+package ipnshostmetauploadcmd
 
 import (
 	"fmt"
@@ -48,8 +48,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	})
 }
 
-func TestUploadWebFinger(t *testing.T) {
-	t.Run("test failed to upload web finger", func(t *testing.T) {
+func TestUploadHostMetaDoc(t *testing.T) {
+	t.Run("test failed to upload host-meta doc", func(t *testing.T) {
 		os.Clearenv()
 		cmd := GetCmd()
 
@@ -105,7 +105,7 @@ func TestUploadWebFinger(t *testing.T) {
 		err := cmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to add ipfs dir")
+		require.Contains(t, err.Error(), "failed to add file to IPFS")
 	})
 
 	t.Run("failed to publish webfinger", func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestUploadWebFinger(t *testing.T) {
 		err := cmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to publish webfinger")
+		require.Contains(t, err.Error(), "failed to publish meta-host doc")
 	})
 
 	t.Run("success", func(t *testing.T) {

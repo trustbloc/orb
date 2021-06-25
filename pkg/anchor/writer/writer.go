@@ -546,7 +546,7 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 
 		logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
 
-		resolvedWitness, err := c.resourceResolver.Resolve(anchorOrigin, discoveryrest.WitnessType)
+		resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve witness: %w", err)
 		}

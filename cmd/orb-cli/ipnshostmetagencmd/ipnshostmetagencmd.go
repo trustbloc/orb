@@ -3,16 +3,14 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package ipnswebfingergencmd
+package ipnshostmetagencmd
 
 import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -53,30 +51,30 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + tlsCACertsEnvKey
 	tlsCACertsEnvKey = "ORB_CLI_TLS_CACERTS"
 
-	webFingerDirFlagName  = "webfinger-output-dir"
-	webFingerDirFlagUsage = "webfinger output dir." +
-		" Alternatively, this can be set with the following environment variable: " + webFingerDirEnvKey
-	webFingerDirEnvKey = "ORB_CLI_WEBFINGER_OUTPUT_DIR"
+	hostMetaDocOutputPathFlagName  = "host-meta-dir-output-path"
+	hostMetaDocOutputPathFlagUsage = "Host-meta dir output path." +
+		" Alternatively, this can be set with the following environment variable: " + hostMetaDocOutputPathEnvKey
+	hostMetaDocOutputPathEnvKey = "ORB_CLI_HOST_META_DOC_OUTPUT_PATH"
 )
 
 const (
 	timeout = 2
 )
 
-// GetCmd returns the Cobra webfinger gent command.
+// GetCmd returns the Cobra host-meta document gen command.
 func GetCmd() *cobra.Command {
-	cmd := webFingerGenCmd()
+	cmd := hostMetaGenCmd()
 
 	createFlags(cmd)
 
 	return cmd
 }
 
-func webFingerGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
+func hostMetaGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 	return &cobra.Command{
-		Use:   "webfinger-gen",
-		Short: "generate IPNS web finger document",
-		Long:  "generate IPNS web finger document",
+		Use:   "host-meta-doc-gen",
+		Short: "generate IPNS host-meta document",
+		Long:  "generate IPNS host-meta document",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {
@@ -110,11 +108,11 @@ func webFingerGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 				return err
 			}
 
-			webFingerDir := cmdutils.GetUserSetOptionalVarFromString(cmd, webFingerDirFlagName,
-				webFingerDirEnvKey)
+			hostMetaDirOutputPath := cmdutils.GetUserSetOptionalVarFromString(cmd, hostMetaDocOutputPathFlagName,
+				hostMetaDocOutputPathEnvKey)
 
-			if webFingerDir == "" {
-				webFingerDir = "."
+			if hostMetaDirOutputPath == "" {
+				hostMetaDirOutputPath = "."
 			}
 
 			ipfs := shell.NewShell(ipfsURL)
@@ -140,38 +138,27 @@ func webFingerGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 				return fmt.Errorf("key %s not found in IPFS", keyName)
 			}
 
-			respBytes, err := common.SendRequest(httpClient, nil, nil, http.MethodGet,
-				fmt.Sprintf("%s/.well-known/webfinger?resource=%s",
-					resourceURL, url.PathEscape(resourceURL)))
+			headers := map[string]string{"Accept": "application/json"}
+
+			hostMetaDocBytes, err := common.SendRequest(httpClient, nil, headers, http.MethodGet,
+				fmt.Sprintf("%s%s", resourceURL, restapi.HostMetaJSONEndpoint))
 			if err != nil {
 				return fmt.Errorf("failed to send http request: %w", err)
 			}
 
-			var webFingerResp restapi.WebFingerResponse
-
-			if errUnmarshal := json.Unmarshal(respBytes, &webFingerResp); errUnmarshal != nil {
-				return errUnmarshal
-			}
-
-			webFingerResp.Subject = fmt.Sprintf("ipns://%s", keyID)
-
-			webFingerBytes, err := json.Marshal(webFingerResp)
-			if err != nil {
-				return err
-			}
-
-			if errMkdir := os.MkdirAll(fmt.Sprintf("%s/website/.well-known", webFingerDir), os.ModePerm); errMkdir != nil {
+			if errMkdir := os.MkdirAll(fmt.Sprintf("%s/website/.well-known", hostMetaDirOutputPath),
+				os.ModePerm); errMkdir != nil {
 				return errMkdir
 			}
 
-			webFingerFile := fmt.Sprintf("%s/website/.well-known/webfinger", webFingerDir)
+			hostMetaFilePath := fmt.Sprintf("%s/website/.well-known/host-meta.json", hostMetaDirOutputPath)
 
-			f, err := os.Create(webFingerFile)
+			f, err := os.Create(hostMetaFilePath)
 			if err != nil {
 				return err
 			}
 
-			_, err = f.Write(webFingerBytes)
+			_, err = f.Write(hostMetaDocBytes)
 			if err != nil {
 				return err
 			}
@@ -213,6 +200,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, "", "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(keyNameFlagName, "", "", keyNameFlagUsage)
-	startCmd.Flags().StringP(webFingerDirFlagName, "", "", webFingerDirFlagUsage)
+	startCmd.Flags().StringP(hostMetaDocOutputPathFlagName, "", "", hostMetaDocOutputPathFlagUsage)
 	startCmd.Flags().StringP(resourceURLFlagName, "", "", resourceURLFlagUsage)
 }

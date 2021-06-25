@@ -182,7 +182,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 		return fmt.Errorf("received status code %d", resp.StatusCode)
 	}
 
-	var webFingerResponse restapi.WebFingerResponse
+	var webFingerResponse restapi.JRD
 	if err := json.Unmarshal(resp.Payload, &webFingerResponse); err != nil {
 		return err
 	}
@@ -761,7 +761,6 @@ func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.Pri
 		MultihashCode:      sha2_256,
 		AnchorOrigin:       origin,
 	})
-
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -812,7 +811,6 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		AnchorUntil:        now + anchorTimeDelta,
 		AnchorOrigin:       origin,
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +877,6 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 		AnchorFrom:       now,
 		AnchorUntil:      now + anchorTimeDelta,
 	})
-
 	if err != nil {
 		return nil, err
 	}

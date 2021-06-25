@@ -17,18 +17,30 @@ type WellKnownResponse struct {
 	OperationEndpoint  string `json:"operationEndpoint,omitempty"`
 }
 
-// WebFingerResponse web finger response.
-type WebFingerResponse struct {
+// JRD is a JSON Resource Descriptor as defined in https://datatracker.ietf.org/doc/html/rfc6415#appendix-A
+// and https://datatracker.ietf.org/doc/html/rfc7033#section-4.4.
+type JRD struct {
 	Subject    string                 `json:"subject,omitempty"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
-	Links      []WebFingerLink        `json:"links,omitempty"`
+	Links      []Link                 `json:"links,omitempty"`
 }
 
-// WebFingerLink web finger link.
-type WebFingerLink struct {
-	Rel  string `json:"rel,omitempty"`
-	Type string `json:"type,omitempty"`
-	Href string `json:"href,omitempty"`
+// WebFingerResponse is a JSON Resource Descriptor as defined in
+// https://datatracker.ietf.org/doc/html/rfc6415#appendix-A and
+// https://datatracker.ietf.org/doc/html/rfc7033#section-4.4.
+// TODO: Remove this once the 'replace' issue in the orb-driver is resolved
+// (it creates a dependency on this struct name).
+type WebFingerResponse struct {
+	JRD
+}
+
+// Link is a link in a JRD.
+// Note that while the host-meta and WebFinger endpoints both use this, only host-meta supports the Template field.
+type Link struct {
+	Rel      string `json:"rel,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Href     string `json:"href,omitempty"`
+	Template string `json:"template,omitempty"`
 }
 
 // RawDoc did document.

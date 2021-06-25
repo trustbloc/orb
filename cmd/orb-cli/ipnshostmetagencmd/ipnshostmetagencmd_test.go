@@ -3,7 +3,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package ipnswebfingergencmd
+package ipnshostmetagencmd
 
 import (
 	"fmt"
@@ -75,8 +75,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	})
 }
 
-func TestGenerateWebFinger(t *testing.T) {
-	t.Run("test failed to create web finger", func(t *testing.T) {
+func TestGenerateHostMetaDoc(t *testing.T) {
+	t.Run("test failed to create host-meta doc", func(t *testing.T) {
 		os.Clearenv()
 		cmd := GetCmd()
 
@@ -104,7 +104,7 @@ func TestGenerateWebFinger(t *testing.T) {
 		args = append(args, ipfsURL(serv.URL)...)
 		args = append(args, resourceURL("url")...)
 		args = append(args, keyName("k1")...)
-		args = append(args, webFingerDir(os.TempDir())...)
+		args = append(args, hostMetaDocDir(os.TempDir())...)
 
 		cmd.SetArgs(args)
 		err := cmd.Execute()
@@ -113,13 +113,13 @@ func TestGenerateWebFinger(t *testing.T) {
 		require.Contains(t, err.Error(), "key k1 not found in IPFS")
 	})
 
-	t.Run("failed to get webfinger", func(t *testing.T) {
+	t.Run("failed to get meta-host doc", func(t *testing.T) {
 		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, `{ "Keys": [ { "Id": "aaa", "Name": "k1" } ] }`)
 			w.WriteHeader(http.StatusOK)
 		}))
 
-		webfingerServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hostMetaDocServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
 
@@ -127,9 +127,9 @@ func TestGenerateWebFinger(t *testing.T) {
 
 		var args []string
 		args = append(args, ipfsURL(serv.URL)...)
-		args = append(args, resourceURL(webfingerServ.URL)...)
+		args = append(args, resourceURL(hostMetaDocServ.URL)...)
 		args = append(args, keyName("k1")...)
-		args = append(args, webFingerDir(os.TempDir())...)
+		args = append(args, hostMetaDocDir(os.TempDir())...)
 
 		cmd.SetArgs(args)
 		err := cmd.Execute()
@@ -144,7 +144,7 @@ func TestGenerateWebFinger(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		}))
 
-		webfingerServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hostMetaDocServ := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, `{}`)
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -153,9 +153,9 @@ func TestGenerateWebFinger(t *testing.T) {
 
 		var args []string
 		args = append(args, ipfsURL(serv.URL)...)
-		args = append(args, resourceURL(webfingerServ.URL)...)
+		args = append(args, resourceURL(hostMetaDocServ.URL)...)
 		args = append(args, keyName("k1")...)
-		args = append(args, webFingerDir(os.TempDir())...)
+		args = append(args, hostMetaDocDir(os.TempDir())...)
 
 		cmd.SetArgs(args)
 		err := cmd.Execute()
@@ -172,8 +172,8 @@ func keyName(value string) []string {
 	return []string{flag + keyNameFlagName, value}
 }
 
-func webFingerDir(value string) []string {
-	return []string{flag + webFingerDirFlagName, value}
+func hostMetaDocDir(value string) []string {
+	return []string{flag + hostMetaDocOutputPathFlagName, value}
 }
 
 func resourceURL(value string) []string {

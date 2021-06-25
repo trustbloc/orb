@@ -498,7 +498,7 @@ func TestResolver_Resolve(t *testing.T) {
 			router := mux.NewRouter()
 
 			router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
-				_, errWrite := rw.Write([]byte("this can't be unmarshalled to a WebFingerResponse"))
+				_, errWrite := rw.Write([]byte("this can't be unmarshalled to a JRD"))
 				require.NoError(t, errWrite)
 			})
 
@@ -534,7 +534,7 @@ func TestResolver_Resolve(t *testing.T) {
 			router := mux.NewRouter()
 
 			router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
-				webFingerResponse := restapi.WebFingerResponse{Links: []restapi.WebFingerLink{
+				webFingerResponse := restapi.JRD{Links: []restapi.Link{
 					{Rel: "working-copy", Href: "%"},
 				}}
 				webFingerResponseBytes, errMarshal := json.Marshal(webFingerResponse)

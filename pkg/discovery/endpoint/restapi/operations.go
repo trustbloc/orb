@@ -15,26 +15,36 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
 
 var logger = log.New("discovery-rest")
 
-// API endpoints.
 const (
 	wellKnownEndpoint = "/.well-known/did-orb"
-	webFingerEndpoint = "/.well-known/webfinger"
-	webDIDEndpoint    = "/.well-known/did.json"
+	// WebFingerEndpoint is the endpoint for WebFinger calls.
+	WebFingerEndpoint = "/.well-known/webfinger"
+	hostMetaEndpoint  = "/.well-known/host-meta"
+	// HostMetaJSONEndpoint is the endpoint for getting the host-meta document.
+	HostMetaJSONEndpoint = "/.well-known/host-meta.json"
+	webDIDEndpoint       = "/.well-known/did.json"
+
+	selfRelation      = "self"
+	alternateRelation = "alternate"
+	viaRelation       = "via"
+	serviceRelation   = "service"
+
+	ldJSONType    = "application/ld+json"
+	jrdJSONType   = "application/jrd+json"
+	didLDJSONType = "application/did+ld+json"
+	// ActivityJSONType represents a link type that points to an ActivityPub endpoint.
+	ActivityJSONType = "application/activity+json"
 )
 
 const (
 	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
-	// WitnessType is used to indicate a witness in a WebFinger response.
-	WitnessType = "https://trustbloc.dev/ns/witness"
-	casType     = "https://trustbloc.dev/ns/cas"
-	vctType     = "https://trustbloc.dev/ns/vct"
-	originType  = "https://trustbloc.dev/ns/origin"
-	anchorType  = "https://trustbloc.dev/ns/anchor"
-	context     = "https://w3id.org/did/v1"
+	context      = "https://w3id.org/did/v1"
 )
 
 // New returns discovery operations.
@@ -62,6 +72,7 @@ func New(c *Config) (*Operation, error) {
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
 		discoveryVctDomains:       c.DiscoveryVctDomains,
+		resourceRegistry:          c.ResourceRegistry,
 	}, nil
 }
 
@@ -79,6 +90,7 @@ type Operation struct {
 	discoveryDomains          []string
 	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
+	resourceRegistry          *registry.Registry
 }
 
 // Config defines configuration for discovery operations.
@@ -94,14 +106,17 @@ type Config struct {
 	DiscoveryDomains          []string
 	DiscoveryVctDomains       []string
 	DiscoveryMinimumResolvers int
+	ResourceRegistry          *registry.Registry
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
 func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 	return []common.HTTPHandler{
-		newHTTPHandler(wellKnownEndpoint, http.MethodGet, o.wellKnownHandler),
-		newHTTPHandler(webFingerEndpoint, http.MethodGet, o.webFingerHandler),
-		newHTTPHandler(webDIDEndpoint, http.MethodGet, o.webDIDHandler),
+		newHTTPHandler(wellKnownEndpoint, o.wellKnownHandler),
+		newHTTPHandler(WebFingerEndpoint, o.webFingerHandler),
+		newHTTPHandler(hostMetaEndpoint, o.hostMetaHandler),
+		newHTTPHandler(HostMetaJSONEndpoint, o.hostMetaJSONHandler),
+		newHTTPHandler(webDIDEndpoint, o.webDIDHandler),
 	}
 }
 
@@ -167,16 +182,16 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) {
 	switch {
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
-		resp := &WebFingerResponse{
+		resp := &JRD{
 			Subject:    resource,
 			Properties: map[string]interface{}{minResolvers: o.discoveryMinimumResolvers},
-			Links: []WebFingerLink{
+			Links: []Link{
 				{Rel: "self", Href: resource},
 			},
 		}
 
 		for _, v := range o.discoveryDomains {
-			resp.Links = append(resp.Links, WebFingerLink{
+			resp.Links = append(resp.Links, Link{
 				Rel:  "alternate",
 				Href: fmt.Sprintf("%s%s", v, o.resolutionPath),
 			})
@@ -184,15 +199,15 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 
 		writeResponse(rw, resp, http.StatusOK)
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.operationPath):
-		resp := &WebFingerResponse{
+		resp := &JRD{
 			Subject: resource,
-			Links: []WebFingerLink{
+			Links: []Link{
 				{Rel: "self", Href: resource},
 			},
 		}
 
 		for _, v := range o.discoveryDomains {
-			resp.Links = append(resp.Links, WebFingerLink{
+			resp.Links = append(resp.Links, Link{
 				Rel:  "alternate",
 				Href: fmt.Sprintf("%s%s", v, o.operationPath),
 			})
@@ -201,39 +216,73 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		writeResponse(rw, resp, http.StatusOK)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
-	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/services/orb")):
-		o.handleWitnessQuery(rw, resource)
-	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/anchor")):
-		o.handleAnchorQuery(rw, resource)
-	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, "/origin")):
-		o.handleOriginQuery(rw, resource)
-	case resource == o.baseURL:
-		resp := &WebFingerResponse{
-			Subject: o.baseURL,
+	case strings.HasPrefix(resource, "did:orb:"):
+		// TODO (#536): Support resources other than did:orb.
+		// TODO (#537): Show IPFS alternates if configured.
+		metadata, err := o.resourceRegistry.GetResourceInfo(resource)
+		if err != nil {
+			writeErrorResponse(rw, http.StatusInternalServerError,
+				fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
+
+			return
+		}
+
+		anchorOrigin, ok := metadata[registry.AnchorOriginProperty]
+		if !ok {
+			writeErrorResponse(rw, http.StatusBadRequest, "anchor origin property missing from metadata")
+
+			return
+		}
+
+		anchorURIRaw, ok := metadata[registry.AnchorURIProperty]
+		if !ok {
+			writeErrorResponse(rw, http.StatusBadRequest, "anchor URI property missing from metadata")
+
+			return
+		}
+
+		anchorURI, ok := anchorURIRaw.(string)
+		if !ok {
+			writeErrorResponse(rw, http.StatusBadRequest, "anchor URI could not be asserted as a string")
+
+			return
+		}
+
+		resp := &JRD{
 			Properties: map[string]interface{}{
-				WitnessType:  fmt.Sprintf("%s/services/orb", o.baseURL),
-				casType:      fmt.Sprintf("%s%s", o.baseURL, o.webCASPath),
-				minResolvers: o.discoveryMinimumResolvers,
-				vctType:      fmt.Sprintf("%s/vct", o.baseURL),
-				anchorType:   fmt.Sprintf("%s/anchor", o.baseURL),
-				originType:   fmt.Sprintf("%s/origin", o.baseURL),
+				"https://trustbloc.dev/ns/anchor-origin": anchorOrigin,
+				minResolvers:                             o.discoveryMinimumResolvers,
 			},
-			Links: []WebFingerLink{
-				{Rel: "self", Href: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath)},
+			Links: []Link{
+				{
+					Rel:  selfRelation,
+					Type: didLDJSONType,
+					Href: fmt.Sprintf("%s%s%s", o.baseURL, "/sidetree/v1/identifiers/", resource),
+				},
+				{
+					Rel:  viaRelation,
+					Type: ldJSONType,
+					Href: anchorURI,
+				},
+				{
+					Rel:  serviceRelation,
+					Type: ActivityJSONType,
+					Href: constructActivityPubURL(o.baseURL),
+				},
 			},
 		}
 
-		for _, v := range o.discoveryDomains {
-			resp.Links = append(resp.Links, WebFingerLink{
-				Rel:  "alternate",
-				Href: fmt.Sprintf("%s%s", v, o.resolutionPath),
+		for _, discoveryDomain := range o.discoveryDomains {
+			resp.Links = append(resp.Links, Link{
+				Rel:  alternateRelation,
+				Type: didLDJSONType,
+				Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", resource),
 			})
 		}
 
 		writeResponse(rw, resp, http.StatusOK)
-
 	default:
-		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found", resource))
+		writeErrorResponse(rw, http.StatusBadRequest, fmt.Sprintf("resource %s not found,", resource))
 	}
 }
 
@@ -242,9 +291,9 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 
 	cid := resourceSplitBySlash[len(resourceSplitBySlash)-1]
 
-	resp := &WebFingerResponse{
+	resp := &JRD{
 		Subject: resource,
-		Links: []WebFingerLink{
+		Links: []Link{
 			{Rel: "self", Type: "application/ld+json", Href: resource},
 			{Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", o.baseURL, cid)},
 		},
@@ -252,7 +301,7 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 
 	for _, v := range o.discoveryDomains {
 		resp.Links = append(resp.Links,
-			WebFingerLink{
+			Link{
 				Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", v, cid),
 			})
 	}
@@ -260,34 +309,50 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 	writeResponse(rw, resp, http.StatusOK)
 }
 
-func (o *Operation) handleWitnessQuery(rw http.ResponseWriter, resource string) {
-	resp := &WebFingerResponse{
-		Subject: resource,
-		Links: []WebFingerLink{
-			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/services/orb", o.baseURL)},
+func (o *Operation) hostMetaHandler(rw http.ResponseWriter, r *http.Request) {
+	acceptedFormat := r.Header.Get("Accept")
+
+	// TODO (#546): support XRD as required by the spec: https://datatracker.ietf.org/doc/html/rfc6415#section-3
+	if acceptedFormat != "application/json" {
+		writeErrorResponse(rw, http.StatusBadRequest,
+			`the Accept header must be set to application/json to use this endpoint`)
+
+		return
+	}
+
+	o.respondWithHostMetaJSON(rw)
+}
+
+func (o *Operation) hostMetaJSONHandler(rw http.ResponseWriter, _ *http.Request) {
+	o.respondWithHostMetaJSON(rw)
+}
+
+func (o *Operation) respondWithHostMetaJSON(rw http.ResponseWriter) {
+	resp := &JRD{
+		Links: []Link{
+			{
+				Rel:      selfRelation,
+				Type:     jrdJSONType,
+				Template: fmt.Sprintf("%s%s%s", o.baseURL, WebFingerEndpoint, "?resource={uri}"),
+			},
+			{
+				Rel:  selfRelation,
+				Type: ActivityJSONType,
+				Href: constructActivityPubURL(o.baseURL),
+			},
 		},
 	}
 
-	writeResponse(rw, resp, http.StatusOK)
-}
-
-func (o *Operation) handleAnchorQuery(rw http.ResponseWriter, resource string) {
-	resp := &WebFingerResponse{
-		Subject: resource,
-		Links: []WebFingerLink{
-			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/anchor", o.baseURL)},
-		},
-	}
-
-	writeResponse(rw, resp, http.StatusOK)
-}
-
-func (o *Operation) handleOriginQuery(rw http.ResponseWriter, resource string) {
-	resp := &WebFingerResponse{
-		Subject: resource,
-		Links: []WebFingerLink{
-			{Rel: "self", Type: "application/ld+json", Href: fmt.Sprintf("%s/origin", o.baseURL)},
-		},
+	for _, discoveryDomain := range o.discoveryDomains {
+		resp.Links = append(resp.Links, Link{
+			Rel:      alternateRelation,
+			Type:     jrdJSONType,
+			Template: fmt.Sprintf("%s%s%s", discoveryDomain, WebFingerEndpoint, "?resource={uri}"),
+		}, Link{
+			Rel:  alternateRelation,
+			Type: ActivityJSONType,
+			Href: constructActivityPubURL(discoveryDomain),
+		})
 	}
 
 	writeResponse(rw, resp, http.StatusOK)
@@ -318,15 +383,14 @@ func writeResponse(rw http.ResponseWriter, v interface{}, status int) { // nolin
 }
 
 // newHTTPHandler returns instance of HTTPHandler which can be used to handle http requests.
-func newHTTPHandler(path, method string, handle common.HTTPRequestHandler) common.HTTPHandler {
-	return &httpHandler{path: path, method: method, handle: handle}
+func newHTTPHandler(path string, handle common.HTTPRequestHandler) common.HTTPHandler {
+	return &httpHandler{path: path, handle: handle}
 }
 
 // HTTPHandler contains REST API handling details which can be used to build routers.
 // for http requests for given path.
 type httpHandler struct {
 	path   string
-	method string
 	handle common.HTTPRequestHandler
 }
 
@@ -337,10 +401,14 @@ func (h *httpHandler) Path() string {
 
 // Method returns http request method type.
 func (h *httpHandler) Method() string {
-	return h.method
+	return http.MethodGet
 }
 
 // Handler returns http request handle func.
 func (h *httpHandler) Handler() common.HTTPRequestHandler {
 	return h.handle
+}
+
+func constructActivityPubURL(baseURL string) string {
+	return fmt.Sprintf("%s%s", baseURL, "/services/orb")
 }
