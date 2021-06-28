@@ -158,3 +158,18 @@ Feature:
 
      Then we wait 5 seconds
      Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+
+    @enable_create_document_store
+    Scenario: domain2 has create document store enabled
+
+      When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      # since domain4 has create document store enabled we are able to resolve did document immediately from the store
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#interimDID"
+      Then check success response does NOT contain "canonicalId"
+
+      Then we wait 3 seconds
+      When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "canonicalId"

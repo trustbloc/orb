@@ -648,8 +648,15 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 			return err
 		}
 
-		d.canonicalDID = result.DocumentMetadata["canonicalId"].(string)
-		d.equivalentDID = document.StringArray(result.DocumentMetadata["equivalentId"])
+		canonicalIDEntry, ok := result.DocumentMetadata["canonicalId"]
+		if ok {
+			d.canonicalDID = canonicalIDEntry.(string)
+		}
+
+		equivalentIDEntry, ok := result.DocumentMetadata["equivalentId"]
+		if ok {
+			d.equivalentDID = document.StringArray(equivalentIDEntry)
+		}
 	}
 
 	return err
