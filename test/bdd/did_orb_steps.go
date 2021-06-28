@@ -68,7 +68,7 @@ var anchorOriginURLs = map[string]string{
 	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain4.com/services/orb",
+	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 }
 
 const addPublicKeysTemplate = `[
