@@ -634,14 +634,14 @@ func startOrbServices(parameters *orbParameters) error {
 		BasePath:               activityPubServicesPath,
 		ObjectIRI:              apServiceIRI,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
-		PageSize:               100, // TODO: Make configurable
+		PageSize:               parameters.activityPubPageSize,
 	}
 
 	apTxnEndpointCfg := &aphandler.Config{
 		Config:    authCfg,
 		BasePath:  activityPubTransactionsPath,
 		ObjectIRI: apTransactionsIRI,
-		PageSize:  100, // TODO: Make configurable
+		PageSize:  parameters.activityPubPageSize,
 	}
 
 	var resolveHandlerOpts []resolvehandler.Option
