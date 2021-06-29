@@ -51,6 +51,10 @@ func (s *pooledSubscriber) start() {
 func (s *pooledSubscriber) stop() {
 	logger.Infof("[%s] Closing pooled subscriber", s.topic)
 
+	for _, s := range s.subscribers {
+		s.stop()
+	}
+
 	close(s.msgChan)
 }
 
@@ -59,6 +63,8 @@ type poolSubscriber struct {
 	topic       string
 	msgChan     <-chan *message.Message
 	poolMsgChan chan<- *message.Message
+	stopChan    chan struct{}
+	stoppedChan chan struct{}
 }
 
 func newPoolSubscriber(ctx context.Context, n uint, topic string, s subscriber,
@@ -75,17 +81,46 @@ func newPoolSubscriber(ctx context.Context, n uint, topic string, s subscriber,
 		topic:       topic,
 		msgChan:     msgChan,
 		poolMsgChan: poolMsgChan,
+		stopChan:    make(chan struct{}),
+		stoppedChan: make(chan struct{}),
 	}, nil
 }
 
 func (s *poolSubscriber) listen() {
-	logger.Debugf("[%s-%d] Pool subscriber started", s.topic, s.n)
+	logger.Debugf("[%s-%d] Pool subscriber listener started", s.topic, s.n)
 
-	for msg := range s.msgChan {
-		logger.Debugf("[%s-%d] Pool subscriber got message [%s]", s.topic, s.n, msg.UUID)
+	for {
+		select {
+		case msg, ok := <-s.msgChan:
+			if !ok {
+				logger.Debugf("[%s-%d] Message channel was closed.", s.topic, s.n)
 
-		s.poolMsgChan <- msg
+				s.stoppedChan <- struct{}{}
+
+				return
+			}
+
+			logger.Debugf("[%s-%d] Pool subscriber got message [%s]", s.topic, s.n, msg.UUID)
+
+			s.poolMsgChan <- msg
+		case <-s.stopChan:
+			logger.Debugf("[%s-%d] Listener was requested to stop", s.topic, s.n)
+
+			s.stoppedChan <- struct{}{}
+
+			return
+		}
 	}
+}
 
-	logger.Debugf("[%s-%d] Pool subscriber stopped", s.topic, s.n)
+func (s *poolSubscriber) stop() {
+	logger.Debugf("[%s-%d] Stopping Pool subscriber listener...", s.topic, s.n)
+
+	close(s.stopChan)
+
+	logger.Debugf("[%s-%d] ... waiting for pool subscriber listener to stop...", s.topic, s.n)
+
+	<-s.stoppedChan
+
+	logger.Debugf("[%s-%d] ... pool subscriber stopped", s.topic, s.n)
 }

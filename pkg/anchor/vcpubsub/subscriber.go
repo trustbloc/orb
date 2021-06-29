@@ -49,7 +49,7 @@ func NewSubscriber(pubSub pubSub, vcProcessor vcProcessor, documentLoader docume
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Infof("Subscribing to topic [%s]", vcTopic)
+	logger.Debugf("Subscribing to topic [%s]", vcTopic)
 
 	vcChan, err := pubSub.Subscribe(context.Background(), vcTopic)
 	if err != nil {
@@ -75,7 +75,7 @@ func (h *Subscriber) listen() {
 		h.handleVerifiableCredentialMessage(msg)
 	}
 
-	logger.Infof("Listener stopped.")
+	logger.Debugf("Listener stopped.")
 }
 
 func (h *Subscriber) handleVerifiableCredentialMessage(msg *message.Message) {
