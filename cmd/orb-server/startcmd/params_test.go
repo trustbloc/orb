@@ -433,6 +433,18 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for enable-create-document-store")
 	})
 
+	t.Run("Invalid ActivityPub page size", func(t *testing.T) {
+		restoreEnv := setEnv(t, activityPubPageSizeEnvKey, "-125")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(defaultTestArgs())
+
+		err := startCmd.Execute()
+
+		require.EqualError(t, err, "activitypub-page-size: value must be greater than 0")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -593,26 +605,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 func TestStartCmdValidArgs(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	args := []string{
-		"--" + hostURLFlagName, "localhost:8247",
-		"--" + externalEndpointFlagName, "orb.example.com",
-		"--" + discoveryDomainFlagName, "shared.example.com",
-		"--" + ipfsURLFlagName, "localhost:8081",
-		"--" + cidVersionFlagName, "0",
-		"--" + batchWriterTimeoutFlagName, "700",
-		"--" + maxWitnessDelayFlagName, "600",
-		"--" + signWithLocalWitnessFlagName, "false",
-		"--" + startupDelayFlagName, "1",
-		"--" + casTypeFlagName, "local",
-		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
-		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		"--" + anchorCredentialURLFlagName, "peer.com",
-		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
-	}
-	startCmd.SetArgs(args)
+	startCmd.SetArgs(defaultTestArgs())
 
 	go func() {
 		err := startCmd.Execute()
@@ -625,7 +618,53 @@ func TestStartCmdValidArgs(t *testing.T) {
 	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
 }
 
+func TestGetActivityPubPageSize(t *testing.T) {
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		pageSize, err := getActivityPubPageSize(cmd)
+		require.NoError(t, err)
+		require.Equal(t, defaultActivityPubPageSize, pageSize)
+	})
+
+	t.Run("Invalid value -> error", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+activityPubPageSizeFlagName, "xxx")
+
+		_, err := getActivityPubPageSize(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("<=0 -> error", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+activityPubPageSizeFlagName, "-120")
+
+		_, err := getActivityPubPageSize(cmd)
+		require.EqualError(t, err, "value must be greater than 0")
+	})
+
+	t.Run("Valid value -> success", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+activityPubPageSizeFlagName, "120")
+
+		pageSize, err := getActivityPubPageSize(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 120, pageSize)
+	})
+
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, activityPubPageSizeEnvKey, "125")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		pageSize, err := getActivityPubPageSize(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 125, pageSize)
+	})
+}
+
 func setEnvVars(t *testing.T, databaseType string) {
+	t.Helper()
+
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
@@ -667,6 +706,8 @@ func setEnvVars(t *testing.T, databaseType string) {
 }
 
 func unsetEnvVars(t *testing.T) {
+	t.Helper()
+
 	err := os.Unsetenv(hostURLEnvKey)
 	require.NoError(t, err)
 
@@ -678,6 +719,8 @@ func unsetEnvVars(t *testing.T) {
 }
 
 func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flagShorthand, flagUsage string) {
+	t.Helper()
+
 	flag := cmd.Flag(flagName)
 
 	require.NotNil(t, flag)
@@ -688,4 +731,54 @@ func checkFlagPropertiesCorrect(t *testing.T, cmd *cobra.Command, flagName, flag
 
 	flagAnnotations := flag.Annotations
 	require.Nil(t, flagAnnotations)
+}
+
+func getTestCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+
+	cmd := &cobra.Command{
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	createFlags(cmd)
+
+	cmd.SetArgs(args)
+
+	require.NoError(t, cmd.Execute())
+
+	return cmd
+}
+
+func setEnv(t *testing.T, name, value string) (restore func()) {
+	t.Helper()
+
+	require.NoError(t, os.Setenv(name, value))
+
+	return func() {
+		require.NoError(t, os.Unsetenv(name))
+	}
+}
+
+func defaultTestArgs() []string {
+	return []string{
+		"--" + hostURLFlagName, "localhost:8247",
+		"--" + externalEndpointFlagName, "orb.example.com",
+		"--" + discoveryDomainFlagName, "shared.example.com",
+		"--" + ipfsURLFlagName, "localhost:8081",
+		"--" + cidVersionFlagName, "0",
+		"--" + batchWriterTimeoutFlagName, "700",
+		"--" + maxWitnessDelayFlagName, "600",
+		"--" + signWithLocalWitnessFlagName, "false",
+		"--" + startupDelayFlagName, "1",
+		"--" + casTypeFlagName, "local",
+		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+		"--" + anchorCredentialDomainFlagName, "domain.com",
+		"--" + anchorCredentialIssuerFlagName, "issuer.com",
+		"--" + anchorCredentialURLFlagName, "peer.com",
+		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+	}
 }

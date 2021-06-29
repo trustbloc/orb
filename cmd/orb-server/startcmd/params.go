@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 const (
 	defaultBatchWriterTimeout        = 1000 * time.Millisecond
 	defaultDiscoveryMinimumResolvers = 1
+	defaultActivityPubPageSize       = 50
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -240,6 +242,12 @@ const (
 	authTokensFlagUsage     = "Authorization tokens."
 	authTokensEnvKey        = "ORB_AUTH_TOKENS"
 
+	activityPubPageSizeFlagName      = "activitypub-page-size"
+	activityPubPageSizeFlagShorthand = "P"
+	activityPubPageSizeEnvKey        = "ACTIVITYPUB_PAGE_SIZE"
+	activityPubPageSizeFlagUsage     = "The maximum page size for an ActivityPub collection or ordered collection. " +
+		commonEnvVarUsageText + activityPubPageSizeEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -280,6 +288,7 @@ type orbParameters struct {
 	authTokenDefinitions       []*auth.TokenDef
 	authTokens                 map[string]string
 	opQueuePoolSize            uint
+	activityPubPageSize        int
 }
 
 type anchorCredentialParams struct {
@@ -541,6 +550,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("authorization tokens: %w", err)
 	}
 
+	activityPubPageSize, err := getActivityPubPageSize(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", activityPubPageSizeFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                    hostURL,
 		vctURL:                     vctURL,
@@ -575,6 +589,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		createDocumentStoreEnabled: createDocumentStoreEnabled,
 		authTokenDefinitions:       authTokenDefs,
 		authTokens:                 authTokens,
+		activityPubPageSize:        activityPubPageSize,
 	}, nil
 }
 
@@ -733,6 +748,28 @@ func getAuthTokens(cmd *cobra.Command) (map[string]string, error) {
 	return authTokens, nil
 }
 
+func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
+	activityPubPageSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubPageSizeFlagName, activityPubPageSizeEnvKey, true)
+	if err != nil {
+		return 0, err
+	}
+
+	if activityPubPageSizeStr == "" {
+		return defaultActivityPubPageSize, nil
+	}
+
+	activityPubPageSize, err := strconv.Atoi(activityPubPageSizeStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value [%s]: %w", activityPubPageSizeStr, err)
+	}
+
+	if activityPubPageSize <= 0 {
+		return 0, errors.New("value must be greater than 0")
+	}
+
+	return activityPubPageSize, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(startupDelayFlagName, startupDelayFlagShorthand, "", startupDelayFlagUsage)
@@ -777,4 +814,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensDefFlagName, authTokensDefFlagShorthand, nil, authTokensDefFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
+	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 }
