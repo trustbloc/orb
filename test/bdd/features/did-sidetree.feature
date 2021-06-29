@@ -116,12 +116,23 @@ Feature:
     Then check for request success
     Then we wait 5 seconds
 
+    # send request with previous canonical did - new canonical did will be returned
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "recoveryKey"
     Then check success response contains "canonicalId"
 
+    # send request with previous equivalent did
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with previous equivalent did
+    Then check success response contains "recoveryKey"
+    Then check success response contains "canonicalId"
+
+    # send request with new canonical did
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "#canonicalDID"
+
+    # send request with invalid canonical did (CID doesn't belong to resolved document)
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with invalid CID in canonical did
+    Then check error response contains "not found"
 
     @create_add_remove_public_key
     Scenario: add and remove public keys
