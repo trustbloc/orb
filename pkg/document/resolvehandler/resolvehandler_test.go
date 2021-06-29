@@ -17,11 +17,14 @@ import (
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
+	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler/mocks"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -35,16 +38,22 @@ const (
 	invalidTestDID        = "did:webcas"
 
 	createDocumentStore = "create-document"
+
+	firstCID  = "did:orb:first-cid:suffix"
+	secondCID = "did:orb:second-cid:suffix"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
+	anchorGraph := &orbmocks.AnchorGraph{}
+	anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}}}, nil)
+
 	t.Run("success - without document create store(canonical did)", func(t *testing.T) {
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{}, nil)
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery, WithUnpublishedDIDLabel(testLabel))
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, WithUnpublishedDIDLabel(testLabel))
 
 		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
@@ -57,7 +66,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery, WithUnpublishedDIDLabel(testLabel))
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, WithUnpublishedDIDLabel(testLabel))
 
 		response, err := handler.ResolveDocument(testInterimDID)
 		require.NoError(t, err)
@@ -73,7 +82,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		store, err := mem.NewProvider().OpenStore(createDocumentStore)
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store))
 
@@ -100,7 +109,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		err = store.Put(testInterimDID, rrBytes)
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store))
 
@@ -131,7 +140,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		err = store.Put(testInterimDID, rrBytes)
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store),
 			WithEnableDIDDiscovery(true))
@@ -148,12 +157,32 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did", coreHandler, discovery,
+		handler := NewResolveHandler("did", coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(invalidTestDID)
 		require.Error(t, err)
 		require.Nil(t, response)
+	})
+
+	t.Run("error - anchor graph error", func(t *testing.T) {
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = secondCID
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{DocumentMetadata: metadata}, nil)
+
+		discovery := &mocks.Discovery{}
+
+		anchorGraphWithErr := &orbmocks.AnchorGraph{}
+		anchorGraphWithErr.GetDidAnchorsReturns(nil, fmt.Errorf("anchor graph error"))
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraphWithErr, WithUnpublishedDIDLabel(testLabel))
+
+		response, err := handler.ResolveDocument(firstCID)
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(), "anchor graph error")
 	})
 
 	t.Run("error - not found error (did without hint)", func(t *testing.T) {
@@ -162,7 +191,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testInterimDID)
@@ -179,7 +208,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		store, err := mem.NewProvider().OpenStore(createDocumentStore)
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store),
 			WithEnableDIDDiscovery(true))
@@ -201,7 +230,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		err = store.Put(testInterimDID, []byte(""))
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store),
 			WithEnableDIDDiscovery(true))
@@ -221,7 +250,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		store := &storemocks.Store{}
 		store.GetReturns(nil, fmt.Errorf("create document store error"))
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store),
 			WithEnableDIDDiscovery(true))
@@ -241,7 +270,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		store := &storemocks.Store{}
 		store.DeleteReturns(fmt.Errorf("delete from document store error"))
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel),
 			WithCreateDocumentStore(store),
 			WithEnableDIDDiscovery(true))
@@ -257,7 +286,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did", coreHandler, discovery,
+		handler := NewResolveHandler("did", coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(invalidTestDID)
@@ -271,7 +300,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDIDWithCIDAndHint)
@@ -285,7 +314,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did:not-orb", coreHandler, discovery,
+		handler := NewResolveHandler("did:not-orb", coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDIDWithCIDAndHint)
@@ -299,7 +328,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler("did:not-orb", coreHandler, discovery,
+		handler := NewResolveHandler("did:not-orb", coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithAliases([]string{testNS}), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDIDWithCIDAndHint)
@@ -314,7 +343,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 		discovery.RequestDiscoveryReturns(errors.New("discovery error"))
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDIDWithCIDAndHint)
@@ -328,11 +357,139 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		discovery := &mocks.Discovery{}
 
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph,
 			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)
 		require.Nil(t, response)
+	})
+}
+
+func TestResolveHandler_VerifyCID(t *testing.T) {
+	t.Run("success - CID in DID matches resolved document CID", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
+
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		require.NoError(t, err)
+	})
+
+	t.Run("success - CID in DID matches document's previous CID", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{
+			{Info: &verifiable.Credential{}, CID: "first-cid"},
+			{Info: &verifiable.Credential{}, CID: "second-cid"},
+		}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = secondCID
+
+		err := handler.verifyCID("did:orb:first-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		require.NoError(t, err)
+	})
+
+	t.Run("success - no canonical id (ignore)", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		err := handler.verifyCID(testDID, &document.ResolutionResult{})
+		require.NoError(t, err)
+	})
+
+	t.Run("error - canonical ID not a string", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = []string{"did:orb:cid:suffix"}
+
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unexpected interface '[]string' for canonicalId")
+	})
+
+	t.Run("error - canonical ID invalid (wrong number of parts)", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:suffix"
+
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "CID from resolved document: invalid number of parts[3] for Orb identifier")
+	})
+
+	t.Run("error - DID invalid (wrong number of parts)", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
+
+		err := handler.verifyCID("suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "CID from ID: invalid number of parts[1] for Orb identifier")
+	})
+
+	t.Run("error - resolved create document CID doesn't matches CID in DID", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}, CID: "cid2"}}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:cid2:suffix"
+
+		err := handler.verifyCID("did:orb:cid1:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Equal(t, ErrDocumentNotFound, err)
+	})
+
+	t.Run("error - CID in DID doesn't match any of document's previous CIDs", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{
+			{Info: &verifiable.Credential{}, CID: "first-cid"},
+			{Info: &verifiable.Credential{}, CID: "second-cid"},
+		}, nil)
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
+
+		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Equal(t, ErrDocumentNotFound, err)
+	})
+
+	t.Run("error - anchor graph error", func(t *testing.T) {
+		anchorGraph := &orbmocks.AnchorGraph{}
+		anchorGraph.GetDidAnchorsReturns(nil, fmt.Errorf("anchor graph error"))
+
+		handler := NewResolveHandler(testNS, nil, nil, anchorGraph)
+
+		metadata := make(document.Metadata)
+		metadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
+
+		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor graph error")
 	})
 }

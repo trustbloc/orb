@@ -53,6 +53,8 @@ const (
 	sha2_256 = 18
 
 	anchorTimeDelta = 300
+
+	testCID = "bafkreie4a6z6hosibbfz2dd7vhsukojw3gwmldh5jvy5uh3mjfrubiq5hi"
 )
 
 var localURLs = map[string]string{
@@ -135,7 +137,9 @@ type DIDOrbSteps struct {
 	resp               *httpResponse
 	bddContext         *BDDContext
 	interimDID         string
+	prevCanonicalDID   string
 	canonicalDID       string
+	prevEquivalentDID  []string
 	equivalentDID      []string
 	retryDID           string
 	resolutionEndpoint string
@@ -650,11 +654,13 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 
 		canonicalIDEntry, ok := result.DocumentMetadata["canonicalId"]
 		if ok {
+			d.prevCanonicalDID = d.canonicalDID
 			d.canonicalDID = canonicalIDEntry.(string)
 		}
 
 		equivalentIDEntry, ok := result.DocumentMetadata["equivalentId"]
 		if ok {
+			d.prevEquivalentDID = d.equivalentDID
 			d.equivalentDID = document.StringArray(equivalentIDEntry)
 		}
 	}
@@ -678,6 +684,29 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDID(url string) error {
 	return d.resolveDIDDocumentWithID(url, d.canonicalDID)
 }
 
+func (d *DIDOrbSteps) resolveDIDDocumentWithPreviousCanonicalDID(url string) error {
+	logger.Infof("resolving did document with previous canonical did: %s", d.prevCanonicalDID)
+
+	d.retryDID = d.prevCanonicalDID
+
+	return d.resolveDIDDocumentWithID(url, d.prevCanonicalDID)
+}
+
+func (d *DIDOrbSteps) resolveDIDDocumentWithInvalidCIDInDID(url string) error {
+	uniqueSuffix, err := d.getUniqueSuffix()
+	if err != nil {
+		return err
+	}
+
+	didWithInvalidCID := d.namespace + ":" + testCID + ":" + uniqueSuffix
+
+	logger.Infof("resolving did document with previous invalid CID in did: %s", didWithInvalidCID)
+
+	d.retryDID = didWithInvalidCID
+
+	return d.resolveDIDDocumentWithID(url, didWithInvalidCID)
+}
+
 func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentDID(url string) error {
 	// interim DID contains one equivalent ID
 	equivalentDID := d.equivalentDID[len(d.equivalentDID)-1]
@@ -696,6 +725,21 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithEquivalentDID(url string) error {
 
 	// last equivalent ID is an ID with hints (canonical ID is always the first for published docs)
 	return d.resolveDIDDocumentWithID(url, equivalentDID)
+}
+
+func (d *DIDOrbSteps) resolveDIDDocumentWithPreviousEquivalentDID(url string) error {
+	prevEquivalentDID := d.prevEquivalentDID[len(d.prevEquivalentDID)-1]
+
+	if len(d.prevEquivalentDID) > 1 {
+		prevEquivalentDID = d.prevEquivalentDID[1]
+	}
+
+	logger.Infof("resolving did document with previous equivalent did: %s", prevEquivalentDID)
+
+	d.retryDID = prevEquivalentDID
+
+	// last equivalent ID is an ID with hints (canonical ID is always the first for published docs)
+	return d.resolveDIDDocumentWithID(url, prevEquivalentDID)
 }
 
 func (d *DIDOrbSteps) resolveDIDDocumentWithInitialValue(url string) error {
@@ -1162,7 +1206,10 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did$`, d.resolveDIDDocumentWithCanonicalDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous canonical did$`, d.resolveDIDDocumentWithPreviousCanonicalDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with invalid CID in canonical did$`, d.resolveDIDDocumentWithInvalidCIDInDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent did$`, d.resolveDIDDocumentWithEquivalentDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous equivalent did$`, d.resolveDIDDocumentWithPreviousEquivalentDID)
 	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)

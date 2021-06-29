@@ -665,6 +665,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.didNamespace,
 		didDocHandler,
 		localdiscovery.New(o.Publisher()),
+		anchorGraph,
 		resolveHandlerOpts...,
 	)
 

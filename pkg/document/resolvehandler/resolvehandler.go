@@ -15,7 +15,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
+
+	"github.com/trustbloc/orb/pkg/context/common"
 )
 
 var logger = log.New("orb-resolver")
@@ -25,11 +28,15 @@ const (
 	minOrbSuffixParts = 2
 )
 
+// ErrDocumentNotFound is document not found error.
+var ErrDocumentNotFound = fmt.Errorf("document not found")
+
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {
 	coreResolver dochandler.Resolver
 	discovery    discovery
 	store        storage.Store
+	anchorGraph  common.AnchorGraph
 
 	namespace           string
 	aliases             []string
@@ -78,11 +85,12 @@ func WithCreateDocumentStore(store storage.Store) Option {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery, opts ...Option) *ResolveHandler { //nolint:lll
+func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery, anchorGraph common.AnchorGraph, opts ...Option) *ResolveHandler { //nolint:lll
 	rh := &ResolveHandler{
 		namespace:    namespace,
 		coreResolver: resolver,
 		discovery:    discovery,
+		anchorGraph:  anchorGraph,
 	}
 
 	// apply options
@@ -94,7 +102,7 @@ func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery
 }
 
 // ResolveDocument resolves a document.
-func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) {
+func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) { //nolint:gocyclo,cyclop
 	response, err := r.coreResolver.ResolveDocument(id)
 	if err != nil { //nolint:nestif
 		if strings.Contains(err.Error(), "not found") {
@@ -125,6 +133,14 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 	if strings.Contains(id, r.unpublishedDIDLabel) && r.enableCreateDocumentStore {
 		// delete interim document from create document store
 		r.deleteDocumentFromCreateDocumentStore(id)
+	}
+
+	if !strings.Contains(id, r.unpublishedDIDLabel) {
+		// we have to check if CID belongs to the resolved document
+		err = r.verifyCID(id, response)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return response, nil
@@ -209,4 +225,68 @@ func (r *ResolveHandler) getOrbSuffix(shortFormDID string) (string, error) {
 	}
 
 	return orbSuffix, nil
+}
+
+func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) error {
+	value, ok := rr.DocumentMetadata[document.CanonicalIDProperty]
+	if !ok {
+		// this document has not been published so nothing to verify
+		return nil
+	}
+
+	canonicalID, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected interface '%T' for canonicalId", value)
+	}
+
+	resolvedCID, suffix, err := getCIDAndSuffix(canonicalID)
+	if err != nil {
+		return fmt.Errorf("CID from resolved document: %w", err)
+	}
+
+	cidFromID, _, err := getCIDAndSuffix(id)
+	if err != nil {
+		return fmt.Errorf("CID from ID: %w", err)
+	}
+
+	if resolvedCID == cidFromID {
+		// CIDs match - nothing to do
+		return nil
+	}
+
+	logger.Debugf("resolved CID[%s] doesn't match requested CID[%s] in DID[%s] - check anchor graph for requested CID",
+		resolvedCID, cidFromID, id)
+
+	return r.verifyCIDExistenceInAnchorGraph(cidFromID, resolvedCID, suffix)
+}
+
+func (r *ResolveHandler) verifyCIDExistenceInAnchorGraph(cid, anchorCID, anchorSuffix string) error {
+	anchors, err := r.anchorGraph.GetDidAnchors(anchorCID, anchorSuffix)
+	if err != nil {
+		return err
+	}
+
+	for _, anchor := range anchors {
+		if strings.Contains(anchor.CID, cid) {
+			// if requested CID is an old CID we should return found
+			return nil
+		}
+	}
+
+	logger.Debugf("cid[%s] not found in anchor graph starting from cid[%s] and suffix[%s] - return document not found",
+		cid, anchorCID, anchorSuffix)
+
+	// if there is a new CID that the resolver doesn’t know about we should return not found
+	return ErrDocumentNotFound
+}
+
+func getCIDAndSuffix(id string) (string, string, error) {
+	parts := strings.Split(id, docutil.NamespaceDelimiter)
+
+	const minOrbIdentifierParts = 4
+	if len(parts) < minOrbIdentifierParts {
+		return "", "", fmt.Errorf("invalid number of parts[%d] for Orb identifier", len(parts))
+	}
+
+	return parts[len(parts)-2], parts[len(parts)-1], nil
 }
