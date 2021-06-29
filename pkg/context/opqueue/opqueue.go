@@ -43,7 +43,6 @@ type Config struct {
 
 // Queue implements an operation queue that uses a publisher/subscriber.
 type Queue struct {
-	Config
 	*lifecycle.Lifecycle
 
 	pubSub        pubSub
@@ -68,7 +67,10 @@ func New(cfg Config, pubSub pubSub) (*Queue, error) {
 		jsonUnmarshal: json.Unmarshal,
 	}
 
-	q.Lifecycle = lifecycle.New("operation-queue", lifecycle.WithStart(q.start))
+	q.Lifecycle = lifecycle.New("operation-queue",
+		lifecycle.WithStart(q.start),
+		lifecycle.WithStop(q.stop),
+	)
 
 	q.Start()
 
@@ -109,7 +111,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolGenesisTime uint64) (
 }
 
 // Peek returns (up to) the given number of operations from the head of the queue but does not remove them.
-func (q *Queue) Peek(num uint) ([]*operation.QueuedOperationAtTime, error) {
+func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 	if q.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
@@ -130,9 +132,9 @@ func (q *Queue) Peek(num uint) ([]*operation.QueuedOperationAtTime, error) {
 // Each removed message is acknowledged, indicating that it was successfully processed. If the
 // server goes down with messages still in the queue then, if using a durable message queue, the messages
 // will be delivered to another server instance which is processing from the same queue.
-func (q *Queue) Remove(num uint) (uint, uint, error) {
+func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func() uint, nack func(), err error) {
 	if q.State() != lifecycle.StateStarted {
-		return 0, 0, lifecycle.ErrNotStarted
+		return nil, nil, nil, lifecycle.ErrNotStarted
 	}
 
 	q.mutex.Lock()
@@ -143,19 +145,43 @@ func (q *Queue) Remove(num uint) (uint, uint, error) {
 		n = len(q.pending)
 	}
 
+	if n == 0 {
+		return nil,
+			func() uint { return 0 },
+			func() {}, nil
+	}
+
 	items := q.pending[0:n]
 	q.pending = q.pending[n:]
 
-	logger.Debugf("Acknowledging %d operation messages...", len(items))
+	ack = func() uint {
+		logger.Debugf("Acking %d operation messages...", len(items))
 
-	// Acknowledge all of the messages that were processed.
-	for _, opMsg := range items {
-		opMsg.msg.Ack()
+		// Acknowledge all of the messages that were processed.
+		for _, opMsg := range items {
+			opMsg.msg.Ack()
 
-		logger.Debugf("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+			logger.Debugf("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+		}
+
+		q.mutex.RLock()
+		defer q.mutex.RUnlock()
+
+		return uint(len(q.pending))
 	}
 
-	return uint(len(items)), uint(len(q.pending)), nil
+	nack = func() {
+		logger.Debugf("Nacking %d operation messages...", len(items))
+
+		// Send an Nack for all of the messages that were removed so that they may be retried.
+		for _, opMsg := range items {
+			opMsg.msg.Nack()
+
+			logger.Debugf("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+		}
+	}
+
+	return asQueuedOperations(items), ack, nack, nil
 }
 
 // Len returns the length of the pending queue.
@@ -176,6 +202,30 @@ func (q *Queue) start() {
 	go q.listen()
 
 	logger.Infof("Started operation queue")
+}
+
+func (q *Queue) stop() {
+	q.mutex.RLock()
+
+	logger.Debugf("Stopping operation queue with %d pending operations...", len(q.pending))
+
+	items := make([]*operationMessage, len(q.pending))
+
+	for i, item := range q.pending {
+		items[i] = item
+	}
+
+	q.mutex.RUnlock()
+
+	logger.Debugf("... nacking %d pending pending...", len(items))
+
+	for _, item := range items {
+		logger.Debugf("Nacking item [%s] - [%s]", item.msg.UUID)
+
+		item.msg.Nack()
+	}
+
+	logger.Debugf("...stopped operation queue.")
 }
 
 func (q *Queue) listen() {

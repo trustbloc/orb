@@ -95,7 +95,7 @@ func (s *poolSubscriber) listen() {
 			if !ok {
 				logger.Debugf("[%s-%d] Message channel was closed.", s.topic, s.n)
 
-				s.stoppedChan <- struct{}{}
+				close(s.stoppedChan)
 
 				return
 			}
@@ -106,7 +106,7 @@ func (s *poolSubscriber) listen() {
 		case <-s.stopChan:
 			logger.Debugf("[%s-%d] Listener was requested to stop", s.topic, s.n)
 
-			s.stoppedChan <- struct{}{}
+			close(s.stoppedChan)
 
 			return
 		}
