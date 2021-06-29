@@ -411,20 +411,6 @@ services:
     networks:
       - orb_net
 
-  orb.mysql:
-    container_name: orb.mysql
-    image: mysql:8.0.24
-    restart: always
-    cap_add:
-      - SYS_NICE
-    environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=true
-      - MYSQL_DATABASE=test
-    networks:
-      - orb_net
-    ports:
-      - 3306:3306
-
   orb.postgres:
     container_name: orb.postgres
     image: postgres:13
