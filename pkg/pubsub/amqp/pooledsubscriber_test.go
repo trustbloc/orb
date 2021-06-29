@@ -10,27 +10,18 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestPooledSubscriber(t *testing.T) {
+	const topic = "pooled"
+
 	t.Run("Subscriber -> error", func(t *testing.T) {
-		const (
-			n     = 100
-			topic = "pooled"
-		)
-
-		p := New(Config{
-			URI: "amqp://guest:guest@localhost:5672/",
-		})
-		require.NotNil(t, p)
-		defer func() {
-			require.NoError(t, p.Close())
-		}()
-
 		s := &mocks.PubSub{}
 
 		errExpected := errors.New("injected subscriber error")
@@ -40,5 +31,22 @@ func TestPooledSubscriber(t *testing.T) {
 		_, err := newPooledSubscriber(context.Background(), 10, s, topic)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Start/Stop", func(t *testing.T) {
+		msgChan := make(chan *message.Message)
+
+		pubSub := &mocks.PubSub{}
+		pubSub.SubscribeReturns(msgChan, nil)
+
+		ps, err := newPooledSubscriber(context.Background(), 10, pubSub, topic)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+
+		ps.start()
+
+		time.Sleep(50 * time.Millisecond)
+
+		ps.stop()
 	})
 }
