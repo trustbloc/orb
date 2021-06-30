@@ -275,7 +275,7 @@ func (h *Resolver) getWebCASURLViaWebFinger(domain, cid string) (*url.URL, error
 			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
 	}
 
-	webFingerResponse := restapi.WebFingerResponse{}
+	webFingerResponse := restapi.JRD{}
 
 	err = json.Unmarshal(respBytes, &webFingerResponse)
 	if err != nil {

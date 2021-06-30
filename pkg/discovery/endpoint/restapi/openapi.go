@@ -39,7 +39,7 @@ type webFingerReq struct { // nolint: unused,deadcode
 // swagger:response webFingerResp
 type webFingerResp struct { // nolint: unused,deadcode
 	// in: body
-	Body *WebFingerResponse
+	Body *JRD
 }
 
 // wellKnownDIDReq model

@@ -22,7 +22,7 @@ import (
 
 var logger = log.New("resource-resolver")
 
-// Resolver is used for resolving WebFinger resources.
+// Resolver is used for resolving host-meta resources.
 type Resolver struct {
 	httpClient *http.Client
 	ipfsReader *ipfs.Client
@@ -33,140 +33,105 @@ func New(httpClient *http.Client, ipfsReader *ipfs.Client) *Resolver {
 	return &Resolver{httpClient: httpClient, ipfsReader: ipfsReader}
 }
 
-// Resolve resolves the WebFinger resource for the given property.
-func (c *Resolver) Resolve(urlToResolve, property string) (string, error) {
+// ResolveHostMetaLink resolves a host-meta link for a given url and linkType. The url may have an HTTP, HTTPS, or
+// IPNS scheme. If the url has an HTTP or HTTPS scheme, then the hostname for the host-meta call will be extracted
+// from the url argument. Example: For url = https://orb.domain1.com/services/orb, this method will look for a
+// host-meta document at the following URL: https://orb.domain1.com/.well-known/host-meta.
+// If the resource has an IPNS scheme, then this method will look for a host-meta document stored under that IPNS
+// address. In both cases, the first link in the host-meta document with a matching type will have its associated
+// href value returned.
+func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (string, error) {
 	var err error
 
-	var baseURLWebFingerResponse discoveryrest.WebFingerResponse
+	var hostMetaDocument discoveryrest.JRD
 
-	if strings.HasPrefix(urlToResolve, "ipns://") {
-		baseURLWebFingerResponse, err = c.getBaseURLWebFingerResponseViaIPNS(urlToResolve)
+	if strings.HasPrefix(urlToGetHostMetaFrom, "ipns://") {
+		hostMetaDocument, err = c.getHostMetaDocumentViaIPNS(urlToGetHostMetaFrom)
 		if err != nil {
-			return "", fmt.Errorf("failed to get WebFinger response from IPNS URL: %w", err)
+			return "", fmt.Errorf("failed to get host-meta document via IPNS: %w", err)
 		}
 	} else {
-		baseURLWebFingerResponse, err = c.getBaseURLWebFingerResponseViaHTTP(urlToResolve)
+		hostMetaDocument, err = c.getHostMetaDocumentViaHTTP(urlToGetHostMetaFrom)
 		if err != nil {
-			return "", fmt.Errorf("failed to get WebFinger response from HTTP/HTTPS URL: %w", err)
+			return "", fmt.Errorf("failed to get host-meta document via HTTP/HTTPS: %w", err)
 		}
 	}
 
-	resolvedResource, err := c.resolveResourceFromBaseURLWebFingerResponse(baseURLWebFingerResponse, property)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve resource from Base URL WebFinger response: %w", err)
+	for _, link := range hostMetaDocument.Links {
+		if link.Type == linkType {
+			return link.Href, nil
+		}
 	}
 
-	return resolvedResource, nil
+	return "", fmt.Errorf("no links with type %s were found via %s", linkType, urlToGetHostMetaFrom)
 }
 
-func (c *Resolver) getBaseURLWebFingerResponseViaIPNS(ipnsURL string) (discoveryrest.WebFingerResponse, error) {
+func (c *Resolver) getHostMetaDocumentViaIPNS(ipnsURL string) (discoveryrest.JRD, error) {
 	ipnsURLSplitByDoubleSlashes := strings.Split(ipnsURL, "//")
 
-	webFingerResponseBytes, err := c.ipfsReader.Read(fmt.Sprintf("/ipns/%s/.well-known/webfinger",
-		ipnsURLSplitByDoubleSlashes[len(ipnsURLSplitByDoubleSlashes)-1]))
+	hostMetaDocumentBytes, err := c.ipfsReader.Read(fmt.Sprintf("/ipns/%s%s",
+		ipnsURLSplitByDoubleSlashes[len(ipnsURLSplitByDoubleSlashes)-1], discoveryrest.HostMetaJSONEndpoint))
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to read from IPNS: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to read from IPNS: %w", err)
 	}
 
-	var webFingerResponse discoveryrest.WebFingerResponse
+	var hostMetaDocument discoveryrest.JRD
 
-	err = json.Unmarshal(webFingerResponseBytes, &webFingerResponse)
+	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
 	}
 
-	return webFingerResponse, nil
+	return hostMetaDocument, nil
 }
 
-func (c *Resolver) getBaseURLWebFingerResponseViaHTTP(httpURL string) (discoveryrest.WebFingerResponse, error) {
-	parsedURL, err := url.Parse(httpURL)
+func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom string) (discoveryrest.JRD, error) {
+	parsedURL, err := url.Parse(urlToGetHostMetaDocumentFrom)
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to parse given URL: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to parse given URL: %w", err)
 	}
 
-	urlSchemeAndHost := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+	hostNameWithScheme := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
 
-	webFingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s",
-		urlSchemeAndHost, url.PathEscape(urlSchemeAndHost))
+	hostMetaEndpoint := fmt.Sprintf("%s%s", hostNameWithScheme, discoveryrest.HostMetaJSONEndpoint)
 
-	webFingerResponse, err := c.doWebFingerViaREST(webFingerURL)
+	hostMetaDocument, err := c.getHostMetaDocumentFromEndpoint(hostMetaEndpoint)
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to do WebFinger via REST: %w", err)
+		return discoveryrest.JRD{}, err
 	}
 
-	return webFingerResponse, nil
+	return hostMetaDocument, nil
 }
 
-func (c *Resolver) resolveResourceFromBaseURLWebFingerResponse(baseURLWebFingerResponse discoveryrest.WebFingerResponse,
-	property string) (string, error) {
-	retrievedPropertyRaw, exists := baseURLWebFingerResponse.Properties[property]
-	if !exists {
-		return "", fmt.Errorf("property missing")
-	}
-
-	retrievedProperty, ok := retrievedPropertyRaw.(string)
-	if !ok {
-		return "", fmt.Errorf("failed to assert property as a string")
-	}
-
-	resource, err := c.getResourceFromPropertyWebFinger(retrievedProperty)
+func (c *Resolver) getHostMetaDocumentFromEndpoint(hostMetaEndpoint string) (discoveryrest.JRD, error) {
+	resp, err := c.httpClient.Get(hostMetaEndpoint)
 	if err != nil {
-		return "", fmt.Errorf("failed to get resource from property WebFinger: %w", err)
-	}
-
-	return resource, nil
-}
-
-func (c *Resolver) getResourceFromPropertyWebFinger(propertyWebFingerURL string) (string, error) {
-	propertyWebFingerURLParsed, err := url.Parse(propertyWebFingerURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse property WebFinger URL: %w", err)
-	}
-
-	resourceWebFingerURL := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=%s", propertyWebFingerURLParsed.Scheme,
-		propertyWebFingerURLParsed.Host, url.PathEscape(propertyWebFingerURL))
-
-	webFingerResponse, err := c.doWebFingerViaREST(resourceWebFingerURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to do WebFinger via REST: %w", err)
-	}
-
-	if len(webFingerResponse.Links) > 0 {
-		return webFingerResponse.Links[0].Href, nil
-	}
-
-	return "", fmt.Errorf("webfinger response contains no links")
-}
-
-func (c *Resolver) doWebFingerViaREST(webFingerURL string) (discoveryrest.WebFingerResponse, error) {
-	resp, err := c.httpClient.Get(webFingerURL)
-	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to get WebFinger response: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to get a response from the host-meta endpoint: %w", err)
 	}
 
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Warnf("failed to close WebFinger response body: %s", err.Error())
+			logger.Warnf("failed to close host-meta response body: %s", err.Error())
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return discoveryrest.WebFingerResponse{},
-			fmt.Errorf("got status code %d from %s (expected 200)", resp.StatusCode, webFingerURL)
+		return discoveryrest.JRD{},
+			fmt.Errorf("got status code %d from %s (expected 200)", resp.StatusCode, hostMetaEndpoint)
 	}
 
-	webFingerResponseBytes, err := ioutil.ReadAll(resp.Body)
+	hostMetaDocumentBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to read response body: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var webFingerResponse discoveryrest.WebFingerResponse
+	var hostMetaDocument discoveryrest.JRD
 
-	err = json.Unmarshal(webFingerResponseBytes, &webFingerResponse)
+	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {
-		return discoveryrest.WebFingerResponse{}, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+		return discoveryrest.JRD{}, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
 	}
 
-	return webFingerResponse, nil
+	return hostMetaDocument, nil
 }

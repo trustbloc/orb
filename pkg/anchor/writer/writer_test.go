@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package writer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -35,6 +36,7 @@ import (
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/mocks"
@@ -57,14 +59,6 @@ const (
 	testMaxWitnessDelay = 600 * time.Second
 
 	signWithLocalWitness = true
-
-	sampleBaseURLWebFingerResponseData = `{"subject":"%s` +
-		`","properties":{"https://trustbloc.dev/ns/cas":"https://testnet.orb.local/cas","https://tru` +
-		`stbloc.dev/ns/min-resolvers":1,"https://trustbloc.dev/ns/vct":"https://testnet.orb.local/vct","https://` +
-		`trustbloc.dev/ns/witness":"%s/services/orb"},"links":[{"rel":"self","href":"http` +
-		`s://testnet.orb.local/sidetree/v1/identifiers"}]}`
-	sampleWitnessWebFingerResponseData = `{"subject":"%s","links":` +
-		`[{"rel":"self","type":"application/ld+json","href":"%s/services/orb"}]}`
 )
 
 func TestNew(t *testing.T) {
@@ -105,7 +99,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop // test file
+func TestWriter_WriteAnchor(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
@@ -155,23 +149,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			testMaxWitnessDelay, false, testutil.GetLoader(t), resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -210,23 +193,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			VCStatusStore: vcStatusStore,
 		}
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						"ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek", testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -276,23 +248,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -339,23 +300,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -399,23 +349,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -460,23 +399,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -560,23 +488,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -614,23 +531,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -658,23 +564,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -708,23 +603,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -760,23 +644,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -839,23 +712,12 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 			resourceresolver.New(http.DefaultClient, nil))
 		require.NoError(t, err)
 
-		var numTimesMockServerHandlerHit int
-
 		var testServerURL string
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit {
-				case 0:
-					numTimesMockServerHandlerHit++
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
-					require.NoError(t, err)
-				case 1:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-						fmt.Sprintf("%s/services/orb", testServerURL), testServerURL)))
-					require.NoError(t, err)
-				}
+				_, err = w.Write(generateValidExampleHostMetaResponse(t, testServerURL))
+				require.NoError(t, err)
 			}))
 		defer testServer.Close()
 
@@ -910,9 +772,9 @@ func TestWriter_WriteAnchor(t *testing.T) { // nolint: gocognit,gocyclo,cyclop /
 		err = c.WriteAnchor("1.anchor", opRefs, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to create witness list: failed to resolve witness: "+
-			`failed to get WebFinger response from IPNS URL: failed to read from IPNS: `+
+			`failed to get host-meta document via IPNS: failed to read from IPNS: `+
 			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
-			`l7uyhdre8ateqek%2F.well-known%2Fwebfinger": dial tcp: lookup SomeIPFSNodeURL:`)
+			`l7uyhdre8ateqek%2F.well-known%2Fhost-meta.json": dial tcp: lookup SomeIPFSNodeURL:`)
 	})
 }
 
@@ -1283,27 +1145,17 @@ func TestWriter_getWitnesses(t *testing.T) {
 
 		testServer := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch numTimesMockServerHandlerHit % 2 {
-				case 0:
-					_, err = w.Write([]byte(fmt.Sprintf(sampleBaseURLWebFingerResponseData,
-						testServerURL, testServerURL)))
+				if numTimesMockServerHandlerHit == 5 {
+					// Ensure that one of the witnesses returned is a duplicate of another one.
+					_, err = w.Write(generateValidExampleHostMetaResponse(t, fmt.Sprintf("%s/4", testServerURL)))
 					require.NoError(t, err)
-					numTimesMockServerHandlerHit++
-				case 1:
-					if numTimesMockServerHandlerHit == 11 {
-						_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-							fmt.Sprintf("%s/services/orb", testServerURL),
-							fmt.Sprintf("%s/9", testServerURL))))
-						require.NoError(t, err)
-					} else {
-						_, err = w.Write([]byte(fmt.Sprintf(sampleWitnessWebFingerResponseData,
-							fmt.Sprintf("%s/services/orb", testServerURL),
-							fmt.Sprintf("%s/%d", testServerURL, numTimesMockServerHandlerHit))))
-						require.NoError(t, err)
-					}
-
-					numTimesMockServerHandlerHit++
+				} else {
+					_, err = w.Write(generateValidExampleHostMetaResponse(t, fmt.Sprintf("%s/%d", testServerURL,
+						numTimesMockServerHandlerHit)))
+					require.NoError(t, err)
 				}
+
+				numTimesMockServerHandlerHit++
 			}))
 		defer testServer.Close()
 
@@ -1364,11 +1216,11 @@ func TestWriter_getWitnesses(t *testing.T) {
 		expectedWitnessTemplate := "%s/%d/services/orb"
 
 		expected := []string{
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 0),
 			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 1),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 2),
 			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 3),
-			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 5),
-			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 7),
-			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 9),
+			fmt.Sprintf(expectedWitnessTemplate, testServerURL, 4),
 		}
 		require.Equal(t, expected, witnesses)
 	})
@@ -1669,6 +1521,26 @@ func getOperationReferences(anchorOrigin string) []*operation.Reference {
 			AnchorOrigin: anchorOrigin,
 		},
 	}
+}
+
+func generateValidExampleHostMetaResponse(t *testing.T, hostnameInResponse string) []byte {
+	t.Helper()
+
+	hostMetaResponse := discoveryrest.JRD{
+		Subject:    "",
+		Properties: nil,
+		Links: []discoveryrest.Link{
+			{
+				Type: discoveryrest.ActivityJSONType,
+				Href: fmt.Sprintf("%s/services/orb", hostnameInResponse),
+			},
+		},
+	}
+
+	hostMetaResponseBytes, err := json.Marshal(hostMetaResponse)
+	require.NoError(t, err)
+
+	return hostMetaResponseBytes
 }
 
 //nolint: lll

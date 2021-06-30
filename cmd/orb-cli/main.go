@@ -14,8 +14,8 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/ipfskeygencmd"
-	"github.com/trustbloc/orb/cmd/orb-cli/ipnswebfingergencmd"
-	"github.com/trustbloc/orb/cmd/orb-cli/ipnswebfingeruploadcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetagencmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetauploadcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/witnesscmd"
@@ -46,8 +46,8 @@ func main() {
 	}
 
 	ipfsCmd.AddCommand(ipfskeygencmd.GetCmd())
-	ipfsCmd.AddCommand(ipnswebfingergencmd.GetCmd())
-	ipfsCmd.AddCommand(ipnswebfingeruploadcmd.GetCmd())
+	ipfsCmd.AddCommand(ipnshostmetagencmd.GetCmd())
+	ipfsCmd.AddCommand(ipnshostmetauploadcmd.GetCmd())
 
 	didCmd.AddCommand(createdidcmd.GetCreateDIDCmd())
 	didCmd.AddCommand(updatedidcmd.GetUpdateDIDCmd())
