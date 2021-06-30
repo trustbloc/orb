@@ -557,64 +557,6 @@ func (d *DIDOrbSteps) checkResponseIsSuccess() error {
 	return nil
 }
 
-func (d *DIDOrbSteps) getAnchor(url string) error {
-	logger.Info("requesting latest anchor cid")
-
-	anchorURL, err := getLocalURL(url, "/anchor")
-	if err != nil {
-		return err
-	}
-
-	cid, suffix, err := extractCIDAndSuffix(d.canonicalDID)
-	if err != nil {
-		return err
-	}
-
-	payload, err := d.getPayloadForRequest(anchorURL + "/" + suffix)
-	if err != nil {
-		return err
-	}
-
-	cidWithHint := string(payload)
-
-	logger.Infof("got latest anchor cid %s for suffix %s", cidWithHint, suffix)
-
-	if !strings.Contains(cidWithHint, cid) {
-		return fmt.Errorf("expecting cid with hint '%s' to contain '%s'", cidWithHint, cid)
-	}
-
-	return nil
-}
-
-func (d *DIDOrbSteps) getOrigin(url string) error {
-	logger.Info("requesting latest anchor origin")
-
-	originURL, err := getLocalURL(url, "/origin")
-	if err != nil {
-		return err
-	}
-
-	_, suffix, err := extractCIDAndSuffix(d.canonicalDID)
-	if err != nil {
-		return err
-	}
-
-	payload, err := d.getPayloadForRequest(originURL + "/" + suffix)
-	if err != nil {
-		return err
-	}
-
-	origin := string(payload)
-
-	logger.Infof("got latest anchor origin %s for suffix %s", origin, suffix)
-
-	if origin != "https://orb.domain1.com/services/orb" {
-		return fmt.Errorf("unexpected anchor origin: %s", origin)
-	}
-
-	return nil
-}
-
 func (d *DIDOrbSteps) getPayloadForRequest(url string) ([]byte, error) {
 	logger.Infof("sending request: %s", url)
 
@@ -1195,8 +1137,6 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
-	s.Step(`^client sends request to "([^"]*)" to request anchor for suffix$`, d.getAnchor)
-	s.Step(`^client sends request to "([^"]*)" to request origin for suffix$`, d.getOrigin)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
