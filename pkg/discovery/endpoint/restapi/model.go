@@ -25,15 +25,6 @@ type JRD struct {
 	Links      []Link                 `json:"links,omitempty"`
 }
 
-// WebFingerResponse is a JSON Resource Descriptor as defined in
-// https://datatracker.ietf.org/doc/html/rfc6415#appendix-A and
-// https://datatracker.ietf.org/doc/html/rfc7033#section-4.4.
-// TODO: Remove this once the 'replace' issue in the orb-driver is resolved
-// (it creates a dependency on this struct name).
-type WebFingerResponse struct {
-	JRD
-}
-
 // Link is a link in a JRD.
 // Note that while the host-meta and WebFinger endpoints both use this, only host-meta supports the Template field.
 type Link struct {

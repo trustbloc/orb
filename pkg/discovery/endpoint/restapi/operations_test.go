@@ -247,7 +247,7 @@ func TestHostMeta(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rr.Code)
 
-			var w restapi.WebFingerResponse
+			var w restapi.JRD
 
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 			require.Len(t, w.Links, 4)
@@ -286,7 +286,7 @@ func TestHostMeta(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rr.Code)
 
-			var w restapi.WebFingerResponse
+			var w restapi.JRD
 
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 			require.Len(t, w.Links, 4)

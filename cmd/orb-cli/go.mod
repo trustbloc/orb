@@ -6,7 +6,7 @@ module github.com/trustbloc/orb/cmd/orb-cli
 
 require (
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210604191029-fce55e13c101
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210526192148-2e6367c4d320
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210630123612-6973213703a4
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210505173234-006b2f4723fd
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -16,7 +16,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9
-	github.com/trustbloc/orb v0.0.0
+	github.com/trustbloc/orb v0.1.2-0.20210630053623-2436c6c2da6a
 )
 
 replace github.com/trustbloc/orb => ../..
