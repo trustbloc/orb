@@ -36,7 +36,7 @@ type Registry struct {
 
 // New returns a new client version factory Registry.
 func New() *Registry {
-	logger.Infof("Creating client version factory Registry")
+	logger.Debugf("Creating client version factory Registry")
 
 	registry := &Registry{factories: make(map[string]factory)}
 
@@ -53,7 +53,7 @@ func (r *Registry) CreateClientVersion(version string, casClient common.CASReade
 		return nil, err
 	}
 
-	logger.Infof("Creating client version [%s]", version)
+	logger.Debugf("Creating client version [%s]", version)
 
 	return v.Create(version, casClient)
 }
@@ -67,7 +67,7 @@ func (r *Registry) Register(version string, factory factory) {
 		panic(fmt.Errorf("client version factory [%s] already registered", version))
 	}
 
-	logger.Infof("Registering client version factory [%s]", version)
+	logger.Debugf("Registering client version factory [%s]", version)
 
 	r.factories[version] = factory
 }
