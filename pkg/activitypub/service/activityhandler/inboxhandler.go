@@ -382,12 +382,12 @@ func (h *Inbox) handleAnnounceActivity(announce *vocab.ActivityType) error {
 
 	switch {
 	case t.Is(vocab.TypeCollection):
-		if err := h.handleAnnounceCollection(obj.Collection().Items()); err != nil {
+		if err := h.handleAnnounceCollection(announce, obj.Collection().Items()); err != nil {
 			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
 	case t.Is(vocab.TypeOrderedCollection):
-		if err := h.handleAnnounceCollection(obj.OrderedCollection().Items()); err != nil {
+		if err := h.handleAnnounceCollection(announce, obj.OrderedCollection().Items()); err != nil {
 			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
@@ -510,8 +510,10 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 	return nil
 }
 
-func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
+func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*vocab.ObjectProperty) error {
 	logger.Infof("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
+
+	var anchorCredIDs []*url.URL
 
 	for _, item := range items {
 		if !item.Type().Is(vocab.TypeAnchorCredentialRef) {
@@ -527,6 +529,20 @@ func (h *Inbox) handleAnnounceCollection(items []*vocab.ObjectProperty) error {
 
 			logger.Infof("[%s] Ignoring duplicate anchor credential [%s]",
 				h.ServiceIRI, ref.Target().Object().ID())
+		} else {
+			anchorCredIDs = append(anchorCredIDs, ref.ID().URL())
+		}
+	}
+
+	for _, anchorCredID := range anchorCredIDs {
+		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor credential [%s]",
+			h.ServiceIRI, announce.ID(), anchorCredID)
+
+		err := h.store.AddReference(store.Share, anchorCredID, announce.ID().URL())
+		if err != nil {
+			// This isn't a fatal error so just log a warning.
+			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor credential %s: %s",
+				h.ServiceIRI, announce.ID(), anchorCredID, err)
 		}
 	}
 
@@ -557,17 +573,9 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 		vocab.WithPublishedTime(&published),
 	)
 
-	activityID, err := h.outbox.Post(announce)
+	_, err = h.outbox.Post(announce)
 	if err != nil {
 		return orberrors.NewTransient(err)
-	}
-
-	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), ref.ID())
-
-	err = h.store.AddReference(store.Share, ref.ID().URL(), activityID)
-	if err != nil {
-		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s: %s",
-			h.ServiceIRI, announce.ID(), ref.ID(), err)
 	}
 
 	return nil
