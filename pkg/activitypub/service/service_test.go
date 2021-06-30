@@ -772,7 +772,7 @@ func TestService_Offer(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, liked)
 
-		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithObjectIRI(service1IRI)))
+		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithObjectIRI(obj.ID().URL())))
 		require.NoError(t, err)
 
 		likes, err := storeutil.ReadReferences(rit, -1)
