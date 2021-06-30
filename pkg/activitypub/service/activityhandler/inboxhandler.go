@@ -464,7 +464,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
-	err = h.store.AddReference(store.Like, h.ServiceIRI, like.ID().URL())
+	err = h.store.AddReference(store.Like, like.Object().IRI(), like.ID().URL())
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err))
 	}

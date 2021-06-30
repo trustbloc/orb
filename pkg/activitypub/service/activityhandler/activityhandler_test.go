@@ -1750,7 +1750,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
 
-		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
+		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
 		require.NoError(t, err)
 
 		likes, err := storeutil.ReadReferences(it, -1)
