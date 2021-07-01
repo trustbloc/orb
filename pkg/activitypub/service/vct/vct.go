@@ -8,6 +8,7 @@ package vct
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/vct/pkg/client/vct"
+	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -39,7 +41,6 @@ type HTTPClient interface {
 // Client represents VCT client.
 type Client struct {
 	signer         signer
-	endpoint       string
 	documentLoader ld.DocumentLoader
 	vct            *vct.Client
 }
@@ -85,7 +86,6 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 
 	return &Client{
 		signer:         signer,
-		endpoint:       endpoint,
 		documentLoader: op.documentLoader,
 		vct:            vctClient,
 	}
@@ -106,7 +106,6 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 		// sets created time from the VCT.
 		vcsigner.WithCreated(time.Unix(0, timestamp)),
 		vcsigner.WithSignatureRepresentation(verifiable.SignatureJWS),
-		vcsigner.WithDomain(c.endpoint),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("add proof to credential: %w", err)
@@ -116,7 +115,7 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 }
 
 // Witness credentials.
-func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
+func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
 	if c.vct == nil {
 		vc, err := c.addProof(anchorCred, time.Now().UnixNano())
 		if err != nil {
@@ -139,10 +138,24 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) {
 		return nil, fmt.Errorf("add proof: %w", err)
 	}
 
-	// TODO: public key probably needs to be discovered by using a web finger.
-	pubKey, err := c.vct.GetPublicKey(context.Background())
+	webResp, err := c.vct.Webfinger(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("get public key: %w", err)
+		return nil, fmt.Errorf("webfinger: %w", err)
+	}
+
+	pubKeyRaw, ok := webResp.Properties[command.PublicKeyType]
+	if !ok {
+		return nil, fmt.Errorf("no public key")
+	}
+
+	pubKeyStr, ok := pubKeyRaw.(string)
+	if !ok {
+		return nil, fmt.Errorf("public key is not a string")
+	}
+
+	pubKey, err := base64.StdEncoding.DecodeString(pubKeyStr)
+	if err != nil {
+		return nil, fmt.Errorf("decode public key: %w", err)
 	}
 
 	// gets the latest proof

@@ -70,8 +70,9 @@ func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) 
 func TestClient_Witness(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/v1/get-public-key" {
-				pubKey := `"BLlG6D6mEemsE4/jqrW4yrHy98dJ0WzPVxrHohWMdQCPMBR2/93IueMq1XycbaDTHfUsgC5YdVjw3/EY0VfWc2U="`
+			if req.URL.Path == "/.well-known/webfinger" {
+				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
+					`"BLlG6D6mEemsE4/jqrW4yrHy98dJ0WzPVxrHohWMdQCPMBR2/93IueMq1XycbaDTHfUsgC5YdVjw3/EY0VfWc2U="}}`
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -95,7 +96,6 @@ func TestClient_Witness(t *testing.T) {
 		require.NoError(t, json.Unmarshal(resp, &p))
 
 		require.Len(t, p.Context, 2)
-		require.Equal(t, endpoint, p.Proof["domain"])
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
@@ -126,8 +126,9 @@ func TestClient_Witness(t *testing.T) {
 	})
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/v1/get-public-key" {
-				pubKey := `"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="`
+			if req.URL.Path == "/.well-known/webfinger" {
+				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
+					`"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="}}`
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -151,7 +152,43 @@ func TestClient_Witness(t *testing.T) {
 		require.Contains(t, err.Error(), "verify VC timestamp signature")
 	})
 
-	t.Run("Get public key (error)", func(t *testing.T) {
+	t.Run("Bad public key", func(t *testing.T) {
+		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
+			pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":10}}`
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		const endpoint = "https://example.com"
+		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+
+		_, err := client.Witness([]byte(mockVC))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "public key is not a string")
+	})
+
+	t.Run("Decode public key (error)", func(t *testing.T) {
+		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
+			pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":"9"}}`
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		const endpoint = "https://example.com"
+		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+
+		_, err := client.Witness([]byte(mockVC))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "decode public key: illegal base64 data at input byte 0")
+	})
+
+	t.Run("No public key (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -166,7 +203,7 @@ func TestClient_Witness(t *testing.T) {
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "get public key")
+		require.Contains(t, err.Error(), "no public key")
 	})
 	t.Run("Parse credential (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {

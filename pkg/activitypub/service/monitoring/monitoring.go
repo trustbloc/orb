@@ -19,6 +19,8 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/sirupsen/logrus"
 	"github.com/trustbloc/vct/pkg/client/vct"
+
+	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
 var logger = logrus.New()
@@ -219,20 +221,54 @@ func (c *Client) handleEntities() error {
 }
 
 // Watch starts monitoring.
+// nolint: funlen,gocyclo,cyclop
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
 	// no domain nothing to verify
 	if domain == "" {
 		return nil
 	}
 
-	e := &entity{
-		ExpirationDate: endTime,
-		// TODO: domain probably needs to be discovered by using a web finger.
-		Domain:  domain,
-		Created: created,
+	webfingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s/vct", domain, domain)
+
+	req, err := http.NewRequest(http.MethodGet, webfingerURL, nil)
+	if err != nil {
+		return fmt.Errorf("new request: %w", err)
 	}
 
-	err := c.exist(vc, e)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("http Do: %w", err)
+	}
+
+	defer resp.Body.Close() // nolint: errcheck
+
+	var jrd *restapi.JRD
+
+	if err = json.NewDecoder(resp.Body).Decode(&jrd); err != nil {
+		return fmt.Errorf("decode JRD: %w", err)
+	}
+
+	var vctDomain string
+
+	for _, link := range jrd.Links {
+		if link.Rel == "vct" {
+			vctDomain = link.Href
+
+			break
+		}
+	}
+
+	if vctDomain == "" {
+		return nil
+	}
+
+	e := &entity{
+		ExpirationDate: endTime,
+		Domain:         vctDomain,
+		Created:        created,
+	}
+
+	err = c.exist(vc, e)
 	// no error means that we have credential in MT, no need to put it in the queue.
 	if err == nil {
 		logger.Infof("credential %q existence in the Merkle tree confirmed", vc.ID)
