@@ -25,7 +25,11 @@ import (
 
 var logger = log.New("pubsub")
 
-const defaultMaxConnectRetries = 15
+const (
+	defaultMaxConnectRetries     = 25
+	defaultMaxConnectInterval    = 5 * time.Second
+	defaultMaxConnectElapsedTime = 3 * time.Minute
+)
 
 // Config holds the configuration for the publisher/subscriber.
 type Config struct {
@@ -184,7 +188,7 @@ func (p *PubSub) start() {
 		func() error {
 			return p.connect()
 		},
-		backoff.WithMaxRetries(backoff.NewExponentialBackOff(), maxRetries),
+		backoff.WithMaxRetries(newBackOff(), maxRetries),
 		func(err error, duration time.Duration) {
 			logger.Infof("Error connecting to AMQP service %s after %s: %s",
 				p.config.Connection.AmqpURI, duration, err)
@@ -220,4 +224,19 @@ func (p *PubSub) newSubscriber() (subscriber, error) {
 
 func (p *PubSub) newPublisher() (publisher, error) {
 	return amqp.NewPublisher(p.config, wmlogger.New())
+}
+
+func newBackOff() backoff.BackOff {
+	b := &backoff.ExponentialBackOff{
+		InitialInterval:     backoff.DefaultInitialInterval,
+		RandomizationFactor: backoff.DefaultRandomizationFactor,
+		Multiplier:          backoff.DefaultMultiplier,
+		MaxInterval:         defaultMaxConnectInterval,
+		MaxElapsedTime:      defaultMaxConnectElapsedTime,
+		Clock:               backoff.SystemClock,
+	}
+
+	b.Reset()
+
+	return b
 }
