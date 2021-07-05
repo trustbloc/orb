@@ -34,6 +34,7 @@ const (
 	alternateRelation = "alternate"
 	viaRelation       = "via"
 	serviceRelation   = "service"
+	vctRelation       = "vct"
 
 	ldJSONType    = "application/ld+json"
 	jrdJSONType   = "application/jrd+json"
@@ -66,6 +67,7 @@ func New(c *Config) (*Operation, error) {
 		verificationMethodType:    c.VerificationMethodType,
 		resolutionPath:            c.ResolutionPath,
 		operationPath:             c.OperationPath,
+		vctPath:                   c.VctPath,
 		webCASPath:                c.WebCASPath,
 		baseURL:                   c.BaseURL,
 		vctURL:                    c.VctURL,
@@ -84,6 +86,7 @@ type Operation struct {
 	verificationMethodType    string
 	resolutionPath            string
 	operationPath             string
+	vctPath                   string
 	webCASPath                string
 	baseURL                   string
 	vctURL                    string
@@ -100,6 +103,7 @@ type Config struct {
 	VerificationMethodType    string
 	ResolutionPath            string
 	OperationPath             string
+	VctPath                   string
 	WebCASPath                string
 	BaseURL                   string
 	VctURL                    string
@@ -214,6 +218,31 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		}
 
 		writeResponse(rw, resp, http.StatusOK)
+	case resource == fmt.Sprintf("%s%s", o.baseURL, o.vctPath):
+		resp := &JRD{
+			Subject: resource,
+			Links: []Link{
+				{Rel: "self", Href: resource},
+			},
+		}
+
+		if o.vctURL != "" {
+			resp.Links = append(resp.Links, Link{
+				Rel:  vctRelation,
+				Type: jrdJSONType,
+				Href: o.vctURL,
+			})
+		}
+
+		for _, discoveryDomain := range o.discoveryVctDomains {
+			resp.Links = append(resp.Links, Link{
+				Rel:  vctRelation + "+" + alternateRelation,
+				Type: jrdJSONType,
+				Href: discoveryDomain,
+			})
+		}
+
+		writeResponse(rw, resp, http.StatusOK)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
 	case strings.HasPrefix(resource, "did:orb:"):
@@ -277,6 +306,22 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 				Rel:  alternateRelation,
 				Type: didLDJSONType,
 				Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", resource),
+			})
+		}
+
+		if o.vctURL != "" {
+			resp.Links = append(resp.Links, Link{
+				Rel:  vctRelation,
+				Type: jrdJSONType,
+				Href: o.vctURL,
+			})
+		}
+
+		for _, discoveryDomain := range o.discoveryVctDomains {
+			resp.Links = append(resp.Links, Link{
+				Rel:  vctRelation + "+" + alternateRelation,
+				Type: jrdJSONType,
+				Href: discoveryDomain,
 			})
 		}
 

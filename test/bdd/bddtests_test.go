@@ -29,7 +29,6 @@ var bddContext *BDDContext
 
 // services that will be populated with the contexts.
 var services = []string{
-	"http://localhost:8077",   // vct
 	"https://localhost:48326", // orb domain-1
 	"https://localhost:48426", // orb domain-2
 	"https://localhost:48626", // orb domain-2

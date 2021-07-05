@@ -18,7 +18,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9
 	github.com/trustbloc/orb v0.0.0
 	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210629125844-990561a74be8
-	github.com/trustbloc/vct v0.1.2-0.20210622061858-eca8d26c0efa
+	github.com/trustbloc/vct v0.1.2-0.20210701072331-7056b87f3bbb
 )
 
 replace github.com/trustbloc/orb => ../..

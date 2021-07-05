@@ -31,6 +31,9 @@ import (
 const (
 	storeName       = "monitoring"
 	tagNotConfirmed = "not_confirmed"
+
+	webfingerPath    = "/.well-known/webfinger"
+	webfingerPayload = `{"links":[{"rel":"vct","href":"https://vct.com"}]}`
 )
 
 func TestNew(t *testing.T) {
@@ -54,9 +57,16 @@ func TestNext(t *testing.T) {
 	require.True(t, Next(&mockNext{}))
 }
 
-func TestClient_Watch(t *testing.T) {
+func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 	t.Run("Expired", func(t *testing.T) {
-		client, err := New(mem.NewProvider(), nil)
+		client, err := New(mem.NewProvider(), nil,
+			WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+					StatusCode: http.StatusOK,
+				}, nil
+			})),
+		)
 		require.NoError(t, err)
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{},
@@ -68,7 +78,14 @@ func TestClient_Watch(t *testing.T) {
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
 
-		client, err := New(db, testutil.GetLoader(t), WithHTTPClient(&http.Client{Timeout: time.Second}))
+		client, err := New(db, testutil.GetLoader(t),
+			WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+					StatusCode: http.StatusOK,
+				}, nil
+			})),
+		)
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
@@ -108,6 +125,13 @@ func TestClient_Watch(t *testing.T) {
 		)
 
 		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == webfingerPath {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
 			if req.URL.Path == "/ct/v1/get-sth" {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -146,6 +170,13 @@ func TestClient_Watch(t *testing.T) {
 		)
 
 		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == webfingerPath {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[]}`)),
 				StatusCode: http.StatusOK,
@@ -251,8 +282,8 @@ func TestClient_Watch(t *testing.T) {
 		store, err := db.OpenStore(storeName)
 		require.NoError(t, err)
 
-		responses := make(chan string, 6)
-		responses <- `{}`
+		responses := make(chan string, 7)
+		responses <- webfingerPayload
 		responses <- `{}`
 		responses <- `{}`
 		responses <- `{}`
@@ -340,6 +371,13 @@ func TestClient_Watch(t *testing.T) {
 		)
 
 		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == webfingerPath {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,

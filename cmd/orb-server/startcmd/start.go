@@ -138,6 +138,7 @@ const (
 	activityPubTransactionsPath = "/transactions"
 
 	casPath = "/cas"
+	vctPath = "/vct"
 
 	kmsKeyType             = kms.ED25519Type
 	verificationMethodType = "Ed25519VerificationKey2018"
@@ -154,8 +155,7 @@ type pubSub interface {
 }
 
 // HTTPServer represents an actual HTTP server implementation.
-type HTTPServer struct {
-}
+type HTTPServer struct{}
 
 // Start starts the http server
 func (s *HTTPServer) Start(srv *httpserver.Server) error {
@@ -676,6 +676,7 @@ func startOrbServices(parameters *orbParameters) error {
 		KID:                       parameters.keyID,
 		ResolutionPath:            baseResolvePath,
 		OperationPath:             baseUpdatePath,
+		VctPath:                   vctPath,
 		WebCASPath:                casPath,
 		BaseURL:                   parameters.externalEndpoint,
 		DiscoveryDomains:          parameters.discoveryDomains,
@@ -991,8 +992,7 @@ func getActivityPubVerifier(parameters *orbParameters, km kms.KeyManager,
 	return &noOpVerifier{}
 }
 
-type noOpVerifier struct {
-}
+type noOpVerifier struct{}
 
 func (v *noOpVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	return true, nil, nil
