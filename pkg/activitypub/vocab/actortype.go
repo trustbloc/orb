@@ -44,6 +44,8 @@ type actorType struct {
 	Witnesses  *URLProperty   `json:"witnesses"`
 	Witnessing *URLProperty   `json:"witnessing"`
 	Liked      *URLProperty   `json:"liked"`
+	Likes      *URLProperty   `json:"likes"`
+	Shares     *URLProperty   `json:"shares"`
 }
 
 // PublicKey returns the actor's public key.
@@ -146,6 +148,8 @@ func NewService(id *url.URL, opts ...Opt) *ActorType {
 			Witnesses:  NewURLProperty(options.Witnesses),
 			Witnessing: NewURLProperty(options.Witnessing),
 			Liked:      NewURLProperty(options.Liked),
+			Likes:      NewURLProperty(options.Likes),
+			Shares:     NewURLProperty(options.Shares),
 		},
 	}
 }

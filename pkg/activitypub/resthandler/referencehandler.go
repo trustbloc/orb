@@ -102,7 +102,7 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, req)
 	if err != nil {
 		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
 

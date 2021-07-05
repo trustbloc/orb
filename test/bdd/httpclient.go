@@ -299,10 +299,10 @@ func (c *httpClient) resolveURL(url string) string {
 	defer c.mutex.RUnlock()
 
 	for domain, mapping := range c.mappings {
-		if strings.Contains(url, domain) {
+		if strings.Contains(url, "//"+domain) {
 			logger.Infof("Mapping %s to %s", domain, mapping)
 
-			return strings.ReplaceAll(url, domain, mapping)
+			return strings.ReplaceAll(url, "//"+domain, "//"+mapping)
 		}
 	}
 

@@ -29,14 +29,10 @@ import (
 )
 
 const (
-	transactionsBaseBath = "/transactions"
-	objectID             = "d607506e-6964-4991-a19f-674952380760"
-	inboxURL             = "https://example.com/services/orb/inbox"
-	outboxURL            = "https://example.com/services/orb/outbox"
-	sharesURL            = "https://example.com/services/orb/followers"
+	inboxURL  = "https://example.com/services/orb/inbox"
+	outboxURL = "https://example.com/services/orb/outbox"
+	sharesURL = "https://example.com/services/orb/shares"
 )
-
-var transactionsIRI = testutil.MustParseURL("https://sally.example.com/transactions")
 
 func TestNewOutbox(t *testing.T) {
 	cfg := &Config{
@@ -56,7 +52,7 @@ func TestNewOutbox(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/outbox", id.String())
@@ -80,37 +76,41 @@ func TestNewInbox(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/inbox", id.String())
 }
 
 func TestNewShares(t *testing.T) {
+	const id = "http://example1.com/vc/31027ffa-bfc9-4a36-aa1a-6bfc04e6d432"
+
 	cfg := &Config{
-		BasePath:  transactionsBaseBath,
-		ObjectIRI: transactionsIRI,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
 	}
 
 	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
-	require.Equal(t, "/transactions/{id}/shares", h.Path())
+	require.Equal(t, "/services/orb/shares", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
 	t.Run("Success", func(t *testing.T) {
-		restore := setIDParam(objectID)
+		restore := setIDParam(id)
 		defer restore()
 
 		objectIRI, err := h.getObjectIRI(nil)
 		require.NoError(t, err)
 		require.NotNil(t, objectIRI)
-		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760", objectIRI.String())
+		require.Equal(t, id, objectIRI.String())
 
-		id, err := h.getID(objectIRI)
+		actualID, err := h.getID(objectIRI, nil)
 		require.NoError(t, err)
-		require.NotNil(t, id)
-		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares", id.String())
+		require.NotNil(t, actualID)
+		require.Equal(t,
+			serviceIRI.String()+"/shares?id=http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
+			actualID.String())
 	})
 
 	t.Run("No ID in URL -> error", func(t *testing.T) {
@@ -124,30 +124,34 @@ func TestNewShares(t *testing.T) {
 }
 
 func TestNewLikes(t *testing.T) {
+	const id = "http://example1.com/vc/31027ffa-bfc9-4a36-aa1a-6bfc04e6d432"
+
 	cfg := &Config{
-		BasePath:  transactionsBaseBath,
-		ObjectIRI: transactionsIRI,
+		BasePath:  basePath,
+		ObjectIRI: serviceIRI,
 	}
 
 	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{})
 	require.NotNil(t, h)
-	require.Equal(t, "/transactions/{id}/likes", h.Path())
+	require.Equal(t, "/services/orb/likes", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
 	t.Run("Success", func(t *testing.T) {
-		restore := setIDParam(objectID)
+		restore := setIDParam(id)
 		defer restore()
 
 		objectIRI, err := h.getObjectIRI(nil)
 		require.NoError(t, err)
 		require.NotNil(t, objectIRI)
-		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760", objectIRI.String())
+		require.Equal(t, id, objectIRI.String())
 
-		id, err := h.getID(objectIRI)
+		actualID, err := h.getID(objectIRI, nil)
 		require.NoError(t, err)
-		require.NotNil(t, id)
-		require.Equal(t, "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/likes", id.String())
+		require.NotNil(t, actualID)
+		require.Equal(t,
+			serviceIRI.String()+"/likes?id=http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
+			actualID.String())
 	})
 
 	t.Run("No ID in URL -> error", func(t *testing.T) {
@@ -283,7 +287,7 @@ func TestActivities_Handler(t *testing.T) {
 
 		errExpected := fmt.Errorf("injected error")
 
-		h.getID = func(*url.URL) (*url.URL, error) {
+		h.getID = func(*url.URL, *http.Request) (*url.URL, error) {
 			return nil, errExpected
 		}
 
@@ -532,7 +536,11 @@ func TestReadOutbox_Handler(t *testing.T) {
 }
 
 func TestShares_Handler(t *testing.T) {
-	objectIRI := testutil.NewMockID(transactionsIRI, "/"+objectID)
+	const id = "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760"
+
+	srvcIRI := testutil.MustParseURL("https://sally.example.com/services/orb")
+
+	objectIRI := testutil.MustParseURL(id)
 
 	shares := newMockActivities(vocab.TypeAnnounce, 19, func(i int) string {
 		return fmt.Sprintf("https://example%d.com/activities/announce_activity_%d", i, i)
@@ -546,19 +554,19 @@ func TestShares_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  transactionsBaseBath,
-		ObjectIRI: transactionsIRI,
+		BasePath:  basePath,
+		ObjectIRI: srvcIRI,
 		PageSize:  4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
-	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+	verifier.VerifyRequestReturns(true, srvcIRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
 		h := NewShares(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
-		restore := setIDParam(objectID)
+		restore := setIDParam(id)
 		defer restore()
 
 		rw := httptest.NewRecorder()
@@ -580,9 +588,11 @@ func TestShares_Handler(t *testing.T) {
 }
 
 func TestShares_PageHandler(t *testing.T) {
-	const objectID = "d607506e-6964-4991-a19f-674952380760"
+	const id = "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760"
 
-	objectIRI := testutil.NewMockID(transactionsIRI, "/"+objectID)
+	srvcIRI := testutil.MustParseURL("https://sally.example.com/services/orb")
+
+	objectIRI := testutil.MustParseURL(id)
 
 	shares := newMockActivities(vocab.TypeAnnounce, 19, func(i int) string {
 		return fmt.Sprintf("https://example%d.com/activities/announce_activity_%d", i, i)
@@ -596,13 +606,13 @@ func TestShares_PageHandler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  transactionsBaseBath,
-		ObjectIRI: transactionsIRI,
+		BasePath:  basePath,
+		ObjectIRI: srvcIRI,
 		PageSize:  4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
-	verifier.VerifyRequestReturns(true, serviceIRI, nil)
+	verifier.VerifyRequestReturns(true, srvcIRI, nil)
 
 	t.Run("First page -> Success", func(t *testing.T) {
 		h := NewShares(cfg, activityStore, verifier)
@@ -611,7 +621,7 @@ func TestShares_PageHandler(t *testing.T) {
 		restorePaging := setPaging(h.handler, "true", "")
 		defer restorePaging()
 
-		restore := setIDParam(objectID)
+		restore := setIDParam(id)
 		defer restore()
 
 		rw := httptest.NewRecorder()
@@ -638,7 +648,7 @@ func TestShares_PageHandler(t *testing.T) {
 		restorePaging := setPaging(h.handler, "true", "1")
 		defer restorePaging()
 
-		restore := setIDParam(objectID)
+		restore := setIDParam(id)
 		defer restore()
 
 		rw := httptest.NewRecorder()
@@ -1293,20 +1303,22 @@ const (
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`
+	//nolint:lll
 	sharesJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "first": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true",
-  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares",
-  "last": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=0",
+  "first": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true",
+  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760",
+  "last": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=0",
   "totalItems": 19,
   "type": "OrderedCollection"
 }`
 
+	//nolint:lll
 	sharesFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=4",
+  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=4",
   "type": "OrderedCollectionPage",
-  "next": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=3",
+  "next": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=3",
   "totalItems": 19,
   "orderedItems": [
     {
@@ -1336,12 +1348,13 @@ const (
   ]
 }`
 
+	//nolint:lll
 	sharesPage1JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=1",
+  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=1",
   "type": "OrderedCollectionPage",
-  "next": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=0",
-  "prev": "https://sally.example.com/transactions/d607506e-6964-4991-a19f-674952380760/shares?page=true&page-num=2",
+  "next": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=0",
+  "prev": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=2",
   "totalItems": 19,
   "orderedItems": [
     {

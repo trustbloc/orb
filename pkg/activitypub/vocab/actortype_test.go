@@ -28,6 +28,8 @@ func TestActor(t *testing.T) {
 	witnesses := testutil.MustParseURL("https://alice.example.com/services/orb/witnesses")
 	witnessing := testutil.MustParseURL("https://alice.example.com/services/orb/witnessing")
 	liked := testutil.MustParseURL("https://alice.example.com/services/orb/liked")
+	likes := testutil.MustParseURL("https://alice.example.com/services/orb/likes")
+	shares := testutil.MustParseURL("https://alice.example.com/services/orb/shares")
 
 	publicKey := NewPublicKey(
 		WithID(keyID),
@@ -45,6 +47,8 @@ func TestActor(t *testing.T) {
 			WithWitnesses(witnesses),
 			WithWitnessing(witnessing),
 			WithLiked(liked),
+			WithShares(shares),
+			WithLikes(likes),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(service)
@@ -141,6 +145,7 @@ const jsonService = `{
   "following": "https://sally.example.com/services/orb/following",
   "witnesses": "https://alice.example.com/services/orb/witnesses",
   "witnessing": "https://alice.example.com/services/orb/witnessing",
-  "liked": "https://alice.example.com/services/orb/liked"
-}
-`
+  "liked": "https://alice.example.com/services/orb/liked",
+  "likes": "https://alice.example.com/services/orb/likes",
+  "shares": "https://alice.example.com/services/orb/shares"
+}`

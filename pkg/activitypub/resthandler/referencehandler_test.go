@@ -46,7 +46,7 @@ func TestNewFollowers(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/followers", id.String())
@@ -70,7 +70,7 @@ func TestNewFollowing(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/following", id.String())
@@ -94,7 +94,7 @@ func TestNewWitnesses(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/witnesses", id.String())
@@ -118,7 +118,7 @@ func TestNewWitnessing(t *testing.T) {
 	require.NotNil(t, objectIRI)
 	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/witnessing", id.String())
@@ -248,7 +248,7 @@ func TestFollowers_Handler(t *testing.T) {
 
 		errExpected := fmt.Errorf("injected error")
 
-		h.getID = func(*url.URL) (*url.URL, error) {
+		h.getID = func(*url.URL, *http.Request) (*url.URL, error) {
 			return nil, errExpected
 		}
 

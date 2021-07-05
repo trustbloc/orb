@@ -134,8 +134,7 @@ const (
 	baseResolvePath = basePath + "/identifiers"
 	baseUpdatePath  = basePath + "/operations"
 
-	activityPubServicesPath     = "/services/orb"
-	activityPubTransactionsPath = "/transactions"
+	activityPubServicesPath = "/services/orb"
 
 	casPath = "/cas"
 	vctPath = "/vct"
@@ -444,8 +443,6 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
 
-	apTransactionsIRI := mustParseURL(parameters.externalEndpoint, activityPubTransactionsPath)
-
 	apConfig := &apservice.Config{
 		ServiceEndpoint:        activityPubServicesPath,
 		ServiceIRI:             apServiceIRI,
@@ -635,13 +632,6 @@ func startOrbServices(parameters *orbParameters) error {
 		PageSize:               parameters.activityPubPageSize,
 	}
 
-	apTxnEndpointCfg := &aphandler.Config{
-		Config:    authCfg,
-		BasePath:  activityPubTransactionsPath,
-		ObjectIRI: apTransactionsIRI,
-		PageSize:  parameters.activityPubPageSize,
-	}
-
 	var resolveHandlerOpts []resolvehandler.Option
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithAliases(parameters.didAliases))
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel))
@@ -711,8 +701,8 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewLikes(apTxnEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewShares(apTxnEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewLikes(apEndpointCfg, apStore, apSigVerifier),
+		aphandler.NewShares(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),

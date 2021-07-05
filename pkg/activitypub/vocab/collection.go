@@ -21,7 +21,7 @@ type collectionType struct {
 	Current    *URLProperty      `json:"current,omitempty"`
 	First      *URLProperty      `json:"first,omitempty"`
 	Last       *URLProperty      `json:"last,omitempty"`
-	TotalItems int               `json:"totalItems,omitempty"`
+	TotalItems int               `json:"totalItems"`
 	Items      []*ObjectProperty `json:"items,omitempty"`
 }
 
