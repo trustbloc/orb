@@ -15,12 +15,14 @@ import (
 	"time"
 
 	shell "github.com/ipfs/go-ipfs-api"
-	log "github.com/sirupsen/logrus"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
+
+var logger = log.New("cas-ipfs")
 
 const timeout = 5
 
@@ -67,7 +69,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	log.Debugf("added content returned cid: %s", cid)
+	logger.Debugf("ipfs added content returned cid: %s", cid)
 
 	return cid, nil
 }
@@ -109,6 +111,6 @@ func getOptions(opts []extendedcasclient.CIDFormatOption) (
 
 func closeAndLog(rc io.Closer) {
 	if err := rc.Close(); err != nil {
-		log.Warnf("failed to close reader: %s", err.Error())
+		logger.Warnf("failed to close reader: %s", err.Error())
 	}
 }
