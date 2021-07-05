@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -41,9 +42,9 @@ const (
 	// LikedPath specifies the service's 'liked' endpoint.
 	LikedPath = "/liked"
 	// SharesPath specifies the object's 'shares' endpoint.
-	SharesPath = "/{id}/shares"
+	SharesPath = "/shares"
 	// LikesPath specifies the object's 'likes' endpoint.
-	LikesPath = "/{id}/likes"
+	LikesPath = "/likes"
 	// ActivitiesPath specifies the object's 'activities' endpoint.
 	ActivitiesPath = "/activities/{id}"
 )
@@ -121,11 +122,19 @@ func (h *handler) Handler() common.HTTPRequestHandler {
 }
 
 func (h *handler) getPageID(objectIRI fmt.Stringer, pageNum int) string {
-	if pageNum >= 0 {
-		return fmt.Sprintf("%s?%s=true&%s=%d", objectIRI, pageParam, pageNumParam, pageNum)
+	var delimiter string
+
+	if strings.Contains(objectIRI.String(), "?") {
+		delimiter = "&"
+	} else {
+		delimiter = "?"
 	}
 
-	return fmt.Sprintf("%s?%s=true", objectIRI, pageParam)
+	if pageNum >= 0 {
+		return fmt.Sprintf("%s%s%s=true&%s=%d", objectIRI, delimiter, pageParam, pageNumParam, pageNum)
+	}
+
+	return fmt.Sprintf("%s%s%s=true", objectIRI, delimiter, pageParam)
 }
 
 func (h *handler) getPageURL(objectIRI fmt.Stringer, pageNum int) (*url.URL, error) {
@@ -312,7 +321,7 @@ func (p paramsBuilder) build() map[string]string {
 }
 
 func getID(path string) getIDFunc {
-	return func(objectIRI *url.URL) (*url.URL, error) {
+	return func(objectIRI *url.URL, _ *http.Request) (*url.URL, error) {
 		return url.Parse(fmt.Sprintf("%s/%s", objectIRI, path))
 	}
 }
@@ -323,18 +332,29 @@ func getObjectIRI(baseObjectIRI *url.URL) getObjectIRIFunc {
 	}
 }
 
-func getObjectIRIFromParam(baseObjectIRI *url.URL) getObjectIRIFunc {
-	return func(req *http.Request) (*url.URL, error) {
+func getIDFromParam(objectIRI *url.URL, path string) getIDFunc {
+	return func(_ *url.URL, req *http.Request) (*url.URL, error) {
 		id := getIDParam(req)
 		if id == "" {
 			return nil, fmt.Errorf("id not specified in URL")
 		}
 
-		return url.Parse(fmt.Sprintf("%s/%s", baseObjectIRI, id))
+		return url.Parse(fmt.Sprintf("%s%s?id=%s", objectIRI, path, url.QueryEscape(id)))
 	}
 }
 
 //nolint:gochecknoglobals
 var getIDParam = func(req *http.Request) string {
-	return mux.Vars(req)[idParam]
+	id, ok := mux.Vars(req)[idParam]
+	if ok {
+		return id
+	}
+
+	values := req.URL.Query()[idParam]
+
+	if len(values) == 0 {
+		return ""
+	}
+
+	return values[0]
 }

@@ -152,6 +152,16 @@ func (h *Services) newService() (*vocab.ActorType, error) {
 		return nil, err
 	}
 
+	likes, err := newID(h.ObjectIRI, LikesPath)
+	if err != nil {
+		return nil, err
+	}
+
+	shares, err := newID(h.ObjectIRI, SharesPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return vocab.NewService(h.ObjectIRI,
 		vocab.WithPublicKey(h.publicKey),
 		vocab.WithInbox(inbox),
@@ -161,6 +171,8 @@ func (h *Services) newService() (*vocab.ActorType, error) {
 		vocab.WithWitnesses(witnesses),
 		vocab.WithWitnessing(witnessing),
 		vocab.WithLiked(liked),
+		vocab.WithLikes(likes),
+		vocab.WithShares(shares),
 	), nil
 }
 

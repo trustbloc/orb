@@ -249,6 +249,8 @@ type ActorOptions struct {
 	Witnesses  *url.URL
 	Witnessing *url.URL
 	Liked      *url.URL
+	Likes      *url.URL
+	Shares     *url.URL
 }
 
 // WithPublicKey sets the 'publicKey' property on the actor.
@@ -304,6 +306,20 @@ func WithWitnessing(witnessing *url.URL) Opt {
 func WithLiked(liked *url.URL) Opt {
 	return func(opts *Options) {
 		opts.Liked = liked
+	}
+}
+
+// WithLikes sets the 'likes' property on the actor.
+func WithLikes(likes *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Likes = likes
+	}
+}
+
+// WithShares sets the 'shares' property on the actor.
+func WithShares(shares *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Shares = shares
 	}
 }
 

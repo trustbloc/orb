@@ -193,8 +193,6 @@ func (q *Queue) Len() uint {
 	q.mutex.RLock()
 	defer q.mutex.RUnlock()
 
-	logger.Debugf("Length of operation queue: %d", len(q.pending))
-
 	return uint(len(q.pending))
 }
 

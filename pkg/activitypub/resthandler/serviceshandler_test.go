@@ -279,18 +279,20 @@ const (
     "https://w3id.org/security/v1",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
+  "followers": "https://example1.com/services/orb/followers",
+  "following": "https://example1.com/services/orb/following",
   "id": "https://example1.com/services/orb",
-  "type": "Service",
+  "inbox": "https://example1.com/services/orb/inbox",
+  "liked": "https://example1.com/services/orb/liked",
+  "likes": "https://example1.com/services/orb/likes",
+  "outbox": "https://example1.com/services/orb/outbox",
   "publicKey": {
     "id": "https://example1.com/services/orb/keys/main-key",
     "owner": "https://example1.com/services/orb",
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
   },
-  "inbox": "https://example1.com/services/orb/inbox",
-  "outbox": "https://example1.com/services/orb/outbox",
-  "followers": "https://example1.com/services/orb/followers",
-  "following": "https://example1.com/services/orb/following",
-  "liked": "https://example1.com/services/orb/liked",
+  "shares": "https://example1.com/services/orb/shares",
+  "type": "Service",
   "witnesses": "https://example1.com/services/orb/witnesses",
   "witnessing": "https://example1.com/services/orb/witnessing"
 }`

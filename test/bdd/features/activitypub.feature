@@ -36,9 +36,11 @@ Feature:
     And the JSON path "followers" of the response equals "${domain2IRI}/followers"
     And the JSON path "following" of the response equals "${domain2IRI}/following"
     And the JSON path "liked" of the response equals "${domain2IRI}/liked"
+    And the JSON path "likes" of the response equals "${domain2IRI}/likes"
     And the JSON path "witnesses" of the response equals "${domain2IRI}/witnesses"
     And the JSON path "witnessing" of the response equals "${domain2IRI}/witnessing"
     And the JSON path "publicKey.id" of the response equals "${domain2IRI}/keys/main-key"
+    And the JSON path "shares" of the response equals "${domain2IRI}/shares"
 
   @activitypub_pubkey
   Scenario: Get service public key
@@ -164,6 +166,13 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
+
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=https%3A%2F%2Forb.domain1.com%2Ftransactions%2Fbafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
+    Then the JSON path "type" of the response equals "OrderedCollection"
+    Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
+    When an HTTP GET is sent to "${sharesFirstPage}"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.0.object.items.0.id" of the response equals "https://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

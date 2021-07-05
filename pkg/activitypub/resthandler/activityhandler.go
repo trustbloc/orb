@@ -49,13 +49,13 @@ func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) 
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
 func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
-		getObjectIRIFromParam(cfg.ObjectIRI), getID("shares"), verifier)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, SharesPath), verifier)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
 func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
 	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
-		getObjectIRIFromParam(cfg.ObjectIRI), getID("likes"), verifier)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier)
 }
 
 // NewLiked returns a new 'liked' REST handler that retrieves a service's 'Like' activities, i.e. the Like
@@ -65,7 +65,7 @@ func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier) 
 		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier)
 }
 
-type getIDFunc func(objectIRI *url.URL) (*url.URL, error)
+type getIDFunc func(objectIRI *url.URL, req *http.Request) (*url.URL, error)
 
 type getObjectIRIFunc func(req *http.Request) (*url.URL, error)
 
@@ -121,7 +121,7 @@ func (h *Activities) handleActivityRefsOfType(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	id, err := h.getID(objectIRI)
+	id, err := h.getID(objectIRI, req)
 	if err != nil {
 		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
 
@@ -404,4 +404,13 @@ func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
 
 		h.handleActivityRefsOfType(w, req, spi.PublicOutbox)
 	}
+}
+
+func getObjectIRIFromIDParam(req *http.Request) (*url.URL, error) {
+	id := getIDParam(req)
+	if id == "" {
+		return nil, fmt.Errorf("id not specified in URL")
+	}
+
+	return url.Parse(id)
 }
