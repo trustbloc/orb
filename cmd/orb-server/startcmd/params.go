@@ -55,6 +55,11 @@ const (
 	keyIDFlagUsage = "Key ID (ED25519Type)." +
 		" Alternatively, this can be set with the following environment variable: " + keyIDEnvKey
 
+	privateKeyFlagName  = "private-key"
+	privateKeyEnvKey    = "ORB_PRIVATE_KEY"
+	privateKeyFlagUsage = "Private Key base64 (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + privateKeyEnvKey
+
 	secretLockKeyPathFlagName  = "secret-lock-key-path"
 	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
 	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
@@ -256,6 +261,7 @@ type orbParameters struct {
 	hostURL                    string
 	vctURL                     string
 	keyID                      string
+	privateKeyBase64           string
 	secretLockKeyPath          string
 	kmsEndpoint                string
 	kmsStoreEndpoint           string
@@ -317,9 +323,10 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	// no need to check errors for optional flags
 	vctURL, _ := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, true)
-	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true)    // nolint: errcheck,lll
-	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                   // nolint: errcheck,lll
-	keyID, _ := cmdutils.GetUserSetVarFromString(cmd, keyIDFlagName, keyIDEnvKey, true)                                     // nolint: errcheck,lll
+	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true) // nolint: errcheck,lll
+	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                // nolint: errcheck,lll
+	keyID := cmdutils.GetUserSetOptionalVarFromString(cmd, keyIDFlagName, keyIDEnvKey)
+	privateKeyBase64 := cmdutils.GetUserSetOptionalVarFromString(cmd, privateKeyFlagName, privateKeyEnvKey)
 	secretLockKeyPath, _ := cmdutils.GetUserSetVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey, true) // nolint: errcheck,lll
 
 	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
@@ -560,6 +567,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		vctURL:                     vctURL,
 		kmsEndpoint:                kmsEndpoint,
 		keyID:                      keyID,
+		privateKeyBase64:           privateKeyBase64,
 		secretLockKeyPath:          secretLockKeyPath,
 		kmsStoreEndpoint:           kmsStoreEndpoint,
 		externalEndpoint:           externalEndpoint,
@@ -777,6 +785,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
 	startCmd.Flags().String(keyIDFlagName, "", keyIDFlagUsage)
+	startCmd.Flags().String(privateKeyFlagName, "", privateKeyFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)

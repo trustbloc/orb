@@ -16,6 +16,8 @@ services:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
+      - ORB_KEY_ID=orb1key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -88,6 +90,8 @@ services:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
+      - ORB_KEY_ID=orb1key
       # add delay for starting additional servers within same domain (in seconds)
       - ORB_STARTUP_DELAY=5
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -162,6 +166,8 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
+      - ORB_KEY_ID=orb2key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -232,6 +238,8 @@ services:
     environment:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
+      - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
+      - ORB_KEY_ID=orb3key
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -306,6 +314,8 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
+      - ORB_KEY_ID=orb4key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
