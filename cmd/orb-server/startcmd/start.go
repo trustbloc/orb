@@ -11,6 +11,7 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -260,6 +261,19 @@ func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) 
 	})
 }
 
+func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
+	return getOrInit(cfg, kidKey, &parameters.keyID, func() (interface{}, error) {
+		keyBytes, err := base64.RawStdEncoding.DecodeString(parameters.privateKeyBase64)
+		if err != nil {
+			return nil, err
+		}
+
+		keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(parameters.keyID))
+
+		return keyID, err
+	})
+}
+
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
@@ -347,6 +361,12 @@ func startOrbServices(parameters *orbParameters) error {
 	if parameters.keyID == "" {
 		if err = createKID(km, parameters, configStore); err != nil {
 			return fmt.Errorf("create kid: %w", err)
+		}
+	}
+
+	if parameters.keyID != "" && parameters.privateKeyBase64 != "" {
+		if err = importPrivateKey(km, parameters, configStore); err != nil {
+			return fmt.Errorf("import kid: %w", err)
 		}
 	}
 
@@ -863,10 +883,10 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	return &edgeServiceProvs, nil
 }
 
-func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (interface{}, error)) error {
-	src, err := cfg.Get(key)
+func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (interface{}, error)) error {
+	src, err := cfg.Get(keyID)
 	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
-		return fmt.Errorf("get config value for %q: %w", key, err)
+		return fmt.Errorf("get config value for %q: %w", keyID, err)
 	}
 
 	if err == nil {
@@ -875,26 +895,26 @@ func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (inte
 			return err
 		}
 
-		logger.Debugf("Using KMS key [%s] with %s", key, src)
+		logger.Debugf("Using KMS key [%s] with %s", keyID, src)
 
 		return nil
 	}
 
 	val, err := initFn()
 	if err != nil {
-		return fmt.Errorf("init config value for %q: %w", key, err)
+		return fmt.Errorf("init config value for %q: %w", keyID, err)
 	}
 
 	src, err = json.Marshal(val)
 	if err != nil {
-		return fmt.Errorf("marshal config value for %q: %w", key, err)
+		return fmt.Errorf("marshal config value for %q: %w", keyID, err)
 	}
 
-	if err = cfg.Put(key, src); err != nil {
-		return fmt.Errorf("marshal config value for %q: %w", key, err)
+	if err = cfg.Put(keyID, src); err != nil {
+		return fmt.Errorf("marshal config value for %q: %w", keyID, err)
 	}
 
-	logger.Debugf("Stored KMS key [%s] with %s", key, src)
+	logger.Debugf("Stored KMS key [%s] with %s", keyID, src)
 
 	// TODO: Find a better way to to this. When there are multiple server instances in the same domain, the KMS key
 	// may have been overwritten by another instance. So after writing the key, sleep a while before checking if
@@ -902,7 +922,7 @@ func getOrInit(cfg storage.Store, key string, v interface{}, initFn func() (inte
 	// TODO: Maybe make this a config option that's used only for dev/CI.
 	time.Sleep(2 * time.Second)
 
-	return getOrInit(cfg, key, v, initFn)
+	return getOrInit(cfg, keyID, v, initFn)
 }
 
 // prepareKeyLock prepares a key lock usage.
