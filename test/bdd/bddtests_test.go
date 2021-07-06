@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cucumber/godog"
 	"github.com/cucumber/messages-go/v10"
 	jsonldcontext "github.com/hyperledger/aries-framework-go/pkg/client/jsonld/context"
@@ -67,6 +68,8 @@ func TestMain(m *testing.M) {
 
 				fmt.Println(fmt.Sprintf("docker-compose up with tags=%s ... waiting for orb to start for %d seconds", tags, testSleep))
 				time.Sleep(time.Second * time.Duration(testSleep))
+
+				uploadHostMetaFileToIPNS()
 			}
 
 			for _, service := range services {
@@ -142,4 +145,53 @@ func AddJSONLDContexts(serviceURL string) error {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
 		},
 	})).Add(context.Background(), ldcontext.MustGetExtra()...)
+}
+
+func uploadHostMetaFileToIPNS() {
+	logger.Infof("Generating key for IPNS...")
+
+	_, err := execCMD("ipfs", "key-gen", "--ipfs-url=http://localhost:5001",
+		"--key-name=OrbBDDTestKey",
+		"--privatekey-ed25519=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg")
+	if err == nil {
+		logger.Infof("Done generating key for IPNS.")
+	} else {
+		if !strings.Contains(err.Error(), "key with name 'OrbBDDTestKey' already exists") {
+			panic(fmt.Sprintf("failed to execute command: %s", err.Error()))
+		}
+		logger.Infof("Key already generated.")
+	}
+
+	logger.Infof("Generating host-meta file...")
+
+	attemptsCount := 0
+
+	err = backoff.Retry(func() error {
+		attemptsCount++
+
+		_, err = execCMD("ipfs", "host-meta-doc-gen", "--ipfs-url=http://localhost:5001",
+			"--resource-url=https://localhost:48326",
+			"--key-name=OrbBDDTestKey", "--tls-cacerts=fixtures/keys/tls/ec-cacert.pem")
+		if err != nil {
+			logger.Infof("Failed to generate host-meta document (attempt %d)", attemptsCount)
+			return err
+		}
+
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second*2), 9))
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute command: %s", err.Error()))
+	}
+
+	logger.Infof("Done generating host-meta file.")
+
+	logger.Infof("Uploading host-meta file to IPNS... this may take several minutes...")
+
+	value, err := execCMD("ipfs", "host-meta-dir-upload", "--ipfs-url=http://localhost:5001",
+		"--key-name=OrbBDDTestKey", "--host-meta-input-dir=./website")
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute command: %s", err.Error()))
+	}
+
+	logger.Infof("Done uploading host-meta file. Command output: %s", value)
 }
