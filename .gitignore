@@ -34,3 +34,6 @@ test/bdd/fixtures/export
 
 /coverage.txt
 /cmd/orb-cli/ipfskeygencmd/k1.key
+
+test/bdd/website
+test/bdd/OrbBDDTestKey.key
