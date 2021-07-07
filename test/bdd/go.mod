@@ -5,7 +5,7 @@
 module github.com/trustbloc/orb/test/bdd
 
 require (
-	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/cucumber/godog v0.9.0
 	github.com/cucumber/messages-go/v10 v10.0.3
 	github.com/fsouza/go-dockerclient v1.6.5

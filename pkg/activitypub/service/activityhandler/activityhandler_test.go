@@ -19,7 +19,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
-	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -41,7 +40,7 @@ func TestNewInbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -61,7 +60,7 @@ func TestNewOutbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewOutbox(cfg, &mocks.ActivityStore{}, &apmocks.HTTPTransport{})
+	h := NewOutbox(cfg, &mocks.ActivityStore{}, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -85,7 +84,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -130,7 +129,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-	h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -258,7 +257,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 
 	activityStore := memstore.New(cfg.ServiceName)
 
-	h := NewOutbox(cfg, activityStore, &apmocks.HTTPTransport{})
+	h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
 
 	h.Start()
 	defer h.Stop()
@@ -324,7 +323,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.AddReferenceReturns(errExpected)
 
-		obHandler := NewOutbox(cfg, s, &apmocks.HTTPTransport{})
+		obHandler := NewOutbox(cfg, s, mocks.NewActorRetriever())
 
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
 		if err != nil {
@@ -355,15 +354,13 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
-	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
+	apClient := mocks.NewActorRetriever().
+		WithActor(vocab.NewService(service2IRI)).
+		WithActor(vocab.NewService(service3IRI))
 
 	followerAuth := mocks.NewActorAuth()
 
-	httpClient := &apmocks.HTTPTransport{}
-	httpClient.GetReturns(nil, client.ErrNotFound)
-
-	h := NewInbox(cfg, as, ob, httpClient, spi.WithFollowerAuth(followerAuth))
+	h := NewInbox(cfg, as, ob, apClient, spi.WithFollowerAuth(followerAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -480,6 +477,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {
+		apClient.WithError(client.ErrNotFound)
+		defer func() { apClient.WithError(nil) }()
+
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service4IRI)),
@@ -528,15 +528,13 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	require.NoError(t, as.PutActor(vocab.NewService(service2IRI)))
-	require.NoError(t, as.PutActor(vocab.NewService(service3IRI)))
+	apClient := mocks.NewActorRetriever().
+		WithActor(vocab.NewService(service2IRI)).
+		WithActor(vocab.NewService(service3IRI))
 
 	witnessInvitationAuth := mocks.NewActorAuth()
 
-	httpClient := &apmocks.HTTPTransport{}
-	httpClient.GetReturns(nil, client.ErrNotFound)
-
-	h := NewInbox(cfg, as, ob, httpClient, spi.WithWitnessInvitationAuth(witnessInvitationAuth))
+	h := NewInbox(cfg, as, ob, apClient, spi.WithWitnessInvitationAuth(witnessInvitationAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -653,6 +651,9 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	})
 
 	t.Run("Resolve actor error", func(t *testing.T) {
+		apClient.WithError(client.ErrNotFound)
+		defer func() { apClient.WithError(nil) }()
+
 		inviteWitness := vocab.NewInviteWitnessActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 			vocab.WithID(newActivityID(service4IRI)),
@@ -697,7 +698,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -882,7 +883,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := &mocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -967,7 +968,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := &mocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1071,7 +1072,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	ob := mocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, &apmocks.HTTPTransport{})
+	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1240,7 +1241,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorCredHandler := mocks.NewAnchorCredentialHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &apmocks.HTTPTransport{},
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, mocks.NewActorRetriever(),
 		spi.WithAnchorCredentialHandler(anchorCredHandler))
 	require.NotNil(t, h)
 
@@ -1481,7 +1482,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		apStore.QueryReferencesReturns(memstore.NewReferenceIterator(nil, 0), nil)
 		apStore.AddReferenceReturnsOnCall(1, errExpected)
 
-		ib := NewInbox(cfg, apStore, &mocks.Outbox{}, &apmocks.HTTPTransport{},
+		ib := NewInbox(cfg, apStore, &mocks.Outbox{}, mocks.NewActorRetriever(),
 			spi.WithAnchorCredentialHandler(anchorCredHandler))
 		require.NotNil(t, ib)
 
@@ -1514,7 +1515,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 	witness := mocks.NewWitnessHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, &apmocks.HTTPTransport{}, spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, mocks.NewActorRetriever(), spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	require.NoError(t, h.store.AddReference(store.Witnessing, h.ServiceIRI, service1IRI))
@@ -1713,7 +1714,7 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 
 	proofHandler := mocks.NewProofHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, &apmocks.HTTPTransport{},
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, mocks.NewActorRetriever(),
 		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 
@@ -1997,11 +1998,10 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		s := &mocks.ActivityStore{}
 		s.GetActivityReturns(nil, errExpected)
-		s.GetActorReturns(nil, errExpected)
 
 		ob := mocks.NewOutbox().WithError(errExpected)
 
-		inboxHandler := NewInbox(inboxCfg, s, ob, nil)
+		inboxHandler := NewInbox(inboxCfg, s, ob, mocks.NewActorRetriever())
 		require.NotNil(t, inboxHandler)
 
 		undo := vocab.NewUndoActivity(
@@ -2012,9 +2012,6 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		)
 
 		err := inboxHandler.HandleActivity(undo)
-		require.True(t, orberrors.IsTransient(err))
-
-		_, err = inboxHandler.resolveActor(service1IRI)
 		require.True(t, orberrors.IsTransient(err))
 
 		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
@@ -2458,7 +2455,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
 				spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
 
@@ -2478,7 +2475,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 
 			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
 				spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
 
@@ -2507,7 +2504,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{},
+			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
 				spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
 
@@ -2536,7 +2533,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 
 			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, &apmocks.HTTPTransport{}, spi.WithAnchorCredentialHandler(anchorCredHandler))
+			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
 			require.NotNil(t, h)
 
 			h.Start()
@@ -2591,13 +2588,12 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 		ServiceIRI:  outboxServiceIRI,
 	}
 
-	httpClient := &apmocks.HTTPTransport{}
-	httpClient.GetReturns(nil, client.ErrNotFound)
+	apClient := mocks.NewActorRetriever()
 
-	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), mocks.NewOutbox(), httpClient)
+	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), mocks.NewOutbox(), apClient)
 	require.NotNil(t, inboxHandler)
 
-	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), httpClient)
+	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), apClient)
 	require.NotNil(t, outboxHandler)
 
 	inboxSubscriber := newMockActivitySubscriber(inboxHandler.Subscribe())

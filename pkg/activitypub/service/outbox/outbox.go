@@ -9,7 +9,6 @@ package outbox
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -31,6 +30,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -71,6 +71,10 @@ type activityPubClient interface {
 	GetReferences(iri *url.URL) (client.ReferenceIterator, error)
 }
 
+type resourceResolver interface {
+	ResolveHostMetaLink(uri, linkType string) (string, error)
+}
+
 // Outbox implements the ActivityPub outbox.
 type Outbox struct {
 	*Config
@@ -84,6 +88,7 @@ type Outbox struct {
 	undeliverableChan    <-chan *message.Message
 	activityStore        store.Store
 	client               activityPubClient
+	resourceResolver     resourceResolver
 	redeliveryService    redeliveryService
 	redeliveryChan       chan *message.Message
 	jsonMarshal          func(v interface{}) ([]byte, error)
@@ -97,7 +102,7 @@ type httpTransport interface {
 
 // New returns a new ActivityPub Outbox.
 func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
-	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
+	apClient activityPubClient, resourceResolver resourceResolver, handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := newHandlerOptions(handlerOpts)
 
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
@@ -120,7 +125,8 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 		activityHandler:      activityHandler,
 		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
-		client:               client.New(t),
+		client:               apClient,
+		resourceResolver:     resourceResolver,
 		redeliveryChan:       redeliverChan,
 		publisher:            pubSub,
 		undeliverableChan:    undeliverableChan,
@@ -326,30 +332,11 @@ func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
 }
 
 func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
-	actor, err := h.activityStore.GetActor(iri)
-	if err != nil {
-		if !errors.Is(err, store.ErrNotFound) {
-			return nil, fmt.Errorf("unable to load actor %s from storage: %w", iri, err)
-		}
-	}
+	logger.Debugf("[%s] Retrieving actor from %s", h.ServiceName, iri)
 
-	if actor != nil && actor.Inbox() != nil {
-		logger.Debugf("[%s] Found actor  %s in local store", h.ServiceName, iri)
-
-		return actor.Inbox(), nil
-	}
-
-	logger.Debugf("[%s] Actor not found in local store. Retrieving actor from %s", h.ServiceName, iri)
-
-	actor, err = h.client.GetActor(iri)
+	actor, err := h.client.GetActor(iri)
 	if err != nil {
 		return nil, err
-	}
-
-	// Add the actor to the local store so that we don't have to retrieve it next time.
-	err = h.activityStore.PutActor(actor)
-	if err != nil {
-		logger.Warnf("[%s] Unable to add actor %s to local storage: %s", h.ServiceName, iri, err)
 	}
 
 	return actor.Inbox(), nil
@@ -377,24 +364,22 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 		}
 	}
 
-	// If the IRI is a remote service then attempt to retrieve it from local store.
-	actor, err := h.activityStore.GetActor(iri)
+	// Resolve the actor IRI from WebFinger.
+	resolvedActorIRI, err := h.resourceResolver.ResolveHostMetaLink(iri.String(), discoveryrest.ActivityJSONType)
 	if err != nil {
-		if !errors.Is(err, store.ErrNotFound) {
-			return nil, err
-		}
+		return nil, fmt.Errorf("resolve actor: %w", err)
 	}
 
-	if actor != nil {
-		// The IRI is for a remote service.
-		return []*url.URL{actor.ID().URL()}, nil
+	logger.Debugf("[%s] Resolved IRI for actor [%s]: [%s]", h.ServiceName, iri, resolvedActorIRI)
+
+	actorURI, err := url.Parse(resolvedActorIRI)
+	if err != nil {
+		return nil, fmt.Errorf("parse actor URI: %w", err)
 	}
 
-	// The IRI may be either an actor that we haven't seen before or a collection on a remote server.
-	// Attempt to retrieve it from the remote server.
-	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, iri)
+	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, actorURI)
 
-	it, err := h.client.GetReferences(iri)
+	it, err := h.client.GetReferences(actorURI)
 	if err != nil {
 		return nil, err
 	}

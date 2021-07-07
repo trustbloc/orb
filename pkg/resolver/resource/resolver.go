@@ -128,6 +128,8 @@ func (c *Resolver) getHostMetaDocumentFromEndpoint(hostMetaEndpoint string) (dis
 
 	var hostMetaDocument discoveryrest.JRD
 
+	logger.Debugf("Host meta document for endpoint [%s]: %s", hostMetaEndpoint, hostMetaDocumentBytes)
+
 	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {
 		return discoveryrest.JRD{}, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)

@@ -61,6 +61,7 @@ func TestNewService(t *testing.T) {
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
+		mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
 		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 
@@ -87,9 +88,9 @@ func TestService_Create(t *testing.T) {
 
 	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
 
-	require.NoError(t, store1.PutActor(actor1))
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(service2IRI)))
-	require.NoError(t, store1.PutActor(aptestutil.NewMockService(unavailableServiceIRI)))
+	mockProviders1.actorRetriever.WithActor(actor1)
+	mockProviders1.actorRetriever.WithActor(aptestutil.NewMockService(service2IRI))
+	mockProviders1.actorRetriever.WithActor(aptestutil.NewMockService(unavailableServiceIRI))
 
 	defer service1.Stop()
 
@@ -193,8 +194,8 @@ func TestService_Follow(t *testing.T) {
 	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
 	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
 
-	require.NoError(t, store1.PutActor(actor2))
-	require.NoError(t, store2.PutActor(actor1))
+	mockProviders1.actorRetriever.WithActor(actor2)
+	mockProviders2.actorRetriever.WithActor(actor1)
 
 	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
 	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
@@ -429,9 +430,6 @@ func TestService_Announce(t *testing.T) {
 	mockProviders3.actorRetriever.
 		WithPublicKey(publicKey2).WithActor(actor2)
 
-	require.NoError(t, store1.PutActor(actor2))
-	require.NoError(t, store2.PutActor(actor3))
-
 	service1.Start()
 	service2.Start()
 	service3.Start()
@@ -557,15 +555,6 @@ func TestService_Announce(t *testing.T) {
 
 	t.Run("Create and announce", func(t *testing.T) {
 		// Service3 requests to follow Service2; Service1 requests to follow Service3
-
-		require.NoError(t, store1.PutActor(vocab.NewService(service2IRI,
-			vocab.WithInbox(testutil.NewMockID(service2IRI, resthandler.InboxPath)))))
-		require.NoError(t, store2.PutActor(vocab.NewService(service1IRI,
-			vocab.WithInbox(testutil.NewMockID(service1IRI, resthandler.InboxPath)))))
-		require.NoError(t, store2.PutActor(vocab.NewService(service3IRI,
-			vocab.WithInbox(testutil.NewMockID(service3IRI, resthandler.InboxPath)))))
-		require.NoError(t, store3.PutActor(vocab.NewService(service2IRI,
-			vocab.WithInbox(testutil.NewMockID(service2IRI, resthandler.InboxPath)))))
 
 		mockProviders2.followerAuth.WithAccept()
 		mockProviders3.followerAuth.WithAccept()
@@ -705,8 +694,6 @@ func TestService_Offer(t *testing.T) {
 	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
 	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
 
-	require.NoError(t, store1.PutActor(actor2))
-	require.NoError(t, store2.PutActor(actor1))
 	require.NoError(t, store2.AddReference(spi.Witnessing, service2IRI, service1IRI))
 
 	service1.Start()
@@ -798,9 +785,6 @@ func TestService_InviteWitness(t *testing.T) {
 
 	actor1 := aptestutil.NewMockService(service1IRI, aptestutil.WithPublicKey(publicKey1))
 	actor2 := aptestutil.NewMockService(service2IRI, aptestutil.WithPublicKey(publicKey2))
-
-	require.NoError(t, store1.PutActor(actor2))
-	require.NoError(t, store2.PutActor(actor1))
 
 	mockProviders1.actorRetriever.WithPublicKey(publicKey2).WithActor(actor2)
 	mockProviders2.actorRetriever.WithPublicKey(publicKey1).WithActor(actor1)
@@ -1034,7 +1018,8 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
-	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km), mocks.NewPubSub(),
+	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
+		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{},
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
 		service.WithFollowerAuth(providers.followerAuth),

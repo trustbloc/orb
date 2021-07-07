@@ -7,18 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/client"
-	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -68,11 +64,8 @@ type handler struct {
 	undoInviteWitness undoFunc
 }
 
-type httpTransport interface {
-	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
-}
-
-func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow, undoInviteWitness undoFunc) *handler {
+func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
+	undoFollow, undoInviteWitness undoFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -84,7 +77,7 @@ func newHandler(cfg *Config, s store.Store, t httpTransport, undoFollow, undoInv
 	h := &handler{
 		Config:            cfg,
 		store:             s,
-		client:            client.New(t),
+		client:            activityPubClient,
 		undoFollow:        undoFollow,
 		undoInviteWitness: undoInviteWitness,
 	}
@@ -186,20 +179,6 @@ func defaultOptions() *service.Handlers {
 		WitnessInvitationAuth:   &acceptAllActorsAuth{},
 		ProofHandler:            &noOpProofHandler{},
 	}
-}
-
-func (h *handler) resolveActor(iri *url.URL) (*vocab.ActorType, error) {
-	actor, err := h.store.GetActor(iri)
-	if err == nil {
-		return actor, nil
-	}
-
-	if !errors.Is(err, store.ErrNotFound) {
-		return nil, orberrors.NewTransient(err)
-	}
-
-	// The actor isn't in our local store. Retrieve the actor from the remote server.
-	return h.client.GetActor(iri)
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
