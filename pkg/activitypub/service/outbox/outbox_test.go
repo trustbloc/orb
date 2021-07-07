@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
@@ -36,6 +37,9 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 )
+
+//nolint:lll
+//go:generate counterfeiter -o ../mocks/referenceiterator.gen.go --fake-name ReferenceIterator ./../../client ReferenceIterator
 
 const pageSize = 2
 
@@ -53,7 +57,8 @@ func TestNewOutbox(t *testing.T) {
 		}
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 	})
@@ -68,7 +73,8 @@ func TestNewOutbox(t *testing.T) {
 		errExpected := errors.New("injected PubSub error")
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.Error(t, err)
 		require.True(t, errors.Is(err, errExpected))
 		require.Nil(t, ob)
@@ -89,7 +95,8 @@ func TestOutbox_StartStop(t *testing.T) {
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-		&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
+		&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+		spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -193,7 +200,8 @@ func TestOutbox_Post(t *testing.T) {
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-		&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
+		&mocks.ActivityHandler{}, client.New(transport.Default()), &mocks.WebFingerResolver{},
+		spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -268,8 +276,6 @@ func TestOutbox_PostError(t *testing.T) {
 
 	activityStore := memstore.New("service1")
 
-	require.NoError(t, activityStore.PutActor(aptestutil.NewMockService(service2URL)))
-
 	cfg := &Config{
 		ServiceName: "service1",
 		ServiceIRI:  service1URL,
@@ -287,7 +293,8 @@ func TestOutbox_PostError(t *testing.T) {
 
 	t.Run("Not started", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -305,7 +312,8 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore.AddActivityReturns(errExpected)
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -329,7 +337,8 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore.AddReferenceReturns(errExpected)
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -353,7 +362,8 @@ func TestOutbox_PostError(t *testing.T) {
 		activityStore.AddReferenceReturnsOnCall(1, errExpected)
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -372,7 +382,8 @@ func TestOutbox_PostError(t *testing.T) {
 
 	t.Run("Marshal error", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -396,8 +407,11 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery max retries reached", func(t *testing.T) {
 		undeliverableHandler := mocks.NewUndeliverableHandler()
 
+		apClient := mocks.NewActorRetriever().WithActor(aptestutil.NewMockService(service2URL))
+
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(undeliverableHandler))
+			&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(undeliverableHandler))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -433,7 +447,8 @@ func TestOutbox_PostError(t *testing.T) {
 		pubSub := mocks.NewPubSub()
 
 		ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, client.New(transport.Default()), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -470,7 +485,8 @@ func TestOutbox_PostError(t *testing.T) {
 		handler.HandleActivityReturns(errExpected)
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			handler, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			handler, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -498,7 +514,8 @@ func TestOutbox_PostError(t *testing.T) {
 
 	t.Run("Invalid actor error", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 

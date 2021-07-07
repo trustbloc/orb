@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -17,6 +18,7 @@ import (
 type ActorRetriever struct {
 	actors map[string]*vocab.ActorType
 	keys   map[string]*vocab.PublicKeyType
+	err    error
 }
 
 // NewActorRetriever returns a mock actor retriever.
@@ -43,9 +45,20 @@ func (m *ActorRetriever) WithActor(actor *vocab.ActorType) *ActorRetriever {
 	return m
 }
 
+// WithError sets an error to be returned when any function is invoked on this struct.
+func (m *ActorRetriever) WithError(err error) *ActorRetriever {
+	m.err = err
+
+	return m
+}
+
 // GetPublicKey returns the public key for the given IRI.
 //nolint:interfacer
 func (m *ActorRetriever) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
 	key, ok := m.keys[keyIRI.String()]
 	if !ok {
 		return nil, fmt.Errorf("not found")
@@ -57,10 +70,27 @@ func (m *ActorRetriever) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, er
 // GetActor returns the actor for the given IRI.
 //nolint:interfacer
 func (m *ActorRetriever) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
 	actor, ok := m.actors[actorIRI.String()]
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
 
 	return actor, nil
+}
+
+// GetReferences simply returns an iterator that contains the IRI passed as an arg.
+func (m *ActorRetriever) GetReferences(iri *url.URL) (client.ReferenceIterator, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	it := &ReferenceIterator{}
+	it.NextReturnsOnCall(0, iri, nil)
+	it.NextReturnsOnCall(1, nil, client.ErrNotFound)
+
+	return it, nil
 }

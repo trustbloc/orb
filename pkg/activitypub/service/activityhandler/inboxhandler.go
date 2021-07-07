@@ -33,8 +33,8 @@ type Inbox struct {
 }
 
 // NewInbox returns a new ActivityPub inbox activity handler.
-func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport,
-	opts ...service.HandlerOpt) *Inbox {
+func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
+	activityPubClient activityPubClient, opts ...service.HandlerOpt) *Inbox {
 	options := defaultOptions()
 
 	for _, opt := range opts {
@@ -53,7 +53,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox, t httpTransport
 		followersIRI: followersIRI,
 	}
 
-	h.handler = newHandler(cfg, s, t,
+	h.handler = newHandler(cfg, s, activityPubClient,
 		func(activity *vocab.ActivityType) error {
 			return h.undoAddReference(activity, store.Follower)
 		},
@@ -153,7 +153,7 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 		return h.postAccept(activity, actorIRI)
 	}
 
-	actor, err := h.resolveActor(actorIRI)
+	actor, err := h.client.GetActor(actorIRI)
 	if err != nil {
 		return fmt.Errorf("unable to retrieve actor [%s]: %w", actorIRI, err)
 	}
@@ -204,10 +204,6 @@ func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
 func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType, refType store.ReferenceType) error {
 	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL()); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to store reference: %w", err))
-	}
-
-	if err := h.store.PutActor(actor); err != nil {
-		logger.Warnf("[%s] Unable to store actor %s: %s", actor.ID(), err)
 	}
 
 	logger.Debugf("[%s] Replying to %s with 'Accept' activity", h.ServiceName, actor.ID())

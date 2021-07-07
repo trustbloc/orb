@@ -263,7 +263,7 @@ func TestMain(m *testing.M) {
 		},
 	})
 	if err != nil {
-		logger.Errorf(`Failed to start RabbitMQ Docker image.`)
+		logger.Errorf(`Failed to start RabbitMQ Docker image: %s`, err)
 
 		panic(fmt.Sprintf("run with options: %v", err))
 	}

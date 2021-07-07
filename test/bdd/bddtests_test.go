@@ -68,9 +68,9 @@ func TestMain(m *testing.M) {
 
 				fmt.Println(fmt.Sprintf("docker-compose up with tags=%s ... waiting for orb to start for %d seconds", tags, testSleep))
 				time.Sleep(time.Second * time.Duration(testSleep))
-
-				uploadHostMetaFileToIPNS()
 			}
+
+			uploadHostMetaFileToIPNS()
 
 			for _, service := range services {
 				if err := AddJSONLDContexts(service); err != nil {
@@ -173,12 +173,12 @@ func uploadHostMetaFileToIPNS() {
 			"--resource-url=https://localhost:48326",
 			"--key-name=OrbBDDTestKey", "--tls-cacerts=fixtures/keys/tls/ec-cacert.pem")
 		if err != nil {
-			logger.Infof("Failed to generate host-meta document (attempt %d)", attemptsCount)
+			logger.Infof("Failed to generate host-meta document (attempt %d): %s", attemptsCount, err)
 			return err
 		}
 
 		return nil
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second*2), 9))
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second*3), 15))
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute command: %s", err.Error()))
 	}

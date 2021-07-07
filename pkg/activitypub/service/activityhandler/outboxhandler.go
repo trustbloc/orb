@@ -20,10 +20,10 @@ type Outbox struct {
 }
 
 // NewOutbox returns a new ActivityPub outbox activity handler.
-func NewOutbox(cfg *Config, s store.Store, t httpTransport) *Outbox {
+func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) *Outbox {
 	h := &Outbox{}
 
-	h.handler = newHandler(cfg, s, t,
+	h.handler = newHandler(cfg, s, activityPubClient,
 		func(follow *vocab.ActivityType) error {
 			return h.undoAddReference(follow, store.Following)
 		},

@@ -559,8 +559,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	o.Start()
 
+	resourceResolver := resource.New(httpClient, ipfsReader)
+
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub,
+		apStore, t, apSigVerifier, pubSub, client.New(t), resourceResolver,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(
@@ -605,7 +607,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader,
-		resource.New(httpClient, ipfsReader))
+		resourceResolver)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}

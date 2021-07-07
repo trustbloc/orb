@@ -16,6 +16,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
@@ -71,16 +72,26 @@ type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
+type activityPubClient interface {
+	GetActor(iri *url.URL) (*vocab.ActorType, error)
+	GetReferences(iri *url.URL) (client.ReferenceIterator, error)
+}
+
+type resourceResolver interface {
+	ResolveHostMetaLink(uri, linkType string) (string, error)
+}
+
 // New returns a new ActivityPub service.
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
-	pubSub PubSub, handlerOpts ...spi.HandlerOpt) (*Service, error) {
+	pubSub PubSub, activityPubClient activityPubClient, resourceResolver resourceResolver,
+	handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceEndpoint,
 			BufferSize:  cfg.ActivityHandlerBufferSize,
 			ServiceIRI:  cfg.ServiceIRI,
 		},
-		activityStore, t)
+		activityStore, activityPubClient)
 
 	ob, err := outbox.New(
 		&outbox.Config{
@@ -90,7 +101,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			RedeliveryConfig: cfg.RetryOpts,
 		},
 		activityStore, pubSub,
-		t, outboxHandler, handlerOpts...,
+		t, outboxHandler, activityPubClient, resourceResolver, handlerOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)
@@ -103,7 +114,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			ServiceIRI:      cfg.ServiceIRI,
 			MaxWitnessDelay: cfg.MaxWitnessDelay,
 		},
-		activityStore, ob, t, handlerOpts...)
+		activityStore, ob, activityPubClient, handlerOpts...)
 
 	ib, err := inbox.New(
 		&inbox.Config{
