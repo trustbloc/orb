@@ -84,7 +84,7 @@ func TestProcessTxnOperations(t *testing.T) {
 
 		p := New(providers)
 		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
-			txn.SidetreeTxn{AnchorString: anchorString})
+			&txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to store operation from anchor string")
 	})
@@ -99,7 +99,7 @@ func TestProcessTxnOperations(t *testing.T) {
 
 		p := New(providers)
 		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: suffix}},
-			txn.SidetreeTxn{AnchorString: anchorString})
+			&txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get error")
 	})
@@ -114,7 +114,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 
-		err = p.processTxnOperations(batchOps, txn.SidetreeTxn{AnchorString: anchorString})
+		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
 
@@ -137,7 +137,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		err = p.processTxnOperations(batchOps,
-			txn.SidetreeTxn{AnchorString: anchorString, CanonicalReference: canonicalRef})
+			&txn.SidetreeTxn{AnchorString: anchorString, CanonicalReference: canonicalRef})
 		require.NoError(t, err)
 	})
 
@@ -155,7 +155,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		// only first operation will be processed, subsequent operations will be discarded
 		batchOps = append(batchOps, batchOps...)
 
-		err = p.processTxnOperations(batchOps, txn.SidetreeTxn{AnchorString: anchorString})
+		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
 }

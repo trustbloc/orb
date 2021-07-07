@@ -51,7 +51,7 @@ func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) 
 		txnOps = filterOps(txnOps, suffixes)
 	}
 
-	return p.processTxnOperations(txnOps, sidetreeTxn)
+	return p.processTxnOperations(txnOps, &sidetreeTxn)
 }
 
 func filterOps(txnOps []*operation.AnchoredOperation, suffixes []string) []*operation.AnchoredOperation {
@@ -76,7 +76,7 @@ func contains(arr []string, v string) bool {
 	return false
 }
 
-func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn txn.SidetreeTxn) error { //nolint:gocritic,lll
+func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn *txn.SidetreeTxn) error {
 	logger.Debugf("processing %d transaction operations", len(txnOps))
 
 	batchSuffixes := make(map[string]bool)
@@ -102,10 +102,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		op.TransactionTime = sidetreeTxn.TransactionTime
-
-		// The genesis time of the protocol that was used for this operation
 		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime
-
 		op.CanonicalReference = sidetreeTxn.CanonicalReference
 		op.EquivalentReferences = sidetreeTxn.EquivalentReferences
 
