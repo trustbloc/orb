@@ -354,8 +354,14 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
 
+	useHTTPOpt := false
+
+	if parameters.tlsKey == "" && parameters.tlsCertificate == "" {
+		useHTTPOpt = true
+	}
+
 	vdr := vdr.New(
-		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New()}),
+		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New(), useHTTPOpt: useHTTPOpt}),
 	)
 
 	if parameters.keyID == "" {
@@ -798,9 +804,14 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 type webVDR struct {
 	http *http.Client
 	*vdrweb.VDR
+	useHTTPOpt bool
 }
 
 func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocResolution, error) {
+	if w.useHTTPOpt {
+		opts = append(opts, vdrapi.WithOption(vdrweb.UseHTTPOpt, true))
+	}
+
 	return w.VDR.Read(didID, append(opts, vdrapi.WithOption(vdrweb.HTTPClientOpt, w.http))...)
 }
 
