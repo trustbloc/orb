@@ -177,7 +177,7 @@ func createNewAnchorCredentialHandler(t *testing.T,
 
 	casResolver := casresolver.New(client, nil,
 		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()))
+			transport.DefaultSigner(), transport.DefaultSigner()), "https")
 
 	anchorCredentialHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 		&mocks.MonitoringService{}, time.Second)

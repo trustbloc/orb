@@ -38,7 +38,7 @@ func TestGraph_Add(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}
@@ -66,7 +66,7 @@ func TestGraph_Read(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "ipfs"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}
@@ -110,7 +110,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 	providers := &Providers{
 		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}),
+		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
 		Pkf:         pubKeyFetcherFnc,
 		DocLoader:   testutil.GetLoader(t),
 	}

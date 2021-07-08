@@ -110,7 +110,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
 		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
 			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()),
+			transport.DefaultSigner(), transport.DefaultSigner()), "https",
 		),
 		Pkf: pubKeyFetcherFnc,
 	}
@@ -789,7 +789,7 @@ func TestWriter_handle(t *testing.T) {
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
 		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
 			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()),
+			transport.DefaultSigner(), transport.DefaultSigner()), "https",
 		),
 		Pkf: pubKeyFetcherFnc,
 	}
@@ -1329,7 +1329,7 @@ func TestWriter_Read(t *testing.T) {
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
 		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
 			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()),
+			transport.DefaultSigner(), transport.DefaultSigner()), "https",
 		),
 		Pkf: pubKeyFetcherFnc,
 	}

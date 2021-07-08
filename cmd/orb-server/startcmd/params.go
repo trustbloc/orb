@@ -253,6 +253,11 @@ const (
 	activityPubPageSizeFlagUsage     = "The maximum page size for an ActivityPub collection or ordered collection. " +
 		commonEnvVarUsageText + activityPubPageSizeEnvKey
 
+	devModeEnabledFlagName = "enable-dev-mode"
+	devModeEnabledEnvKey   = "DEV_MODE_ENABLED"
+	devModeEnabledUsage    = `Set to "true" to enable dev mode. ` +
+		commonEnvVarUsageText + devModeEnabledEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -295,6 +300,7 @@ type orbParameters struct {
 	authTokens                 map[string]string
 	opQueuePoolSize            uint
 	activityPubPageSize        int
+	enableDevMode              bool
 }
 
 type anchorCredentialParams struct {
@@ -490,6 +496,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didDiscoveryEnabled = enable
 	}
 
+	enableDevModeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, devModeEnabledFlagName, devModeEnabledEnvKey)
+
+	enableDevMode := defaultDevModeEnabled
+	if enableDevModeStr != "" {
+		enable, parseErr := strconv.ParseBool(enableDevModeStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", devModeEnabledFlagName, parseErr)
+		}
+
+		enableDevMode = enable
+	}
+
 	enableCreateDocStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableCreateDocumentStoreFlagName, enableCreateDocumentStoreEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -598,6 +616,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		authTokenDefinitions:       authTokenDefs,
 		authTokens:                 authTokens,
 		activityPubPageSize:        activityPubPageSize,
+		enableDevMode:              enableDevMode,
 	}, nil
 }
 

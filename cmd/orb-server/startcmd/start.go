@@ -121,6 +121,7 @@ const (
 	defaulthttpSignaturesEnabled      = true
 	defaultDidDiscoveryEnabled        = false
 	defaultCreateDocumentStoreEnabled = false
+	defaultDevModeEnabled             = false
 
 	unpublishedDIDLabel = "interim"
 
@@ -354,9 +355,11 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	useHTTPOpt := false
+	webFingerURIScheme := "https"
 
-	if parameters.tlsKey == "" && parameters.tlsCertificate == "" {
+	if parameters.enableDevMode {
 		useHTTPOpt = true
+		webFingerURIScheme = "http"
 	}
 
 	vdr := vdr.New(
@@ -387,7 +390,7 @@ func startOrbServices(parameters *orbParameters) error {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	}
 
-	casResolver := resolver.New(coreCasClient, ipfsReader, t)
+	casResolver := resolver.New(coreCasClient, ipfsReader, t, webFingerURIScheme)
 
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,

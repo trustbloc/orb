@@ -571,7 +571,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsRea
 
 	casResolver := New(casClient, ipfsReader,
 		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()))
+			transport.DefaultSigner(), transport.DefaultSigner()), "https")
 	require.NotNil(t, casResolver)
 
 	return casResolver
