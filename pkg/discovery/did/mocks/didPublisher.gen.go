@@ -6,10 +6,10 @@ import (
 )
 
 type DIDPublisher struct {
-	PublishDIDStub        func(dids string) error
+	PublishDIDStub        func(string) error
 	publishDIDMutex       sync.RWMutex
 	publishDIDArgsForCall []struct {
-		dids string
+		arg1 string
 	}
 	publishDIDReturns struct {
 		result1 error
@@ -21,21 +21,22 @@ type DIDPublisher struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *DIDPublisher) PublishDID(dids string) error {
+func (fake *DIDPublisher) PublishDID(arg1 string) error {
 	fake.publishDIDMutex.Lock()
 	ret, specificReturn := fake.publishDIDReturnsOnCall[len(fake.publishDIDArgsForCall)]
 	fake.publishDIDArgsForCall = append(fake.publishDIDArgsForCall, struct {
-		dids string
-	}{dids})
-	fake.recordInvocation("PublishDID", []interface{}{dids})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("PublishDID", []interface{}{arg1})
 	fake.publishDIDMutex.Unlock()
 	if fake.PublishDIDStub != nil {
-		return fake.PublishDIDStub(dids)
+		return fake.PublishDIDStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.publishDIDReturns.result1
+	fakeReturns := fake.publishDIDReturns
+	return fakeReturns.result1
 }
 
 func (fake *DIDPublisher) PublishDIDCallCount() int {
@@ -44,13 +45,22 @@ func (fake *DIDPublisher) PublishDIDCallCount() int {
 	return len(fake.publishDIDArgsForCall)
 }
 
+func (fake *DIDPublisher) PublishDIDCalls(stub func(string) error) {
+	fake.publishDIDMutex.Lock()
+	defer fake.publishDIDMutex.Unlock()
+	fake.PublishDIDStub = stub
+}
+
 func (fake *DIDPublisher) PublishDIDArgsForCall(i int) string {
 	fake.publishDIDMutex.RLock()
 	defer fake.publishDIDMutex.RUnlock()
-	return fake.publishDIDArgsForCall[i].dids
+	argsForCall := fake.publishDIDArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *DIDPublisher) PublishDIDReturns(result1 error) {
+	fake.publishDIDMutex.Lock()
+	defer fake.publishDIDMutex.Unlock()
 	fake.PublishDIDStub = nil
 	fake.publishDIDReturns = struct {
 		result1 error
@@ -58,6 +68,8 @@ func (fake *DIDPublisher) PublishDIDReturns(result1 error) {
 }
 
 func (fake *DIDPublisher) PublishDIDReturnsOnCall(i int, result1 error) {
+	fake.publishDIDMutex.Lock()
+	defer fake.publishDIDMutex.Unlock()
 	fake.PublishDIDStub = nil
 	if fake.publishDIDReturnsOnCall == nil {
 		fake.publishDIDReturnsOnCall = make(map[int]struct {

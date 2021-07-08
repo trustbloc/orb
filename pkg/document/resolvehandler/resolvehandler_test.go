@@ -329,7 +329,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		handler := NewResolveHandler("did:not-orb", coreHandler, discovery, anchorGraph,
-			WithUnpublishedDIDLabel(testLabel), WithAliases([]string{testNS}), WithEnableDIDDiscovery(true))
+			WithUnpublishedDIDLabel(testLabel), WithEnableDIDDiscovery(true))
 
 		response, err := handler.ResolveDocument(testDIDWithCIDAndHint)
 		require.Error(t, err)

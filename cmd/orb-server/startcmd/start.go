@@ -87,6 +87,7 @@ import (
 	orbpc "github.com/trustbloc/orb/pkg/context/protocol/client"
 	orbpcp "github.com/trustbloc/orb/pkg/context/protocol/provider"
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
+	discoveryclient "github.com/trustbloc/orb/pkg/discovery/endpoint/client"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
@@ -663,7 +664,6 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	var resolveHandlerOpts []resolvehandler.Option
-	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithAliases(parameters.didAliases))
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel))
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled))
 
@@ -679,10 +679,18 @@ func startOrbServices(parameters *orbParameters) error {
 		updateHandlerOpts = append(updateHandlerOpts, updatehandler.WithCreateDocumentStore(store))
 	}
 
+	discoveryClient, err := discoveryclient.New(orbDocumentLoader,
+		discoveryclient.WithCASReader(&discoveryCAS{resolver: casResolver}),
+		discoveryclient.WithNamespace(parameters.didNamespace),
+		discoveryclient.WithHTTPClient(httpClient),
+	)
+
+	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), discoveryClient)
+
 	orbDocResolveHandler := resolvehandler.NewResolveHandler(
 		parameters.didNamespace,
 		didDocHandler,
-		localdiscovery.New(o.Publisher()),
+		didDiscovery,
 		anchorGraph,
 		resolveHandlerOpts...,
 	)
@@ -800,6 +808,14 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	pcp.Add(parameters.didNamespace, orbpc.New(protocolVersions))
 
 	return pcp, nil
+}
+
+type discoveryCAS struct {
+	resolver common.CASResolver
+}
+
+func (dc *discoveryCAS) Read(key string) ([]byte, error) {
+	return dc.resolver.Resolve(nil, key, nil)
 }
 
 type webVDR struct {

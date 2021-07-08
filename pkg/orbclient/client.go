@@ -110,7 +110,7 @@ func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
 		return nil, fmt.Errorf("unable to parse verifiable credential from CID[%s] from CAS: %w", cid, err)
 	}
 
-	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{}, info, suffix)
+	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{CID: cid}, info, suffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get anchored operation for suffix[%s] in anchor[%s]: %w", suffix, cid, err)
 	}
