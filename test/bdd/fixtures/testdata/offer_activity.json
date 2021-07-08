@@ -1,9 +1,9 @@
 {
   "@context": "https://www.w3.org/ns/activitystreams",
-  "actor": "https://orb.domain2.com/services/orb",
+  "actor": "http://orb.domain2.com/services/orb",
   "startTime": "2021-03-31T01:30:10Z",
   "endTime": "2029-03-31T23:31:10Z",
-  "id": "https://orb.domain2.com/services/orb/activities/63b3d005-6cb6-673d-6379-18be1ee84973",
+  "id": "http://orb.domain2.com/services/orb/activities/63b3d005-6cb6-673d-6379-18be1ee84973",
   "object": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
@@ -21,12 +21,12 @@
     },
     "id": "http://orb.domain2.com/transactions/bafkreihwsn",
     "issuanceDate": "2021-03-31T09:30:10Z",
-    "issuer": "https://orb.domain2.com/services/orb",
+    "issuer": "http://orb.domain2.com/services/orb",
     "type": [
       "VerifiableCredential",
       "AnchorCredential"
     ]
   },
-  "to": ["https://orb.domain2.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
+  "to": ["http://orb.domain2.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
   "type": "Offer"
 }

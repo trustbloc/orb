@@ -58,19 +58,19 @@ const (
 )
 
 var localURLs = map[string]string{
-	"https://orb.domain1.com":  "https://localhost:48326",
-	"https://orb2.domain1.com": "https://localhost:48526",
-	"https://orb.domain2.com":  "https://localhost:48426",
-	"https://orb.domain3.com":  "https://localhost:48626",
-	"https://orb.domain4.com":  "https://localhost:48726",
+	"http://orb.domain1.com":  "http://localhost:48326",
+	"http://orb2.domain1.com": "http://localhost:48526",
+	"http://orb.domain2.com":  "http://localhost:48426",
+	"http://orb.domain3.com":  "http://localhost:48626",
+	"http://orb.domain4.com":  "http://localhost:48726",
 }
 
 var anchorOriginURLs = map[string]string{
-	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
-	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"http://localhost:48326/sidetree/v1/operations": "http://orb.domain1.com/services/orb",
+	"http://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
+	"http://localhost:48426/sidetree/v1/operations": "http://orb.domain1.com/services/orb",
+	"http://localhost:48626/sidetree/v1/operations": "http://orb.domain1.com/services/orb",
+	"http://localhost:48726/sidetree/v1/operations": "http://orb.domain1.com/services/orb",
 }
 
 const addPublicKeysTemplate = `[
@@ -118,7 +118,7 @@ const docTemplate = `{
 	{
 	   "id": "didcomm",
 	   "type": "did-communication",
-	   "serviceEndpoint": "https://hub.example.com/.identity/did:example:0123456789abcdef/",
+	   "serviceEndpoint": "http://hub.example.com/.identity/did:example:0123456789abcdef/",
 	   "recipientKeys": ["%s"],
 	   "routingKeys": ["%s"],
 	   "priority": 0
@@ -161,7 +161,7 @@ func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOr
 }
 
 func (d *DIDOrbSteps) discoverEndpoints() error {
-	resp, err := d.httpClient.Get("https://localhost:48326/.well-known/did-orb")
+	resp, err := d.httpClient.Get("http://localhost:48326/.well-known/did-orb")
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	}
 
 	resp, err = d.httpClient.Get(
-		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
+		fmt.Sprintf("http://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.ResolutionEndpoint)))
 	if err != nil {
 		return err
@@ -194,7 +194,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	d.resolutionEndpoint = strings.ReplaceAll(webFingerResponse.Links[0].Href, "orb.domain1.com", "localhost:48326")
 
 	resp, err = d.httpClient.Get(
-		fmt.Sprintf("https://localhost:48326/.well-known/webfinger?resource=%s",
+		fmt.Sprintf("http://localhost:48326/.well-known/webfinger?resource=%s",
 			url.PathEscape(w.OperationEndpoint)))
 	if err != nil {
 		return err
@@ -247,7 +247,7 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 
 	logger.Infof("got anchor origin: %s", anchorOrigin)
 
-	expectedOrigin := "https://orb.domain1.com/services/orb"
+	expectedOrigin := "http://orb.domain1.com/services/orb"
 	if anchorOrigin != expectedOrigin {
 		return fmt.Errorf("anchor origin: expected %s, got %s", expectedOrigin, anchorOrigin)
 	}

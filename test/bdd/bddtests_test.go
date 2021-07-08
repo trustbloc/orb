@@ -30,9 +30,9 @@ var bddContext *BDDContext
 
 // services that will be populated with the contexts.
 var services = []string{
-	"https://localhost:48326", // orb domain-1
-	"https://localhost:48426", // orb domain-2
-	"https://localhost:48626", // orb domain-2
+	"http://localhost:48326", // orb domain-1
+	"http://localhost:48426", // orb domain-2
+	"http://localhost:48626", // orb domain-2
 }
 
 func TestMain(m *testing.M) {
@@ -170,7 +170,7 @@ func uploadHostMetaFileToIPNS() {
 		attemptsCount++
 
 		_, err = execCMD("ipfs", "host-meta-doc-gen", "--ipfs-url=http://localhost:5001",
-			"--resource-url=https://localhost:48326",
+			"--resource-url=http://localhost:48326",
 			"--key-name=OrbBDDTestKey", "--tls-cacerts=fixtures/keys/tls/ec-cacert.pem")
 		if err != nil {
 			logger.Infof("Failed to generate host-meta document (attempt %d): %s", attemptsCount, err)

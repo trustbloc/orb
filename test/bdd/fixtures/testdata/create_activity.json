@@ -3,11 +3,11 @@
     "https://www.w3.org/ns/activitystreams",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
   ],
-  "id": "https://orb.domain1.com/services/orb/activities/77bdd005-bbb6-223d-b889-58bc1de84985",
+  "id": "http://orb.domain1.com/services/orb/activities/77bdd005-bbb6-223d-b889-58bc1de84985",
   "type": "Create",
-  "actor": "https://orb.domain1.com/services/orb",
+  "actor": "http://orb.domain1.com/services/orb",
   "to": [
-    "https://orb.domain1.com/services/orb/followers",
+    "http://orb.domain1.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"
   ],
   "published": "2021-03-31T09:30:10Z",
@@ -16,11 +16,11 @@
       "https://www.w3.org/ns/activitystreams",
       "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
     ],
-    "id": "https://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
+    "id": "http://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
     "type": "AnchorCredentialReference",
     "target": {
       "type": "ContentAddressedStorage",
-      "id": "https://orb.domain1.com/cas/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
+      "id": "http://orb.domain1.com/cas/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
       "cid": "bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
     }
   }

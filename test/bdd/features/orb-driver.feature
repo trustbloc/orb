@@ -13,9 +13,9 @@ Feature: Using Orb CLI
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
     # domain2 server follows domain1 server
-    When user create "follower" activity with outbox-url "https://localhost:48426/services/orb/outbox" actor "https://orb.domain2.com/services/orb" to "https://orb.domain1.com/services/orb" action "Follow"
+    When user create "follower" activity with outbox-url "http://localhost:48426/services/orb/outbox" actor "http://orb.domain2.com/services/orb" to "http://orb.domain1.com/services/orb" action "Follow"
     # domain1 invites domain2 to be a witness
-    When user create "witness" activity with outbox-url "https://localhost:48326/services/orb/outbox" actor "https://orb.domain1.com/services/orb" to "https://orb.domain2.com/services/orb" action "InviteWitness"
+    When user create "witness" activity with outbox-url "http://localhost:48326/services/orb/outbox" actor "http://orb.domain1.com/services/orb" to "http://orb.domain2.com/services/orb" action "InviteWitness"
     Then we wait 3 seconds
-    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    When client sends request to "http://orb.domain1.com/sidetree/v1/operations" to create DID document
     Then check cli created valid DID through universal resolver

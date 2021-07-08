@@ -5,6 +5,6 @@
     "priority": 3,
     "routingKeys": ["key3"],
     "recipientKeys": ["key3"],
-    "serviceEndpoint": "http://www.example.com"
+    "serviceEndpoint": "https://www.example.com"
   }
 ]

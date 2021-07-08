@@ -40,9 +40,9 @@ const (
 )
 
 var domains = map[string]string{
-	"domain1": "https://orb.domain1.com/services/orb/keys/main-key",
-	"domain2": "https://orb.domain2.com/services/orb/keys/main-key",
-	"domain3": "https://orb.domain3.com/services/orb/keys/main-key",
+	"domain1": "http://orb.domain1.com/services/orb/keys/main-key",
+	"domain2": "http://orb.domain2.com/services/orb/keys/main-key",
+	"domain3": "http://orb.domain3.com/services/orb/keys/main-key",
 }
 
 // CommonSteps contain BDDContext
