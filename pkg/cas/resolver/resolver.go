@@ -48,12 +48,13 @@ type ipfsReader interface {
 }
 
 // New returns a new Resolver.
-func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient httpClient) *Resolver {
+func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient httpClient,
+	webFingerURIScheme string) *Resolver {
 	return &Resolver{
 		localCAS:           casClient,
 		ipfsReader:         ipfsReader,
 		httpClient:         httpClient,
-		webFingerURIScheme: "https",
+		webFingerURIScheme: webFingerURIScheme,
 	}
 }
 
