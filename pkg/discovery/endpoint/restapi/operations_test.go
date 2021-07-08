@@ -91,7 +91,7 @@ func TestWebFinger(t *testing.T) {
 
 		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=wrong", nil, nil, false)
 
-		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Equal(t, http.StatusNotFound, rr.Code)
 		require.Contains(t, rr.Body.String(), "resource wrong not found")
 	})
 
@@ -144,36 +144,6 @@ func TestWebFinger(t *testing.T) {
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 		require.Equal(t, "http://base/op", w.Links[0].Href)
 		require.Equal(t, "http://domain1/op", w.Links[1].Href)
-		require.Empty(t, w.Properties)
-	})
-
-	t.Run("test vct resource", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{
-			VctPath:             "/vct",
-			VctURL:              "http://vct.com",
-			WebCASPath:          "/cas",
-			BaseURL:             "http://base",
-			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
-		})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, restapi.WebFingerEndpoint)
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
-			nil, nil, false)
-
-		require.Equal(t, http.StatusOK, rr.Code)
-
-		var w restapi.JRD
-
-		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
-
-		require.Equal(t, "self", w.Links[0].Rel)
-		require.Equal(t, "http://base/vct", w.Links[0].Href)
-		require.Equal(t, "vct", w.Links[1].Rel)
-		require.Equal(t, "http://vct.com", w.Links[1].Href)
-		require.Equal(t, "vct+alternate", w.Links[2].Rel)
-		require.Equal(t, "http://vct.com/maple2020", w.Links[2].Href)
 		require.Empty(t, w.Properties)
 	})
 
@@ -238,7 +208,7 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, "MockAnchorOrigin", w.Properties["https://trustbloc.dev/ns/anchor-origin"])
 		require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
 
-		require.Len(t, w.Links, 6)
+		require.Len(t, w.Links, 4)
 
 		require.Equal(t, "self", w.Links[0].Rel)
 		require.Equal(t, "application/did+ld+json", w.Links[0].Type)
@@ -255,14 +225,6 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, "alternate", w.Links[3].Rel)
 		require.Equal(t, "application/did+ld+json", w.Links[3].Type)
 		require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:suffix", w.Links[3].Href)
-
-		require.Equal(t, "vct", w.Links[4].Rel)
-		require.Equal(t, "application/jrd+json", w.Links[4].Type)
-		require.Equal(t, "http://vct.com/maple2020", w.Links[4].Href)
-
-		require.Equal(t, "vct+alternate", w.Links[5].Rel)
-		require.Equal(t, "application/jrd+json", w.Links[5].Type)
-		require.Equal(t, "http://vct.com/maple2019", w.Links[5].Href)
 	})
 }
 

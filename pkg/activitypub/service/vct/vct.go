@@ -41,6 +41,7 @@ type HTTPClient interface {
 // Client represents VCT client.
 type Client struct {
 	signer         signer
+	endpoint       string
 	documentLoader ld.DocumentLoader
 	vct            *vct.Client
 }
@@ -79,13 +80,13 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 
 	var vctClient *vct.Client
 
-	// TODO: endpoint should be resolved using webfinger.
 	if strings.TrimSpace(endpoint) != "" {
 		vctClient = vct.New(endpoint, vct.WithHTTPClient(op.http))
 	}
 
 	return &Client{
 		signer:         signer,
+		endpoint:       endpoint,
 		documentLoader: op.documentLoader,
 		vct:            vctClient,
 	}
@@ -101,12 +102,18 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 		return nil, fmt.Errorf("parse credential: %w", err)
 	}
 
-	// adds linked data proof
-	vc, err = c.signer.Sign(vc,
-		// sets created time from the VCT.
+	opts := []vcsigner.Opt{
 		vcsigner.WithCreated(time.Unix(0, timestamp)),
 		vcsigner.WithSignatureRepresentation(verifiable.SignatureJWS),
-	)
+	}
+
+	if c.endpoint != "" {
+		opts = append(opts, vcsigner.WithDomain(c.endpoint))
+	}
+
+	// adds linked data proof
+	vc, err = c.signer.Sign(vc, opts...) // sets created time from the VCT.
+
 	if err != nil {
 		return nil, fmt.Errorf("add proof to credential: %w", err)
 	}

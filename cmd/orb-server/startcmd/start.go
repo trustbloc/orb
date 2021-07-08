@@ -138,7 +138,6 @@ const (
 	activityPubServicesPath = "/services/orb"
 
 	casPath = "/cas"
-	vctPath = "/vct"
 
 	kmsKeyType             = kms.ED25519Type
 	verificationMethodType = "Ed25519VerificationKey2018"
@@ -688,7 +687,6 @@ func startOrbServices(parameters *orbParameters) error {
 		KID:                       parameters.keyID,
 		ResolutionPath:            baseResolvePath,
 		OperationPath:             baseUpdatePath,
-		VctPath:                   vctPath,
 		WebCASPath:                casPath,
 		BaseURL:                   parameters.externalEndpoint,
 		DiscoveryDomains:          parameters.discoveryDomains,
