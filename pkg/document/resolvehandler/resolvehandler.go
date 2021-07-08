@@ -23,11 +23,6 @@ import (
 
 var logger = log.New("orb-resolver")
 
-const (
-	delimiter         = ":"
-	minOrbSuffixParts = 2
-)
-
 // ErrDocumentNotFound is document not found error.
 var ErrDocumentNotFound = fmt.Errorf("document not found")
 
@@ -39,7 +34,6 @@ type ResolveHandler struct {
 	anchorGraph  common.AnchorGraph
 
 	namespace           string
-	aliases             []string
 	unpublishedDIDLabel string
 	enableDidDiscovery  bool
 
@@ -58,13 +52,6 @@ type Option func(opts *ResolveHandler)
 func WithEnableDIDDiscovery(enable bool) Option {
 	return func(opts *ResolveHandler) {
 		opts.enableDidDiscovery = enable
-	}
-}
-
-// WithAliases sets optional aliases.
-func WithAliases(aliases []string) Option {
-	return func(opts *ResolveHandler) {
-		opts.aliases = aliases
 	}
 }
 
@@ -177,54 +164,13 @@ func (r *ResolveHandler) resolveDocumentFromCreateDocumentStore(id string) (*doc
 	return &rr, nil
 }
 
-func (r *ResolveHandler) requestDiscovery(id string) {
-	orbSuffix, err := r.getOrbSuffix(id)
+func (r *ResolveHandler) requestDiscovery(did string) {
+	logger.Infof("requesting discovery for did[%s]", did)
+
+	err := r.discovery.RequestDiscovery(did)
 	if err != nil {
-		// not proper orb suffix - nothing to do
-		logger.Debugf("get orb suffix from id[%s] error: %s", id, err.Error())
-
-		return
+		logger.Warnf("error while requesting discovery for did[%s]: %s", did, err.Error())
 	}
-
-	logger.Infof("requesting discovery for orb suffix[%s]", orbSuffix)
-
-	err = r.discovery.RequestDiscovery(orbSuffix)
-	if err != nil {
-		logger.Warnf("error while requesting discovery for orb suffix[%s]: %s", orbSuffix, err.Error())
-	}
-}
-
-func (r *ResolveHandler) getNamespace(shortFormDID string) (string, error) {
-	if strings.HasPrefix(shortFormDID, r.namespace+delimiter) {
-		return r.namespace, nil
-	}
-
-	// check aliases
-	for _, ns := range r.aliases {
-		if strings.HasPrefix(shortFormDID, ns+delimiter) {
-			return ns, nil
-		}
-	}
-
-	return "", fmt.Errorf("did must start with configured namespace[%s] or aliases%v", r.namespace, r.aliases)
-}
-
-// getOrbSuffix fetches unique portion of ID which is string after namespace.
-// Valid Orb suffix has two parts cas hint + cid:suffix.
-func (r *ResolveHandler) getOrbSuffix(shortFormDID string) (string, error) {
-	namespace, err := r.getNamespace(shortFormDID)
-	if err != nil {
-		return "", err
-	}
-
-	orbSuffix := shortFormDID[len(namespace+delimiter):]
-
-	parts := strings.Split(orbSuffix, delimiter)
-	if len(parts) < minOrbSuffixParts {
-		return "", fmt.Errorf("invalid number of parts for orb suffix[%s]", orbSuffix)
-	}
-
-	return orbSuffix, nil
 }
 
 func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) error {

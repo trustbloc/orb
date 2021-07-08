@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 )
 
 const (
@@ -24,13 +25,58 @@ const (
 )
 
 func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
-	t.Run("test wrong did", func(t *testing.T) {
+	t.Run("test wrong did - doesn't match default namespace (did:orb)", func(t *testing.T) {
 		cs, err := New(nil, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did")
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "did format is wrong")
+		require.Contains(t, err.Error(), "must start with configured namespace")
+	})
+
+	t.Run("test wrong did - doesn't match provided namespace", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithNamespace("did:other"))
+		require.NoError(t, err)
+
+		_, err = cs.GetEndpointFromAnchorOrigin("did")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must start with configured namespace")
+	})
+
+	t.Run("test wrong did - no namespace", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"))
+		require.NoError(t, err)
+
+		_, err = cs.GetEndpointFromAnchorOrigin("did")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must start with configured namespace")
+	})
+
+	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"))
+		require.NoError(t, err)
+
+		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid number of parts for [cid:suffix] combo")
+	})
+
+	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"))
+		require.NoError(t, err)
+
+		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:cid")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid number of parts for [cid:suffix] combo")
+	})
+
+	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"))
+		require.NoError(t, err)
+
+		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:cid:")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "did suffix is empty")
 	})
 
 	t.Run("test error from orb client", func(t *testing.T) {
@@ -155,7 +201,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, WithAuthToken("t1"), WithCASReader(&mocks.CasClient{}))
 		require.NoError(t, err)
 
 		cs.httpClient = &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
@@ -180,6 +226,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 					Links: []restapi.Link{
 						{Href: "https://localhost/resolve1/did:orb:ipfs:a:123", Rel: "self", Type: "application/did+ld+json"},
 						{Href: "https://localhost/resolve2/did:orb:ipfs:a:123", Rel: "alternate", Type: "application/did+ld+json"},
+						{Href: "ipfs:cid", Rel: "via", Type: "application/ld+json"},
 					},
 				})
 
@@ -200,6 +247,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://localhost/resolve1", endpoint.ResolutionEndpoints[0])
 		require.Equal(t, "https://localhost/resolve2", endpoint.ResolutionEndpoints[1])
+		require.Equal(t, "ipfs:cid", endpoint.AnchorURI)
 	})
 }
 
@@ -479,7 +527,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("web finger resolution return 500 status", func(t *testing.T) {
-		cs, err := New(nil, WithHTTPClient(
+		cs, err := New(nil, WithDisableProofCheck(true), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -547,6 +595,92 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 		require.Contains(t, err.Error(),
 			"got unexpected response from https://localhost/.well-known/"+
 				"webfinger?resource=https:%2F%2Flocalhost%2Fop status")
+	})
+}
+
+func TestDefaultCASReader(t *testing.T) {
+	t.Run("success - no hint", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+
+				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+			}}))
+		require.NoError(t, err)
+
+		r := &defaultCASReader{s: cs}
+
+		val, err := r.Read("cid")
+		require.NoError(t, err)
+		require.NotNil(t, val)
+	})
+
+	t.Run("success - ipfs hint", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+
+				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+			}}))
+		require.NoError(t, err)
+
+		r := &defaultCASReader{s: cs}
+
+		val, err := r.Read("ipfs:cid")
+		require.NoError(t, err)
+		require.NotNil(t, val)
+	})
+
+	t.Run("error - webcas hint not implemented yet", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+
+				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+			}}))
+		require.NoError(t, err)
+
+		r := &defaultCASReader{s: cs}
+
+		val, err := r.Read("webcas:cid")
+		require.Error(t, err)
+		require.Nil(t, val)
+		require.Contains(t, err.Error(), "hint 'webcas' will be supported soon")
+	})
+
+	t.Run("error - hint not supported", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+
+				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+			}}))
+		require.NoError(t, err)
+
+		r := &defaultCASReader{s: cs}
+
+		val, err := r.Read("invalid:cid")
+		require.Error(t, err)
+		require.Nil(t, val)
+		require.Contains(t, err.Error(), "hint 'invalid' not supported")
+	})
+
+	t.Run("error - ipfs resolver error", func(t *testing.T) {
+		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+				r := ioutil.NopCloser(bytes.NewReader([]byte("error")))
+
+				return &http.Response{StatusCode: http.StatusInternalServerError, Body: r}, nil
+			}}))
+		require.NoError(t, err)
+
+		r := &defaultCASReader{s: cs}
+
+		val, err := r.Read("ipfs:cid")
+		require.Error(t, err)
+		require.Nil(t, val)
+		require.Contains(t, err.Error(),
+			"failed to resolve cidWithHint[ipfs cid]: got unexpected response from https://ipfs.io/ipfs/cid status '500' body error") //nolint:lll
 	})
 }
 

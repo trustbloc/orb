@@ -7,15 +7,17 @@ package models
 
 import "time"
 
-// Endpoint include info about endpoint.
+// Endpoint include info about anchor endpoint.
 type Endpoint struct {
 	ResolutionEndpoints []string
 	OperationEndpoints  []string
 	MinResolvers        int
 	MaxAge              uint `json:"-"`
+	AnchorOrigin        string
+	AnchorURI           string
 }
 
 // CacheLifetime returns the cache lifetime of the endpoint config file before it needs to be checked for an update.
-func (c Endpoint) CacheLifetime() (time.Duration, error) {
+func (c *Endpoint) CacheLifetime() (time.Duration, error) {
 	return time.Duration(c.MaxAge) * time.Second, nil
 }

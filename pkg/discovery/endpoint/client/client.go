@@ -28,6 +28,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
@@ -40,13 +41,16 @@ const (
 	minResolvers         = "https://trustbloc.dev/ns/min-resolvers"
 	anchorOriginProperty = "https://trustbloc.dev/ns/anchor-origin"
 
-	didMethod  = "orb"
+	namespace  = "did:orb"
 	ipfsGlobal = "https://ipfs.io"
-	didParts   = 5
 )
 
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+type casReader interface {
+	Read(key string) ([]byte, error)
 }
 
 type orbClient interface {
@@ -55,9 +59,11 @@ type orbClient interface {
 
 // Client fetches configs, caching results in-memory.
 type Client struct {
+	namespace                  string
 	endpointsCache             gcache.Cache
 	endpointsAnchorOriginCache gcache.Cache
 	httpClient                 httpClient
+	casReader                  casReader
 	authToken                  string
 	disableProofCheck          bool
 	docLoader                  ld.DocumentLoader
@@ -70,7 +76,10 @@ type req struct {
 
 // New create new endpoint client.
 func New(docLoader ld.DocumentLoader, opts ...Option) (*Client, error) {
-	configService := &Client{docLoader: docLoader, httpClient: &http.Client{}}
+	configService := &Client{namespace: namespace, docLoader: docLoader, httpClient: &http.Client{}}
+
+	// default to global ipfs reader
+	configService.casReader = &defaultCASReader{s: configService}
 
 	for _, opt := range opts {
 		opt(configService)
@@ -91,7 +100,7 @@ func New(docLoader ld.DocumentLoader, opts ...Option) (*Client, error) {
 			)).PublicKeyFetcher()))
 	}
 
-	orbClient, err := orbclient.New(fmt.Sprintf("did:%s", didMethod), &casReader{s: configService}, orbClientOpts...)
+	orbClient, err := orbclient.New(configService.namespace, configService.casReader, orbClientOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -229,9 +238,20 @@ func (cs *Client) populateAnchorResolutionEndpoint(
 	for _, v := range jrd.Links {
 		if v.Type == "application/did+ld+json" {
 			endpoint.ResolutionEndpoints = append(endpoint.ResolutionEndpoints,
-				v.Href[:strings.Index(v.Href, fmt.Sprintf("did:%s", didMethod))-1])
+				v.Href[:strings.Index(v.Href, cs.namespace)-1])
+		}
+
+		if v.Type == "application/ld+json" {
+			endpoint.AnchorURI = v.Href
 		}
 	}
+
+	anchorOrigin, ok := jrd.Properties[anchorOriginProperty].(string)
+	if !ok {
+		return nil, fmt.Errorf("%s property is not string", anchorOriginProperty)
+	}
+
+	endpoint.AnchorOrigin = anchorOrigin
 
 	return endpoint, nil
 }
@@ -312,13 +332,12 @@ func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpo
 }
 
 func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, error) {
-	didSplit := strings.Split(didURI, ":")
-
-	if len(didSplit) < didParts {
-		return nil, fmt.Errorf("did format is wrong")
+	cid, suffix, err := cs.getCIDAndSuffix(didURI)
+	if err != nil {
+		return nil, err
 	}
 
-	result, err := cs.orbClient.GetAnchorOrigin(didSplit[3], didSplit[4])
+	result, err := cs.orbClient.GetAnchorOrigin(cid, suffix)
 	if err != nil {
 		return nil, err
 	}
@@ -353,6 +372,30 @@ func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, erro
 	}
 
 	return cs.populateAnchorResolutionEndpoint(currentWebFingerRespone)
+}
+
+func (cs *Client) getCIDAndSuffix(didURI string) (string, string, error) {
+	if !strings.HasPrefix(didURI, cs.namespace+docutil.NamespaceDelimiter) {
+		return "", "", fmt.Errorf("did[%s] must start with configured namespace[%s]", didURI, cs.namespace)
+	}
+
+	cidWithHintAndSuffix := didURI[len(cs.namespace+docutil.NamespaceDelimiter):]
+
+	parts := strings.Split(cidWithHintAndSuffix, docutil.NamespaceDelimiter)
+
+	const minParts = 2
+	if len(parts) < minParts {
+		return "", "", fmt.Errorf("invalid number of parts for [cid:suffix] combo: %s", cidWithHintAndSuffix)
+	}
+
+	suffixDelimiter := strings.LastIndex(cidWithHintAndSuffix, docutil.NamespaceDelimiter)
+
+	adjustedPos := suffixDelimiter + 1
+	if adjustedPos >= len(cidWithHintAndSuffix) {
+		return "", "", fmt.Errorf("did suffix is empty")
+	}
+
+	return cidWithHintAndSuffix[:adjustedPos-1], cidWithHintAndSuffix[adjustedPos:], nil
 }
 
 func (cs *Client) getWebFingerURL(anchorOrigin string) (string, error) {
@@ -491,6 +534,20 @@ func WithDisableProofCheck(disable bool) Option {
 	}
 }
 
+// WithCASReader option is for custom CAS reader.
+func WithCASReader(casReader casReader) Option {
+	return func(opts *Client) {
+		opts.casReader = casReader
+	}
+}
+
+// WithNamespace option is for custom namespace.
+func WithNamespace(namespace string) Option {
+	return func(opts *Client) {
+		opts.namespace = namespace
+	}
+}
+
 type webVDR struct {
 	http httpClient
 	*web.VDR
@@ -500,10 +557,39 @@ func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocRes
 	return w.VDR.Read(didID, append(opts, vdrapi.WithOption(web.HTTPClientOpt, w.http))...)
 }
 
-type casReader struct {
+type defaultCASReader struct {
 	s *Client
 }
 
-func (c *casReader) Read(key string) ([]byte, error) {
-	return c.s.send(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s", ipfsGlobal, "ipfs", key))
+func (c *defaultCASReader) Read(cidWithPossibleHint string) ([]byte, error) {
+	cidWithPossibleHintParts := strings.Split(cidWithPossibleHint, ":")
+	if len(cidWithPossibleHintParts) > 1 {
+		// hint provided
+		return c.resolveCIDWithHint(cidWithPossibleHintParts)
+	}
+
+	// we only got cid so try IPFS
+	return c.s.send(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s", ipfsGlobal, "ipfs", cidWithPossibleHint))
+}
+
+func (c *defaultCASReader) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte, error) {
+	var value []byte
+
+	var err error
+
+	switch cidWithPossibleHintParts[0] {
+	case "ipfs":
+		value, err = c.s.send(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s", ipfsGlobal, "ipfs", cidWithPossibleHintParts[1]))
+	case "webcas":
+		// TODO: Add support for default webcas reader (without storage)
+		return nil, fmt.Errorf("hint 'webcas' will be supported soon")
+	default:
+		return nil, fmt.Errorf("hint '%s' not supported", cidWithPossibleHintParts[0])
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve cidWithHint%s: %w", cidWithPossibleHintParts, err)
+	}
+
+	return value, nil
 }
