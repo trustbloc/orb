@@ -19,6 +19,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/sirupsen/logrus"
 	"github.com/trustbloc/vct/pkg/client/vct"
+	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
@@ -242,29 +243,29 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 
 	defer resp.Body.Close() // nolint: errcheck
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
 	var jrd *restapi.JRD
 
 	if err = json.NewDecoder(resp.Body).Decode(&jrd); err != nil {
 		return fmt.Errorf("decode JRD: %w", err)
 	}
 
-	var vctDomain string
-
-	for _, link := range jrd.Links {
-		if link.Rel == "vct" {
-			vctDomain = link.Href
-
-			break
-		}
+	ltRaw, ok := jrd.Properties[command.LedgerType]
+	if !ok {
+		return nil
 	}
 
-	if vctDomain == "" {
+	lt, ok := ltRaw.(string)
+	if !ok || lt != "vct-v1" {
 		return nil
 	}
 
 	e := &entity{
 		ExpirationDate: endTime,
-		Domain:         vctDomain,
+		Domain:         domain,
 		Created:        created,
 	}
 

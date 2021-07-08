@@ -33,7 +33,7 @@ const (
 	tagNotConfirmed = "not_confirmed"
 
 	webfingerPath    = "/.well-known/webfinger"
-	webfingerPayload = `{"links":[{"rel":"vct","href":"https://vct.com"}]}`
+	webfingerPayload = `{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`
 )
 
 func TestNew(t *testing.T) {
@@ -388,6 +388,101 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: make(chan int),
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWithTrailingZeroMsec{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
+
+		checkQueue(t, db, 0)
+	})
+
+	t.Run("Webfinger (status not found)", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusNotFound,
+			}, nil
+		})))
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: make(chan int),
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWithTrailingZeroMsec{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
+
+		checkQueue(t, db, 0)
+	})
+
+	t.Run("No ledger type property", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})))
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: make(chan int),
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWithTrailingZeroMsec{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
+
+		checkQueue(t, db, 0)
+	})
+
+	t.Run("Unsupported ledger type", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
+				),
+				StatusCode: http.StatusOK,
+			}, nil
+		})))
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: make(chan int),
