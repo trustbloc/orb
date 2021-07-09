@@ -594,24 +594,66 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 }
 
 func TestStartCmdValidArgsEnvVar(t *testing.T) {
-	startCmd := GetStartCmd()
+	t.Run("CAS Type: IPFS", func(t *testing.T) {
+		startCmd := GetStartCmd()
 
-	setEnvVars(t, databaseTypeMemOption)
+		setEnvVars(t, databaseTypeMemOption, "ipfs", "false")
 
-	defer unsetEnvVars(t)
+		defer unsetEnvVars(t)
 
-	go func() {
-		err := startCmd.Execute()
-		require.Nil(t, err)
-		require.Equal(t, log.ERROR, log.GetLevel(""))
-	}()
+		go func() {
+			err := startCmd.Execute()
+			require.Nil(t, err)
+			require.Equal(t, log.ERROR, log.GetLevel(""))
+		}()
 
-	require.NoError(t, backoff.Retry(func() error {
-		_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
+		require.NoError(t, backoff.Retry(func() error {
+			_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
 
-		return err
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5)))
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+			return err
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5)))
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	})
+	t.Run("CAS Type: Local (without IPFS replication)", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		setEnvVars(t, databaseTypeMemOption, "local", "false")
+
+		defer unsetEnvVars(t)
+
+		go func() {
+			err := startCmd.Execute()
+			require.Nil(t, err)
+			require.Equal(t, log.ERROR, log.GetLevel(""))
+		}()
+
+		require.NoError(t, backoff.Retry(func() error {
+			_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
+
+			return err
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5)))
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	})
+	t.Run("CAS Type: Local (with IPFS replication)", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		setEnvVars(t, databaseTypeMemOption, "local", "true")
+
+		defer unsetEnvVars(t)
+
+		go func() {
+			err := startCmd.Execute()
+			require.Nil(t, err)
+			require.Equal(t, log.ERROR, log.GetLevel(""))
+		}()
+
+		require.NoError(t, backoff.Retry(func() error {
+			_, err := net.DialTimeout("tcp", os.Getenv(hostURLEnvKey), time.Second)
+
+			return err
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5)))
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	})
 }
 
 func TestStartCmdValidArgs(t *testing.T) {
@@ -674,50 +716,16 @@ func TestGetActivityPubPageSize(t *testing.T) {
 	})
 }
 
-func TestGetNodeInfoRefreshInterval(t *testing.T) {
-	t.Run("Not specified -> default value", func(t *testing.T) {
-		cmd := getTestCmd(t)
-
-		interval, err := getNodeInfoRefreshInterval(cmd)
-		require.NoError(t, err)
-		require.Equal(t, defaultNodeInfoRefreshInterval, interval)
-	})
-
-	t.Run("Invalid value -> error", func(t *testing.T) {
-		cmd := getTestCmd(t, "--"+nodeInfoRefreshIntervalFlagName, "xxx")
-
-		_, err := getNodeInfoRefreshInterval(cmd)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value")
-	})
-
-	t.Run("Valid value -> success", func(t *testing.T) {
-		cmd := getTestCmd(t, "--"+nodeInfoRefreshIntervalFlagName, "5s")
-
-		interval, err := getNodeInfoRefreshInterval(cmd)
-		require.NoError(t, err)
-		require.Equal(t, 5*time.Second, interval)
-	})
-
-	t.Run("Valid env value -> error", func(t *testing.T) {
-		restoreEnv := setEnv(t, nodeInfoRefreshIntervalEnvKey, "11s")
-		defer restoreEnv()
-
-		cmd := getTestCmd(t)
-
-		interval, err := getNodeInfoRefreshInterval(cmd)
-		require.NoError(t, err)
-		require.Equal(t, 11*time.Second, interval)
-	})
-}
-
-func setEnvVars(t *testing.T, databaseType string) {
+func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS string) {
 	t.Helper()
 
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
-	err = os.Setenv(casTypeEnvKey, "local")
+	err = os.Setenv(casTypeEnvKey, casType)
+	require.NoError(t, err)
+
+	err = os.Setenv(localCASReplicateInIPFSEnvKey, replicateLocalCASToIPFS)
 	require.NoError(t, err)
 
 	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")

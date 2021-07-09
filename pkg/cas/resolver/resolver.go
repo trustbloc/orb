@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/store/cas"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const (
@@ -67,8 +67,7 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient h
 //    Finally, the data is returned to the caller.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, //nolint:gocyclo,cyclop
-	data []byte) ([]byte, error) {
+func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, data []byte) ([]byte, error) {
 	if data != nil {
 		err := h.storeLocallyAndVerifyCID(data, cidWithPossibleHint)
 		if err != nil {
@@ -91,7 +90,7 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, //nol
 	dataFromLocal, err := h.localCAS.Read(cid)
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if webCASURL != nil && webCASURL.String() != "" {
-			if errors.Is(err, cas.ErrContentNotFound) {
+			if errors.Is(err, orberrors.ErrContentNotFound) {
 				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromRemote(webCASURL, cid)
 				if errGetAndStoreRemoteData != nil {
 					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
@@ -104,11 +103,6 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, //nol
 
 		if len(cidWithPossibleHintParts) > 1 {
 			return h.resolveCIDWithHint(cidWithPossibleHintParts)
-		}
-
-		if h.ipfsReader != nil {
-			// last resort - try ipfs if reader configured
-			return h.getAndStoreDataFromIPFS(cid)
 		}
 
 		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", cid, err)

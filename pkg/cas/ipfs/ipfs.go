@@ -19,7 +19,6 @@ import (
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
-	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
 var logger = log.New("cas-ipfs")
@@ -80,7 +79,7 @@ func (m *Client) Read(cid string) ([]byte, error) {
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			return nil, fmt.Errorf("%s: %w", err.Error(), cas.ErrContentNotFound)
+			return nil, fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound)
 		}
 
 		return nil, orberrors.NewTransient(err)

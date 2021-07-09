@@ -371,7 +371,7 @@ func TestResolver_Resolve(t *testing.T) {
 				ErrGet: ariesstorage.ErrDataNotFound,
 				ErrPut: errors.New("put error"),
 			},
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
@@ -394,7 +394,7 @@ func TestResolver_Resolve(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrGet: errors.New("get error"),
 			},
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		resolver := createNewResolver(t, casClient, nil)
@@ -405,7 +405,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.EqualError(t, err, "failed to get data stored at "+
 			"bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce from the local CAS: "+
-			"failed to get content from the underlying storage provider: get error")
+			"failed to get content from the local CAS provider: get error")
 		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, data)
 	})
@@ -580,7 +580,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsRea
 func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), nil)
 	require.NoError(t, err)
 
 	return casClient

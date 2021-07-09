@@ -121,10 +121,11 @@ const (
 	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
 	defaultSyncTimeout     = 1
 
-	defaulthttpSignaturesEnabled      = true
-	defaultDidDiscoveryEnabled        = false
-	defaultCreateDocumentStoreEnabled = false
-	defaultDevModeEnabled             = false
+	defaulthttpSignaturesEnabled          = true
+	defaultDidDiscoveryEnabled            = false
+	defaultCreateDocumentStoreEnabled     = false
+	defaultLocalCASReplicateInIPFSEnabled = false
+	defaultDevModeEnabled                 = false
 
 	unpublishedDIDLabel = "interim"
 
@@ -311,20 +312,34 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	var coreCasClient extendedcasclient.Client
+	var coreCASClient extendedcasclient.Client
 	var anchorCasWriter *orbcaswriter.CasWriter
 
-	switch parameters.casType {
-	case "ipfs":
-		coreCasClient = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		anchorCasWriter = orbcaswriter.New(coreCasClient, "ipfs")
-	case "local":
+	switch {
+	case strings.EqualFold(parameters.casType, "ipfs"):
+		logger.Infof("Initializing Orb CAS with IPFS.")
+		coreCASClient = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+		anchorCasWriter = orbcaswriter.New(coreCASClient, "ipfs")
+	case strings.EqualFold(parameters.casType, "local"):
+		logger.Infof("Initializing Orb CAS with local storage provider.")
+
 		var err error
 
-		coreCasClient, err = casstore.New(storeProviders.provider,
-			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		if err != nil {
-			return err
+		if parameters.localCASReplicateInIPFSEnabled {
+			logger.Infof("Local CAS writes will be replicated in IPFS.")
+
+			coreCASClient, err = casstore.New(storeProviders.provider,
+				ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion)),
+				extendedcasclient.WithCIDVersion(parameters.cidVersion))
+			if err != nil {
+				return err
+			}
+		} else {
+			coreCASClient, err = casstore.New(storeProviders.provider, nil,
+				extendedcasclient.WithCIDVersion(parameters.cidVersion))
+			if err != nil {
+				return err
+			}
 		}
 
 		u, err := url.Parse(parameters.externalEndpoint)
@@ -332,7 +347,7 @@ func startOrbServices(parameters *orbParameters) error {
 			return fmt.Errorf("failed to parse external endpoint: %s", err.Error())
 		}
 
-		anchorCasWriter = orbcaswriter.New(coreCasClient, "webcas:"+u.Host)
+		anchorCasWriter = orbcaswriter.New(coreCASClient, "webcas:"+u.Host)
 	}
 
 	didAnchors, err := didanchorstore.New(storeProviders.provider)
@@ -391,7 +406,7 @@ func startOrbServices(parameters *orbParameters) error {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	}
 
-	casResolver := resolver.New(coreCasClient, ipfsReader, t, webFingerURIScheme)
+	casResolver := resolver.New(coreCASClient, ipfsReader, t, webFingerURIScheme)
 
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,
@@ -403,7 +418,7 @@ func startOrbServices(parameters *orbParameters) error {
 	anchorGraph := graph.New(graphProviders)
 
 	// get protocol client provider
-	pcp, err := getProtocolClientProvider(parameters, coreCasClient, casResolver, opStore, anchorGraph)
+	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, anchorGraph)
 	if err != nil {
 		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
 	}
@@ -747,7 +762,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewShares(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
-		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
+		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCASClient),
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
 		ctxRest,
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
