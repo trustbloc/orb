@@ -741,7 +741,6 @@ github.com/huin/goupnp v1.0.0/go.mod h1:n9v9KO1tAxYH82qOn+UTIFQDmx5n1Zxd/ClZDMX7
 github.com/huin/goutil v0.0.0-20170803182201-1ca381bf3150/go.mod h1:PpLOETDnJ0o3iZrZfqZzyLl6l7F3c6L1oWn7OICBi6o=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210310014234-cfa8c6d6e2f4/go.mod h1:nKqMfEbn4nAkh/XcBuK6m+4K5IHOIqLfzLyVJC52lJk=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210421203733-b5dfd703a8fc/go.mod h1:tBgxVOKcNero3QI21iNf3oxxHkgRMDOby937cqHEvW4=
-github.com/hyperledger/aries-framework-go v0.1.7-0.20210603061245-f77269180c6f/go.mod h1:h6L+YoXtw90OZrH2IequxukIGwzfSpz8pUueQ9T5KqI=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210708130136-17663938344d h1:Am4CWZblW6ApbVCpsoRzX+CVEo/muQVUJN60ZBtu6Vo=
 github.com/hyperledger/aries-framework-go v0.1.7-0.20210708130136-17663938344d/go.mod h1:h6L+YoXtw90OZrH2IequxukIGwzfSpz8pUueQ9T5KqI=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210326155331-14f4ca7d75cb/go.mod h1:zHlYeWY7yvMXtHQ8wTpoZ5UCuUE5WdxHd4D8KEW4DRM=
@@ -1413,7 +1412,7 @@ github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9 h1:JCWLY91Vp
 github.com/trustbloc/edge-core v0.1.7-0.20210310142750-7eb11997c4a9/go.mod h1:BpCeNH2fEH3RX7+C5XfnVIXFQbk7LzBdWdBdgnEb284=
 github.com/trustbloc/sidetree-core-go v0.6.1-0.20210705132944-5a1274856798 h1:cgsdeHt7W8o+FLRGYZVsxVg8APfyN0oeNqEf9RMdkWM=
 github.com/trustbloc/sidetree-core-go v0.6.1-0.20210705132944-5a1274856798/go.mod h1:prRWqxBavkSxgKtPmUriSxCemrvl47yStMbW4jMFuRs=
-github.com/trustbloc/vct v0.1.2-0.20210701072331-7056b87f3bbb/go.mod h1:JExj0/Up71Ko08nWyaolsyiBL9uhFb68LnF99GCsrHA=
+github.com/trustbloc/vct v0.1.2/go.mod h1:9snw6ffNdOA0BVkE1x6ziLUsH9lcLmtIW3KTkBfJSeE=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
