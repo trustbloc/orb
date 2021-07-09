@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"syscall"
 	"time"
@@ -116,8 +117,7 @@ const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
 	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
-
-	noStartupDelay = 0 * time.Second // no delay
+	defaultSyncTimeout     = 1
 
 	defaulthttpSignaturesEnabled      = true
 	defaultDidDiscoveryEnabled        = false
@@ -222,7 +222,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			location, _, err := webkms.CreateKeyStore(client, parameters.kmsEndpoint, uuid.New().String(), "")
 
 			return location, err
-		})
+		}, parameters.syncTimeout)
 		if err != nil {
 			return nil, nil, fmt.Errorf("get or init: %w", err)
 		}
@@ -259,7 +259,7 @@ func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) 
 		keyID, _, err := km.Create(kmsKeyType)
 
 		return keyID, err
-	})
+	}, parameters.syncTimeout)
 }
 
 func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
@@ -272,18 +272,13 @@ func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.
 		keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(parameters.keyID))
 
 		return keyID, err
-	})
+	}, parameters.syncTimeout)
 }
 
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		SetDefaultLogLevel(logger, parameters.logLevel)
-	}
-
-	if parameters.startupDelay != noStartupDelay {
-		logger.Infof("delaying server start-up for duration: %s", parameters.startupDelay)
-		time.Sleep(parameters.startupDelay)
 	}
 
 	storeProviders, err := createStoreProviders(parameters)
@@ -913,21 +908,28 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	return &edgeServiceProvs, nil
 }
 
-func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (interface{}, error)) error {
+func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (interface{}, error),
+	timeout uint64) error {
 	src, err := cfg.Get(keyID)
 	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
 		return fmt.Errorf("get config value for %q: %w", keyID, err)
 	}
 
 	if err == nil {
-		err = json.Unmarshal(src, v)
-		if err != nil {
-			return err
+		time.Sleep(time.Second * time.Duration(timeout))
+
+		var src2 []byte
+
+		src2, err = cfg.Get(keyID)
+		if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
+			return fmt.Errorf("get config value for %q: %w", keyID, err)
 		}
 
-		logger.Debugf("Using KMS key [%s] with %s", keyID, src)
+		if reflect.DeepEqual(src, src2) {
+			return json.Unmarshal(src, v) // nolint: wrapcheck
+		}
 
-		return nil
+		return getOrInit(cfg, keyID, v, initFn, timeout)
 	}
 
 	val, err := initFn()
@@ -952,7 +954,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 	// TODO: Maybe make this a config option that's used only for dev/CI.
 	time.Sleep(2 * time.Second)
 
-	return getOrInit(cfg, keyID, v, initFn)
+	return getOrInit(cfg, keyID, v, initFn, timeout)
 }
 
 // prepareKeyLock prepares a key lock usage.

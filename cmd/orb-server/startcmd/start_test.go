@@ -103,14 +103,14 @@ func TestGetOrInit(t *testing.T) {
 	require.True(t, errors.Is(getOrInit(
 		&ariesmockstorage.Store{ErrGet: testErr}, "key", nil, func() (interface{}, error) {
 			return "", nil
-		},
+		}, 1,
 	), testErr))
 
 	require.True(t, errors.Is(getOrInit(
 		&ariesmockstorage.Store{ErrGet: ariesspi.ErrDataNotFound, ErrPut: testErr}, "key", nil,
 		func() (interface{}, error) {
 			return nil, nil
-		},
+		}, 1,
 	), testErr))
 
 	cfgStore, err := mem.NewProvider().OpenStore("cfg")
@@ -119,7 +119,7 @@ func TestGetOrInit(t *testing.T) {
 	require.Contains(t, getOrInit(
 		cfgStore, "key", nil, func() (interface{}, error) {
 			return map[string]interface{}{"test": make(chan int)}, nil
-		},
+		}, 1,
 	).Error(), "marshal config value for \"key\"")
 }
 

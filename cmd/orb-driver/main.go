@@ -15,7 +15,7 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use: "rp",
+		Use: "orb driver",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.HelpFunc()(cmd, args)
 		},

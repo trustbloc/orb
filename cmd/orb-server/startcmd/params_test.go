@@ -326,7 +326,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid sign with local witness flag value")
 	})
 
-	t.Run("test invalid startup delay format", func(t *testing.T) {
+	t.Run("test invalid sync time format", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
@@ -335,7 +335,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + startupDelayFlagName, "abc",
+			"--" + syncTimeoutFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -350,7 +350,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid start-up delay format")
+		require.Contains(t, err.Error(), "sync timeout is not a number(positive)")
 	})
 	t.Run("test invalid enable-http-signatures", func(t *testing.T) {
 		startCmd := GetStartCmd()
@@ -496,7 +496,6 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
-		"--" + startupDelayFlagName, "1",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -680,9 +679,6 @@ func setEnvVars(t *testing.T, databaseType string) {
 	err = os.Setenv(signWithLocalWitnessEnvKey, "true")
 	require.NoError(t, err)
 
-	err = os.Setenv(startupDelayEnvKey, "1")
-	require.NoError(t, err)
-
 	err = os.Setenv(didNamespaceEnvKey, "namespace")
 	require.NoError(t, err)
 
@@ -771,7 +767,6 @@ func defaultTestArgs() []string {
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
-		"--" + startupDelayFlagName, "1",
 		"--" + casTypeFlagName, "local",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,

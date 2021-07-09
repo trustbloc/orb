@@ -31,10 +31,10 @@ const (
 	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
 
-	startupDelayFlagName      = "startup-delay"
-	startupDelayEnvKey        = "ORB_STARTUP_DELAY"
-	startupDelayFlagShorthand = "j"
-	startupDelayFlagUsage     = "Orb server start-up delay (in seconds). " + commonEnvVarUsageText + startupDelayEnvKey
+	syncTimeoutFlagName  = "sync-timeout"
+	syncTimeoutEnvKey    = "ORB_SYNC_TIMEOUT"
+	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
+		" Alternatively, this can be set with the following environment variable: " + syncTimeoutEnvKey
 
 	vctURLFlagName  = "vct-url"
 	vctURLFlagUsage = "Verifiable credential transparency URL."
@@ -291,7 +291,7 @@ type orbParameters struct {
 	discoveryVctDomains        []string
 	discoveryMinimumResolvers  int
 	maxWitnessDelay            time.Duration
-	startupDelay               time.Duration
+	syncTimeout                uint64
 	signWithLocalWitness       bool
 	httpSignaturesEnabled      bool
 	didDiscoveryEnabled        bool
@@ -451,19 +451,15 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	startupDelayStr, err := cmdutils.GetUserSetVarFromString(cmd, startupDelayFlagName, startupDelayEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
+	syncTimeoutStr := cmdutils.GetUserSetOptionalVarFromString(cmd, syncTimeoutFlagName, syncTimeoutEnvKey)
 
-	startupDelay := noStartupDelay
-	if startupDelayStr != "" {
-		delay, parseErr := strconv.ParseUint(startupDelayStr, 10, 32)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid start-up delay format: %s", parseErr.Error())
+	syncTimeout := uint64(defaultSyncTimeout)
+
+	if syncTimeoutStr != "" {
+		syncTimeout, err = strconv.ParseUint(syncTimeoutStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("sync timeout is not a number(positive): %w", err)
 		}
-
-		startupDelay = time.Duration(delay) * time.Second
 	}
 
 	httpSignaturesEnabledStr, err := cmdutils.GetUserSetVarFromString(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey, true)
@@ -608,7 +604,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		discoveryVctDomains:        discoveryVctDomains,
 		discoveryMinimumResolvers:  discoveryMinimumResolvers,
 		maxWitnessDelay:            maxWitnessDelay,
-		startupDelay:               startupDelay,
+		syncTimeout:                syncTimeout,
 		signWithLocalWitness:       signWithLocalWitness,
 		httpSignaturesEnabled:      httpSignaturesEnabled,
 		didDiscoveryEnabled:        didDiscoveryEnabled,
@@ -799,7 +795,7 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
-	startCmd.Flags().StringP(startupDelayFlagName, startupDelayFlagShorthand, "", startupDelayFlagUsage)
+	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
