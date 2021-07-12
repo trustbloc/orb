@@ -65,6 +65,11 @@ type Providers struct {
 	MonitoringSvc monitoringSvc
 	WitnessStore  witnessStore
 	ActivityStore activityStore
+	WFClient      webfingerClient
+}
+
+type webfingerClient interface {
+	HasSupportedLedgerType(domain string) (bool, error)
 }
 
 type activityStore interface {
@@ -576,10 +581,16 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 	var witnesses []*proof.WitnessProof
 
 	for _, w := range batchWitnesses {
+		hasLog, err := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", w.Scheme, w.Host))
+		if err != nil {
+			return err
+		}
+
 		witnesses = append(witnesses,
 			&proof.WitnessProof{
 				Type:    proof.WitnessTypeBatch,
 				Witness: w.String(),
+				HasLog:  hasLog,
 			})
 	}
 
@@ -589,10 +600,18 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 	}
 
 	for _, systemWitnessURI := range systemWitnesses {
+		domain := fmt.Sprintf("%s://%s", systemWitnessURI.Scheme, systemWitnessURI.Host)
+
+		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(domain)
+		if innerErr != nil {
+			return innerErr
+		}
+
 		witnesses = append(witnesses,
 			&proof.WitnessProof{
 				Type:    proof.WitnessTypeSystem,
 				Witness: systemWitnessURI.String(),
+				HasLog:  hasLog,
 			})
 	}
 

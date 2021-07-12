@@ -111,6 +111,7 @@ import (
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/webcas"
+	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -512,7 +513,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
 
-	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, monitoring.WithHTTPClient(httpClient))
+	wfClient := wfclient.New(wfclient.WithHTTPClient(httpClient))
+
+	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
 		return fmt.Errorf("monitoring: %w", err)
 	}
@@ -594,6 +597,7 @@ func startOrbServices(parameters *orbParameters) error {
 		MonitoringSvc: monitoringSvc,
 		ActivityStore: apStore,
 		WitnessStore:  witnessProofStore,
+		WFClient:      wfClient,
 	}
 
 	// If no local IPFS node is configured, then use the public ipfs.io node as a fallback.

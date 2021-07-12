@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
@@ -26,28 +26,28 @@ import (
 
 	. "github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
 	storeName       = "monitoring"
 	tagNotConfirmed = "not_confirmed"
 
-	webfingerPath    = "/.well-known/webfinger"
 	webfingerPayload = `{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`
 )
 
 func TestNew(t *testing.T) {
-	client, err := New(mem.NewProvider(), nil)
+	client, err := New(mem.NewProvider(), nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
 	client.Close()
 
-	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil)
+	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil, nil)
 	require.EqualError(t, err, "open store: error")
 	require.Nil(t, client)
 
-	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil)
+	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil, nil)
 	require.EqualError(t, err, "failed to set store configuration: error")
 	require.Nil(t, client)
 }
@@ -57,16 +57,18 @@ func TestNext(t *testing.T) {
 	require.True(t, Next(&mockNext{}))
 }
 
-func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
+func TestClient_Watch(t *testing.T) {
+	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
+	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
 	t.Run("Expired", func(t *testing.T) {
-		client, err := New(mem.NewProvider(), nil,
-			WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
-					StatusCode: http.StatusOK,
-				}, nil
-			})),
-		)
+		client, err := New(mem.NewProvider(), nil, wfClient)
 		require.NoError(t, err)
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{},
@@ -78,14 +80,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
 
-		client, err := New(db, testutil.GetLoader(t),
-			WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
-					StatusCode: http.StatusOK,
-				}, nil
-			})),
-		)
+		client, err := New(db, testutil.GetLoader(t), wfClient)
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
@@ -124,14 +119,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == webfingerPath {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
-					StatusCode: http.StatusOK,
-				}, nil
-			}
-
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-sth" {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -169,14 +157,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == webfingerPath {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
-					StatusCode: http.StatusOK,
-				}, nil
-			}
-
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[]}`)),
 				StatusCode: http.StatusOK,
@@ -223,7 +204,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 
 		dl := testutil.GetLoader(t)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
@@ -292,7 +273,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 
 		dl := testutil.GetLoader(t)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
@@ -339,7 +320,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
@@ -370,14 +351,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == webfingerPath {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
-					StatusCode: http.StatusOK,
-				}, nil
-			}
-
+		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
@@ -402,23 +376,26 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 		checkQueue(t, db, 0)
 	})
 
-	t.Run("Webfinger (status not found)", func(t *testing.T) {
+	t.Run("Webfinger (internal server error)", func(t *testing.T) {
 		var (
 			db = mem.NewProvider()
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				StatusCode: http.StatusNotFound,
-			}, nil
-		})))
+		notFoundWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
+			httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("internal server error")),
+					StatusCode: http.StatusInternalServerError,
+				}, nil
+			})))
+
+		client, err := New(db, dl, notFoundWebfingerClient)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
 
-		require.NoError(t, client.Watch(&verifiable.Credential{
+		require.EqualError(t, client.Watch(&verifiable.Credential{
 			ID:      ID,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
 			Subject: make(chan int),
@@ -428,7 +405,7 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 		},
 			time.Now().Add(time.Minute),
 			"https://vct.com", time.Now(),
-		), "marshal credential: JSON marshalling of verifiable credential: subject of unknown structure")
+		), "getting ledgerType from cache: fetching cacheable object: failed to retrieve data from webfingerURL[https://vct.com/.well-known/webfinger?resource=https://vct.com/vct] status code: 500 message: internal server error") //nolint:lll
 
 		checkQueue(t, db, 0)
 	})
@@ -439,12 +416,15 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				StatusCode: http.StatusOK,
-			}, nil
-		})))
+		noLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
+			httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			})))
+
+		client, err := New(db, dl, noLegerTypeWebfingerClient)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -470,14 +450,17 @@ func TestClient_Watch(t *testing.T) { // nolint: gocyclo,cyclop
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Body: ioutil.NopCloser(
-					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
-				),
-				StatusCode: http.StatusOK,
-			}, nil
-		})))
+		wrongLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
+			httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body: ioutil.NopCloser(
+						bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
+					),
+					StatusCode: http.StatusOK,
+				}, nil
+			})))
+
+		client, err := New(db, dl, wrongLegerTypeWebfingerClient)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
