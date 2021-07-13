@@ -7,9 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package writer
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -46,6 +48,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -59,6 +62,8 @@ const (
 	testMaxWitnessDelay = 600 * time.Second
 
 	signWithLocalWitness = true
+
+	webfingerPayload = `{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`
 )
 
 func TestNew(t *testing.T) {
@@ -123,6 +128,15 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	anchorGraph := graph.New(graphProviders)
 
+	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
+	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
 	t.Run("success - no local witness configured, "+
 		"witness needs to be resolved via HTTP", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
@@ -143,6 +157,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -191,6 +206,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		var testServerURL string
@@ -241,6 +257,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -293,6 +310,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -342,6 +360,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: &mockVCStatusStore{Err: fmt.Errorf("vc status error")},
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -392,6 +411,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, nil, ps,
@@ -438,6 +458,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			OpProcessor:   &mockOpProcessor{Err: errors.New("operation processor error")},
+			WFClient:      wfClient,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -702,6 +723,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore: &mockActivityStore{},
 			VCStore:       vcStore,
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		publisher := &anchormocks.AnchorPublisher{}
@@ -990,6 +1012,15 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	casIRI, err := url.Parse(casURL)
 	require.NoError(t, err)
 
+	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
+	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
 	t.Run("success", func(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
@@ -999,6 +1030,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{},
 			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -1062,6 +1094,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			Outbox:        &mockOutbox{},
 			WitnessStore:  &mockWitnessStore{PutErr: fmt.Errorf("witness store error")},
 			ActivityStore: &mockActivityStore{},
+			WFClient:      wfClient,
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -1080,11 +1113,51 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			"failed to store witnesses for vcID[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error")
 	})
 
+	t.Run("error - webfinger client error (batch and system witness)", func(t *testing.T) {
+		wfClientWithErr := wfclient.New(wfclient.WithHTTPClient(
+			httpMock(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("internal server error")),
+					StatusCode: http.StatusInternalServerError,
+				}, nil
+			})))
+
+		providers := &Providers{
+			Outbox:        &mockOutbox{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: &mockActivityStore{},
+			WFClient:      wfClientWithErr,
+		}
+
+		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil)
+		require.NoError(t, err)
+
+		// test error for batch witness
+		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to retrieve data from webfingerURL[https://abc.com/.well-known/webfinger?resource=https://abc.com/vct] status code: 500 message: internal server error") //nolint:lll
+
+		// test error for system witness (no batch witnesses)
+		err = c.postOfferActivity(anchorVC, []string{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to retrieve data from webfingerURL[http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct] status code: 500 message: internal server error") //nolint:lll
+	})
+
 	t.Run("error - activity store error", func(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{Err: fmt.Errorf("activity store error")},
+			WFClient:      wfClient,
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -1109,6 +1182,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WitnessStore:  &mockWitnessStore{},
 			ActivityStore: &mockActivityStore{},
 			VCStatusStore: &mockVCStatusStore{},
+			WFClient:      wfClient,
 		}
 
 		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
@@ -1467,7 +1541,7 @@ func (a *mockActivityStore) QueryReferences(refType spi.ReferenceType, query *sp
 		return nil, a.Err
 	}
 
-	systemWitnessIRI, err := url.Parse("origin-2.com")
+	systemWitnessIRI, err := url.Parse("http://orb.domain1.com/services/orb")
 	if err != nil {
 		return nil, err
 	}
@@ -1541,6 +1615,12 @@ func generateValidExampleHostMetaResponse(t *testing.T, hostnameInResponse strin
 	require.NoError(t, err)
 
 	return hostMetaResponseBytes
+}
+
+type httpMock func(req *http.Request) (*http.Response, error)
+
+func (m httpMock) Do(req *http.Request) (*http.Response, error) {
+	return m(req)
 }
 
 //nolint: lll

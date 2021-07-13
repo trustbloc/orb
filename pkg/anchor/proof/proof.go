@@ -11,6 +11,7 @@ type WitnessProof struct {
 	Type    WitnessType
 	Witness string
 	Proof   []byte
+	HasLog  bool
 }
 
 // WitnessType defines valid values for witness type.

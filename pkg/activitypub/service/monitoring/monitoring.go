@@ -19,9 +19,8 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/sirupsen/logrus"
 	"github.com/trustbloc/vct/pkg/client/vct"
-	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
 var logger = logrus.New()
@@ -32,31 +31,36 @@ const (
 	tagNotConfirmed = "not_confirmed"
 )
 
-// HTTPClient represents HTTP client.
-type HTTPClient interface {
+// httpClient represents HTTP client.
+type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
+}
+
+type webfingerClient interface {
+	GetLedgerType(domain string) (string, error)
 }
 
 // Client for the monitoring.
 type Client struct {
 	documentLoader ld.DocumentLoader
 	store          storage.Store
-	http           HTTPClient
+	http           httpClient
 	ticker         *time.Ticker
+	wfClient       webfingerClient
 }
 
 // Opt represents client option func.
 type Opt func(*Client)
 
 // WithHTTPClient allows providing HTTP client.
-func WithHTTPClient(client HTTPClient) Opt {
+func WithHTTPClient(client httpClient) Opt {
 	return func(o *Client) {
 		o.http = client
 	}
 }
 
 // New returns monitoring client.
-func New(provider storage.Provider, documentLoader ld.DocumentLoader, opts ...Opt) (*Client, error) {
+func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient, opts ...Opt) (*Client, error) { //nolint:lll
 	store, err := provider.OpenStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -72,6 +76,7 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, opts ...Op
 		store:          store,
 		ticker:         time.NewTicker(time.Second),
 		http:           &http.Client{Timeout: time.Minute},
+		wfClient:       wfClient,
 	}
 
 	for _, opt := range opts {
@@ -222,44 +227,22 @@ func (c *Client) handleEntities() error {
 }
 
 // Watch starts monitoring.
-// nolint: funlen,gocyclo,cyclop
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
 	// no domain nothing to verify
 	if domain == "" {
 		return nil
 	}
 
-	webfingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s/vct", domain, domain)
-
-	req, err := http.NewRequest(http.MethodGet, webfingerURL, nil)
+	lt, err := c.wfClient.GetLedgerType(domain)
 	if err != nil {
-		return fmt.Errorf("new request: %w", err)
+		if errors.Is(err, model.ErrLedgerTypeNotFound) {
+			return nil
+		}
+
+		return err
 	}
 
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("http Do: %w", err)
-	}
-
-	defer resp.Body.Close() // nolint: errcheck
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil
-	}
-
-	var jrd *restapi.JRD
-
-	if err = json.NewDecoder(resp.Body).Decode(&jrd); err != nil {
-		return fmt.Errorf("decode JRD: %w", err)
-	}
-
-	ltRaw, ok := jrd.Properties[command.LedgerType]
-	if !ok {
-		return nil
-	}
-
-	lt, ok := ltRaw.(string)
-	if !ok || lt != "vct-v1" {
+	if lt != "vct-v1" {
 		return nil
 	}
 
