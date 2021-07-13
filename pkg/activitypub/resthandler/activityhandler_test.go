@@ -1079,7 +1079,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_18",
         "target": {
@@ -1097,7 +1097,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_17",
         "target": {
@@ -1115,7 +1115,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_16",
         "target": {
@@ -1133,7 +1133,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_15",
         "target": {
@@ -1160,7 +1160,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_2",
         "target": {
@@ -1178,7 +1178,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_1",
         "target": {
@@ -1196,7 +1196,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_0",
         "target": {
@@ -1225,7 +1225,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_14",
         "target": {
@@ -1243,7 +1243,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_13",
         "target": {
@@ -1261,7 +1261,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_12",
         "target": {
@@ -1279,7 +1279,7 @@ const (
       "object": {
         "@context": [
           "https://www.w3.org/ns/activitystreams",
-          "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+          "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://obj_11",
         "target": {

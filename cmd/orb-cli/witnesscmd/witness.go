@@ -67,7 +67,7 @@ const (
 	inviteWitnessAction = "InviteWitness"
 	undoAction          = "Undo"
 	activityCtx         = "https://www.w3.org/ns/activitystreams"
-	anchorCtx           = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	anchorCtx           = "https://w3id.org/activityanchors/v1"
 )
 
 type witness struct {

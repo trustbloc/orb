@@ -1090,7 +1090,7 @@ func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
 const anchorCredential1 = `{
  "@context": [
 	"https://www.w3.org/2018/credentials/v1",
-	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	"https://w3id.org/activityanchors/v1"
  ],
  "id": "http://sally.example.com/transactions/bafkreihwsn",
  "type": [

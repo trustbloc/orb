@@ -12,6 +12,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
+	"github.com/trustbloc/orb/pkg/anchor/activity"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
@@ -27,14 +28,19 @@ func GetAnchorSubject(node *verifiable.Credential) (*subject.Payload, error) {
 		return nil, err
 	}
 
-	var payload subject.Payload
+	var act activity.Activity
 
-	err = json.Unmarshal(customFieldsBytes, &payload)
+	err = json.Unmarshal(customFieldsBytes, &act)
 	if err != nil {
 		return nil, err
 	}
 
-	return &payload, nil
+	payload, err := activity.GetPayloadFromActivity(&act)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payload from activity: %w", err)
+	}
+
+	return payload, nil
 }
 
 func getCredentialSubjectCustomFields(node *verifiable.Credential) (map[string]interface{}, error) {

@@ -1,7 +1,7 @@
 {
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    "https://w3id.org/activityanchors/v1"
   ],
   "id": "https://orb.domain1.com/services/orb/activities/77bdd005-bbb6-223d-b889-58bc1de84985",
   "type": "Create",
@@ -14,7 +14,7 @@
   "object": {
     "@context": [
       "https://www.w3.org/ns/activitystreams",
-      "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+      "https://w3id.org/activityanchors/v1"
     ],
     "id": "https://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
     "type": "AnchorCredentialReference",

@@ -15,6 +15,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
+	"github.com/trustbloc/orb/pkg/anchor/activity"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
@@ -22,7 +23,9 @@ const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
 	// anchorContextURIV1 is anchor credential context URI.
-	anchorContextURIV1 = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	anchorContextURIV1 = "https://w3id.org/activityanchors/v1"
+	// activity streams context.
+	activityStreamsURI = "https://www.w3.org/ns/activitystreams"
 	// jwsContextURIV1 is jws context.
 	jwsContextURIV1 = "https://w3id.org/security/jws/v1"
 )
@@ -53,14 +56,27 @@ type Builder struct {
 func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
+	now := &util.TimeWithTrailingZeroMsec{Time: time.Now()}
+	payload.Published = now
+
+	anchorActivity, err := activity.BuildActivityFromPayload(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build anchor activity: %w", err)
+	}
+
 	vc := &verifiable.Credential{
-		Types:   []string{"VerifiableCredential", "AnchorCredential"},
-		Context: []string{vcContextURIV1, anchorContextURIV1, jwsContextURIV1},
-		Subject: payload,
+		Types: []string{"VerifiableCredential", "AnchorCredential"},
+		Context: []string{
+			vcContextURIV1,
+			activityStreamsURI,
+			anchorContextURIV1,
+			jwsContextURIV1,
+		},
+		Subject: anchorActivity,
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,
 		},
-		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+		Issued: now,
 		ID:     id,
 	}
 

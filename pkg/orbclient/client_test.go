@@ -17,6 +17,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/anchor/activity"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	cvmocks "github.com/trustbloc/orb/pkg/mocks"
@@ -39,7 +40,10 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := buildCredential(payload).MarshalJSON()
+		c, err := buildCredential(&payload)
+		require.NoError(t, err)
+
+		vcBytes, err := c.MarshalJSON()
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
@@ -91,7 +95,10 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := buildCredential(payload).MarshalJSON()
+		c, err := buildCredential(&payload)
+		require.NoError(t, err)
+
+		vcBytes, err := c.MarshalJSON()
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
@@ -144,7 +151,10 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := buildCredential(payload).MarshalJSON()
+		c, err := buildCredential(&payload)
+		require.NoError(t, err)
+
+		vcBytes, err := c.MarshalJSON()
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
@@ -186,7 +196,10 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := buildCredential(payload).MarshalJSON()
+		c, err := buildCredential(&payload)
+		require.NoError(t, err)
+
+		vcBytes, err := c.MarshalJSON()
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
@@ -213,12 +226,15 @@ func TestGetAnchorOrigin(t *testing.T) {
 		payload := subject.Payload{
 			OperationCount:  2,
 			CoreIndex:       "coreIndex",
-			Namespace:       "namespace",
+			Namespace:       "did:test",
 			Version:         1,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := buildCredential(payload).MarshalJSON()
+		c, err := buildCredential(&payload)
+		require.NoError(t, err)
+
+		vcBytes, err := c.MarshalJSON()
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
@@ -234,7 +250,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		origin, err := client.GetAnchorOrigin(cid, testDID)
 		require.Error(t, err)
 		require.Empty(t, origin)
-		require.Contains(t, err.Error(), "failed to get client versions for namespace [namespace]")
+		require.Contains(t, err.Error(), "failed to get client versions for namespace [did:test]")
 	})
 
 	t.Run("error - anchor (cid) not found", func(t *testing.T) {
@@ -250,20 +266,25 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 }
 
-func buildCredential(payload subject.Payload) *verifiable.Credential {
+func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+
+	act, err := activity.BuildActivityFromPayload(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
 		Context: []string{defVCContext},
-		Subject: payload,
+		Subject: act,
 		Issuer: verifiable.Issuer{
-			ID: "http://peer1.com",
+			ID: "http://orb.domain.com",
 		},
 		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 	}
 
-	return vc
+	return vc, nil
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {

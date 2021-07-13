@@ -169,7 +169,7 @@ const (
 	jsonObject = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    "https://w3id.org/activityanchors/v1"
   ],
   "endTime": "2021-01-27T09:30:10Z",
   "id": "http://sally.example.com/transactions/bafkreihwsn",
@@ -183,7 +183,7 @@ const (
 	jsonObjectWithDoc = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    "https://w3id.org/activityanchors/v1"
   ],
   "endTime": "2021-01-27T09:30:10Z",
   "id": "http://sally.example.com/transactions/bafkreihwsn",
