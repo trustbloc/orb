@@ -21,12 +21,15 @@ type WitnessPolicyConfig struct {
 	MinPercentBatch  int
 
 	Operator operatorFnc
+
+	LogRequired bool
 }
 
 // Gate values.
 const (
-	OutOf      = "OutOf"
-	MinPercent = "MinPercent"
+	OutOf       = "OutOf"
+	MinPercent  = "MinPercent"
+	LogRequired = "LogRequired"
 
 	AND = "AND"
 	OR  = "OR"
@@ -79,6 +82,8 @@ func (wp *WitnessPolicyConfig) processToken(token string) error {
 		if err != nil {
 			return err
 		}
+	case t == LogRequired:
+		wp.LogRequired = true
 	case t == AND:
 		wp.Operator = and
 	case t == OR:
@@ -161,6 +166,11 @@ func (wp *WitnessPolicyConfig) processMinPercent(token string) error {
 	}
 
 	return nil
+}
+
+func (wp *WitnessPolicyConfig) String() string {
+	return fmt.Sprintf("minBatch:%d, minSystem:%d, percentBatch:%d, percentSystem:%d, log:%t",
+		wp.MinNumberBatch, wp.MinNumberSystem, wp.MinPercentBatch, wp.MinPercentSystem, wp.LogRequired)
 }
 
 func and(a, b bool) bool {

@@ -85,6 +85,229 @@ func TestEvaluate(t *testing.T) {
 		require.Equal(t, true, ok)
 	})
 
+	t.Run("success - default policy(100% batch and 100% system) satisfied with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("success - default policy fails with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, false, ok)
+	})
+
+	t.Run("success - policy(50% batch and 50% system) satisfied with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,batch) AND MinPercent(50,system) LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness-2",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness-2",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("success - policy policy(50% batch and 50% system) fails with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("MinPercent(50,batch) AND MinPercent(50,system) LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, false, ok)
+	})
+
+	t.Run("success - policy OutOf(OR) satisfied with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system) OR OutOf(1,batch) LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("success - policy OutOf(AND) satisfied with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system) AND OutOf(1,batch) LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("success - policy OutOf(AND) fails with log required", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte("OutOf(1,system) AND OutOf(1,batch) LogRequired"))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:    proof.WitnessTypeSystem,
+				Witness: "system-witness",
+				Proof:   []byte("proof"),
+				HasLog:  false,
+			},
+			{
+				Type:    proof.WitnessTypeBatch,
+				Witness: "batch-witness",
+				Proof:   []byte("proof"),
+				HasLog:  true,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, false, ok)
+	})
+
 	t.Run("success - policy not satisfied (no proofs)", func(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
