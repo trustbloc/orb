@@ -29,6 +29,7 @@ const (
 	// HostMetaJSONEndpoint is the endpoint for getting the host-meta document.
 	HostMetaJSONEndpoint = "/.well-known/host-meta.json"
 	webDIDEndpoint       = "/.well-known/did.json"
+	nodeInfoEndpoint     = "/.well-known/nodeinfo"
 
 	selfRelation      = "self"
 	alternateRelation = "alternate"
@@ -40,6 +41,9 @@ const (
 	didLDJSONType = "application/did+ld+json"
 	// ActivityJSONType represents a link type that points to an ActivityPub endpoint.
 	ActivityJSONType = "application/activity+json"
+
+	nodeInfoV2_0Schema = "http://nodeinfo.diaspora.software/ns/schema/2.0"
+	nodeInfoV2_1Schema = "http://nodeinfo.diaspora.software/ns/schema/2.1"
 )
 
 const (
@@ -117,6 +121,7 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 		newHTTPHandler(hostMetaEndpoint, o.hostMetaHandler),
 		newHTTPHandler(HostMetaJSONEndpoint, o.hostMetaJSONHandler),
 		newHTTPHandler(webDIDEndpoint, o.webDIDHandler),
+		newHTTPHandler(nodeInfoEndpoint, o.nodeInfoHandler),
 	}
 }
 
@@ -176,6 +181,28 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	o.writeResponseForResourceRequest(rw, queryValue[0])
+}
+
+// nodeInfoHandler swagger:route Get /.well-known/nodeinfo discovery wellKnownNodeInfoReq
+//
+// webDIDHandler.
+//
+// Responses:
+//    default: genericError
+//        200: wellKnownNodeInfoResp
+func (o *Operation) nodeInfoHandler(rw http.ResponseWriter, r *http.Request) {
+	writeResponse(rw, &JRD{
+		Links: []Link{
+			{
+				Rel:  nodeInfoV2_0Schema,
+				Href: fmt.Sprintf("%s/nodeinfo/2.0", o.baseURL),
+			},
+			{
+				Rel:  nodeInfoV2_1Schema,
+				Href: fmt.Sprintf("%s/nodeinfo/2.1", o.baseURL),
+			},
+		},
+	}, http.StatusOK)
 }
 
 //nolint:funlen,gocyclo,cyclop

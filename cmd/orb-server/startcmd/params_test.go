@@ -445,6 +445,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		require.EqualError(t, err, "activitypub-page-size: value must be greater than 0")
 	})
+
+	t.Run("Invalid NodeInfo refresh interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, nodeInfoRefreshIntervalEnvKey, "5")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(defaultTestArgs())
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing unit in duration")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -658,6 +671,43 @@ func TestGetActivityPubPageSize(t *testing.T) {
 		pageSize, err := getActivityPubPageSize(cmd)
 		require.NoError(t, err)
 		require.Equal(t, 125, pageSize)
+	})
+}
+
+func TestGetNodeInfoRefreshInterval(t *testing.T) {
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		interval, err := getNodeInfoRefreshInterval(cmd)
+		require.NoError(t, err)
+		require.Equal(t, defaultNodeInfoRefreshInterval, interval)
+	})
+
+	t.Run("Invalid value -> error", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+nodeInfoRefreshIntervalFlagName, "xxx")
+
+		_, err := getNodeInfoRefreshInterval(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Valid value -> success", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+nodeInfoRefreshIntervalFlagName, "5s")
+
+		interval, err := getNodeInfoRefreshInterval(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 5*time.Second, interval)
+	})
+
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, nodeInfoRefreshIntervalEnvKey, "11s")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		interval, err := getNodeInfoRefreshInterval(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 11*time.Second, interval)
 	})
 }
 

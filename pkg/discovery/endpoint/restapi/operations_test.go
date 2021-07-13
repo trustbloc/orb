@@ -24,6 +24,7 @@ const (
 	didOrbEndpoint   = "/.well-known/did-orb"
 	webDIDEndpoint   = "/.well-known/did.json"
 	hostMetaEndpoint = "/.well-known/host-meta"
+	nodeInfoEndpoint = "/.well-known/nodeinfo"
 )
 
 type mockResourceInfoProvider struct{}
@@ -55,7 +56,7 @@ func TestGetRESTHandlers(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com", WebCASPath: "/cas"})
 		require.NoError(t, err)
-		require.Equal(t, 5, len(c.GetRESTHandlers()))
+		require.Equal(t, 6, len(c.GetRESTHandlers()))
 	})
 }
 
@@ -378,6 +379,33 @@ func TestWellKnown(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 	require.Equal(t, w.OperationEndpoint, "http://base/op")
 	require.Equal(t, w.ResolutionEndpoint, "http://base/resolve")
+}
+
+func TestWellKnownNodeInfo(t *testing.T) {
+	c, err := restapi.New(&restapi.Config{
+		OperationPath:  "/op",
+		ResolutionPath: "/resolve",
+		WebCASPath:     "/cas",
+		BaseURL:        "http://base",
+	})
+	require.NoError(t, err)
+
+	handler := getHandler(t, c, nodeInfoEndpoint)
+
+	rr := serveHTTP(t, handler.Handler(), http.MethodGet, nodeInfoEndpoint, nil, nil, false)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	t.Logf("Got response: %s", rr.Body.Bytes())
+
+	var resp restapi.JRD
+
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Len(t, resp.Links, 2)
+	require.Equal(t, "http://nodeinfo.diaspora.software/ns/schema/2.0", resp.Links[0].Rel)
+	require.Equal(t, "http://base/nodeinfo/2.0", resp.Links[0].Href)
+	require.Equal(t, "http://nodeinfo.diaspora.software/ns/schema/2.1", resp.Links[1].Rel)
+	require.Equal(t, "http://base/nodeinfo/2.1", resp.Links[1].Href)
 }
 
 //nolint:unparam

@@ -23,6 +23,7 @@ const (
 	defaultBatchWriterTimeout        = 1000 * time.Millisecond
 	defaultDiscoveryMinimumResolvers = 1
 	defaultActivityPubPageSize       = 50
+	defaultNodeInfoRefreshInterval   = 15 * time.Second
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -258,6 +259,12 @@ const (
 	devModeEnabledUsage    = `Set to "true" to enable dev mode. ` +
 		commonEnvVarUsageText + devModeEnabledEnvKey
 
+	nodeInfoRefreshIntervalFlagName      = "nodeinfo-refresh-interval"
+	nodeInfoRefreshIntervalFlagShorthand = "R"
+	nodeInfoRefreshIntervalEnvKey        = "NODEINFO_REFRESH_INTERVAL"
+	nodeInfoRefreshIntervalFlagUsage     = "The interval for refreshing NodeInfo data. For example, '30s' for a 30 second interval. " +
+		commonEnvVarUsageText + nodeInfoRefreshIntervalEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -301,6 +308,7 @@ type orbParameters struct {
 	opQueuePoolSize            uint
 	activityPubPageSize        int
 	enableDevMode              bool
+	nodeInfoRefreshInterval    time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -576,6 +584,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", activityPubPageSizeFlagName, err)
 	}
 
+	nodeInfoRefreshInterval, err := getNodeInfoRefreshInterval(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", nodeInfoRefreshIntervalFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                    hostURL,
 		vctURL:                     vctURL,
@@ -613,6 +626,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		authTokens:                 authTokens,
 		activityPubPageSize:        activityPubPageSize,
 		enableDevMode:              enableDevMode,
+		nodeInfoRefreshInterval:    nodeInfoRefreshInterval,
 	}, nil
 }
 
@@ -793,6 +807,24 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 	return activityPubPageSize, nil
 }
 
+func getNodeInfoRefreshInterval(cmd *cobra.Command) (time.Duration, error) {
+	nodeInfoRefreshIntervalStr, err := cmdutils.GetUserSetVarFromString(cmd, nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalEnvKey, true)
+	if err != nil {
+		return 0, err
+	}
+
+	if nodeInfoRefreshIntervalStr == "" {
+		return defaultNodeInfoRefreshInterval, nil
+	}
+
+	nodeInfoRefreshInterval, err := time.ParseDuration(nodeInfoRefreshIntervalStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value [%s]: %w", nodeInfoRefreshIntervalStr, err)
+	}
+
+	return nodeInfoRefreshInterval, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
@@ -840,4 +872,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
+	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
 }

@@ -146,7 +146,7 @@ func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error)
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
 func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
-	logger.Debugf("[%s] Querying activity %s - Query: %+v", s.serviceName, query)
+	logger.Debugf("[%s] Querying activities - Query: %+v", s.serviceName, query)
 
 	options := storeutil.GetQueryOptions(opts...)
 

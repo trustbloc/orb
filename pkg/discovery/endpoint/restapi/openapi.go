@@ -54,3 +54,16 @@ type wellKnownDIDResp struct { // nolint: unused,deadcode
 	// in: body
 	Body *RawDoc
 }
+
+// wellKnownNodeInfoReq model
+//
+// swagger:parameters wellKnownNodeInfoReq
+type wellKnownNodeInfoReq struct{} // nolint: unused,deadcode
+
+// wellKnownNodeInfoResp model
+//
+// swagger:response wellKnownNodeInfoResp
+type wellKnownNodeInfoResp struct { // nolint: unused,deadcode
+	// in: body
+	Body *JRD
+}
