@@ -168,8 +168,11 @@ services:
       - ./nginx-config/nginx.conf:/etc/nginx/nginx.conf
       - ./keys/tls:/etc/tls
     depends_on:
-      - orb-domain2.backend
-      - orb1-domain2.backend
+      - ipfs
+      - orb.kms
+      - couchdb.kms.com
+      - couchdb.shared.com
+      - orb.mq.domain2.com
     networks:
       - orb_net
 
