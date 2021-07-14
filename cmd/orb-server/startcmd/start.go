@@ -271,6 +271,9 @@ func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.
 		}
 
 		keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(parameters.keyID))
+		if strings.TrimSpace(keyID) == "" {
+			return nil, errors.New("import private key: keyID is empty")
+		}
 
 		return keyID, err
 	}, parameters.syncTimeout)
@@ -925,7 +928,11 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 		var src2 []byte
 
 		src2, err = cfg.Get(keyID)
-		if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
+		if err != nil && errors.Is(err, storage.ErrDataNotFound) {
+			return getOrInit(cfg, keyID, v, initFn, timeout)
+		}
+
+		if err != nil {
 			return fmt.Errorf("get config value for %q: %w", keyID, err)
 		}
 
@@ -951,12 +958,6 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 	}
 
 	logger.Debugf("Stored KMS key [%s] with %s", keyID, src)
-
-	// TODO: Find a better way to to this. When there are multiple server instances in the same domain, the KMS key
-	// may have been overwritten by another instance. So after writing the key, sleep a while before checking if
-	// another instance has overwritten the key.
-	// TODO: Maybe make this a config option that's used only for dev/CI.
-	time.Sleep(2 * time.Second)
 
 	return getOrInit(cfg, keyID, v, initFn, timeout)
 }

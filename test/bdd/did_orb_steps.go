@@ -67,7 +67,9 @@ var localURLs = map[string]string{
 
 var anchorOriginURLs = map[string]string{
 	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
+	// TODO: Change the value below back to ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q once
+	// IPNS is enabled again for the BDD tests.
+	"https://localhost:48526/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
 	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
