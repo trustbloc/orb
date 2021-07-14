@@ -407,14 +407,18 @@ func startOrbServices(parameters *orbParameters) error {
 
 	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
 
+	wfClient := wfclient.New(wfclient.WithHTTPClient(httpClient))
+
+	webCASResolver := resolver.NewWebCASResolver(t, wfClient, webFingerURIScheme)
+
 	var ipfsReader *ipfscas.Client
 	var casResolver *resolver.Resolver
 	if parameters.ipfsURL != "" {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		casResolver = resolver.New(coreCASClient, ipfsReader, t, webFingerURIScheme)
+		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver)
 	} else {
-		casResolver = resolver.New(coreCASClient, nil, t, webFingerURIScheme)
+		casResolver = resolver.New(coreCASClient, nil, webCASResolver)
 	}
 
 	graphProviders := &graph.Providers{
@@ -540,8 +544,6 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
-
-	wfClient := wfclient.New(wfclient.WithHTTPClient(httpClient))
 
 	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
@@ -699,7 +701,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	discoveryClient, err := discoveryclient.New(orbDocumentLoader,
-		discoveryclient.WithCASReader(&discoveryCAS{resolver: casResolver}),
+		&discoveryCAS{resolver: casResolver},
 		discoveryclient.WithNamespace(parameters.didNamespace),
 		discoveryclient.WithHTTPClient(httpClient),
 	)

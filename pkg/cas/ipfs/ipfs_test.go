@@ -138,6 +138,22 @@ func TestRead(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, cid)
 	})
+
+	t.Run("error - context deadline exceeded (content not found)", func(t *testing.T) {
+		ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte("context deadline exceeded"))
+			require.NoError(t, err)
+		}))
+		defer ipfs.Close()
+
+		cas := New(ipfs.URL, 5*time.Second)
+		require.NotNil(t, cas)
+
+		cid, err := cas.Read("cid")
+		require.EqualError(t, err, "cat: context deadline exceeded: content not found")
+		require.Empty(t, cid)
+	})
 }
 
 func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {

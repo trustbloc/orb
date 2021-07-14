@@ -24,6 +24,7 @@ import (
 	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -41,10 +42,12 @@ func TestGraph_Add(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
-		Pkf:         pubKeyFetcherFnc,
-		DocLoader:   testutil.GetLoader(t),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -65,10 +68,12 @@ func TestGraph_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter:   caswriter.New(casClient, "ipfs"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
-		Pkf:         pubKeyFetcherFnc,
-		DocLoader:   testutil.GetLoader(t),
+		CasWriter: caswriter.New(casClient, "ipfs"),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -105,10 +110,12 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter:   caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, &apmocks.HTTPTransport{}, "https"),
-		Pkf:         pubKeyFetcherFnc,
-		DocLoader:   testutil.GetLoader(t),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+		Pkf:       pubKeyFetcherFnc,
+		DocLoader: testutil.GetLoader(t),
 	}
 
 	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {

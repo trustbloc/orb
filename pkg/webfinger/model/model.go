@@ -22,5 +22,5 @@ func (lt *LedgerType) CacheLifetime() (time.Duration, error) {
 	return lt.MaxAge, nil
 }
 
-// ErrLedgerTypeNotFound is ledger type not found.
-var ErrLedgerTypeNotFound = fmt.Errorf("ledger type not found")
+// ErrResourceNotFound is an error type used to indicate that a given resource could not be found.
+var ErrResourceNotFound = fmt.Errorf("resource not found")
