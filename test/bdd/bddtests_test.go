@@ -7,11 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package bdd
 
 import (
-	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -21,19 +18,9 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cucumber/godog"
 	"github.com/cucumber/messages-go/v10"
-	jsonldcontext "github.com/hyperledger/aries-framework-go/pkg/client/jsonld/context"
-
-	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 )
 
 var bddContext *BDDContext
-
-// services that will be populated with the contexts.
-var services = []string{
-	"https://localhost:48326", // orb domain-1
-	"https://localhost:48426", // orb domain-2
-	"https://localhost:48626", // orb domain-2
-}
 
 func TestMain(m *testing.M) {
 	// default is to run all tests with tag @all
@@ -70,13 +57,8 @@ func TestMain(m *testing.M) {
 				time.Sleep(time.Second * time.Duration(testSleep))
 			}
 
-			uploadHostMetaFileToIPNS()
-
-			for _, service := range services {
-				if err := AddJSONLDContexts(service); err != nil {
-					panic(err)
-				}
-			}
+			// TODO: Add this back in, but move it to a BDD test step so it doesn't run every time.
+			// uploadHostMetaFileToIPNS()
 		})
 
 		s.AfterSuite(func() {
@@ -135,16 +117,6 @@ func FeatureContext(s *godog.Suite, state *state) {
 	NewDIDSideSteps(bddContext, state, "did:orb").RegisterSteps(s)
 	NewCLISteps(bddContext, state).RegisterSteps(s)
 	NewDriverSteps(bddContext, state).RegisterSteps(s)
-}
-
-// AddJSONLDContexts imports extra contexts for the service instance.
-func AddJSONLDContexts(serviceURL string) error {
-	return jsonldcontext.NewClient(serviceURL, jsonldcontext.WithHTTPClient(&http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
-		},
-	})).Add(context.Background(), ldcontext.MustGetExtra()...)
 }
 
 func uploadHostMetaFileToIPNS() {
