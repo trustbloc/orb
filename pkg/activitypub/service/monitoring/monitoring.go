@@ -235,7 +235,7 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 
 	lt, err := c.wfClient.GetLedgerType(domain)
 	if err != nil {
-		if errors.Is(err, model.ErrLedgerTypeNotFound) {
+		if errors.Is(err, model.ErrResourceNotFound) {
 			return nil
 		}
 

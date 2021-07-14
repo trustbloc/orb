@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bluele/gcache"
@@ -71,49 +72,14 @@ func (c *Client) GetLedgerType(domain string) (string, error) {
 
 // GetLedgerType returns ledger type for domain.
 func (c *Client) getLedgerType(domain string) (*model.LedgerType, error) {
-	webfingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s/vct", domain, domain)
-
-	logger.Debugf("retrieving ledger type from webfingerURL: %s", webfingerURL)
-
-	req, err := http.NewRequest(http.MethodGet, webfingerURL, nil)
+	jrd, err := c.ResolveWebFingerResource(domain, fmt.Sprintf("%s/vct", domain))
 	if err != nil {
-		return nil, fmt.Errorf("failed to created new request for webfingerURL[%s]: %w", webfingerURL, err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request to webfingerURL[%s]: %w", webfingerURL, err)
-	}
-
-	defer func() {
-		if e := resp.Body.Close(); e != nil {
-			logger.Warnf("failed to close response body from %s: %s", webfingerURL, e)
-		}
-	}()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, model.ErrLedgerTypeNotFound
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		responseBody, readErr := ioutil.ReadAll(resp.Body)
-		if readErr != nil {
-			logger.Warnf("failed to read response body for webfingerURI[%s]: %w", webfingerURL, readErr)
-		}
-
-		return nil, fmt.Errorf("failed to retrieve data from webfingerURL[%s]"+
-			" status code: %d message: %s", webfingerURL, resp.StatusCode, string(responseBody))
-	}
-
-	var jrd *restapi.JRD
-
-	if err = json.NewDecoder(resp.Body).Decode(&jrd); err != nil {
-		return nil, fmt.Errorf("decode JRD: %w", err)
+		return nil, fmt.Errorf("failed to resolve WebFinger resource: %w", err)
 	}
 
 	ltRaw, ok := jrd.Properties[command.LedgerType]
 	if !ok {
-		return nil, model.ErrLedgerTypeNotFound
+		return nil, model.ErrResourceNotFound
 	}
 
 	lt, ok := ltRaw.(string)
@@ -131,7 +97,7 @@ func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
 
 	lt, err := c.GetLedgerType(domain)
 	if err != nil {
-		if errors.Is(err, model.ErrLedgerTypeNotFound) {
+		if errors.Is(err, model.ErrResourceNotFound) {
 			return false, nil
 		}
 
@@ -139,6 +105,78 @@ func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
 	}
 
 	return contains(supportedLedgerTypes, lt), nil
+}
+
+// ResolveWebFingerResource attempts to resolve the given WebFinger resource from domainWithScheme.
+// TODO (#598) Add caching.
+func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (restapi.JRD, error) {
+	webFingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s", domainWithScheme, resource)
+
+	req, err := http.NewRequest(http.MethodGet, webFingerURL, nil)
+	if err != nil {
+		return restapi.JRD{},
+			fmt.Errorf("failed to create new request for WebFinger URL [%s]: %w", webFingerURL, err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return restapi.JRD{}, fmt.Errorf("failed to get response (URL: %s): %w", webFingerURL, err)
+	}
+
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			logger.Errorf("failed to close response body after getting WebFinger response: %s", err.Error())
+		}
+	}()
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return restapi.JRD{}, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return restapi.JRD{}, model.ErrResourceNotFound
+	} else if resp.StatusCode != http.StatusOK {
+		return restapi.JRD{}, fmt.Errorf("received unexpected status code. URL [%s], "+
+			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
+	}
+
+	webFingerResponse := restapi.JRD{}
+
+	err = json.Unmarshal(respBytes, &webFingerResponse)
+	if err != nil {
+		return restapi.JRD{}, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+	}
+
+	return webFingerResponse, nil
+}
+
+// GetWebCASURL gets the WebCAS URL for cid from domainWithScheme using WebFinger.
+// TODO (#598) Add caching.
+func (c *Client) GetWebCASURL(domainWithScheme, cid string) (*url.URL, error) {
+	webFingerResponse, err := c.ResolveWebFingerResource(domainWithScheme,
+		fmt.Sprintf("%s/cas/%s", domainWithScheme, cid))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get WebFinger resource: %w", err)
+	}
+
+	var webCASURLFromWebFinger string
+
+	for _, link := range webFingerResponse.Links {
+		if link.Rel == "working-copy" {
+			webCASURLFromWebFinger = link.Href
+
+			break
+		}
+	}
+
+	webCASURL, err := url.Parse(webCASURLFromWebFinger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
+	}
+
+	return webCASURL, nil
 }
 
 // Option is a webfinger client instance option.

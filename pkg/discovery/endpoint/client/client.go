@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/orbclient"
@@ -74,12 +75,23 @@ type req struct {
 	did, domain string
 }
 
-// New create new endpoint client.
-func New(docLoader ld.DocumentLoader, opts ...Option) (*Client, error) {
-	configService := &Client{namespace: namespace, docLoader: docLoader, httpClient: &http.Client{}}
+type defaultHTTPClient struct{}
 
-	// default to global ipfs reader
-	configService.casReader = &defaultCASReader{s: configService}
+func (d *defaultHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return http.DefaultClient.Do(req)
+}
+
+func (d *defaultHTTPClient) Get(context.Context, *transport.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("unable to perform GET call since no transport was configured. " +
+		"Use the WithHTTPClient option to configure this discovery endpoint client with a transport")
+}
+
+// New create new endpoint client.
+func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Client, error) {
+	configService := &Client{
+		namespace: namespace, docLoader: docLoader, casReader: casReader,
+		httpClient: &defaultHTTPClient{},
+	}
 
 	for _, opt := range opts {
 		opt(configService)
@@ -534,13 +546,6 @@ func WithDisableProofCheck(disable bool) Option {
 	}
 }
 
-// WithCASReader option is for custom CAS reader.
-func WithCASReader(casReader casReader) Option {
-	return func(opts *Client) {
-		opts.casReader = casReader
-	}
-}
-
 // WithNamespace option is for custom namespace.
 func WithNamespace(namespace string) Option {
 	return func(opts *Client) {
@@ -557,11 +562,15 @@ func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocRes
 	return w.VDR.Read(didID, append(opts, vdrapi.WithOption(web.HTTPClientOpt, w.http))...)
 }
 
-type defaultCASReader struct {
+// This type to be moved/reworked in the future.
+type referenceCASReaderImplementation struct {
+	// This is here since this implementation uses the send method from the Client.
+	// It creates a bit of a weird circular dependency-type of issue (since Client relies on a casReader),
+	// so really the send method should be extracted.
 	s *Client
 }
 
-func (c *defaultCASReader) Read(cidWithPossibleHint string) ([]byte, error) {
+func (c *referenceCASReaderImplementation) Read(cidWithPossibleHint string) ([]byte, error) {
 	cidWithPossibleHintParts := strings.Split(cidWithPossibleHint, ":")
 	if len(cidWithPossibleHintParts) > 1 {
 		// hint provided
@@ -572,7 +581,7 @@ func (c *defaultCASReader) Read(cidWithPossibleHint string) ([]byte, error) {
 	return c.s.send(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s", ipfsGlobal, "ipfs", cidWithPossibleHint))
 }
 
-func (c *defaultCASReader) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte, error) {
+func (c *referenceCASReaderImplementation) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte, error) {
 	var value []byte
 
 	var err error
@@ -580,8 +589,24 @@ func (c *defaultCASReader) resolveCIDWithHint(cidWithPossibleHintParts []string)
 	switch cidWithPossibleHintParts[0] {
 	case "ipfs":
 		value, err = c.s.send(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s", ipfsGlobal, "ipfs", cidWithPossibleHintParts[1]))
-	case "webcas":
+	case "webcas": //nolint: wsl // Intentionally left as documentation
 		// TODO: Add support for default webcas reader (without storage)
+		// The commented code below shows how this can be achieved.
+		// To be enabled in the future (and this type may be moved somewhere else)
+		// domain := cidWithPossibleHintParts[1]
+		//
+		// // If the domain in the hint contains a port, this will ensure it's included.
+		// if len(cidWithPossibleHintParts) == 4 {
+		//	domain = fmt.Sprintf("%s:%s", domain, cidWithPossibleHintParts[2])
+		// }
+		//
+		// cid := cidWithPossibleHintParts[len(cidWithPossibleHintParts)-1]
+		//
+		// value, err = c.webCASResolver.Resolve(domain, cid)
+		// if err != nil {
+		//	return nil, fmt.Errorf("failed to resolve domain and CID via WebCAS: %w", err)
+		// }
+
 		return nil, fmt.Errorf("hint 'webcas' will be supported soon")
 	default:
 		return nil, fmt.Errorf("hint '%s' not supported", cidWithPossibleHintParts[0])

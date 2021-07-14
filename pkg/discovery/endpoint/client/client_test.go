@@ -7,6 +7,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 )
@@ -26,7 +28,7 @@ const (
 
 func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	t.Run("test wrong did - doesn't match default namespace (did:orb)", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did")
@@ -35,7 +37,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test wrong did - doesn't match provided namespace", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithNamespace("did:other"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithNamespace("did:other"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did")
@@ -44,7 +46,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test wrong did - no namespace", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did")
@@ -53,7 +55,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:")
@@ -62,7 +64,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:cid")
@@ -71,7 +73,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test wrong did - wrong number of parts", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		_, err = cs.GetEndpointFromAnchorOrigin("did:orb:cid:")
@@ -80,7 +82,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test error from orb client", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -93,7 +95,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test get anchor origin return not string", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -106,7 +108,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test get anchor origin return not ipns", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -119,7 +121,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test get anchor origin return https", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -132,7 +134,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test error fetch ipns webfinger", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -145,7 +147,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test error origin property not string", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.httpClient = &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
@@ -170,7 +172,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test error get template webfinger", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.httpClient = &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
@@ -201,7 +203,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithCASReader(&mocks.CasClient{}))
+		cs, err := New(nil, &mocks.CasClient{}, WithAuthToken("t1"))
 		require.NoError(t, err)
 
 		cs.httpClient = &mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
@@ -253,7 +255,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 
 func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cyclop
 	t.Run("success", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -320,7 +322,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("failed to fetch webfinger links", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -367,7 +369,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("webfinger link return different min resolver", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -434,7 +436,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("webfinger link return different list of endpoints", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -500,7 +502,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("fail to send request for well-known", func(t *testing.T) {
-		cs, err := New(nil, WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				return nil, fmt.Errorf("failed to send")
 			}}))
@@ -512,7 +514,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("well-known return 500 status", func(t *testing.T) {
-		cs, err := New(nil, WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusInternalServerError,
@@ -527,7 +529,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("web finger resolution return 500 status", func(t *testing.T) {
-		cs, err := New(nil, WithDisableProofCheck(true), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithDisableProofCheck(true), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -555,7 +557,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 	})
 
 	t.Run("web finger operation return 500 status", func(t *testing.T) {
-		cs, err := New(nil, WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
 					b, err := json.Marshal(restapi.WellKnownResponse{
@@ -600,7 +602,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 
 func TestDefaultCASReader(t *testing.T) {
 	t.Run("success - no hint", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
 
@@ -608,7 +610,7 @@ func TestDefaultCASReader(t *testing.T) {
 			}}))
 		require.NoError(t, err)
 
-		r := &defaultCASReader{s: cs}
+		r := &referenceCASReaderImplementation{s: cs}
 
 		val, err := r.Read("cid")
 		require.NoError(t, err)
@@ -616,7 +618,7 @@ func TestDefaultCASReader(t *testing.T) {
 	})
 
 	t.Run("success - ipfs hint", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
 
@@ -624,7 +626,7 @@ func TestDefaultCASReader(t *testing.T) {
 			}}))
 		require.NoError(t, err)
 
-		r := &defaultCASReader{s: cs}
+		r := &referenceCASReaderImplementation{s: cs}
 
 		val, err := r.Read("ipfs:cid")
 		require.NoError(t, err)
@@ -632,15 +634,16 @@ func TestDefaultCASReader(t *testing.T) {
 	})
 
 	t.Run("error - webcas hint not implemented yet", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
-			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+		cs, err := New(nil, &referenceCASReaderImplementation{},
+			WithAuthToken("t1"), WithHTTPClient(
+				&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+					r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
 
-				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
-			}}))
+					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+				}}))
 		require.NoError(t, err)
 
-		r := &defaultCASReader{s: cs}
+		r := &referenceCASReaderImplementation{s: cs}
 
 		val, err := r.Read("webcas:cid")
 		require.Error(t, err)
@@ -649,7 +652,7 @@ func TestDefaultCASReader(t *testing.T) {
 	})
 
 	t.Run("error - hint not supported", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
 
@@ -657,7 +660,7 @@ func TestDefaultCASReader(t *testing.T) {
 			}}))
 		require.NoError(t, err)
 
-		r := &defaultCASReader{s: cs}
+		r := &referenceCASReaderImplementation{s: cs}
 
 		val, err := r.Read("invalid:cid")
 		require.Error(t, err)
@@ -666,7 +669,7 @@ func TestDefaultCASReader(t *testing.T) {
 	})
 
 	t.Run("error - ipfs resolver error", func(t *testing.T) {
-		cs, err := New(nil, WithAuthToken("t1"), WithHTTPClient(
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				r := ioutil.NopCloser(bytes.NewReader([]byte("error")))
 
@@ -674,7 +677,7 @@ func TestDefaultCASReader(t *testing.T) {
 			}}))
 		require.NoError(t, err)
 
-		r := &defaultCASReader{s: cs}
+		r := &referenceCASReaderImplementation{s: cs}
 
 		val, err := r.Read("ipfs:cid")
 		require.Error(t, err)
@@ -686,6 +689,10 @@ func TestDefaultCASReader(t *testing.T) {
 
 type mockHTTPClient struct {
 	doFunc func(req *http.Request) (*http.Response, error)
+}
+
+func (m *mockHTTPClient) Get(context.Context, *transport.Request) (*http.Response, error) {
+	panic("implement me")
 }
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {

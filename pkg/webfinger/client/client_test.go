@@ -8,13 +8,18 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
 func TestNew(t *testing.T) {
@@ -123,7 +128,7 @@ func TestGetLedgerType(t *testing.T) {
 		lt, err := c.GetLedgerType("https://orb.domain.com")
 		require.Error(t, err)
 		require.Empty(t, lt)
-		require.Contains(t, err.Error(), "ledger type not found")
+		require.Contains(t, err.Error(), "resource not found")
 	})
 
 	t.Run("error - resource not found", func(t *testing.T) {
@@ -139,7 +144,7 @@ func TestGetLedgerType(t *testing.T) {
 		lt, err := c.GetLedgerType("https://orb.domain.com")
 		require.Error(t, err)
 		require.Empty(t, lt)
-		require.Contains(t, err.Error(), "ledger type not found")
+		require.Contains(t, err.Error(), "resource not found")
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {
@@ -156,7 +161,7 @@ func TestGetLedgerType(t *testing.T) {
 		lt, err := c.GetLedgerType("https://orb.domain.com")
 		require.Error(t, err)
 		require.Empty(t, lt)
-		require.Contains(t, err.Error(), "status code: 500 message: internal server error")
+		require.Contains(t, err.Error(), "status code [500], response body [internal server error]")
 	})
 }
 
@@ -225,7 +230,139 @@ func TestHasSupportedLedgerType(t *testing.T) {
 		supported, err := c.HasSupportedLedgerType("https://orb.domain.com")
 		require.Error(t, err)
 		require.False(t, supported)
-		require.Contains(t, err.Error(), "status code: 500 message: internal server error")
+		require.Contains(t, err.Error(), "status code [500], response body [internal server error]")
+	})
+}
+
+func TestResolveWebFingerResource(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		operations, err := discoveryrest.New(&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		require.NoError(t, err)
+
+		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())
+
+		client := New()
+
+		webFingerResponse, err := client.ResolveWebFingerResource(testServer.URL,
+			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
+		require.NoError(t, err)
+
+		require.Len(t, webFingerResponse.Links, 2)
+		require.Equal(t,
+			fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webFingerResponse.Links[0].Href)
+		require.Equal(t, fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webFingerResponse.Links[1].Href)
+		require.Empty(t, webFingerResponse.Properties)
+	})
+	t.Run("Fail to do GET call", func(t *testing.T) {
+		client := New()
+
+		webFingerResponse, err := client.ResolveWebFingerResource("NonExistentDomain",
+			fmt.Sprintf("%s/cas/%s", "NonExistentDomain", "SomeCID"))
+		require.EqualError(t, err, "failed to get response (URL: NonExistentDomain/.well-known/webfinger?"+
+			`resource=NonExistentDomain/cas/SomeCID): Get "NonExistentDomain/.well-known/webfinger?resource=NonEx`+
+			`istentDomain/cas/SomeCID": unsupported protocol scheme ""`)
+		require.Empty(t, webFingerResponse)
+	})
+	t.Run("Received unexpected status code", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
+			rw.WriteHeader(http.StatusInternalServerError)
+			_, errWrite := rw.Write([]byte("unknown failure"))
+			require.NoError(t, errWrite)
+		})
+
+		// This test server is our "remote Orb server" for this test. Its CAS will have the data we need.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		client := New()
+
+		webFingerResponse, err := client.ResolveWebFingerResource(testServer.URL,
+			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
+		require.EqualError(t, err, fmt.Sprintf("received unexpected status code. URL [%s/.well-known"+
+			"/webfinger?resource=%s/cas/SomeCID], status code [500], response body [unknown failu"+
+			"re]", testServer.URL, testServer.URL))
+		require.Empty(t, webFingerResponse)
+	})
+	t.Run("Response isn't a valid WebFinger response object", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
+			_, errWrite := rw.Write([]byte("this can't be unmarshalled to a JRD"))
+			require.NoError(t, errWrite)
+		})
+
+		// This test server is our "remote Orb server" for this test. Its CAS will have the data we need.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		client := New()
+
+		webFingerResponse, err := client.ResolveWebFingerResource(testServer.URL,
+			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
+		require.EqualError(t, err, "failed to unmarshal WebFinger response: invalid character "+
+			"'h' in literal true (expecting 'r')")
+		require.Empty(t, webFingerResponse)
+	})
+}
+
+func TestGetWebCASURL(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		// This test server is our "remote Orb server" for this test. Its CAS will have the data we need.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		operations, err := discoveryrest.New(&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		require.NoError(t, err)
+
+		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())
+
+		webFingerClient := New()
+
+		webCASURL, err := webFingerClient.GetWebCASURL(testServer.URL, "SomeCID")
+		require.NoError(t, err)
+		require.Equal(t, fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webCASURL.String())
+	})
+	t.Run("fail to get WebFinger response", func(t *testing.T) {
+		webFingerClient := New()
+
+		webCASURL, err := webFingerClient.GetWebCASURL("NonExistentDomain", "SomeCID")
+		require.EqualError(t, err, "failed to get WebFinger resource: failed to get response "+
+			`(URL: NonExistentDomain/.well-known/webfinger?resource=NonExistentDomain/cas/SomeCID): `+
+			`Get "NonExistentDomain/.well-known/webfinger?resource=NonExistentDomain/cas/SomeCID": `+
+			`unsupported protocol scheme ""`)
+		require.Nil(t, webCASURL)
+	})
+	t.Run("WebCAS URL from response can't be parsed as a URL", func(t *testing.T) {
+		router := mux.NewRouter()
+
+		router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
+			webFingerResponse := discoveryrest.JRD{Links: []discoveryrest.Link{
+				{Rel: "working-copy", Href: "%"},
+			}}
+			webFingerResponseBytes, errMarshal := json.Marshal(webFingerResponse)
+			require.NoError(t, errMarshal)
+
+			_, errWrite := rw.Write(webFingerResponseBytes)
+			require.NoError(t, errWrite)
+		})
+
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		webFingerClient := New()
+
+		data, err := webFingerClient.GetWebCASURL(testServer.URL, "SomeCID")
+		require.EqualError(t, err, `failed to parse webcas URL: parse "%": invalid URL escape "%"`)
+		require.Nil(t, data)
 	})
 }
 

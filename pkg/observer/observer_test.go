@@ -36,6 +36,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 //go:generate counterfeiter -o ../mocks/anchorgraph.gen.go --fake-name AnchorGraph . AnchorGraph
@@ -93,10 +94,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -150,10 +152,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -207,10 +210,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -267,10 +271,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -326,10 +331,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, "webcas:domain.com"),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -383,10 +389,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -440,10 +447,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -542,10 +550,11 @@ func TestStartObserver(t *testing.T) {
 
 		graphProviders := &graph.Providers{
 			CasWriter: caswriter.New(casClient, ""),
-			CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-				testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()), "https",
-			),
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner()),
+					webfingerclient.New(), "https")),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
