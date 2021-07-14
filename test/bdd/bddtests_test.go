@@ -70,7 +70,8 @@ func TestMain(m *testing.M) {
 				time.Sleep(time.Second * time.Duration(testSleep))
 			}
 
-			uploadHostMetaFileToIPNS()
+			// TODO: Add this back in, but move it to a BDD test step so it doesn't run every time.
+			// uploadHostMetaFileToIPNS()
 
 			for _, service := range services {
 				if err := AddJSONLDContexts(service); err != nil {
