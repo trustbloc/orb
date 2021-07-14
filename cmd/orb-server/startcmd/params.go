@@ -839,4 +839,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(authTokensDefFlagName, authTokensDefFlagShorthand, nil, authTokensDefFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
+	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
 }
