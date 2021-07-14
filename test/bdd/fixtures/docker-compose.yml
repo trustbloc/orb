@@ -69,6 +69,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48326:443
+      - 443:443
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
