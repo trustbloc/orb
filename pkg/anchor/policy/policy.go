@@ -78,18 +78,20 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 	collectedBatchWitnesses := 0
 
 	for _, w := range witnesses {
+		logOK := checkLog(cfg.LogRequired, w.HasLog)
+
 		switch w.Type {
 		case proof.WitnessTypeBatch:
 			totalBatchWitnesses++
 
-			if w.Proof != nil {
+			if logOK && w.Proof != nil {
 				collectedBatchWitnesses++
 			}
 
 		case proof.WitnessTypeSystem:
 			totalSystemWitnesses++
 
-			if w.Proof != nil {
+			if logOK && w.Proof != nil {
 				collectedSystemWitnesses++
 			}
 		}
@@ -98,7 +100,12 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 	batchCondition := evaluate(collectedBatchWitnesses, totalBatchWitnesses, cfg.MinNumberBatch, cfg.MinPercentBatch)
 	systemCondition := evaluate(collectedSystemWitnesses, totalSystemWitnesses, cfg.MinNumberSystem, cfg.MinPercentSystem)
 
-	return cfg.Operator(batchCondition, systemCondition), nil
+	evaluated := cfg.Operator(batchCondition, systemCondition)
+
+	logger.Debugf("witness policy[%s] evaluated to[%t] with batch[%t] and system[%t] for witnesses: %s",
+		cfg, evaluated, batchCondition, systemCondition, witnesses)
+
+	return evaluated, nil
 }
 
 func (wp *WitnessPolicy) loadWitnessPolicy(key interface{}) (interface{}, *time.Duration, error) {
@@ -141,11 +148,20 @@ func (wp *WitnessPolicy) getWitnessPolicyConfig() (*config.WitnessPolicyConfig, 
 }
 
 func evaluate(collected, total, minNumber, minPercent int) bool {
-	percentCollected := 100
+	percentCollected := float64(maxPercent)
 	if total != 0 {
-		percentCollected = collected / total
+		percentCollected = float64(collected) / float64(total)
 	}
 
 	return (minNumber != 0 && collected >= minNumber) ||
-		percentCollected >= minPercent/maxPercent
+		percentCollected >= float64(minPercent)/maxPercent
+}
+
+func checkLog(logRequired, hasLog bool) bool {
+	if logRequired {
+		return hasLog
+	}
+
+	// log is not required, witness without log is counted for policy
+	return true
 }

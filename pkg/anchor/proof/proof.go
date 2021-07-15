@@ -6,12 +6,18 @@ SPDX-License-Identifier: Apache-2.0
 
 package proof
 
+import "fmt"
+
 // WitnessProof contains anchor credential witness proof.
 type WitnessProof struct {
 	Type    WitnessType
 	Witness string
 	Proof   []byte
 	HasLog  bool
+}
+
+func (wf *WitnessProof) String() string {
+	return fmt.Sprintf("{type:%s, witness:%s, log:%t, proof:%s}", wf.Type, wf.Witness, wf.HasLog, string(wf.Proof))
 }
 
 // WitnessType defines valid values for witness type.

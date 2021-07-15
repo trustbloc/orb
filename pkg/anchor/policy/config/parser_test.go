@@ -22,7 +22,10 @@ func TestParse(t *testing.T) {
 		require.Equal(t, 0, wp.MinNumberSystem)
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
+		require.Equal(t, false, wp.LogRequired)
 		require.Equal(t, and(true, false), wp.Operator(true, false))
+
+		require.NotEmpty(t, wp.String())
 	})
 
 	t.Run("error - rule not supported ", func(t *testing.T) {
@@ -143,5 +146,20 @@ func TestParse_MinPercent(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, wp)
 		require.Contains(t, err.Error(), "expected 2 but got 3 arguments for MinPercent")
+	})
+}
+
+func TestParse_LogRequired(t *testing.T) {
+	t.Run("success - log required", func(t *testing.T) {
+		wp, err := Parse("LogRequired")
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		require.Equal(t, 0, wp.MinNumberBatch)
+		require.Equal(t, 0, wp.MinNumberSystem)
+		require.Equal(t, 100, wp.MinPercentBatch)
+		require.Equal(t, 100, wp.MinPercentSystem)
+		require.Equal(t, true, wp.LogRequired)
+		require.Equal(t, and(true, false), wp.Operator(true, false))
 	})
 }
