@@ -272,7 +272,7 @@ func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.
 		}
 
 		keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(parameters.keyID))
-		if strings.TrimSpace(keyID) == "" {
+		if err == nil && strings.TrimSpace(keyID) == "" {
 			return nil, errors.New("import private key: keyID is empty")
 		}
 
