@@ -51,7 +51,9 @@ jobs:
 
       - name: Run bdd test
         timeout-minutes: 30
-        run: make bdd-test
+        run: |
+          echo '127.0.0.1 orb.domain1.com' | sudo tee -a /etc/hosts
+          make bdd-test
 
       - uses: actions/upload-artifact@v2
         if: always()

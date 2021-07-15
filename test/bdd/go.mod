@@ -13,13 +13,14 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210708130136-17663938344d
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210604210836-c2fd1343db18
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210604210836-c2fd1343db18
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210630213923-56e7e13e604b
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210604191029-fce55e13c101
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210604191029-fce55e13c101
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/tidwall/gjson v1.7.4
-	github.com/trustbloc/orb v0.0.0
+	github.com/trustbloc/orb v0.1.2-0.20210630053623-2436c6c2da6a
 	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210705132944-5a1274856798
 )
 

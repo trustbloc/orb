@@ -44,11 +44,27 @@ func TestMain(m *testing.M) {
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
+				if err := os.Setenv("ORB_STRESS_DID_DOMAINS", "https://localhost:48326"); err != nil {
+					panic(err.Error())
+				}
+
+				if err := os.Setenv("ORB_STRESS_DID_NUMS", "10"); err != nil {
+					panic(err.Error())
+				}
+
+				if err := os.Setenv("ORB_STRESS_ANCHOR_ORIGIN", "https://orb.domain2.com/services/orb"); err != nil {
+					panic(err.Error())
+				}
+
+				if err := os.Setenv("ORB_STRESS_CONCURRENT_REQ", "10"); err != nil {
+					panic(err.Error())
+				}
+
 				if err := bddContext.Composition().Up(); err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 
-				testSleep := 120
+				testSleep := 180
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}
@@ -117,6 +133,7 @@ func FeatureContext(s *godog.Suite, state *state) {
 	NewDIDSideSteps(bddContext, state, "did:orb").RegisterSteps(s)
 	NewCLISteps(bddContext, state).RegisterSteps(s)
 	NewDriverSteps(bddContext, state).RegisterSteps(s)
+	NewStressSteps(bddContext).RegisterSteps(s)
 }
 
 func uploadHostMetaFileToIPNS() {
