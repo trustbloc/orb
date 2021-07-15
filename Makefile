@@ -21,6 +21,11 @@ DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* 
 ARCH               = $(shell go env GOARCH)
 GO_VER             = 1.16
 
+# defined in github.com/trustbloc/orb/pkg/nodeinfo/metadata.go
+METADATA_VAR = OrbVersion=0.1.2
+
+GO_LDFLAGS ?= $(METADATA_VAR:%=-X 'github.com/trustbloc/orb/pkg/nodeinfo.%')
+
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb
@@ -57,9 +62,9 @@ all: clean checks unit-test bdd-test
 
 .PHONY: orb
 orb:
-	@echo "Building orb"
 	@mkdir -p ./.build/bin
-	@cd ${ORB_REST_PATH} && go build -o ../../.build/bin/orb main.go
+	@cd ${ORB_REST_PATH} && go build -v -tags "$(GO_TAGS)" -ldflags "$(GO_LDFLAGS)" \
+		-o ../../.build/bin/orb main.go
 
 .PHONY: orb-docker
 orb-docker:
@@ -67,6 +72,7 @@ orb-docker:
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) \
 	--build-arg GO_TAGS=$(GO_TAGS) \
+	--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 	--build-arg GOPROXY=$(GOPROXY) .
 
 .PHONY: orb-driver

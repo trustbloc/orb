@@ -14,7 +14,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	"github.com/trustbloc/orb/pkg/anchor/policy/config"
 )
@@ -30,8 +29,6 @@ var logger = log.New("policy-rest-handler")
 
 // PolicyConfigurator updates witness policy in config store.
 type PolicyConfigurator struct {
-	*resthandler.AuthHandler
-
 	VerifyActorInSignature bool
 	configStore            storage.Store
 }

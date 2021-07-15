@@ -95,6 +95,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/ldcontextrest"
+	"github.com/trustbloc/orb/pkg/nodeinfo"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -725,6 +726,8 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("ldcontext rest: %w", err)
 	}
 
+	nodeInfoService := nodeinfo.NewService(apStore, apServiceIRI, parameters.nodeInfoRefreshInterval)
+
 	handlers := make([]restcommon.HTTPHandler, 0)
 
 	handlers = append(handlers,
@@ -747,6 +750,8 @@ func startOrbServices(parameters *orbParameters) error {
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCasClient),
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
 		ctxRest,
+		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
+		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService)),
 	)
 
 	handlers = append(handlers,
@@ -761,6 +766,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	activityPubService.Start()
 
+	nodeInfoService.Start()
+
 	srv := &HTTPServer{}
 
 	err = srv.Start(httpServer)
@@ -769,6 +776,8 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	logger.Infof("Stopping Orb services ...")
+
+	nodeInfoService.Stop()
 
 	batchWriter.Stop()
 

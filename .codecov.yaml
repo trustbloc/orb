@@ -15,3 +15,4 @@ coverage:
 ignore:
   - "test/bdd"  # ignore bdd tests
   - "pkg/mocks"  # ignore mocks
+  - "**/*.gen.go"  # ignore generated files

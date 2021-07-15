@@ -8,6 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 package aptestutil
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -122,5 +123,57 @@ func NewMockOrderedCollectionPage(id, next, collID *url.URL, totalItems int,
 		vocab.WithPartOf(collID),
 		vocab.WithNext(next),
 		vocab.WithTotalItems(totalItems),
+	)
+}
+
+// NewMockCreateActivities returns the given number of mock 'Create' activities.
+func NewMockCreateActivities(num int) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		activities[i] = NewMockCreateActivity(fmt.Sprintf("https://create_%d", i), fmt.Sprintf("https://obj_%d", i))
+	}
+
+	return activities
+}
+
+// NewMockCreateActivity returns a mock 'Create' activity.
+func NewMockCreateActivity(id, objID string) *vocab.ActivityType {
+	return vocab.NewCreateActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorCredentialReference(
+				vocab.NewAnchorCredentialReference(
+					testutil.MustParseURL(objID),
+					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
+					"bafkd34G7hD6gbj94fnKm5D"),
+			),
+		),
+		vocab.WithID(testutil.MustParseURL(id)),
+	)
+}
+
+// NewMockLikeActivities returns the given number of mock 'Like' activities.
+func NewMockLikeActivities(num int) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		activities[i] = NewMockLikeActivity(fmt.Sprintf("https://like_%d", i), fmt.Sprintf("https://obj_%d", i))
+	}
+
+	return activities
+}
+
+// NewMockLikeActivity returns a mock 'Like' activity.
+func NewMockLikeActivity(id, objID string) *vocab.ActivityType {
+	return vocab.NewLikeActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorCredentialReference(
+				vocab.NewAnchorCredentialReference(
+					testutil.MustParseURL(objID),
+					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
+					"bafkd34G7hD6gbj94fnKm5D"),
+			),
+		),
+		vocab.WithID(testutil.MustParseURL(id)),
 	)
 }
