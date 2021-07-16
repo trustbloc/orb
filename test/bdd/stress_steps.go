@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	maxRetry  = 10
 	serviceID = "service"
 	// P256KeyType EC P-256 key type.
 	P256KeyType       = "P256"
@@ -110,6 +109,16 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		return err
 	}
 
+	maxRetryStr := os.Getenv("ORB_STRESS_MAX_RETRY")
+	if maxRetryStr == "" {
+		maxRetryStr = "10"
+	}
+
+	maxRetry, err := strconv.Atoi(maxRetryStr)
+	if err != nil {
+		return err
+	}
+
 	urls := strings.Split(domains, ",")
 
 	kr := &keyRetrieverMap{
@@ -143,6 +152,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			kr:           kr,
 			anchorOrigin: anchorOrigin,
 			steps:        e,
+			maxRetry:     maxRetry,
 		})
 	}
 
@@ -323,6 +333,7 @@ type createUpdateDIDRequest struct {
 	kr           *keyRetrieverMap
 	steps        *StressSteps
 	anchorOrigin string
+	maxRetry     int
 }
 
 func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
@@ -337,7 +348,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 
 	var docResolution *ariesdid.DocResolution
 
-	for i := 1; i <= maxRetry; i++ {
+	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 		docResolution, err = r.vdr.Read(intermID)
 
@@ -345,7 +356,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "DID does not exist") || i == maxRetry {
+		if !strings.Contains(err.Error(), "DID does not exist") || i == r.maxRetry {
 			return nil, err
 		}
 
@@ -375,7 +386,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 	logger.Infof("update did successfully %s", canonicalID)
 	logger.Infof("started resolving updated did %s", canonicalID)
 
-	for i := 1; i <= maxRetry; i++ {
+	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 		docResolution, err = r.vdr.Read(canonicalID)
 
@@ -383,7 +394,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 			break
 		}
 
-		if i == maxRetry {
+		if i == r.maxRetry {
 			return nil, fmt.Errorf("update did not working %s", canonicalID)
 		}
 
