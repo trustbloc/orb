@@ -13,6 +13,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const nameSpace = "verifiable"
@@ -52,7 +54,7 @@ func (s *Store) Put(vc *verifiable.Credential) error {
 	logger.Debugf("storing credential: %s", string(vcBytes))
 
 	if e := s.store.Put(vc.ID, vcBytes); e != nil {
-		return fmt.Errorf("failed to put vc: %w", e)
+		return orberrors.NewTransient(fmt.Errorf("failed to put vc: %w", e))
 	}
 
 	return nil
@@ -62,7 +64,7 @@ func (s *Store) Put(vc *verifiable.Credential) error {
 func (s *Store) Get(id string) (*verifiable.Credential, error) {
 	vcBytes, err := s.store.Get(id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get vc: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get vc: %w", err))
 	}
 
 	vc, err := verifiable.ParseCredential(vcBytes,

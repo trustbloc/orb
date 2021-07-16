@@ -23,7 +23,8 @@ import (
 
 var logger = log.New("cas-ipfs")
 
-const timeout = 5
+// TODO: Should be configurable (issue #594).
+const timeout = 20
 
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.

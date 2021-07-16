@@ -86,7 +86,8 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 	for _, op := range txnOps {
 		_, ok := batchSuffixes[op.UniqueSuffix]
 		if ok {
-			logger.Warnf("[%s] duplicate suffix[%s] found in transaction operations: discarding operation %v", sidetreeTxn.Namespace, op.UniqueSuffix, op) //nolint:lll
+			logger.Warnf("[%s] duplicate suffix[%s] found in transaction operations: discarding operation %v",
+				sidetreeTxn.Namespace, op.UniqueSuffix, op)
 
 			continue
 		}
@@ -97,6 +98,9 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		if containsCanonicalReference(opsSoFar, sidetreeTxn.CanonicalReference) {
+			logger.Infof("[%s] Ignoring operation that has already been inserted [%s]",
+				sidetreeTxn.Namespace, sidetreeTxn.CanonicalReference)
+
 			// this operation has already been inserted - ignore it
 			continue
 		}
@@ -110,6 +114,12 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		ops = append(ops, op)
 
 		batchSuffixes[op.UniqueSuffix] = true
+	}
+
+	if len(ops) == 0 {
+		logger.Infof("No operations to be processed for anchor string [%s]", sidetreeTxn.AnchorString)
+
+		return nil
 	}
 
 	if err := p.OpStore.Put(ops); err != nil {

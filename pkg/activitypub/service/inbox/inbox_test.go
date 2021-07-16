@@ -467,7 +467,7 @@ func TestInbox_Error(t *testing.T) {
 			}
 		}()
 
-		errExpected := fmt.Errorf("injected store error")
+		errExpected := orberrors.NewTransient(fmt.Errorf("injected transient store error"))
 
 		activityHandler := &mocks.ActivityHandler{}
 		activityStore := &mocks.ActivityStore{}

@@ -12,6 +12,7 @@ import (
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 // GetQueryOptions populates and returns the QueryOptions struct with the given options.
@@ -40,7 +41,7 @@ func ReadReferences(it store.ReferenceIterator, maxItems int) ([]*url.URL, error
 				break
 			}
 
-			return nil, err
+			return nil, orberrors.NewTransient(err)
 		}
 
 		refs = append(refs, ref)

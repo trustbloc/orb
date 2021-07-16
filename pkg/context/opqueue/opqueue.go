@@ -155,13 +155,13 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 	q.pending = q.pending[n:]
 
 	ack = func() uint {
-		logger.Debugf("Acking %d operation messages...", len(items))
+		logger.Infof("Acking %d operation messages...", len(items))
 
 		// Acknowledge all of the messages that were processed.
 		for _, opMsg := range items {
 			opMsg.msg.Ack()
 
-			logger.Debugf("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+			logger.Infof("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
 		}
 
 		q.mutex.RLock()
@@ -171,13 +171,13 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 	}
 
 	nack = func() {
-		logger.Debugf("Nacking %d operation messages...", len(items))
+		logger.Infof("Nacking %d operation messages...", len(items))
 
 		// Send an Nack for all of the messages that were removed so that they may be retried.
 		for _, opMsg := range items {
 			opMsg.msg.Nack()
 
-			logger.Debugf("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+			logger.Infof("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
 		}
 	}
 

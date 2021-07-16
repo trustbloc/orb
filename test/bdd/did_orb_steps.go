@@ -1053,11 +1053,11 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 }
 
 func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
-	logger.Infof("verifying the %d DID document(s) that were created", len(d.dids))
+	logger.Infof("Verifying the %d DID document(s) that were created", len(d.dids))
 
 	urls := strings.Split(strURLs, ",")
 
-	for _, did := range d.dids {
+	for i, did := range d.dids {
 		randomURL := urls[mrand.Intn(len(urls))]
 
 		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
@@ -1068,6 +1068,8 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 		if err := d.verifyDID(localURL, did); err != nil {
 			return err
 		}
+
+		logger.Infof("... verified %d out of %d DIDs", i+1, len(d.dids))
 	}
 
 	return nil
@@ -1091,12 +1093,12 @@ func (d *DIDOrbSteps) verifyDID(url, did string) error {
 		return err
 	}
 
-	_, ok := rr.DocumentMetadata["canonicalId"]
+	canonicalID, ok := rr.DocumentMetadata["canonicalId"]
 	if !ok {
 		return fmt.Errorf("document metadata is missing field 'canonicalId': %s", resp.Payload)
 	}
 
-	logger.Infof(".. successfully verified DID %s from %s", did, url)
+	logger.Infof(".. successfully verified DID %s from %s", canonicalID, url)
 
 	return nil
 }

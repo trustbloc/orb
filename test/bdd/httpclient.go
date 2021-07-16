@@ -139,7 +139,8 @@ func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int,
 			break
 		}
 
-		logger.Infof("not found: %s - remaining attempts: %d", url, remainingAttempts)
+		logger.Infof("Status code %d: %s - %s - remaining attempts: %d",
+			resp.StatusCode, resp.ErrorMsg, url, remainingAttempts)
 
 		remainingAttempts--
 		if remainingAttempts == 0 {

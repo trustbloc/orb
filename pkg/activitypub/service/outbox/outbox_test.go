@@ -31,6 +31,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -548,6 +549,46 @@ func TestDeduplicate(t *testing.T) {
 	service2URL := testutil.MustParseURL("http://localhost:8002/services/service2")
 
 	require.Len(t, deduplicate([]*url.URL{service1URL, service2URL, service1URL, service2URL}), 2)
+}
+
+func TestResolveInboxes(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1URL,
+		Topic:       "activities",
+	}
+
+	apClient := mocks.NewActorRetriever()
+
+	activityStore := &mocks.ActivityStore{}
+
+	ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
+		&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{})
+	require.NoError(t, err)
+	require.NotNil(t, ob)
+
+	t.Run("Transient error", func(t *testing.T) {
+		errTransient := orberrors.NewTransient(errors.New("injected transient error"))
+
+		activityStore.QueryReferencesReturns(nil, errTransient)
+
+		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errTransient.Error())
+		require.Empty(t, inboxes)
+	})
+
+	t.Run("Persistent error -> ignore", func(t *testing.T) {
+		errTransient := errors.New("injected persistent error")
+
+		activityStore.QueryReferencesReturns(nil, errTransient)
+
+		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)})
+		require.NoError(t, err)
+		require.Empty(t, inboxes)
+	})
 }
 
 type testHandler struct {
