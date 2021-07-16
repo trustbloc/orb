@@ -174,7 +174,7 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processAnchors(anchorInfo))
+	h.ackNackMessage(msg, newAnchorInfo(anchorInfo.CID), h.processAnchors(anchorInfo))
 }
 
 func (h *PubSub) handleDIDMessage(msg *message.Message) {
@@ -192,26 +192,50 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processDID(did))
+	h.ackNackMessage(msg, newDIDInfo(did), h.processDID(did))
 }
 
-func (h *PubSub) ackNackMessage(msg *message.Message, err error) {
+func (h *PubSub) ackNackMessage(msg *message.Message, info fmt.Stringer, err error) {
 	switch {
 	case err == nil:
-		logger.Debugf("Acking message [%s]", msg.UUID)
+		logger.Infof("Acking message [%s] for %s", msg.UUID, info)
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warnf("Nacking message [%s] since it could not be delivered due to a transient error: %s",
-			msg.UUID, err)
+		logger.Warnf("Nacking message [%s] for %s since it could not be delivered due to a transient error: %s",
+			msg.UUID, info, err)
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warnf("Acking message [%s] since it could not be delivered due to a persistent error: %s",
-			msg.UUID, err)
+		logger.Warnf("Acking message [%s] for DID [%s] since it could not be delivered due to a persistent error: %s",
+			msg.UUID, info, err)
 
 		msg.Ack()
 	}
+}
+
+type anchorInfo struct {
+	cid string
+}
+
+func newAnchorInfo(cid string) *anchorInfo {
+	return &anchorInfo{cid: cid}
+}
+
+func (info *anchorInfo) String() string {
+	return fmt.Sprintf("anchor [%s]", info.cid)
+}
+
+type didInfo struct {
+	did string
+}
+
+func newDIDInfo(did string) *didInfo {
+	return &didInfo{did: did}
+}
+
+func (m *didInfo) String() string {
+	return fmt.Sprintf("DID [%s]", m.did)
 }

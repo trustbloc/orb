@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
@@ -362,8 +363,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	defaultContexts := ldcontext.MustGetDefault()
 
-	// NOTE: Changing this storage requires changing storage for 'ldcontextrest.New' as well.
-	orbDocumentLoader, err := jld.NewDocumentLoader(storeProviders.provider,
+	jldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
+
+	orbDocumentLoader, err := jld.NewDocumentLoader(jldStorageProvider,
 		jld.WithExtraContexts(defaultContexts...),
 	)
 	if err != nil {
@@ -734,9 +736,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("discovery rest: %w", err)
 	}
 
-	// NOTE: We are using the same storage as we use for ld document loader.
-	// Changing this storage requires changing storage for ld document loader as well.
-	ctxRest, err := ldcontextrest.New(storeProviders.provider)
+	ctxRest, err := ldcontextrest.New(jldStorageProvider)
 	if err != nil {
 		return fmt.Errorf("ldcontext rest: %w", err)
 	}

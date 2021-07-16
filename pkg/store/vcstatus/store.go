@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const (
@@ -57,7 +58,8 @@ func (s *Store) AddStatus(vcID string, status proof.VCStatus) error {
 
 	err := s.store.Put(uuid.New().String(), []byte(status), tag)
 	if err != nil {
-		return fmt.Errorf("failed to store vcID[%s] status '%s': %w", vcID, status, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store vcID[%s] status '%s': %w",
+			vcID, status, err))
 	}
 
 	logger.Debugf("stored vcID[%s] status '%s'", vcID, status)
@@ -75,12 +77,13 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return "", fmt.Errorf("failed to get statuses for vcID[%s] query[%s]: %w", vcID, query, err)
+		return "", orberrors.NewTransient(fmt.Errorf("failed to get statuses for vcID[%s] query[%s]: %w",
+			vcID, query, err))
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return "", fmt.Errorf("iterator error for vcID[%s] statuses: %w", vcID, err)
+		return "", orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] statuses: %w", vcID, err))
 	}
 
 	if !ok {
@@ -92,7 +95,8 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 	for ok {
 		value, err = iter.Value()
 		if err != nil {
-			return "", fmt.Errorf("failed to get iterator value for vcID[%s]: %w", vcID, err)
+			return "", orberrors.NewTransient(fmt.Errorf("failed to get iterator value for vcID[%s]: %w",
+				vcID, err))
 		}
 
 		if proof.VCStatus(value) == proof.VCStatusCompleted {
@@ -101,7 +105,7 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return "", fmt.Errorf("iterator error for vcID[%s]: %w", vcID, err)
+			return "", orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s]: %w", vcID, err))
 		}
 	}
 

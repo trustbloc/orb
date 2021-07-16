@@ -160,60 +160,71 @@ func (h *Inbox) listen() {
 }
 
 func (h *Inbox) handle(msg *message.Message) {
+	activityID, err := h.handleActivityMsg(msg)
+	if err != nil {
+		if orberrors.IsTransient(err) {
+			logger.Warnf("[%s] Transient error handling message [%s] for activity [%s]: %s",
+				h.ServiceEndpoint, msg.UUID, activityID, err)
+
+			msg.Nack()
+		} else {
+			logger.Warnf("[%s] Persistent error handling message [%s] for activity [%s]: %s",
+				h.ServiceEndpoint, msg.UUID, activityID, err)
+
+			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
+			msg.Ack()
+		}
+	} else {
+		logger.Infof("[%s] Acking message [%s] for activity [%s]", h.ServiceEndpoint, msg.UUID, activityID)
+
+		msg.Ack()
+	}
+}
+
+func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
 	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
 		logger.Errorf("[%s] Error validating activity for message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
 
-		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
-		msg.Ack()
-
-		return
+		return nil, err
 	}
 
-	activityID, err := h.activityStore.GetActivity(activity.ID().URL())
+	_, err = h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
 			logger.Errorf("[%s] Error retrieving activity [%s] in message [%s]: %s",
 				h.ServiceEndpoint, activity.ID(), msg.UUID, err)
 
-			msg.Nack()
-
-			return
+			return nil, err
 		}
 	} else {
-		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activityID, msg.UUID)
+		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activity.ID(), msg.UUID)
 
-		msg.Ack()
-
-		return
+		return activity.ID().URL(), nil
 	}
 
-	if e := h.activityHandler.HandleActivity(activity); e != nil {
-		if orberrors.IsTransient(e) {
-			logger.Warnf("[%s] Transient error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, e)
-
-			// Nack the message so that it may be retried (potentially on a different server).
-			msg.Nack()
-
-			return
+	err = h.activityHandler.HandleActivity(activity)
+	if err != nil {
+		// If it's a transient error then return it so that the message is Nacked and retried. Otherwise, fall
+		// through in order to store the activity and Ack the message.
+		if orberrors.IsTransient(err) {
+			return nil, err
 		}
-
-		logger.Warnf("[%s] Persistent error handling message [%s]: %s", h.ServiceEndpoint, msg.UUID, e)
 	}
 
-	logger.Debugf("[%s] Successfully handled message [%s]. Adding activity to inbox...", h.ServiceEndpoint, msg.UUID)
+	logger.Debugf("[%s] Handled message [%s]. Adding activity to inbox...", h.ServiceEndpoint, msg.UUID)
 
+	// Don't return an error if we can't store the activity since we've already successfully processed the activity
+	// and we don't want to reprocess the same message.
 	if e := h.activityStore.AddActivity(activity); e != nil {
 		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
 	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL()); e != nil {
 		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
 	}
 
-	// An Ack is sent on successful processing (even if an error occurs while attempting to store the activity to
-	// the inbox) and in the case of a persistent error (so that a retry is not attempted).
-	msg.Ack()
+	return activity.ID().URL(), err
 }
 
 func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.ActivityType, error) {

@@ -107,7 +107,8 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 		}
 
 		if err := h.announceAnchorCredential(create); err != nil {
-			logger.Warnf("[%s] Unable to announce 'Create' to our followers: %s", h.ServiceIRI, err)
+			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+				h.ServiceIRI, create.ID(), err)
 		}
 
 	case t.Is(vocab.TypeAnchorCredentialRef):
@@ -118,7 +119,8 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 		}
 
 		if err := h.announceAnchorCredentialRef(create); err != nil {
-			logger.Warnf("[%s] Unable to announce 'Create' to our followers: %s", h.ServiceIRI, err)
+			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+				h.ServiceIRI, create.ID(), err)
 		}
 
 	default:

@@ -31,6 +31,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -219,7 +220,12 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 		return nil, fmt.Errorf("handle activity: %w", err)
 	}
 
-	for _, actorInbox := range h.resolveInboxes(activity.To()) {
+	inboxes, err := h.resolveInboxes(activity.To())
+	if err != nil {
+		return nil, fmt.Errorf("resolve inboxes: %w", err)
+	}
+
+	for _, actorInbox := range inboxes {
 		err = h.publish(activity.ID().String(), activityBytes, actorInbox)
 		if err != nil {
 			// TODO: Do we continue processing the rest?
@@ -317,9 +323,14 @@ func (h *Outbox) redeliver() {
 	}
 }
 
-func (h *Outbox) resolveInboxes(toIRIs []*url.URL) []*url.URL {
+func (h *Outbox) resolveInboxes(toIRIs []*url.URL) ([]*url.URL, error) {
+	toIRIs, err := h.resolveIRIs(toIRIs, h.resolveActorIRIs)
+	if err != nil {
+		return nil, err
+	}
+
 	return h.resolveIRIs(
-		deduplicate(h.resolveIRIs(toIRIs, h.resolveActorIRIs)),
+		deduplicate(toIRIs),
 		func(actorIRI *url.URL) ([]*url.URL, error) {
 			inboxIRI, err := h.resolveInbox(actorIRI)
 			if err != nil {
@@ -407,10 +418,12 @@ func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error)
 
 // resolveIRIs resolves each of the given IRIs using the given resolve function. The requests are performed
 // in parallel, up to a maximum concurrent requests specified by parameter, MaxConcurrentRequests.
-func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*url.URL, error)) []*url.URL {
+func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*url.URL, error)) ([]*url.URL, error) {
 	var wg sync.WaitGroup
 
 	var recipients []*url.URL
+
+	var errResolve error
 
 	var mutex sync.Mutex
 
@@ -431,8 +444,18 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 
 				r, err := resolve(toIRI)
 				if err != nil {
-					// TODO: Perform retry.
-					logger.Warnf("[%s] Unable to resolve IRIs for %s: %s", h.ServiceName, toIRI, err)
+					// Check if transient. We can retry on transient errors, otherwise ignore the IRI.
+					if orberrors.IsTransient(err) {
+						logger.Warnf("[%s] Unable to resolve IRIs for %s due to transient error: %s",
+							h.ServiceName, toIRI, err)
+
+						mutex.Lock()
+						errResolve = err
+						mutex.Unlock()
+					} else {
+						logger.Warnf("[%s] Unable to resolve IRIs for %s due to persistent error: %s. The IRI will be ignored.",
+							h.ServiceName, toIRI, err)
+					}
 				} else {
 					mutex.Lock()
 					recipients = append(recipients, r...)
@@ -446,7 +469,11 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 
 	close(resolveChan)
 
-	return recipients
+	if errResolve != nil {
+		return nil, errResolve
+	}
+
+	return recipients, nil
 }
 
 func (h *Outbox) newActivityID() *url.URL {

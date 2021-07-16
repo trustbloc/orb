@@ -329,7 +329,7 @@ func (d *CommonSteps) responseEquals(value string) error {
 		return nil
 	}
 
-	return fmt.Errorf("Reponse [%s] does not equal expected value [%s]", d.state.getResponse(), value)
+	return fmt.Errorf("Response [%s] does not equal expected value [%s]", d.state.getResponse(), value)
 }
 
 func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) error {

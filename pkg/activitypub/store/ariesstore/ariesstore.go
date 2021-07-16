@@ -22,6 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const (
@@ -66,7 +67,7 @@ func (s *Provider) PutActor(actor *vocab.ActorType) error {
 
 	err = s.actorStore.Put(actor.ID().String(), actorBytes)
 	if err != nil {
-		return fmt.Errorf("failed to store actor: %w", err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store actor: %w", err))
 	}
 
 	return nil
@@ -82,7 +83,8 @@ func (s *Provider) GetActor(iri *url.URL) (*vocab.ActorType, error) { //nolint: 
 			return nil, spi.ErrNotFound
 		}
 
-		return nil, fmt.Errorf("unexpected failure while getting actor from store: %w", err)
+		return nil,
+			orberrors.NewTransient(fmt.Errorf("unexpected failure while getting actor from store: %w", err))
 	}
 
 	var actor vocab.ActorType
@@ -113,7 +115,7 @@ func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
 			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
 		})
 	if err != nil {
-		return fmt.Errorf("failed to store activity: %w", err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store activity: %w", err))
 	}
 
 	return nil
@@ -130,7 +132,8 @@ func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error)
 			return nil, spi.ErrNotFound
 		}
 
-		return nil, fmt.Errorf("unexpected failure while getting activity from store: %w", err)
+		return nil,
+			orberrors.NewTransient(fmt.Errorf("unexpected failure while getting activity from store: %w", err))
 	}
 
 	var activity vocab.ActivityType
@@ -163,7 +166,7 @@ func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (s
 			ariesstorage.WithPageSize(options.PageSize),
 			ariesstorage.WithInitialPageNum(options.PageNumber))
 		if err != nil {
-			return nil, fmt.Errorf("failed to query store: %w", err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", err))
 		}
 
 		return &activityIterator{ariesIterator: iterator}, nil
@@ -191,7 +194,7 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI, refe
 			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
 		})
 	if err != nil {
-		return fmt.Errorf("failed to store reference: %w", err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store reference: %w", err))
 	}
 
 	return nil
@@ -209,7 +212,7 @@ func (s *Provider) DeleteReference(referenceType spi.ReferenceType, objectIRI, r
 
 	err := referenceStore.Delete(objectIRI.String() + referenceIRI.String())
 	if err != nil {
-		return fmt.Errorf("failed to delete reference: %w", err)
+		return orberrors.NewTransient(fmt.Errorf("failed to delete reference: %w", err))
 	}
 
 	return nil
@@ -243,7 +246,7 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 			ariesstorage.WithPageSize(options.PageSize),
 			ariesstorage.WithInitialPageNum(options.PageNumber))
 		if err != nil {
-			return nil, fmt.Errorf("failed to query store: %w", err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", err))
 		}
 
 		return &referenceIterator{ariesIterator: iterator}, nil
@@ -258,7 +261,7 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 			return memstore.NewReferenceIterator(nil, 0), nil
 		}
 
-		return nil, fmt.Errorf("unexpected failure while getting reference: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("unexpected failure while getting reference: %w", err))
 	}
 
 	retrievedURL, err := url.Parse(string(retrievedURLBytes))
@@ -287,7 +290,8 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 	// regardless of page settings.
 	totalItems, err := iterator.TotalItems()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get total items from reference iterator: %w", err)
+		return nil,
+			orberrors.NewTransient(fmt.Errorf("failed to get total items from reference iterator: %w", err))
 	}
 
 	if len(refs) == 0 {
@@ -302,7 +306,7 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 
 	activitiesBytes, err := s.activityStore.GetBulk(activityIDs...)
 	if err != nil {
-		return nil, fmt.Errorf("unexpected failure while getting activities: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("unexpected failure while getting activities: %w", err))
 	}
 
 	var activities []*vocab.ActivityType
@@ -334,13 +338,13 @@ func (a *activityIterator) TotalItems() (int, error) {
 func (a *activityIterator) Next() (*vocab.ActivityType, error) {
 	areMoreResults, err := a.ariesIterator.Next()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine if there are more results: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", err))
 	}
 
 	if areMoreResults {
 		activityBytes, err := a.ariesIterator.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get value: %w", err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
 		}
 
 		var activity vocab.ActivityType
@@ -371,13 +375,13 @@ func (r *referenceIterator) TotalItems() (int, error) {
 func (r *referenceIterator) Next() (*url.URL, error) {
 	areMoreResults, err := r.ariesIterator.Next()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine if there are more results: %w", err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", err))
 	}
 
 	if areMoreResults {
 		urlBytes, err := r.ariesIterator.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get value: %w", err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
 		}
 
 		retrievedURL, err := url.Parse(string(urlBytes))

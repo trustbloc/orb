@@ -16,6 +16,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const (
@@ -77,7 +78,7 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err))
 	}
 
 	logger.Debugf("stored %d witnesses for vcID[%s]", len(witnesses), vcID)
@@ -94,7 +95,7 @@ func (s *Store) Delete(vcID string) error {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return fmt.Errorf("failed to get witnesses for[%s]: %w", query, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to get witnesses for[%s]: %w", query, err))
 	}
 
 	defer func() {
@@ -141,7 +142,7 @@ func (s *Store) Delete(vcID string) error {
 
 	err = s.store.Batch(operations)
 	if err != nil {
-		return fmt.Errorf("failed to delete witnesses for vcID[%s]: %w", vcID, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to delete witnesses for vcID[%s]: %w", vcID, err))
 	}
 
 	logger.Debugf("deleted %d witnesses for vcID[%s]", len(witnessKeys), vcID)
@@ -159,7 +160,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get witnesses for[%s]: %w", query, err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get witnesses for[%s]: %w", query, err))
 	}
 
 	defer func() {
@@ -171,7 +172,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err))
 	}
 
 	var witnesses []*proof.WitnessProof
@@ -181,7 +182,8 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 		value, err = iter.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get iterator value for vcID[%s]: %w", vcID, err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get iterator value for vcID[%s]: %w",
+				vcID, err))
 		}
 
 		var witness proof.WitnessProof
@@ -196,7 +198,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+			return nil, orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err))
 		}
 	}
 
@@ -217,7 +219,7 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return fmt.Errorf("failed to get witnesses for[%s]: %w", query, err)
+		return orberrors.NewTransient(fmt.Errorf("failed to get witnesses for[%s]: %w", query, err))
 	}
 
 	defer func() {
@@ -268,8 +270,8 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: vcIndex, Value: vcIDEncoded})
 			if err != nil {
-				return fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
-					vcID, witness, err)
+				return orberrors.NewTransient(fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
+					vcID, witness, err))
 			}
 
 			updatedNo++

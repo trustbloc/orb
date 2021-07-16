@@ -14,6 +14,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const (
@@ -74,7 +76,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return fmt.Errorf("failed to store operations: %w", err)
+		return orberrors.NewTransient(fmt.Errorf("failed to store operations: %w", err))
 	}
 
 	logger.Debugf("stored %d operations", len(ops))
@@ -90,12 +92,12 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operations for[%s]: %w", query, err)
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get operations for[%s]: %w", query, err))
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err)
+		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err))
 	}
 
 	var ops []*operation.AnchoredOperation
@@ -105,7 +107,8 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 
 		value, err = iter.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get iterator value for suffix[%s]: %w", suffix, err)
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get iterator value for suffix[%s]: %w",
+				suffix, err))
 		}
 
 		var op operation.AnchoredOperation
@@ -120,7 +123,7 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err)
+			return nil, orberrors.NewTransient(fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err))
 		}
 	}
 

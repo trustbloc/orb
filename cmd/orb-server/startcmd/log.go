@@ -6,10 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 
 package startcmd
 
-import (
-
-	"github.com/trustbloc/edge-core/pkg/log"
-)
+import "github.com/trustbloc/edge-core/pkg/log"
 
 const (
 	// LogLevelFlagName is the flag name used for setting the default log level.
