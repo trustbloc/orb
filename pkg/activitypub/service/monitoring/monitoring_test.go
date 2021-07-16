@@ -405,7 +405,7 @@ func TestClient_Watch(t *testing.T) {
 		},
 			time.Now().Add(time.Minute),
 			"https://vct.com", time.Now(),
-		), "getting ledgerType from cache: fetching cacheable object: failed to retrieve data from webfingerURL[https://vct.com/.well-known/webfinger?resource=https://vct.com/vct] status code: 500 message: internal server error") //nolint:lll
+		), "getting ledgerType from cache: fetching cacheable object: failed to resolve WebFinger resource: received unexpected status code. URL [https://vct.com/.well-known/webfinger?resource=https://vct.com/vct], status code [500], response body [internal server error]") //nolint:lll
 
 		checkQueue(t, db, 0)
 	})

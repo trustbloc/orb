@@ -113,10 +113,11 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()), "https",
-		),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+					transport.DefaultSigner(), transport.DefaultSigner()),
+				wfclient.New(), "https")),
 		Pkf: pubKeyFetcherFnc,
 	}
 
@@ -809,10 +810,11 @@ func TestWriter_handle(t *testing.T) {
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()), "https",
-		),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+					transport.DefaultSigner(), transport.DefaultSigner()),
+				wfclient.New(), "https")),
 		Pkf: pubKeyFetcherFnc,
 	}
 
@@ -1143,13 +1145,13 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		err = c.postOfferActivity(anchorVC, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to retrieve data from webfingerURL[https://abc.com/.well-known/webfinger?resource=https://abc.com/vct] status code: 500 message: internal server error") //nolint:lll
+			"failed to resolve WebFinger resource: received unexpected status code. URL [https://abc.com/.well-known/webfinger?resource=https://abc.com/vct], status code [500], response body [internal server error]") //nolint:lll
 
 		// test error for system witness (no batch witnesses)
 		err = c.postOfferActivity(anchorVC, []string{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to retrieve data from webfingerURL[http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct] status code: 500 message: internal server error") //nolint:lll
+			"failed to resolve WebFinger resource: received unexpected status code. URL [http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct], status code [500], response body [internal server error]") //nolint:lll
 	})
 
 	t.Run("error - activity store error", func(t *testing.T) {
@@ -1401,10 +1403,11 @@ func TestWriter_Read(t *testing.T) {
 
 	graphProviders := &graph.Providers{
 		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
-		CasResolver: casresolver.New(casClient, nil, transport.New(&http.Client{},
-			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()), "https",
-		),
+		CasResolver: casresolver.New(casClient, nil,
+			casresolver.NewWebCASResolver(
+				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+					transport.DefaultSigner(), transport.DefaultSigner()),
+				wfclient.New(), "https")),
 		Pkf: pubKeyFetcherFnc,
 	}
 

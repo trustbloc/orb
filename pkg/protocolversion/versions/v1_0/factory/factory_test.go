@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 func TestFactory_Create(t *testing.T) {
@@ -95,10 +96,11 @@ func TestCasClientWrapper_Read(t *testing.T) {
 func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casresolver.Resolver {
 	t.Helper()
 
-	casResolver := casresolver.New(casClient, nil, transport.New(&http.Client{},
-		testutil.MustParseURL("https://example.com/keys/public-key"),
-		transport.DefaultSigner(), transport.DefaultSigner()), "https",
-	)
+	casResolver := casresolver.New(casClient, nil,
+		casresolver.NewWebCASResolver(
+			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			webfingerclient.New(), "https"))
 	require.NotNil(t, casResolver)
 
 	return casResolver
