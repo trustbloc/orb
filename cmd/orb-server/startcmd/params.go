@@ -100,12 +100,20 @@ const (
 	casTypeFlagName      = "cas-type"
 	casTypeFlagShorthand = "c"
 	casTypeEnvKey        = "CAS_TYPE"
-	casTypeFlagUsage     = "The type of the Content Addressable Storage(CAS): ipfs or local" + commonEnvVarUsageText + casTypeEnvKey
+	casTypeFlagUsage     = "The type of the Content Addressable Storage (CAS). " +
+		"Supported options: local, ipfs. For local, the storage provider specified by " + databaseTypeFlagName +
+		" will be used. For ipfs, the node specified by " + ipfsURLFlagName + " will be used. " + commonEnvVarUsageText + casTypeEnvKey
 
 	ipfsURLFlagName      = "ipfs-url"
 	ipfsURLFlagShorthand = "r"
 	ipfsURLEnvKey        = "IPFS_URL"
-	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage(CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
+	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage (CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
+
+	localCASReplicateInIPFSFlagName  = "replicate-local-cas-writes-in-ipfs"
+	localCASReplicateInIPFSEnvKey    = "REPLICATE_LOCAL_CAS_WRITES_IN_IPFS"
+	localCASReplicateInIPFSFlagUsage = "If enabled, writes to the local CAS will also be " +
+		"replicated in IPFS. This setting only takes effect if this server has both a local CAS and IPFS enabled. " +
+		`Supported options: false, true. Defaults to false if not set.` + commonEnvVarUsageText + localCASReplicateInIPFSEnvKey
 
 	mqURLFlagName      = "mq-url"
 	mqURLFlagShorthand = "q"
@@ -270,45 +278,46 @@ const (
 )
 
 type orbParameters struct {
-	hostURL                    string
-	vctURL                     string
-	keyID                      string
-	privateKeyBase64           string
-	secretLockKeyPath          string
-	kmsEndpoint                string
-	kmsStoreEndpoint           string
-	externalEndpoint           string
-	discoveryDomain            string
-	didNamespace               string
-	didAliases                 []string
-	batchWriterTimeout         time.Duration
-	casType                    string
-	ipfsURL                    string
-	cidVersion                 int
-	mqURL                      string
-	dbParameters               *dbParameters
-	logLevel                   string
-	methodContext              []string
-	baseEnabled                bool
-	allowedOrigins             []string
-	tlsCertificate             string
-	tlsKey                     string
-	anchorCredentialParams     *anchorCredentialParams
-	discoveryDomains           []string
-	discoveryVctDomains        []string
-	discoveryMinimumResolvers  int
-	maxWitnessDelay            time.Duration
-	syncTimeout                uint64
-	signWithLocalWitness       bool
-	httpSignaturesEnabled      bool
-	didDiscoveryEnabled        bool
-	createDocumentStoreEnabled bool
-	authTokenDefinitions       []*auth.TokenDef
-	authTokens                 map[string]string
-	opQueuePoolSize            uint
-	activityPubPageSize        int
-	enableDevMode              bool
-	nodeInfoRefreshInterval    time.Duration
+	hostURL                        string
+	vctURL                         string
+	keyID                          string
+	privateKeyBase64               string
+	secretLockKeyPath              string
+	kmsEndpoint                    string
+	kmsStoreEndpoint               string
+	externalEndpoint               string
+	discoveryDomain                string
+	didNamespace                   string
+	didAliases                     []string
+	batchWriterTimeout             time.Duration
+	casType                        string
+	ipfsURL                        string
+	localCASReplicateInIPFSEnabled bool
+	cidVersion                     int
+	mqURL                          string
+	dbParameters                   *dbParameters
+	logLevel                       string
+	methodContext                  []string
+	baseEnabled                    bool
+	allowedOrigins                 []string
+	tlsCertificate                 string
+	tlsKey                         string
+	anchorCredentialParams         *anchorCredentialParams
+	discoveryDomains               []string
+	discoveryVctDomains            []string
+	discoveryMinimumResolvers      int
+	maxWitnessDelay                time.Duration
+	syncTimeout                    uint64
+	signWithLocalWitness           bool
+	httpSignaturesEnabled          bool
+	didDiscoveryEnabled            bool
+	createDocumentStoreEnabled     bool
+	authTokenDefinitions           []*auth.TokenDef
+	authTokens                     map[string]string
+	opQueuePoolSize                uint
+	activityPubPageSize            int
+	enableDevMode                  bool
+	nodeInfoRefreshInterval        time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -375,6 +384,22 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
 	if err != nil {
 		return nil, err
+	}
+
+	localCASReplicateInIPFSEnabledString, err := cmdutils.GetUserSetVarFromString(cmd, localCASReplicateInIPFSFlagName,
+		localCASReplicateInIPFSEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	localCASReplicateInIPFSEnabled := defaultLocalCASReplicateInIPFSEnabled
+	if localCASReplicateInIPFSEnabledString != "" {
+		enable, parseErr := strconv.ParseBool(localCASReplicateInIPFSEnabledString)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", localCASReplicateInIPFSFlagName, parseErr)
+		}
+
+		localCASReplicateInIPFSEnabled = enable
 	}
 
 	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
@@ -590,43 +615,44 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		hostURL:                    hostURL,
-		vctURL:                     vctURL,
-		kmsEndpoint:                kmsEndpoint,
-		keyID:                      keyID,
-		privateKeyBase64:           privateKeyBase64,
-		secretLockKeyPath:          secretLockKeyPath,
-		kmsStoreEndpoint:           kmsStoreEndpoint,
-		externalEndpoint:           externalEndpoint,
-		discoveryDomain:            discoveryDomain,
-		tlsKey:                     tlsKey,
-		tlsCertificate:             tlsCertificate,
-		didNamespace:               didNamespace,
-		didAliases:                 didAliases,
-		allowedOrigins:             allowedOrigins,
-		casType:                    casType,
-		ipfsURL:                    ipfsURL,
-		cidVersion:                 cidVersion,
-		mqURL:                      mqURL,
-		opQueuePoolSize:            uint(mqOpPoolSize),
-		batchWriterTimeout:         batchWriterTimeout,
-		anchorCredentialParams:     anchorCredentialParams,
-		dbParameters:               dbParams,
-		logLevel:                   loggingLevel,
-		discoveryDomains:           discoveryDomains,
-		discoveryVctDomains:        discoveryVctDomains,
-		discoveryMinimumResolvers:  discoveryMinimumResolvers,
-		maxWitnessDelay:            maxWitnessDelay,
-		syncTimeout:                syncTimeout,
-		signWithLocalWitness:       signWithLocalWitness,
-		httpSignaturesEnabled:      httpSignaturesEnabled,
-		didDiscoveryEnabled:        didDiscoveryEnabled,
-		createDocumentStoreEnabled: createDocumentStoreEnabled,
-		authTokenDefinitions:       authTokenDefs,
-		authTokens:                 authTokens,
-		activityPubPageSize:        activityPubPageSize,
-		enableDevMode:              enableDevMode,
-		nodeInfoRefreshInterval:    nodeInfoRefreshInterval,
+		hostURL:                        hostURL,
+		vctURL:                         vctURL,
+		kmsEndpoint:                    kmsEndpoint,
+		keyID:                          keyID,
+		privateKeyBase64:               privateKeyBase64,
+		secretLockKeyPath:              secretLockKeyPath,
+		kmsStoreEndpoint:               kmsStoreEndpoint,
+		discoveryDomain:                discoveryDomain,
+		externalEndpoint:               externalEndpoint,
+		tlsKey:                         tlsKey,
+		tlsCertificate:                 tlsCertificate,
+		didNamespace:                   didNamespace,
+		didAliases:                     didAliases,
+		allowedOrigins:                 allowedOrigins,
+		casType:                        casType,
+		ipfsURL:                        ipfsURL,
+		localCASReplicateInIPFSEnabled: localCASReplicateInIPFSEnabled,
+		cidVersion:                     cidVersion,
+		mqURL:                          mqURL,
+		opQueuePoolSize:                uint(mqOpPoolSize),
+		batchWriterTimeout:             batchWriterTimeout,
+		anchorCredentialParams:         anchorCredentialParams,
+		logLevel:                       loggingLevel,
+		dbParameters:                   dbParams,
+		discoveryDomains:               discoveryDomains,
+		discoveryVctDomains:            discoveryVctDomains,
+		discoveryMinimumResolvers:      discoveryMinimumResolvers,
+		maxWitnessDelay:                maxWitnessDelay,
+		syncTimeout:                    syncTimeout,
+		signWithLocalWitness:           signWithLocalWitness,
+		httpSignaturesEnabled:          httpSignaturesEnabled,
+		didDiscoveryEnabled:            didDiscoveryEnabled,
+		createDocumentStoreEnabled:     createDocumentStoreEnabled,
+		authTokenDefinitions:           authTokenDefs,
+		authTokens:                     authTokens,
+		activityPubPageSize:            activityPubPageSize,
+		enableDevMode:                  enableDevMode,
+		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
 	}, nil
 }
 
@@ -846,6 +872,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
+	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
 	startCmd.Flags().StringP(mqOpPoolFlagName, mqOpPoolFlagShorthand, "", mqOpPoolFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)

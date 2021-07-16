@@ -19,7 +19,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
-	cas "github.com/trustbloc/orb/pkg/store/cas"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 const cidPathVariable = "cid"
@@ -112,7 +112,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 	content, err := w.casClient.Read(cid)
 	if err != nil {
-		if errors.Is(err, cas.ErrContentNotFound) {
+		if errors.Is(err, orberrors.ErrContentNotFound) {
 			rw.WriteHeader(http.StatusNotFound)
 
 			_, errWrite := rw.Write([]byte(fmt.Sprintf("no content at %s was found: %s", cid, err.Error())))

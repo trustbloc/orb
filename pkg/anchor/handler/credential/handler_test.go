@@ -189,7 +189,7 @@ func createNewAnchorCredentialHandler(t *testing.T,
 func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), nil)
 	require.NoError(t, err)
 
 	return casClient

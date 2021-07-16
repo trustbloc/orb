@@ -57,7 +57,7 @@ func TestWriteResponseFailures(t *testing.T) {
 		t.Run("Status not found", func(t *testing.T) {
 			casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{
 				ErrGet: ariesstorage.ErrDataNotFound,
-			}})
+			}}, nil)
 			require.NoError(t, err)
 
 			testLogger := &stringLogger{}
@@ -74,7 +74,7 @@ func TestWriteResponseFailures(t *testing.T) {
 				"content not found. Response write error: response write failure", testLogger.log)
 		})
 		t.Run("Internal server error", func(t *testing.T) {
-			casClient, err := cas.New(mem.NewProvider())
+			casClient, err := cas.New(mem.NewProvider(), nil)
 			require.NoError(t, err)
 
 			testLogger := &stringLogger{}
@@ -88,12 +88,12 @@ func TestWriteResponseFailures(t *testing.T) {
 			webCAS.Handler()(rw, req)
 
 			require.Equal(t, "failed to write error response. CAS error that led to this: "+
-				"failed to get content from the underlying storage provider: key cannot be empty. "+
+				"failed to get content from the local CAS provider: key cannot be empty. "+
 				"Response write error: response write failure", testLogger.log)
 		})
 	})
 	t.Run("Fail to write success response", func(t *testing.T) {
-		casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{}})
+		casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{}}, nil)
 		require.NoError(t, err)
 
 		testLogger := &stringLogger{}

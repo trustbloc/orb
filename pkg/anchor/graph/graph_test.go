@@ -33,7 +33,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestGraph_Add(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), nil)
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -61,7 +61,7 @@ func TestGraph_Add(t *testing.T) {
 }
 
 func TestGraph_Read(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), nil)
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -105,7 +105,7 @@ func TestGraph_Read(t *testing.T) {
 }
 
 func TestGraph_GetDidAnchors(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider())
+	casClient, err := cas.New(mem.NewProvider(), nil)
 	require.NoError(t, err)
 
 	providers := &Providers{

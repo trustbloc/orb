@@ -17,38 +17,40 @@ import (
 	mh "github.com/multiformats/go-multihash"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-// ErrContentNotFound is used to indicate that content as a given address could not be found.
-var ErrContentNotFound = errors.New("content not found")
-
 // CAS represents a content-addressable storage provider.
 type CAS struct {
-	cas  ariesstorage.Store
-	opts []extendedcasclient.CIDFormatOption
+	cas        ariesstorage.Store
+	ipfsClient *ipfs.Client
+	opts       []extendedcasclient.CIDFormatOption
 }
 
-// New returns a new CAS that uses the passed in provider as a backing store.
+// New returns a new CAS that uses the passed in provider as a backing store for local CAS storage.
+// ipfsClient is optional, but if provided (not nil), then writes will go to IPFS in addition to the passed in provider.
+// Reads are always done on only the passed in provider.
 // If no CID version is specified, then v1 will be used by default.
-func New(provider ariesstorage.Provider, opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
+func New(provider ariesstorage.Provider, ipfsClient *ipfs.Client,
+	opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
 	cas, err := provider.OpenStore("cas_store")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
 	}
 
-	return &CAS{cas: cas, opts: opts}, nil
+	return &CAS{cas: cas, ipfsClient: ipfsClient, opts: opts}, nil
 }
 
-// Write writes the given content to the underlying storage provider using this CAS' default CID version.
+// Write writes the given content to the underlying CAS provider (and IPFS if configured) using this CAS'
+// default CID version.
 // Returns the address of the content.
 func (p *CAS) Write(content []byte) (string, error) {
 	return p.WriteWithCIDFormat(content, p.opts...)
 }
 
-// WriteWithCIDFormat writes the given content to the underlying storage provider.
-// If useV0CID is true, then the older v0 CID version will be used for calculating the address of the content instead
-// of the newer v1 version.
+// WriteWithCIDFormat writes the given content to the underlying local CAS provider (and IPFS if configured) using the
+// CID format specified by opts.
 // Returns the address of the content.
 // TODO (#418): Support creating IPFS-compatible CIDs when content is > 256KB.
 // TODO (#443): Support v1 CID formats (different multibases and multicodecs) other than just the IPFS default.
@@ -86,19 +88,26 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 		return "", orberrors.NewTransient(fmt.Errorf("failed to put content into underlying storage provider: %w", err))
 	}
 
+	if p.ipfsClient != nil {
+		if _, err := p.ipfsClient.WriteWithCIDFormat(content, opts...); err != nil {
+			return "", orberrors.NewTransient(fmt.Errorf("failed to put content into IPFS (but it was "+
+				"successfully stored in the local storage provider): %w", err))
+		}
+	}
+
 	return cid, nil
 }
 
-// Read reads the content of the given address from the underlying storage provider.
+// Read reads the content of the given address from the underlying local CAS provider.
 // Returns the content at the given address.
 func (p *CAS) Read(address string) ([]byte, error) {
 	content, err := p.cas.Get(address)
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {
-			return nil, ErrContentNotFound
+			return nil, orberrors.ErrContentNotFound
 		}
 
-		return nil, orberrors.NewTransient(fmt.Errorf("failed to get content from the underlying storage provider: %w", err))
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get content from the local CAS provider: %w", err))
 	}
 
 	return content, nil

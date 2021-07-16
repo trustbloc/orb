@@ -10,7 +10,12 @@ import (
 	"errors"
 )
 
-var transientType = &transient{} //nolint:gochecknoglobals
+var (
+	transientType = &transient{} //nolint:gochecknoglobals
+
+	// ErrContentNotFound is used to indicate that content at a given address could not be found.
+	ErrContentNotFound = errors.New("content not found")
+)
 
 // NewTransient returns a transient error that wraps the given error in order to indicate to the caller that a retry may
 // resolve the problem, whereas a non-transient (persistent) error will always fail with the same outcome if retried.
