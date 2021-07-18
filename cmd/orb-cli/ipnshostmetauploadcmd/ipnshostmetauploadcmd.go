@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	timeout = 180
+	timeout = 240
 )
 
 type object struct {
