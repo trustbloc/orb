@@ -99,7 +99,7 @@ func TestProvider_Write_Read(t *testing.T) {
 	}()
 
 	t.Run("Success", func(t *testing.T) {
-		client := ipfs.New("localhost:5001")
+		client := ipfs.New("localhost:5001", 5*time.Second)
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), client)
 		require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.Equal(t, "", address)
 	})
 	t.Run("Fail to write to IPFS", func(t *testing.T) {
-		client := ipfs.New("InvalidURL")
+		client := ipfs.New("InvalidURL", 5*time.Second)
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), client)
 		require.NoError(t, err)

@@ -319,7 +319,8 @@ func startOrbServices(parameters *orbParameters) error {
 	switch {
 	case strings.EqualFold(parameters.casType, "ipfs"):
 		logger.Infof("Initializing Orb CAS with IPFS.")
-		coreCASClient = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 		anchorCasWriter = orbcaswriter.New(coreCASClient, "ipfs")
 	case strings.EqualFold(parameters.casType, "local"):
 		logger.Infof("Initializing Orb CAS with local storage provider.")
@@ -330,7 +331,8 @@ func startOrbServices(parameters *orbParameters) error {
 			logger.Infof("Local CAS writes will be replicated in IPFS.")
 
 			coreCASClient, err = casstore.New(storeProviders.provider,
-				ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion)),
+				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
 				extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
@@ -405,7 +407,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var ipfsReader *ipfscas.Client
 	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	}
 
 	casResolver := resolver.New(coreCASClient, ipfsReader, t, webFingerURIScheme)
@@ -626,7 +629,7 @@ func startOrbServices(parameters *orbParameters) error {
 	if ipfsReader == nil {
 		logger.Infof("no local IPFS node configured. The public ipfs.io node will be used for resolving " +
 			"anchor origins that are specified using IPNS.")
-		ipfsReader = ipfscas.New("http://ipfs.io")
+		ipfsReader = ipfscas.New("http://ipfs.io", parameters.ipfsTimeout)
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,

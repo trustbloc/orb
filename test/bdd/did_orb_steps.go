@@ -226,7 +226,7 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 		mem.NewProvider(), jsonld.WithExtraContexts(ldcontext.MustGetAll()...),
 	)
 
-	casClient := ipfs.New(url)
+	casClient := ipfs.New(url, 20*time.Second)
 
 	orbClient, err := orbclient.New(didDocNamespace, casClient,
 		orbclient.WithJSONLDDocumentLoader(docLoader),

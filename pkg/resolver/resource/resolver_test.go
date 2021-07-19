@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -58,7 +59,7 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURL = testServer.URL
 		witnessResource = fmt.Sprintf("%s/services/orb", testServerURL)
 
-		resolver := resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL))
+		resolver := resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -75,7 +76,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to resolve via IPNS (IPFS node not reachable)", func(t *testing.T) {
-		resolver := resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL"))
+		resolver := resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -91,7 +92,7 @@ func TestResolver_Resolve(t *testing.T) {
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		defer testServer.Close()
 
-		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL))
+		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -110,7 +111,7 @@ func TestResolver_Resolve(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL))
+		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)

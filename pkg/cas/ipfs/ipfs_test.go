@@ -22,7 +22,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	c := New("ipfs:5001")
+	c := New("ipfs:5001", 5*time.Second)
 	require.NotNil(t, c)
 }
 
@@ -35,7 +35,7 @@ func TestWrite(t *testing.T) {
 		}()
 
 		t.Run("v1 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001")
+			cas := New("localhost:5001", 5*time.Second)
 			require.NotNil(t, cas)
 
 			var cid string
@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 			require.Equal(t, "content", string(read))
 		})
 		t.Run("v0 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", extendedcasclient.WithCIDVersion(0))
+			cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(0))
 			require.NotNil(t, cas)
 
 			var cid string
@@ -84,7 +84,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, 5*time.Second)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -93,7 +93,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("invalid CID version", func(t *testing.T) {
-		cas := New("IPFS URL", extendedcasclient.WithCIDVersion(2))
+		cas := New("IPFS URL", 5*time.Second, extendedcasclient.WithCIDVersion(2))
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -109,7 +109,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, 5*time.Second)
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("cid")
@@ -123,7 +123,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL)
+		cas := New(ipfs.URL, 5*time.Second)
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")
