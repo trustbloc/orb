@@ -222,7 +222,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, false, testutil.GetLoader(t),
-			resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL)))
+			resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second)))
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -780,7 +780,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, false, testutil.GetLoader(t),
-			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL")))
+			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", time.Second)))
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -796,7 +796,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to create witness list: failed to resolve witness: "+
 			`failed to get host-meta document via IPNS: failed to read from IPNS: `+
 			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
-			`l7uyhdre8ateqek%2F.well-known%2Fhost-meta.json": dial tcp: lookup SomeIPFSNodeURL:`)
+			`l7uyhdre8ateqek%2F.well-known%2Fhost-meta.json":`)
 	})
 }
 

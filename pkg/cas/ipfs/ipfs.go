@@ -23,9 +23,6 @@ import (
 
 var logger = log.New("cas-ipfs")
 
-// TODO: Should be configurable (issue #594).
-const timeout = 20
-
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
 type Client struct {
@@ -35,10 +32,10 @@ type Client struct {
 
 // New creates cas client.
 // If no CID version is specified, then v1 will be used by default.
-func New(url string, opts ...extendedcasclient.CIDFormatOption) *Client {
+func New(url string, timeout time.Duration, opts ...extendedcasclient.CIDFormatOption) *Client {
 	ipfs := shell.NewShell(url)
 
-	ipfs.SetTimeout(timeout * time.Second)
+	ipfs.SetTimeout(timeout)
 
 	return &Client{ipfs: ipfs, opts: opts}
 }

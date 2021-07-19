@@ -458,6 +458,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing unit in duration")
 	})
+
+	t.Run("Invalid IPFS timeout", func(t *testing.T) {
+		restoreEnv := setEnv(t, ipfsTimeoutEnvKey, "5")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(defaultTestArgs())
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing unit in duration")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -713,6 +726,43 @@ func TestGetActivityPubPageSize(t *testing.T) {
 		pageSize, err := getActivityPubPageSize(cmd)
 		require.NoError(t, err)
 		require.Equal(t, 125, pageSize)
+	})
+}
+
+func TestGetIPFSTimeout(t *testing.T) {
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		timeout, err := getIPFSTimeout(cmd)
+		require.NoError(t, err)
+		require.Equal(t, defaultIPFSTimeout, timeout)
+	})
+
+	t.Run("Invalid value -> error", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "xxx")
+
+		_, err := getIPFSTimeout(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Valid value -> success", func(t *testing.T) {
+		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "30s")
+
+		timeout, err := getIPFSTimeout(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 30*time.Second, timeout)
+	})
+
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, ipfsTimeoutEnvKey, "40s")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		timeout, err := getIPFSTimeout(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 40*time.Second, timeout)
 	})
 }
 

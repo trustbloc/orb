@@ -24,6 +24,7 @@ const (
 	defaultDiscoveryMinimumResolvers = 1
 	defaultActivityPubPageSize       = 50
 	defaultNodeInfoRefreshInterval   = 15 * time.Second
+	defaultIPFSTimeout               = 20 * time.Second
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -273,6 +274,12 @@ const (
 	nodeInfoRefreshIntervalFlagUsage     = "The interval for refreshing NodeInfo data. For example, '30s' for a 30 second interval. " +
 		commonEnvVarUsageText + nodeInfoRefreshIntervalEnvKey
 
+	ipfsTimeoutFlagName      = "ipfs-timeout"
+	ipfsTimeoutFlagShorthand = "T"
+	ipfsTimeoutEnvKey        = "IPFS_TIMEOUT"
+	ipfsTimeoutFlagUsage     = "The timeout for IPFS requests. For example, '30s' for a 30 second timeout. " +
+		commonEnvVarUsageText + ipfsTimeoutEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -318,6 +325,7 @@ type orbParameters struct {
 	activityPubPageSize            int
 	enableDevMode                  bool
 	nodeInfoRefreshInterval        time.Duration
+	ipfsTimeout                    time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -614,6 +622,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", nodeInfoRefreshIntervalFlagName, err)
 	}
 
+	ipfsTimeout, err := getIPFSTimeout(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		vctURL:                         vctURL,
@@ -653,6 +666,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		activityPubPageSize:            activityPubPageSize,
 		enableDevMode:                  enableDevMode,
 		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
+		ipfsTimeout:                    ipfsTimeout,
 	}, nil
 }
 
@@ -834,7 +848,8 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 }
 
 func getNodeInfoRefreshInterval(cmd *cobra.Command) (time.Duration, error) {
-	nodeInfoRefreshIntervalStr, err := cmdutils.GetUserSetVarFromString(cmd, nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalEnvKey, true)
+	nodeInfoRefreshIntervalStr, err := cmdutils.GetUserSetVarFromString(cmd, nodeInfoRefreshIntervalFlagName,
+		nodeInfoRefreshIntervalEnvKey, true)
 	if err != nil {
 		return 0, err
 	}
@@ -849,6 +864,24 @@ func getNodeInfoRefreshInterval(cmd *cobra.Command) (time.Duration, error) {
 	}
 
 	return nodeInfoRefreshInterval, nil
+}
+
+func getIPFSTimeout(cmd *cobra.Command) (time.Duration, error) {
+	ipfsTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, true)
+	if err != nil {
+		return 0, err
+	}
+
+	if ipfsTimeoutStr == "" {
+		return defaultIPFSTimeout, nil
+	}
+
+	ipfsTimeout, err := time.ParseDuration(ipfsTimeoutStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value [%s]: %w", ipfsTimeoutStr, err)
+	}
+
+	return ipfsTimeout, nil
 }
 
 func createFlags(startCmd *cobra.Command) {
@@ -900,4 +933,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
+	startCmd.Flags().StringP(ipfsTimeoutFlagName, ipfsTimeoutFlagShorthand, "", ipfsTimeoutFlagUsage)
 }

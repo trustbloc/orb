@@ -34,6 +34,7 @@ services:
       - CAS_TYPE=${CAS_TYPE}
       - REPLICATE_LOCAL_CAS_WRITES_IN_IPFS=true
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -112,6 +113,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -200,6 +202,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -272,6 +275,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -347,6 +351,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -422,6 +427,7 @@ services:
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
+      - IPFS_TIMEOUT=20s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
@@ -582,7 +588,7 @@ services:
       - KMS_LOG_LEVEL=debug
     ports:
       - 7878:7878
-    entrypoint: ""
+    entrypoint: [""]
     depends_on:
       - couchdb.kms.com
     command: /bin/sh -c "kms-rest start"

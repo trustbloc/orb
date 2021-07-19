@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
@@ -248,7 +249,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -278,7 +279,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -295,7 +296,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL)
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
