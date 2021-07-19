@@ -9,10 +9,9 @@ import (
 	"errors"
 	"testing"
 
-	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
-
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
+	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 )
 

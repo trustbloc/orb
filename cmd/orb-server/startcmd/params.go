@@ -9,6 +9,7 @@ package startcmd
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -103,18 +104,23 @@ const (
 	casTypeEnvKey        = "CAS_TYPE"
 	casTypeFlagUsage     = "The type of the Content Addressable Storage (CAS). " +
 		"Supported options: local, ipfs. For local, the storage provider specified by " + databaseTypeFlagName +
-		" will be used. For ipfs, the node specified by " + ipfsURLFlagName + " will be used. " + commonEnvVarUsageText + casTypeEnvKey
+		" will be used. For ipfs, the node specified by " + ipfsURLFlagName +
+		" will be used. This is a required parameter. " + commonEnvVarUsageText + casTypeEnvKey
 
 	ipfsURLFlagName      = "ipfs-url"
 	ipfsURLFlagShorthand = "r"
 	ipfsURLEnvKey        = "IPFS_URL"
-	ipfsURLFlagUsage     = "The URL of the IPFS Content Addressable Storage (CAS). " + commonEnvVarUsageText + ipfsURLEnvKey
+	ipfsURLFlagUsage     = "Enables IPFS support. If set, this Orb server will use the node at the given URL. " +
+		"To use the public ipfs.io node, set this to https://ipfs.io (or http://ipfs.io). If using ipfs.io, " +
+		"then the CAS type flag must be set to local since the ipfs.io node is read-only. " +
+		"If the URL doesnt include a scheme, then HTTP will be used by default. " + commonEnvVarUsageText + ipfsURLEnvKey
 
 	localCASReplicateInIPFSFlagName  = "replicate-local-cas-writes-in-ipfs"
 	localCASReplicateInIPFSEnvKey    = "REPLICATE_LOCAL_CAS_WRITES_IN_IPFS"
 	localCASReplicateInIPFSFlagUsage = "If enabled, writes to the local CAS will also be " +
 		"replicated in IPFS. This setting only takes effect if this server has both a local CAS and IPFS enabled. " +
-		`Supported options: false, true. Defaults to false if not set.` + commonEnvVarUsageText + localCASReplicateInIPFSEnvKey
+		"If the IPFS node is set to ipfs.io, then this setting will be disabled since ipfs.io does not support " +
+		"writes. Supported options: false, true. Defaults to false if not set. " + commonEnvVarUsageText + localCASReplicateInIPFSEnvKey
 
 	mqURLFlagName      = "mq-url"
 	mqURLFlagShorthand = "q"
@@ -394,6 +400,17 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	ipfsURLParsed, err := url.Parse(ipfsURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse IPFS URL: %w", err)
+	}
+
+	if ipfsURLParsed.Hostname() == "ipfs.io" && casType == "ipfs" {
+		return nil, errors.New("CAS type cannot be set to IPFS if ipfs.io is being used as the node since it " +
+			"doesn't support writes. Either switch the node URL to one that does support writes or " +
+			"change the CAS type to local")
+	}
+
 	localCASReplicateInIPFSEnabledString, err := cmdutils.GetUserSetVarFromString(cmd, localCASReplicateInIPFSFlagName,
 		localCASReplicateInIPFSEnvKey, true)
 	if err != nil {
@@ -401,7 +418,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	localCASReplicateInIPFSEnabled := defaultLocalCASReplicateInIPFSEnabled
-	if localCASReplicateInIPFSEnabledString != "" {
+	if localCASReplicateInIPFSEnabledString != "" && ipfsURLParsed.Hostname() != "ipfs.io" {
 		enable, parseErr := strconv.ParseBool(localCASReplicateInIPFSEnabledString)
 		if parseErr != nil {
 			return nil, fmt.Errorf("invalid value for %s: %s", localCASReplicateInIPFSFlagName, parseErr)

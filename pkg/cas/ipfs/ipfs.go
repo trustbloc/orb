@@ -63,6 +63,10 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 
 	cid, err := m.ipfs.Add(bytes.NewReader(content), v1AddOpt...)
 	if err != nil {
+		if strings.Contains(err.Error(), "command not found") {
+			return "", fmt.Errorf("%w. (Does this IPFS node support writes?)", err)
+		}
+
 		return "", orberrors.NewTransient(err)
 	}
 

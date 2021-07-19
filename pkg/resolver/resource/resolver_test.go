@@ -141,6 +141,14 @@ func TestResolver_Resolve(t *testing.T) {
 			`failed to parse given URL: parse "%": invalid URL escape "%"`)
 		require.Empty(t, resource)
 	})
+	t.Run("Fail to resolve via IPNS since IPNS is not enabled", func(t *testing.T) {
+		resolver := resourceresolver.New(http.DefaultClient, nil)
+
+		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
+			discoveryrest.ActivityJSONType)
+		require.EqualError(t, err, "unable to resolve since IPFS is not enabled")
+		require.Empty(t, resource)
+	})
 }
 
 func generateValidExampleHostMetaResponse(t *testing.T, hostnameInResponse string) []byte {
