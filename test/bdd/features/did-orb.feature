@@ -8,6 +8,7 @@
 @did-orb
 Feature:
   Background: Setup
+    Given host-meta document is uploaded to IPNS
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"

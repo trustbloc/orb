@@ -15,14 +15,18 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/tidwall/gjson"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
 const (
@@ -47,9 +51,10 @@ var domains = map[string]string{
 
 // CommonSteps contain BDDContext
 type CommonSteps struct {
-	BDDContext *BDDContext
-	state      *state
-	httpClient *httpClient
+	BDDContext           *BDDContext
+	state                *state
+	httpClient           *httpClient
+	ipnsDocumentUploaded bool
 }
 
 // NewCommonSteps create new CommonSteps struct
@@ -693,6 +698,82 @@ func (d *CommonSteps) mapHTTPDomain(domain, mapping string) error {
 	return nil
 }
 
+func (d *CommonSteps) hostMetaDocumentIsUploadedToIPNS() error {
+	ipfs := shell.NewShell("http://localhost:5001")
+
+	ipfs.SetTimeout(20 * time.Second)
+
+	_, err := ipfs.Cat(fmt.Sprintf("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q%s",
+		discoveryrest.HostMetaJSONEndpoint))
+	if err == nil {
+		logger.Infof("IPNS document already uploaded. Skipping upload step.")
+
+		pathToPin := fmt.Sprintf("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q%s",
+			discoveryrest.HostMetaJSONEndpoint)
+
+		logger.Infof("Pinning %s to the local node.", pathToPin)
+
+		err = ipfs.Pin(fmt.Sprintf("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q%s",
+			discoveryrest.HostMetaJSONEndpoint))
+		if err != nil {
+			return err
+		}
+
+		logger.Infof("Successfully pinned %s to the local node.", pathToPin)
+
+		return nil
+	}
+
+	logger.Infof("Generating key for IPNS...")
+
+	_, err = execCMD("ipfs", "key-gen", "--ipfs-url=http://localhost:5001",
+		"--key-name=OrbBDDTestKey",
+		"--privatekey-ed25519=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg")
+	if err == nil {
+		logger.Infof("Done generating key for IPNS.")
+	} else {
+		if !strings.Contains(err.Error(), "key with name 'OrbBDDTestKey' already exists") {
+			return fmt.Errorf("failed to execute command: %w", err)
+		}
+		logger.Infof("Key already generated.")
+	}
+
+	logger.Infof("Generating host-meta file...")
+
+	attemptsCount := 0
+
+	err = backoff.Retry(func() error {
+		attemptsCount++
+
+		_, err = execCMD("ipfs", "host-meta-doc-gen", "--ipfs-url=http://localhost:5001",
+			"--resource-url=https://localhost:48326",
+			"--key-name=OrbBDDTestKey", "--tls-cacerts=fixtures/keys/tls/ec-cacert.pem")
+		if err != nil {
+			logger.Infof("Failed to generate host-meta document (attempt %d): %s", attemptsCount, err)
+			return err
+		}
+
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second*3), 15))
+	if err != nil {
+		return fmt.Errorf("failed to execute command: %w", err)
+	}
+
+	logger.Infof("Done generating host-meta file.")
+
+	logger.Infof("Uploading host-meta file to IPNS... this may take several minutes...")
+
+	value, err := execCMD("ipfs", "host-meta-dir-upload", "--ipfs-url=http://localhost:5001",
+		"--key-name=OrbBDDTestKey", "--host-meta-input-dir=./website")
+	if err != nil {
+		return fmt.Errorf("failed to execute command: %s", err)
+	}
+
+	logger.Infof("Done uploading host-meta file. Command output: %s", value)
+
+	return nil
+}
+
 func getSignerConfig(domain, pubKeyID string) (*signerConfig, error) {
 	storeProvider, err := newStoreProvider(domain)
 	if err != nil {
@@ -816,4 +897,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
 	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
+	s.Step(`^host-meta document is uploaded to IPNS$`, d.hostMetaDocumentIsUploadedToIPNS)
 }
