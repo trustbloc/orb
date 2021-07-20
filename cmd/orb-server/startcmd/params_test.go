@@ -439,7 +439,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(defaultTestArgs())
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
 
 		err := startCmd.Execute()
 
@@ -452,7 +452,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(defaultTestArgs())
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -465,7 +465,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(defaultTestArgs())
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -670,19 +670,66 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 }
 
 func TestStartCmdValidArgs(t *testing.T) {
+	t.Run("IPFS configured and CAS type is local", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+
+		go func() {
+			err := startCmd.Execute()
+			require.Nil(t, err)
+			require.Equal(t, log.ERROR, log.GetLevel(""))
+		}()
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	})
+	t.Run("IPFS configured, CAS type is local, but IPFS node is ipfs.io and replication "+
+		"is enabled. Replication is forced off since ipfs.io doesn't support writes", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("https://ipfs.io", "local", "true"))
+
+		go func() {
+			err := startCmd.Execute()
+			require.Nil(t, err)
+			require.Equal(t, log.ERROR, log.GetLevel(""))
+		}()
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	})
+}
+
+func TestStartCmdWithConflictingIPFSAndCASTypeSettings(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(defaultTestArgs())
+	startCmd.SetArgs(getTestArgs("https://ipfs.io", "ipfs", "false"))
 
-	go func() {
-		err := startCmd.Execute()
-		require.Nil(t, err)
-		require.Equal(t, log.ERROR, log.GetLevel(""))
-	}()
+	err := startCmd.Execute()
+	require.EqualError(t, err, "CAS type cannot be set to IPFS if ipfs.io is being used as the node "+
+		"since it doesn't support writes. Either switch the node URL to one that does support writes or "+
+		"change the CAS type to local")
+}
 
-	time.Sleep(50 * time.Millisecond)
+func TestStartCmdWithUnparsableIPFSURL(t *testing.T) {
+	startCmd := GetStartCmd()
 
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	startCmd.SetArgs(getTestArgs("%s", "ipfs", "false"))
+
+	err := startCmd.Execute()
+	require.EqualError(t, err, `failed to parse IPFS URL: parse "%s": invalid URL escape "%s"`)
+}
+
+func TestStartCmdWithInvalidCASType(t *testing.T) {
+	startCmd := GetStartCmd()
+
+	startCmd.SetArgs(getTestArgs("localhost:8081", "InvalidName", "false"))
+
+	err := startCmd.Execute()
+	require.EqualError(t, err, "InvalidName is not a valid CAS type. It must be either local or ipfs")
 }
 
 func TestGetActivityPubPageSize(t *testing.T) {
@@ -865,17 +912,17 @@ func setEnv(t *testing.T, name, value string) (restore func()) {
 	}
 }
 
-func defaultTestArgs() []string {
+func getTestArgs(ipfsURL string, casType string, localCASReplicateInIPFSEnabled string) []string {
 	return []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + discoveryDomainFlagName, "shared.example.com",
-		"--" + ipfsURLFlagName, "localhost:8081",
+		"--" + ipfsURLFlagName, ipfsURL,
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
-		"--" + casTypeFlagName, "local",
+		"--" + casTypeFlagName, casType,
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
@@ -883,5 +930,6 @@ func defaultTestArgs() []string {
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		"--" + localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnabled,
 	}
 }

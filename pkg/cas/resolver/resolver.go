@@ -48,6 +48,7 @@ type ipfsReader interface {
 }
 
 // New returns a new Resolver.
+// ipfsReader is optional. If not provided (is nil), CIDs with IPFS hints won't be resolvable.
 func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient httpClient,
 	webFingerURIScheme string) *Resolver {
 	return &Resolver{
@@ -144,7 +145,7 @@ func (h *Resolver) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte
 		cid := cidWithPossibleHintParts[1]
 
 		if h.ipfsReader == nil {
-			return nil, fmt.Errorf("ipfs reader is not supported")
+			return nil, errors.New("unable to resolve since IPFS is not enabled")
 		}
 
 		dataFromRemote, err = h.getAndStoreDataFromIPFS(cid)

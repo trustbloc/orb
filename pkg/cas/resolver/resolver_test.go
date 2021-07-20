@@ -270,7 +270,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Nil(t, data)
-		require.Contains(t, err.Error(), "ipfs reader is not supported")
+		require.Contains(t, err.Error(), "unable to resolve since IPFS is not enabled")
 	})
 
 	t.Run("Had to retrieve data from ipfs via hint (ipfs error)", func(t *testing.T) {

@@ -100,6 +100,14 @@ func TestWrite(t *testing.T) {
 		require.Empty(t, cid)
 		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
 	})
+	t.Run("fail to write since node (ipfs.io) doesn't support writes", func(t *testing.T) {
+		cas := New("https://ipfs.io", 5*time.Second)
+		require.NotNil(t, cas)
+
+		cid, err := cas.Write([]byte("content"))
+		require.Empty(t, cid)
+		require.EqualError(t, err, "add: command not found. (Does this IPFS node support writes?)")
+	})
 }
 
 func TestRead(t *testing.T) {

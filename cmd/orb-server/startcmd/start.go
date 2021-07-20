@@ -351,6 +351,8 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 
 		anchorCasWriter = orbcaswriter.New(coreCASClient, "webcas:"+u.Host)
+	default:
+		return fmt.Errorf("%s is not a valid CAS type. It must be either local or ipfs", parameters.casType)
 	}
 
 	didAnchors, err := didanchorstore.New(storeProviders.provider)
@@ -406,12 +408,14 @@ func startOrbServices(parameters *orbParameters) error {
 	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
 
 	var ipfsReader *ipfscas.Client
+	var casResolver *resolver.Resolver
 	if parameters.ipfsURL != "" {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
+		casResolver = resolver.New(coreCASClient, ipfsReader, t, webFingerURIScheme)
+	} else {
+		casResolver = resolver.New(coreCASClient, nil, t, webFingerURIScheme)
 	}
-
-	casResolver := resolver.New(coreCASClient, ipfsReader, t, webFingerURIScheme)
 
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,
@@ -622,14 +626,6 @@ func startOrbServices(parameters *orbParameters) error {
 		ActivityStore: apStore,
 		WitnessStore:  witnessProofStore,
 		WFClient:      wfClient,
-	}
-
-	// If no local IPFS node is configured, then use the public ipfs.io node as a fallback.
-	// Note that it only allows reads, not writes.
-	if ipfsReader == nil {
-		logger.Infof("no local IPFS node configured. The public ipfs.io node will be used for resolving " +
-			"anchor origins that are specified using IPNS.")
-		ipfsReader = ipfscas.New("http://ipfs.io", parameters.ipfsTimeout)
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,

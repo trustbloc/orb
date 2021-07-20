@@ -8,6 +8,7 @@ package resource
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -29,6 +30,7 @@ type Resolver struct {
 }
 
 // New returns a new Resolver.
+// ipfsReader is optional. If not provided (is nil), then host-meta links specified with IPNS won't be resolvable.
 func New(httpClient *http.Client, ipfsReader *ipfs.Client) *Resolver {
 	return &Resolver{httpClient: httpClient, ipfsReader: ipfsReader}
 }
@@ -46,6 +48,10 @@ func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (s
 	var hostMetaDocument discoveryrest.JRD
 
 	if strings.HasPrefix(urlToGetHostMetaFrom, "ipns://") {
+		if c.ipfsReader == nil {
+			return "", errors.New("unable to resolve since IPFS is not enabled")
+		}
+
 		hostMetaDocument, err = c.getHostMetaDocumentViaIPNS(urlToGetHostMetaFrom)
 		if err != nil {
 			return "", fmt.Errorf("failed to get host-meta document via IPNS: %w", err)
