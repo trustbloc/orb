@@ -37,7 +37,7 @@ import (
 const sampleAnchorCredential = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
+    "https://w3id.org/activityanchors/v1",
     "https://w3id.org/security/jws/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
@@ -84,7 +84,7 @@ const sampleAnchorCredential = `{
   }]                  
 }`
 
-const sampleAnchorCredentialCID = "bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce"
+const sampleAnchorCredentialCID = "bafkreiehcfqwivyrzrqkrcyufbbp5oo5bjvbrvwdayrpgh5fuyhclkkzrq"
 
 func TestNew(t *testing.T) {
 	createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
@@ -103,7 +103,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Parse created time (error)", func(t *testing.T) {
-		const credCID = "bafkreif6crnaygsznb7kk76b2etvgcm2yruvzmquvonuyq6yhahndn6r3q"
+		const credCID = "bafkreih535tuboh5pvnpqxjmrwff5deyviypoux7tkt35z65e4pibvzs7y"
 
 		cred := strings.Replace(sampleAnchorCredential, "2021-01-27T09:30:00Z", "2021-27T09:30:00Z", 1)
 
@@ -117,7 +117,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Ignore time and domain", func(t *testing.T) {
-		const credCID = "bafkreih2fmnhgefuyd5b4qlq4yzehlei6r2trn56py3f2tfechhhuo4sly"
+		const credCID = "bafkreibknowlewewwfmolanrat5sqobe7e6czonjqtvkw3fxhwuzv4xmxu"
 
 		cred := strings.Replace(strings.Replace(
 			sampleAnchorCredential, `"2021-01-27T09:30:00Z"`, "null", 1,
@@ -167,7 +167,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 			"failure while getting and storing data from the remote WebCAS endpoint: "+
 			"failed to retrieve data from")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce was found: content not found")
+			"no content at bafkreiehcfqwivyrzrqkrcyufbbp5oo5bjvbrvwdayrpgh5fuyhclkkzrq was found: content not found")
 	})
 }
 

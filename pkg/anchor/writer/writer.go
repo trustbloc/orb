@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	docutil "github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -237,12 +238,16 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 		return nil, err
 	}
 
+	now := &docutil.TimeWithTrailingZeroMsec{Time: time.Now()}
+
 	payload := &subject.Payload{
 		OperationCount:  ad.OperationCount,
 		CoreIndex:       ad.CoreIndexFileURI,
 		Namespace:       c.namespace,
 		Version:         version,
 		PreviousAnchors: previousAnchors,
+		AnchorOrigin:    c.apServiceIRI.String(),
+		Published:       now,
 	}
 
 	vc, err := c.AnchorBuilder.Build(payload)
@@ -291,6 +296,8 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal anchor credential[%s] for local witness: %w", vc.ID, err)
 	}
+
+	logger.Debugf("sign credential with local witness: %s", string(vcBytes))
 
 	// send anchor credential to local witness log
 	proofBytes, err := c.Witness.Witness(vcBytes)

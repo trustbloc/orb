@@ -39,7 +39,7 @@ https://orb.domain1.com/services/orb/outbox (if running outside of Docker then u
 {
   "@context": [
     "https://www.w3.org/ns/activitystreams",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    "https://w3id.org/activityanchors/v1"
   ],
   "actor": "https://orb.domain1.com/services/orb",
   "object": "https://orb.domain2.com/services/orb",

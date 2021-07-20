@@ -706,7 +706,7 @@ const anchorCredTwoProofs = `
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
+    "https://w3id.org/activityanchors/v1",
     "https://w3id.org/security/jws/v1"
   ],
   "credentialSubject": {

@@ -24,6 +24,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/anchor/activity"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -59,8 +60,8 @@ func TestNew(t *testing.T) {
 
 func TestStartObserver(t *testing.T) {
 	const (
-		namespace1 = "ns1"
-		namespace2 = "ns2"
+		namespace1 = "did:orb"
+		namespace2 = "did:test"
 	)
 
 	t.Run("test channel close", func(t *testing.T) {
@@ -103,15 +104,25 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1"}
+		prevAnchors := make(map[string]string)
+		prevAnchors["did1"] = ""
+		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1", PreviousAnchors: prevAnchors}
 
-		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, _, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 		anchor1 := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}}
 
-		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
+		prevAnchors = make(map[string]string)
+		prevAnchors["did2"] = ""
+		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2", PreviousAnchors: prevAnchors}
 
-		cid, _, err = anchorGraph.Add(buildCredential(payload2))
+		c, err = buildCredential(&payload2)
+		require.NoError(t, err)
+
+		cid, _, err = anchorGraph.Add(c)
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{CID: cid}
 
@@ -169,7 +180,10 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, _, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -224,14 +238,20 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, hint, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, hint, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		previousAnchors[did1] = hint + ":" + cid
 
 		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, _, err = anchorGraph.Add(buildCredential(payload2))
+		c, err = buildCredential(&payload2)
+		require.NoError(t, err)
+
+		cid, _, err = anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -287,7 +307,10 @@ func TestStartObserver(t *testing.T) {
 			PreviousAnchors: previousDIDAnchors,
 		}
 
-		cid, hint, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, hint, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		anchor := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}, Hint: hint}
@@ -345,7 +368,10 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, _, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -393,15 +419,34 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1"}
+		prevAnchors := make(map[string]string)
+		prevAnchors["suffix"] = ""
 
-		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		payload1 := subject.Payload{
+			Namespace:       namespace1,
+			Version:         1,
+			CoreIndex:       "core1",
+			PreviousAnchors: prevAnchors,
+		}
+
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, _, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 		anchor1 := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}}
 
-		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2"}
+		payload2 := subject.Payload{
+			Namespace:       namespace2,
+			Version:         1,
+			CoreIndex:       "core2",
+			PreviousAnchors: prevAnchors,
+		}
 
-		cid, _, err = anchorGraph.Add(buildCredential(payload2))
+		c, err = buildCredential(&payload2)
+		require.NoError(t, err)
+
+		cid, _, err = anchorGraph.Add(c)
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{CID: cid}
 
@@ -559,7 +604,10 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		cid, _, err := anchorGraph.Add(buildCredential(payload1))
+		c, err := buildCredential(&payload1)
+		require.NoError(t, err)
+
+		cid, _, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		pubSub := apmocks.NewPubSub()
@@ -593,20 +641,25 @@ func TestStartObserver(t *testing.T) {
 	})
 }
 
-func buildCredential(payload subject.Payload) *verifiable.Credential {
+func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+
+	act, err := activity.BuildActivityFromPayload(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
 		Context: []string{defVCContext},
-		Subject: payload,
+		Subject: act,
 		Issuer: verifiable.Issuer{
-			ID: "http://peer1.com",
+			ID: "http://orb.domain.com",
 		},
 		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 	}
 
-	return vc
+	return vc, nil
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {

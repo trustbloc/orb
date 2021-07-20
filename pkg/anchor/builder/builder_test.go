@@ -47,13 +47,27 @@ func TestBuilder_Build(t *testing.T) {
 		URL:    "http://domain.com/vc",
 	}
 
+	previousAnchors := make(map[string]string)
+	previousAnchors["suffix"] = ""
+
 	t.Run("success", func(t *testing.T) {
 		b, err := New(builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build(&subject.Payload{})
+		vc, err := b.Build(&subject.Payload{Namespace: "did:orb", PreviousAnchors: previousAnchors})
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
+	})
+
+	t.Run("error - invalid namespace", func(t *testing.T) {
+		b, err := New(builderParams)
+		require.NoError(t, err)
+
+		vc, err := b.Build(&subject.Payload{Namespace: "doc:something", PreviousAnchors: previousAnchors})
+		require.Error(t, err)
+		require.Empty(t, vc)
+		require.Contains(t, err.Error(),
+			"failed to build anchor activity: failed to create generator: generator not defined for namespace: doc:something")
 	})
 }
 

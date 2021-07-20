@@ -1,11 +1,50 @@
 {
-  "url": "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
+  "url": "https://w3id.org/activityanchors/v1",
   "content": {
     "@context": {
       "@version": 1.1,
       "@protected": true,
+      "AnchorEvent": {
+        "@id": "https://w3id.org/activityanchors#AnchorEvent",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type",
+          "aa": "https://w3id.org/activityanchors#",
+          "as": "https://www.w3.org/ns/activitystreams#",
+          "previous": "aa:previous"
+        }
+      },
+      "AnchorIndex": {
+        "@id": "https://w3id.org/activityanchors#AnchorIndex",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type",
+          "aa": "https://w3id.org/activityanchors#",
+          "as": "https://www.w3.org/ns/activitystreams#",
+          "resources": {
+            "@id": "aa:resources",
+            "@container": "@list"
+          }
+        }
+      },
+      "AnchorResource": {
+        "@id": "https://w3id.org/activityanchors#AnchorResource",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "id": "@id",
+          "type": "@type",
+          "aa": "https://w3id.org/activityanchors#",
+          "as": "https://www.w3.org/ns/activitystreams#",
+          "previousAnchor": "aa:previousAnchor"
+        }
+      },
       "AnchorCredential": {
-        "@id": "https://trustbloc.dev/ns/orb#AnchorCredential",
+        "@id": "https://w3id.org/activityanchors#AnchorCredential",
         "@context": {
           "@version": 1.1,
           "@protected": true,
@@ -13,23 +52,17 @@
           "type": "@type"
         }
       },
-      "Anchor": {
-        "@id": "https://trustbloc.dev/ns/orb#Anchor",
+      "AnchorProof": {
+        "@id": "https://w3id.org/activityanchors#AnchorProof",
         "@context": {
           "@version": 1.1,
           "@protected": true,
           "id": "@id",
-          "type": "@type",
-          "orb": "https://trustbloc.dev/ns/orb#",
-          "coreIndex": "orb:coreIndex",
-          "operationCount": "orb:operationCount",
-          "namespace": "orb:namespace",
-          "previousAnchors": "orb:previousAnchors",
-          "version": "orb:version"
+          "type": "@type"
         }
       },
       "AnchorCredentialReference": {
-        "@id": "https://trustbloc.dev/ns/orb#AnchorCredentialReference",
+        "@id": "https://w3id.org/activityanchors#AnchorCredentialReference",
         "@context": {
           "@version": 1.1,
           "@protected": true,
@@ -38,14 +71,14 @@
         }
       },
       "ContentAddressedStorage": {
-        "@id": "https://trustbloc.dev/ns/orb#ContentAddressedStorage",
+        "@id": "https://w3id.org/activityanchors#ContentAddressedStorage",
         "@context": {
           "@version": 1.1,
           "@protected": true,
           "id": "@id",
           "type": "@type",
-          "orb": "https://trustbloc.dev/ns/orb#",
-          "cid": "orb:contentIdentifier"
+          "aa": "https://w3id.org/activityanchors#",
+          "cid": "aa:contentIdentifier"
         }
       }
     }

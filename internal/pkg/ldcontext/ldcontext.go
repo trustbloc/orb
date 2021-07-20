@@ -27,7 +27,8 @@ var (
 	errOnce  error
 
 	defaultContexts = []string{
-		"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
+		"https://w3id.org/activityanchors/v1",
+		"https://www.w3.org/ns/activitystreams",
 	}
 )
 

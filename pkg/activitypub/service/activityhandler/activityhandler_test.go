@@ -2645,7 +2645,7 @@ func newMockCreateActivity(actorIRI, toIRI, targetIRI *url.URL, objProp *vocab.O
 const anchorCredential1 = `{
   "@context": [
 	"https://www.w3.org/2018/credentials/v1",
-	"https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	"https://w3id.org/activityanchors/v1"
   ],
   "id": "https://sally.example.com/transactions/bafkreihwsn",
   "type": [

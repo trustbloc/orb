@@ -16,8 +16,9 @@ import (
 
 func TestMustGetDefault(t *testing.T) {
 	res := ldcontext.MustGetDefault()
-	require.Len(t, res, 1)
-	require.Equal(t, "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1", res[0].URL)
+	require.Len(t, res, 2)
+	require.Equal(t, "https://www.w3.org/ns/activitystreams", res[0].URL)
+	require.Equal(t, "https://w3id.org/activityanchors/v1", res[1].URL)
 }
 
 func TestMustGetExtra(t *testing.T) {

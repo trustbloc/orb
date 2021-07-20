@@ -277,7 +277,7 @@ const (
   "@context": [
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/security/v1",
-    "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+    "https://w3id.org/activityanchors/v1"
   ],
   "followers": "https://example1.com/services/orb/followers",
   "following": "https://example1.com/services/orb/following",

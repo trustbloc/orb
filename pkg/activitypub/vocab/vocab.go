@@ -17,7 +17,7 @@ const (
 	// ContextCredentials is the verifiable credential context.
 	ContextCredentials Context = "https://www.w3.org/2018/credentials/v1"
 	// ContextOrb is the Orb context.
-	ContextOrb Context = "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1"
+	ContextOrb Context = "https://w3id.org/activityanchors/v1"
 )
 
 // PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
