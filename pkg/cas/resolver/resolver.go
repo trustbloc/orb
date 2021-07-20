@@ -8,7 +8,6 @@ package resolver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -20,8 +19,8 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
-	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -35,12 +34,11 @@ type httpClient interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
-// Resolver represents a resolver that can resolve data in a CAS based on a CID and WebCAS URL.
+// Resolver represents a resolver that can resolve data in a CAS based on a CID (with possible hint) and a WebCAS URL.
 type Resolver struct {
-	localCAS           extendedcasclient.Client
-	ipfsReader         ipfsReader
-	httpClient         httpClient
-	webFingerURIScheme string
+	localCAS       extendedcasclient.Client
+	ipfsReader     ipfsReader
+	webCASResolver WebCASResolver
 }
 
 type ipfsReader interface {
@@ -49,13 +47,11 @@ type ipfsReader interface {
 
 // New returns a new Resolver.
 // ipfsReader is optional. If not provided (is nil), CIDs with IPFS hints won't be resolvable.
-func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, httpClient httpClient,
-	webFingerURIScheme string) *Resolver {
+func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolver WebCASResolver) *Resolver {
 	return &Resolver{
-		localCAS:           casClient,
-		ipfsReader:         ipfsReader,
-		httpClient:         httpClient,
-		webFingerURIScheme: webFingerURIScheme,
+		localCAS:       casClient,
+		ipfsReader:     ipfsReader,
+		webCASResolver: webCASResolver,
 	}
 }
 
@@ -92,7 +88,7 @@ func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, data 
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if webCASURL != nil && webCASURL.String() != "" {
 			if errors.Is(err, orberrors.ErrContentNotFound) {
-				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromRemote(webCASURL, cid)
+				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromWebCASEndpoint(webCASURL, cid)
 				if errGetAndStoreRemoteData != nil {
 					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
 						"WebCAS endpoint: %w", errGetAndStoreRemoteData)
@@ -126,15 +122,17 @@ func (h *Resolver) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte
 
 		cid := cidWithPossibleHintParts[len(cidWithPossibleHintParts)-1]
 
-		webCASURL, err := h.getWebCASURLViaWebFinger(domain, cid)
+		var err error
+
+		dataFromRemote, err = h.webCASResolver.Resolve(domain, cid)
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine WebCAS URL via WebFinger: %w", err)
+			return nil, fmt.Errorf("failed to resolve domain and CID via WebCAS: %w", err)
 		}
 
-		dataFromRemote, err = h.getAndStoreDataFromRemote(webCASURL, cid)
-		if err != nil {
-			return nil, fmt.Errorf("failure while getting and storing data from the remote "+
-				"WebCAS endpoint: %w", err)
+		errStoreLocallyAndVerifyCID := h.storeLocallyAndVerifyCID(dataFromRemote, cid)
+		if errStoreLocallyAndVerifyCID != nil {
+			return nil, fmt.Errorf("failure while storing data retrieved from the remote "+
+				"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyCID)
 		}
 
 		logger.Debugf("successfully retrieved data for cid[%s] from webcas domain[%s]", cid, domain)
@@ -162,38 +160,19 @@ func (h *Resolver) resolveCIDWithHint(cidWithPossibleHintParts []string) ([]byte
 	return dataFromRemote, nil
 }
 
-func (h *Resolver) getAndStoreDataFromRemote(webCASEndpoint *url.URL, cid string) ([]byte, error) {
-	resp, err := h.httpClient.Get(context.Background(), transport.NewRequest(webCASEndpoint,
-		transport.WithHeader(transport.AcceptHeader, transport.LDPlusJSONContentType)))
+func (h *Resolver) getAndStoreDataFromWebCASEndpoint(webCASEndpoint *url.URL, cid string) ([]byte, error) {
+	dataFromRemote, err := h.webCASResolver.GetDataViaWebCASEndpoint(webCASEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute GET call on %s: %w", webCASEndpoint.String(), err)
+		return nil, fmt.Errorf("failed to get data via WebCAS endpoint: %w", err)
 	}
 
-	defer func() {
-		errClose := resp.Body.Close()
-		if errClose != nil {
-			logger.Errorf("failed to close response body from WebCAS endpoint: %s", errClose.Error())
-		}
-	}()
-
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body from remote WebCAS endpoint: %w", err)
+	errStoreLocallyAndVerifyCID := h.storeLocallyAndVerifyCID(dataFromRemote, cid)
+	if errStoreLocallyAndVerifyCID != nil {
+		return nil, fmt.Errorf("failure while storing data retrieved from the remote "+
+			"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyCID)
 	}
 
-	if resp.StatusCode == http.StatusOK {
-		errStoreLocallyAndVerifyCID := h.storeLocallyAndVerifyCID(responseBody, cid)
-		if errStoreLocallyAndVerifyCID != nil {
-			return nil, fmt.Errorf("failure while storing data retrieved from the remote "+
-				"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyCID)
-		}
-	} else {
-		return nil, fmt.Errorf("failed to retrieve data from %s. "+
-			"Response status code: %d. Response body: %s", webCASEndpoint.String(), resp.StatusCode,
-			string(responseBody))
-	}
-
-	return responseBody, nil
+	return dataFromRemote, nil
 }
 
 func (h *Resolver) getAndStoreDataFromIPFS(cid string) ([]byte, error) {
@@ -239,59 +218,65 @@ func (h *Resolver) storeLocallyAndVerifyCID(data []byte, cidFromOriginalRequest 
 	return nil
 }
 
-func (h *Resolver) getWebCASURLViaWebFinger(domain, cid string) (*url.URL, error) {
-	u := fmt.Sprintf("%s://%s/.well-known/webfinger?resource=%s://%s/cas/%s",
-		h.webFingerURIScheme, domain, h.webFingerURIScheme, domain, cid)
+// WebCASResolver is used to resolve data from another Orb server's CAS.
+type WebCASResolver struct {
+	httpClient         httpClient
+	webFingerClient    *webfingerclient.Client
+	webFingerURIScheme string
+}
 
-	webFingerURL, err := url.Parse(u)
+// NewWebCASResolver returns a new WebCASResolver.
+func NewWebCASResolver(httpClient httpClient, webFingerClient *webfingerclient.Client,
+	webFingerURIScheme string) WebCASResolver {
+	return WebCASResolver{
+		httpClient: httpClient, webFingerClient: webFingerClient, webFingerURIScheme: webFingerURIScheme,
+	}
+}
+
+// Resolve returns the data stored at cid via the WebCAS hosted at domain.
+// First, a WebFinger is done at domain in order to determine the WebCAS URL.
+// Then the data is retrieved using the WebCAS URL.
+func (w *WebCASResolver) Resolve(domain, cid string) ([]byte, error) {
+	webCASURL, err := w.webFingerClient.GetWebCASURL(fmt.Sprintf("%s://%s", w.webFingerURIScheme, domain), cid)
 	if err != nil {
-		return nil, fmt.Errorf("parse URL [%s]: %w", u, err)
+		return nil, fmt.Errorf("failed to determine WebCAS URL via WebFinger: %w", err)
 	}
 
-	resp, err := h.httpClient.Get(context.Background(), transport.NewRequest(webFingerURL,
+	data, err := w.GetDataViaWebCASEndpoint(webCASURL)
+	if err != nil {
+		return nil, fmt.Errorf("failure while getting and storing data from the remote "+
+			"WebCAS endpoint: %w", err)
+	}
+
+	logger.Debugf("successfully retrieved data for cid[%s] from webcas domain[%s]", cid, domain)
+
+	return data, nil
+}
+
+// GetDataViaWebCASEndpoint retrieves data from the given webCASEndpoint and returns it.
+func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]byte, error) {
+	resp, err := w.httpClient.Get(context.Background(), transport.NewRequest(webCASEndpoint,
 		transport.WithHeader(transport.AcceptHeader, transport.LDPlusJSONContentType)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get response (URL: %s): %w", webFingerURL, err)
+		return nil, fmt.Errorf("failed to execute GET call on %s: %w", webCASEndpoint.String(), err)
 	}
 
 	defer func() {
-		err = resp.Body.Close()
-		if err != nil {
-			logger.Errorf("failed to close response body while getting WebCAS URL via WebFinger: %s", err.Error())
+		errClose := resp.Body.Close()
+		if errClose != nil {
+			logger.Errorf("failed to close response body from WebCAS endpoint: %s", errClose.Error())
 		}
 	}()
 
-	respBytes, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body from remote WebCAS endpoint: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received unexpected status code. URL [%s], "+
-			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
+		return nil, fmt.Errorf("failed to retrieve data from %s. Response status code: %d. Response body: %s",
+			webCASEndpoint.String(), resp.StatusCode, string(responseBody))
 	}
 
-	webFingerResponse := restapi.JRD{}
-
-	err = json.Unmarshal(respBytes, &webFingerResponse)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
-	}
-
-	var webCASURLFromWebFinger string
-
-	for _, link := range webFingerResponse.Links {
-		if link.Rel == "working-copy" {
-			webCASURLFromWebFinger = link.Href
-
-			break
-		}
-	}
-
-	webCASURL, err := url.Parse(webCASURLFromWebFinger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
-	}
-
-	return webCASURL, nil
+	return responseBody, nil
 }

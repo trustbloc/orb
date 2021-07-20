@@ -33,6 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -198,11 +199,11 @@ func TestResolver_Resolve(t *testing.T) {
 		// The local resolver here has a CAS without the data we need,
 		// so it'll have to ask the remote Orb server for it.
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-		resolver.webFingerURIScheme = httpScheme
+		resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 		data, err := resolver.Resolve(nil, cidWithHint, nil)
 		require.NoError(t, err)
-		require.Equal(t, string(data), sampleData)
+		require.Equal(t, sampleData, string(data))
 	})
 
 	t.Run("Had to retrieve data from remote server via hint (not found)", func(t *testing.T) {
@@ -235,7 +236,7 @@ func TestResolver_Resolve(t *testing.T) {
 		cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-		resolver.webFingerURIScheme = httpScheme
+		resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 		data, err := resolver.Resolve(nil, cidWithHint, nil)
 		require.Error(t, err)
@@ -344,7 +345,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
-			"WebCAS endpoint: failed to retrieve data from")
+			"WebCAS endpoint: failed to get data via")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
 			"no content at bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce was found: content not found")
 		require.Nil(t, data)
@@ -420,6 +421,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
 		require.EqualError(t, err, "failure while getting and storing data from the remote WebCAS endpoint: "+
+			"failed to get data via WebCAS endpoint: "+
 			"failed to execute GET call on InvalidWebCASEndpoint: Get "+
 			`"InvalidWebCASEndpoint": unsupported protocol scheme ""`)
 		require.Nil(t, data)
@@ -438,12 +440,14 @@ func TestResolver_Resolve(t *testing.T) {
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.∂
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-			resolver.webFingerURIScheme = httpScheme
+			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, err := resolver.Resolve(nil, cidWithHint, nil)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "failed to determine WebCAS URL via WebFinger: "+
-				"failed to get response (URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
+			require.Contains(t, err.Error(), "failed to resolve domain and CID via WebCAS: "+
+				"failed to determine WebCAS URL via WebFinger: "+
+				"failed to get WebFinger resource: failed to get response "+
+				"(URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
 				`ExistentDomain/cas/bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce): Get "http://`+
 				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/bafkreibvw52uq"+
 				`clnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce": dial tcp: lookup NonExistentDomain`)
@@ -479,7 +483,7 @@ func TestResolver_Resolve(t *testing.T) {
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-			resolver.webFingerURIScheme = httpScheme
+			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, err := resolver.Resolve(nil, cidWithHint, nil)
 			require.Error(t, err)
@@ -515,11 +519,13 @@ func TestResolver_Resolve(t *testing.T) {
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-			resolver.webFingerURIScheme = httpScheme
+			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, err := resolver.Resolve(nil, cidWithHint, nil)
-			require.EqualError(t, err, "failed to determine WebCAS URL via WebFinger: "+
-				"failed to unmarshal WebFinger response: invalid character 'h' in literal true (expecting 'r')")
+			require.EqualError(t, err, "failed to resolve domain and CID via WebCAS: failed to determine "+
+				"WebCAS URL via WebFinger: failed to get WebFinger resource: "+
+				"failed to unmarshal WebFinger response: invalid character 'h' in "+
+				"literal true (expecting 'r')")
 			require.Nil(t, data)
 		})
 		t.Run("WebCAS URL from response can't be parsed as a URL", func(t *testing.T) {
@@ -557,11 +563,11 @@ func TestResolver_Resolve(t *testing.T) {
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-			resolver.webFingerURIScheme = httpScheme
+			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, err := resolver.Resolve(nil, cidWithHint, nil)
-			require.EqualError(t, err, "failed to determine WebCAS URL via WebFinger: "+
-				`failed to parse webcas URL: parse "%": invalid URL escape "%"`)
+			require.EqualError(t, err, "failed to resolve domain and CID via WebCAS: failed to determine "+
+				`WebCAS URL via WebFinger: failed to parse webcas URL: parse "%": invalid URL escape "%"`)
 			require.Nil(t, data)
 		})
 	})
@@ -570,9 +576,16 @@ func TestResolver_Resolve(t *testing.T) {
 func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsReader ipfsReader) *Resolver {
 	t.Helper()
 
-	casResolver := New(casClient, ipfsReader,
-		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()), "https")
+	webFingerResolver := webfingerclient.New()
+
+	webCASResolver := NewWebCASResolver(
+		transport.New(&http.Client{},
+			testutil.MustParseURL("https://example.com/keys/public-key"),
+			transport.DefaultSigner(), transport.DefaultSigner()),
+		webFingerResolver,
+		"http")
+
+	casResolver := New(casClient, ipfsReader, webCASResolver)
 	require.NotNil(t, casResolver)
 
 	return casResolver

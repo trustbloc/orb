@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
+	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 //go:generate counterfeiter -o ../../mocks/anchorPublisher.gen.go --fake-name AnchorPublisher . anchorPublisher
@@ -165,7 +166,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to resolve anchor credential: "+
 			"failure while getting and storing data from the remote WebCAS endpoint: "+
-			"failed to retrieve data from")
+			"failed to get data via")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
 			"no content at bafkreiehcfqwivyrzrqkrcyufbbp5oo5bjvbrvwdayrpgh5fuyhclkkzrq was found: content not found")
 	})
@@ -176,8 +177,10 @@ func createNewAnchorCredentialHandler(t *testing.T,
 	t.Helper()
 
 	casResolver := casresolver.New(client, nil,
-		transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()), "https")
+		casresolver.NewWebCASResolver(
+			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+				transport.DefaultSigner(), transport.DefaultSigner()),
+			webfingerclient.New(), "https"))
 
 	anchorCredentialHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 		&mocks.MonitoringService{}, time.Second)
