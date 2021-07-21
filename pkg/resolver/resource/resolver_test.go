@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package resource_test
+package resource
 
 import (
 	"encoding/json"
@@ -18,8 +18,20 @@ import (
 
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 )
+
+func TestNew(t *testing.T) {
+	t.Run("Success - defaults", func(t *testing.T) {
+		resolver := New(http.DefaultClient, nil)
+		require.Equal(t, resolver.cacheLifetime, defaultCacheLifetime)
+		require.Equal(t, resolver.cacheSize, defaultCacheSize)
+	})
+	t.Run("Success - with options", func(t *testing.T) {
+		resolver := New(http.DefaultClient, nil, WithCacheLifetime(2*time.Second), WithCacheSize(500))
+		require.Equal(t, resolver.cacheLifetime, 2*time.Second)
+		require.Equal(t, resolver.cacheSize, 500)
+	})
+}
 
 func TestResolver_Resolve(t *testing.T) {
 	t.Run("Success - resolved via HTTP", func(t *testing.T) {
@@ -37,7 +49,7 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURL = testServer.URL
 		witnessResource = fmt.Sprintf("%s/services/orb", testServerURL)
 
-		resolver := resourceresolver.New(http.DefaultClient, nil)
+		resolver := New(http.DefaultClient, nil, WithCacheLifetime(2*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink(fmt.Sprintf("%s/services/orb", testServerURL),
 			discoveryrest.ActivityJSONType)
@@ -59,7 +71,7 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURL = testServer.URL
 		witnessResource = fmt.Sprintf("%s/services/orb", testServerURL)
 
-		resolver := resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -67,16 +79,16 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Equal(t, witnessResource, resource)
 	})
 	t.Run("Fail to resolve via HTTP (missing protocol scheme)", func(t *testing.T) {
-		resolver := resourceresolver.New(http.DefaultClient, nil)
+		resolver := New(http.DefaultClient, nil)
 
 		resource, err := resolver.ResolveHostMetaLink("BadURLName", discoveryrest.ActivityJSONType)
-		require.EqualError(t, err, "failed to get host-meta document via HTTP/HTTPS: "+
+		require.Contains(t, err.Error(), "failed to get host-meta document via HTTP/HTTPS: "+
 			"failed to get a response from the host-meta endpoint: parse "+
 			`":///.well-known/host-meta.json": missing protocol scheme`)
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to resolve via IPNS (IPFS node not reachable)", func(t *testing.T) {
-		resolver := resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", 5*time.Second))
+		resolver := New(nil, ipfs.New("SomeIPFSNodeURL", 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -92,11 +104,11 @@ func TestResolver_Resolve(t *testing.T) {
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		defer testServer.Close()
 
-		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
-		require.EqualError(t, err, "failed to get host-meta document via IPNS: "+
+		require.Contains(t, err.Error(), "failed to get host-meta document via IPNS: "+
 			"failed to unmarshal response into a host-meta document: unexpected end of JSON input")
 		require.Empty(t, resource)
 	})
@@ -111,7 +123,7 @@ func TestResolver_Resolve(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		resolver := resourceresolver.New(nil, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -126,27 +138,27 @@ func TestResolver_Resolve(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		resolver := resourceresolver.New(http.DefaultClient, nil)
+		resolver := New(http.DefaultClient, nil)
 
 		resource, err := resolver.ResolveHostMetaLink(testServer.URL, discoveryrest.ActivityJSONType)
-		require.EqualError(t, err, "failed to get host-meta document via HTTP/HTTPS: "+
+		require.Contains(t, err.Error(), "failed to get host-meta document via HTTP/HTTPS: "+
 			"got status code 500 from "+testServer.URL+"/.well-known/host-meta.json (expected 200)")
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to parse url", func(t *testing.T) {
-		resolver := resourceresolver.New(http.DefaultClient, nil)
+		resolver := New(http.DefaultClient, nil)
 
 		resource, err := resolver.ResolveHostMetaLink("%", discoveryrest.ActivityJSONType)
-		require.EqualError(t, err, "failed to get host-meta document via HTTP/HTTPS: "+
+		require.Contains(t, err.Error(), "failed to get host-meta document via HTTP/HTTPS: "+
 			`failed to parse given URL: parse "%": invalid URL escape "%"`)
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to resolve via IPNS since IPNS is not enabled", func(t *testing.T) {
-		resolver := resourceresolver.New(http.DefaultClient, nil)
+		resolver := New(http.DefaultClient, nil)
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
-		require.EqualError(t, err, "unable to resolve since IPFS is not enabled")
+		require.Contains(t, err.Error(), "unable to resolve since IPFS is not enabled")
 		require.Empty(t, resource)
 	})
 }
