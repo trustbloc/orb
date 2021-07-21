@@ -13,7 +13,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -21,6 +23,11 @@ import (
 )
 
 var logger = log.New("activitypub_client")
+
+const (
+	defaultCacheSize       = 100
+	defaultCacheExpiration = time.Minute
+)
 
 // ErrNotFound is returned when the object is not found or the iterator has reached the end.
 var ErrNotFound = fmt.Errorf("not found")
@@ -35,22 +42,70 @@ type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
+// Config contains configuration parameters for the client.
+type Config struct {
+	CacheSize       int
+	CacheExpiration time.Duration
+}
+
 // Client implements an ActivityPub client which retrieves ActivityPub objects (such as actors, activities,
 // and collections) from remote sources.
 type Client struct {
 	httpTransport
+
+	actorCache     gcache.Cache
+	publicKeyCache gcache.Cache
 }
 
 // New returns a new ActivityPub client.
-func New(t httpTransport) *Client {
-	return &Client{
+func New(cfg Config, t httpTransport) *Client {
+	c := &Client{
 		httpTransport: t,
 	}
+
+	cacheSize := cfg.CacheSize
+
+	if cacheSize == 0 {
+		cacheSize = defaultCacheSize
+	}
+
+	cacheExpiration := cfg.CacheExpiration
+
+	if cacheExpiration == 0 {
+		cacheExpiration = defaultCacheExpiration
+	}
+
+	logger.Debugf("Creating IRI cache with size=%d, expiration=%s", cacheSize, cacheExpiration)
+
+	c.actorCache = gcache.New(cacheSize).ARC().
+		Expiration(cacheExpiration).
+		LoaderFunc(func(i interface{}) (interface{}, error) {
+			return c.getActor(i.(*url.URL))
+		}).Build()
+
+	c.publicKeyCache = gcache.New(cacheSize).ARC().
+		Expiration(cacheExpiration).
+		LoaderFunc(func(i interface{}) (interface{}, error) {
+			return c.getPublicKey(i.(*url.URL))
+		}).Build()
+
+	return c
 }
 
 // GetActor retrieves the actor at the given IRI.
 //nolint:interfacer
 func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
+	result, err := c.actorCache.Get(actorIRI)
+	if err != nil {
+		logger.Debugf("Got error retrieving actor from cache for IRI [%s]: %s", actorIRI, err)
+
+		return nil, err
+	}
+
+	return result.(*vocab.ActorType), nil
+}
+
+func (c *Client) getActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	respBytes, err := c.get(actorIRI)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", actorIRI, err)
@@ -71,6 +126,17 @@ func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 // GetPublicKey retrieves the public key at the given IRI.
 //nolint:interfacer
 func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
+	result, err := c.publicKeyCache.Get(keyIRI)
+	if err != nil {
+		logger.Debugf("Got error retrieving public key from cache for IRI [%s]: %s", keyIRI, err)
+
+		return nil, err
+	}
+
+	return result.(*vocab.PublicKeyType), nil
+}
+
+func (c *Client) getPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 	respBytes, err := c.get(keyIRI)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)

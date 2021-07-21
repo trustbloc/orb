@@ -201,7 +201,7 @@ func TestOutbox_Post(t *testing.T) {
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-		&mocks.ActivityHandler{}, client.New(transport.Default()), &mocks.WebFingerResolver{},
+		&mocks.ActivityHandler{}, client.New(client.Config{}, transport.Default()), &mocks.WebFingerResolver{},
 		spi.WithUndeliverableHandler(undeliverableHandler))
 	require.NoError(t, err)
 	require.NotNil(t, ob)
@@ -448,7 +448,7 @@ func TestOutbox_PostError(t *testing.T) {
 		pubSub := mocks.NewPubSub()
 
 		ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-			&mocks.ActivityHandler{}, client.New(transport.Default()), &mocks.WebFingerResolver{},
+			&mocks.ActivityHandler{}, client.New(client.Config{}, transport.Default()), &mocks.WebFingerResolver{},
 			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)

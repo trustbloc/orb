@@ -19,6 +19,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
+	"github.com/bluele/gcache"
 	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -43,6 +44,8 @@ var logger = log.New("activitypub_service")
 const (
 	metadataEventType             = "event_type"
 	defaultConcurrentHTTPRequests = 10
+	defaultCacheSize              = 100
+	defaultCacheExpiration        = time.Minute
 )
 
 type redeliveryService interface {
@@ -65,6 +68,8 @@ type Config struct {
 	RedeliveryConfig      *redelivery.Config
 	MaxRecipients         int
 	MaxConcurrentRequests int
+	CacheSize             int
+	CacheExpiration       time.Duration
 }
 
 type activityPubClient interface {
@@ -94,6 +99,7 @@ type Outbox struct {
 	redeliveryChan       chan *message.Message
 	jsonMarshal          func(v interface{}) ([]byte, error)
 	jsonUnmarshal        func(data []byte, v interface{}) error
+	iriCache             gcache.Cache
 }
 
 type httpTransport interface {
@@ -102,7 +108,7 @@ type httpTransport interface {
 }
 
 // New returns a new ActivityPub Outbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
+func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
 	apClient activityPubClient, resourceResolver resourceResolver, handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := newHandlerOptions(handlerOpts)
 
@@ -111,18 +117,12 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 		return nil, err
 	}
 
-	if cfg.RedeliveryConfig == nil {
-		cfg.RedeliveryConfig = redelivery.DefaultConfig()
-	}
+	cfg := populateConfigDefaults(cnfg)
 
 	redeliverChan := make(chan *message.Message, cfg.RedeliveryConfig.MaxMessages)
 
-	if cfg.MaxConcurrentRequests <= 0 {
-		cfg.MaxConcurrentRequests = defaultConcurrentHTTPRequests
-	}
-
 	h := &Outbox{
-		Config:               cfg,
+		Config:               &cfg,
 		activityHandler:      activityHandler,
 		undeliverableHandler: options.UndeliverableHandler,
 		activityStore:        s,
@@ -140,6 +140,14 @@ func New(cfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHan
 		lifecycle.WithStart(h.start),
 		lifecycle.WithStop(h.stop),
 	)
+
+	logger.Debugf("Creating cache with size=%d, expiration=%s", cfg.CacheSize, cfg.CacheExpiration)
+
+	h.iriCache = gcache.New(cfg.CacheSize).ARC().
+		Expiration(cfg.CacheExpiration).
+		LoaderFunc(func(i interface{}) (interface{}, error) {
+			return h.doResolveActorIRIs(i.(*url.URL))
+		}).Build()
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
 	if err != nil {
@@ -361,6 +369,19 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 		return nil, nil
 	}
 
+	result, err := h.iriCache.Get(iri)
+	if err != nil {
+		logger.Debugf("[%s] Got error resolving IRI from cache for actor [%s]: %s", h.ServiceName, iri, err)
+
+		return nil, err
+	}
+
+	return result.([]*url.URL), nil
+}
+
+func (h *Outbox) doResolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
+	logger.Debugf("[%s] Resolving IRI for actor [%s]", h.ServiceName, iri)
+
 	if strings.HasPrefix(iri.String(), h.ServiceIRI.String()) {
 		// This IRI is for the local service. The only valid paths are /followers and /witnesses.
 		switch {
@@ -500,6 +521,28 @@ func (h *Outbox) validateAndPopulateActivity(activity *vocab.ActivityType) (*voc
 	}
 
 	return activity, nil
+}
+
+func populateConfigDefaults(cnfg *Config) Config {
+	cfg := *cnfg
+
+	if cfg.RedeliveryConfig == nil {
+		cfg.RedeliveryConfig = redelivery.DefaultConfig()
+	}
+
+	if cfg.MaxConcurrentRequests <= 0 {
+		cfg.MaxConcurrentRequests = defaultConcurrentHTTPRequests
+	}
+
+	if cfg.CacheSize == 0 {
+		cfg.CacheSize = defaultCacheSize
+	}
+
+	if cfg.CacheExpiration == 0 {
+		cfg.CacheExpiration = defaultCacheExpiration
+	}
+
+	return cfg
 }
 
 func deduplicate(toIRIs []*url.URL) []*url.URL {
