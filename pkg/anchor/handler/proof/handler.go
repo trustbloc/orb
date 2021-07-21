@@ -100,6 +100,9 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 	}
 
 	if status == proofapi.VCStatusCompleted {
+		logger.Infof("Received proof from [%s] but witness policy has already been satisfied for anchorCredID[%s]",
+			witness, anchorCredID, string(proof))
+
 		// witness policy has been satisfied and witness proofs added to verifiable credential - nothing to do
 		return nil
 	}
@@ -163,14 +166,14 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 
 	if !ok {
 		// witness policy has not been satisfied - wait for other witness proofs to arrive ...
-		logger.Debugf("Witness policy has not been satisfied for VC [%s]", vc.ID)
+		logger.Infof("Witness policy has not been satisfied for VC [%s]. Waiting for other proofs.", vc.ID)
 
 		return nil
 	}
 
 	// witness policy has been satisfied so add witness proofs to vc, set 'complete' status for vc
 	// publish witnessed vc to batch writer channel for further processing
-	logger.Debugf("Witness policy has been satisfied for VC [%s]", vc.ID)
+	logger.Infof("Witness policy has been satisfied for VC [%s]", vc.ID)
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
@@ -185,7 +188,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 	logger.Debugf("Current status for VC [%s] is [%s]", vc.ID, status)
 
 	if status == proofapi.VCStatusCompleted {
-		logger.Debugf("VC status has already been marked as completed for [%s]", vc.ID)
+		logger.Infof("VC status has already been marked as completed for [%s]", vc.ID)
 
 		return nil
 	}
