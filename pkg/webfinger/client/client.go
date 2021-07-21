@@ -25,69 +25,75 @@ import (
 
 var logger = log.New("webfinger-client")
 
-const defaultCacheLifetime = 300 * time.Second // five minutes
+const (
+	defaultCacheLifetime = 300 * time.Second // five minutes
+	defaultCacheSize     = 100
+)
 
 // httpClient represents HTTP client.
 type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-type cacheable interface {
-	CacheLifetime() (time.Duration, error)
-}
-
 // Client implements webfinger client.
 type Client struct {
-	httpClient    httpClient
+	httpClient httpClient
+
 	cacheLifetime time.Duration
+	cacheSize     int
 
 	ledgerTypeCache gcache.Cache
 }
 
 // New creates new webfinger client.
 func New(opts ...Option) *Client {
-	client := &Client{httpClient: &http.Client{}, cacheLifetime: defaultCacheLifetime}
+	client := &Client{
+		httpClient:    &http.Client{},
+		cacheLifetime: defaultCacheLifetime,
+		cacheSize:     defaultCacheSize,
+	}
 
 	for _, opt := range opts {
 		opt(client)
 	}
 
-	client.ledgerTypeCache = makeCache(
-		client.getNewCacheable(func(domain string) (cacheable, error) {
-			return client.getLedgerType(domain)
-		}))
+	client.ledgerTypeCache = gcache.New(client.cacheSize).
+		Expiration(client.cacheLifetime).
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			return client.getLedgerType(key.(string))
+		}).Build()
 
 	return client
 }
 
 // GetLedgerType returns ledger type for domain.
 func (c *Client) GetLedgerType(domain string) (string, error) {
-	ledgerType, err := getEntryHelper(c.ledgerTypeCache, domain, "ledgerType")
+	ledgerTypeObj, err := c.ledgerTypeCache.Get(domain)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get key[%s] from ledger type cache: %w", domain, err)
 	}
 
-	return ledgerType.(*model.LedgerType).Value, nil
+	return ledgerTypeObj.(string), nil
 }
 
 // GetLedgerType returns ledger type for domain.
-func (c *Client) getLedgerType(domain string) (*model.LedgerType, error) {
+func (c *Client) getLedgerType(domain string) (string, error) {
 	jrd, err := c.ResolveWebFingerResource(domain, fmt.Sprintf("%s/vct", domain))
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve WebFinger resource: %w", err)
+		return "", fmt.Errorf("failed to resolve WebFinger resource: %w", err)
 	}
 
 	ltRaw, ok := jrd.Properties[command.LedgerType]
 	if !ok {
-		return nil, model.ErrResourceNotFound
+		return "", model.ErrResourceNotFound
 	}
 
 	lt, ok := ltRaw.(string)
 	if !ok {
-		return nil, fmt.Errorf("ledger type '%T' is not a string", ltRaw)
+		return "", fmt.Errorf("ledger type '%T' is not a string", ltRaw)
 	}
 
-	return &model.LedgerType{Value: lt, MaxAge: c.cacheLifetime}, nil
+	return lt, nil
 }
 
 // HasSupportedLedgerType returns true if domain supports configured ledger type.
@@ -108,7 +114,6 @@ func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
 }
 
 // ResolveWebFingerResource attempts to resolve the given WebFinger resource from domainWithScheme.
-// TODO (#598) Add caching.
 func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (restapi.JRD, error) {
 	webFingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s", domainWithScheme, resource)
 
@@ -153,7 +158,6 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 }
 
 // GetWebCASURL gets the WebCAS URL for cid from domainWithScheme using WebFinger.
-// TODO (#598) Add caching.
 func (c *Client) GetWebCASURL(domainWithScheme, cid string) (*url.URL, error) {
 	webFingerResponse, err := c.ResolveWebFingerResource(domainWithScheme,
 		fmt.Sprintf("%s/cas/%s", domainWithScheme, cid))
@@ -198,44 +202,11 @@ func WithCacheLifetime(lifetime time.Duration) Option {
 	}
 }
 
-func getEntryHelper(cache gcache.Cache, key interface{}, objectName string) (interface{}, error) {
-	data, err := cache.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("getting %s from cache: %w", objectName, err)
+// WithCacheSize option defines the cache size.
+func WithCacheSize(size int) Option {
+	return func(opts *Client) {
+		opts.cacheSize = size
 	}
-
-	logger.Debugf("got value for key[%v] from cache: %+v", key, data)
-
-	return data, nil
-}
-
-func (c *Client) getNewCacheable(
-	fetcher func(domain string) (cacheable, error),
-) func(domain string) (interface{}, *time.Duration, error) {
-	return func(domain string) (interface{}, *time.Duration, error) {
-		data, err := fetcher(domain)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fetching cacheable object: %w", err)
-		}
-
-		expiryTime, err := data.CacheLifetime()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get object expiry time: %w", err)
-		}
-
-		return data, &expiryTime, nil
-	}
-}
-
-func makeCache(fetcher func(key string) (interface{}, *time.Duration, error)) gcache.Cache {
-	return gcache.New(0).LoaderExpireFunc(func(key interface{}) (interface{}, *time.Duration, error) {
-		r, ok := key.(string)
-		if !ok {
-			return nil, nil, fmt.Errorf("key must be string")
-		}
-
-		return fetcher(r)
-	}).Build()
 }
 
 func contains(l []string, e string) bool {
