@@ -17,7 +17,8 @@ require (
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210716143947-10d84642fa12
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210716143947-10d84642fa12
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
-	github.com/ipfs/go-ipfs-api v0.2.0 // indirect
+	github.com/ipfs/go-ipfs-api v0.2.0
+	github.com/jamiealquiza/tachymeter v2.0.0+incompatible
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/tidwall/gjson v1.7.4
