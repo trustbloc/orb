@@ -8,11 +8,13 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -28,22 +30,22 @@ import (
 func TestClient_GetActor(t *testing.T) {
 	actorIRI := testutil.MustParseURL("https://example.com/services/service1")
 
-	actorBytes, err := json.Marshal(aptestutil.NewMockService(actorIRI))
-	require.NoError(t, err)
+	actorBytes, e := json.Marshal(aptestutil.NewMockService(actorIRI))
+	require.NoError(t, e)
 
 	t.Run("Success", func(t *testing.T) {
 		httpClient := &mocks.HTTPTransport{}
 
 		rw := httptest.NewRecorder()
 
-		_, err = rw.Write(actorBytes)
+		_, err := rw.Write(actorBytes)
 		require.NoError(t, err)
 
 		result := rw.Result()
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetActor(actorIRI)
@@ -65,7 +67,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetActor(actorIRI)
@@ -83,7 +85,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetActor(actorIRI)
@@ -95,7 +97,7 @@ func TestClient_GetActor(t *testing.T) {
 	t.Run("Unmarshal client error", func(t *testing.T) {
 		rw := httptest.NewRecorder()
 
-		_, err = rw.Write([]byte("{"))
+		_, err := rw.Write([]byte("{"))
 		require.NoError(t, err)
 
 		httpClient := &mocks.HTTPTransport{}
@@ -104,7 +106,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		actor, err := c.GetActor(actorIRI)
@@ -113,6 +115,70 @@ func TestClient_GetActor(t *testing.T) {
 		require.Nil(t, actor)
 
 		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Cache expiry", func(t *testing.T) {
+		errExpected := errors.New("not found")
+
+		t.Run("Cached", func(t *testing.T) {
+			rw := httptest.NewRecorder()
+
+			_, err := rw.Write(actorBytes)
+			require.NoError(t, err)
+
+			result := rw.Result()
+
+			httpClient := &mocks.HTTPTransport{}
+			httpClient.GetReturnsOnCall(0, result, nil)
+			httpClient.GetReturnsOnCall(1, nil, errExpected)
+
+			c := New(Config{
+				CacheExpiration: time.Second,
+			}, httpClient)
+			require.NotNil(t, t, c)
+
+			actor, e := c.GetActor(actorIRI)
+			require.NoError(t, e)
+			require.NotNil(t, actor)
+			require.Equal(t, actorIRI.String(), actor.ID().String())
+
+			actor, e = c.GetActor(actorIRI)
+			require.NoError(t, e)
+			require.NotNil(t, actor)
+			require.Equal(t, actorIRI.String(), actor.ID().String())
+
+			require.NoError(t, result.Body.Close())
+		})
+
+		t.Run("Item expired", func(t *testing.T) {
+			rw := httptest.NewRecorder()
+
+			_, err := rw.Write(actorBytes)
+			require.NoError(t, err)
+
+			result := rw.Result()
+
+			httpClient := &mocks.HTTPTransport{}
+			httpClient.GetReturnsOnCall(0, result, nil)
+			httpClient.GetReturnsOnCall(1, nil, errExpected)
+
+			c := New(Config{
+				CacheExpiration: time.Nanosecond,
+			}, httpClient)
+			require.NotNil(t, t, c)
+
+			actor, e := c.GetActor(actorIRI)
+			require.NoError(t, e)
+			require.NotNil(t, actor)
+			require.Equal(t, actorIRI.String(), actor.ID().String())
+
+			actor, e = c.GetActor(actorIRI)
+			require.Error(t, e)
+			require.Nil(t, actor)
+			require.True(t, errors.Is(e, errExpected))
+
+			require.NoError(t, result.Body.Close())
+		})
 	})
 }
 
@@ -148,7 +214,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(serviceIRI)
@@ -205,7 +271,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(1, result2, nil)
 		httpClient.GetReturnsOnCall(2, result3, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -270,7 +336,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(1, result2, nil)
 		httpClient.GetReturnsOnCall(2, result3, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -296,7 +362,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetReferences(collIRI)
@@ -317,7 +383,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -343,7 +409,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -373,7 +439,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(0, result1, nil)
 		httpClient.GetReturnsOnCall(1, result2, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, err := c.GetReferences(collIRI)
@@ -414,7 +480,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(0, result1, nil)
 		httpClient.GetReturnsOnCall(1, result2, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		it, err := c.GetReferences(collIRI)
@@ -451,7 +517,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
@@ -473,7 +539,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
@@ -491,7 +557,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
@@ -512,7 +578,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(httpClient)
+		c := New(Config{}, httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, err := c.GetPublicKey(keyIRI)

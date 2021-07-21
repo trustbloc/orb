@@ -543,7 +543,10 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("get public key: %w", err)
 	}
 
-	apSigVerifier := getActivityPubVerifier(parameters, km, cr, t)
+	// TODO: Pass config from startup params
+	apClient := client.New(client.Config{}, t)
+
+	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
 	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient, monitoring.WithHTTPClient(httpClient))
 	if err != nil {
@@ -599,7 +602,7 @@ func startOrbServices(parameters *orbParameters) error {
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, client.New(t), resourceResolver,
+		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(
@@ -1054,9 +1057,9 @@ type httpTransport interface {
 }
 
 func getActivityPubVerifier(parameters *orbParameters, km kms.KeyManager,
-	cr acrypto.Crypto, t httpTransport) signatureVerifier {
+	cr acrypto.Crypto, apClient *client.Client) signatureVerifier {
 	if parameters.httpSignaturesEnabled {
-		return httpsig.NewVerifier(client.New(t), cr, km)
+		return httpsig.NewVerifier(apClient, cr, km)
 	}
 
 	logger.Warnf("HTTP signature verification for ActivityPub is disabled.")
