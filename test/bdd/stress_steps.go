@@ -32,6 +32,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
+	"github.com/jamiealquiza/tachymeter"
 )
 
 const (
@@ -144,15 +145,20 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 
 	p.Start()
 
+	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+	resolveUpdatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+
 	for i := 0; i < didNums; i++ {
 		randomVDR := vdrs[mrand.Intn(len(urls))]
 
 		p.Submit(&createUpdateDIDRequest{
-			vdr:          randomVDR,
-			kr:           kr,
-			anchorOrigin: anchorOrigin,
-			steps:        e,
-			maxRetry:     maxRetry,
+			vdr:                   randomVDR,
+			kr:                    kr,
+			anchorOrigin:          anchorOrigin,
+			steps:                 e,
+			maxRetry:              maxRetry,
+			resolveCreatedDIDTime: resolveCreatedDIDTime,
+			resolveUpdatedDIDTime: resolveUpdatedDIDTime,
 		})
 	}
 
@@ -169,6 +175,14 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			return resp.Err
 		}
 	}
+
+	fmt.Println("Resolve created did times:")
+	fmt.Println(resolveCreatedDIDTime.Calc())
+	fmt.Println("------")
+
+	fmt.Println("Resolve updated did times:")
+	fmt.Println(resolveUpdatedDIDTime.Calc())
+	fmt.Println("------")
 
 	return nil
 }
@@ -329,11 +343,13 @@ func (k *keyRetrieverMap) WriteNextUpdatePublicKey(didID string, key crypto.Publ
 }
 
 type createUpdateDIDRequest struct {
-	vdr          *orb.VDR
-	kr           *keyRetrieverMap
-	steps        *StressSteps
-	anchorOrigin string
-	maxRetry     int
+	vdr                   *orb.VDR
+	kr                    *keyRetrieverMap
+	steps                 *StressSteps
+	anchorOrigin          string
+	maxRetry              int
+	resolveCreatedDIDTime *tachymeter.Tachymeter
+	resolveUpdatedDIDTime *tachymeter.Tachymeter
 }
 
 func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
@@ -345,6 +361,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 
 	logger.Infof("created did successfully %s", intermID)
 	logger.Infof("started resolving created did %s", intermID)
+	start := time.Now()
 
 	var docResolution *ariesdid.DocResolution
 
@@ -362,6 +379,8 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 
 		time.Sleep(1 * time.Second)
 	}
+
+	r.resolveCreatedDIDTime.AddTime(time.Since(start))
 
 	canonicalID := docResolution.DocumentMetadata.CanonicalID
 
@@ -384,6 +403,7 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 	}
 
 	logger.Infof("update did successfully %s", canonicalID)
+	start = time.Now()
 	logger.Infof("started resolving updated did %s", canonicalID)
 
 	for i := 1; i <= r.maxRetry; i++ {
@@ -400,6 +420,8 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 
 		time.Sleep(1 * time.Second)
 	}
+
+	r.resolveUpdatedDIDTime.AddTime(time.Since(start))
 
 	logger.Infof("resolved updated did successfully %s %s", intermID, canonicalID)
 
