@@ -31,10 +31,13 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("success - options", func(t *testing.T) {
-		c := New(WithHTTPClient(http.DefaultClient), WithCacheLifetime(5*time.Second))
+		c := New(WithHTTPClient(http.DefaultClient),
+			WithCacheLifetime(5*time.Second),
+			WithCacheSize(1000))
 
 		require.Equal(t, http.DefaultClient, c.httpClient)
 		require.Equal(t, 5*time.Second, c.cacheLifetime)
+		require.Equal(t, 1000, c.cacheSize)
 	})
 }
 
