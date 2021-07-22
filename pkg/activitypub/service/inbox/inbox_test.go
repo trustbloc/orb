@@ -35,6 +35,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
@@ -50,7 +51,7 @@ func TestInbox_StartStop(t *testing.T) {
 	}
 
 	ib, err := New(cfg, memstore.New(cfg.ServiceEndpoint), mocks.NewPubSub(), &mocks.ActivityHandler{},
-		&mocks.SignatureVerifier{})
+		&mocks.SignatureVerifier{}, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -92,7 +93,7 @@ func TestInbox_Handle(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
+	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -188,7 +189,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -244,7 +245,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -317,7 +318,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -378,7 +379,7 @@ func TestInbox_Error(t *testing.T) {
 		errExpected := fmt.Errorf("injected pub sub error")
 
 		ib, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), activityHandler,
-			&mocks.SignatureVerifier{})
+			&mocks.SignatureVerifier{}, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, ib)
@@ -406,7 +407,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -476,7 +477,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -555,7 +556,7 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier)
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -603,7 +604,7 @@ func TestUnmarshalAndValidateActivity(t *testing.T) {
 	actorIRI := testutil.MustParseURL("https://example1.com/services/service1")
 
 	ib, e := New(&Config{VerifyActorInSignature: true}, memstore.New(""), mocks.NewPubSub(),
-		nil, nil)
+		nil, nil, &orbmocks.MetricsProvider{})
 	require.NoError(t, e)
 	require.NotNil(t, ib)
 

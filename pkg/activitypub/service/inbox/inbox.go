@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
@@ -40,6 +41,10 @@ type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
+type metricsProvider interface {
+	InboxHandlerTime(value time.Duration)
+}
+
 // Config holds configuration parameters for the Inbox.
 type Config struct {
 	ServiceEndpoint        string
@@ -59,16 +64,18 @@ type Inbox struct {
 	activityHandler service.ActivityHandler
 	activityStore   store.Store
 	jsonUnmarshal   func(data []byte, v interface{}) error
+	metrics         metricsProvider
 }
 
 // New returns a new ActivityPub inbox.
 func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
-	sigVerifier signatureVerifier) (*Inbox, error) {
+	sigVerifier signatureVerifier, metrics metricsProvider) (*Inbox, error) {
 	h := &Inbox{
 		Config:          cfg,
 		activityHandler: activityHandler,
 		activityStore:   s,
 		jsonUnmarshal:   json.Unmarshal,
+		metrics:         metrics,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
@@ -160,6 +167,12 @@ func (h *Inbox) listen() {
 }
 
 func (h *Inbox) handle(msg *message.Message) {
+	startTime := time.Now()
+
+	defer func() {
+		h.metrics.InboxHandlerTime(time.Since(startTime))
+	}()
+
 	activityID, err := h.handleActivityMsg(msg)
 	if err != nil {
 		if orberrors.IsTransient(err) {

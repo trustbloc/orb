@@ -100,6 +100,7 @@ type Outbox struct {
 	jsonMarshal          func(v interface{}) ([]byte, error)
 	jsonUnmarshal        func(data []byte, v interface{}) error
 	iriCache             gcache.Cache
+	metrics              metricsProvider
 }
 
 type httpTransport interface {
@@ -107,9 +108,16 @@ type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
+type metricsProvider interface {
+	OutboxPostTime(value time.Duration)
+	OutboxResolveInboxesTime(value time.Duration)
+}
+
 // New returns a new ActivityPub Outbox.
+//nolint:funlen
 func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
-	apClient activityPubClient, resourceResolver resourceResolver, handlerOpts ...service.HandlerOpt) (*Outbox, error) {
+	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider,
+	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
 	options := newHandlerOptions(handlerOpts)
 
 	undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
@@ -134,6 +142,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		redeliveryService:    redelivery.NewService(cfg.ServiceName, cfg.RedeliveryConfig, redeliverChan),
 		jsonMarshal:          json.Marshal,
 		jsonUnmarshal:        json.Unmarshal,
+		metrics:              metrics,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName,
@@ -205,6 +214,11 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	if h.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
+
+	startTime := time.Now()
+	defer func() {
+		h.metrics.OutboxPostTime(time.Since(startTime))
+	}()
 
 	activity, err := h.validateAndPopulateActivity(activity)
 	if err != nil {
@@ -332,6 +346,12 @@ func (h *Outbox) redeliver() {
 }
 
 func (h *Outbox) resolveInboxes(toIRIs []*url.URL) ([]*url.URL, error) {
+	startTime := time.Now()
+
+	defer func() {
+		h.metrics.OutboxResolveInboxesTime(time.Since(startTime))
+	}()
+
 	toIRIs, err := h.resolveIRIs(toIRIs, h.resolveActorIRIs)
 	if err != nil {
 		return nil, err
