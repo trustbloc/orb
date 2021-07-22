@@ -248,7 +248,8 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.CID, err)
 	}
 
-	logger.Debugf("successfully processed anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)
+	logger.Infof("Successfully processed %d DIDs in anchor[%s], core index[%s]",
+		len(acSuffixes), anchor.CID, anchorPayload.CoreIndex)
 
 	return nil
 }
