@@ -141,47 +141,68 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		vdrs = append(vdrs, vdr)
 	}
 
-	p := NewWorkerPool(concurrencyReq)
+	createPool := NewWorkerPool(concurrencyReq)
+	resolvePool := NewWorkerPool(concurrencyReq)
+	wg := sync.WaitGroup{}
 
-	p.Start()
+	createPool.Start()
+	resolvePool.Start()
 
 	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-	resolveUpdatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+	//resolveUpdatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+
+	start := time.Now()
 
 	for i := 0; i < didNums; i++ {
 		randomVDR := vdrs[mrand.Intn(len(urls))]
 
-		p.Submit(&createUpdateDIDRequest{
+		createPool.Submit(&createDIDReq{
 			vdr:                   randomVDR,
 			kr:                    kr,
 			anchorOrigin:          anchorOrigin,
 			steps:                 e,
 			maxRetry:              maxRetry,
 			resolveCreatedDIDTime: resolveCreatedDIDTime,
-			resolveUpdatedDIDTime: resolveUpdatedDIDTime,
+			resolvePool:           resolvePool,
+			wg:                    &wg,
 		})
 	}
 
-	p.Stop()
+	createPool.Stop()
 
-	logger.Infof("got %d responses for %d requests", len(p.responses), didNums)
+	logger.Infof("got created %d responses for %d requests", len(createPool.responses), didNums)
 
-	if len(p.responses) != didNums {
-		return fmt.Errorf("expecting %d responses but got %d", didNums, len(p.responses))
+	if len(createPool.responses) != didNums {
+		return fmt.Errorf("expecting created %d responses but got %d", didNums, len(createPool.responses))
 	}
 
-	for _, resp := range p.responses {
+	for _, resp := range createPool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
 	}
 
-	fmt.Println("Resolve created did times:")
-	fmt.Println(resolveCreatedDIDTime.Calc())
+	wg.Wait()
+	resolvePool.Stop()
+
+	logger.Infof("got resolved created %d responses for %d requests", len(resolvePool.responses), didNums)
+
+	if len(createPool.responses) != didNums {
+		return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
+	}
+
+	for _, resp := range resolvePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
+	fmt.Printf("Created did took: %s\n", time.Since(start).String())
 	fmt.Println("------")
 
-	fmt.Println("Resolve updated did times:")
-	fmt.Println(resolveUpdatedDIDTime.Calc())
+	fmt.Println("Resolve created did times:")
+	resolveCreatedDIDTime.SetWallTime(time.Since(start))
+	fmt.Println(resolveCreatedDIDTime.Calc())
 	fmt.Println("------")
 
 	return nil
@@ -342,17 +363,18 @@ func (k *keyRetrieverMap) WriteNextUpdatePublicKey(didID string, key crypto.Publ
 	k.Unlock()
 }
 
-type createUpdateDIDRequest struct {
+type createDIDReq struct {
 	vdr                   *orb.VDR
-	kr                    *keyRetrieverMap
 	steps                 *StressSteps
 	anchorOrigin          string
-	maxRetry              int
 	resolveCreatedDIDTime *tachymeter.Tachymeter
-	resolveUpdatedDIDTime *tachymeter.Tachymeter
+	resolvePool           *WorkerPool
+	kr                    *keyRetrieverMap
+	maxRetry              int
+	wg                    *sync.WaitGroup
 }
 
-func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
+func (r *createDIDReq) Invoke() (interface{}, error) {
 	recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err := r.steps.createDID("Ed25519",
 		"Ed25519VerificationKey2018", r.anchorOrigin, uuid.New().URN(), r.vdr)
 	if err != nil {
@@ -360,14 +382,44 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 	}
 
 	logger.Infof("created did successfully %s", intermID)
-	logger.Infof("started resolving created did %s", intermID)
+
+	r.wg.Add(1)
+
+	go func(wg *sync.WaitGroup) {
+		r.resolvePool.Submit(&resolveDIDReq{
+			vdr:                   r.vdr,
+			kr:                    r.kr,
+			maxRetry:              r.maxRetry,
+			resolveCreatedDIDTime: r.resolveCreatedDIDTime,
+			intermID:              intermID,
+			recoveryKeyPrivateKey: recoveryKeyPrivateKey,
+			updateKeyPrivateKey:   updateKeyPrivateKey,
+		})
+
+		r.wg.Done()
+	}(r.wg)
+	return nil, nil
+}
+
+type resolveDIDReq struct {
+	vdr                   *orb.VDR
+	resolveCreatedDIDTime *tachymeter.Tachymeter
+	kr                    *keyRetrieverMap
+	maxRetry              int
+	intermID              string
+	recoveryKeyPrivateKey crypto.PrivateKey
+	updateKeyPrivateKey   crypto.PrivateKey
+}
+
+func (r *resolveDIDReq) Invoke() (interface{}, error) {
+	logger.Infof("started resolving created did %s", r.intermID)
 	start := time.Now()
 
 	var docResolution *ariesdid.DocResolution
 
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
-		docResolution, err = r.vdr.Read(intermID)
+		docResolution, err = r.vdr.Read(r.intermID)
 
 		if err == nil {
 			break
@@ -386,44 +438,8 @@ func (r *createUpdateDIDRequest) Invoke() (interface{}, error) {
 
 	logger.Infof("resolved created did successfully %s", canonicalID)
 
-	r.kr.WriteKey(canonicalID, orb.Recover, recoveryKeyPrivateKey)
-	r.kr.WriteKey(canonicalID, orb.Update, updateKeyPrivateKey)
-
-	nextUpdatePublicKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-
-	r.kr.WriteNextUpdatePublicKey(canonicalID, nextUpdatePublicKey)
-
-	svcEndpoint := uuid.New().URN()
-
-	if err := r.steps.updateDID(canonicalID, r.anchorOrigin, svcEndpoint, r.vdr); err != nil {
-		return nil, err
-	}
-
-	logger.Infof("update did successfully %s", canonicalID)
-	start = time.Now()
-	logger.Infof("started resolving updated did %s", canonicalID)
-
-	for i := 1; i <= r.maxRetry; i++ {
-		var err error
-		docResolution, err = r.vdr.Read(canonicalID)
-
-		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == svcEndpoint {
-			break
-		}
-
-		if i == r.maxRetry {
-			return nil, fmt.Errorf("update did not working %s", canonicalID)
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-
-	r.resolveUpdatedDIDTime.AddTime(time.Since(start))
-
-	logger.Infof("resolved updated did successfully %s %s", intermID, canonicalID)
+	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
+	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
 
 	return nil, nil
 }
