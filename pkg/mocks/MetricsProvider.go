@@ -31,3 +31,23 @@ func (m *MetricsProvider) WriteAnchorTime(value time.Duration) {
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *MetricsProvider) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
 }
+
+// AddOperationTime records the time it takes to add an operation to the queue.
+func (m *MetricsProvider) AddOperationTime(value time.Duration) {
+}
+
+// BatchCutTime records the time it takes to cut an operation batch.
+func (m *MetricsProvider) BatchCutTime(value time.Duration) {
+}
+
+// BatchRollbackTime records the time it takes to roll back an operation batch (in case of a transient error).
+func (m *MetricsProvider) BatchRollbackTime(value time.Duration) {
+}
+
+// ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
+func (m *MetricsProvider) ProcessAnchorTime(value time.Duration) {
+}
+
+// ProcessDIDTime records the time it takes for the Observer to process a DID.
+func (m *MetricsProvider) ProcessDIDTime(value time.Duration) {
+}

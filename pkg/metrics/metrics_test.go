@@ -21,6 +21,11 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.InboxHandlerTime(time.Second) })
 		require.NotPanics(t, func() { m.OutboxPostTime(time.Second) })
 		require.NotPanics(t, func() { m.OutboxResolveInboxesTime(time.Second) })
+		require.NotPanics(t, func() { m.WriteAnchorTime(time.Second) })
+		require.NotPanics(t, func() { m.ProcessWitnessedAnchoredCredentialTime(time.Second) })
+		require.NotPanics(t, func() { m.AddOperationTime(time.Second) })
+		require.NotPanics(t, func() { m.BatchCutTime(time.Second) })
+		require.NotPanics(t, func() { m.BatchRollbackTime(time.Second) })
 	})
 }
 

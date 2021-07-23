@@ -51,6 +51,7 @@ func TestNew(t *testing.T) {
 	providers := &Providers{
 		DidAnchors: memdidanchor.New(),
 		PubSub:     ps,
+		Metrics:    &orbmocks.MetricsProvider{},
 	}
 
 	o, err := New(providers)
@@ -69,6 +70,7 @@ func TestStartObserver(t *testing.T) {
 		providers := &Providers{
 			DidAnchors: memdidanchor.New(),
 			PubSub:     mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:    &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -133,6 +135,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))
@@ -194,6 +197,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -263,6 +267,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -325,6 +330,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -385,6 +391,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -462,6 +469,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             &mockDidAnchor{Err: fmt.Errorf("did anchor error")},
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -508,6 +516,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -535,6 +544,7 @@ func TestStartObserver(t *testing.T) {
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -566,6 +576,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
@@ -630,6 +641,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 pubSub,
+			Metrics:                &orbmocks.MetricsProvider{},
 		}
 
 		o, err := New(providers)
