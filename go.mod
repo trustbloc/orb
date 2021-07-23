@@ -28,6 +28,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/ory/dockertest/v3 v3.6.3
 	github.com/piprate/json-gold v0.4.0
+	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0

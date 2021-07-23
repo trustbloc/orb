@@ -40,6 +40,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
@@ -61,7 +62,7 @@ func TestNewService(t *testing.T) {
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
-		mocks.NewActorRetriever(), &mocks.WebFingerResolver{},
+		mocks.NewActorRetriever(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 
@@ -1019,7 +1020,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
 	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
-		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{},
+		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
 		service.WithFollowerAuth(providers.followerAuth),

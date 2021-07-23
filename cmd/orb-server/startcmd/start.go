@@ -96,6 +96,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/ldcontextrest"
+	"github.com/trustbloc/orb/pkg/metrics"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
@@ -601,8 +602,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
+	metricsProvider := metrics.New()
+
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver,
+		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metricsProvider,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(
@@ -771,6 +774,7 @@ func startOrbServices(parameters *orbParameters) error {
 		ctxRest,
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService)),
+		metrics.NewHandler(),
 	)
 
 	handlers = append(handlers,

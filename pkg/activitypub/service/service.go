@@ -81,10 +81,16 @@ type resourceResolver interface {
 	ResolveHostMetaLink(uri, linkType string) (string, error)
 }
 
+type metricsProvider interface {
+	InboxHandlerTime(value time.Duration)
+	OutboxPostTime(value time.Duration)
+	OutboxResolveInboxesTime(value time.Duration)
+}
+
 // New returns a new ActivityPub service.
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
 	pubSub PubSub, activityPubClient activityPubClient, resourceResolver resourceResolver,
-	handlerOpts ...spi.HandlerOpt) (*Service, error) {
+	m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceEndpoint,
@@ -101,7 +107,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			RedeliveryConfig: cfg.RetryOpts,
 		},
 		activityStore, pubSub,
-		t, outboxHandler, activityPubClient, resourceResolver, handlerOpts...,
+		t, outboxHandler, activityPubClient, resourceResolver, m, handlerOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)
@@ -124,7 +130,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
 		},
 		activityStore, pubSub,
-		inboxHandler, sigVerifier,
+		inboxHandler, sigVerifier, m,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create inbox failed: %w", err)
