@@ -642,8 +642,8 @@ func startOrbServices(parameters *orbParameters) error {
 		o.Publisher(), pubSub,
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
-		orbDocumentLoader,
-		resourceResolver)
+		orbDocumentLoader, resourceResolver,
+		metricsProvider)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}

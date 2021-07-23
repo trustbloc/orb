@@ -40,6 +40,11 @@ import (
 
 var logger = log.New("anchor-writer")
 
+type metricsProvider interface {
+	WriteAnchorTime(value time.Duration)
+	ProcessWitnessedAnchoredCredentialTime(value time.Duration)
+}
+
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
@@ -50,6 +55,7 @@ type Writer struct {
 	maxWitnessDelay      time.Duration
 	signWithLocalWitness bool
 	resourceResolver     *resourceresolver.Resolver
+	metrics              metricsProvider
 }
 
 // Providers contains all of the providers required by the client.
@@ -136,7 +142,8 @@ type pubSub interface {
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 	anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
-	documentLoader ld.DocumentLoader, resourceResolver *resourceresolver.Resolver) (*Writer, error) {
+	documentLoader ld.DocumentLoader, resourceResolver *resourceresolver.Resolver,
+	metrics metricsProvider) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -146,6 +153,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		maxWitnessDelay:      maxWitnessDelay,
 		signWithLocalWitness: signWithLocalWitness,
 		resourceResolver:     resourceResolver,
+		metrics:              metrics,
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
@@ -160,6 +168,12 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
 func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
+	startTime := time.Now()
+
+	defer func() {
+		c.metrics.WriteAnchorTime(time.Since(startTime))
+	}()
+
 	// build anchor credential
 	vc, err := c.buildCredential(anchor, refs, version)
 	if err != nil {
@@ -347,6 +361,12 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 
 func (c *Writer) handle(vc *verifiable.Credential) error {
 	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
+
+	startTime := time.Now()
+
+	defer func() {
+		c.metrics.ProcessWitnessedAnchoredCredentialTime(time.Since(startTime))
+	}()
 
 	// store anchor credential with witness proofs
 	err := c.VCStore.Put(vc)
