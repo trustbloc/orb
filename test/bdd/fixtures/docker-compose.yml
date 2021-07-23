@@ -701,6 +701,16 @@ services:
     networks:
       - orb_net
 
+  metrics.example.com:
+    container_name: metrics.example.com
+    image: prom/prometheus
+    ports:
+      - 9095:9090
+    volumes:
+      - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - orb_net
+
 networks:
   orb_net:
     driver: bridge
