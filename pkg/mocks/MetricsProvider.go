@@ -22,3 +22,12 @@ func (m *MetricsProvider) OutboxResolveInboxesTime(value time.Duration) {
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
 func (m *MetricsProvider) InboxHandlerTime(value time.Duration) {
 }
+
+// WriteAnchorTime records the time it takes to write an anchor credential and post an 'Offer' activity.
+func (m *MetricsProvider) WriteAnchorTime(value time.Duration) {
+}
+
+// ProcessWitnessedAnchoredCredentialTime records the time it takes to process a witnessed anchor credential
+// by publishing it to the Observer and posting a 'Create' activity.
+func (m *MetricsProvider) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
+}

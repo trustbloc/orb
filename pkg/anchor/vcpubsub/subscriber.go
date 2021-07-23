@@ -103,13 +103,13 @@ func (h *Subscriber) handleVerifiableCredentialMessage(msg *message.Message) {
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warnf("Nacking verifiable credential message since it could not be delivered due "+
+		logger.Warnf("Nacking verifiable credential message since it could not be processed due "+
 			"to a transient error. MsgID [%s], VC ID [%s]: %s", msg.UUID, vc.ID, err)
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warnf("Acking verifiable credential message since it could not be delivered due "+
+		logger.Warnf("Acking verifiable credential message since it could not be processed due "+
 			"to a persistent error. MsgID [%s], VC ID [%s]: %s", msg.UUID, vc.ID, err)
 
 		msg.Ack()
