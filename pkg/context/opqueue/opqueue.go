@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -36,6 +37,12 @@ type operationMessage struct {
 	op  *operation.QueuedOperationAtTime
 }
 
+type metricsProvider interface {
+	AddOperationTime(value time.Duration)
+	BatchCutTime(value time.Duration)
+	BatchRollbackTime(value time.Duration)
+}
+
 // Config contains configuration parameters for the operation queue.
 type Config struct {
 	PoolSize uint
@@ -51,10 +58,11 @@ type Queue struct {
 	pending       []*operationMessage
 	jsonMarshal   func(interface{}) ([]byte, error)
 	jsonUnmarshal func(data []byte, v interface{}) error
+	metrics       metricsProvider
 }
 
 // New returns a new operation queue.
-func New(cfg Config, pubSub pubSub) (*Queue, error) {
+func New(cfg Config, pubSub pubSub, metrics metricsProvider) (*Queue, error) {
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", topic, err)
@@ -65,6 +73,7 @@ func New(cfg Config, pubSub pubSub) (*Queue, error) {
 		msgChan:       msgChan,
 		jsonMarshal:   json.Marshal,
 		jsonUnmarshal: json.Unmarshal,
+		metrics:       metrics,
 	}
 
 	q.Lifecycle = lifecycle.New("operation-queue",
@@ -82,6 +91,12 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolGenesisTime uint64) (
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
+
+	startTime := time.Now()
+
+	defer func() {
+		q.metrics.AddOperationTime(time.Since(startTime))
+	}()
 
 	b, err := q.jsonMarshal(
 		&operation.QueuedOperationAtTime{
@@ -137,6 +152,8 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 		return nil, nil, nil, lifecycle.ErrNotStarted
 	}
 
+	startTime := time.Now()
+
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
@@ -167,6 +184,8 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 		q.mutex.RLock()
 		defer q.mutex.RUnlock()
 
+		q.metrics.BatchCutTime(time.Since(startTime))
+
 		return uint(len(q.pending))
 	}
 
@@ -179,6 +198,8 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 
 			logger.Infof("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
 		}
+
+		q.metrics.BatchRollbackTime(time.Since(startTime))
 	}
 
 	return asQueuedOperations(items), ack, nack, nil

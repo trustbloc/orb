@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -59,6 +60,11 @@ type pubSub interface {
 	Close() error
 }
 
+type metricsProvider interface {
+	ProcessAnchorTime(value time.Duration)
+	ProcessDIDTime(value time.Duration)
+}
+
 // Option is an option for observer.
 type Option func(opts *Observer)
 
@@ -75,14 +81,14 @@ type Providers struct {
 	AnchorGraph
 	DidAnchors didAnchors
 	PubSub     pubSub
+	Metrics    metricsProvider
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
 type Observer struct {
 	*Providers
 
-	pubSub *PubSub
-
+	pubSub          *PubSub
 	discoveryDomain string
 }
 
@@ -125,6 +131,12 @@ func (o *Observer) Publisher() Publisher {
 func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 	logger.Debugf("observing anchor: %s", anchor.CID)
 
+	startTime := time.Now()
+
+	defer func() {
+		o.Metrics.ProcessAnchorTime(time.Since(startTime))
+	}()
+
 	anchorInfo, err := o.AnchorGraph.Read(anchor.CID)
 	if err != nil {
 		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.CID, err.Error())
@@ -145,6 +157,12 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 
 func (o *Observer) processDID(did string) error {
 	logger.Debugf("processing out-of-system did[%s]", did)
+
+	startTime := time.Now()
+
+	defer func() {
+		o.Metrics.ProcessDIDTime(time.Since(startTime))
+	}()
 
 	cidWithHint, suffix, err := getDidParts(did)
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 
 	ctxmocks "github.com/trustbloc/orb/pkg/context/mocks"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 )
@@ -49,7 +50,7 @@ func TestQueue(t *testing.T) {
 
 	defer ps2.Stop()
 
-	q1, err := New(Config{PoolSize: 8}, ps1)
+	q1, err := New(Config{PoolSize: 8}, ps1, &mocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, q1)
 
@@ -61,7 +62,7 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, ops1)
 
-	q2, err := New(Config{PoolSize: 8}, ps2)
+	q2, err := New(Config{PoolSize: 8}, ps2, &mocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, q2)
 
@@ -160,7 +161,7 @@ func TestQueue_Error(t *testing.T) {
 	defer ps.Stop()
 
 	t.Run("Not started error", func(t *testing.T) {
-		q, err := New(Config{}, ps)
+		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -187,7 +188,7 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.PublishReturns(errExpected)
 
-		q, err := New(Config{}, ps)
+		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -202,13 +203,13 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.SubscribeWithOptsReturns(nil, errExpected)
 
-		_, err := New(Config{}, ps)
+		_, err := New(Config{}, ps, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps)
+		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -224,7 +225,7 @@ func TestQueue_Error(t *testing.T) {
 	})
 
 	t.Run("Unmarshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps)
+		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 

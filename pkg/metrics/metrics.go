@@ -17,14 +17,25 @@ const (
 
 	// ActivityPub.
 	activityPub                = "activitypub"
-	apPostTimeMetric           = "outbox_post_time"
-	apResolveInboxesTimeMetric = "outbox_resolve_inboxes_time"
-	apInboxHandlerTimeMetric   = "inbox_handler_time"
+	apPostTimeMetric           = "outbox_post_seconds"
+	apResolveInboxesTimeMetric = "outbox_resolve_inboxes_seconds"
+	apInboxHandlerTimeMetric   = "inbox_handler_seconds"
 
 	// Anchor.
 	anchor                       = "anchor"
-	anchorWriteTimeMetric        = "anchor_write_time"
-	anchorProcessWitnessedMetric = "anchor_process_witnessed_time"
+	anchorWriteTimeMetric        = "write_seconds"
+	anchorProcessWitnessedMetric = "process_witnessed_seconds"
+
+	// Operation queue.
+	operationQueue                 = "opqueue"
+	opQueueAddOperationTimeMetric  = "add_operation_seconds"
+	opQueueBatchCutTimeMetric      = "batch_cut_seconds"
+	opQueueBatchRollbackTimeMetric = "batch_rollback_seconds"
+
+	// Observer.
+	observer                        = "observer"
+	observerProcessAnchorTimeMetric = "process_anchor_seconds"
+	observerProcessDIDTimeMetric    = "process_did_seconds"
 )
 
 // Metrics manages the metrics for Orb.
@@ -35,6 +46,13 @@ type Metrics struct {
 
 	anchorWriteTime            prometheus.Histogram
 	anchorProcessWitnessedTime prometheus.Histogram
+
+	opqueueAddOperationTime  prometheus.Histogram
+	opqueueBatchCutTime      prometheus.Histogram
+	opqueueBatchRollbackTime prometheus.Histogram
+
+	observerProcessAnchorTime prometheus.Histogram
+	observerProcessDIDTime    prometheus.Histogram
 }
 
 // New returns a new Orb metrics provider.
@@ -42,24 +60,44 @@ func New() *Metrics {
 	m := &Metrics{
 		apOutboxPostTime: newHistogram(
 			activityPub, apPostTimeMetric,
-			"The time (in seconds) that it takes to post a message to the outbox",
+			"The time (in seconds) that it takes to post a message to the outbox.",
 		),
 		apOutboxResolveInboxesTime: newHistogram(
 			activityPub, apResolveInboxesTimeMetric,
-			"The time (in seconds) that it takes to resolve the inboxes of the destinations when posting to the outbox",
+			"The time (in seconds) that it takes to resolve the inboxes of the destinations when posting to the outbox.",
 		),
 		apInboxHandlerTime: newHistogram(
 			activityPub, apInboxHandlerTimeMetric,
-			"The time (in seconds) that it takes to handle an activity posted to the inbox",
+			"The time (in seconds) that it takes to handle an activity posted to the inbox.",
 		),
 		anchorWriteTime: newHistogram(
 			anchor, anchorWriteTimeMetric,
-			"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity",
+			"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity.",
 		),
 		anchorProcessWitnessedTime: newHistogram(
 			anchor, anchorProcessWitnessedMetric,
 			"The time (in seconds) that it takes to process a witnessed anchor credential by publishing it to "+
-				"the Observer and posting a 'Create' activity",
+				"the Observer and posting a 'Create' activity.",
+		),
+		opqueueAddOperationTime: newHistogram(
+			operationQueue, opQueueAddOperationTimeMetric,
+			"The time (in seconds) that it takes to add an operation to the queue.",
+		),
+		opqueueBatchCutTime: newHistogram(
+			operationQueue, opQueueBatchCutTimeMetric,
+			"The time (in seconds) that it takes to cut an operation batch.",
+		),
+		opqueueBatchRollbackTime: newHistogram(
+			operationQueue, opQueueBatchRollbackTimeMetric,
+			"The time (in seconds) that it takes to roll back an operation batch.",
+		),
+		observerProcessAnchorTime: newHistogram(
+			observer, observerProcessAnchorTimeMetric,
+			"The time (in seconds) that it takes for the Observer to process an anchor credential.",
+		),
+		observerProcessDIDTime: newHistogram(
+			observer, observerProcessDIDTimeMetric,
+			"The time (in seconds) that it takes for the Observer to process a DID.",
 		),
 	}
 
@@ -69,6 +107,11 @@ func New() *Metrics {
 		m.apInboxHandlerTime,
 		m.anchorWriteTime,
 		m.anchorProcessWitnessedTime,
+		m.opqueueAddOperationTime,
+		m.opqueueBatchCutTime,
+		m.opqueueBatchRollbackTime,
+		m.observerProcessAnchorTime,
+		m.observerProcessDIDTime,
 	)
 
 	return m
@@ -98,6 +141,31 @@ func (m *Metrics) WriteAnchorTime(value time.Duration) {
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *Metrics) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
 	m.anchorProcessWitnessedTime.Observe(value.Seconds())
+}
+
+// AddOperationTime records the time it takes to add an operation to the queue.
+func (m *Metrics) AddOperationTime(value time.Duration) {
+	m.opqueueAddOperationTime.Observe(value.Seconds())
+}
+
+// BatchCutTime records the time it takes to cut an operation batch.
+func (m *Metrics) BatchCutTime(value time.Duration) {
+	m.opqueueBatchCutTime.Observe(value.Seconds())
+}
+
+// BatchRollbackTime records the time it takes to roll back an operation batch (in case of a transient error).
+func (m *Metrics) BatchRollbackTime(value time.Duration) {
+	m.opqueueBatchRollbackTime.Observe(value.Seconds())
+}
+
+// ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
+func (m *Metrics) ProcessAnchorTime(value time.Duration) {
+	m.observerProcessAnchorTime.Observe(value.Seconds())
+}
+
+// ProcessDIDTime records the time it takes for the Observer to process a DID.
+func (m *Metrics) ProcessDIDTime(value time.Duration) {
+	m.observerProcessDIDTime.Observe(value.Seconds())
 }
 
 func newCounter(subsystem, name, help string) prometheus.Counter {
