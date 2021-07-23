@@ -15,7 +15,7 @@ import (
 const (
 	namespace = "orb"
 
-	activityPub                = "activity_pub"
+	activityPub                = "activitypub"
 	apPostTimeMetric           = "outbox_post_time"
 	apResolveInboxesTimeMetric = "outbox_resolve_inboxes_time"
 	apInboxHandlerTimeMetric   = "inbox_handler_time"
