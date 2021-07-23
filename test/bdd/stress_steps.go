@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cucumber/godog"
@@ -45,6 +46,9 @@ const (
 	Ed25519KeyType = "Ed25519"
 	masterKeyURI   = "local-lock://custom/master/key/"
 )
+
+var createLogCount int64
+var resolveCreateLogCount int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -381,11 +385,14 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		return nil, err
 	}
 
-	logger.Infof("created did successfully %s", intermID)
+	if atomic.AddInt64(&createLogCount, 1)%100 == 0 {
+		logger.Infof("created did successfully %d", createLogCount)
+	}
 
 	r.wg.Add(1)
 
-	go func(wg *sync.WaitGroup) {
+	go func(r *createDIDReq, intermID string,
+		recoveryKeyPrivateKey, updateKeyPrivateKey crypto.PrivateKey) {
 		r.resolvePool.Submit(&resolveDIDReq{
 			vdr:                   r.vdr,
 			kr:                    r.kr,
@@ -397,7 +404,7 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		})
 
 		r.wg.Done()
-	}(r.wg)
+	}(r, intermID, recoveryKeyPrivateKey, updateKeyPrivateKey)
 	return nil, nil
 }
 
@@ -412,7 +419,6 @@ type resolveDIDReq struct {
 }
 
 func (r *resolveDIDReq) Invoke() (interface{}, error) {
-	logger.Infof("started resolving created did %s", r.intermID)
 	start := time.Now()
 
 	var docResolution *ariesdid.DocResolution
@@ -436,7 +442,9 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 	canonicalID := docResolution.DocumentMetadata.CanonicalID
 
-	logger.Infof("resolved created did successfully %s", canonicalID)
+	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
+		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
+	}
 
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
