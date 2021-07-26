@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -34,11 +35,16 @@ type httpClient interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
+type metricsProvider interface {
+	CASResolveTime(value time.Duration)
+}
+
 // Resolver represents a resolver that can resolve data in a CAS based on a CID (with possible hint) and a WebCAS URL.
 type Resolver struct {
 	localCAS       extendedcasclient.Client
 	ipfsReader     ipfsReader
 	webCASResolver WebCASResolver
+	metrics        metricsProvider
 }
 
 type ipfsReader interface {
@@ -47,11 +53,13 @@ type ipfsReader interface {
 
 // New returns a new Resolver.
 // ipfsReader is optional. If not provided (is nil), CIDs with IPFS hints won't be resolvable.
-func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolver WebCASResolver) *Resolver {
+func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolver WebCASResolver,
+	metrics metricsProvider) *Resolver {
 	return &Resolver{
 		localCAS:       casClient,
 		ipfsReader:     ipfsReader,
 		webCASResolver: webCASResolver,
+		metrics:        metrics,
 	}
 }
 
@@ -65,6 +73,12 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolv
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
 func (h *Resolver) Resolve(webCASURL *url.URL, cidWithPossibleHint string, data []byte) ([]byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		h.metrics.CASResolveTime(time.Since(startTime))
+	}()
+
 	if data != nil {
 		err := h.storeLocallyAndVerifyCID(data, cidWithPossibleHint)
 		if err != nil {
