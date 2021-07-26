@@ -146,29 +146,18 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	}
 
 	createPool := NewWorkerPool(concurrencyReq)
-	resolvePool := NewWorkerPool(concurrencyReq)
-	wg := sync.WaitGroup{}
 
 	createPool.Start()
-	resolvePool.Start()
 
-	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-	//resolveUpdatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-
-	start := time.Now()
+	createStart := time.Now()
 
 	for i := 0; i < didNums; i++ {
 		randomVDR := vdrs[mrand.Intn(len(urls))]
 
 		createPool.Submit(&createDIDReq{
-			vdr:                   randomVDR,
-			kr:                    kr,
-			anchorOrigin:          anchorOrigin,
-			steps:                 e,
-			maxRetry:              maxRetry,
-			resolveCreatedDIDTime: resolveCreatedDIDTime,
-			resolvePool:           resolvePool,
-			wg:                    &wg,
+			vdr:          randomVDR,
+			anchorOrigin: anchorOrigin,
+			steps:        e,
 		})
 	}
 
@@ -180,20 +169,47 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		return fmt.Errorf("expecting created %d responses but got %d", didNums, len(createPool.responses))
 	}
 
+	createTimeStr := time.Since(createStart).String()
+
+	resolvePool := NewWorkerPool(concurrencyReq)
+
+	resolvePool.Start()
+
+	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+
+	resolveStart := time.Now()
+
 	for _, resp := range createPool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
+
+		r, ok := resp.Resp.(createDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to createDIDResp")
+		}
+
+		resolvePool.Submit(&resolveDIDReq{
+			vdr:                   r.vdr,
+			kr:                    kr,
+			maxRetry:              maxRetry,
+			resolveCreatedDIDTime: resolveCreatedDIDTime,
+			intermID:              r.intermID,
+			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
+			updateKeyPrivateKey:   r.updateKeyPrivateKey,
+		})
+
 	}
 
-	wg.Wait()
 	resolvePool.Stop()
 
 	logger.Infof("got resolved created %d responses for %d requests", len(resolvePool.responses), didNums)
 
-	if len(createPool.responses) != didNums {
+	if len(resolvePool.responses) != didNums {
 		return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
 	}
+
+	resolveTimeStr := time.Since(resolveStart).String()
 
 	for _, resp := range resolvePool.responses {
 		if resp.Err != nil {
@@ -201,11 +217,14 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		}
 	}
 
-	fmt.Printf("Created did took: %s\n", time.Since(start).String())
+	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Println("------")
 
-	fmt.Println("Resolve created did times:")
-	resolveCreatedDIDTime.SetWallTime(time.Since(start))
+	fmt.Printf("Resolved did %d took: %s\n", didNums, resolveTimeStr)
+	fmt.Println("------")
+
+	fmt.Println("Resolve did times:")
+	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
 	fmt.Println(resolveCreatedDIDTime.Calc())
 	fmt.Println("------")
 
@@ -368,14 +387,16 @@ func (k *keyRetrieverMap) WriteNextUpdatePublicKey(didID string, key crypto.Publ
 }
 
 type createDIDReq struct {
+	vdr          *orb.VDR
+	steps        *StressSteps
+	anchorOrigin string
+}
+
+type createDIDResp struct {
 	vdr                   *orb.VDR
-	steps                 *StressSteps
-	anchorOrigin          string
-	resolveCreatedDIDTime *tachymeter.Tachymeter
-	resolvePool           *WorkerPool
-	kr                    *keyRetrieverMap
-	maxRetry              int
-	wg                    *sync.WaitGroup
+	intermID              string
+	recoveryKeyPrivateKey crypto.PrivateKey
+	updateKeyPrivateKey   crypto.PrivateKey
 }
 
 func (r *createDIDReq) Invoke() (interface{}, error) {
@@ -389,23 +410,7 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		logger.Infof("created did successfully %d", createLogCount)
 	}
 
-	r.wg.Add(1)
-
-	go func(r *createDIDReq, intermID string,
-		recoveryKeyPrivateKey, updateKeyPrivateKey crypto.PrivateKey) {
-		r.resolvePool.Submit(&resolveDIDReq{
-			vdr:                   r.vdr,
-			kr:                    r.kr,
-			maxRetry:              r.maxRetry,
-			resolveCreatedDIDTime: r.resolveCreatedDIDTime,
-			intermID:              intermID,
-			recoveryKeyPrivateKey: recoveryKeyPrivateKey,
-			updateKeyPrivateKey:   updateKeyPrivateKey,
-		})
-
-		r.wg.Done()
-	}(r, intermID, recoveryKeyPrivateKey, updateKeyPrivateKey)
-	return nil, nil
+	return createDIDResp{vdr: r.vdr, intermID: intermID, recoveryKeyPrivateKey: recoveryKeyPrivateKey, updateKeyPrivateKey: updateKeyPrivateKey}, nil
 }
 
 type resolveDIDReq struct {
