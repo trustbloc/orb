@@ -471,6 +471,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing unit in duration")
 	})
+
+	t.Run("Invalid max connection subscriptions", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for mq-max-connection-subscription")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -810,6 +823,74 @@ func TestGetIPFSTimeout(t *testing.T) {
 		timeout, err := getIPFSTimeout(cmd)
 		require.NoError(t, err)
 		require.Equal(t, 40*time.Second, timeout)
+	})
+}
+
+func TestGetMQParameters(t *testing.T) {
+	const u = "amqp://admin:password@orb.mq.domain1.com:5672/"
+
+	t.Run("Valid env values -> error", func(t *testing.T) {
+		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
+		restoreOpPoolEnv := setEnv(t, mqOpPoolEnvKey, "221")
+		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
+
+		defer func() {
+			restoreURLEnv()
+			restoreOpPoolEnv()
+			restoreConnectionSubscriptionsEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		mqURL, poolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, u, mqURL)
+		require.Equal(t, 221, poolSize)
+		require.Equal(t, 456, maxConnectionSubscriptions)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
+
+		defer func() {
+			restoreURLEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		mqURL, poolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, u, mqURL)
+		require.Equal(t, 0, poolSize)
+		require.Equal(t, mqDefaultMaxConnectionSubscriptions, maxConnectionSubscriptions)
+	})
+
+	t.Run("Invalid op pool size value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqOpPoolEnvKey, "xxx")
+
+		defer func() {
+			restoreEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, _, _, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid max connection subscriptions value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
+
+		defer func() {
+			restoreEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, _, _, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
 	})
 }
 

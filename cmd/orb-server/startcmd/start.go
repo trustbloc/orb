@@ -511,7 +511,10 @@ func startOrbServices(parameters *orbParameters) error {
 	var pubSub pubSub
 
 	if parameters.mqURL != "" {
-		pubSub = amqp.New(amqp.Config{URI: parameters.mqURL})
+		pubSub = amqp.New(amqp.Config{
+			URI:                        parameters.mqURL,
+			MaxConnectionSubscriptions: parameters.mqMaxConnectionSubscriptions,
+		})
 	} else {
 		pubSub = mempubsub.New(mempubsub.DefaultConfig())
 	}
