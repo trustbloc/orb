@@ -38,6 +38,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
@@ -117,6 +118,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
@@ -206,6 +208,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
@@ -279,6 +282,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
@@ -355,6 +359,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
@@ -431,6 +436,7 @@ services:
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
+      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain4.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain4.com/vc

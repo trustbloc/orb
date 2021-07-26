@@ -26,15 +26,17 @@ import (
 var logger = log.New("pubsub")
 
 const (
-	defaultMaxConnectRetries     = 25
-	defaultMaxConnectInterval    = 5 * time.Second
-	defaultMaxConnectElapsedTime = 3 * time.Minute
+	defaultMaxConnectRetries          = 25
+	defaultMaxConnectInterval         = 5 * time.Second
+	defaultMaxConnectElapsedTime      = 3 * time.Minute
+	defaultMaxConnectionSubscriptions = 1000
 )
 
 // Config holds the configuration for the publisher/subscriber.
 type Config struct {
-	URI               string
-	MaxConnectRetries uint64
+	URI                        string
+	MaxConnectRetries          uint64
+	MaxConnectionSubscriptions int
 }
 
 type closeable interface {
@@ -60,17 +62,21 @@ type PubSub struct {
 	*lifecycle.Lifecycle
 	Config
 
-	config           amqp.Config
-	subscriber       subscriber
-	publisher        publisher
-	pools            []*pooledSubscriber
-	mutex            sync.RWMutex
-	createSubscriber subscriberFactory
-	createPublisher  publisherFactory
+	config            amqp.Config
+	subscriber        subscriber
+	publisher         publisher
+	pools             []*pooledSubscriber
+	mutex             sync.RWMutex
+	subscriberFactory subscriberFactory
+	createPublisher   publisherFactory
 }
 
 // New returns a new AMQP publisher/subscriber.
 func New(cfg Config) *PubSub {
+	if cfg.MaxConnectionSubscriptions == 0 {
+		cfg.MaxConnectionSubscriptions = defaultMaxConnectionSubscriptions
+	}
+
 	p := &PubSub{
 		Config: cfg,
 		config: amqp.NewDurableQueueConfig(cfg.URI),
@@ -80,7 +86,7 @@ func New(cfg Config) *PubSub {
 		lifecycle.WithStart(p.start),
 		lifecycle.WithStop(p.stop))
 
-	p.createSubscriber = p.newSubscriber
+	p.subscriberFactory = p.newSubscriber
 	p.createPublisher = p.newPublisher
 
 	// Start the service immediately.
@@ -202,17 +208,12 @@ func (p *PubSub) start() {
 }
 
 func (p *PubSub) connect() error {
-	sub, err := p.createSubscriber()
-	if err != nil {
-		return err
-	}
-
 	pub, err := p.createPublisher()
 	if err != nil {
 		return err
 	}
 
-	p.subscriber = sub
+	p.subscriber = newSubscriberMgr(p.MaxConnectionSubscriptions, p.subscriberFactory)
 	p.publisher = pub
 
 	return nil
@@ -239,4 +240,76 @@ func newBackOff() backoff.BackOff {
 	b.Reset()
 
 	return b
+}
+
+type subscriberInfo struct {
+	subscriber    subscriber
+	subscriptions int
+}
+
+type subscriberConnectionMgr struct {
+	createSubscriber  subscriberFactory
+	mutex             sync.RWMutex
+	subscribers       []*subscriberInfo
+	current           *subscriberInfo
+	subscriptionLimit int
+}
+
+func newSubscriberMgr(limit int, factory subscriberFactory) *subscriberConnectionMgr {
+	return &subscriberConnectionMgr{
+		subscriptionLimit: limit,
+		createSubscriber:  factory,
+	}
+}
+
+func (m *subscriberConnectionMgr) Close() error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	logger.Infof("Closing %d subscriber connections", len(m.subscribers))
+
+	for _, s := range m.subscribers {
+		if err := s.subscriber.Close(); err != nil {
+			logger.Warnf("Error closing subscriber: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (m *subscriberConnectionMgr) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+	s, err := m.get()
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Subscribe(ctx, topic)
+}
+
+func (m *subscriberConnectionMgr) get() (subscriber, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.current == nil || m.current.subscriptions >= m.subscriptionLimit {
+		logger.Infof("Creating new subscriber connection.")
+
+		s, err := m.createSubscriber()
+		if err != nil {
+			return nil, err
+		}
+
+		newCurrent := &subscriberInfo{subscriber: s}
+
+		m.subscribers = append(m.subscribers, newCurrent)
+		m.current = newCurrent
+
+		logger.Infof("Created new subscriber connection. Total subscriber connections: %d.", len(m.subscribers))
+	}
+
+	m.current.subscriptions++
+
+	logger.Debugf("Subscriber connections: %d. Current connection has %d subscriptions.",
+		len(m.subscribers), m.current.subscriptions)
+
+	return m.current.subscriber, nil
 }

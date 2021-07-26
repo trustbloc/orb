@@ -134,22 +134,31 @@ func TestAMQP_Error(t *testing.T) {
 	const topic = "some-topic"
 
 	t.Run("Subscriber factory error", func(t *testing.T) {
-		errExpected := errors.New("injected subscriber factory error")
+		errExpected := errors.New("injected subscriber subscriberFactory error")
 
 		p := &PubSub{
-			createSubscriber: func() (subscriber, error) {
+			Lifecycle: lifecycle.New(""),
+			subscriberFactory: func() (subscriber, error) {
 				return nil, errExpected
+			},
+			createPublisher: func() (publisher, error) {
+				return &mockPublisher{}, nil
 			},
 		}
 
-		require.EqualError(t, p.connect(), errExpected.Error())
+		p.Start()
+
+		require.NoError(t, p.connect(), errExpected.Error())
+
+		_, err := p.Subscribe(context.Background(), "topic")
+		require.EqualError(t, err, errExpected.Error())
 	})
 
 	t.Run("Publisher factory error", func(t *testing.T) {
-		errExpected := errors.New("injected publisher factory error")
+		errExpected := errors.New("injected publisher subscriberFactory error")
 
 		p := &PubSub{
-			createSubscriber: func() (subscriber, error) {
+			subscriberFactory: func() (subscriber, error) {
 				return &mockSubscriber{}, nil
 			},
 			createPublisher: func() (publisher, error) {
