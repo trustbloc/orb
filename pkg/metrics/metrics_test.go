@@ -14,8 +14,9 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	m := New()
+	m := Get()
 	require.NotNil(t, m)
+	require.True(t, m == Get())
 
 	t.Run("ActivityPub", func(t *testing.T) {
 		require.NotPanics(t, func() { m.InboxHandlerTime(time.Second) })

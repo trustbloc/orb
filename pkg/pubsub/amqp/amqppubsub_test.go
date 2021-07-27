@@ -75,7 +75,8 @@ func TestAMQP(t *testing.T) {
 		receivedMessages := &sync.Map{}
 
 		p := New(Config{
-			URI: "amqp://guest:guest@localhost:5672/",
+			URI:                        "amqp://guest:guest@localhost:5672/",
+			MaxConnectionSubscriptions: 5,
 		})
 		require.NotNil(t, p)
 		defer func() {

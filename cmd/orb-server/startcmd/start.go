@@ -588,15 +588,13 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	metricsProvider := metrics.New()
-
 	// create new observer and start it
 	providers := &observer.Providers{
 		ProtocolClientProvider: pcp,
 		AnchorGraph:            anchorGraph,
 		DidAnchors:             didAnchors,
 		PubSub:                 pubSub,
-		Metrics:                metricsProvider,
+		Metrics:                metrics.Get(),
 	}
 
 	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
@@ -609,7 +607,7 @@ func startOrbServices(parameters *orbParameters) error {
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
 	activityPubService, err := apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metricsProvider,
+		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorCredentialHandler(credential.New(
@@ -647,12 +645,12 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader, resourceResolver,
-		metricsProvider)
+		metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
 
-	opQueue, err := opqueue.New(opqueue.Config{PoolSize: parameters.opQueuePoolSize}, pubSub, metricsProvider)
+	opQueue, err := opqueue.New(opqueue.Config{PoolSize: parameters.opQueuePoolSize}, pubSub, metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
 	}
