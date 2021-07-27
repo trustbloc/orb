@@ -112,12 +112,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
-				wfclient.New(), "https")),
+				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 		Pkf: pubKeyFetcherFnc,
 	}
 
@@ -809,12 +809,12 @@ func TestWriter_handle(t *testing.T) {
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
-				wfclient.New(), "https")),
+				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 		Pkf: pubKeyFetcherFnc,
 	}
 
@@ -1403,12 +1403,12 @@ func TestWriter_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
-				wfclient.New(), "https")),
+				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 		Pkf: pubKeyFetcherFnc,
 	}
 

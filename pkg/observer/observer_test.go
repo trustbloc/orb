@@ -96,12 +96,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -165,12 +165,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -227,12 +227,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -295,12 +295,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -359,12 +359,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+			CasWriter: caswriter.New(casClient, "webcas:domain.com", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -421,12 +421,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -499,12 +499,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -605,12 +605,12 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, ""),
+			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
-					webfingerclient.New(), "https")),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}

@@ -31,6 +31,7 @@ import (
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -585,7 +586,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsRea
 		webFingerResolver,
 		"http")
 
-	casResolver := New(casClient, ipfsReader, webCASResolver)
+	casResolver := New(casClient, ipfsReader, webCASResolver, &orbmocks.MetricsProvider{})
 	require.NotNil(t, casResolver)
 
 	return casResolver

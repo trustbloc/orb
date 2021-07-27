@@ -42,10 +42,11 @@ func TestGraph_Add(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com", &metricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
-				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
+			&metricsProvider{}),
 		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
@@ -68,10 +69,11 @@ func TestGraph_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "ipfs"),
+		CasWriter: caswriter.New(casClient, "ipfs", &metricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
-				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
+			&metricsProvider{}),
 		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
@@ -110,10 +112,11 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com"),
+		CasWriter: caswriter.New(casClient, "webcas:domain.com", &metricsProvider{}),
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
-				&apmocks.HTTPTransport{}, webfingerclient.New(), "https")),
+				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
+			&metricsProvider{}),
 		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
@@ -282,4 +285,12 @@ func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
 	return nil, nil
+}
+
+type metricsProvider struct{}
+
+func (m *metricsProvider) CASWriteTime(value time.Duration) {
+}
+
+func (m *metricsProvider) CASResolveTime(value time.Duration) {
 }

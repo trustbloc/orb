@@ -28,6 +28,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -180,7 +181,8 @@ func createNewAnchorCredentialHandler(t *testing.T,
 		casresolver.NewWebCASResolver(
 			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 				transport.DefaultSigner(), transport.DefaultSigner()),
-			webfingerclient.New(), "https"))
+			webfingerclient.New(), "https"),
+		&orbmocks.MetricsProvider{})
 
 	anchorCredentialHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 		&mocks.MonitoringService{}, time.Second)

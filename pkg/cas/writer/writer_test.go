@@ -12,13 +12,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
+
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestWrite(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
-		cas := New(casClient, "webcas:domain.com")
+		cas := New(casClient, "webcas:domain.com", &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, hint, err := cas.Write([]byte("content"))
@@ -34,7 +36,7 @@ func TestWrite(t *testing.T) {
 	t.Run("success - no hint provided", func(t *testing.T) {
 		casClient := mocks.NewMockCasClient(nil)
 
-		cas := New(casClient, "")
+		cas := New(casClient, "", &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, hint, err := cas.Write([]byte("content"))
@@ -50,7 +52,7 @@ func TestWrite(t *testing.T) {
 	t.Run("error - core cas error", func(t *testing.T) {
 		casClient := mocks.NewMockCasClient(fmt.Errorf("cas write error"))
 
-		cas := New(casClient, "webcas:domain.com")
+		cas := New(casClient, "webcas:domain.com", &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, hint, err := cas.Write([]byte("content"))

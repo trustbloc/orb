@@ -322,7 +322,7 @@ func startOrbServices(parameters *orbParameters) error {
 		logger.Infof("Initializing Orb CAS with IPFS.")
 		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		anchorCasWriter = orbcaswriter.New(coreCASClient, "ipfs")
+		anchorCasWriter = orbcaswriter.New(coreCASClient, "ipfs", metrics.Get())
 	case strings.EqualFold(parameters.casType, "local"):
 		logger.Infof("Initializing Orb CAS with local storage provider.")
 
@@ -351,7 +351,7 @@ func startOrbServices(parameters *orbParameters) error {
 			return fmt.Errorf("failed to parse external endpoint: %s", err.Error())
 		}
 
-		anchorCasWriter = orbcaswriter.New(coreCASClient, "webcas:"+u.Host)
+		anchorCasWriter = orbcaswriter.New(coreCASClient, "webcas:"+u.Host, metrics.Get())
 	default:
 		return fmt.Errorf("%s is not a valid CAS type. It must be either local or ipfs", parameters.casType)
 	}
@@ -417,9 +417,9 @@ func startOrbServices(parameters *orbParameters) error {
 	if parameters.ipfsURL != "" {
 		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver)
+		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver, metrics.Get())
 	} else {
-		casResolver = resolver.New(coreCASClient, nil, webCASResolver)
+		casResolver = resolver.New(coreCASClient, nil, webCASResolver, metrics.Get())
 	}
 
 	graphProviders := &graph.Providers{

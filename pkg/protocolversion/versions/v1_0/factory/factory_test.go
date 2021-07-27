@@ -22,6 +22,7 @@ import (
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -100,7 +101,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casres
 		casresolver.NewWebCASResolver(
 			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 				transport.DefaultSigner(), transport.DefaultSigner()),
-			webfingerclient.New(), "https"))
+			webfingerclient.New(), "https"), &orbmocks.MetricsProvider{})
 	require.NotNil(t, casResolver)
 
 	return casResolver

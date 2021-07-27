@@ -51,3 +51,11 @@ func (m *MetricsProvider) ProcessAnchorTime(value time.Duration) {
 // ProcessDIDTime records the time it takes for the Observer to process a DID.
 func (m *MetricsProvider) ProcessDIDTime(value time.Duration) {
 }
+
+// CASWriteTime records the time it takes to write a document to CAS.
+func (m *MetricsProvider) CASWriteTime(value time.Duration) {
+}
+
+// CASResolveTime records the time it takes to resolve a document from CAS.
+func (m *MetricsProvider) CASResolveTime(value time.Duration) {
+}
