@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package metrics
 
 import (
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,6 +39,11 @@ const (
 	observerProcessDIDTimeMetric    = "process_did_seconds"
 )
 
+var (
+	createOnce sync.Once //nolint:gochecknoglobals
+	instance   *Metrics  //nolint:gochecknoglobals
+)
+
 // Metrics manages the metrics for Orb.
 type Metrics struct {
 	apOutboxPostTime           prometheus.Histogram
@@ -55,8 +61,16 @@ type Metrics struct {
 	observerProcessDIDTime    prometheus.Histogram
 }
 
-// New returns a new Orb metrics provider.
-func New() *Metrics {
+// Get returns an Orb metrics provider.
+func Get() *Metrics {
+	createOnce.Do(func() {
+		instance = newMetrics()
+	})
+
+	return instance
+}
+
+func newMetrics() *Metrics {
 	m := &Metrics{
 		apOutboxPostTime: newHistogram(
 			activityPub, apPostTimeMetric,

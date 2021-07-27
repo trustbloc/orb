@@ -38,7 +38,8 @@ func (l *Logger) Error(msg string, err error, fields watermill.LogFields) {
 
 // Info logs an informational message.
 func (l *Logger) Info(msg string, fields watermill.LogFields) {
-	if level := log.GetLevel(Module); level < log.INFO {
+	// Watermill outputs too many INFO logs, so use the DEBUG log level.
+	if level := log.GetLevel(Module); level < log.DEBUG {
 		return
 	}
 
