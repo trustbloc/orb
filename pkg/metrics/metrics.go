@@ -33,6 +33,8 @@ const (
 	opQueueAddOperationTimeMetric  = "add_operation_seconds"
 	opQueueBatchCutTimeMetric      = "batch_cut_seconds"
 	opQueueBatchRollbackTimeMetric = "batch_rollback_seconds"
+	opQueueBatchAckTimeMetric      = "batch_ack_seconds"
+	opQueueBatchNackTimeMetric     = "batch_nack_seconds"
 
 	// Observer.
 	observer                        = "observer"
@@ -64,6 +66,8 @@ type Metrics struct {
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
 	opqueueBatchRollbackTime prometheus.Histogram
+	opqueueBatchAckTime      prometheus.Histogram
+	opqueueBatchNackTime     prometheus.Histogram
 
 	observerProcessAnchorTime prometheus.Histogram
 	observerProcessDIDTime    prometheus.Histogram
@@ -91,6 +95,8 @@ func newMetrics() *Metrics {
 		opqueueAddOperationTime:    newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:        newOpQueueBatchCutTime(),
 		opqueueBatchRollbackTime:   newOpQueueBatchRollbackTime(),
+		opqueueBatchAckTime:        newOpQueueBatchAckTime(),
+		opqueueBatchNackTime:       newOpQueueBatchNackTime(),
 		observerProcessAnchorTime:  newObserverProcessAnchorTime(),
 		observerProcessDIDTime:     newObserverProcessDIDTime(),
 		casWriteTime:               newCASWriteTime(),
@@ -101,6 +107,7 @@ func newMetrics() *Metrics {
 		m.apOutboxPostTime, m.apOutboxResolveInboxesTime, m.apInboxHandlerTime, m.anchorWriteTime,
 		m.anchorProcessWitnessedTime, m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime, m.casWriteTime, m.casResolveTime,
+		m.opqueueBatchAckTime, m.opqueueBatchNackTime,
 	)
 
 	return m
@@ -149,18 +156,35 @@ func (m *Metrics) AddOperationTime(value time.Duration) {
 	logger.Debugf("AddOperation time: %s", value)
 }
 
-// BatchCutTime records the time it takes to cut an operation batch.
+// BatchCutTime records the time it takes to cut an operation batch. The duration is from the time
+// that the first operation was added to the time that the batch is cut.
 func (m *Metrics) BatchCutTime(value time.Duration) {
 	m.opqueueBatchCutTime.Observe(value.Seconds())
 
 	logger.Infof("BatchCut time: %s", value)
 }
 
-// BatchRollbackTime records the time it takes to roll back an operation batch (in case of a transient error).
+// BatchRollbackTime records the time it takes to roll back an operation batch (in case of a
+// transient error). The duration is from the time that the first operation was added to the time
+// that the batch is cut.
 func (m *Metrics) BatchRollbackTime(value time.Duration) {
 	m.opqueueBatchRollbackTime.Observe(value.Seconds())
 
 	logger.Debugf("BatchRollback time: %s", value)
+}
+
+// BatchAckTime records the time to acknowledge all of the operations that are removed from the queue.
+func (m *Metrics) BatchAckTime(value time.Duration) {
+	m.opqueueBatchAckTime.Observe(value.Seconds())
+
+	logger.Debugf("BatchAck time: %s", value)
+}
+
+// BatchNackTime records the time to nack all of the operations that are to be placed back on the queue.
+func (m *Metrics) BatchNackTime(value time.Duration) {
+	m.opqueueBatchNackTime.Observe(value.Seconds())
+
+	logger.Debugf("BatchNack time: %s", value)
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
@@ -264,14 +288,30 @@ func newOpQueueAddOperationTime() prometheus.Histogram {
 func newOpQueueBatchCutTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueBatchCutTimeMetric,
-		"The time (in seconds) that it takes to cut an operation batch.",
+		"The time (in seconds) that it takes to cut an operation batch. The duration is from the time that the first "+
+			"operation was added to the time that the batch was cut.",
 	)
 }
 
 func newOpQueueBatchRollbackTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueBatchRollbackTimeMetric,
-		"The time (in seconds) that it takes to roll back an operation batch.",
+		"The time (in seconds) that it takes to roll back an operation batch (in case of a transient error). "+
+			"The duration is from the time that the first operation was added to the time that the batch was cut.",
+	)
+}
+
+func newOpQueueBatchAckTime() prometheus.Histogram {
+	return newHistogram(
+		operationQueue, opQueueBatchAckTimeMetric,
+		"The time (in seconds) that it takes to acknowledge all of the operations that are removed from the queue.",
+	)
+}
+
+func newOpQueueBatchNackTime() prometheus.Histogram {
+	return newHistogram(
+		operationQueue, opQueueBatchNackTimeMetric,
+		"The time (in seconds) that it takes to nack all of the operations that are to be placed back on the queue.",
 	)
 }
 
