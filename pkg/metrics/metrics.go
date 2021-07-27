@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/trustbloc/edge-core/pkg/log"
 )
 
 const (
@@ -38,6 +39,8 @@ const (
 	observerProcessAnchorTimeMetric = "process_anchor_seconds"
 	observerProcessDIDTimeMetric    = "process_did_seconds"
 )
+
+var logger = log.New("metrics")
 
 var (
 	createOnce sync.Once //nolint:gochecknoglobals
@@ -134,52 +137,72 @@ func newMetrics() *Metrics {
 // OutboxPostTime records the time it takes to post a message to the outbox.
 func (m *Metrics) OutboxPostTime(value time.Duration) {
 	m.apOutboxPostTime.Observe(value.Seconds())
+
+	logger.Debugf("OutboxPost time: %s", value)
 }
 
 // OutboxResolveInboxesTime records the time it takes to resolve inboxes for an outbox post.
 func (m *Metrics) OutboxResolveInboxesTime(value time.Duration) {
 	m.apOutboxResolveInboxesTime.Observe(value.Seconds())
+
+	logger.Debugf("OutboxResolveInboxes time: %s", value)
 }
 
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
 func (m *Metrics) InboxHandlerTime(value time.Duration) {
 	m.apInboxHandlerTime.Observe(value.Seconds())
+
+	logger.Debugf("InboxHandler time: %s", value)
 }
 
 // WriteAnchorTime records the time it takes to write an anchor credential and post an 'Offer' activity.
 func (m *Metrics) WriteAnchorTime(value time.Duration) {
 	m.anchorWriteTime.Observe(value.Seconds())
+
+	logger.Infof("WriteAnchor time: %s", value)
 }
 
 // ProcessWitnessedAnchoredCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *Metrics) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
 	m.anchorProcessWitnessedTime.Observe(value.Seconds())
+
+	logger.Infof("ProcessWitnessedAnchoredCredential time: %s", value)
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
 func (m *Metrics) AddOperationTime(value time.Duration) {
 	m.opqueueAddOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("AddOperation time: %s", value)
 }
 
 // BatchCutTime records the time it takes to cut an operation batch.
 func (m *Metrics) BatchCutTime(value time.Duration) {
 	m.opqueueBatchCutTime.Observe(value.Seconds())
+
+	logger.Infof("BatchCut time: %s", value)
 }
 
 // BatchRollbackTime records the time it takes to roll back an operation batch (in case of a transient error).
 func (m *Metrics) BatchRollbackTime(value time.Duration) {
 	m.opqueueBatchRollbackTime.Observe(value.Seconds())
+
+	logger.Debugf("BatchRollback time: %s", value)
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
 func (m *Metrics) ProcessAnchorTime(value time.Duration) {
 	m.observerProcessAnchorTime.Observe(value.Seconds())
+
+	logger.Infof("ProcessAnchor time: %s", value)
 }
 
 // ProcessDIDTime records the time it takes for the Observer to process a DID.
 func (m *Metrics) ProcessDIDTime(value time.Duration) {
 	m.observerProcessDIDTime.Observe(value.Seconds())
+
+	logger.Infof("ProcessDID time: %s", value)
 }
 
 func newCounter(subsystem, name, help string) prometheus.Counter {
