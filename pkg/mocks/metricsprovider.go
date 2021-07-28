@@ -73,3 +73,11 @@ func (m *MetricsProvider) BatchNackTime(value time.Duration) {
 // and the end time is the time that the witness policy is satisfied.
 func (m *MetricsProvider) WitnessAnchorCredentialTime(value time.Duration) {
 }
+
+// DocumentCreateUpdateTime records the time it takes the REST handler to process a create/update operation.
+func (m *MetricsProvider) DocumentCreateUpdateTime(value time.Duration) {
+}
+
+// DocumentResolveTime records the time it takes the REST handler to resolve a document.
+func (m *MetricsProvider) DocumentResolveTime(value time.Duration) {
+}

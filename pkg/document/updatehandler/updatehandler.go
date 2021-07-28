@@ -8,6 +8,7 @@ package updatehandler
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -16,6 +17,10 @@ import (
 )
 
 var logger = log.New("orb-update-handler")
+
+type metricsProvider interface {
+	DocumentCreateUpdateTime(duration time.Duration)
+}
 
 // Option is an option for update handler.
 type Option func(opts *UpdateHandler)
@@ -32,14 +37,16 @@ func WithCreateDocumentStore(store storage.Store) Option {
 type UpdateHandler struct {
 	coreProcessor dochandler.Processor
 	store         storage.Store
+	metrics       metricsProvider
 
 	createDocumentStoreEnabled bool
 }
 
 // New creates a new document update handler.
-func New(processor dochandler.Processor, opts ...Option) *UpdateHandler {
+func New(processor dochandler.Processor, metrics metricsProvider, opts ...Option) *UpdateHandler {
 	dh := &UpdateHandler{
 		coreProcessor: processor,
+		metrics:       metrics,
 	}
 
 	// apply options
@@ -57,6 +64,12 @@ func (r *UpdateHandler) Namespace() string {
 
 // ProcessOperation validates operation and adds it to the batch.
 func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolGenesisTime uint64) (*document.ResolutionResult, error) { //nolint:lll
+	startTime := time.Now()
+
+	defer func() {
+		r.metrics.DocumentCreateUpdateTime(time.Since(startTime))
+	}()
+
 	doc, err := r.coreProcessor.ProcessOperation(operationBuffer, protocolGenesisTime)
 	if err != nil {
 		return nil, err

@@ -46,6 +46,11 @@ const (
 	cas                  = "cas"
 	casWriteTimeMetric   = "cas_write_seconds"
 	casResolveTimeMetric = "cas_resolve_seconds"
+
+	// Document handler.
+	document                  = "document"
+	docCreateUpdateTimeMetric = "create_update_seconds"
+	docResolveTimeMetric      = "resolve_seconds"
 )
 
 var logger = log.New("metrics")
@@ -76,6 +81,9 @@ type Metrics struct {
 
 	casWriteTime   prometheus.Histogram
 	casResolveTime prometheus.Histogram
+
+	docCreateUpdateTime prometheus.Histogram
+	docResolveTime      prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -104,6 +112,8 @@ func newMetrics() *Metrics {
 		observerProcessDIDTime:     newObserverProcessDIDTime(),
 		casWriteTime:               newCASWriteTime(),
 		casResolveTime:             newCASResolveTime(),
+		docCreateUpdateTime:        newDocCreateUpdateTime(),
+		docResolveTime:             newDocResolveTime(),
 	}
 
 	prometheus.MustRegister(
@@ -111,7 +121,7 @@ func newMetrics() *Metrics {
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime, m.casWriteTime, m.casResolveTime,
-		m.opqueueBatchAckTime, m.opqueueBatchNackTime,
+		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.docCreateUpdateTime, m.docResolveTime,
 	)
 
 	return m
@@ -226,6 +236,20 @@ func (m *Metrics) CASResolveTime(value time.Duration) {
 	m.casResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("CASResolve time: %s", value)
+}
+
+// DocumentCreateUpdateTime records the time it takes the REST handler to process a create/update operation.
+func (m *Metrics) DocumentCreateUpdateTime(value time.Duration) {
+	m.docCreateUpdateTime.Observe(value.Seconds())
+
+	logger.Debugf("DocumentCreateUpdate time: %s", value)
+}
+
+// DocumentResolveTime records the time it takes the REST handler to resolve a document.
+func (m *Metrics) DocumentResolveTime(value time.Duration) {
+	m.docResolveTime.Observe(value.Seconds())
+
+	logger.Debugf("DocumentResolve time: %s", value)
 }
 
 func newCounter(subsystem, name, help string) prometheus.Counter {
@@ -362,5 +386,19 @@ func newCASResolveTime() prometheus.Histogram {
 	return newHistogram(
 		cas, casResolveTimeMetric,
 		"The time (in seconds) that it takes to resolve a document from CAS.",
+	)
+}
+
+func newDocCreateUpdateTime() prometheus.Histogram {
+	return newHistogram(
+		document, docCreateUpdateTimeMetric,
+		"The time (in seconds) it takes the REST handler to process a create/update operation.",
+	)
+}
+
+func newDocResolveTime() prometheus.Histogram {
+	return newHistogram(
+		document, docResolveTimeMetric,
+		"The time (in seconds) it takes the REST handler to resolve a document.",
 	)
 }

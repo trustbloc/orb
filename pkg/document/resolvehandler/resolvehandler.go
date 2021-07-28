@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -32,6 +33,7 @@ type ResolveHandler struct {
 	discovery    discovery
 	store        storage.Store
 	anchorGraph  common.AnchorGraph
+	metrics      metricsProvider
 
 	namespace           string
 	unpublishedDIDLabel string
@@ -43,6 +45,10 @@ type ResolveHandler struct {
 // did discovery service.
 type discovery interface {
 	RequestDiscovery(id string) error
+}
+
+type metricsProvider interface {
+	DocumentResolveTime(duration time.Duration)
 }
 
 // Option is an option for resolve handler.
@@ -72,12 +78,14 @@ func WithCreateDocumentStore(store storage.Store) Option {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery, anchorGraph common.AnchorGraph, opts ...Option) *ResolveHandler { //nolint:lll
+func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery,
+	anchorGraph common.AnchorGraph, metrics metricsProvider, opts ...Option) *ResolveHandler {
 	rh := &ResolveHandler{
 		namespace:    namespace,
 		coreResolver: resolver,
 		discovery:    discovery,
 		anchorGraph:  anchorGraph,
+		metrics:      metrics,
 	}
 
 	// apply options
@@ -90,6 +98,12 @@ func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery
 
 // ResolveDocument resolves a document.
 func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) { //nolint:gocyclo,cyclop
+	startTime := time.Now()
+
+	defer func() {
+		r.metrics.DocumentResolveTime(time.Since(startTime))
+	}()
+
 	response, err := r.coreResolver.ResolveDocument(id)
 	if err != nil { //nolint:nestif
 		if strings.Contains(err.Error(), "not found") {
