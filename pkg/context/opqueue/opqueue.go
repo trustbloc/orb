@@ -33,14 +33,17 @@ type pubSub interface {
 }
 
 type operationMessage struct {
-	msg *message.Message
-	op  *operation.QueuedOperationAtTime
+	msg       *message.Message
+	op        *operation.QueuedOperationAtTime
+	timeAdded time.Time
 }
 
 type metricsProvider interface {
 	AddOperationTime(value time.Duration)
 	BatchCutTime(value time.Duration)
 	BatchRollbackTime(value time.Duration)
+	BatchAckTime(value time.Duration)
+	BatchNackTime(value time.Duration)
 }
 
 // Config contains configuration parameters for the operation queue.
@@ -171,38 +174,7 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 	items := q.pending[0:n]
 	q.pending = q.pending[n:]
 
-	ack = func() uint {
-		logger.Infof("Acking %d operation messages...", len(items))
-
-		// Acknowledge all of the messages that were processed.
-		for _, opMsg := range items {
-			opMsg.msg.Ack()
-
-			logger.Infof("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
-		}
-
-		q.mutex.RLock()
-		defer q.mutex.RUnlock()
-
-		q.metrics.BatchCutTime(time.Since(startTime))
-
-		return uint(len(q.pending))
-	}
-
-	nack = func() {
-		logger.Infof("Nacking %d operation messages...", len(items))
-
-		// Send an Nack for all of the messages that were removed so that they may be retried.
-		for _, opMsg := range items {
-			opMsg.msg.Nack()
-
-			logger.Infof("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
-		}
-
-		q.metrics.BatchRollbackTime(time.Since(startTime))
-	}
-
-	return asQueuedOperations(items), ack, nack, nil
+	return asQueuedOperations(items), q.newAckFunc(items, startTime), q.newNackFunc(items, startTime), nil
 }
 
 // Len returns the length of the pending queue.
@@ -280,9 +252,53 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	// Add the message to our in-memory queue but don't acknowledge it yet. The message
 	// will be acknowledged when Remove() is called.
 	q.pending = append(q.pending, &operationMessage{
-		msg: msg,
-		op:  op,
+		msg:       msg,
+		op:        op,
+		timeAdded: time.Now(),
 	})
+}
+
+func (q *Queue) newAckFunc(items []*operationMessage, startTime time.Time) func() uint {
+	return func() uint {
+		logger.Infof("Acking %d operation messages...", len(items))
+
+		// Acknowledge all of the messages that were processed.
+		for _, opMsg := range items {
+			opMsg.msg.Ack()
+
+			logger.Infof("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+		}
+
+		q.mutex.RLock()
+		defer q.mutex.RUnlock()
+
+		// Batch cut time is the time since the first operation was added (which is the oldest operation in the batch).
+		q.metrics.BatchCutTime(time.Since(items[0].timeAdded))
+
+		// Batch Ack time is the time it took to acknowledge all of the MQ messages.
+		q.metrics.BatchAckTime(time.Since(startTime))
+
+		return uint(len(q.pending))
+	}
+}
+
+func (q *Queue) newNackFunc(items []*operationMessage, startTime time.Time) func() {
+	return func() {
+		logger.Infof("Nacking %d operation messages...", len(items))
+
+		// Send an Nack for all of the messages that were removed so that they may be retried.
+		for _, opMsg := range items {
+			opMsg.msg.Nack()
+
+			logger.Infof("Nacked message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
+		}
+
+		// Batch rollback time is the time since the first operation was added (which is the oldest operation in the batch).
+		q.metrics.BatchRollbackTime(time.Since(items[0].timeAdded))
+
+		// Batch Ack time is the time it took to nack all of the MQ messages.
+		q.metrics.BatchNackTime(time.Since(startTime))
+	}
 }
 
 func asQueuedOperations(opMsgs []*operationMessage) []*operation.QueuedOperationAtTime {

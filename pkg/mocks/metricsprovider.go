@@ -59,3 +59,11 @@ func (m *MetricsProvider) CASWriteTime(value time.Duration) {
 // CASResolveTime records the time it takes to resolve a document from CAS.
 func (m *MetricsProvider) CASResolveTime(value time.Duration) {
 }
+
+// BatchAckTime records the time to acknowledge all of the operations that are removed from the queue.
+func (m *MetricsProvider) BatchAckTime(value time.Duration) {
+}
+
+// BatchNackTime records the time to nack all of the operations that are to be placed back on the queue.
+func (m *MetricsProvider) BatchNackTime(value time.Duration) {
+}
