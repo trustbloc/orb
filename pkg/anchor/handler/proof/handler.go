@@ -34,6 +34,10 @@ type vcPublisher interface {
 	Publish(vc *verifiable.Credential) error
 }
 
+type metricsProvider interface {
+	WitnessAnchorCredentialTime(duration time.Duration)
+}
+
 // New creates new proof handler.
 func New(providers *Providers, pubSub pubSub) *WitnessProofHandler {
 	return &WitnessProofHandler{
@@ -50,6 +54,7 @@ type Providers struct {
 	WitnessPolicy witnessPolicy
 	MonitoringSvc monitoringSvc
 	DocLoader     ld.DocumentLoader
+	Metrics       metricsProvider
 }
 
 // WitnessProofHandler handles an anchor credential witness proof.
@@ -151,7 +156,7 @@ func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Crede
 	return h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 }
 
-func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) error {
+func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) error { //nolint:funlen
 	logger.Debugf("Handling witness policy for VC [%s]", vc.ID)
 
 	witnessProofs, err := h.WitnessStore.Get(vc.ID)
@@ -209,6 +214,10 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 	err = h.VCStatusStore.AddStatus(vc.ID, proofapi.VCStatusCompleted)
 	if err != nil {
 		return fmt.Errorf("failed to change status to 'completed' for credential[%s]: %w", vc.ID, err)
+	}
+
+	if vc.Issued != nil {
+		h.Metrics.WitnessAnchorCredentialTime(time.Since(vc.Issued.Time))
 	}
 
 	return nil

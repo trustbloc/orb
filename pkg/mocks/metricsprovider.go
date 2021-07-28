@@ -27,9 +27,9 @@ func (m *MetricsProvider) InboxHandlerTime(value time.Duration) {
 func (m *MetricsProvider) WriteAnchorTime(value time.Duration) {
 }
 
-// ProcessWitnessedAnchoredCredentialTime records the time it takes to process a witnessed anchor credential
+// ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
-func (m *MetricsProvider) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
+func (m *MetricsProvider) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
@@ -66,4 +66,10 @@ func (m *MetricsProvider) BatchAckTime(value time.Duration) {
 
 // BatchNackTime records the time to nack all of the operations that are to be placed back on the queue.
 func (m *MetricsProvider) BatchNackTime(value time.Duration) {
+}
+
+// WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
+// required witnesses (according to witness policy). The start time is when the verifiable credential is issued
+// and the end time is the time that the witness policy is satisfied.
+func (m *MetricsProvider) WitnessAnchorCredentialTime(value time.Duration) {
 }

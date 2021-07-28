@@ -572,6 +572,7 @@ func startOrbServices(parameters *orbParameters) error {
 			DocLoader:     orbDocumentLoader,
 			WitnessStore:  witnessProofStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       metrics.Get(),
 		},
 		pubSub)
 
