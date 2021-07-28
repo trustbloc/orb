@@ -15,16 +15,21 @@ import (
 	mh "github.com/multiformats/go-multihash"
 )
 
-// ToV1CID takes a multibase-encoded multihash and converts it to a V1 CID.
-func ToV1CID(multibaseEncodedMultihash string) (string, error) {
-	_, multihashBytes, err := multibase.Decode(multibaseEncodedMultihash)
+// ToV0CID takes a multibase-encoded multihash and converts it to a V0 CID.
+func ToV0CID(multibaseEncodedMultihash string) (string, error) {
+	multihash, err := getMultihashFromMultibaseEncodedMultihash(multibaseEncodedMultihash)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode multibase-encoded multihash: %w", err)
+		return "", err
 	}
 
-	_, multihash, err := mh.MHFromBytes(multihashBytes)
+	return gocid.NewCidV0(multihash).String(), nil
+}
+
+// ToV1CID takes a multibase-encoded multihash and converts it to a V1 CID.
+func ToV1CID(multibaseEncodedMultihash string) (string, error) {
+	multihash, err := getMultihashFromMultibaseEncodedMultihash(multibaseEncodedMultihash)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse the decoded multibase value as a multihash: %w", err)
+		return "", err
 	}
 
 	return gocid.NewCidV1(gocid.Raw, multihash).String(), nil
@@ -45,4 +50,18 @@ func CIDToMultihash(cid string) (string, error) {
 	}
 
 	return multibaseEncodedMultihash, nil
+}
+
+func getMultihashFromMultibaseEncodedMultihash(multibaseEncodedMultihash string) (mh.Multihash, error) {
+	_, multihashBytes, err := multibase.Decode(multibaseEncodedMultihash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode multibase-encoded multihash: %w", err)
+	}
+
+	_, multihash, err := mh.MHFromBytes(multihashBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse the decoded multibase value as a multihash: %w", err)
+	}
+
+	return multihash, nil
 }
