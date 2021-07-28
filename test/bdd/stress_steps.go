@@ -220,10 +220,10 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Println("------")
 
-	fmt.Printf("Resolved did %d took: %s\n", didNums, resolveTimeStr)
+	fmt.Printf("Resolved anchor did %d took: %s\n", didNums, resolveTimeStr)
 	fmt.Println("------")
 
-	fmt.Println("Resolve did times:")
+	fmt.Println("Resolve anchor did times:")
 	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
 	fmt.Println(resolveCreatedDIDTime.Calc())
 	fmt.Println("------")
@@ -432,11 +432,19 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		var err error
 		docResolution, err = r.vdr.Read(r.intermID)
 
-		if err == nil {
+		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "DID does not exist") || i == r.maxRetry {
+		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
+			return nil, err
+		}
+
+		if i == r.maxRetry {
+			if err == nil {
+				return nil, fmt.Errorf("did is not published")
+			}
+
 			return nil, err
 		}
 
