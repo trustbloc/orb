@@ -26,17 +26,16 @@ import (
 // nolint: lll
 const mockResponse = `{
    "svct_version":0,
-   "id":"bC2kzaBgvf10aYkcnLJaqulTh1a1oLeABtcwosjgDoc=",
-   "timestamp":1619006293939,
+   "id":"H+IApArXUZ8NAcq8Vjr1t86aY5dpBQoCDc1wodEwXvI=",
+   "timestamp":1627462750739,
    "extensions":"",
-   "signature":"ewoJCSAgICJhbGdvcml0aG0iOnsKCQkJICAiaGFzaCI6IlNIQTI1NiIsCgkJCSAgInNpZ25hdHVyZSI6IkVDRFNBIiwKCQkJICAidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyIKCQkgICB9LAoJCSAgICJzaWduYXR1cmUiOiJsOE5meFZDaFBIN2ZHNGNJZDZpTkliZ3BiUnp4b3YrcndvemRMNHI1bFJOWEdpT1R5N2lBbjIrWmc4NFZ3a0pvZUpXdkxHeU8yYTNXWm5RS3ROdS9MZz09IgoJCX0="
+   "signature":"eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiJYNHB4eEZXdFl5ckZvSTIzU0NCZ2FpcVhndm1NdEJTUlJGbzEyUFpOU0c3ckFUMHBXUkR4WjRMcVJWQmJESllSNXQ3bXViUy9vUlIwaG5RSm81NlFCQT09In0="
 }`
 
 // nolint: lll
 const mockVC = `{
   "@context":[
     "https://www.w3.org/2018/credentials/v1",
-    "https://www.w3.org/2018/credentials/examples/v1",
     "https://w3id.org/security/bbs/v1"
   ],
   "credentialSubject":{
@@ -49,17 +48,8 @@ const mockVC = `{
   "id":"http://example.gov/credentials/3732",
   "issuanceDate":"2020-03-10T04:24:12.164Z",
   "issuer":"did:key:zUC724vuGvHpnCGFG1qqpXb81SiBLu3KLSqVzenwEZNPoY35i2Bscb8DLaVwHvRFs6F2NkNNXRcPWvqnPDUd9ukdjLkjZd3u9zzL4wDZDUpkPAatLDGLEYVo8kkAzuAKJQMr7N2",
-  "proof":{
-    "created":"2021-02-23T19:36:07Z",
-    "nonce":"lEixQKDQvRecCifKl789TQj+Ii6YWDLSwn3AxR0VpPJ1QV5htod/0VCchVf1zVM0y2E=",
-    "proofPurpose":"assertionMethod",
-    "proofValue":"AAwD/6MYBtI1HCCczj4TDhvpwuiDmnTEHwAj9iE1jJ28oqmCNJoVpZY0meC4WKvmrIGznITtEjpjNgfBPOFWuqONxW7YuEpsV+YAOcbWrRgiRi4D3fWGkuSjJRhqVMrPi45a5a9hAtHbXNwhj1I1U0+M5UCLQqZSdySqN8VJQbFUEYJCKAhSoYtbWuOvZ7zOdDU4WAAAAHS13Ue/6efFD+zX8zYGQZoJS8yrrgusVm7D3xjgp/RNoVkc06JwDtpyWBcDd4ub2ZoAAAACQAB6eWN5vGdDdL91hJKXYj0Qhw0OQLNje5Y33twgl+5IzSLOWPE03NDsN+rQAaIQlAZj9fuHwk7p4zV/zMA6noARqnK/X8W+I8t2lkXd99fzlq/ALLE5CMjc8CCX0kLZQ+JUrVOTm+Ui9JloILhpXQAAAAQurv9QZkxw7uwWekPX+uyJxqdAWIYPVErbTqtvVJXWQEr/+IzFxUXDW8IG8b5G4wp0YyARjlepYhRrKBOe4FnZWzNQ4xb+KPhTjMt5r4mIUgMjChQBGUcWrSB6IMlW+5kYGKbTBSRwaLWPnv36KAhOihTYOqQXaSL3oFqfTQKH5Q==",
-    "type":"BbsBlsSignatureProof2020",
-    "verificationMethod":"did:key:zUC724vuGvHpnCGFG1qqpXb81SiBLu3KLSqVzenwEZNPoY35i2Bscb8DLaVwHvRFs6F2NkNNXRcPWvqnPDUd9ukdjLkjZd3u9zzL4wDZDUpkPAatLDGLEYVo8kkAzuAKJQMr7N2#zUC724vuGvHpnCGFG1qqpXb81SiBLu3KLSqVzenwEZNPoY35i2Bscb8DLaVwHvRFs6F2NkNNXRcPWvqnPDUd9ukdjLkjZd3u9zzL4wDZDUpkPAatLDGLEYVo8kkAzuAKJQMr7N2"
-  },
   "type":[
-    "VerifiableCredential",
-    "UniversityDegreeCredential"
+    "VerifiableCredential"
   ]
 }`
 
@@ -72,7 +62,7 @@ func TestClient_Witness(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/.well-known/webfinger" {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
-					`"BLlG6D6mEemsE4/jqrW4yrHy98dJ0WzPVxrHohWMdQCPMBR2/93IueMq1XycbaDTHfUsgC5YdVjw3/EY0VfWc2U="}}`
+					`"BL0zrdTbR4mc1ZBuaXOh52IYeYKd9hlXrB3eZ+GR9WsHHGhrNaJJB9bpEXvM4zo2vnm34nQezBJ1/a/cQS/j+Q0="}}`
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -99,7 +89,7 @@ func TestClient_Witness(t *testing.T) {
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
-		require.Equal(t, int64(1619006293939000000), timestampTime.UnixNano())
+		require.Equal(t, int64(1627462750739000000), timestampTime.UnixNano())
 	})
 	t.Run("Success (no vct)", func(t *testing.T) {
 		client := New("", &mockSigner{}, WithDocumentLoader(testutil.GetLoader(t)))
