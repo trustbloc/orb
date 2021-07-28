@@ -14,16 +14,9 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 )
 
-func TestMustGetDefault(t *testing.T) {
-	res := ldcontext.MustGetDefault()
+func TestMustGetAll(t *testing.T) {
+	res := ldcontext.MustGetAll()
 	require.Len(t, res, 2)
-	require.Equal(t, "https://www.w3.org/ns/activitystreams", res[0].URL)
-	require.Equal(t, "https://w3id.org/activityanchors/v1", res[1].URL)
-}
-
-func TestMustGetExtra(t *testing.T) {
-	res := ldcontext.MustGetExtra()
-	require.Len(t, res, 2)
-	require.Equal(t, "https://www.w3.org/2018/credentials/examples/v1", res[0].URL)
-	require.Equal(t, "https://www.w3.org/ns/odrl.jsonld", res[1].URL)
+	require.Equal(t, "https://w3id.org/activityanchors/v1", res[0].URL)
+	require.Equal(t, "https://www.w3.org/ns/activitystreams", res[1].URL)
 }

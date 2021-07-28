@@ -366,7 +366,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	defaultContexts := ldcontext.MustGetDefault()
+	defaultContexts := ldcontext.MustGetAll()
 
 	jldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
 
