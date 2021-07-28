@@ -18,10 +18,12 @@ const (
 	namespace = "orb"
 
 	// ActivityPub.
-	activityPub                = "activitypub"
-	apPostTimeMetric           = "outbox_post_seconds"
-	apResolveInboxesTimeMetric = "outbox_resolve_inboxes_seconds"
-	apInboxHandlerTimeMetric   = "inbox_handler_seconds"
+	activityPub                   = "activitypub"
+	apPostTimeMetric              = "outbox_post_seconds"
+	apResolveInboxesTimeMetric    = "outbox_resolve_inboxes_seconds"
+	apInboxHandlerTimeMetric      = "inbox_handler_seconds"
+	apInboxActivityCounterMetric  = "inbox_count"
+	apOutboxActivityCounterMetric = "outbox_count"
 
 	// Anchor.
 	anchor                       = "anchor"
@@ -65,6 +67,8 @@ type Metrics struct {
 	apOutboxPostTime           prometheus.Histogram
 	apOutboxResolveInboxesTime prometheus.Histogram
 	apInboxHandlerTime         prometheus.Histogram
+	apInboxActivityCounts      map[string]prometheus.Counter
+	apOutboxActivityCounts     map[string]prometheus.Counter
 
 	anchorWriteTime            prometheus.Histogram
 	anchorWitnessTime          prometheus.Histogram
@@ -96,6 +100,8 @@ func Get() *Metrics {
 }
 
 func newMetrics() *Metrics {
+	activityTypes := []string{"Create", "Announce", "Offer", "Like"}
+
 	m := &Metrics{
 		apOutboxPostTime:           newOutboxPostTime(),
 		apOutboxResolveInboxesTime: newOutboxResolveInboxesTime(),
@@ -114,6 +120,8 @@ func newMetrics() *Metrics {
 		casResolveTime:             newCASResolveTime(),
 		docCreateUpdateTime:        newDocCreateUpdateTime(),
 		docResolveTime:             newDocResolveTime(),
+		apInboxActivityCounts:      newInboxActivityCounts(activityTypes),
+		apOutboxActivityCounts:     newOutboxActivityCounts(activityTypes),
 	}
 
 	prometheus.MustRegister(
@@ -123,6 +131,14 @@ func newMetrics() *Metrics {
 		m.observerProcessAnchorTime, m.observerProcessDIDTime, m.casWriteTime, m.casResolveTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.docCreateUpdateTime, m.docResolveTime,
 	)
+
+	for _, c := range m.apInboxActivityCounts {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.apOutboxActivityCounts {
+		prometheus.MustRegister(c)
+	}
 
 	return m
 }
@@ -146,6 +162,20 @@ func (m *Metrics) InboxHandlerTime(value time.Duration) {
 	m.apInboxHandlerTime.Observe(value.Seconds())
 
 	logger.Debugf("InboxHandler time: %s", value)
+}
+
+// InboxIncrementActivityCount increments the number of activities of the given type received in the inbox.
+func (m *Metrics) InboxIncrementActivityCount(activityType string) {
+	if c, ok := m.apInboxActivityCounts[activityType]; ok {
+		c.Inc()
+	}
+}
+
+// OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
+func (m *Metrics) OutboxIncrementActivityCount(activityType string) {
+	if c, ok := m.apOutboxActivityCounts[activityType]; ok {
+		c.Inc()
+	}
 }
 
 // WriteAnchorTime records the time it takes to write an anchor credential and post an 'Offer' activity.
@@ -252,12 +282,13 @@ func (m *Metrics) DocumentResolveTime(value time.Duration) {
 	logger.Debugf("DocumentResolve time: %s", value)
 }
 
-func newCounter(subsystem, name, help string) prometheus.Counter {
+func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
 	return prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: namespace,
-		Subsystem: subsystem,
-		Name:      name,
-		Help:      help,
+		Namespace:   namespace,
+		Subsystem:   subsystem,
+		Name:        name,
+		Help:        help,
+		ConstLabels: labels,
 	})
 }
 
@@ -298,6 +329,34 @@ func newInboxHandlerTime() prometheus.Histogram {
 		activityPub, apInboxHandlerTimeMetric,
 		"The time (in seconds) that it takes to handle an activity posted to the inbox.",
 	)
+}
+
+func newInboxActivityCounts(activityTypes []string) map[string]prometheus.Counter {
+	counters := make(map[string]prometheus.Counter)
+
+	for _, activityType := range activityTypes {
+		counters[activityType] = newCounter(
+			activityPub, apInboxActivityCounterMetric,
+			"The number of activities received in the inbox.",
+			prometheus.Labels{"type": activityType},
+		)
+	}
+
+	return counters
+}
+
+func newOutboxActivityCounts(activityTypes []string) map[string]prometheus.Counter {
+	counters := make(map[string]prometheus.Counter)
+
+	for _, activityType := range activityTypes {
+		counters[activityType] = newCounter(
+			activityPub, apOutboxActivityCounterMetric,
+			"The number of activities posted to the outbox.",
+			prometheus.Labels{"type": activityType},
+		)
+	}
+
+	return counters
 }
 
 func newAnchorWriteTime() prometheus.Histogram {

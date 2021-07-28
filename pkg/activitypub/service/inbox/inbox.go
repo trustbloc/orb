@@ -43,6 +43,7 @@ type signatureVerifier interface {
 
 type metricsProvider interface {
 	InboxHandlerTime(value time.Duration)
+	InboxIncrementActivityCount(activityType string)
 }
 
 // Config holds configuration parameters for the Inbox.
@@ -204,6 +205,8 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
 		return nil, err
 	}
 
+	h.incrementCount(activity.Type().Types())
+
 	_, err = h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
@@ -265,4 +268,10 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 	}
 
 	return activity, nil
+}
+
+func (h *Inbox) incrementCount(types []vocab.Type) {
+	for _, activityType := range types {
+		h.metrics.InboxIncrementActivityCount(string(activityType))
+	}
 }
