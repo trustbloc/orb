@@ -561,7 +561,7 @@ func (d *CommonSteps) doHTTPGet(url string) (*httpResponse, error) {
 		return nil, err
 	}
 
-	resp, err := d.httpClient.Get(resolved.(string))
+	resp, err := d.httpClient.GetWithRetry(resolved.(string), 10, http.StatusBadGateway)
 	if err != nil {
 		return nil, err
 	}

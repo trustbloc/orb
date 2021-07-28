@@ -26,6 +26,7 @@ const (
 	// Anchor.
 	anchor                       = "anchor"
 	anchorWriteTimeMetric        = "write_seconds"
+	anchorWitnessMetric          = "witness_seconds"
 	anchorProcessWitnessedMetric = "process_witnessed_seconds"
 
 	// Operation queue.
@@ -61,6 +62,7 @@ type Metrics struct {
 	apInboxHandlerTime         prometheus.Histogram
 
 	anchorWriteTime            prometheus.Histogram
+	anchorWitnessTime          prometheus.Histogram
 	anchorProcessWitnessedTime prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
@@ -91,6 +93,7 @@ func newMetrics() *Metrics {
 		apOutboxResolveInboxesTime: newOutboxResolveInboxesTime(),
 		apInboxHandlerTime:         newInboxHandlerTime(),
 		anchorWriteTime:            newAnchorWriteTime(),
+		anchorWitnessTime:          newAnchorWitnessTime(),
 		anchorProcessWitnessedTime: newAnchorProcessWitnessedTime(),
 		opqueueAddOperationTime:    newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:        newOpQueueBatchCutTime(),
@@ -104,8 +107,9 @@ func newMetrics() *Metrics {
 	}
 
 	prometheus.MustRegister(
-		m.apOutboxPostTime, m.apOutboxResolveInboxesTime, m.apInboxHandlerTime, m.anchorWriteTime,
-		m.anchorProcessWitnessedTime, m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
+		m.apOutboxPostTime, m.apOutboxResolveInboxesTime, m.apInboxHandlerTime,
+		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime,
+		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime, m.casWriteTime, m.casResolveTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime,
 	)
@@ -141,12 +145,21 @@ func (m *Metrics) WriteAnchorTime(value time.Duration) {
 	logger.Infof("WriteAnchor time: %s", value)
 }
 
-// ProcessWitnessedAnchoredCredentialTime records the time it takes to process a witnessed anchor credential
+// WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
+// required witnesses (according to witness policy). The start time is when the verifiable credential is issued
+// and the end time is the time that the witness policy is satisfied.
+func (m *Metrics) WitnessAnchorCredentialTime(value time.Duration) {
+	m.anchorWitnessTime.Observe(value.Seconds())
+
+	logger.Infof("WitnessAnchorCredential time: %s", value)
+}
+
+// ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
-func (m *Metrics) ProcessWitnessedAnchoredCredentialTime(value time.Duration) {
+func (m *Metrics) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
 	m.anchorProcessWitnessedTime.Observe(value.Seconds())
 
-	logger.Infof("ProcessWitnessedAnchoredCredential time: %s", value)
+	logger.Infof("ProcessWitnessedAnchorCredential time: %s", value)
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
@@ -267,6 +280,15 @@ func newAnchorWriteTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWriteTimeMetric,
 		"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity.",
+	)
+}
+
+func newAnchorWitnessTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWitnessMetric,
+		"The time (in seconds) that it takes for a verifiable credential to gather proofs from all required "+
+			"witnesses (according to witness policy). The start time is when the verifiable credential is issued "+
+			"and the end time is the time that the witness policy is satisfied.",
 	)
 }
 

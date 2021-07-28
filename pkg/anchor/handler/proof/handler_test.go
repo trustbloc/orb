@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
@@ -96,6 +97,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: &mockWitnessPolicy{eval: false},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -149,6 +151,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -183,6 +186,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{eval: true},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -220,6 +224,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				Witness: "witness",
 			}}},
 			WitnessPolicy: &mockWitnessPolicy{eval: true},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -262,6 +267,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -307,6 +313,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -351,6 +358,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -396,6 +404,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  witnessStore,
 			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -430,6 +439,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -463,6 +473,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -495,6 +506,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -529,6 +541,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -564,6 +577,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -590,6 +604,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: &mocks.MonitoringService{},
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
@@ -627,6 +642,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			MonitoringSvc: monitoringSvc,
 			WitnessStore:  &mockWitnessStore{},
 			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)

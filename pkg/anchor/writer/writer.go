@@ -42,7 +42,7 @@ var logger = log.New("anchor-writer")
 
 type metricsProvider interface {
 	WriteAnchorTime(value time.Duration)
-	ProcessWitnessedAnchoredCredentialTime(value time.Duration)
+	ProcessWitnessedAnchorCredentialTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -365,7 +365,7 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 	startTime := time.Now()
 
 	defer func() {
-		c.metrics.ProcessWitnessedAnchoredCredentialTime(time.Since(startTime))
+		c.metrics.ProcessWitnessedAnchorCredentialTime(time.Since(startTime))
 	}()
 
 	// store anchor credential with witness proofs
