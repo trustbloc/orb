@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,11 +37,15 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.CASResolveTime(time.Second) })
 		require.NotPanics(t, func() { m.DocumentCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.DocumentResolveTime(time.Second) })
+		require.NotPanics(t, func() { m.InboxIncrementActivityCount("Create") })
+		require.NotPanics(t, func() { m.OutboxIncrementActivityCount("Create") })
 	})
 }
 
 func TestNewCounter(t *testing.T) {
-	require.NotNil(t, newCounter("activityPub", "metric_name", "Some help"))
+	labels := prometheus.Labels{"type": "create"}
+
+	require.NotNil(t, newCounter("activityPub", "metric_name", "Some help", labels))
 }
 
 func TestNewHistogram(t *testing.T) {

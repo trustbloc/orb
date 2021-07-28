@@ -85,6 +85,8 @@ type metricsProvider interface {
 	InboxHandlerTime(value time.Duration)
 	OutboxPostTime(value time.Duration)
 	OutboxResolveInboxesTime(value time.Duration)
+	InboxIncrementActivityCount(activityType string)
+	OutboxIncrementActivityCount(activityType string)
 }
 
 // New returns a new ActivityPub service.

@@ -111,6 +111,7 @@ type httpTransport interface {
 type metricsProvider interface {
 	OutboxPostTime(value time.Duration)
 	OutboxResolveInboxesTime(value time.Duration)
+	OutboxIncrementActivityCount(activityType string)
 }
 
 // New returns a new ActivityPub Outbox.
@@ -214,6 +215,8 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 	if h.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
+
+	h.incrementCount(activity.Type().Types())
 
 	startTime := time.Now()
 	defer func() {
@@ -541,6 +544,12 @@ func (h *Outbox) validateAndPopulateActivity(activity *vocab.ActivityType) (*voc
 	}
 
 	return activity, nil
+}
+
+func (h *Outbox) incrementCount(types []vocab.Type) {
+	for _, activityType := range types {
+		h.metrics.OutboxIncrementActivityCount(string(activityType))
+	}
 }
 
 func populateConfigDefaults(cnfg *Config) Config {
