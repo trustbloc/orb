@@ -722,10 +722,11 @@ func startOrbServices(parameters *orbParameters) error {
 		didDocHandler,
 		didDiscovery,
 		anchorGraph,
+		metrics.Get(),
 		resolveHandlerOpts...,
 	)
 
-	orbDocUpdateHandler := updatehandler.New(didDocHandler, updateHandlerOpts...)
+	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics.Get(), updateHandlerOpts...)
 
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{

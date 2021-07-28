@@ -34,6 +34,8 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.ProcessDIDTime(time.Second) })
 		require.NotPanics(t, func() { m.CASWriteTime(time.Second) })
 		require.NotPanics(t, func() { m.CASResolveTime(time.Second) })
+		require.NotPanics(t, func() { m.DocumentCreateUpdateTime(time.Second) })
+		require.NotPanics(t, func() { m.DocumentResolveTime(time.Second) })
 	})
 }
 

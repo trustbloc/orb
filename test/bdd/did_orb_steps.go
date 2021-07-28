@@ -1076,7 +1076,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 func (d *DIDOrbSteps) verifyDID(url, did string) error {
 	logger.Infof("verifying DID %s from %s", did, url)
 
-	resp, err := d.httpClient.GetWithRetry(url+"/"+did, 15, http.StatusNotFound)
+	resp, err := d.httpClient.GetWithRetry(url+"/"+did, 25, http.StatusNotFound)
 	if err != nil {
 		return fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
 	}
