@@ -22,7 +22,6 @@ const (
 	apPostTimeMetric              = "outbox_post_seconds"
 	apResolveInboxesTimeMetric    = "outbox_resolve_inboxes_seconds"
 	apInboxHandlerTimeMetric      = "inbox_handler_seconds"
-	apInboxActivityCounterMetric  = "inbox_count"
 	apOutboxActivityCounterMetric = "outbox_count"
 
 	// Anchor.
@@ -69,8 +68,7 @@ var (
 type Metrics struct {
 	apOutboxPostTime           prometheus.Histogram
 	apOutboxResolveInboxesTime prometheus.Histogram
-	apInboxHandlerTime         prometheus.Histogram
-	apInboxActivityCounts      map[string]prometheus.Counter
+	apInboxHandlerTimes        map[string]prometheus.Histogram
 	apOutboxActivityCounts     map[string]prometheus.Counter
 
 	anchorWriteTime            prometheus.Histogram
@@ -106,12 +104,11 @@ func Get() *Metrics {
 }
 
 func newMetrics() *Metrics {
-	activityTypes := []string{"Create", "Announce", "Offer", "Like"}
+	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 
 	m := &Metrics{
 		apOutboxPostTime:           newOutboxPostTime(),
 		apOutboxResolveInboxesTime: newOutboxResolveInboxesTime(),
-		apInboxHandlerTime:         newInboxHandlerTime(),
 		anchorWriteTime:            newAnchorWriteTime(),
 		anchorWitnessTime:          newAnchorWitnessTime(),
 		anchorProcessWitnessedTime: newAnchorProcessWitnessedTime(),
@@ -129,12 +126,12 @@ func newMetrics() *Metrics {
 		casCacheMissCount:          newCASCacheMissCount(),
 		docCreateUpdateTime:        newDocCreateUpdateTime(),
 		docResolveTime:             newDocResolveTime(),
-		apInboxActivityCounts:      newInboxActivityCounts(activityTypes),
+		apInboxHandlerTimes:        newInboxHandlerTimes(activityTypes),
 		apOutboxActivityCounts:     newOutboxActivityCounts(activityTypes),
 	}
 
 	prometheus.MustRegister(
-		m.apOutboxPostTime, m.apOutboxResolveInboxesTime, m.apInboxHandlerTime,
+		m.apOutboxPostTime, m.apOutboxResolveInboxesTime,
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
@@ -143,7 +140,7 @@ func newMetrics() *Metrics {
 		m.docCreateUpdateTime, m.docResolveTime,
 	)
 
-	for _, c := range m.apInboxActivityCounts {
+	for _, c := range m.apInboxHandlerTimes {
 		prometheus.MustRegister(c)
 	}
 
@@ -169,17 +166,12 @@ func (m *Metrics) OutboxResolveInboxesTime(value time.Duration) {
 }
 
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
-func (m *Metrics) InboxHandlerTime(value time.Duration) {
-	m.apInboxHandlerTime.Observe(value.Seconds())
-
-	logger.Debugf("InboxHandler time: %s", value)
-}
-
-// InboxIncrementActivityCount increments the number of activities of the given type received in the inbox.
-func (m *Metrics) InboxIncrementActivityCount(activityType string) {
-	if c, ok := m.apInboxActivityCounts[activityType]; ok {
-		c.Inc()
+func (m *Metrics) InboxHandlerTime(activityType string, value time.Duration) {
+	if c, ok := m.apInboxHandlerTimes[activityType]; ok {
+		c.Observe(value.Seconds())
 	}
+
+	logger.Debugf("InboxHandler time for activity [%s]: %s", activityType, value)
 }
 
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
@@ -329,12 +321,13 @@ func newGauge(subsystem, name, help string) prometheus.Gauge {
 	})
 }
 
-func newHistogram(subsystem, name, help string) prometheus.Histogram {
+func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
 	return prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace: namespace,
-		Subsystem: subsystem,
-		Name:      name,
-		Help:      help,
+		Namespace:   namespace,
+		Subsystem:   subsystem,
+		Name:        name,
+		Help:        help,
+		ConstLabels: labels,
 	})
 }
 
@@ -342,6 +335,7 @@ func newOutboxPostTime() prometheus.Histogram {
 	return newHistogram(
 		activityPub, apPostTimeMetric,
 		"The time (in seconds) that it takes to post a message to the outbox.",
+		nil,
 	)
 }
 
@@ -349,23 +343,17 @@ func newOutboxResolveInboxesTime() prometheus.Histogram {
 	return newHistogram(
 		activityPub, apResolveInboxesTimeMetric,
 		"The time (in seconds) that it takes to resolve the inboxes of the destinations when posting to the outbox.",
+		nil,
 	)
 }
 
-func newInboxHandlerTime() prometheus.Histogram {
-	return newHistogram(
-		activityPub, apInboxHandlerTimeMetric,
-		"The time (in seconds) that it takes to handle an activity posted to the inbox.",
-	)
-}
-
-func newInboxActivityCounts(activityTypes []string) map[string]prometheus.Counter {
-	counters := make(map[string]prometheus.Counter)
+func newInboxHandlerTimes(activityTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
 
 	for _, activityType := range activityTypes {
-		counters[activityType] = newCounter(
-			activityPub, apInboxActivityCounterMetric,
-			"The number of activities received in the inbox.",
+		counters[activityType] = newHistogram(
+			activityPub, apInboxHandlerTimeMetric,
+			"The time (in seconds) that it takes to handle an activity posted to the inbox.",
 			prometheus.Labels{"type": activityType},
 		)
 	}
@@ -391,6 +379,7 @@ func newAnchorWriteTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWriteTimeMetric,
 		"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity.",
+		nil,
 	)
 }
 
@@ -400,6 +389,7 @@ func newAnchorWitnessTime() prometheus.Histogram {
 		"The time (in seconds) that it takes for a verifiable credential to gather proofs from all required "+
 			"witnesses (according to witness policy). The start time is when the verifiable credential is issued "+
 			"and the end time is the time that the witness policy is satisfied.",
+		nil,
 	)
 }
 
@@ -408,6 +398,7 @@ func newAnchorProcessWitnessedTime() prometheus.Histogram {
 		anchor, anchorProcessWitnessedMetric,
 		"The time (in seconds) that it takes to process a witnessed anchor credential by publishing it to "+
 			"the Observer and posting a 'Create' activity.",
+		nil,
 	)
 }
 
@@ -415,6 +406,7 @@ func newOpQueueAddOperationTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueAddOperationTimeMetric,
 		"The time (in seconds) that it takes to add an operation to the queue.",
+		nil,
 	)
 }
 
@@ -423,6 +415,7 @@ func newOpQueueBatchCutTime() prometheus.Histogram {
 		operationQueue, opQueueBatchCutTimeMetric,
 		"The time (in seconds) that it takes to cut an operation batch. The duration is from the time that the first "+
 			"operation was added to the time that the batch was cut.",
+		nil,
 	)
 }
 
@@ -431,6 +424,7 @@ func newOpQueueBatchRollbackTime() prometheus.Histogram {
 		operationQueue, opQueueBatchRollbackTimeMetric,
 		"The time (in seconds) that it takes to roll back an operation batch (in case of a transient error). "+
 			"The duration is from the time that the first operation was added to the time that the batch was cut.",
+		nil,
 	)
 }
 
@@ -438,6 +432,7 @@ func newOpQueueBatchAckTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueBatchAckTimeMetric,
 		"The time (in seconds) that it takes to acknowledge all of the operations that are removed from the queue.",
+		nil,
 	)
 }
 
@@ -445,6 +440,7 @@ func newOpQueueBatchNackTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueBatchNackTimeMetric,
 		"The time (in seconds) that it takes to nack all of the operations that are to be placed back on the queue.",
+		nil,
 	)
 }
 
@@ -459,6 +455,7 @@ func newObserverProcessAnchorTime() prometheus.Histogram {
 	return newHistogram(
 		observer, observerProcessAnchorTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process an anchor credential.",
+		nil,
 	)
 }
 
@@ -466,6 +463,7 @@ func newObserverProcessDIDTime() prometheus.Histogram {
 	return newHistogram(
 		observer, observerProcessDIDTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process a DID.",
+		nil,
 	)
 }
 
@@ -473,6 +471,7 @@ func newCASWriteTime() prometheus.Histogram {
 	return newHistogram(
 		cas, casWriteTimeMetric,
 		"The time (in seconds) that it takes to write a document to CAS.",
+		nil,
 	)
 }
 
@@ -480,6 +479,7 @@ func newCASResolveTime() prometheus.Histogram {
 	return newHistogram(
 		cas, casResolveTimeMetric,
 		"The time (in seconds) that it takes to resolve a document from CAS.",
+		nil,
 	)
 }
 
@@ -503,6 +503,7 @@ func newDocCreateUpdateTime() prometheus.Histogram {
 	return newHistogram(
 		document, docCreateUpdateTimeMetric,
 		"The time (in seconds) it takes the REST handler to process a create/update operation.",
+		nil,
 	)
 }
 
@@ -510,5 +511,6 @@ func newDocResolveTime() prometheus.Histogram {
 	return newHistogram(
 		document, docResolveTimeMetric,
 		"The time (in seconds) it takes the REST handler to resolve a document.",
+		nil,
 	)
 }

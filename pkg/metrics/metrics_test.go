@@ -20,7 +20,7 @@ func TestMetrics(t *testing.T) {
 	require.True(t, m == Get())
 
 	t.Run("ActivityPub", func(t *testing.T) {
-		require.NotPanics(t, func() { m.InboxHandlerTime(time.Second) })
+		require.NotPanics(t, func() { m.InboxHandlerTime("Create", time.Second) })
 		require.NotPanics(t, func() { m.OutboxPostTime(time.Second) })
 		require.NotPanics(t, func() { m.OutboxResolveInboxesTime(time.Second) })
 		require.NotPanics(t, func() { m.WriteAnchorTime(time.Second) })
@@ -40,7 +40,6 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.CASIncrementCacheMissCount() })
 		require.NotPanics(t, func() { m.DocumentCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.DocumentResolveTime(time.Second) })
-		require.NotPanics(t, func() { m.InboxIncrementActivityCount("Create") })
 		require.NotPanics(t, func() { m.OutboxIncrementActivityCount("Create") })
 	})
 }
@@ -52,7 +51,9 @@ func TestNewCounter(t *testing.T) {
 }
 
 func TestNewHistogram(t *testing.T) {
-	require.NotNil(t, newHistogram("activityPub", "metric_name", "Some help"))
+	labels := prometheus.Labels{"type": "create"}
+
+	require.NotNil(t, newHistogram("activityPub", "metric_name", "Some help", labels))
 }
 
 func TestNewGuage(t *testing.T) {

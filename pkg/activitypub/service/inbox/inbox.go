@@ -42,8 +42,7 @@ type signatureVerifier interface {
 }
 
 type metricsProvider interface {
-	InboxHandlerTime(value time.Duration)
-	InboxIncrementActivityCount(activityType string)
+	InboxHandlerTime(activityType string, value time.Duration)
 }
 
 // Config holds configuration parameters for the Inbox.
@@ -170,32 +169,30 @@ func (h *Inbox) listen() {
 func (h *Inbox) handle(msg *message.Message) {
 	startTime := time.Now()
 
-	defer func() {
-		h.metrics.InboxHandlerTime(time.Since(startTime))
-	}()
-
-	activityID, err := h.handleActivityMsg(msg)
+	activity, err := h.handleActivityMsg(msg)
 	if err != nil {
 		if orberrors.IsTransient(err) {
-			logger.Warnf("[%s] Transient error handling message [%s] for activity [%s]: %s",
-				h.ServiceEndpoint, msg.UUID, activityID, err)
+			logger.Warnf("[%s] Transient error handling message [%s]: %s",
+				h.ServiceEndpoint, msg.UUID, err)
 
 			msg.Nack()
 		} else {
-			logger.Warnf("[%s] Persistent error handling message [%s] for activity [%s]: %s",
-				h.ServiceEndpoint, msg.UUID, activityID, err)
+			logger.Warnf("[%s] Persistent error handling message [%s]: %s",
+				h.ServiceEndpoint, msg.UUID, err)
 
 			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 			msg.Ack()
 		}
 	} else {
-		logger.Infof("[%s] Acking message [%s] for activity [%s]", h.ServiceEndpoint, msg.UUID, activityID)
+		logger.Infof("[%s] Acking message [%s] for activity [%s]", h.ServiceEndpoint, msg.UUID, activity.ID())
 
 		msg.Ack()
+
+		h.metrics.InboxHandlerTime(activity.Type().String(), time.Since(startTime))
 	}
 }
 
-func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
+func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
 	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
@@ -204,8 +201,6 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
 
 		return nil, err
 	}
-
-	h.incrementCount(activity.Type().Types())
 
 	_, err = h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
@@ -218,7 +213,7 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
 	} else {
 		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activity.ID(), msg.UUID)
 
-		return activity.ID().URL(), nil
+		return activity, nil
 	}
 
 	err = h.activityHandler.HandleActivity(activity)
@@ -240,7 +235,7 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*url.URL, error) {
 		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
 	}
 
-	return activity.ID().URL(), err
+	return activity, err
 }
 
 func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.ActivityType, error) {
@@ -268,10 +263,4 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 	}
 
 	return activity, nil
-}
-
-func (h *Inbox) incrementCount(types []vocab.Type) {
-	for _, activityType := range types {
-		h.metrics.InboxIncrementActivityCount(string(activityType))
-	}
 }
