@@ -120,18 +120,17 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	defaultMaxWitnessDelay = 600 * time.Second // 10 minutes
-	defaultSyncTimeout     = 1
-
+	defaultMaxWitnessDelay                = 600 * time.Second // 10 minutes
+	defaultSyncTimeout                    = 1
 	defaulthttpSignaturesEnabled          = true
 	defaultDidDiscoveryEnabled            = false
 	defaultCreateDocumentStoreEnabled     = false
 	defaultLocalCASReplicateInIPFSEnabled = false
 	defaultDevModeEnabled                 = false
+	defaultPolicyCacheExpiry              = 30 * time.Second
+	defaultCasCacheSize                   = 1000
 
 	unpublishedDIDLabel = "interim"
-
-	defaultPolicyCacheExpiry = 30 * time.Second
 )
 
 var logger = log.New("orb-server")
@@ -334,13 +333,13 @@ func startOrbServices(parameters *orbParameters) error {
 			coreCASClient, err = casstore.New(storeProviders.provider,
 				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
-				extendedcasclient.WithCIDVersion(parameters.cidVersion))
+				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
 			}
 		} else {
-			coreCASClient, err = casstore.New(storeProviders.provider, nil,
-				extendedcasclient.WithCIDVersion(parameters.cidVersion))
+			coreCASClient, err = casstore.New(storeProviders.provider, nil, metrics.Get(),
+				defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
 			}

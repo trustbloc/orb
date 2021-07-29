@@ -110,7 +110,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casres
 func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), nil)
+	casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
 	return casClient

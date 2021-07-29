@@ -10,36 +10,75 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/bluele/gcache"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	gocid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/go-unixfs"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
+var logger = log.New("cas-store")
+
+const defaultCacheSize = 1000
+
+type metricsProvider interface {
+	CASIncrementCacheHitCount()
+	CASIncrementCacheMissCount()
+}
+
 // CAS represents a content-addressable storage provider.
 type CAS struct {
 	cas        ariesstorage.Store
 	ipfsClient *ipfs.Client
 	opts       []extendedcasclient.CIDFormatOption
+	cache      gcache.Cache
+	metrics    metricsProvider
 }
 
 // New returns a new CAS that uses the passed in provider as a backing store for local CAS storage.
 // ipfsClient is optional, but if provided (not nil), then writes will go to IPFS in addition to the passed in provider.
 // Reads are always done on only the passed in provider.
 // If no CID version is specified, then v1 will be used by default.
-func New(provider ariesstorage.Provider, ipfsClient *ipfs.Client,
+func New(provider ariesstorage.Provider, ipfsClient *ipfs.Client, metrics metricsProvider, cacheSize int,
 	opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
 	cas, err := provider.OpenStore("cas_store")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
 	}
 
-	return &CAS{cas: cas, ipfsClient: ipfsClient, opts: opts}, nil
+	if cacheSize == 0 {
+		cacheSize = defaultCacheSize
+	}
+
+	c := &CAS{
+		cas:        cas,
+		ipfsClient: ipfsClient,
+		opts:       opts,
+		metrics:    metrics,
+	}
+
+	c.cache = gcache.New(cacheSize).ARC().
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			c.metrics.CASIncrementCacheMissCount()
+
+			cid, err := c.get(key.(string))
+			if err != nil {
+				return nil, err
+			}
+
+			logger.Debugf("Cached content for CID [%s]", cid)
+
+			return cid, nil
+		},
+		).Build()
+
+	return c, nil
 }
 
 // Write writes the given content to the underlying CAS provider (and IPFS if configured) using this CAS'
@@ -95,12 +134,32 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 		}
 	}
 
+	if err := p.cache.Set(cid, content); err != nil {
+		// This shouldn't be possible.
+		logger.Warnf("Error caching content for CID [%s]: %s", cid, err)
+	} else {
+		logger.Debugf("Cached content for CID [%s]", cid)
+	}
+
 	return cid, nil
 }
 
 // Read reads the content of the given address from the underlying local CAS provider.
 // Returns the content at the given address.
 func (p *CAS) Read(address string) ([]byte, error) {
+	if p.cache.Has(address) {
+		p.metrics.CASIncrementCacheHitCount()
+	}
+
+	content, err := p.cache.Get(address)
+	if err != nil {
+		return nil, err
+	}
+
+	return content.([]byte), nil
+}
+
+func (p *CAS) get(address string) ([]byte, error) {
 	content, err := p.cas.Get(address)
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {

@@ -92,7 +92,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -161,7 +161,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -223,7 +223,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -291,7 +291,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -355,7 +355,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -417,7 +417,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -495,7 +495,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
@@ -601,7 +601,7 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil)
+		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{

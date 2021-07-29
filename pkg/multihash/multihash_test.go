@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package multihash_test
 
 import (
@@ -7,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/multihash"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
@@ -75,7 +82,8 @@ func TestCIDToMultihash(t *testing.T) {
 // back-and-forth between the multihash and CID formats without loss of data.
 func TestLosslessConversion(t *testing.T) {
 	t.Run("V0", func(t *testing.T) {
-		store, err := cas.New(mem.NewProvider(), nil, extendedcasclient.WithCIDVersion(0))
+		store, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0,
+			extendedcasclient.WithCIDVersion(0))
 		require.NoError(t, err)
 
 		originalCID, err := store.Write([]byte("content"))
@@ -90,7 +98,7 @@ func TestLosslessConversion(t *testing.T) {
 		require.Equal(t, originalCID, cidConvertedBackFromMultihash)
 	})
 	t.Run("V1", func(t *testing.T) {
-		store, err := cas.New(mem.NewProvider(), nil)
+		store, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		originalCID, err := store.Write([]byte("content"))

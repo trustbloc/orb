@@ -89,3 +89,11 @@ func (m *MetricsProvider) InboxIncrementActivityCount(activityType string) {
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
 func (m *MetricsProvider) OutboxIncrementActivityCount(activityType string) {
 }
+
+// CASIncrementCacheHitCount increments the number of CAS cache hits.
+func (m *MetricsProvider) CASIncrementCacheHitCount() {
+}
+
+// CASIncrementCacheMissCount increments the number of CAS cache misses.
+func (m *MetricsProvider) CASIncrementCacheMissCount() {
+}

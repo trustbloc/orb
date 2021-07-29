@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	localcas "github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -79,13 +80,13 @@ const sampleAnchorCredential = `{
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
 	t.Run("Fail to store in underlying storage provider", func(t *testing.T) {
 		provider, err := localcas.New(&ariesmockstorage.Provider{ErrOpenStore: errors.New("open store error")},
-			nil)
+			nil, &orbmocks.MetricsProvider{}, 0)
 		require.EqualError(t, err, "failed to open store in underlying storage provider: open store error")
 		require.Nil(t, provider)
 	})
@@ -101,7 +102,7 @@ func TestProvider_Write_Read(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		client := ipfs.New("localhost:5001", 5*time.Second)
 
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), client)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), client, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		var address string
@@ -134,7 +135,7 @@ func TestProvider_Write_Read(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrPut: errors.New("put error"),
 			},
-		}, nil)
+		}, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
@@ -147,7 +148,7 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: ariesstorage.ErrDataNotFound,
 				},
-			}, nil)
+			}, nil, &orbmocks.MetricsProvider{}, 0)
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
@@ -159,7 +160,7 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: errors.New("get error"),
 				},
-			}, nil)
+			}, nil, &orbmocks.MetricsProvider{}, 0)
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
@@ -168,7 +169,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		})
 	})
 	t.Run("Invalid CID version", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil,
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0,
 			extendedcasclient.WithCIDVersion(2))
 		require.NoError(t, err)
 
@@ -179,13 +180,44 @@ func TestProvider_Write_Read(t *testing.T) {
 	t.Run("Fail to write to IPFS", func(t *testing.T) {
 		client := ipfs.New("InvalidURL", 5*time.Second)
 
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), client)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), client, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
 		require.Contains(t, err.Error(), `failed to put content into IPFS (but it was successfully stored in `+
 			`the local storage provider): Post "http://InvalidURL/api/v0/add?cid-version=1": dial tcp:`)
 		require.Empty(t, address)
+	})
+	t.Run("Local CAS write and read -> success", func(t *testing.T) {
+		content1 := []byte("content1")
+		content2 := []byte("content2")
+
+		provider, err := localcas.New(&ariesmockstorage.Provider{
+			OpenStoreReturn: &ariesmockstorage.Store{
+				GetReturn: content1,
+			},
+		}, nil, &orbmocks.MetricsProvider{}, 0)
+		require.NoError(t, err)
+
+		// Should read from DB and save to cache.
+		content, err := provider.Read("bafkreigqwqs6adqvudjwxgzwd4blvnrvmoxnns2gmuedsbjynrk5lntz7i")
+		require.NoError(t, err)
+		require.Equal(t, content1, content)
+
+		// Should read from cache.
+		content, err = provider.Read("cid1")
+		require.NoError(t, err)
+		require.Equal(t, content1, content)
+
+		// Should save to DB and cache.
+		address, err := provider.Write(content2)
+		require.NoError(t, err)
+		require.Equal(t, "bafkreig2w5a3mke6pxgmd3kcgmgk4gwmyk3vltuaphbm2xklkntmt53juy", address)
+
+		// Should read from cache.
+		content, err = provider.Read(address)
+		require.NoError(t, err)
+		require.Equal(t, content2, content)
 	})
 }
 
@@ -273,7 +305,8 @@ func addDataToIPFS(t *testing.T, data []byte, opts ...extendedcasclient.CIDForma
 func addDataToLocalCAS(t *testing.T, data []byte, opts ...extendedcasclient.CIDFormatOption) string {
 	t.Helper()
 
-	cas, err := localcas.New(ariesmemstorage.NewProvider(), nil, opts...)
+	cas, err := localcas.New(ariesmemstorage.NewProvider(), nil,
+		&orbmocks.MetricsProvider{}, 0, opts...)
 	require.NoError(t, err)
 
 	cid, err := cas.Write(data)
