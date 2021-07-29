@@ -108,7 +108,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil)
+	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 100)
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
@@ -805,7 +805,7 @@ func TestWriter_handle(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil)
+	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
@@ -1399,7 +1399,7 @@ func TestWriter_Read(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil)
+	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{

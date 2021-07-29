@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 )
 
@@ -57,7 +58,7 @@ func TestWriteResponseFailures(t *testing.T) {
 		t.Run("Status not found", func(t *testing.T) {
 			casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{
 				ErrGet: ariesstorage.ErrDataNotFound,
-			}}, nil)
+			}}, nil, &orbmocks.MetricsProvider{}, 0)
 			require.NoError(t, err)
 
 			testLogger := &stringLogger{}
@@ -74,7 +75,7 @@ func TestWriteResponseFailures(t *testing.T) {
 				"content not found. Response write error: response write failure", testLogger.log)
 		})
 		t.Run("Internal server error", func(t *testing.T) {
-			casClient, err := cas.New(mem.NewProvider(), nil)
+			casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
 			require.NoError(t, err)
 
 			testLogger := &stringLogger{}
@@ -93,7 +94,8 @@ func TestWriteResponseFailures(t *testing.T) {
 		})
 	})
 	t.Run("Fail to write success response", func(t *testing.T) {
-		casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{}}, nil)
+		casClient, err := cas.New(&mock.Provider{OpenStoreReturn: &mock.Store{}}, nil,
+			&orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		testLogger := &stringLogger{}
