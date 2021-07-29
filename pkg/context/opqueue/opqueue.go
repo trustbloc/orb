@@ -44,6 +44,7 @@ type metricsProvider interface {
 	BatchRollbackTime(value time.Duration)
 	BatchAckTime(value time.Duration)
 	BatchNackTime(value time.Duration)
+	BatchSize(value float64)
 }
 
 // Config contains configuration parameters for the operation queue.
@@ -277,6 +278,8 @@ func (q *Queue) newAckFunc(items []*operationMessage, startTime time.Time) func(
 
 		// Batch Ack time is the time it took to acknowledge all of the MQ messages.
 		q.metrics.BatchAckTime(time.Since(startTime))
+
+		q.metrics.BatchSize(float64(len(items)))
 
 		return uint(len(q.pending))
 	}
