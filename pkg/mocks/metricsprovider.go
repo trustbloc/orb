@@ -20,7 +20,7 @@ func (m *MetricsProvider) OutboxResolveInboxesTime(value time.Duration) {
 }
 
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
-func (m *MetricsProvider) InboxHandlerTime(value time.Duration) {
+func (m *MetricsProvider) InboxHandlerTime(activityType string, value time.Duration) {
 }
 
 // WriteAnchorTime records the time it takes to write an anchor credential and post an 'Offer' activity.
@@ -80,10 +80,6 @@ func (m *MetricsProvider) DocumentCreateUpdateTime(value time.Duration) {
 
 // DocumentResolveTime records the time it takes the REST handler to resolve a document.
 func (m *MetricsProvider) DocumentResolveTime(value time.Duration) {
-}
-
-// InboxIncrementActivityCount increments the number of activities of the given type received in the inbox.
-func (m *MetricsProvider) InboxIncrementActivityCount(activityType string) {
 }
 
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
