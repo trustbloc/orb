@@ -97,3 +97,7 @@ func (m *MetricsProvider) CASIncrementCacheHitCount() {
 // CASIncrementCacheMissCount increments the number of CAS cache misses.
 func (m *MetricsProvider) CASIncrementCacheMissCount() {
 }
+
+// BatchSize records the size of an operation batch.
+func (m *MetricsProvider) BatchSize(float64) {
+}

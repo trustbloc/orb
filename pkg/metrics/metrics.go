@@ -38,6 +38,7 @@ const (
 	opQueueBatchRollbackTimeMetric = "batch_rollback_seconds"
 	opQueueBatchAckTimeMetric      = "batch_ack_seconds"
 	opQueueBatchNackTimeMetric     = "batch_nack_seconds"
+	opQueueBatchSizeMetric         = "batch_size"
 
 	// Observer.
 	observer                        = "observer"
@@ -81,6 +82,7 @@ type Metrics struct {
 	opqueueBatchRollbackTime prometheus.Histogram
 	opqueueBatchAckTime      prometheus.Histogram
 	opqueueBatchNackTime     prometheus.Histogram
+	opqueueBatchSize         prometheus.Gauge
 
 	observerProcessAnchorTime prometheus.Histogram
 	observerProcessDIDTime    prometheus.Histogram
@@ -118,6 +120,7 @@ func newMetrics() *Metrics {
 		opqueueBatchRollbackTime:   newOpQueueBatchRollbackTime(),
 		opqueueBatchAckTime:        newOpQueueBatchAckTime(),
 		opqueueBatchNackTime:       newOpQueueBatchNackTime(),
+		opqueueBatchSize:           newOpQueueBatchSize(),
 		observerProcessAnchorTime:  newObserverProcessAnchorTime(),
 		observerProcessDIDTime:     newObserverProcessDIDTime(),
 		casWriteTime:               newCASWriteTime(),
@@ -134,8 +137,9 @@ func newMetrics() *Metrics {
 		m.apOutboxPostTime, m.apOutboxResolveInboxesTime, m.apInboxHandlerTime,
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
-		m.observerProcessAnchorTime, m.observerProcessDIDTime, m.casWriteTime, m.casResolveTime,
-		m.casCacheHitCount, m.casCacheMissCount, m.opqueueBatchAckTime, m.opqueueBatchNackTime,
+		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
+		m.observerProcessAnchorTime, m.observerProcessDIDTime,
+		m.casWriteTime, m.casResolveTime, m.casCacheHitCount, m.casCacheMissCount,
 		m.docCreateUpdateTime, m.docResolveTime,
 	)
 
@@ -245,6 +249,13 @@ func (m *Metrics) BatchNackTime(value time.Duration) {
 	m.opqueueBatchNackTime.Observe(value.Seconds())
 
 	logger.Debugf("BatchNack time: %s", value)
+}
+
+// BatchSize records the size of an operation batch.
+func (m *Metrics) BatchSize(value float64) {
+	m.opqueueBatchSize.Set(value)
+
+	logger.Infof("BatchSize: %s", value)
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
@@ -434,6 +445,13 @@ func newOpQueueBatchNackTime() prometheus.Histogram {
 	return newHistogram(
 		operationQueue, opQueueBatchNackTimeMetric,
 		"The time (in seconds) that it takes to nack all of the operations that are to be placed back on the queue.",
+	)
+}
+
+func newOpQueueBatchSize() prometheus.Gauge {
+	return newGauge(
+		operationQueue, opQueueBatchSizeMetric,
+		"The size of a cut batch.",
 	)
 }
 
