@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
 
-				testSleep := 180
+				testSleep := 120
 				if os.Getenv("TEST_SLEEP") != "" {
 					testSleep, _ = strconv.Atoi(os.Getenv("TEST_SLEEP"))
 				}
