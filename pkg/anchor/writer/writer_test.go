@@ -27,6 +27,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -798,6 +799,70 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.Contains(t, err.Error(), `failed to get host-meta document via IPNS: failed to read from IPNS: `+
 			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
 			`l7uyhdre8ateqek%2F.well-known%2Fhost-meta.json":`)
+	})
+
+	t.Run("error - no witnesses configured", func(t *testing.T) {
+		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		activityStore := memstore.New("")
+
+		providers := &Providers{
+			AnchorGraph:   anchorGraph,
+			DidAnchors:    memdidanchor.New(),
+			AnchorBuilder: &mockTxnBuilder{},
+			OpProcessor:   &mockOpProcessor{},
+			Outbox:        &mockOutbox{},
+			Signer:        &mockSigner{},
+			MonitoringSvc: &mockMonitoring{},
+			WitnessStore:  &mockWitnessStore{},
+			ActivityStore: activityStore,
+			VCStore:       vcStore,
+			VCStatusStore: vcStatusStore,
+			WFClient:      wfClient,
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, false, testutil.GetLoader(t), resourceresolver.New(http.DefaultClient,
+				nil), &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		hostMetaResponse := discoveryrest.JRD{
+			Subject:    "",
+			Properties: nil,
+			Links: []discoveryrest.Link{
+				{
+					Type: discoveryrest.ActivityJSONType,
+					Href: apServiceIRI.String(),
+				},
+			},
+		}
+
+		hostMetaResponseBytes, err := json.Marshal(hostMetaResponse)
+		require.NoError(t, err)
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, err = w.Write(hostMetaResponseBytes)
+				require.NoError(t, err)
+			}))
+		defer testServer.Close()
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServer.URL),
+			},
+		}
+
+		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		require.Error(t, err)
+		require.True(t, orberrors.IsTransient(err))
+		require.Contains(t, err.Error(), "no witnesses are provided")
 	})
 }
 
