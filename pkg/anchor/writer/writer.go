@@ -511,7 +511,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 	// witnesses and vc status are stored
 	err = c.storeWitnesses(vc.ID, batchWitnessesIRI)
 	if err != nil {
-		return err
+		return fmt.Errorf("store witnesses: %w", err)
 	}
 
 	postID, err := c.Outbox.Post(offer)
@@ -640,6 +640,16 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 				Witness: systemWitnessURI.String(),
 				HasLog:  hasLog,
 			})
+	}
+
+	if len(witnesses) == 0 {
+		logger.Errorf("No witnesses are configured for service [%s]. At least one system witness must be configured",
+			c.apServiceIRI)
+
+		// Return a transient error since adding a witness should allow a retry to succeed.
+		return errors.NewTransient(
+			fmt.Errorf("unable to store witnesses for anchor credential [%s] since no witnesses are provided",
+				vcID))
 	}
 
 	err = c.WitnessStore.Put(vcID, witnesses)
