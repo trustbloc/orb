@@ -49,6 +49,8 @@ const (
 
 var createLogCount int64
 var resolveCreateLogCount int64
+var updateLogCount int64
+var resolveUpdateLogCount int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -217,15 +219,100 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		}
 	}
 
+	// update did
+
+	updatePool := NewWorkerPool(concurrencyReq)
+
+	updatePool.Start()
+
+	updateStart := time.Now()
+
+	for _, resp := range resolvePool.responses {
+		randomVDR := vdrs[mrand.Intn(len(urls))]
+
+		updatePool.Submit(&updateDIDReq{
+			vdr:          randomVDR,
+			anchorOrigin: anchorOrigin,
+			steps:        e,
+			canonicalID:  resp.Resp.(string),
+			kr:           kr,
+		})
+	}
+
+	updatePool.Stop()
+
+	logger.Infof("got updated %d responses for %d requests", len(updatePool.responses), didNums)
+
+	if len(updatePool.responses) != didNums {
+		return fmt.Errorf("expecting updated %d responses but got %d", didNums, len(updatePool.responses))
+	}
+
+	updateTimeStr := time.Since(updateStart).String()
+
+	resolveUpdatePool := NewWorkerPool(concurrencyReq)
+
+	resolveUpdatePool.Start()
+
+	resolveUpdateDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+
+	resolveUpdateStart := time.Now()
+
+	for _, resp := range updatePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+
+		r, ok := resp.Resp.(updateDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to updateDIDResp")
+		}
+
+		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
+			vdr:                  r.vdr,
+			maxRetry:             maxRetry,
+			resolveUpdateDIDTime: resolveUpdateDIDTime,
+			canonicalID:          r.canonicalID,
+			svcEndpoint:          r.svcEndpoint,
+		})
+
+	}
+
+	resolveUpdatePool.Stop()
+
+	logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
+
+	if len(resolveUpdatePool.responses) != didNums {
+		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
+	}
+
+	resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
+
+	for _, resp := range resolveUpdatePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Println("------")
 
 	fmt.Printf("Resolved anchor did %d took: %s\n", didNums, resolveTimeStr)
 	fmt.Println("------")
 
+	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
+	fmt.Println("------")
+
+	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
+	fmt.Println("------")
+
 	fmt.Println("Resolve anchor did times:")
 	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
 	fmt.Println(resolveCreatedDIDTime.Calc())
+	fmt.Println("------")
+
+	fmt.Println("Resolve updated did times:")
+	resolveUpdateDIDTime.SetWallTime(time.Since(resolveUpdateStart))
+	fmt.Println(resolveUpdateDIDTime.Calc())
 	fmt.Println("------")
 
 	return nil
@@ -413,6 +500,41 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 	return createDIDResp{vdr: r.vdr, intermID: intermID, recoveryKeyPrivateKey: recoveryKeyPrivateKey, updateKeyPrivateKey: updateKeyPrivateKey}, nil
 }
 
+type updateDIDReq struct {
+	vdr          *orb.VDR
+	canonicalID  string
+	kr           *keyRetrieverMap
+	steps        *StressSteps
+	anchorOrigin string
+}
+
+type updateDIDResp struct {
+	vdr         *orb.VDR
+	canonicalID string
+	svcEndpoint string
+}
+
+func (r *updateDIDReq) Invoke() (interface{}, error) {
+	nextUpdatePublicKey, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	r.kr.WriteNextUpdatePublicKey(r.canonicalID, nextUpdatePublicKey)
+
+	svcEndpoint := uuid.New().URN()
+
+	if err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr); err != nil {
+		return nil, err
+	}
+
+	if atomic.AddInt64(&updateLogCount, 1)%100 == 0 {
+		logger.Infof("updated did successfully %d", updateLogCount)
+	}
+
+	return updateDIDResp{vdr: r.vdr, canonicalID: r.canonicalID, svcEndpoint: svcEndpoint}, nil
+}
+
 type resolveDIDReq struct {
 	vdr                   *orb.VDR
 	resolveCreatedDIDTime *tachymeter.Tachymeter
@@ -461,6 +583,51 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
+
+	return canonicalID, nil
+}
+
+type resolveUpdatedDIDReq struct {
+	vdr                  *orb.VDR
+	resolveUpdateDIDTime *tachymeter.Tachymeter
+	maxRetry             int
+	canonicalID          string
+	svcEndpoint          string
+}
+
+func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
+	start := time.Now()
+
+	var docResolution *ariesdid.DocResolution
+
+	for i := 1; i <= r.maxRetry; i++ {
+		var err error
+		docResolution, err = r.vdr.Read(r.canonicalID)
+
+		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == r.svcEndpoint {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		if i == r.maxRetry {
+			if err == nil {
+				return nil, fmt.Errorf("did is not updated")
+			}
+
+			return nil, err
+		}
+
+		time.Sleep(1 * time.Second)
+	}
+
+	r.resolveUpdateDIDTime.AddTime(time.Since(start))
+
+	if atomic.AddInt64(&resolveUpdateLogCount, 1)%100 == 0 {
+		logger.Infof("resolved updated did successfully %d", resolveUpdateLogCount)
+	}
 
 	return nil, nil
 }
