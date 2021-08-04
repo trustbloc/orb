@@ -249,9 +249,9 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 
 	updateTimeStr := time.Since(updateStart).String()
 
-	resolveUpdatePool := NewWorkerPool(concurrencyReq)
+	//resolveUpdatePool := NewWorkerPool(concurrencyReq)
 
-	resolveUpdatePool.Start()
+	//resolveUpdatePool.Start()
 
 	resolveUpdateDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
 
@@ -262,36 +262,36 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			return resp.Err
 		}
 
-		r, ok := resp.Resp.(updateDIDResp)
-		if !ok {
-			return fmt.Errorf("failed to cast resp to updateDIDResp")
-		}
-
-		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
-			vdr:                  r.vdr,
-			maxRetry:             maxRetry,
-			resolveUpdateDIDTime: resolveUpdateDIDTime,
-			canonicalID:          r.canonicalID,
-			svcEndpoint:          r.svcEndpoint,
-		})
+		//r, ok := resp.Resp.(updateDIDResp)
+		//if !ok {
+		//	return fmt.Errorf("failed to cast resp to updateDIDResp")
+		//}
+		//
+		//resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
+		//	vdr:                  r.vdr,
+		//	maxRetry:             maxRetry,
+		//	resolveUpdateDIDTime: resolveUpdateDIDTime,
+		//	canonicalID:          r.canonicalID,
+		//	svcEndpoint:          r.svcEndpoint,
+		//})
 
 	}
 
-	resolveUpdatePool.Stop()
+	//resolveUpdatePool.Stop()
 
-	logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
-
-	if len(resolveUpdatePool.responses) != didNums {
-		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
-	}
-
-	resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
-
-	for _, resp := range resolveUpdatePool.responses {
-		if resp.Err != nil {
-			return resp.Err
-		}
-	}
+	//logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
+	//
+	//if len(resolveUpdatePool.responses) != didNums {
+	//	return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
+	//}
+	//
+	//resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
+	//
+	//for _, resp := range resolveUpdatePool.responses {
+	//	if resp.Err != nil {
+	//		return resp.Err
+	//	}
+	//}
 
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Println("------")
@@ -302,8 +302,8 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
 	fmt.Println("------")
 
-	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
-	fmt.Println("------")
+	//fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
+	//fmt.Println("------")
 
 	fmt.Println("Resolve anchor did times:")
 	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
