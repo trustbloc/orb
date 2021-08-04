@@ -228,13 +228,16 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	updateStart := time.Now()
 
 	for _, resp := range resolvePool.responses {
-		randomVDR := vdrs[mrand.Intn(len(urls))]
+		r, ok := resp.Resp.(resolveDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to createDIDResp")
+		}
 
 		updatePool.Submit(&updateDIDReq{
-			vdr:          randomVDR,
+			vdr:          r.vdr,
 			anchorOrigin: anchorOrigin,
 			steps:        e,
-			canonicalID:  resp.Resp.(string),
+			canonicalID:  r.canonicalID,
 			kr:           kr,
 		})
 	}
@@ -249,9 +252,9 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 
 	updateTimeStr := time.Since(updateStart).String()
 
-	//resolveUpdatePool := NewWorkerPool(concurrencyReq)
+	resolveUpdatePool := NewWorkerPool(concurrencyReq)
 
-	//resolveUpdatePool.Start()
+	resolveUpdatePool.Start()
 
 	resolveUpdateDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
 
@@ -262,36 +265,36 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			return resp.Err
 		}
 
-		//r, ok := resp.Resp.(updateDIDResp)
-		//if !ok {
-		//	return fmt.Errorf("failed to cast resp to updateDIDResp")
-		//}
-		//
-		//resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
-		//	vdr:                  r.vdr,
-		//	maxRetry:             maxRetry,
-		//	resolveUpdateDIDTime: resolveUpdateDIDTime,
-		//	canonicalID:          r.canonicalID,
-		//	svcEndpoint:          r.svcEndpoint,
-		//})
+		r, ok := resp.Resp.(updateDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to updateDIDResp")
+		}
+
+		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
+			vdr:                  r.vdr,
+			maxRetry:             maxRetry,
+			resolveUpdateDIDTime: resolveUpdateDIDTime,
+			canonicalID:          r.canonicalID,
+			svcEndpoint:          r.svcEndpoint,
+		})
 
 	}
 
-	//resolveUpdatePool.Stop()
+	resolveUpdatePool.Stop()
 
-	//logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
-	//
-	//if len(resolveUpdatePool.responses) != didNums {
-	//	return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
-	//}
-	//
-	//resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
-	//
-	//for _, resp := range resolveUpdatePool.responses {
-	//	if resp.Err != nil {
-	//		return resp.Err
-	//	}
-	//}
+	logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
+
+	if len(resolveUpdatePool.responses) != didNums {
+		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
+	}
+
+	resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
+
+	for _, resp := range resolveUpdatePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
 
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Println("------")
@@ -302,8 +305,8 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
 	fmt.Println("------")
 
-	//fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
-	//fmt.Println("------")
+	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
+	fmt.Println("------")
 
 	fmt.Println("Resolve anchor did times:")
 	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
@@ -525,8 +528,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 	svcEndpoint := uuid.New().URN()
 
 	if err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr); err != nil {
-		panic(fmt.Sprintf("update failed: %s", err.Error()))
-		return nil, err
+		return nil, fmt.Errorf("failed to update did: %w", err)
 	}
 
 	if atomic.AddInt64(&updateLogCount, 1)%100 == 0 {
@@ -544,6 +546,11 @@ type resolveDIDReq struct {
 	intermID              string
 	recoveryKeyPrivateKey crypto.PrivateKey
 	updateKeyPrivateKey   crypto.PrivateKey
+}
+
+type resolveDIDResp struct {
+	vdr         *orb.VDR
+	canonicalID string
 }
 
 func (r *resolveDIDReq) Invoke() (interface{}, error) {
@@ -585,7 +592,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
 
-	return canonicalID, nil
+	return resolveDIDResp{vdr: r.vdr, canonicalID: canonicalID}, nil
 }
 
 type resolveUpdatedDIDReq struct {
