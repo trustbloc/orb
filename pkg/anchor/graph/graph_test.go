@@ -21,7 +21,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
-	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -30,6 +29,10 @@ import (
 const (
 	testNS  = "did:orb"
 	testDID = "abc"
+
+	casLink = "https://domain.com/cas"
+
+	nonExistent = "uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ"
 )
 
 func TestNew(t *testing.T) {
@@ -38,11 +41,11 @@ func TestNew(t *testing.T) {
 }
 
 func TestGraph_Add(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider(), nil, &metricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &metricsProvider{}, 0)
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com", &metricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
@@ -57,19 +60,19 @@ func TestGraph_Add(t *testing.T) {
 		c, err := buildDefaultCredential()
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 	})
 }
 
 func TestGraph_Read(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider(), nil, &metricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &metricsProvider{}, 0)
+
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "ipfs", &metricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
@@ -84,12 +87,11 @@ func TestGraph_Read(t *testing.T) {
 		c, err := buildDefaultCredential()
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 
-		vc, err := graph.Read(cid)
+		vc, err := graph.Read(hl)
 		require.NoError(t, err)
 
 		payloadFromVC, err := vcutil.GetAnchorSubject(vc)
@@ -108,11 +110,12 @@ func TestGraph_Read(t *testing.T) {
 }
 
 func TestGraph_GetDidAnchors(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider(), nil, &metricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &metricsProvider{}, 0)
+
 	require.NoError(t, err)
 
 	providers := &Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com", &metricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
@@ -127,12 +130,11 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		c, err := buildDefaultCredential()
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 
-		didAnchors, err := graph.GetDidAnchors(cid, testDID)
+		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(didAnchors))
 	})
@@ -153,13 +155,12 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		c, err := buildCredential(payload)
 		require.NoError(t, err)
 
-		anchor1CID, hint, err := graph.Add(c)
+		anchor1HL, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, anchor1CID)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, anchor1HL)
 
 		previousDIDTxns = make(map[string]string)
-		previousDIDTxns[testDID] = anchor1CID
+		previousDIDTxns[testDID] = anchor1HL
 
 		payload = &subject.Payload{
 			OperationCount:  1,
@@ -172,15 +173,14 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		c, err = buildCredential(payload)
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 
-		didAnchors, err := graph.GetDidAnchors(cid, testDID)
+		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(didAnchors))
-		require.Equal(t, anchor1CID, didAnchors[0].CID)
+		require.Equal(t, anchor1HL, didAnchors[0].CID)
 	})
 
 	t.Run("success - cid referenced in previous anchor empty (create)", func(t *testing.T) {
@@ -200,12 +200,11 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		c, err := buildCredential(payload)
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 
-		didAnchors, err := graph.GetDidAnchors(cid, testDID)
+		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(didAnchors))
 	})
@@ -214,7 +213,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		graph := New(providers)
 
 		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = "non-existent"
+		previousDIDTxns[testDID] = "hl:" + nonExistent
 
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
@@ -226,24 +225,50 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		c, err := buildCredential(payload)
 		require.NoError(t, err)
 
-		cid, hint, err := graph.Add(c)
+		hl, err := graph.Add(c)
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
-		require.NotEmpty(t, hint)
+		require.NotEmpty(t, hl)
 
-		didAnchors, err := graph.GetDidAnchors(cid, testDID)
+		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.Error(t, err)
 		require.Nil(t, didAnchors)
 		require.Contains(t, err.Error(), "not found")
 	})
 
+	t.Run("error - cid referenced in previous anchor is invalid", func(t *testing.T) {
+		graph := New(providers)
+
+		previousDIDTxns := make(map[string]string)
+		previousDIDTxns[testDID] = "hl:nonExistent"
+
+		payload := &subject.Payload{
+			CoreIndex:       "coreIndex-2",
+			Namespace:       testNS,
+			Version:         1,
+			PreviousAnchors: previousDIDTxns,
+		}
+
+		c, err := buildCredential(payload)
+		require.NoError(t, err)
+
+		hl, err := graph.Add(c)
+		require.NoError(t, err)
+		require.NotEmpty(t, hl)
+
+		didAnchors, err := graph.GetDidAnchors(hl, testDID)
+		require.Error(t, err)
+		require.Nil(t, didAnchors)
+		require.Contains(t, err.Error(),
+			"failed to parse hash link: resource hash[nonExistent] for hashlink[hl:nonExistent] is not a valid multihash")
+	})
+
 	t.Run("error - head cid not found", func(t *testing.T) {
 		graph := New(providers)
 
-		anchors, err := graph.GetDidAnchors("non-existent", "did")
+		anchors, err := graph.GetDidAnchors("hl:"+nonExistent, "did")
 		require.Error(t, err)
 		require.Nil(t, anchors)
-		require.Contains(t, err.Error(), "failed to get data stored at non-existent")
+		require.Contains(t, err.Error(), "failed to get data stored at uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ")
 	})
 }
 

@@ -167,12 +167,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=https%3A%2F%2Forb.domain1.com%2Ftransactions%2Fbafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=https%3A%2F%2Forb.domain1.com%2Ftransactions%2FuEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.id" of the response equals "https://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
+    And the JSON path "orderedItems.0.object.items.0.id" of the response equals "https://orb.domain1.com/transactions/uEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

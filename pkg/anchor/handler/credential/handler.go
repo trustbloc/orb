@@ -84,10 +84,10 @@ func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
 }
 
 // HandleAnchorCredential handles anchor credential.
-func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error {
-	logger.Debugf("Received request: ID [%s], CID [%s], Anchor credential: %s", id, cid, string(anchorCred))
+func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, hl string, anchorCred []byte) error {
+	logger.Debugf("Received request: ID [%s], CID [%s], Anchor credential: %s", id, hl, string(anchorCred))
 
-	newCred, err := h.casResolver.Resolve(id, cid, anchorCred)
+	newCred, err := h.casResolver.Resolve(id, hl, anchorCred)
 	if err != nil {
 		return fmt.Errorf("failed to resolve anchor credential: %w", err)
 	}
@@ -123,9 +123,5 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string
 		}
 	}
 
-	// TODO: Add hint(s) to anchor credential interface and determine if ipfs or webcas based on hint
-	// Since we currently only have cas URLs
-	hint := "webcas:" + id.Host
-
-	return h.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{CID: cid, WebCASURL: id, Hint: hint})
+	return h.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: hl})
 }

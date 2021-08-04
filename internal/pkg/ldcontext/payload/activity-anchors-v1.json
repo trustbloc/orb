@@ -13,7 +13,7 @@
           "type": "@type",
           "aa": "https://w3id.org/activityanchors#",
           "as": "https://www.w3.org/ns/activitystreams#",
-          "previous": "aa:previous"
+          "parent": "aa:parent"
         }
       },
       "AnchorIndex": {

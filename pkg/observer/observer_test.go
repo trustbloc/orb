@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
-	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -41,6 +39,8 @@ import (
 )
 
 //go:generate counterfeiter -o ../mocks/anchorgraph.gen.go --fake-name AnchorGraph . AnchorGraph
+
+const casLink = "https://domain.com/cas"
 
 func TestNew(t *testing.T) {
 	errExpected := errors.New("injected pub-sub error")
@@ -92,11 +92,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -115,9 +116,9 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, _, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor1 := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}}
+		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		prevAnchors = make(map[string]string)
 		prevAnchors["did2"] = ""
@@ -126,9 +127,9 @@ func TestStartObserver(t *testing.T) {
 		c, err = buildCredential(&payload2)
 		require.NoError(t, err)
 
-		cid, _, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor2 := &anchorinfo.AnchorInfo{CID: cid}
+		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
@@ -161,11 +162,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -189,7 +191,7 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, _, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -223,11 +225,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -249,17 +252,17 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, hint, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
-		previousAnchors[did1] = hint + ":" + cid
+		previousAnchors[did1] = cid
 
 		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		c, err = buildCredential(&payload2)
 		require.NoError(t, err)
 
-		cid, _, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -291,11 +294,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -320,10 +324,10 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, hint, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
-		anchor := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}, Hint: hint}
+		anchor := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
@@ -355,11 +359,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "webcas:domain.com", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -383,7 +388,7 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, _, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -417,11 +422,12 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -446,9 +452,9 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, _, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor1 := &anchorinfo.AnchorInfo{CID: cid, WebCASURL: &url.URL{}}
+		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		payload2 := subject.Payload{
 			Namespace:       namespace2,
@@ -460,9 +466,9 @@ func TestStartObserver(t *testing.T) {
 		c, err = buildCredential(&payload2)
 		require.NoError(t, err)
 
-		cid, _, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor2 := &anchorinfo.AnchorInfo{CID: cid}
+		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
@@ -495,11 +501,11 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -601,11 +607,11 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		graphProviders := &graph.Providers{
-			CasWriter: caswriter.New(casClient, "", &orbmocks.MetricsProvider{}),
+			CasWriter: casClient,
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -627,7 +633,7 @@ func TestStartObserver(t *testing.T) {
 		c, err := buildCredential(&payload1)
 		require.NoError(t, err)
 
-		cid, _, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
 
 		pubSub := apmocks.NewPubSub()

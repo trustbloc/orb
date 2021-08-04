@@ -7,10 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package credential
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +25,7 @@ import (
 	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -86,8 +85,6 @@ const sampleAnchorCredential = `{
   }]                  
 }`
 
-const sampleAnchorCredentialCID = "bafkreiehcfqwivyrzrqkrcyufbbp5oo5bjvbrvwdayrpgh5fuyhclkkzrq"
-
 func TestNew(t *testing.T) {
 	createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
 }
@@ -96,51 +93,45 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		anchorCredentialHandler := createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
 
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleAnchorCredentialCID))
+		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorCredential), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorCredential(id, sampleAnchorCredentialCID,
+		err = anchorCredentialHandler.HandleAnchorCredential(nil, hl,
 			[]byte(sampleAnchorCredential))
 		require.NoError(t, err)
 	})
 
 	t.Run("Parse created time (error)", func(t *testing.T) {
-		const credCID = "bafkreih535tuboh5pvnpqxjmrwff5deyviypoux7tkt35z65e4pibvzs7y"
-
 		cred := strings.Replace(sampleAnchorCredential, "2021-01-27T09:30:00Z", "2021-27T09:30:00Z", 1)
 
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		hl, err := hashlink.New().CreateHashLink([]byte(cred), nil)
 		require.NoError(t, err)
 
-		err = createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(id, credCID,
+		err = createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(nil, hl,
 			[]byte(cred))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse created: parsing time")
 	})
 
 	t.Run("Ignore time and domain", func(t *testing.T) {
-		const credCID = "bafkreibknowlewewwfmolanrat5sqobe7e6czonjqtvkw3fxhwuzv4xmxu"
-
 		cred := strings.Replace(strings.Replace(
 			sampleAnchorCredential, `"2021-01-27T09:30:00Z"`, "null", 1,
 		), `"https://witness1.example.com/ledgers/maple2021"`, "null", 1)
 
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		hl, err := hashlink.New().CreateHashLink([]byte(cred), nil)
 		require.NoError(t, err)
 
 		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
-			id, credCID, []byte(cred),
+			nil, hl, []byte(cred),
 		))
 	})
 
 	t.Run("Got null credentials", func(t *testing.T) {
-		const credCID = "bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
-
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", credCID))
+		hl, err := hashlink.New().CreateHashLink([]byte("null"), nil)
 		require.NoError(t, err)
 
 		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
-			id, credCID, []byte("null"),
+			nil, hl, []byte("null"),
 		))
 	})
 
@@ -160,16 +151,13 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		// the remote Orb server for it. The remote Orb server's CAS also won't have the data we need.
 		anchorCredentialHandler := createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
 
-		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, sampleAnchorCredentialCID))
+		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorCredential), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorCredential(id, sampleAnchorCredentialCID, nil)
+		err = anchorCredentialHandler.HandleAnchorCredential(nil, hl, nil)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to resolve anchor credential: "+
-			"failure while getting and storing data from the remote WebCAS endpoint: "+
-			"failed to get data via")
-		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at bafkreiehcfqwivyrzrqkrcyufbbp5oo5bjvbrvwdayrpgh5fuyhclkkzrq was found: content not found")
+		require.Contains(t, err.Error(),
+			"failed to resolve anchor credential: failed to get data stored at uEiCHEWFkVxHMYKiLFChC_rndCmoY1sMGIvMfpaYOJalZjA from the local CAS: content not found") //nolint:lll
 	})
 }
 
@@ -194,7 +182,8 @@ func createNewAnchorCredentialHandler(t *testing.T,
 func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), "https://domain.com/cas", nil, &orbmocks.MetricsProvider{}, 0)
+
 	require.NoError(t, err)
 
 	return casClient

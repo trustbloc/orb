@@ -17,14 +17,12 @@ import (
 )
 
 const (
-	multihashPrefix          = "urn:multihash"
+	multihashPrefix          = "did:orb:uAAA"
 	multihashPrefixDelimiter = ":"
 
 	anchorEventType    = "AnchorEvent"
 	anchorIndexType    = "AnchorIndex"
 	anchorResourceType = "AnchorResource"
-
-	linkType = "Link"
 
 	idKey             = "id"
 	previousAnchorKey = "previousAnchor"
@@ -37,7 +35,7 @@ type Activity struct {
 	Type         string                         `json:"type,omitempty"`
 	AttributedTo string                         `json:"attributedTo,omitempty"`
 	Published    *util.TimeWithTrailingZeroMsec `json:"published,omitempty"`
-	Previous     []Reference                    `json:"previous,omitempty"`
+	Parent       []string                       `json:"parent,omitempty"`
 	Attachment   []Attachment                   `json:"attachment,omitempty"`
 }
 
@@ -45,22 +43,8 @@ type Activity struct {
 type Attachment struct {
 	Type      string        `json:"type,omitempty"`
 	Generator string        `json:"generator,omitempty"`
-	URL       []Link        `json:"url,omitempty"`
+	URL       string        `json:"url,omitempty"`
 	Resources []interface{} `json:"resources,omitempty"`
-}
-
-// Reference defines anchor activity reference.
-type Reference struct {
-	ID   string `json:"id,omitempty"`
-	URL  string `json:"url,omitempty"`
-	Type string `json:"type,omitempty"`
-}
-
-// Link defines link.
-type Link struct {
-	Href string `json:"href,omitempty"`
-	Type string `json:"type,omitempty"`
-	Rel  string `json:"rel,omitempty"`
 }
 
 // Resource defines resource.
@@ -83,7 +67,7 @@ func BuildActivityFromPayload(payload *subject.Payload) (*Activity, error) {
 
 	var resources []interface{}
 
-	var previous []Reference
+	var previous []string
 
 	for key, value := range payload.PreviousAnchors {
 		resourceID := fmt.Sprintf("%s:%s", multihashPrefix, key)
@@ -91,17 +75,24 @@ func BuildActivityFromPayload(payload *subject.Payload) (*Activity, error) {
 		if value == "" {
 			resources = append(resources, resourceID)
 		} else {
-			resourceID := fmt.Sprintf("%s:%s", multihashPrefix, key)
-			previousAnchorID := fmt.Sprintf("%s:%s", multihashPrefix, value)
-			previous = append(previous, Reference{ID: previousAnchorID, URL: value, Type: linkType})
-			resources = append(resources, Resource{ID: resourceID, PreviousAnchor: previousAnchorID, Type: anchorResourceType})
+			if !contains(previous, value) {
+				previous = append(previous, value)
+			}
+
+			pos := strings.LastIndex(value, ":")
+			if pos == -1 {
+				return nil, fmt.Errorf("invalid previous anchor hashlink[%s] - must contain separator ':'", value)
+			}
+
+			previousAnchorKey := value[:pos]
+			resources = append(resources, Resource{ID: resourceID, PreviousAnchor: previousAnchorKey, Type: anchorResourceType})
 		}
 	}
 
 	attachment := []Attachment{{
 		Type:      anchorIndexType,
 		Generator: gen,
-		URL:       []Link{{Href: payload.CoreIndex, Type: linkType, Rel: "self"}},
+		URL:       payload.CoreIndex,
 		Resources: resources,
 	}}
 
@@ -109,7 +100,7 @@ func BuildActivityFromPayload(payload *subject.Payload) (*Activity, error) {
 		Type:         anchorEventType,
 		AttributedTo: payload.AnchorOrigin,
 		Published:    payload.Published,
-		Previous:     previous,
+		Parent:       previous,
 		Attachment:   attachment,
 	}, nil
 }
@@ -120,7 +111,7 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 		return nil, fmt.Errorf("activity is missing attachment")
 	}
 
-	// for now we have one attachment only
+	// TODO: issue-670 add support for multiple attachments (read additional artifacts/batch files from sidetree)
 	attach := activity.Attachment[0]
 
 	ns, ver, err := generator.ParseNamespaceAndVersion(attach.Generator)
@@ -128,16 +119,15 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 		return nil, fmt.Errorf("failed to parse namespace and version from activity generator: %w", err)
 	}
 
-	if len(attach.URL) == 0 {
+	if attach.URL == "" {
 		return nil, fmt.Errorf("activity is missing attachment URL")
 	}
 
-	// TODO: add support for alternates (sidetree-core doesn't support multiple sources)
-	coreIndex := attach.URL[0].Href
+	coreIndex := attach.URL
 
-	operatinCount := uint64(len(attach.Resources))
+	operationCount := uint64(len(attach.Resources))
 
-	prevAnchors, err := getPreviousAnchors(attach.Resources, activity.Previous)
+	prevAnchors, err := getPreviousAnchors(attach.Resources, activity.Parent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse previous anchors from activity: %w", err)
 	}
@@ -146,7 +136,7 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 		Namespace:       ns,
 		Version:         ver,
 		CoreIndex:       coreIndex,
-		OperationCount:  operatinCount,
+		OperationCount:  operationCount,
 		PreviousAnchors: prevAnchors,
 		AnchorOrigin:    activity.AttributedTo,
 		Published:       activity.Published,
@@ -155,7 +145,7 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 	return payload, nil
 }
 
-func getPreviousAnchors(resources []interface{}, previous []Reference) (map[string]string, error) {
+func getPreviousAnchors(resources []interface{}, previous []string) (map[string]string, error) {
 	previousAnchors := make(map[string]string)
 
 	for _, resObj := range resources {
@@ -222,19 +212,19 @@ func getStringFromMap(key string, m map[string]interface{}) (string, error) {
 	return val, nil
 }
 
-func getPreviousAnchorForResource(res *Resource, previous []Reference) (string, string, error) {
+func getPreviousAnchorForResource(res *Resource, previous []string) (string, string, error) {
 	for _, prev := range previous {
-		if res.PreviousAnchor == prev.ID {
+		if strings.HasPrefix(prev, res.PreviousAnchor) {
 			suffix, err := removeMultihashPrefix(res.ID)
 			if err != nil {
 				return "", "", fmt.Errorf("failed to parse previous anchors from activity: %w", err)
 			}
 
-			return suffix, prev.URL, nil
+			return suffix, prev, nil
 		}
 	}
 
-	return "", "", fmt.Errorf("resource ID[%s] not found in previous links", res.ID)
+	return "", "", fmt.Errorf("resource[%s] not found in previous anchor list", res.PreviousAnchor)
 }
 
 func removeMultihashPrefix(id string) (string, error) {
@@ -245,4 +235,14 @@ func removeMultihashPrefix(id string) (string, error) {
 	}
 
 	return id[len(prefix):], nil
+}
+
+func contains(arr []string, v string) bool {
+	for _, a := range arr {
+		if a == v {
+			return true
+		}
+	}
+
+	return false
 }

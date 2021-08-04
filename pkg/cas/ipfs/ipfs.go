@@ -19,6 +19,8 @@ import (
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/multihash"
 )
 
 var logger = log.New("cas-ipfs")
@@ -28,6 +30,7 @@ var logger = log.New("cas-ipfs")
 type Client struct {
 	ipfs *shell.Shell
 	opts []extendedcasclient.CIDFormatOption
+	hl   *hashlink.HashLink
 }
 
 // New creates cas client.
@@ -37,13 +40,25 @@ func New(url string, timeout time.Duration, opts ...extendedcasclient.CIDFormatO
 
 	ipfs.SetTimeout(timeout)
 
-	return &Client{ipfs: ipfs, opts: opts}
+	return &Client{ipfs: ipfs, opts: opts, hl: hashlink.New()}
 }
 
 // Write writes the given content to IPFS.
 // Returns the address (CID) of the content.
 func (m *Client) Write(content []byte) (string, error) {
-	return m.WriteWithCIDFormat(content, m.opts...)
+	cid, err := m.WriteWithCIDFormat(content, m.opts...)
+	if err != nil {
+		return "", err
+	}
+
+	links := []string{"ipfs://" + cid}
+
+	hl, err := m.hl.CreateHashLink(content, links)
+	if err != nil {
+		return "", fmt.Errorf("failed to create hashlink for ipfs: %w", err)
+	}
+
+	return hl, nil
 }
 
 // WriteWithCIDFormat writes the given content to IPFS using the provided CID format options.
@@ -75,9 +90,21 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 	return cid, nil
 }
 
+// GetPrimaryWriterType returns primary writer type.
+func (m *Client) GetPrimaryWriterType() string {
+	return "ipfs"
+}
+
 // Read reads the content for the given CID from CAS.
 // returns the contents of CID.
-func (m *Client) Read(cid string) ([]byte, error) {
+func (m *Client) Read(cidOrHash string) ([]byte, error) {
+	logger.Debugf("read cid or hash from ipfs: %s", cidOrHash)
+
+	cid, err := m.getCID(cidOrHash)
+	if err != nil {
+		return nil, fmt.Errorf("value[%s] passed to ipfs reader is not CID and cannot be converted to CID: %w", cidOrHash, err) //nolint:lll
+	}
+
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
@@ -90,6 +117,58 @@ func (m *Client) Read(cid string) ([]byte, error) {
 	defer closeAndLog(reader)
 
 	return ioutil.ReadAll(reader)
+}
+
+func (m *Client) getCID(cidOrHash string) (string, error) {
+	cid := cidOrHash
+
+	if strings.HasPrefix(cidOrHash, hashlink.HLPrefix) {
+		hashlinkInfo, err := m.hl.ParseHashLink(cidOrHash)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse hash link in ipfs client: %w", err)
+		}
+
+		cid = hashlinkInfo.ResourceHash
+	}
+
+	if !multihash.IsValidCID(cid) {
+		var err error
+
+		cid, err = m.getCIDFromHash(cid)
+		if err != nil {
+			return "", fmt.Errorf("failed to get cid in ipfs reader: %w", err)
+		}
+
+		logger.Debugf("converted value[%s] to CID: %s", cidOrHash, cid)
+	}
+
+	return cid, nil
+}
+
+func (m *Client) getCIDFromHash(hash string) (string, error) {
+	options, err := getOptions(m.opts)
+	if err != nil {
+		return "", err
+	}
+
+	var cid string
+
+	switch options.CIDVersion {
+	case 0:
+		cid, err = multihash.ToV0CID(hash)
+		if err != nil {
+			return "", fmt.Errorf("value[%s] cannot be converted to V0 CID: %w", hash, err)
+		}
+	case 1:
+		cid, err = multihash.ToV1CID(hash)
+		if err != nil {
+			return "", fmt.Errorf("value[%s] cannot be converted to V1 CID: %w", hash, err)
+		}
+	default:
+		return "", fmt.Errorf("cid version[%d] not supported", options.CIDVersion)
+	}
+
+	return cid, nil
 }
 
 func getOptions(opts []extendedcasclient.CIDFormatOption) (

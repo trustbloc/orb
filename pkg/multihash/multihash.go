@@ -9,11 +9,30 @@ package multihash
 
 import (
 	"fmt"
+	"strings"
 
 	gocid "github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multibase"
 	mh "github.com/multiformats/go-multihash"
 )
+
+// IsValidCID returns true if value passed in is a valid CID.
+func IsValidCID(value string) bool {
+	if strings.HasPrefix(value, "/ipns/") {
+		return true
+	}
+
+	cid, err := gocid.Decode(value)
+	if err != nil {
+		return false
+	}
+
+	if cid.String() != value {
+		return false
+	}
+
+	return true
+}
 
 // ToV0CID takes a multibase-encoded multihash and converts it to a V0 CID.
 func ToV0CID(multibaseEncodedMultihash string) (string, error) {

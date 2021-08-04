@@ -9,8 +9,10 @@ require (
 	github.com/ThreeDotsLabs/watermill-amqp v1.1.1
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
+	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.0
+	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-kivik/couchdb/v3 v3.2.8 // indirect
 	github.com/go-kivik/kivik/v3 v3.2.3
 	github.com/google/uuid v1.2.0
@@ -22,8 +24,6 @@ require (
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
-	github.com/ipfs/go-merkledag v0.2.3
-	github.com/ipfs/go-unixfs v0.2.6
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.14

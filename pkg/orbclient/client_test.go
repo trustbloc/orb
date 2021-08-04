@@ -216,7 +216,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		require.Error(t, err)
 		require.Empty(t, origin)
 		require.Contains(t, err.Error(),
-			"error reading core index file: retrieve CAS content at uri[coreIndex]: failed to resolve cidWithHint[coreIndex]: not found") //nolint:lll
+			"error reading core index file: retrieve CAS content at uri[coreIndex]: failed to resolve CID[coreIndex]: not found") //nolint:lll
 	})
 
 	t.Run("error - protocol client error", func(t *testing.T) {

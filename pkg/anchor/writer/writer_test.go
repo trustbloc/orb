@@ -37,7 +37,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
-	caswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -109,11 +108,12 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 100)
+	casClient, err := cas.New(mem.NewProvider(), casURL, nil, &mocks.MetricsProvider{}, 100)
+
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -870,11 +870,12 @@ func TestWriter_handle(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casURL, nil, &mocks.MetricsProvider{}, 0)
+
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -1037,7 +1038,7 @@ func TestWriter_handle(t *testing.T) {
 
 		err = c.handle(anchorVC)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "post create activity for cid")
+		require.Contains(t, err.Error(), "post create activity for hl")
 		require.False(t, orberrors.IsTransient(err))
 	})
 
@@ -1464,11 +1465,12 @@ func TestWriter_Read(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	casClient, err := cas.New(mem.NewProvider(), nil, &mocks.MetricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casURL, nil, &mocks.MetricsProvider{}, 0)
+
 	require.NoError(t, err)
 
 	graphProviders := &graph.Providers{
-		CasWriter: caswriter.New(casClient, "webcas:domain.com", &mocks.MetricsProvider{}),
+		CasWriter: casClient,
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
@@ -1519,12 +1521,12 @@ type mockAnchorGraph struct {
 	Err error
 }
 
-func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, string, error) {
+func (m *mockAnchorGraph) Add(vc *verifiable.Credential) (string, error) {
 	if m.Err != nil {
-		return "", "", m.Err
+		return "", m.Err
 	}
 
-	return "cid", "hint", nil
+	return "cid", nil
 }
 
 type mockDidAnchor struct {

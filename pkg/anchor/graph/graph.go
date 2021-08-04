@@ -42,69 +42,69 @@ func New(providers *Providers) *Graph {
 }
 
 type casResolver interface {
-	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
+	Resolve(webCASURL *url.URL, hl string, data []byte) ([]byte, error)
 }
 
 type casWriter interface {
-	Write(content []byte) (string, string, error)
+	Write(content []byte) (string, error)
 }
 
 // Add adds an anchor to the anchor graph.
-// Returns cid that contains anchor information.
-func (g *Graph) Add(vc *verifiable.Credential) (string, string, error) { //nolint:interfacer
+// Returns hl that contains anchor information.
+func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
 	anchorBytes, err := vc.MarshalJSON()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to marshal VC: %w", err)
+		return "", fmt.Errorf("failed to marshal VC: %w", err)
 	}
 
 	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorBytes)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to marshal canonical: %w", err)
+		return "", fmt.Errorf("failed to marshal canonical: %w", err)
 	}
 
-	cid, hint, err := g.CasWriter.Write(canonicalBytes)
+	hl, err := g.CasWriter.Write(canonicalBytes)
 	if err != nil {
-		return "", "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
+		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debugf("added anchor[%s]: %s", cid, string(canonicalBytes))
+	logger.Debugf("added anchor[%s]: %s", hl, string(canonicalBytes))
 
-	return cid, hint, nil
+	return hl, nil
 }
 
 // Read reads anchor.
-func (g *Graph) Read(cid string) (*verifiable.Credential, error) {
-	anchorBytes, err := g.CasResolver.Resolve(nil, cid, nil)
+func (g *Graph) Read(hl string) (*verifiable.Credential, error) {
+	anchorBytes, err := g.CasResolver.Resolve(nil, hl, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("read anchor[%s]: %s", cid, string(anchorBytes))
+	logger.Debugf("read anchor[%s]: %s", hl, string(anchorBytes))
 
 	return verifiable.ParseCredential(anchorBytes,
 		verifiable.WithPublicKeyFetcher(g.Pkf),
 		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
 }
 
-// Anchor contains anchor info plus corresponding cid.
+// Anchor contains anchor info plus corresponding hl.
 type Anchor struct {
 	Info *verifiable.Credential
 	CID  string
 }
 
-// GetDidAnchors returns all anchors that are referencing did suffix starting from cid.
-func (g *Graph) GetDidAnchors(cid, suffix string) ([]Anchor, error) {
+// GetDidAnchors returns all anchors that are referencing did suffix starting from hl.
+func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 	var refs []Anchor
 
-	logger.Debugf("getting did anchors for cid[%s], suffix[%s]", cid, suffix)
+	logger.Debugf("getting did anchors for hl[%s], suffix[%s]", hl, suffix)
 
-	cur := cid
+	cur := hl
 	ok := true
 
 	for ok {
 		node, err := g.Read(cur)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s] f: %w", cur, suffix, err)
+			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s]: %w", cur, suffix, err)
 		}
 
 		refs = append(refs, Anchor{Info: node, CID: cur})

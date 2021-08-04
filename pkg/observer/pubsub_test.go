@@ -56,7 +56,7 @@ func TestPubSub(t *testing.T) {
 	defer ps.Stop()
 
 	anchorInfo := &anchorinfo.AnchorInfo{
-		CID: "abcdefg",
+		Hashlink: "abcdefg",
 	}
 
 	did := "123456"
@@ -121,7 +121,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		err = ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"})
+		err = ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 
@@ -166,7 +166,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"}))
+		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
 		require.NoError(t, ps.PublishDID("123456"))
 
 		time.Sleep(1 * time.Second)
@@ -193,7 +193,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"}))
+		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
 		require.NoError(t, ps.PublishDID("123456"))
 	})
 
@@ -208,7 +208,7 @@ func TestPubSub_Error(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, ps)
 
-		require.EqualError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{CID: "abcdefg"}), lifecycle.ErrNotStarted.Error())
+		require.EqualError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}), lifecycle.ErrNotStarted.Error())
 		require.EqualError(t, ps.PublishDID("123456"), lifecycle.ErrNotStarted.Error())
 	})
 }

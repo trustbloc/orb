@@ -29,4 +29,5 @@ func WithCIDVersion(cidVersion int) CIDFormatOption {
 type Client interface {
 	casapi.Client
 	WriteWithCIDFormat(content []byte, opts ...CIDFormatOption) (string, error)
+	GetPrimaryWriterType() string
 }

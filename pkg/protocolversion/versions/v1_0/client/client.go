@@ -88,11 +88,10 @@ type casClientWrapper struct {
 }
 
 func (c *casClientWrapper) Read(cid string) ([]byte, error) {
-	cidWithHint := c.casHintWithTrailingColon + cid
-
-	data, err := c.casReader.Read(cidWithHint)
+	// TODO: no need for wrapper any more (issue-671)
+	data, err := c.casReader.Read(cid)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve cidWithHint[%s]: %w", cidWithHint, err)
+		return nil, fmt.Errorf("failed to resolve CID[%s]: %w", cid, err)
 	}
 
 	return data, nil

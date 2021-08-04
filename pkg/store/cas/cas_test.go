@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package cas_test
 
 import (
-	"bytes"
 	"errors"
 	"testing"
 	"time"
@@ -16,7 +15,6 @@ import (
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
-	ipfsshell "github.com/ipfs/go-ipfs-api"
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
@@ -24,69 +22,25 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	localcas "github.com/trustbloc/orb/pkg/store/cas"
 )
 
-const sampleAnchorCredential = `{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/jws/v1"
-  ],
-  "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ],
-  "issuer": "https://sally.example.com/services/orb",
-  "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
-    "operationCount": 1,
-    "coreIndex": "bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "namespace": "did:orb",
-    "version": "1",
-    "previousAnchors": {
-      "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrmenuxhgaomod4m26ds5ztdujxzhjobgvpsyl2v2ndcskq2iay",
-      "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3whnisud76knkv7z7ucbf3k2rs6knhvajernrdabdbfaomakli"
-    },
-    "type": "Anchor"
-  },
-  "proof": [{
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:00Z",
-    "verificationMethod": "did:example:abcd#key",
-    "domain": "sally.example.com",
-    "jws": "eyJ..."
-  },
-  {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:05Z",
-    "verificationMethod": "did:example:abcd#key",
-    "domain": "https://witness1.example.com/ledgers/maple2021",
-    "jws": "eyJ..."
-  },
-  {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:06Z",
-    "verificationMethod": "did:example:efgh#key",
-    "domain": "https://witness2.example.com/ledgers/spruce2021",
-    "jws": "eyJ..."
-  }]                  
-}`
+const casLink = "https://domain.com/cas"
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, nil,
+			&orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 		require.NotNil(t, provider)
 	})
 	t.Run("Fail to store in underlying storage provider", func(t *testing.T) {
 		provider, err := localcas.New(&ariesmockstorage.Provider{ErrOpenStore: errors.New("open store error")},
-			nil, &orbmocks.MetricsProvider{}, 0)
+			casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.EqualError(t, err, "failed to open store in underlying storage provider: open store error")
 		require.Nil(t, provider)
 	})
@@ -102,40 +56,37 @@ func TestProvider_Write_Read(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		client := ipfs.New("localhost:5001", 5*time.Second)
 
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), client, &orbmocks.MetricsProvider{}, 0)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
+			&orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
-		var address string
+		var hl string
 
 		// IPFS may not be ready yet... retries here are in case it returns an error due to not being started up yet.
 		err = backoff.Retry(func() error {
 			var errWrite error
-			address, errWrite = provider.Write([]byte("content"))
+			hl, errWrite = provider.WriteWithCIDFormat([]byte("content"))
 
 			return errWrite
 		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
+		require.NoError(t, err)
+
+		rs, err := hashlink.GetResourceHashFromHashLink(hl)
+		require.NoError(t, err)
 
 		require.NoError(t, err)
-		require.Equal(t, "bafkreihnoabliopjvscf6irvpwbcxlauirzq7pnwafwt5skdekl3t3e7om", address)
+		require.Equal(t, "uEiDtcAK0OemshF8iNX2CK6wURHMPvbYBbT7JQyKXueyfcw", rs)
 
-		content, err := provider.Read(address)
+		content, err := provider.Read(rs)
 		require.NoError(t, err)
 		require.Equal(t, "content", string(content))
-	})
-	t.Run("Ensure LocalCAS and IPFS Produce Same CIDs", func(t *testing.T) {
-		t.Run("v1", func(t *testing.T) {
-			ensureCIDsAreEqualBetweenLocalCASAndIPFS(t)
-		})
-		t.Run("v0", func(t *testing.T) {
-			ensureCIDsAreEqualBetweenLocalCASAndIPFS(t, extendedcasclient.WithCIDVersion(0))
-		})
 	})
 	t.Run("Fail to put content bytes into underlying storage provider", func(t *testing.T) {
 		provider, err := localcas.New(&ariesmockstorage.Provider{
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrPut: errors.New("put error"),
 			},
-		}, nil, &orbmocks.MetricsProvider{}, 0)
+		}, casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
@@ -148,7 +99,7 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: ariesstorage.ErrDataNotFound,
 				},
-			}, nil, &orbmocks.MetricsProvider{}, 0)
+			}, casLink, nil, &orbmocks.MetricsProvider{}, 0)
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
@@ -160,7 +111,8 @@ func TestProvider_Write_Read(t *testing.T) {
 				OpenStoreReturn: &ariesmockstorage.Store{
 					ErrGet: errors.New("get error"),
 				},
-			}, nil, &orbmocks.MetricsProvider{}, 0)
+			}, casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
 			require.NoError(t, err)
 
 			content, err := provider.Read("AVUSIO1wArQ56ayEXyI1fYIrrBREcw-9tgFtPslDIpe57J9z")
@@ -169,18 +121,21 @@ func TestProvider_Write_Read(t *testing.T) {
 		})
 	})
 	t.Run("Invalid CID version", func(t *testing.T) {
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0,
-			extendedcasclient.WithCIDVersion(2))
+		client := ipfs.New("localhost:5001", 5*time.Second)
+
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
+			&orbmocks.MetricsProvider{}, 0, extendedcasclient.WithCIDVersion(2))
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
-		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
+		require.Contains(t, err.Error(), "2 is not a supported CID version. It must be either 0 or 1")
 		require.Equal(t, "", address)
 	})
 	t.Run("Fail to write to IPFS", func(t *testing.T) {
 		client := ipfs.New("InvalidURL", 5*time.Second)
 
-		provider, err := localcas.New(ariesmemstorage.NewProvider(), client, &orbmocks.MetricsProvider{}, 0)
+		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
+			&orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		address, err := provider.Write([]byte("content"))
@@ -196,11 +151,11 @@ func TestProvider_Write_Read(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				GetReturn: content1,
 			},
-		}, nil, &orbmocks.MetricsProvider{}, 0)
+		}, casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		// Should read from DB and save to cache.
-		content, err := provider.Read("bafkreigqwqs6adqvudjwxgzwd4blvnrvmoxnns2gmuedsbjynrk5lntz7i")
+		content, err := provider.Read("uEiDat0G2KJ59zMHtQjMMrhrMwrdVzoB5ws1dS1Nmyfdppg")
 		require.NoError(t, err)
 		require.Equal(t, content1, content)
 
@@ -210,12 +165,16 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.Equal(t, content1, content)
 
 		// Should save to DB and cache.
-		address, err := provider.Write(content2)
+		hl, err := provider.Write(content2)
 		require.NoError(t, err)
-		require.Equal(t, "bafkreig2w5a3mke6pxgmd3kcgmgk4gwmyk3vltuaphbm2xklkntmt53juy", address)
+
+		rh, err := hashlink.GetResourceHashFromHashLink(hl)
+		require.NoError(t, err)
+
+		require.Equal(t, "uEiDat0G2KJ59zMHtQjMMrhrMwrdVzoB5ws1dS1Nmyfdppg", rh)
 
 		// Should read from cache.
-		content, err = provider.Read(address)
+		content, err = provider.Read(rh)
 		require.NoError(t, err)
 		require.Equal(t, content2, content)
 	})
@@ -247,70 +206,4 @@ func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
 		` Try "docker ps" from the command line and kill the old container if it's still running.`)
 
 	return pool, ipfsResource
-}
-
-func ensureCIDsAreEqualBetweenLocalCASAndIPFS(t *testing.T, opts ...extendedcasclient.CIDFormatOption) {
-	t.Helper()
-
-	smallSimpleData := []byte("content")
-
-	sampleAnchorCredentialBytes := []byte(sampleAnchorCredential)
-
-	cidFromIPFS := addDataToIPFS(t, smallSimpleData, opts...)
-	cidFromLocalCAS := addDataToLocalCAS(t, smallSimpleData, opts...)
-
-	require.Equal(t, cidFromIPFS, cidFromLocalCAS)
-
-	cidFromIPFS = addDataToIPFS(t, sampleAnchorCredentialBytes, opts...)
-	cidFromLocalCAS = addDataToLocalCAS(t, sampleAnchorCredentialBytes, opts...)
-
-	require.Equal(t, cidFromIPFS, cidFromLocalCAS)
-}
-
-func addDataToIPFS(t *testing.T, data []byte, opts ...extendedcasclient.CIDFormatOption) string {
-	t.Helper()
-
-	shell := ipfsshell.NewShell("localhost:5001")
-
-	shell.SetTimeout(2 * time.Second)
-
-	// IPFS will need some time to start up, hence the need for retries.
-	var cid string
-
-	options := extendedcasclient.CIDFormatOptions{CIDVersion: 1}
-
-	for _, option := range opts {
-		if option != nil {
-			option(&options)
-		}
-	}
-
-	var v1AddOpt []ipfsshell.AddOpts
-
-	if options.CIDVersion == 1 {
-		v1AddOpt = []ipfsshell.AddOpts{ipfsshell.CidVersion(1)}
-	}
-
-	err := backoff.Retry(func() error {
-		var err error
-		cid, err = shell.Add(bytes.NewReader(data), v1AddOpt...)
-
-		return err
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
-	require.NoError(t, err)
-
-	return cid
-}
-
-func addDataToLocalCAS(t *testing.T, data []byte, opts ...extendedcasclient.CIDFormatOption) string {
-	t.Helper()
-
-	cas, err := localcas.New(ariesmemstorage.NewProvider(), nil,
-		&orbmocks.MetricsProvider{}, 0, opts...)
-	require.NoError(t, err)
-
-	cid, err := cas.Write(data)
-	require.NoError(t, err)
-
-	return cid
 }

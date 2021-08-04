@@ -44,7 +44,7 @@ func TestWrite(t *testing.T) {
 
 			err := backoff.Retry(func() error {
 				var err error
-				cid, err = cas.Write([]byte("content"))
+				cid, err = cas.WriteWithCIDFormat([]byte("content"))
 
 				return err
 			}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
@@ -65,7 +65,7 @@ func TestWrite(t *testing.T) {
 
 			err := backoff.Retry(func() error {
 				var err error
-				cid, err = cas.Write([]byte("content"))
+				cid, err = cas.WriteWithCIDFormat([]byte("content"), extendedcasclient.WithCIDVersion(0))
 
 				return err
 			}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
@@ -76,6 +76,47 @@ func TestWrite(t *testing.T) {
 			require.Nil(t, err)
 			require.Equal(t, "content", string(read))
 		})
+
+		t.Run("success - hashlink", func(t *testing.T) {
+			cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+			require.NotNil(t, cas)
+
+			var cid string
+
+			// IPFS will need some time to start up, hence the need for retries.
+
+			err := backoff.Retry(func() error {
+				var err error
+				cid, err = cas.Write([]byte("content"))
+
+				return err
+			}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
+			require.NoError(t, err)
+
+			read, err := cas.Read(cid)
+			require.Nil(t, err)
+			require.Equal(t, "content", string(read))
+		})
+	})
+
+	t.Run("error - invalid hashlink", func(t *testing.T) {
+		cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+		require.NotNil(t, cas)
+
+		read, err := cas.Read("hl:abc")
+		require.Error(t, err)
+		require.Nil(t, read)
+		require.Contains(t, err.Error(), "value[hl:abc] passed to ipfs reader is not CID and cannot be converted to CID")
+	})
+
+	t.Run("error - hashlink (content not found)", func(t *testing.T) {
+		cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+		require.NotNil(t, cas)
+
+		read, err := cas.Read("hl:uEiBGzo1CWjNplt9iSVJdU9B9vfCm7u1d5CvqYsNbuMVT7Q:uoQ-BeEJpcGZzOi8vYmFma3JlaWNnejJndWV3cnRuZ2xuNnlzamtqb3ZodWQ1eHh5a24zeG5seHNjeDJ0Y3lubjNycmt0NXU") //nolint:lll
+		require.Error(t, err)
+		require.Nil(t, read)
+		require.Contains(t, err.Error(), "http://localhost:5001/api/v0/cat?arg=bafkreicgz2guewrtngln6ysjkjovhud5xxykn3xnlxscx2tcynn3rrkt5u") //nolint:lll
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {
@@ -120,7 +161,7 @@ func TestRead(t *testing.T) {
 		cas := New(ipfs.URL, 5*time.Second)
 		require.NotNil(t, cas)
 
-		read, err := cas.Read("cid")
+		read, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
 		require.Nil(t, err)
 		require.NotNil(t, read)
 	})
@@ -150,7 +191,7 @@ func TestRead(t *testing.T) {
 		cas := New(ipfs.URL, 5*time.Second)
 		require.NotNil(t, cas)
 
-		cid, err := cas.Read("cid")
+		cid, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
 		require.EqualError(t, err, "cat: context deadline exceeded: content not found")
 		require.Empty(t, cid)
 	})

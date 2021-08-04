@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -88,8 +89,8 @@ const (
   }]                  
 }`
 	sampleDataCIDv1 = "bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce"
-	sampleDataCIDv0 = "QmTcU88RwoPzEuLar92g7wiTG9suWwuTwHn6szDBERpzkp"
 	httpScheme      = "http"
+	sampleCASURL    = "http://domain.com/cas"
 )
 
 func TestNew(t *testing.T) {
@@ -102,19 +103,10 @@ func TestResolver_Resolve(t *testing.T) {
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 			t.Run("v1", func(t *testing.T) {
-				id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCIDv1))
+				rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
 				require.NoError(t, err)
 
-				data, err := resolver.Resolve(id, sampleDataCIDv1,
-					[]byte(sampleData))
-				require.NoError(t, err)
-				require.Equal(t, string(data), sampleData)
-			})
-			t.Run("v0", func(t *testing.T) {
-				id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", sampleDataCIDv0))
-				require.NoError(t, err)
-
-				data, err := resolver.Resolve(id, sampleDataCIDv0,
+				data, err := resolver.Resolve(nil, rh,
 					[]byte(sampleData))
 				require.NoError(t, err)
 				require.Equal(t, string(data), sampleData)
@@ -123,27 +115,30 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("No need to get data from remote since it was found locally", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
 			resolver := createNewResolver(t, casClient, nil)
 
-			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", cid))
+			rh, err := hashlink.GetResourceHashFromHashLink(hl)
+			require.NoError(t, err)
+
+			id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", rh))
 			require.NoError(t, err)
 
 			println(id.String())
 
-			data, err := resolver.Resolve(id, cid, nil)
+			data, err := resolver.Resolve(id, hl, nil)
 			require.NoError(t, err)
 			require.Equal(t, string(data), sampleData)
 		})
 		t.Run("Had to retrieve from remote server", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
 			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
@@ -160,10 +155,15 @@ func TestResolver_Resolve(t *testing.T) {
 			// for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-			id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, cid))
+			rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
 			require.NoError(t, err)
 
-			data, err := resolver.Resolve(id, cid, nil)
+			md, err := hashlink.New().CreateMetadataFromLinks([]string{fmt.Sprintf("%s/cas/%s", testServer.URL, rh)})
+			require.NoError(t, err)
+
+			hl = hashlink.GetHashLink(rh, md)
+
+			data, err := resolver.Resolve(nil, hl, nil)
 			require.NoError(t, err)
 			require.Equal(t, string(data), sampleData)
 		})
@@ -172,9 +172,12 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("Had to retrieve data from remote server via hint", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
 
-		cid, err := casClient.Write([]byte(sampleData))
+		hl, err := casClient.Write([]byte(sampleData))
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hl)
+
+		rh, err := hashlink.GetResourceHashFromHashLink(hl)
+		require.NoError(t, err)
 
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
@@ -195,14 +198,14 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURI, err := url.Parse(testServer.URL)
 		require.NoError(t, err)
 
-		cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
+		hashWithHint := "https:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + rh
 
 		// The local resolver here has a CAS without the data we need,
 		// so it'll have to ask the remote Orb server for it.
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 		resolver.webCASResolver.webFingerURIScheme = httpScheme
 
-		data, err := resolver.Resolve(nil, cidWithHint, nil)
+		data, err := resolver.Resolve(nil, hashWithHint, nil)
 		require.NoError(t, err)
 		require.Equal(t, sampleData, string(data))
 	})
@@ -210,9 +213,12 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("Had to retrieve data from remote server via hint (not found)", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
 
-		cid, err := casClient.Write([]byte(sampleData))
+		hl, err := casClient.Write([]byte(sampleData))
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hl)
+
+		rh, err := hashlink.GetResourceHashFromHashLink(hl)
+		require.NoError(t, err)
 
 		// remote server doesn't have cid (clean CAS)
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
@@ -234,65 +240,37 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURI, err := url.Parse(testServer.URL)
 		require.NoError(t, err)
 
-		cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
+		hashWithHint := "https:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + rh
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 		resolver.webCASResolver.webFingerURIScheme = httpScheme
 
-		data, err := resolver.Resolve(nil, cidWithHint, nil)
+		data, err := resolver.Resolve(nil, hashWithHint, nil)
 		require.Error(t, err)
 		require.Nil(t, data)
 		require.Contains(t, err.Error(), "Response status code: 404")
 	})
 
-	t.Run("Had to retrieve data from ipfs via hint", func(t *testing.T) {
+	t.Run("Had to retrieve data from ipfs via hashlink hint", func(t *testing.T) {
 		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, sampleData)
 		}))
 		defer ipfsServer.Close()
+
+		hl, err := hashlink.New().CreateHashLink([]byte(sampleData), []string{"ipfs://" + sampleDataCIDv1})
+		require.NoError(t, err)
 
 		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
 
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
+		data, err := resolver.Resolve(nil, hl, nil)
 		require.NoError(t, err)
 		require.Equal(t, string(data), sampleData)
 	})
 
-	t.Run("Had to retrieve data from ipfs via hint but ipfs client not supported", func(t *testing.T) {
-		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, sampleData)
-		}))
-		defer ipfsServer.Close()
-
-		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
-		require.Error(t, err)
-		require.Nil(t, data)
-		require.Contains(t, err.Error(), "unable to resolve since IPFS is not enabled")
-	})
-
-	t.Run("Had to retrieve data from ipfs via hint (ipfs error)", func(t *testing.T) {
-		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer ipfsServer.Close()
-
-		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
-		require.NotNil(t, ipfsClient)
-
-		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
-
-		data, err := resolver.Resolve(nil, "ipfs:"+sampleDataCIDv1, nil)
-		require.Error(t, err)
-		require.Nil(t, data)
-		require.Contains(t, err.Error(), "failed to read cid")
-	})
-
-	t.Run("Had to retrieve data from ipfs via hint (hint not supported)", func(t *testing.T) {
+	t.Run("error - hint not supported", func(t *testing.T) {
 		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, sampleData)
 		}))
@@ -309,18 +287,24 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Contains(t, err.Error(), "hint 'invalid' not supported")
 	})
 
+	t.Run("error - invalid hash link", func(t *testing.T) {
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		data, err := resolver.Resolve(nil, "hl:abc", nil)
+		require.Error(t, err)
+		require.Empty(t, data)
+		require.Contains(t, err.Error(), "resource hash[abc] for hashlink[hl:abc] is not a valid multihash")
+	})
+
 	t.Run("CID doesn't match the provided data", func(t *testing.T) {
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
 		cid := "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy" // Not a match
 
-		id, err := url.Parse(fmt.Sprintf("https://orb.domain1.com/cas/%s", cid))
-		require.NoError(t, err)
-
-		data, err := resolver.Resolve(id, cid, []byte(sampleData))
-		require.EqualError(t, err, "failure while storing the data in the local CAS: "+
-			"successfully stored data into the local CAS, but the CID produced by the local CAS "+
-			"(bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce) does not match the CID from the original request "+
+		data, err := resolver.Resolve(nil, cid, []byte(sampleData))
+		require.EqualError(t, err, "failed to store the data in the local CAS: "+
+			"successfully stored data into the local CAS, but the resource hash produced by the local CAS "+
+			"(uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ) does not match the resource hash from the original request "+
 			"(bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy)")
 		require.Nil(t, data)
 	})
@@ -340,23 +324,28 @@ func TestResolver_Resolve(t *testing.T) {
 		// for it. The remote Orb server's CAS also won't have the data we need.
 		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 
-		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, sampleDataCIDv1))
+		rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
 		require.NoError(t, err)
 
-		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
+		md, err := hashlink.New().CreateMetadataFromLinks([]string{fmt.Sprintf("%s/cas/%s", testServer.URL, rh)})
+		require.NoError(t, err)
+
+		hl := hashlink.GetHashLink(rh, md)
+
+		data, err := resolver.Resolve(nil, hl, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
 			"WebCAS endpoint: failed to get data via")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce was found: content not found")
+			"no content at uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ was found: content not found")
 		require.Nil(t, data)
 	})
 	t.Run("Fail to write to local CAS", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
 
-		cid, err := casClient.Write([]byte(sampleData))
+		hl, err := casClient.Write([]byte(sampleData))
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hl)
 
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
@@ -374,17 +363,22 @@ func TestResolver_Resolve(t *testing.T) {
 				ErrGet: ariesstorage.ErrDataNotFound,
 				ErrPut: errors.New("put error"),
 			},
-		}, nil, &orbmocks.MetricsProvider{}, 0)
+		}, sampleCASURL, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
 		// for it.
 		resolver := createNewResolver(t, failingCASClient, nil)
 
-		id, err := url.Parse(fmt.Sprintf("%s/cas/%s", testServer.URL, cid))
+		rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
 		require.NoError(t, err)
 
-		data, err := resolver.Resolve(id, cid, nil)
+		md, err := hashlink.New().CreateMetadataFromLinks([]string{fmt.Sprintf("%s/cas/%s", testServer.URL, rh)})
+		require.NoError(t, err)
+
+		hl = hashlink.GetHashLink(rh, md)
+
+		data, err := resolver.Resolve(nil, hl, nil)
 		require.EqualError(t, err, "failure while getting and storing data from the remote WebCAS endpoint: "+
 			"failure while storing data retrieved from the remote WebCAS endpoint locally: "+
 			"failed to write data to CAS (and calculate CID in the process of doing so): "+
@@ -397,7 +391,8 @@ func TestResolver_Resolve(t *testing.T) {
 			OpenStoreReturn: &ariesmockstorage.Store{
 				ErrGet: errors.New("get error"),
 			},
-		}, nil, &orbmocks.MetricsProvider{}, 0)
+		}, sampleCASURL, nil, &orbmocks.MetricsProvider{}, 0)
+
 		require.NoError(t, err)
 
 		resolver := createNewResolver(t, casClient, nil)
@@ -412,54 +407,43 @@ func TestResolver_Resolve(t *testing.T) {
 		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, data)
 	})
-	t.Run("Fail to execute GET call", func(t *testing.T) {
-		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
-		// for it.
-		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
-
-		id, err := url.Parse("InvalidWebCASEndpoint")
-		require.NoError(t, err)
-
-		data, err := resolver.Resolve(id, sampleDataCIDv1, nil)
-		require.EqualError(t, err, "failure while getting and storing data from the remote WebCAS endpoint: "+
-			"failed to get data via WebCAS endpoint: "+
-			"failed to execute GET call on InvalidWebCASEndpoint: Get "+
-			`"InvalidWebCASEndpoint": unsupported protocol scheme ""`)
-		require.Nil(t, data)
-	})
 
 	t.Run("fail to determine WebCAS URL via WebFinger", func(t *testing.T) {
 		t.Run("non-existent domain", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
-			cidWithHint := "webcas:NonExistentDomain:" + cid
+			rh, err := hashlink.GetResourceHashFromHashLink(hl)
+			require.NoError(t, err)
+
+			hashWithHint := "https:NonExistentDomain:" + rh
 
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.∂
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
-			data, err := resolver.Resolve(nil, cidWithHint, nil)
+			data, err := resolver.Resolve(nil, hashWithHint, nil)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "failed to resolve domain and CID via WebCAS: "+
+			require.Contains(t, err.Error(), "failed to resolve domain and resource hash via WebCAS: "+
 				"failed to determine WebCAS URL via WebFinger: "+
 				"failed to get WebFinger resource: failed to get response "+
 				"(URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
-				`ExistentDomain/cas/bafkreibvw52uqclnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce): Get "http://`+
-				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/bafkreibvw52uq"+
-				`clnundfkpu3pi57w57vsshgc3fu5m7eph2jyzgbaxa3ce": dial tcp: lookup NonExistentDomain`)
+				`ExistentDomain/cas/uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ): Get "http://`+
+				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/"+
+				`uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ": dial tcp: lookup NonExistentDomain`)
 			require.Nil(t, data)
 		})
+
 		t.Run("unexpected status code", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
 			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
@@ -479,14 +463,17 @@ func TestResolver_Resolve(t *testing.T) {
 			testServerURI, err := url.Parse(testServer.URL)
 			require.NoError(t, err)
 
-			cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
+			rh, err := hashlink.GetResourceHashFromHashLink(hl)
+			require.NoError(t, err)
+
+			hashWithHint := "https:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + rh
 
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
-			data, err := resolver.Resolve(nil, cidWithHint, nil)
+			data, err := resolver.Resolve(nil, hashWithHint, nil)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "received unexpected status code")
 			require.Nil(t, data)
@@ -494,9 +481,9 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("response isn't a valid WebFinger response object", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
 			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
@@ -515,7 +502,10 @@ func TestResolver_Resolve(t *testing.T) {
 			testServerURI, err := url.Parse(testServer.URL)
 			require.NoError(t, err)
 
-			cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
+			rh, err := hashlink.GetResourceHashFromHashLink(hl)
+			require.NoError(t, err)
+
+			cidWithHint := "https:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + rh
 
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
@@ -523,7 +513,7 @@ func TestResolver_Resolve(t *testing.T) {
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, err := resolver.Resolve(nil, cidWithHint, nil)
-			require.EqualError(t, err, "failed to resolve domain and CID via WebCAS: failed to determine "+
+			require.EqualError(t, err, "failed to resolve domain and resource hash via WebCAS: failed to determine "+
 				"WebCAS URL via WebFinger: failed to get WebFinger resource: "+
 				"failed to unmarshal WebFinger response: invalid character 'h' in "+
 				"literal true (expecting 'r')")
@@ -532,9 +522,9 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("WebCAS URL from response can't be parsed as a URL", func(t *testing.T) {
 			casClient := createInMemoryCAS(t)
 
-			cid, err := casClient.Write([]byte(sampleData))
+			hl, err := casClient.Write([]byte(sampleData))
 			require.NoError(t, err)
-			require.NotEmpty(t, cid)
+			require.NotEmpty(t, hl)
 
 			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 			require.NotNil(t, webCAS)
@@ -559,15 +549,18 @@ func TestResolver_Resolve(t *testing.T) {
 			testServerURI, err := url.Parse(testServer.URL)
 			require.NoError(t, err)
 
-			cidWithHint := "webcas:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + cid
+			rh, err := hashlink.GetResourceHashFromHashLink(hl)
+			require.NoError(t, err)
+
+			hashWithHint := "https:" + testServerURI.Hostname() + ":" + testServerURI.Port() + ":" + rh
 
 			// The local resolver here has a CAS without the data we need,
 			// so it'll have to ask the remote Orb server for it.
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
-			data, err := resolver.Resolve(nil, cidWithHint, nil)
-			require.EqualError(t, err, "failed to resolve domain and CID via WebCAS: failed to determine "+
+			data, err := resolver.Resolve(nil, hashWithHint, nil)
+			require.EqualError(t, err, "failed to resolve domain and resource hash via WebCAS: failed to determine "+
 				`WebCAS URL via WebFinger: failed to parse webcas URL: parse "%": invalid URL escape "%"`)
 			require.Nil(t, data)
 		})
@@ -595,7 +588,13 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsRea
 func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	t.Helper()
 
-	casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+	return createInMemoryCASWithLink(t, sampleCASURL)
+}
+
+func createInMemoryCASWithLink(t *testing.T, casLink string) extendedcasclient.Client {
+	t.Helper()
+
+	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
 	return casClient

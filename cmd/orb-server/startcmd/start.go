@@ -81,7 +81,6 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/cas/resolver"
-	orbcaswriter "github.com/trustbloc/orb/pkg/cas/writer"
 	"github.com/trustbloc/orb/pkg/config"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/common"
@@ -130,7 +129,7 @@ const (
 	defaultPolicyCacheExpiry              = 30 * time.Second
 	defaultCasCacheSize                   = 1000
 
-	unpublishedDIDLabel = "interim"
+	unpublishedDIDLabel = "uAAA"
 )
 
 var logger = log.New("orb-server")
@@ -313,15 +312,15 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
+	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
+
 	var coreCASClient extendedcasclient.Client
-	var anchorCasWriter *orbcaswriter.CasWriter
 
 	switch {
 	case strings.EqualFold(parameters.casType, "ipfs"):
 		logger.Infof("Initializing Orb CAS with IPFS.")
 		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		anchorCasWriter = orbcaswriter.New(coreCASClient, "ipfs", metrics.Get())
 	case strings.EqualFold(parameters.casType, "local"):
 		logger.Infof("Initializing Orb CAS with local storage provider.")
 
@@ -330,7 +329,7 @@ func startOrbServices(parameters *orbParameters) error {
 		if parameters.localCASReplicateInIPFSEnabled {
 			logger.Infof("Local CAS writes will be replicated in IPFS.")
 
-			coreCASClient, err = casstore.New(storeProviders.provider,
+			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(),
 				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
 					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
 				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
@@ -338,19 +337,13 @@ func startOrbServices(parameters *orbParameters) error {
 				return err
 			}
 		} else {
-			coreCASClient, err = casstore.New(storeProviders.provider, nil, metrics.Get(),
-				defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(), nil,
+				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
 			}
 		}
 
-		u, err := url.Parse(parameters.externalEndpoint)
-		if err != nil {
-			return fmt.Errorf("failed to parse external endpoint: %s", err.Error())
-		}
-
-		anchorCasWriter = orbcaswriter.New(coreCASClient, "webcas:"+u.Host, metrics.Get())
 	default:
 		return fmt.Errorf("%s is not a valid CAS type. It must be either local or ipfs", parameters.casType)
 	}
@@ -423,7 +416,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,
-		CasWriter:   anchorCasWriter,
+		CasWriter:   coreCASClient,
 		Pkf:         verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
 		DocLoader:   orbDocumentLoader,
 	}
@@ -495,8 +488,6 @@ func startOrbServices(parameters *orbParameters) error {
 	// add any additional supported namespaces to resource registry (for now we have just one)
 	resourceRegistry := registry.New(registry.WithResourceInfoProvider(didAnchoringInfoProvider))
 	logger.Debugf("started resource registry: %+v", resourceRegistry)
-
-	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
 	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
 
