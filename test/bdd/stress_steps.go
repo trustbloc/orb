@@ -525,6 +525,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 	svcEndpoint := uuid.New().URN()
 
 	if err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr); err != nil {
+		panic(fmt.Sprintf("update failed: %s", err.Error()))
 		return nil, err
 	}
 
