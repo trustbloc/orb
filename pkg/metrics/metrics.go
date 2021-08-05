@@ -55,6 +55,15 @@ const (
 	document                  = "document"
 	docCreateUpdateTimeMetric = "create_update_seconds"
 	docResolveTimeMetric      = "resolve_seconds"
+
+	// DB.
+	db                  = "db"
+	dbPutTimeMetric     = "put_seconds"
+	dbGetTimeMetric     = "get_seconds"
+	dbGetTagsTimeMetric = "get_tags_seconds"
+	dbGetBulkTimeMetric = "get_bulk_seconds"
+	dbQueryTimeMetric   = "query_seconds"
+	dbDeleteTimeMetric  = "delete_seconds"
 )
 
 var logger = log.New("metrics")
@@ -92,6 +101,13 @@ type Metrics struct {
 
 	docCreateUpdateTime prometheus.Histogram
 	docResolveTime      prometheus.Histogram
+
+	dbPutTimes     map[string]prometheus.Histogram
+	dbGetTimes     map[string]prometheus.Histogram
+	dbGetTagsTimes map[string]prometheus.Histogram
+	dbGetBulkTimes map[string]prometheus.Histogram
+	dbQueryTimes   map[string]prometheus.Histogram
+	dbDeleteTimes  map[string]prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -103,8 +119,9 @@ func Get() *Metrics {
 	return instance
 }
 
-func newMetrics() *Metrics {
+func newMetrics() *Metrics { //nolint:funlen
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
+	dbTypes := []string{"CouchDB"}
 
 	m := &Metrics{
 		apOutboxPostTime:           newOutboxPostTime(),
@@ -128,6 +145,12 @@ func newMetrics() *Metrics {
 		docResolveTime:             newDocResolveTime(),
 		apInboxHandlerTimes:        newInboxHandlerTimes(activityTypes),
 		apOutboxActivityCounts:     newOutboxActivityCounts(activityTypes),
+		dbPutTimes:                 newDBPutTime(dbTypes),
+		dbGetTimes:                 newDBGetTime(dbTypes),
+		dbGetTagsTimes:             newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:             newDBGetBulkTime(dbTypes),
+		dbQueryTimes:               newDBQueryTime(dbTypes),
+		dbDeleteTimes:              newDBDeleteTime(dbTypes),
 	}
 
 	prometheus.MustRegister(
@@ -141,6 +164,22 @@ func newMetrics() *Metrics {
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbPutTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbGetTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbGetTagsTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbGetBulkTimes {
 		prometheus.MustRegister(c)
 	}
 
@@ -306,6 +345,60 @@ func (m *Metrics) DocumentResolveTime(value time.Duration) {
 	m.docResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("DocumentResolve time: %s", value)
+}
+
+// DBPutTime records the time it takes to store data in db.
+func (m *Metrics) DBPutTime(dbType string, value time.Duration) {
+	if c, ok := m.dbPutTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time put [%s]: %s", dbType, value)
+}
+
+// DBGetTime records the time it takes to get data in db.
+func (m *Metrics) DBGetTime(dbType string, value time.Duration) {
+	if c, ok := m.dbGetTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time get [%s]: %s", dbType, value)
+}
+
+// DBGetTagsTime records the time it takes to get tags in db.
+func (m *Metrics) DBGetTagsTime(dbType string, value time.Duration) {
+	if c, ok := m.dbGetTagsTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time get tags [%s]: %s", dbType, value)
+}
+
+// DBGetBulkTime records the time it takes to get bulk in db.
+func (m *Metrics) DBGetBulkTime(dbType string, value time.Duration) {
+	if c, ok := m.dbGetBulkTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time get bulk [%s]: %s", dbType, value)
+}
+
+// DBQueryTime records the time it takes to query in db.
+func (m *Metrics) DBQueryTime(dbType string, value time.Duration) {
+	if c, ok := m.dbQueryTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time query [%s]: %s", dbType, value)
+}
+
+// DBDeleteTime records the time it takes to delete in db.
+func (m *Metrics) DBDeleteTime(dbType string, value time.Duration) {
+	if c, ok := m.dbDeleteTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+
+	logger.Debugf("DB time delete [%s]: %s", dbType, value)
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
@@ -525,4 +618,88 @@ func newDocResolveTime() prometheus.Histogram {
 		"The time (in seconds) it takes the REST handler to resolve a document.",
 		nil,
 	)
+}
+
+func newDBPutTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbPutTimeMetric,
+			"The time (in seconds) it takes the DB to store data.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBGetTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbGetTimeMetric,
+			"The time (in seconds) it takes the DB to get data.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBGetTagsTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbGetTagsTimeMetric,
+			"The time (in seconds) it takes the DB to get tags.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBGetBulkTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbGetBulkTimeMetric,
+			"The time (in seconds) it takes the DB to get bulk.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBQueryTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbQueryTimeMetric,
+			"The time (in seconds) it takes the DB to query.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBDeleteTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbDeleteTimeMetric,
+			"The time (in seconds) it takes the DB to delete.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
 }

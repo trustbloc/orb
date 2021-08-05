@@ -111,6 +111,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
+	"github.com/trustbloc/orb/pkg/store/wrapper"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/webcas"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -519,7 +520,9 @@ func startOrbServices(parameters *orbParameters) error {
 			return fmt.Errorf("failed to create CouchDB storage provider for ActivityPub: %w", err)
 		}
 
-		apStore, err = apariesstore.New(couchDBProvider, apConfig.ServiceEndpoint)
+		couchDBProviderWrapper := wrapper.NewProvider(couchDBProvider, "CouchDB")
+
+		apStore, err = apariesstore.New(couchDBProviderWrapper, apConfig.ServiceEndpoint)
 		if err != nil {
 			return fmt.Errorf("failed to create in-memory storage provider for ActivityPub: %w", err)
 		}
@@ -886,14 +889,14 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMemOption):
 		edgeServiceProvs.provider = ariesmemstorage.NewProvider()
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeCouchDBOption):
-		var err error
-
-		edgeServiceProvs.provider, err =
+		couchDBProvider, err :=
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix))
 		if err != nil {
 			return &storageProviders{}, err
 		}
+
+		edgeServiceProvs.provider = wrapper.NewProvider(couchDBProvider, "CouchDB")
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMYSQLDBOption):
 		var err error
 
@@ -916,11 +919,11 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMemOption):
 		edgeServiceProvs.kmsSecretsProvider = ariesmemstorage.NewProvider()
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeCouchDBOption):
-		var err error
-
-		edgeServiceProvs.kmsSecretsProvider, err =
+		couchDBProvider, err :=
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
+
+		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
 		if err != nil {
 			return &storageProviders{}, err
 		}
