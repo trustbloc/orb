@@ -323,5 +323,5 @@ func (m *metricsProvider) CASResolveTime(value time.Duration) {
 func (m *metricsProvider) CASIncrementCacheHitCount() {
 }
 
-func (m *metricsProvider) CASIncrementCacheMissCount() {
+func (m *metricsProvider) CASReadTime(casType string, value time.Duration) {
 }

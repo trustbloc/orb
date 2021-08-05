@@ -225,7 +225,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, false, testutil.GetLoader(t),
-			resourceresolver.New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second)), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient,
+				ipfs.New(testServer.URL, 5*time.Second, 0, &mocks.MetricsProvider{}),
+			), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -783,7 +785,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, false, testutil.GetLoader(t),
-			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", time.Second)), &mocks.MetricsProvider{})
+			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", time.Second, 0, &mocks.MetricsProvider{})),
+			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{

@@ -260,7 +260,7 @@ func TestResolver_Resolve(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(sampleData), []string{"ipfs://" + sampleDataCIDv1})
 		require.NoError(t, err)
 
-		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
@@ -276,7 +276,7 @@ func TestResolver_Resolve(t *testing.T) {
 		}))
 		defer ipfsServer.Close()
 
-		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second)
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, ipfsClient)
 
 		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)

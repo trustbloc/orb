@@ -319,7 +319,7 @@ func startOrbServices(parameters *orbParameters) error {
 	switch {
 	case strings.EqualFold(parameters.casType, "ipfs"):
 		logger.Infof("Initializing Orb CAS with IPFS.")
-		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	case strings.EqualFold(parameters.casType, "local"):
 		logger.Infof("Initializing Orb CAS with local storage provider.")
@@ -330,7 +330,7 @@ func startOrbServices(parameters *orbParameters) error {
 			logger.Infof("Local CAS writes will be replicated in IPFS.")
 
 			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(),
-				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
 					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
 				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
@@ -407,7 +407,7 @@ func startOrbServices(parameters *orbParameters) error {
 	var ipfsReader *ipfscas.Client
 	var casResolver *resolver.Resolver
 	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout,
+		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver, metrics.Get())
 	} else {

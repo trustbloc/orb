@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestNew(t *testing.T) {
@@ -71,7 +72,7 @@ func TestResolver_Resolve(t *testing.T) {
 		testServerURL = testServer.URL
 		witnessResource = fmt.Sprintf("%s/services/orb", testServerURL)
 
-		resolver := New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(http.DefaultClient, ipfs.New(testServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{}))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -88,7 +89,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to resolve via IPNS (IPFS node not reachable)", func(t *testing.T) {
-		resolver := New(nil, ipfs.New("SomeIPFSNodeURL", 5*time.Second))
+		resolver := New(nil, ipfs.New("SomeIPFSNodeURL", 5*time.Second, 0, &orbmocks.MetricsProvider{}))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -104,7 +105,7 @@ func TestResolver_Resolve(t *testing.T) {
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		defer testServer.Close()
 
-		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{}))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
@@ -123,7 +124,7 @@ func TestResolver_Resolve(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second))
+		resolver := New(nil, ipfs.New(testServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{}))
 
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)

@@ -40,6 +40,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient"
 )
 
@@ -226,7 +227,7 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 		mem.NewProvider(), jsonld.WithExtraContexts(ldcontext.MustGetAll()...),
 	)
 
-	casClient := ipfs.New(url, 20*time.Second)
+	casClient := ipfs.New(url, 20*time.Second, 0, &mocks.MetricsProvider{})
 
 	orbClient, err := orbclient.New(didDocNamespace, casClient,
 		orbclient.WithJSONLDDocumentLoader(docLoader),
