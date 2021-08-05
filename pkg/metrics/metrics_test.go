@@ -41,6 +41,12 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.DocumentCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.DocumentResolveTime(time.Second) })
 		require.NotPanics(t, func() { m.OutboxIncrementActivityCount("Create") })
+		require.NotPanics(t, func() { m.DBPutTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBGetTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBGetTagsTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBGetBulkTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBQueryTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBDeleteTime("CouchDB", time.Second) })
 	})
 }
 
