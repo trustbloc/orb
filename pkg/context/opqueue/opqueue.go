@@ -270,9 +270,6 @@ func (q *Queue) newAckFunc(items []*operationMessage, startTime time.Time) func(
 			logger.Infof("Acknowledged message [%s] - DID [%s]", opMsg.msg.UUID, opMsg.op.UniqueSuffix)
 		}
 
-		q.mutex.RLock()
-		defer q.mutex.RUnlock()
-
 		// Batch cut time is the time since the first operation was added (which is the oldest operation in the batch).
 		q.metrics.BatchCutTime(time.Since(items[0].timeAdded))
 
@@ -280,6 +277,9 @@ func (q *Queue) newAckFunc(items []*operationMessage, startTime time.Time) func(
 		q.metrics.BatchAckTime(time.Since(startTime))
 
 		q.metrics.BatchSize(float64(len(items)))
+
+		q.mutex.RLock()
+		defer q.mutex.RUnlock()
 
 		return uint(len(q.pending))
 	}

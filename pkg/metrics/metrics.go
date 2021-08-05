@@ -45,11 +45,11 @@ const (
 	observerProcessDIDTimeMetric    = "process_did_seconds"
 
 	// CAS.
-	cas                     = "cas"
-	casWriteTimeMetric      = "write_seconds"
-	casResolveTimeMetric    = "resolve_seconds"
-	casCacheHitCountMetric  = "cache_hit_count"
-	casCacheMissCountMetric = "cache_miss_count"
+	cas                    = "cas"
+	casWriteTimeMetric     = "write_seconds"
+	casResolveTimeMetric   = "resolve_seconds"
+	casCacheHitCountMetric = "cache_hit_count"
+	casReadTimeMetric      = "read_seconds"
 
 	// Document handler.
 	document                  = "document"
@@ -85,10 +85,10 @@ type Metrics struct {
 	observerProcessAnchorTime prometheus.Histogram
 	observerProcessDIDTime    prometheus.Histogram
 
-	casWriteTime      prometheus.Histogram
-	casResolveTime    prometheus.Histogram
-	casCacheHitCount  prometheus.Counter
-	casCacheMissCount prometheus.Counter
+	casWriteTime     prometheus.Histogram
+	casResolveTime   prometheus.Histogram
+	casCacheHitCount prometheus.Counter
+	casReadTimes     map[string]prometheus.Histogram
 
 	docCreateUpdateTime prometheus.Histogram
 	docResolveTime      prometheus.Histogram
@@ -122,8 +122,8 @@ func newMetrics() *Metrics {
 		observerProcessDIDTime:     newObserverProcessDIDTime(),
 		casWriteTime:               newCASWriteTime(),
 		casResolveTime:             newCASResolveTime(),
+		casReadTimes:               newCASReadTimes(),
 		casCacheHitCount:           newCASCacheHitCount(),
-		casCacheMissCount:          newCASCacheMissCount(),
 		docCreateUpdateTime:        newDocCreateUpdateTime(),
 		docResolveTime:             newDocResolveTime(),
 		apInboxHandlerTimes:        newInboxHandlerTimes(activityTypes),
@@ -136,7 +136,7 @@ func newMetrics() *Metrics {
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
-		m.casWriteTime, m.casResolveTime, m.casCacheHitCount, m.casCacheMissCount,
+		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
 		m.docCreateUpdateTime, m.docResolveTime,
 	)
 
@@ -145,6 +145,10 @@ func newMetrics() *Metrics {
 	}
 
 	for _, c := range m.apOutboxActivityCounts {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.casReadTimes {
 		prometheus.MustRegister(c)
 	}
 
@@ -283,9 +287,11 @@ func (m *Metrics) CASIncrementCacheHitCount() {
 	m.casCacheHitCount.Inc()
 }
 
-// CASIncrementCacheMissCount increments the number of CAS cache misses.
-func (m *Metrics) CASIncrementCacheMissCount() {
-	m.casCacheMissCount.Inc()
+// CASReadTime records the time it takes to read a document from CAS storage.
+func (m *Metrics) CASReadTime(casType string, value time.Duration) {
+	if c, ok := m.casReadTimes[casType]; ok {
+		c.Observe(value.Seconds())
+	}
 }
 
 // DocumentCreateUpdateTime records the time it takes the REST handler to process a create/update operation.
@@ -491,12 +497,18 @@ func newCASCacheHitCount() prometheus.Counter {
 	)
 }
 
-func newCASCacheMissCount() prometheus.Counter {
-	return newCounter(
-		cas, casCacheMissCountMetric,
-		"The number of times a CAS document was retrieved from storage.",
-		nil,
-	)
+func newCASReadTimes() map[string]prometheus.Histogram {
+	times := make(map[string]prometheus.Histogram)
+
+	for _, casType := range []string{"local", "ipfs"} {
+		times[casType] = newHistogram(
+			cas, casReadTimeMetric,
+			"The time (in seconds) that it takes to read a document from the CAS storage.",
+			prometheus.Labels{"type": casType},
+		)
+	}
+
+	return times
 }
 
 func newDocCreateUpdateTime() prometheus.Histogram {

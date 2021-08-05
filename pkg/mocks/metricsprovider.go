@@ -90,8 +90,8 @@ func (m *MetricsProvider) OutboxIncrementActivityCount(activityType string) {
 func (m *MetricsProvider) CASIncrementCacheHitCount() {
 }
 
-// CASIncrementCacheMissCount increments the number of CAS cache misses.
-func (m *MetricsProvider) CASIncrementCacheMissCount() {
+// CASReadTime records the time it takes to read a document from CAS storage.
+func (m *MetricsProvider) CASReadTime(casType string, value time.Duration) {
 }
 
 // BatchSize records the size of an operation batch.

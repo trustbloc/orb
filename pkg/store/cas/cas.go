@@ -9,6 +9,7 @@ package cas
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/bluele/gcache"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
@@ -22,11 +23,14 @@ import (
 
 var logger = log.New("cas-store")
 
-const defaultCacheSize = 1000
+const (
+	defaultCacheSize = 1000
+	casType          = "local"
+)
 
 type metricsProvider interface {
 	CASIncrementCacheHitCount()
-	CASIncrementCacheMissCount()
+	CASReadTime(casType string, value time.Duration)
 }
 
 // CAS represents a content-addressable storage provider.
@@ -66,8 +70,6 @@ func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client
 
 	c.cache = gcache.New(cacheSize).ARC().
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			c.metrics.CASIncrementCacheMissCount()
-
 			cid, err := c.get(key.(string))
 			if err != nil {
 				return nil, err
@@ -155,6 +157,12 @@ func (p *CAS) Read(address string) ([]byte, error) {
 }
 
 func (p *CAS) get(address string) ([]byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		p.metrics.CASReadTime(casType, time.Since(startTime))
+	}()
+
 	content, err := p.cas.Get(address)
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {

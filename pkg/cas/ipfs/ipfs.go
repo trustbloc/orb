@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bluele/gcache"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -25,22 +26,52 @@ import (
 
 var logger = log.New("cas-ipfs")
 
+const (
+	defaultCacheSize = 1000
+	casType          = "ipfs"
+)
+
+type metricsProvider interface {
+	CASIncrementCacheHitCount()
+	CASReadTime(casType string, value time.Duration)
+}
+
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
 type Client struct {
-	ipfs *shell.Shell
-	opts []extendedcasclient.CIDFormatOption
-	hl   *hashlink.HashLink
+	ipfs    *shell.Shell
+	opts    []extendedcasclient.CIDFormatOption
+	hl      *hashlink.HashLink
+	cache   gcache.Cache
+	metrics metricsProvider
 }
 
 // New creates cas client.
 // If no CID version is specified, then v1 will be used by default.
-func New(url string, timeout time.Duration, opts ...extendedcasclient.CIDFormatOption) *Client {
+func New(url string, timeout time.Duration, cacheSize int, metrics metricsProvider,
+	opts ...extendedcasclient.CIDFormatOption) *Client {
 	ipfs := shell.NewShell(url)
 
 	ipfs.SetTimeout(timeout)
 
-	return &Client{ipfs: ipfs, opts: opts, hl: hashlink.New()}
+	if cacheSize == 0 {
+		cacheSize = defaultCacheSize
+	}
+
+	c := &Client{ipfs: ipfs, opts: opts, hl: hashlink.New(), metrics: metrics}
+
+	c.cache = gcache.New(cacheSize).LoaderFunc(func(key interface{}) (interface{}, error) {
+		cid, err := c.get(key.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Debugf("Cached content for CID [%s]", cid)
+
+		return cid, nil
+	}).Build()
+
+	return c
 }
 
 // Write writes the given content to IPFS.
@@ -104,6 +135,25 @@ func (m *Client) Read(cidOrHash string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("value[%s] passed to ipfs reader is not CID and cannot be converted to CID: %w", cidOrHash, err) //nolint:lll
 	}
+
+	if m.cache.Has(cid) {
+		m.metrics.CASIncrementCacheHitCount()
+	}
+
+	content, err := m.cache.Get(cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return content.([]byte), nil
+}
+
+func (m *Client) get(cid string) ([]byte, error) {
+	startTime := time.Now()
+
+	defer func() {
+		m.metrics.CASReadTime(casType, time.Since(startTime))
+	}()
 
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {

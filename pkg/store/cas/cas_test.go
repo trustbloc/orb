@@ -54,7 +54,7 @@ func TestProvider_Write_Read(t *testing.T) {
 	}()
 
 	t.Run("Success", func(t *testing.T) {
-		client := ipfs.New("localhost:5001", 5*time.Second)
+		client := ipfs.New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0)
@@ -121,7 +121,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		})
 	})
 	t.Run("Invalid CID version", func(t *testing.T) {
-		client := ipfs.New("localhost:5001", 5*time.Second)
+		client := ipfs.New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0, extendedcasclient.WithCIDVersion(2))
@@ -132,7 +132,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.Equal(t, "", address)
 	})
 	t.Run("Fail to write to IPFS", func(t *testing.T) {
-		client := ipfs.New("InvalidURL", 5*time.Second)
+		client := ipfs.New("InvalidURL", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0)

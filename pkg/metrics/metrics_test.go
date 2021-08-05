@@ -37,7 +37,7 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.CASWriteTime(time.Second) })
 		require.NotPanics(t, func() { m.CASResolveTime(time.Second) })
 		require.NotPanics(t, func() { m.CASIncrementCacheHitCount() })
-		require.NotPanics(t, func() { m.CASIncrementCacheMissCount() })
+		require.NotPanics(t, func() { m.CASReadTime("local", time.Second) })
 		require.NotPanics(t, func() { m.DocumentCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.DocumentResolveTime(time.Second) })
 		require.NotPanics(t, func() { m.OutboxIncrementActivityCount("Create") })

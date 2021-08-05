@@ -19,10 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestNew(t *testing.T) {
-	c := New("ipfs:5001", 5*time.Second)
+	c := New("ipfs:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 	require.NotNil(t, c)
 }
 
@@ -35,7 +36,7 @@ func TestWrite(t *testing.T) {
 		}()
 
 		t.Run("v1 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second)
+			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 			require.NotNil(t, cas)
 
 			var cid string
@@ -56,7 +57,8 @@ func TestWrite(t *testing.T) {
 			require.Equal(t, "content", string(read))
 		})
 		t.Run("v0 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(0))
+			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+				extendedcasclient.WithCIDVersion(0))
 			require.NotNil(t, cas)
 
 			var cid string
@@ -78,7 +80,8 @@ func TestWrite(t *testing.T) {
 		})
 
 		t.Run("success - hashlink", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+				extendedcasclient.WithCIDVersion(1))
 			require.NotNil(t, cas)
 
 			var cid string
@@ -100,7 +103,8 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("error - invalid hashlink", func(t *testing.T) {
-		cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+		cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+			extendedcasclient.WithCIDVersion(1))
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("hl:abc")
@@ -110,7 +114,8 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("error - hashlink (content not found)", func(t *testing.T) {
-		cas := New("localhost:5001", 5*time.Second, extendedcasclient.WithCIDVersion(1))
+		cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+			extendedcasclient.WithCIDVersion(1))
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("hl:uEiBGzo1CWjNplt9iSVJdU9B9vfCm7u1d5CvqYsNbuMVT7Q:uoQ-BeEJpcGZzOi8vYmFma3JlaWNnejJndWV3cnRuZ2xuNnlzamtqb3ZodWQ1eHh5a24zeG5seHNjeDJ0Y3lubjNycmt0NXU") //nolint:lll
@@ -125,7 +130,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second)
+		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -134,7 +139,8 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("invalid CID version", func(t *testing.T) {
-		cas := New("IPFS URL", 5*time.Second, extendedcasclient.WithCIDVersion(2))
+		cas := New("IPFS URL", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+			extendedcasclient.WithCIDVersion(2))
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -142,7 +148,7 @@ func TestWrite(t *testing.T) {
 		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
 	})
 	t.Run("fail to write since node (ipfs.io) doesn't support writes", func(t *testing.T) {
-		cas := New("https://ipfs.io", 5*time.Second)
+		cas := New("https://ipfs.io", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -158,7 +164,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second)
+		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
@@ -172,7 +178,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second)
+		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")
@@ -188,7 +194,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second)
+		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
