@@ -9,14 +9,31 @@ package multihash_test
 import (
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
-	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/multihash"
-	"github.com/trustbloc/orb/pkg/store/cas"
 )
+
+func TestIsValidCID(t *testing.T) {
+	t.Run("success - false", func(t *testing.T) {
+		valid := multihash.IsValidCID("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
+		require.False(t, valid)
+	})
+	t.Run("success - true", func(t *testing.T) {
+		valid := multihash.IsValidCID("bafkreibx3pob32ai67uyizvhwndjdydzaa45ln6acf2mmtb7g7l3epateq")
+		require.True(t, valid)
+	})
+
+	t.Run("success - false", func(t *testing.T) {
+		valid := multihash.IsValidCID("hello")
+		require.False(t, valid)
+	})
+
+	t.Run("success - ipns", func(t *testing.T) {
+		valid := multihash.IsValidCID("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q/.well-known/host-meta.json") //nolint:lll
+		require.True(t, valid)
+	})
+}
 
 func TestToV0CID(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
@@ -75,41 +92,5 @@ func TestCIDToMultihash(t *testing.T) {
 		multihashFromCID, err := multihash.CIDToMultihash("")
 		require.EqualError(t, err, "failed to decode CID: cid too short")
 		require.Empty(t, multihashFromCID)
-	})
-}
-
-// Here we test to ensure that CIDs produced by the local CAS implementation can be converted
-// back-and-forth between the multihash and CID formats without loss of data.
-func TestLosslessConversion(t *testing.T) {
-	t.Run("V0", func(t *testing.T) {
-		store, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0,
-			extendedcasclient.WithCIDVersion(0))
-		require.NoError(t, err)
-
-		originalCID, err := store.Write([]byte("content"))
-		require.NoError(t, err)
-
-		multihashFromCID, err := multihash.CIDToMultihash(originalCID)
-		require.NoError(t, err)
-
-		cidConvertedBackFromMultihash, err := multihash.ToV0CID(multihashFromCID)
-		require.NoError(t, err)
-
-		require.Equal(t, originalCID, cidConvertedBackFromMultihash)
-	})
-	t.Run("V1", func(t *testing.T) {
-		store, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
-		require.NoError(t, err)
-
-		originalCID, err := store.Write([]byte("content"))
-		require.NoError(t, err)
-
-		multihashFromCID, err := multihash.CIDToMultihash(originalCID)
-		require.NoError(t, err)
-
-		cidConvertedBackFromMultihash, err := multihash.ToV1CID(multihashFromCID)
-		require.NoError(t, err)
-
-		require.Equal(t, originalCID, cidConvertedBackFromMultihash)
 	})
 }

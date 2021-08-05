@@ -110,7 +110,7 @@ func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
 		return nil, fmt.Errorf("unable to parse verifiable credential from CID[%s] from CAS: %w", cid, err)
 	}
 
-	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{CID: cid}, info, suffix)
+	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{Hashlink: cid}, info, suffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get anchored operation for suffix[%s] in anchor[%s]: %w", suffix, cid, err)
 	}
@@ -142,7 +142,7 @@ func (c *OrbClient) getParseCredentialOpts() []verifiable.CredentialOpt {
 func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, info *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
 	anchorPayload, err := util.GetAnchorSubject(info)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.CID, err)
+		return nil, fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
 
 	pc, err := c.nsProvider.ForNamespace(anchorPayload.Namespace)
@@ -157,21 +157,15 @@ func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, info *ver
 
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
-	equivalentRef := anchor.CID
-	if anchor.Hint != "" {
-		equivalentRef = anchor.Hint + ":" + equivalentRef
-	}
-
 	sidetreeTxn := txnapi.SidetreeTxn{
-		TransactionTime:      uint64(info.Issued.Unix()),
-		AnchorString:         ad.GetAnchorString(),
-		Namespace:            anchorPayload.Namespace,
-		ProtocolGenesisTime:  anchorPayload.Version,
-		CanonicalReference:   anchor.CID,
-		EquivalentReferences: []string{equivalentRef},
+		TransactionTime:     uint64(info.Issued.Unix()),
+		AnchorString:        ad.GetAnchorString(),
+		Namespace:           anchorPayload.Namespace,
+		ProtocolGenesisTime: anchorPayload.Version,
+		CanonicalReference:  anchor.Hashlink,
 	}
 
-	logger.Debugf("processing anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)
+	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)
 
 	txnOps, err := v.OperationProvider().GetTxnOperations(&sidetreeTxn)
 	if err != nil {

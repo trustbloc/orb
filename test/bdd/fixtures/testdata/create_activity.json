@@ -16,12 +16,12 @@
       "https://www.w3.org/ns/activitystreams",
       "https://w3id.org/activityanchors/v1"
     ],
-    "id": "https://orb.domain1.com/transactions/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
+    "id": "https://orb.domain1.com/transactions/uEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw",
     "type": "AnchorCredentialReference",
     "target": {
       "type": "ContentAddressedStorage",
-      "id": "https://orb.domain1.com/cas/bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm",
-      "cid": "bafkreiduenhjrl7hjgh3lwxr6nvmfv4kzqzzizhzkbydxdabtcjptavzbm"
+      "id": "https://orb.domain1.com/cas/uEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw",
+      "cid": "hl:uEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQjBJMDZZci1kSmo3WGE4Zk5xd3RlS3pET1VaUGxRY0R1TUFaaVMtWUs1Q3c"
     }
   }
 }

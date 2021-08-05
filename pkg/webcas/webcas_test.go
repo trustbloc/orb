@@ -20,12 +20,15 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	"github.com/trustbloc/orb/pkg/webcas"
 )
+
+const casLink = "https://domain.com/cas"
 
 const sampleAnchorCredential = `{
   "@context": [
@@ -78,7 +81,7 @@ const sampleAnchorCredential = `{
 }`
 
 func TestNew(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
 	webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
@@ -90,12 +93,12 @@ func TestNew(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	t.Run("Content found", func(t *testing.T) {
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
-		cid, err := casClient.Write([]byte(sampleAnchorCredential))
+		hl, err := casClient.Write([]byte(sampleAnchorCredential))
 		require.NoError(t, err)
-		require.NotEmpty(t, cid)
+		require.NotEmpty(t, hl)
 
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
@@ -107,7 +110,10 @@ func TestHandler(t *testing.T) {
 		testServer := httptest.NewServer(router)
 		defer testServer.Close()
 
-		response, err := http.DefaultClient.Get(testServer.URL + "/cas/" + cid)
+		rh, err := hashlink.GetResourceHashFromHashLink(hl)
+		require.NoError(t, err)
+
+		response, err := http.DefaultClient.Get(testServer.URL + "/cas/" + rh)
 		require.NoError(t, err)
 
 		defer func() {
@@ -121,7 +127,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, sampleAnchorCredential, string(responseBody))
 	})
 	t.Run("Content not found", func(t *testing.T) {
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
@@ -150,7 +156,7 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("Authorization", func(t *testing.T) {
-		casClient, err := cas.New(mem.NewProvider(), nil, &orbmocks.MetricsProvider{}, 0)
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
 		cfg := &resthandler.Config{

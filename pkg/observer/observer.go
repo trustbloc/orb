@@ -9,7 +9,6 @@ package observer
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 var logger = log.New("orb-observer")
@@ -129,7 +129,7 @@ func (o *Observer) Publisher() Publisher {
 }
 
 func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
-	logger.Debugf("observing anchor: %s", anchor.CID)
+	logger.Debugf("observing anchor: %s", anchor.Hashlink)
 
 	startTime := time.Now()
 
@@ -137,14 +137,14 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 		o.Metrics.ProcessAnchorTime(time.Since(startTime))
 	}()
 
-	anchorInfo, err := o.AnchorGraph.Read(anchor.CID)
+	anchorInfo, err := o.AnchorGraph.Read(anchor.Hashlink)
 	if err != nil {
-		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.CID, err.Error())
+		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.Hashlink, err.Error())
 
 		return err
 	}
 
-	logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.CID)
+	logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.Hashlink)
 
 	if err := o.processAnchor(anchor, anchorInfo); err != nil {
 		logger.Warnf(err.Error())
@@ -183,11 +183,11 @@ func (o *Observer) processDID(did string) error {
 	for _, anchor := range anchors {
 		logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
 
-		if err := o.processAnchor(&anchorinfo.AnchorInfo{CID: anchor.CID, WebCASURL: &url.URL{}},
+		if err := o.processAnchor(&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
 			anchor.Info, suffix); err != nil {
 			if errors.IsTransient(err) {
 				// Return an error so that the message is redelivered and retried.
-				return fmt.Errorf("process anchor [%s]: %w", anchor.CID, err)
+				return fmt.Errorf("process out-of-system anchor [%s]: %w", anchor.CID, err)
 			}
 
 			logger.Warnf("ignoring anchor[%s] for did[%s]", anchor.CID, did, err.Error())
@@ -211,11 +211,11 @@ func getDidParts(did string) (cid, suffix string, err error) {
 }
 
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
-	logger.Debugf("processing anchor[%s], suffixes: %s", anchor.CID, suffixes)
+	logger.Debugf("processing anchor[%s], suffixes: %s", anchor.Hashlink, suffixes)
 
 	anchorPayload, err := util.GetAnchorSubject(info)
 	if err != nil {
-		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.CID, err)
+		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
 
 	pc, err := o.ProtocolClientProvider.ForNamespace(anchorPayload.Namespace)
@@ -231,15 +231,15 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
-	equivalentRef := anchor.CID
-	if anchor.Hint != "" {
-		equivalentRef = anchor.Hint + ":" + equivalentRef
-	}
-
-	equivalentRefs := []string{equivalentRef}
+	equivalentRefs := []string{anchor.Hashlink}
 	if o.discoveryDomain != "" {
 		// only makes sense to have discovery domain with webcas (may change with ipfs gateway requirements)
-		equivalentRefs = append(equivalentRefs, "webcas:"+o.discoveryDomain)
+		equivalentRefs = append(equivalentRefs, "https:"+o.discoveryDomain)
+	}
+
+	canonicalID, err := hashlink.GetResourceHashFromHashLink(anchor.Hashlink)
+	if err != nil {
+		return fmt.Errorf("failed to get canonical ID from hl[%s]: %w", anchor.Hashlink, err)
 	}
 
 	sidetreeTxn := txnapi.SidetreeTxn{
@@ -247,11 +247,11 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		AnchorString:         ad.GetAnchorString(),
 		Namespace:            anchorPayload.Namespace,
 		ProtocolGenesisTime:  anchorPayload.Version,
-		CanonicalReference:   anchor.CID,
+		CanonicalReference:   canonicalID,
 		EquivalentReferences: equivalentRefs,
 	}
 
-	logger.Debugf("processing anchor[%s], core index[%s]", anchor.CID, anchorPayload.CoreIndex)
+	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)
 
 	err = v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
 	if err != nil {
@@ -261,13 +261,13 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	// update global did/anchor references
 	acSuffixes := getKeys(anchorPayload.PreviousAnchors)
 
-	err = o.DidAnchors.PutBulk(acSuffixes, equivalentRef)
+	err = o.DidAnchors.PutBulk(acSuffixes, anchor.Hashlink)
 	if err != nil {
-		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.CID, err)
+		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.Hashlink, err)
 	}
 
 	logger.Infof("Successfully processed %d DIDs in anchor[%s], core index[%s]",
-		len(acSuffixes), anchor.CID, anchorPayload.CoreIndex)
+		len(acSuffixes), anchor.Hashlink, anchorPayload.CoreIndex)
 
 	return nil
 }

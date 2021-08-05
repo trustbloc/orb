@@ -6,13 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 
 package info
 
-import (
-	"net/url"
-)
-
-// AnchorInfo represents a CID and a WebCASURL that can be used to fetch the CID.
+// AnchorInfo represents a hashlink that can be used to fetch the anchor.
 type AnchorInfo struct {
-	CID       string
-	WebCASURL *url.URL
-	Hint      string
+	Hashlink string
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -109,7 +110,7 @@ type opProcessor interface {
 }
 
 type anchorGraph interface {
-	Add(anchor *verifiable.Credential) (string, string, error)
+	Add(anchor *verifiable.Credential) (string, error)
 }
 
 type anchorBuilder interface {
@@ -376,38 +377,29 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 		return errors.NewTransient(fmt.Errorf("store witnessed anchor credential[%s]: %w", vc.ID, err))
 	}
 
-	cid, hint, err := c.AnchorGraph.Add(vc)
+	hl, err := c.AnchorGraph.Add(vc)
 	if err != nil {
 		logger.Errorf("failed to add witnessed anchor credential[%s] to anchor graph: %s", vc.ID, err.Error())
 
 		return fmt.Errorf("add witnessed anchor credential[%s] to anchor graph: %w", vc.ID, err)
 	}
 
-	fullWebCASURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
+	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: hl})
 	if err != nil {
-		logger.Errorf("failed to construct full WebCAS URL from the following two parts: [%s] and [%s]",
-			c.casIRI.String(), cid)
+		logger.Warnf("failed to publish anchors for hl[%s]: %s", hl, err.Error())
 
-		return fmt.Errorf("construct full WebCAS URL from the following two parts: [%s] and [%s]: %w",
-			c.casIRI.String(), cid, err)
+		return fmt.Errorf("publish anchors for hl[%s]: %w", vc.ID, err)
 	}
 
-	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{CID: cid, WebCASURL: fullWebCASURL, Hint: hint})
-	if err != nil {
-		logger.Warnf("failed to publish anchors for cid[%s]: %s", cid, err.Error())
-
-		return fmt.Errorf("publish anchors for cid[%s]: %w", vc.ID, err)
-	}
-
-	logger.Debugf("posted cid[%s] to anchor channel", cid)
+	logger.Debugf("posted hl[%s] to anchor channel", hl)
 
 	// announce anchor credential activity to followers
-	err = c.postCreateActivity(vc, cid)
+	err = c.postCreateActivity(vc, hl)
 	if err != nil {
-		logger.Warnf("failed to post new create activity for cid[%s]: %s", cid, err.Error())
+		logger.Warnf("failed to post new create activity for hl[%s]: %s", hl, err.Error())
 
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
-		return fmt.Errorf("post create activity for cid[%s]: %w", cid, err)
+		return fmt.Errorf("post create activity for hl[%s]: %w", hl, err)
 	}
 
 	err = c.WitnessStore.Delete(vc.ID)
@@ -420,8 +412,13 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 }
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).
-func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error { //nolint: interfacer
-	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), cid))
+func (c *Writer) postCreateActivity(vc *verifiable.Credential, hl string) error { //nolint: interfacer
+	resourceHash, err := hashlink.GetResourceHashFromHashLink(hl)
+	if err != nil {
+		return err
+	}
+
+	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), resourceHash))
 	if err != nil {
 		return fmt.Errorf("failed to parse cid URL: %w", err)
 	}
@@ -429,7 +426,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
 		vocab.NewObject(
 			vocab.WithID(cidURL),
-			vocab.WithCID(cid),
+			vocab.WithCID(hl),
 			vocab.WithType(vocab.TypeContentAddressedStorage),
 		),
 	))
@@ -461,7 +458,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, cid string) error
 		return err
 	}
 
-	logger.Debugf("created activity for cid[%s], post id[%s]", cid, postID)
+	logger.Debugf("created activity for hl[%s], post id[%s]", hl, postID)
 
 	return nil
 }

@@ -8,7 +8,6 @@ package factory
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -100,19 +99,11 @@ type operationProviderWrapper struct {
 
 // GetTxnOperations returns transaction operation from the underlying operation provider.
 func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) { //nolint:lll
-	casHint := ""
-
-	if len(transaction.EquivalentReferences) > 0 {
-		lastColonIndex := strings.LastIndex(transaction.EquivalentReferences[0], ":")
-
-		casHint = transaction.EquivalentReferences[0][:lastColonIndex+1]
-	}
-
 	casClient := &casClientWrapper{
-		resolver:                 h.casResolver,
-		casHintWithTrailingColon: casHint,
+		resolver: h.casResolver,
 	}
 
+	// TODO: no need for wrapper any more (issue-671)
 	op := txnprovider.NewOperationProvider(*h.Protocol, h.parser, casClient, h.dp)
 
 	return op.GetTxnOperations(transaction)
@@ -124,7 +115,7 @@ type casClientWrapper struct {
 }
 
 func (c *casClientWrapper) Read(cid string) ([]byte, error) {
-	data, err := c.resolver.Resolve(nil, c.casHintWithTrailingColon+cid, nil)
+	data, err := c.resolver.Resolve(nil, cid, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve CID: %w", err)
 	}

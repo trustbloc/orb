@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
 
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 var logger = log.New("orb-resolver")
@@ -40,6 +41,8 @@ type ResolveHandler struct {
 	enableDidDiscovery  bool
 
 	enableCreateDocumentStore bool
+
+	hl *hashlink.HashLink
 }
 
 // did discovery service.
@@ -86,6 +89,7 @@ func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery
 		discovery:    discovery,
 		anchorGraph:  anchorGraph,
 		metrics:      metrics,
+		hl:           hashlink.New(),
 	}
 
 	// apply options
@@ -199,12 +203,12 @@ func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) err
 		return fmt.Errorf("unexpected interface '%T' for canonicalId", value)
 	}
 
-	resolvedCID, suffix, err := getCIDAndSuffix(canonicalID)
+	resolvedCID, suffix, err := r.getCIDAndSuffix(canonicalID)
 	if err != nil {
 		return fmt.Errorf("CID from resolved document: %w", err)
 	}
 
-	cidFromID, _, err := getCIDAndSuffix(id)
+	cidFromID, _, err := r.getCIDAndSuffix(id)
 	if err != nil {
 		return fmt.Errorf("CID from ID: %w", err)
 	}
@@ -221,7 +225,7 @@ func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) err
 }
 
 func (r *ResolveHandler) verifyCIDExistenceInAnchorGraph(cid, anchorCID, anchorSuffix string) error {
-	anchors, err := r.anchorGraph.GetDidAnchors(anchorCID, anchorSuffix)
+	anchors, err := r.anchorGraph.GetDidAnchors(hashlink.GetHashLinkFromResourceHash(anchorCID), anchorSuffix)
 	if err != nil {
 		return err
 	}
@@ -240,7 +244,7 @@ func (r *ResolveHandler) verifyCIDExistenceInAnchorGraph(cid, anchorCID, anchorS
 	return ErrDocumentNotFound
 }
 
-func getCIDAndSuffix(id string) (string, string, error) {
+func (r *ResolveHandler) getCIDAndSuffix(id string) (string, string, error) {
 	parts := strings.Split(id, docutil.NamespaceDelimiter)
 
 	const minOrbIdentifierParts = 4
@@ -248,5 +252,51 @@ func getCIDAndSuffix(id string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid number of parts[%d] for Orb identifier", len(parts))
 	}
 
-	return parts[len(parts)-2], parts[len(parts)-1], nil
+	// suffix is always last
+	suffix := parts[len(parts)-1]
+
+	// cid is always second last (an exception is hashlink with metadata)
+	cid := parts[len(parts)-2]
+
+	if len(parts) == minOrbIdentifierParts {
+		// canonical id
+		return cid, suffix, nil
+	}
+
+	hlOrHint, err := betweenStrings(id, r.namespace+docutil.NamespaceDelimiter, docutil.NamespaceDelimiter+suffix)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get value between namespace and suffix: %w", err)
+	}
+
+	if strings.HasPrefix(hlOrHint, hashlink.HLPrefix) {
+		hlInfo, err := r.hl.ParseHashLink(hlOrHint)
+		if err != nil {
+			return "", "", err
+		}
+
+		cid = hlInfo.ResourceHash
+	}
+
+	logger.Debugf("returning cid[%] and suffix[%] for id[%]", cid, suffix, id)
+
+	return cid, suffix, nil
+}
+
+func betweenStrings(value, first, second string) (string, error) {
+	posFirst := strings.Index(value, first)
+	if posFirst == -1 {
+		return "", fmt.Errorf("value[%s] doesn't contain first[%s]", value, first)
+	}
+
+	posSecond := strings.Index(value, second)
+	if posSecond == -1 {
+		return "", fmt.Errorf("value[%s] doesn't contain second[%s]", value, second)
+	}
+
+	posFirstAdjusted := posFirst + len(first)
+	if posFirstAdjusted >= posSecond {
+		return "", fmt.Errorf("second[%s] is before first[%s] in value[%s]", second, first, value)
+	}
+
+	return value[posFirstAdjusted:posSecond], nil
 }

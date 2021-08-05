@@ -174,7 +174,7 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, newAnchorInfo(anchorInfo.CID), h.processAnchors(anchorInfo))
+	h.ackNackMessage(msg, newAnchorInfo(anchorInfo.Hashlink), h.processAnchors(anchorInfo))
 }
 
 func (h *PubSub) handleDIDMessage(msg *message.Message) {

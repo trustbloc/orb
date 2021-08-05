@@ -20,7 +20,7 @@ func GetProtocolConfig() protocol.Protocol {
 		MaxOperationSize:             2500,
 		MaxOperationHashLength:       100,
 		MaxDeltaSize:                 1700,
-		MaxCasURILength:              100,
+		MaxCasURILength:              500,
 		CompressionAlgorithm:         "GZIP",
 		MaxChunkFileSize:             10000000,
 		MaxProvisionalIndexFileSize:  1000000,

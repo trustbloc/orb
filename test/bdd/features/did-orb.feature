@@ -82,7 +82,7 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
       Then check error response contains "not found"
 
-      Then we wait 2 seconds
+      Then we wait 3 seconds
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
       Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
