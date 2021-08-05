@@ -231,15 +231,15 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
-	equivalentRefs := []string{anchor.Hashlink}
-	if o.discoveryDomain != "" {
-		// only makes sense to have discovery domain with webcas (may change with ipfs gateway requirements)
-		equivalentRefs = append(equivalentRefs, "https:"+o.discoveryDomain)
-	}
-
 	canonicalID, err := hashlink.GetResourceHashFromHashLink(anchor.Hashlink)
 	if err != nil {
 		return fmt.Errorf("failed to get canonical ID from hl[%s]: %w", anchor.Hashlink, err)
+	}
+
+	equivalentRefs := []string{anchor.Hashlink}
+	if o.discoveryDomain != "" {
+		// only makes sense to have discovery domain with webcas (may change with ipfs gateway requirements)
+		equivalentRefs = append(equivalentRefs, "https:"+o.discoveryDomain+":"+canonicalID)
 	}
 
 	sidetreeTxn := txnapi.SidetreeTxn{
