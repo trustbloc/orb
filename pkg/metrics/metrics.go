@@ -25,14 +25,16 @@ const (
 	apOutboxActivityCounterMetric = "outbox_count"
 
 	// Anchor.
-	anchor                                 = "anchor"
-	anchorWriteTimeMetric                  = "write_seconds"
-	anchorWitnessMetric                    = "witness_seconds"
-	anchorProcessWitnessedMetric           = "process_witnessed_seconds"
-	anchorWriteBuildCredTimeMetric         = "write_build_cred_seconds"
-	anchorWriteGetWitnessesTimeMetric      = "write_get_witnesses_seconds"
-	anchorWriteSignCredTimeMetric          = "write_sign_cred_seconds"
-	anchorWritePostOfferActivityTimeMetric = "write_post_offer_activity_seconds"
+	anchor                                         = "anchor"
+	anchorWriteTimeMetric                          = "write_seconds"
+	anchorWitnessMetric                            = "witness_seconds"
+	anchorProcessWitnessedMetric                   = "process_witnessed_seconds"
+	anchorWriteBuildCredTimeMetric                 = "write_build_cred_seconds"
+	anchorWriteGetWitnessesTimeMetric              = "write_get_witnesses_seconds"
+	anchorWriteSignCredTimeMetric                  = "write_sign_cred_seconds"
+	anchorWritePostOfferActivityTimeMetric         = "write_post_offer_activity_seconds"
+	anchorWriteGetPreviousAnchorsGetBulkTimeMetric = "write_get_previous_anchor_get_bulk_seconds"
+	anchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -84,13 +86,15 @@ type Metrics struct {
 	apInboxHandlerTimes        map[string]prometheus.Histogram
 	apOutboxActivityCounts     map[string]prometheus.Counter
 
-	anchorWriteTime                  prometheus.Histogram
-	anchorWitnessTime                prometheus.Histogram
-	anchorProcessWitnessedTime       prometheus.Histogram
-	anchorWriteBuildCredTime         prometheus.Histogram
-	anchorWriteGetWitnessesTime      prometheus.Histogram
-	anchorWriteSignCredTime          prometheus.Histogram
-	anchorWritePostOfferActivityTime prometheus.Histogram
+	anchorWriteTime                          prometheus.Histogram
+	anchorWitnessTime                        prometheus.Histogram
+	anchorProcessWitnessedTime               prometheus.Histogram
+	anchorWriteBuildCredTime                 prometheus.Histogram
+	anchorWriteGetWitnessesTime              prometheus.Histogram
+	anchorWriteSignCredTime                  prometheus.Histogram
+	anchorWritePostOfferActivityTime         prometheus.Histogram
+	anchorWriteGetPreviousAnchorsGetBulkTime prometheus.Histogram
+	anchorWriteGetPreviousAnchorsTime        prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
@@ -132,15 +136,17 @@ func newMetrics() *Metrics { //nolint:funlen
 	dbTypes := []string{"CouchDB"}
 
 	m := &Metrics{
-		apOutboxPostTime:                 newOutboxPostTime(),
-		apOutboxResolveInboxesTime:       newOutboxResolveInboxesTime(),
-		anchorWriteTime:                  newAnchorWriteTime(),
-		anchorWriteBuildCredTime:         newAnchorWriteBuildCredTime(),
-		anchorWriteGetWitnessesTime:      newAnchorWriteGetWitnessesTime(),
-		anchorWriteSignCredTime:          newAnchorWriteSignCredTime(),
-		anchorWritePostOfferActivityTime: newAnchorWritePostOfferActivityTime(),
-		anchorWitnessTime:                newAnchorWitnessTime(),
-		anchorProcessWitnessedTime:       newAnchorProcessWitnessedTime(),
+		apOutboxPostTime:                         newOutboxPostTime(),
+		apOutboxResolveInboxesTime:               newOutboxResolveInboxesTime(),
+		anchorWriteTime:                          newAnchorWriteTime(),
+		anchorWriteBuildCredTime:                 newAnchorWriteBuildCredTime(),
+		anchorWriteGetWitnessesTime:              newAnchorWriteGetWitnessesTime(),
+		anchorWriteSignCredTime:                  newAnchorWriteSignCredTime(),
+		anchorWritePostOfferActivityTime:         newAnchorWritePostOfferActivityTime(),
+		anchorWriteGetPreviousAnchorsGetBulkTime: newAnchorWriteGetPreviousAnchorsGetBulkTime(),
+		anchorWriteGetPreviousAnchorsTime:        newAnchorWriteGetPreviousAnchorsTime(),
+		anchorWitnessTime:                        newAnchorWitnessTime(),
+		anchorProcessWitnessedTime:               newAnchorProcessWitnessedTime(),
 
 		opqueueAddOperationTime:   newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:       newOpQueueBatchCutTime(),
@@ -170,6 +176,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.apOutboxPostTime, m.apOutboxResolveInboxesTime,
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime, m.anchorWriteBuildCredTime,
 		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
+		m.anchorWriteGetPreviousAnchorsGetBulkTime, m.anchorWriteGetPreviousAnchorsTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
@@ -271,6 +278,20 @@ func (m *Metrics) WriteAnchorPostOfferActivityTime(value time.Duration) {
 	m.anchorWritePostOfferActivityTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign credential time: %s", value)
+}
+
+// WriteAnchorGetPreviousAnchorsGetBulkTime records the time it takes to get bulk inside previous anchor.
+func (m *Metrics) WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration) {
+	m.anchorWriteGetPreviousAnchorsGetBulkTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor getPreviousAnchor geBulk time: %s", value)
+}
+
+// WriteAnchorGetPreviousAnchorsTime records the time it takes to get previous anchor.
+func (m *Metrics) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
+	m.anchorWriteGetPreviousAnchorsTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor getPreviousAnchor time: %s", value)
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -571,6 +592,22 @@ func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWritePostOfferActivityTimeMetric,
 		"The time (in seconds) that it takes to post offer activity inside write anchor.",
+		nil,
+	)
+}
+
+func newAnchorWriteGetPreviousAnchorsGetBulkTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteGetPreviousAnchorsGetBulkTimeMetric,
+		"The time (in seconds) that it takes to get bulk inside get previous anchor.",
+		nil,
+	)
+}
+
+func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteGetPreviousAnchorsTimeMetric,
+		"The time (in seconds) that it takes to get previous anchor.",
 		nil,
 	)
 }
