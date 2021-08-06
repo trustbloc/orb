@@ -25,10 +25,14 @@ const (
 	apOutboxActivityCounterMetric = "outbox_count"
 
 	// Anchor.
-	anchor                       = "anchor"
-	anchorWriteTimeMetric        = "write_seconds"
-	anchorWitnessMetric          = "witness_seconds"
-	anchorProcessWitnessedMetric = "process_witnessed_seconds"
+	anchor                                 = "anchor"
+	anchorWriteTimeMetric                  = "write_seconds"
+	anchorWitnessMetric                    = "witness_seconds"
+	anchorProcessWitnessedMetric           = "process_witnessed_seconds"
+	anchorWriteBuildCredTimeMetric         = "write_build_cred_seconds"
+	anchorWriteGetWitnessesTimeMetric      = "write_get_witnesses_seconds"
+	anchorWriteSignCredTimeMetric          = "write_sign_cred_seconds"
+	anchorWritePostOfferActivityTimeMetric = "write_post_offer_activity_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -80,9 +84,13 @@ type Metrics struct {
 	apInboxHandlerTimes        map[string]prometheus.Histogram
 	apOutboxActivityCounts     map[string]prometheus.Counter
 
-	anchorWriteTime            prometheus.Histogram
-	anchorWitnessTime          prometheus.Histogram
-	anchorProcessWitnessedTime prometheus.Histogram
+	anchorWriteTime                  prometheus.Histogram
+	anchorWitnessTime                prometheus.Histogram
+	anchorProcessWitnessedTime       prometheus.Histogram
+	anchorWriteBuildCredTime         prometheus.Histogram
+	anchorWriteGetWitnessesTime      prometheus.Histogram
+	anchorWriteSignCredTime          prometheus.Histogram
+	anchorWritePostOfferActivityTime prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
@@ -124,38 +132,44 @@ func newMetrics() *Metrics { //nolint:funlen
 	dbTypes := []string{"CouchDB"}
 
 	m := &Metrics{
-		apOutboxPostTime:           newOutboxPostTime(),
-		apOutboxResolveInboxesTime: newOutboxResolveInboxesTime(),
-		anchorWriteTime:            newAnchorWriteTime(),
-		anchorWitnessTime:          newAnchorWitnessTime(),
-		anchorProcessWitnessedTime: newAnchorProcessWitnessedTime(),
-		opqueueAddOperationTime:    newOpQueueAddOperationTime(),
-		opqueueBatchCutTime:        newOpQueueBatchCutTime(),
-		opqueueBatchRollbackTime:   newOpQueueBatchRollbackTime(),
-		opqueueBatchAckTime:        newOpQueueBatchAckTime(),
-		opqueueBatchNackTime:       newOpQueueBatchNackTime(),
-		opqueueBatchSize:           newOpQueueBatchSize(),
-		observerProcessAnchorTime:  newObserverProcessAnchorTime(),
-		observerProcessDIDTime:     newObserverProcessDIDTime(),
-		casWriteTime:               newCASWriteTime(),
-		casResolveTime:             newCASResolveTime(),
-		casReadTimes:               newCASReadTimes(),
-		casCacheHitCount:           newCASCacheHitCount(),
-		docCreateUpdateTime:        newDocCreateUpdateTime(),
-		docResolveTime:             newDocResolveTime(),
-		apInboxHandlerTimes:        newInboxHandlerTimes(activityTypes),
-		apOutboxActivityCounts:     newOutboxActivityCounts(activityTypes),
-		dbPutTimes:                 newDBPutTime(dbTypes),
-		dbGetTimes:                 newDBGetTime(dbTypes),
-		dbGetTagsTimes:             newDBGetTagsTime(dbTypes),
-		dbGetBulkTimes:             newDBGetBulkTime(dbTypes),
-		dbQueryTimes:               newDBQueryTime(dbTypes),
-		dbDeleteTimes:              newDBDeleteTime(dbTypes),
+		apOutboxPostTime:                 newOutboxPostTime(),
+		apOutboxResolveInboxesTime:       newOutboxResolveInboxesTime(),
+		anchorWriteTime:                  newAnchorWriteTime(),
+		anchorWriteBuildCredTime:         newAnchorWriteBuildCredTime(),
+		anchorWriteGetWitnessesTime:      newAnchorWriteGetWitnessesTime(),
+		anchorWriteSignCredTime:          newAnchorWriteSignCredTime(),
+		anchorWritePostOfferActivityTime: newAnchorWritePostOfferActivityTime(),
+		anchorWitnessTime:                newAnchorWitnessTime(),
+		anchorProcessWitnessedTime:       newAnchorProcessWitnessedTime(),
+
+		opqueueAddOperationTime:   newOpQueueAddOperationTime(),
+		opqueueBatchCutTime:       newOpQueueBatchCutTime(),
+		opqueueBatchRollbackTime:  newOpQueueBatchRollbackTime(),
+		opqueueBatchAckTime:       newOpQueueBatchAckTime(),
+		opqueueBatchNackTime:      newOpQueueBatchNackTime(),
+		opqueueBatchSize:          newOpQueueBatchSize(),
+		observerProcessAnchorTime: newObserverProcessAnchorTime(),
+		observerProcessDIDTime:    newObserverProcessDIDTime(),
+		casWriteTime:              newCASWriteTime(),
+		casResolveTime:            newCASResolveTime(),
+		casReadTimes:              newCASReadTimes(),
+		casCacheHitCount:          newCASCacheHitCount(),
+		docCreateUpdateTime:       newDocCreateUpdateTime(),
+		docResolveTime:            newDocResolveTime(),
+		apInboxHandlerTimes:       newInboxHandlerTimes(activityTypes),
+		apOutboxActivityCounts:    newOutboxActivityCounts(activityTypes),
+		dbPutTimes:                newDBPutTime(dbTypes),
+		dbGetTimes:                newDBGetTime(dbTypes),
+		dbGetTagsTimes:            newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:            newDBGetBulkTime(dbTypes),
+		dbQueryTimes:              newDBQueryTime(dbTypes),
+		dbDeleteTimes:             newDBDeleteTime(dbTypes),
 	}
 
 	prometheus.MustRegister(
 		m.apOutboxPostTime, m.apOutboxResolveInboxesTime,
-		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime,
+		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime, m.anchorWriteBuildCredTime,
+		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
@@ -228,7 +242,35 @@ func (m *Metrics) OutboxIncrementActivityCount(activityType string) {
 func (m *Metrics) WriteAnchorTime(value time.Duration) {
 	m.anchorWriteTime.Observe(value.Seconds())
 
-	logger.Infof("WriteAnchor time: %s", value)
+	logger.Debugf("WriteAnchor time: %s", value)
+}
+
+// WriteAnchorBuildCredentialTime records the time it takes to build credential inside write anchor.
+func (m *Metrics) WriteAnchorBuildCredentialTime(value time.Duration) {
+	m.anchorWriteBuildCredTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor build credential time: %s", value)
+}
+
+// WriteAnchorGetWitnessesTime records the time it takes to get witnesses inside write anchor.
+func (m *Metrics) WriteAnchorGetWitnessesTime(value time.Duration) {
+	m.anchorWriteGetWitnessesTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor get witness time: %s", value)
+}
+
+// WriteAnchorSignCredentialTime records the time it takes to sign credential inside write anchor.
+func (m *Metrics) WriteAnchorSignCredentialTime(value time.Duration) {
+	m.anchorWriteSignCredTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor sign credential time: %s", value)
+}
+
+// WriteAnchorPostOfferActivityTime records the time it takes to post offer activity inside write anchor.
+func (m *Metrics) WriteAnchorPostOfferActivityTime(value time.Duration) {
+	m.anchorWritePostOfferActivityTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor sign credential time: %s", value)
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -237,7 +279,7 @@ func (m *Metrics) WriteAnchorTime(value time.Duration) {
 func (m *Metrics) WitnessAnchorCredentialTime(value time.Duration) {
 	m.anchorWitnessTime.Observe(value.Seconds())
 
-	logger.Infof("WitnessAnchorCredential time: %s", value)
+	logger.Debugf("WitnessAnchorCredential time: %s", value)
 }
 
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
@@ -245,7 +287,7 @@ func (m *Metrics) WitnessAnchorCredentialTime(value time.Duration) {
 func (m *Metrics) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
 	m.anchorProcessWitnessedTime.Observe(value.Seconds())
 
-	logger.Infof("ProcessWitnessedAnchorCredential time: %s", value)
+	logger.Debugf("ProcessWitnessedAnchorCredential time: %s", value)
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
@@ -497,6 +539,38 @@ func newAnchorProcessWitnessedTime() prometheus.Histogram {
 		anchor, anchorProcessWitnessedMetric,
 		"The time (in seconds) that it takes to process a witnessed anchor credential by publishing it to "+
 			"the Observer and posting a 'Create' activity.",
+		nil,
+	)
+}
+
+func newAnchorWriteBuildCredTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteBuildCredTimeMetric,
+		"The time (in seconds) that it takes to build credential inside write anchor.",
+		nil,
+	)
+}
+
+func newAnchorWriteGetWitnessesTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteGetWitnessesTimeMetric,
+		"The time (in seconds) that it takes to get witnesses inside write anchor.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignCredTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignCredTimeMetric,
+		"The time (in seconds) that it takes to sign credential inside write anchor.",
+		nil,
+	)
+}
+
+func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWritePostOfferActivityTimeMetric,
+		"The time (in seconds) that it takes to post offer activity inside write anchor.",
 		nil,
 	)
 }

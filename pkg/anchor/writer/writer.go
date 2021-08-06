@@ -43,7 +43,11 @@ var logger = log.New("anchor-writer")
 
 type metricsProvider interface {
 	WriteAnchorTime(value time.Duration)
+	WriteAnchorBuildCredentialTime(value time.Duration)
+	WriteAnchorGetWitnessesTime(value time.Duration)
 	ProcessWitnessedAnchorCredentialTime(value time.Duration)
+	WriteAnchorSignCredentialTime(value time.Duration)
+	WriteAnchorPostOfferActivityTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -171,9 +175,9 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
 	startTime := time.Now()
 
-	defer func() {
-		c.metrics.WriteAnchorTime(time.Since(startTime))
-	}()
+	defer c.metrics.WriteAnchorTime(time.Since(startTime))
+
+	buildCredStartTime := time.Now()
 
 	// build anchor credential
 	vc, err := c.buildCredential(anchor, refs, version)
@@ -181,11 +185,19 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return err
 	}
 
+	c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
+
+	getWitnessesStartTime := time.Now()
+
 	// figure out witness list for this anchor file
 	witnesses, err := c.getWitnesses(refs)
 	if err != nil {
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
+
+	c.metrics.WriteAnchorGetWitnessesTime(time.Since(getWitnessesStartTime))
+
+	signCredentialStartTime := time.Now()
 
 	// sign credential using local witness log or server public key
 	vc, err = c.signCredential(vc, witnesses)
@@ -193,13 +205,19 @@ func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version
 		return err
 	}
 
+	c.metrics.WriteAnchorSignCredentialTime(time.Since(signCredentialStartTime))
+
 	logger.Debugf("signed and stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
+
+	postOfferActivityStartTime := time.Now()
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(vc, witnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for vc[%s]: %w", vc.ID, err)
 	}
+
+	c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
 	return nil
 }
