@@ -27,6 +27,22 @@ func (m *MetricsProvider) InboxHandlerTime(activityType string, value time.Durat
 func (m *MetricsProvider) WriteAnchorTime(value time.Duration) {
 }
 
+// WriteAnchorBuildCredentialTime records the time it takes to build credential inside write anchor.
+func (m *MetricsProvider) WriteAnchorBuildCredentialTime(value time.Duration) {
+}
+
+// WriteAnchorGetWitnessesTime records the time it takes to get witnesses inside write anchor.
+func (m *MetricsProvider) WriteAnchorGetWitnessesTime(value time.Duration) {
+}
+
+// WriteAnchorSignCredentialTime records the time it takes to sign credential inside write anchor.
+func (m *MetricsProvider) WriteAnchorSignCredentialTime(value time.Duration) {
+}
+
+// WriteAnchorPostOfferActivityTime records the time it takes to post offer activity inside write anchor.
+func (m *MetricsProvider) WriteAnchorPostOfferActivityTime(value time.Duration) {
+}
+
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *MetricsProvider) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
