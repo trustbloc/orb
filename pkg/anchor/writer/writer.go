@@ -177,7 +177,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
 	startTime := time.Now()
 
-	defer c.metrics.WriteAnchorTime(time.Since(startTime))
+	defer func() { c.metrics.WriteAnchorTime(time.Since(startTime)) }()
 
 	buildCredStartTime := time.Now()
 

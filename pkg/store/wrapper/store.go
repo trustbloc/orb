@@ -38,7 +38,7 @@ func NewStore(s storage.Store, dbType string) *StoreWrapper {
 // Put data.
 func (store *StoreWrapper) Put(key string, value []byte, tags ...storage.Tag) error {
 	start := time.Now()
-	defer store.m.DBPutTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBPutTime(store.dbType, time.Since(start)) }()
 
 	return store.s.Put(key, value, tags...)
 }
@@ -46,7 +46,7 @@ func (store *StoreWrapper) Put(key string, value []byte, tags ...storage.Tag) er
 // Get data.
 func (store *StoreWrapper) Get(key string) ([]byte, error) {
 	start := time.Now()
-	defer store.m.DBGetTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBGetTime(store.dbType, time.Since(start)) }()
 
 	return store.s.Get(key)
 }
@@ -54,7 +54,7 @@ func (store *StoreWrapper) Get(key string) ([]byte, error) {
 // GetTags get tags.
 func (store *StoreWrapper) GetTags(key string) ([]storage.Tag, error) {
 	start := time.Now()
-	defer store.m.DBGetTagsTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBGetTagsTime(store.dbType, time.Since(start)) }()
 
 	return store.s.GetTags(key)
 }
@@ -62,7 +62,7 @@ func (store *StoreWrapper) GetTags(key string) ([]storage.Tag, error) {
 // GetBulk get bulk.
 func (store *StoreWrapper) GetBulk(keys ...string) ([][]byte, error) {
 	start := time.Now()
-	defer store.m.DBGetBulkTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBGetBulkTime(store.dbType, time.Since(start)) }()
 
 	return store.s.GetBulk(keys...)
 }
@@ -70,7 +70,7 @@ func (store *StoreWrapper) GetBulk(keys ...string) ([][]byte, error) {
 // Query from db.
 func (store *StoreWrapper) Query(expression string, options ...storage.QueryOption) (storage.Iterator, error) {
 	start := time.Now()
-	defer store.m.DBQueryTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBQueryTime(store.dbType, time.Since(start)) }()
 
 	return store.s.Query(expression, options...)
 }
@@ -78,7 +78,7 @@ func (store *StoreWrapper) Query(expression string, options ...storage.QueryOpti
 // Delete data.
 func (store *StoreWrapper) Delete(key string) error {
 	start := time.Now()
-	defer store.m.DBDeleteTime(store.dbType, time.Since(start))
+	defer func() { store.m.DBDeleteTime(store.dbType, time.Since(start)) }()
 
 	return store.s.Delete(key)
 }
