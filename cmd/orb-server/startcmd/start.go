@@ -666,7 +666,7 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
-		dochandler.WithDomain(u.Host),
+		dochandler.WithDomain("https:" + u.Host),
 		dochandler.WithLabel(unpublishedDIDLabel),
 	)
 

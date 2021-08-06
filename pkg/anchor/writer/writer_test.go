@@ -186,7 +186,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.NoError(t, err)
 	})
 
@@ -236,7 +236,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.NoError(t, err)
 	})
 
@@ -287,7 +287,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.NoError(t, err)
 	})
 
@@ -340,7 +340,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.NoError(t, err)
 	})
 
@@ -390,7 +390,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to set 'in-process' status for vcID[http://domain.com/vc/123]: vc status error")
@@ -441,7 +441,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse created: parsing time")
 	})
@@ -476,7 +476,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
 		require.Equal(t, err.Error(), "failed to create witness list: operation processor error")
 	})
@@ -494,7 +494,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("1.anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
+		err = c.WriteAnchor("1.anchor", nil, []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeCreate}}, 1)
 		require.Contains(t, err.Error(), "failed to build anchor credential: sign error")
 	})
 
@@ -523,7 +523,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		err = c.WriteAnchor("1.anchor",
+		err = c.WriteAnchor("1.anchor", nil,
 			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 
 		require.Contains(t, err.Error(), "failed to sign anchor credential[http://domain.com/vc/123]: signer error")
@@ -566,7 +566,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		err = c.WriteAnchor("1.anchor",
+		err = c.WriteAnchor("1.anchor", nil,
 			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
@@ -599,7 +599,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		err = c.WriteAnchor("1.anchor",
+		err = c.WriteAnchor("1.anchor", nil,
 			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Contains(t, err.Error(),
 			"local witnessing failed for anchor credential[http://domain.com/vc/123]: witness error")
@@ -638,7 +638,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		err = c.WriteAnchor("1.anchor",
+		err = c.WriteAnchor("1.anchor", nil,
 			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put")
@@ -679,7 +679,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		err = c.WriteAnchor("1.anchor",
+		err = c.WriteAnchor("1.anchor", nil,
 			getOperationReferences(fmt.Sprintf("%s/services/orb", testServerURL)), 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put (local witness)")
@@ -702,7 +702,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, testutil.GetLoader(t), nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("anchor", []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 1)
+		err = c.WriteAnchor("anchor", nil, []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 1)
 		require.Contains(t, err.Error(),
 			"previous did anchor reference not found for update operation for did[did:method:abc]")
 	})
@@ -756,7 +756,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.NoError(t, err)
 	})
 
@@ -794,7 +794,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), `failed to get host-meta document via IPNS: failed to read from IPNS: `+
 			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
@@ -859,7 +859,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			},
 		}
 
-		err = c.WriteAnchor("1.anchor", opRefs, 1)
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
 		require.True(t, orberrors.IsTransient(err))
 		require.Contains(t, err.Error(), "no witnesses are provided")
