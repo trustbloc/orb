@@ -48,6 +48,8 @@ type metricsProvider interface {
 	ProcessWitnessedAnchorCredentialTime(value time.Duration)
 	WriteAnchorSignCredentialTime(value time.Duration)
 	WriteAnchorPostOfferActivityTime(value time.Duration)
+	WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration)
+	WriteAnchorGetPreviousAnchorsTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -228,10 +230,14 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]str
 
 	suffixes := getSuffixes(refs)
 
+	getBulkStartTime := time.Now()
+
 	anchors, err := c.DidAnchors.GetBulk(suffixes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve latest did anchor references for suffixes[%s]", suffixes)
 	}
+
+	c.metrics.WriteAnchorGetPreviousAnchorsGetBulkTime(time.Since(getBulkStartTime))
 
 	for i, ref := range refs {
 		if anchors[i] == "" {
@@ -261,10 +267,14 @@ func getSuffixes(refs []*operation.Reference) []string {
 // buildCredential builds and signs anchor credential.
 func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
 	// get previous anchors for each did that is referenced in this anchor
+	getPreviousAnchorsStartTime := time.Now()
+
 	previousAnchors, err := c.getPreviousAnchors(refs)
 	if err != nil {
 		return nil, err
 	}
+
+	c.metrics.WriteAnchorGetPreviousAnchorsTime(time.Since(getPreviousAnchorsStartTime))
 
 	ad, err := util.ParseAnchorString(anchor)
 	if err != nil {

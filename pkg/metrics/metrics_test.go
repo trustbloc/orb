@@ -28,6 +28,8 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.WriteAnchorSignCredentialTime(time.Second) })
 		require.NotPanics(t, func() { m.WriteAnchorPostOfferActivityTime(time.Second) })
 		require.NotPanics(t, func() { m.WriteAnchorGetWitnessesTime(time.Second) })
+		require.NotPanics(t, func() { m.WriteAnchorGetPreviousAnchorsTime(time.Second) })
+		require.NotPanics(t, func() { m.WriteAnchorGetPreviousAnchorsGetBulkTime(time.Second) })
 		require.NotPanics(t, func() { m.WitnessAnchorCredentialTime(time.Second) })
 		require.NotPanics(t, func() { m.ProcessWitnessedAnchorCredentialTime(time.Second) })
 		require.NotPanics(t, func() { m.AddOperationTime(time.Second) })
