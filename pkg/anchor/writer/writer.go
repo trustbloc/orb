@@ -174,7 +174,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 }
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
-func (c *Writer) WriteAnchor(anchor string, refs []*operation.Reference, version uint64) error {
+func (c *Writer) WriteAnchor(anchor string, _ []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) error { //nolint:lll
 	startTime := time.Now()
 
 	defer func() { c.metrics.WriteAnchorTime(time.Since(startTime)) }()
