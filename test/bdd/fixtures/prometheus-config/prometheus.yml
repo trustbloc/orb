@@ -31,6 +31,7 @@ scrape_configs:
     # scheme defaults to 'http'.
     scheme: http
 
-    # Only configure domain2 servers since these aren't using TLS. In prod we'll need to configure TLS for Prometheus.
     static_configs:
-      - targets: ['orb-domain2.backend', 'orb1-domain2.backend']
+      - targets: ['orb.domain1.com:48327','orb2.domain1.com:48527',
+                  'orb-domain2.backend:48827', 'orb1-domain2.backend:48927',
+                  'orb.domain3.com:48627','orb.domain4.com:48727']

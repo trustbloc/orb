@@ -669,7 +669,7 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
-		dochandler.WithDomain("https:" + u.Host),
+		dochandler.WithDomain("https:"+u.Host),
 		dochandler.WithLabel(unpublishedDIDLabel),
 	)
 
@@ -771,7 +771,6 @@ func startOrbServices(parameters *orbParameters) error {
 		ctxRest,
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService)),
-		metrics.NewHandler(),
 	)
 
 	handlers = append(handlers,
@@ -784,9 +783,19 @@ func startOrbServices(parameters *orbParameters) error {
 		handlers...,
 	)
 
+	metricsHttpServer := httpserver.New(
+		parameters.hostMetricsURL, "", "",
+		metrics.NewHandler(),
+	)
+
 	activityPubService.Start()
 
 	nodeInfoService.Start()
+
+	err = metricsHttpServer.Start()
+	if err != nil {
+		return fmt.Errorf("start metrics HTTP server at %s: %w", parameters.hostMetricsURL, err)
+	}
 
 	srv := &HTTPServer{}
 

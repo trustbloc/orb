@@ -40,10 +40,22 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		require.Equal(t, "host-url value is empty", err.Error())
 	})
 
+	t.Run("test blank host metrics url arg", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, ""}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Equal(t, "host-metrics-url value is empty", err.Error())
+	})
+
 	t.Run("test blank cas type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + casTypeFlagName, "", "--" + vctURLFlagName, "test"}
+		args := []string{"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test",
+			"--" + casTypeFlagName, "", "--" + vctURLFlagName, "test"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -55,7 +67,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + casTypeFlagName,
+			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
 			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName, "",
 		}
 		startCmd.SetArgs(args)
@@ -69,8 +81,9 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + casTypeFlagName, "local", "--" + vctURLFlagName, "test",
-			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, "",
+			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
+			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName,
+			"namespace", "--" + databaseTypeFlagName, "",
 		}
 		startCmd.SetArgs(args)
 
@@ -139,7 +152,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing cas url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + vctURLFlagName, "test"}
+		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + hostMetricsURLFlagName,
+			"localhost:8081", "--" + vctURLFlagName, "test"}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -154,6 +168,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
@@ -177,6 +192,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
@@ -201,6 +217,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
@@ -224,6 +241,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -249,6 +267,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
@@ -276,6 +295,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -303,6 +323,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -331,6 +352,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -357,6 +379,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -384,6 +407,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -411,6 +435,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
@@ -504,6 +529,9 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err := os.Setenv(hostURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
 
+		err = os.Setenv(hostMetricsURLEnvKey, "localhost:8081")
+		require.NoError(t, err)
+
 		err = os.Setenv(vctURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
 
@@ -527,6 +555,7 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
+		"--" + hostMetricsURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + casTypeFlagName, "ipfs",
@@ -555,6 +584,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + vctURLFlagName, "localhost:8081",
@@ -579,6 +609,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -601,6 +632,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -900,6 +932,9 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
+	err = os.Setenv(hostURLEnvKey, "localhost:8238")
+	require.NoError(t, err)
+
 	err = os.Setenv(casTypeEnvKey, casType)
 	require.NoError(t, err)
 
@@ -996,6 +1031,7 @@ func setEnv(t *testing.T, name, value string) (restore func()) {
 func getTestArgs(ipfsURL string, casType string, localCASReplicateInIPFSEnabled string) []string {
 	return []string{
 		"--" + hostURLFlagName, "localhost:8247",
+		"--" + hostMetricsURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + discoveryDomainFlagName, "shared.example.com",
 		"--" + ipfsURLFlagName, ipfsURL,

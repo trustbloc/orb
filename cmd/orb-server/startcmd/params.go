@@ -35,6 +35,11 @@ const (
 	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
 
+	hostMetricsURLFlagName      = "host-metrics-url"
+	hostMetricsURLFlagShorthand = "M"
+	hostMetricsURLFlagUsage     = "URL that exposes the metrics endpoint. Format: HostName:Port."
+	hostMetricsURLEnvKey        = "ORB_HOST_METRICS_URL"
+
 	syncTimeoutFlagName  = "sync-timeout"
 	syncTimeoutEnvKey    = "ORB_SYNC_TIMEOUT"
 	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
@@ -299,6 +304,7 @@ const (
 
 type orbParameters struct {
 	hostURL                        string
+	hostMetricsURL                 string
 	vctURL                         string
 	keyID                          string
 	privateKeyBase64               string
@@ -362,6 +368,11 @@ type dbParameters struct {
 // nolint: gocyclo,funlen
 func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	hostMetricsURL, err := cmdutils.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
@@ -640,6 +651,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	return &orbParameters{
 		hostURL:                        hostURL,
+		hostMetricsURL:                 hostMetricsURL,
 		vctURL:                         vctURL,
 		kmsEndpoint:                    kmsEndpoint,
 		keyID:                          keyID,
@@ -936,6 +948,7 @@ func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqMaxC
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
+	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
