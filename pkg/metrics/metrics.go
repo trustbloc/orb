@@ -37,6 +37,9 @@ const (
 	anchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
 	anchorWriteSignWithLocalWitnessTimeMetric      = "write_sign_with_local_witness_seconds"
 	anchorWriteSignWithServerKeyTimeMetric         = "write_sign_with_server_key_seconds"
+	anchorWriteSignLocalWitnessLogTimeMetric       = "write_sign_local_witness_log_seconds"
+	anchorWriteSignLocalStoreTimeMetric            = "write_sign_local_store_seconds"
+	anchorWriteSignLocalWatchTimeMetric            = "write_sign_local_watch_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -99,6 +102,9 @@ type Metrics struct {
 	anchorWriteGetPreviousAnchorsTime        prometheus.Histogram
 	anchorWriteSignWithLocalWitnessTime      prometheus.Histogram
 	anchorWriteSignWithServerKeyTime         prometheus.Histogram
+	anchorWriteSignLocalWitnessLogTime       prometheus.Histogram
+	anchorWriteSignLocalStoreTime            prometheus.Histogram
+	anchorWriteSignLocalWatchTime            prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
@@ -153,6 +159,9 @@ func newMetrics() *Metrics { //nolint:funlen
 		anchorProcessWitnessedTime:               newAnchorProcessWitnessedTime(),
 		anchorWriteSignWithLocalWitnessTime:      newAnchorWriteSignWithLocalWitnessTime(),
 		anchorWriteSignWithServerKeyTime:         newAnchorWriteSignWithServerKeyTime(),
+		anchorWriteSignLocalWitnessLogTime:       newAnchorWriteSignLocalWitnessLogTime(),
+		anchorWriteSignLocalStoreTime:            newAnchorWriteSignLocalStoreTime(),
+		anchorWriteSignLocalWatchTime:            newAnchorWriteSignLocalWatchTime(),
 
 		opqueueAddOperationTime:   newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:       newOpQueueBatchCutTime(),
@@ -183,7 +192,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime, m.anchorWriteBuildCredTime,
 		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
 		m.anchorWriteGetPreviousAnchorsGetBulkTime, m.anchorWriteGetPreviousAnchorsTime,
-		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime,
+		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime, m.anchorWriteSignLocalWitnessLogTime,
+		m.anchorWriteSignLocalStoreTime, m.anchorWriteSignLocalWatchTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
@@ -313,6 +323,27 @@ func (m *Metrics) WriteAnchorSignWithServerKeyTime(value time.Duration) {
 	m.anchorWriteSignWithServerKeyTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign with server key time: %s", value)
+}
+
+// WriteAnchorSignLocalWitnessLogTime records the time it takes to witness log inside sign local.
+func (m *Metrics) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
+	m.anchorWriteSignLocalWitnessLogTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor witness log inside sign local time: %s", value)
+}
+
+// WriteAnchorSignLocalStoreTime records the time it takes to store inside sign local.
+func (m *Metrics) WriteAnchorSignLocalStoreTime(value time.Duration) {
+	m.anchorWriteSignLocalStoreTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor store inside sign local time: %s", value)
+}
+
+// WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.
+func (m *Metrics) WriteAnchorSignLocalWatchTime(value time.Duration) {
+	m.anchorWriteSignLocalWatchTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor watch inside sign local time: %s", value)
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -645,6 +676,30 @@ func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWriteSignWithServerKeyTimeMetric,
 		"The time (in seconds) that it takes to sign with server key.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignLocalWitnessLogTimeMetric,
+		"The time (in seconds) that it takes to witness log inside sign local.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignLocalStoreTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignLocalStoreTimeMetric,
+		"The time (in seconds) that it takes to store inside sign local.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignLocalWatchTimeMetric,
+		"The time (in seconds) that it takes to watxch inside sign local.",
 		nil,
 	)
 }

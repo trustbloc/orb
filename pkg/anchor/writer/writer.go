@@ -52,6 +52,9 @@ type metricsProvider interface {
 	WriteAnchorGetPreviousAnchorsTime(value time.Duration)
 	WriteAnchorSignWithLocalWitnessTime(value time.Duration)
 	WriteAnchorSignWithServerKeyTime(value time.Duration)
+	WriteAnchorSignLocalWitnessLogTime(value time.Duration)
+	WriteAnchorSignLocalStoreTime(value time.Duration)
+	WriteAnchorSignLocalWatchTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -339,6 +342,7 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 	return signedVC, nil
 }
 
+//nolint: funlen
 func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*verifiable.Credential, error) {
 	startTime := time.Now()
 	defer func() { c.metrics.WriteAnchorSignWithLocalWitnessTime(time.Since(startTime)) }()
@@ -350,11 +354,14 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 
 	logger.Debugf("sign credential with local witness: %s", string(vcBytes))
 
+	witnessStartTime := time.Now()
 	// send anchor credential to local witness log
 	proofBytes, err := c.Witness.Witness(vcBytes)
 	if err != nil {
 		return nil, fmt.Errorf("local witnessing failed for anchor credential[%s]: %w", vc.ID, err)
 	}
+
+	c.metrics.WriteAnchorSignLocalWitnessLogTime(time.Since(witnessStartTime))
 
 	var witnessProof vct.Proof
 
@@ -363,12 +370,16 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		return nil, fmt.Errorf("failed to unmarshal local witness proof for anchor credential[%s]: %w", vc.ID, err)
 	}
 
+	storeStartTime := time.Now()
+
 	// TODO: need to review this logic, monitoring does not use it
 	// store anchor credential (required for monitoring)
 	err = c.VCStore.Put(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
 	}
+
+	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
 
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
@@ -388,10 +399,14 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		domain = domainVal
 	}
 
+	watchStartTime := time.Now()
+
 	err = c.MonitoringSvc.Watch(vc, time.Now().Add(c.maxWitnessDelay), domain, createdTime)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup monitoring for local witness for anchor credential[%s]: %w", vc.ID, err)
 	}
+
+	c.metrics.WriteAnchorSignLocalWatchTime(time.Since(watchStartTime))
 
 	return vc, nil
 }

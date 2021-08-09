@@ -59,6 +59,18 @@ func (m *MetricsProvider) WriteAnchorSignWithLocalWitnessTime(value time.Duratio
 func (m *MetricsProvider) WriteAnchorSignWithServerKeyTime(value time.Duration) {
 }
 
+// WriteAnchorSignLocalWitnessLogTime records the time it takes to witness log inside sign local.
+func (m *MetricsProvider) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
+}
+
+// WriteAnchorSignLocalStoreTime records the time it takes to store inside sign local.
+func (m *MetricsProvider) WriteAnchorSignLocalStoreTime(value time.Duration) {
+}
+
+// WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.
+func (m *MetricsProvider) WriteAnchorSignLocalWatchTime(value time.Duration) {
+}
+
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *MetricsProvider) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
