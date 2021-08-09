@@ -50,6 +50,8 @@ type metricsProvider interface {
 	WriteAnchorPostOfferActivityTime(value time.Duration)
 	WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration)
 	WriteAnchorGetPreviousAnchorsTime(value time.Duration)
+	WriteAnchorSignWithLocalWitnessTime(value time.Duration)
+	WriteAnchorSignWithServerKeyTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -320,6 +322,9 @@ func contains(values []string, v string) bool {
 }
 
 func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifiable.Credential, error) {
+	startTime := time.Now()
+	defer func() { c.metrics.WriteAnchorSignWithServerKeyTime(time.Since(startTime)) }()
+
 	signedVC, err := c.Signer.Sign(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign anchor credential[%s]: %w", vc.ID, err)
@@ -335,6 +340,9 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 }
 
 func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*verifiable.Credential, error) {
+	startTime := time.Now()
+	defer func() { c.metrics.WriteAnchorSignWithLocalWitnessTime(time.Since(startTime)) }()
+
 	vcBytes, err := vc.MarshalJSON()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal anchor credential[%s] for local witness: %w", vc.ID, err)
