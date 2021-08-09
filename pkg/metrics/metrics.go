@@ -35,6 +35,8 @@ const (
 	anchorWritePostOfferActivityTimeMetric         = "write_post_offer_activity_seconds"
 	anchorWriteGetPreviousAnchorsGetBulkTimeMetric = "write_get_previous_anchor_get_bulk_seconds"
 	anchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
+	anchorWriteSignWithLocalWitnessTimeMetric      = "write_sign_with_local_witness_seconds"
+	anchorWriteSignWithServerKeyTimeMetric         = "write_sign_with_server_key_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -95,6 +97,8 @@ type Metrics struct {
 	anchorWritePostOfferActivityTime         prometheus.Histogram
 	anchorWriteGetPreviousAnchorsGetBulkTime prometheus.Histogram
 	anchorWriteGetPreviousAnchorsTime        prometheus.Histogram
+	anchorWriteSignWithLocalWitnessTime      prometheus.Histogram
+	anchorWriteSignWithServerKeyTime         prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
@@ -147,6 +151,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		anchorWriteGetPreviousAnchorsTime:        newAnchorWriteGetPreviousAnchorsTime(),
 		anchorWitnessTime:                        newAnchorWitnessTime(),
 		anchorProcessWitnessedTime:               newAnchorProcessWitnessedTime(),
+		anchorWriteSignWithLocalWitnessTime:      newAnchorWriteSignWithLocalWitnessTime(),
+		anchorWriteSignWithServerKeyTime:         newAnchorWriteSignWithServerKeyTime(),
 
 		opqueueAddOperationTime:   newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:       newOpQueueBatchCutTime(),
@@ -177,6 +183,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime, m.anchorWriteBuildCredTime,
 		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
 		m.anchorWriteGetPreviousAnchorsGetBulkTime, m.anchorWriteGetPreviousAnchorsTime,
+		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
@@ -292,6 +299,20 @@ func (m *Metrics) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
 	m.anchorWriteGetPreviousAnchorsTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor getPreviousAnchor time: %s", value)
+}
+
+// WriteAnchorSignWithLocalWitnessTime records the time it takes to sign with local witness.
+func (m *Metrics) WriteAnchorSignWithLocalWitnessTime(value time.Duration) {
+	m.anchorWriteSignWithLocalWitnessTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor sign with local witness time: %s", value)
+}
+
+// WriteAnchorSignWithServerKeyTime records the time it takes to sign with server key.
+func (m *Metrics) WriteAnchorSignWithServerKeyTime(value time.Duration) {
+	m.anchorWriteSignWithServerKeyTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor sign with server key time: %s", value)
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -608,6 +629,22 @@ func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWriteGetPreviousAnchorsTimeMetric,
 		"The time (in seconds) that it takes to get previous anchor.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignWithLocalWitnessTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignWithLocalWitnessTimeMetric,
+		"The time (in seconds) that it takes to sign with local witness.",
+		nil,
+	)
+}
+
+func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteSignWithServerKeyTimeMetric,
+		"The time (in seconds) that it takes to sign with server key.",
 		nil,
 	)
 }

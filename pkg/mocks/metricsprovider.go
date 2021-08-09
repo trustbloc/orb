@@ -51,6 +51,14 @@ func (m *MetricsProvider) WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Du
 func (m *MetricsProvider) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
 }
 
+// WriteAnchorSignWithLocalWitnessTime records the time it takes to sign with local witness.
+func (m *MetricsProvider) WriteAnchorSignWithLocalWitnessTime(value time.Duration) {
+}
+
+// WriteAnchorSignWithServerKeyTime records the time it takes to sign with server key.
+func (m *MetricsProvider) WriteAnchorSignWithServerKeyTime(value time.Duration) {
+}
+
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *MetricsProvider) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
