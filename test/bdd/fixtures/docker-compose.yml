@@ -17,6 +17,7 @@ services:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_HOST_METRICS_URL=0.0.0.0:48327
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb1key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -72,6 +73,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48326:443
+      - 48327:48327
       - 443:443
     command: start
     volumes:
@@ -96,6 +98,7 @@ services:
       - LOG_LEVEL=DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_HOST_METRICS_URL=0.0.0.0:48527
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb1key
       # add delay for starting additional servers within same domain (in seconds)
@@ -152,6 +155,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48526:443
+      - 48527:48527
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
@@ -190,6 +194,7 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:80
+      - ORB_HOST_METRICS_URL=0.0.0.0:48827
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb2key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -242,6 +247,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48826:80
+      - 48827:48827
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
@@ -264,6 +270,7 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:80
+      - ORB_HOST_METRICS_URL=0.0.0.0:48927
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb2key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -316,6 +323,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48926:80
+      - 48927:48927
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
@@ -340,6 +348,7 @@ services:
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb3key
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_HOST_METRICS_URL=0.0.0.0:48627
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
@@ -393,6 +402,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN
     ports:
       - 48626:443
+      - 48627:48627
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
@@ -416,6 +426,7 @@ services:
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=DEBUG
       - ORB_HOST_URL=0.0.0.0:443
+      - ORB_HOST_METRICS_URL=0.0.0.0:48727
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb4key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -471,6 +482,7 @@ services:
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
     ports:
       - 48726:443
+      - 48727:48727
     command: start
     volumes:
       - ./keys/tls:/etc/orb/tls
