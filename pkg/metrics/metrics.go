@@ -75,6 +75,14 @@ const (
 	dbGetBulkTimeMetric = "get_bulk_seconds"
 	dbQueryTimeMetric   = "query_seconds"
 	dbDeleteTimeMetric  = "delete_seconds"
+
+	// VCT.
+	vct                                = "vct"
+	vctWitnessAddProofVCTNilTimeMetric = "witness_add_proof_vct_nil_seconds"
+	vctWitnessAddVCTimeMetric          = "witness_add_vc_seconds"
+	vctWitnessAddProofTimeMetric       = "witness_add_proof_seconds"
+	vctWitnessWebFingerTimeMetric      = "witness_webfinger_seconds"
+	vctWitnessVerifyVCTTimeMetric      = "witness_verify_vct_signature_seconds"
 )
 
 var logger = log.New("metrics")
@@ -130,6 +138,12 @@ type Metrics struct {
 	dbGetBulkTimes map[string]prometheus.Histogram
 	dbQueryTimes   map[string]prometheus.Histogram
 	dbDeleteTimes  map[string]prometheus.Histogram
+
+	vctWitnessAddProofVCTNilTimes prometheus.Histogram
+	vctWitnessAddVCTimes          prometheus.Histogram
+	vctWitnessAddProofTimes       prometheus.Histogram
+	vctWitnessAddWebFingerTimes   prometheus.Histogram
+	vctWitnessVerifyVCTimes       prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -162,29 +176,33 @@ func newMetrics() *Metrics { //nolint:funlen
 		anchorWriteSignLocalWitnessLogTime:       newAnchorWriteSignLocalWitnessLogTime(),
 		anchorWriteSignLocalStoreTime:            newAnchorWriteSignLocalStoreTime(),
 		anchorWriteSignLocalWatchTime:            newAnchorWriteSignLocalWatchTime(),
-
-		opqueueAddOperationTime:   newOpQueueAddOperationTime(),
-		opqueueBatchCutTime:       newOpQueueBatchCutTime(),
-		opqueueBatchRollbackTime:  newOpQueueBatchRollbackTime(),
-		opqueueBatchAckTime:       newOpQueueBatchAckTime(),
-		opqueueBatchNackTime:      newOpQueueBatchNackTime(),
-		opqueueBatchSize:          newOpQueueBatchSize(),
-		observerProcessAnchorTime: newObserverProcessAnchorTime(),
-		observerProcessDIDTime:    newObserverProcessDIDTime(),
-		casWriteTime:              newCASWriteTime(),
-		casResolveTime:            newCASResolveTime(),
-		casReadTimes:              newCASReadTimes(),
-		casCacheHitCount:          newCASCacheHitCount(),
-		docCreateUpdateTime:       newDocCreateUpdateTime(),
-		docResolveTime:            newDocResolveTime(),
-		apInboxHandlerTimes:       newInboxHandlerTimes(activityTypes),
-		apOutboxActivityCounts:    newOutboxActivityCounts(activityTypes),
-		dbPutTimes:                newDBPutTime(dbTypes),
-		dbGetTimes:                newDBGetTime(dbTypes),
-		dbGetTagsTimes:            newDBGetTagsTime(dbTypes),
-		dbGetBulkTimes:            newDBGetBulkTime(dbTypes),
-		dbQueryTimes:              newDBQueryTime(dbTypes),
-		dbDeleteTimes:             newDBDeleteTime(dbTypes),
+		opqueueAddOperationTime:                  newOpQueueAddOperationTime(),
+		opqueueBatchCutTime:                      newOpQueueBatchCutTime(),
+		opqueueBatchRollbackTime:                 newOpQueueBatchRollbackTime(),
+		opqueueBatchAckTime:                      newOpQueueBatchAckTime(),
+		opqueueBatchNackTime:                     newOpQueueBatchNackTime(),
+		opqueueBatchSize:                         newOpQueueBatchSize(),
+		observerProcessAnchorTime:                newObserverProcessAnchorTime(),
+		observerProcessDIDTime:                   newObserverProcessDIDTime(),
+		casWriteTime:                             newCASWriteTime(),
+		casResolveTime:                           newCASResolveTime(),
+		casReadTimes:                             newCASReadTimes(),
+		casCacheHitCount:                         newCASCacheHitCount(),
+		docCreateUpdateTime:                      newDocCreateUpdateTime(),
+		docResolveTime:                           newDocResolveTime(),
+		apInboxHandlerTimes:                      newInboxHandlerTimes(activityTypes),
+		apOutboxActivityCounts:                   newOutboxActivityCounts(activityTypes),
+		dbPutTimes:                               newDBPutTime(dbTypes),
+		dbGetTimes:                               newDBGetTime(dbTypes),
+		dbGetTagsTimes:                           newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:                           newDBGetBulkTime(dbTypes),
+		dbQueryTimes:                             newDBQueryTime(dbTypes),
+		dbDeleteTimes:                            newDBDeleteTime(dbTypes),
+		vctWitnessAddProofVCTNilTimes:            newVCTWitnessAddProofVCTNilTime(),
+		vctWitnessAddVCTimes:                     newVCTWitnessAddVCTime(),
+		vctWitnessAddProofTimes:                  newVCTWitnessAddProofTime(),
+		vctWitnessAddWebFingerTimes:              newVCTWitnessWebFingerTime(),
+		vctWitnessVerifyVCTimes:                  newVCTWitnessVerifyVCTTime(),
 	}
 
 	prometheus.MustRegister(
@@ -199,6 +217,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.observerProcessAnchorTime, m.observerProcessDIDTime,
 		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
 		m.docCreateUpdateTime, m.docResolveTime,
+		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
+		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -514,6 +534,41 @@ func (m *Metrics) DBDeleteTime(dbType string, value time.Duration) {
 	}
 
 	logger.Debugf("DB time delete [%s]: %s", dbType, value)
+}
+
+// WitnessAddProofVctNil records vct witness.
+func (m *Metrics) WitnessAddProofVctNil(value time.Duration) {
+	m.vctWitnessAddProofVCTNilTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct witness add proof when vct nil time: %s", value)
+}
+
+// WitnessAddVC records vct witness add vc.
+func (m *Metrics) WitnessAddVC(value time.Duration) {
+	m.vctWitnessAddVCTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct witness add vc time: %s", value)
+}
+
+// WitnessAddProof records vct witness add proof.
+func (m *Metrics) WitnessAddProof(value time.Duration) {
+	m.vctWitnessAddProofTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct witness add vc proof: %s", value)
+}
+
+// WitnessWebFinger records vct witness web finger.
+func (m *Metrics) WitnessWebFinger(value time.Duration) {
+	m.vctWitnessAddWebFingerTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct witness web finger: %s", value)
+}
+
+// WitnessVerifyVCTSignature records vct witness verify vct.
+func (m *Metrics) WitnessVerifyVCTSignature(value time.Duration) {
+	m.vctWitnessVerifyVCTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct witness verify vct signature: %s", value)
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
@@ -905,4 +960,44 @@ func newDBDeleteTime(dbTypes []string) map[string]prometheus.Histogram {
 	}
 
 	return counters
+}
+
+func newVCTWitnessAddProofVCTNilTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctWitnessAddProofVCTNilTimeMetric,
+		"The time (in seconds) it takes the add proof when vct is nil in witness.",
+		nil,
+	)
+}
+
+func newVCTWitnessAddVCTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctWitnessAddVCTimeMetric,
+		"The time (in seconds) it takes the add vc in witness.",
+		nil,
+	)
+}
+
+func newVCTWitnessAddProofTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctWitnessAddProofTimeMetric,
+		"The time (in seconds) it takes the add proof in witness.",
+		nil,
+	)
+}
+
+func newVCTWitnessWebFingerTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctWitnessWebFingerTimeMetric,
+		"The time (in seconds) it takes web finger in witness.",
+		nil,
+	)
+}
+
+func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctWitnessVerifyVCTTimeMetric,
+		"The time (in seconds) it takes verify vct signature in witness.",
+		nil,
+	)
 }
