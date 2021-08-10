@@ -20,6 +20,7 @@ import (
 
 	. "github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -77,7 +78,8 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)))
 
 		resp, err := client.Witness([]byte(mockVC))
 		require.NoError(t, err)
@@ -92,7 +94,7 @@ func TestClient_Witness(t *testing.T) {
 		require.Equal(t, int64(1627462750739000000), timestampTime.UnixNano())
 	})
 	t.Run("Success (no vct)", func(t *testing.T) {
-		client := New("", &mockSigner{}, WithDocumentLoader(testutil.GetLoader(t)))
+		client := New("", &mockSigner{}, &mocks.MetricsProvider{}, WithDocumentLoader(testutil.GetLoader(t)))
 
 		resp, err := client.Witness([]byte(mockVC))
 		require.NoError(t, err)
@@ -108,7 +110,7 @@ func TestClient_Witness(t *testing.T) {
 		require.NotEmpty(t, timestampTime.UnixNano())
 	})
 	t.Run("Parse credential (error)", func(t *testing.T) {
-		client := New("", &mockSigner{})
+		client := New("", &mockSigner{}, &mocks.MetricsProvider{})
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -135,7 +137,8 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -153,7 +156,8 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -171,7 +175,8 @@ func TestClient_Witness(t *testing.T) {
 		})
 
 		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, WithHTTPClient(mockHTTP), WithDocumentLoader(testutil.GetLoader(t)))
+		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -186,7 +191,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{},
+		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{},
 			WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)),
 		)
@@ -203,7 +208,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, WithHTTPClient(mockHTTP))
+		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -218,7 +223,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, WithHTTPClient(mockHTTP))
+		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)

@@ -33,6 +33,14 @@ type signer interface {
 	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
 }
 
+type metricsProvider interface {
+	WitnessAddProofVctNil(value time.Duration)
+	WitnessAddVC(value time.Duration)
+	WitnessAddProof(value time.Duration)
+	WitnessWebFinger(value time.Duration)
+	WitnessVerifyVCTSignature(value time.Duration)
+}
+
 // HTTPClient represents HTTP client.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -44,6 +52,7 @@ type Client struct {
 	endpoint       string
 	documentLoader ld.DocumentLoader
 	vct            *vct.Client
+	metrics        metricsProvider
 }
 
 // ClientOpt represents client option func.
@@ -69,7 +78,7 @@ func WithDocumentLoader(loader ld.DocumentLoader) ClientOpt {
 }
 
 // New returns the client.
-func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
+func New(endpoint string, signer signer, metrics metricsProvider, opts ...ClientOpt) *Client {
 	op := &clientOptions{http: &http.Client{
 		Timeout: time.Minute,
 	}}
@@ -89,6 +98,7 @@ func New(endpoint string, signer signer, opts ...ClientOpt) *Client {
 		endpoint:       endpoint,
 		documentLoader: op.documentLoader,
 		vct:            vctClient,
+		metrics:        metrics,
 	}
 }
 
@@ -124,10 +134,14 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 // Witness credentials.
 func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
 	if c.vct == nil {
+		addProofStartTime := time.Now()
+
 		vc, err := c.addProof(anchorCred, time.Now().UnixNano())
 		if err != nil {
 			return nil, fmt.Errorf("add proof: %w", err)
 		}
+
+		c.metrics.WitnessAddProofVctNil(time.Since(addProofStartTime))
 
 		return json.Marshal(Proof{
 			Context: []string{ctxSecurity, ctxJWS},
@@ -135,20 +149,32 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 		})
 	}
 
+	addVCStartTime := time.Now()
+
 	resp, err := c.vct.AddVC(context.Background(), anchorCred)
 	if err != nil {
 		return nil, err
 	}
+
+	c.metrics.WitnessAddVC(time.Since(addVCStartTime))
+
+	addProofStartTime := time.Now()
 
 	vc, err := c.addProof(anchorCred, int64(resp.Timestamp)*int64(time.Millisecond))
 	if err != nil {
 		return nil, fmt.Errorf("add proof: %w", err)
 	}
 
+	c.metrics.WitnessAddProof(time.Since(addProofStartTime))
+
+	webFingerStartTime := time.Now()
+
 	webResp, err := c.vct.Webfinger(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("webfinger: %w", err)
 	}
+
+	c.metrics.WitnessWebFinger(time.Since(webFingerStartTime))
 
 	pubKeyRaw, ok := webResp.Properties[command.PublicKeyType]
 	if !ok {
@@ -179,11 +205,16 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 	}
 
 	timestamp := uint64(timestampTime.UnixNano()) / uint64(time.Millisecond)
+
+	verifyVCTStartTime := time.Now()
+
 	// verifies the signature by given timestamp from the proof and original credentials.
 	err = vct.VerifyVCTimestampSignature(resp.Signature, pubKey, timestamp, vc)
 	if err != nil {
 		return nil, fmt.Errorf("verify VC timestamp signature: %w", err)
 	}
+
+	c.metrics.WitnessVerifyVCTSignature(time.Since(verifyVCTStartTime))
 
 	return json.Marshal(Proof{
 		Context: []string{ctxSecurity, ctxJWS},

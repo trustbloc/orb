@@ -141,3 +141,23 @@ func (m *MetricsProvider) CASReadTime(casType string, value time.Duration) {
 // BatchSize records the size of an operation batch.
 func (m *MetricsProvider) BatchSize(float64) {
 }
+
+// WitnessAddProofVctNil records vct witness.
+func (m *MetricsProvider) WitnessAddProofVctNil(value time.Duration) {
+}
+
+// WitnessAddVC records vct witness add vc.
+func (m *MetricsProvider) WitnessAddVC(value time.Duration) {
+}
+
+// WitnessAddProof records vct witness add proof.
+func (m *MetricsProvider) WitnessAddProof(value time.Duration) {
+}
+
+// WitnessWebFinger records vct witness web finger.
+func (m *MetricsProvider) WitnessWebFinger(value time.Duration) {
+}
+
+// WitnessVerifyVCTSignature records vct witness verify vct.
+func (m *MetricsProvider) WitnessVerifyVCTSignature(value time.Duration) {
+}

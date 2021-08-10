@@ -569,7 +569,7 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		pubSub)
 
-	witness := vct.New(parameters.vctURL, vcSigner,
+	witness := vct.New(parameters.vctURL, vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 	)
