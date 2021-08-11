@@ -33,6 +33,11 @@ const (
 	AssertionMethod = "assertionMethod"
 )
 
+type metricsProvider interface {
+	SignerSign(value time.Duration)
+	SignerGetKey(value time.Duration)
+}
+
 // SigningParams contains required parameters for signing anchored credential.
 type SigningParams struct {
 	VerificationMethod string
@@ -45,6 +50,7 @@ type Providers struct {
 	DocLoader  ld.DocumentLoader
 	KeyManager kms.KeyManager
 	Crypto     ariescrypto.Crypto
+	Metrics    metricsProvider
 }
 
 // New returns new instance of VC signer.
@@ -158,7 +164,8 @@ func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataP
 
 // getKMSSigner returns new KMS signer based on verification method.
 func (s *Signer) getKMSSigner() (signer, error) {
-	kmsSigner, err := newKMSSigner(s.Providers.KeyManager, s.Providers.Crypto, s.params.VerificationMethod)
+	kmsSigner, err := newKMSSigner(s.Providers.KeyManager, s.Providers.Crypto, s.params.VerificationMethod,
+		s.Providers.Metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -186,25 +193,34 @@ type signer interface {
 type kmsSigner struct {
 	keyHandle interface{}
 	crypto    ariescrypto.Crypto
+	metrics   metricsProvider
 }
 
-func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationMethod string) (*kmsSigner, error) {
+func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationMethod string,
+	metrics metricsProvider) (*kmsSigner, error) {
 	// verification will contain did key ID
 	keyID, err := getKeyIDFromVerificationMethod(verificationMethod)
 	if err != nil {
 		return nil, err
 	}
 
+	getKeyStartTime := time.Now()
+
 	keyHandler, err := keyManager.Get(keyID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &kmsSigner{keyHandle: keyHandler, crypto: c}, nil
+	metrics.SignerGetKey(time.Since(getKeyStartTime))
+
+	return &kmsSigner{keyHandle: keyHandler, crypto: c, metrics: metrics}, nil
 }
 
 // Sign will sign bytes of data.
 func (ks *kmsSigner) Sign(data []byte) ([]byte, error) {
+	startTime := time.Now()
+	defer func() { ks.metrics.SignerSign(time.Since(startTime)) }()
+
 	v, err := ks.crypto.Sign(data, ks.keyHandle)
 	if err != nil {
 		return nil, err

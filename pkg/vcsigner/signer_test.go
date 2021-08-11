@@ -17,12 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestSigner_New(t *testing.T) {
 	providers := &Providers{
 		KeyManager: &mockkms.KeyManager{},
 		Crypto:     &cryptomock.Crypto{},
+		Metrics:    &mocks.MetricsProvider{},
 	}
 
 	t.Run("success", func(t *testing.T) {
@@ -61,6 +63,7 @@ func TestSigner_Sign(t *testing.T) {
 		KeyManager: &mockkms.KeyManager{},
 		Crypto:     &cryptomock.Crypto{},
 		DocLoader:  testutil.GetLoader(t),
+		Metrics:    &mocks.MetricsProvider{},
 	}
 
 	t.Run("success - JSONWebSignature2020", func(t *testing.T) {
@@ -142,6 +145,7 @@ func TestSigner_Sign(t *testing.T) {
 			KeyManager: &mockkms.KeyManager{},
 			Crypto:     &cryptomock.Crypto{SignErr: fmt.Errorf("failed to sign")},
 			DocLoader:  testutil.GetLoader(t),
+			Metrics:    &mocks.MetricsProvider{},
 		}
 
 		c, err := New(providersWithCryptoErr, signingParams)

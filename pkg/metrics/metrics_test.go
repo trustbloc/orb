@@ -65,6 +65,8 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.WitnessVerifyVCTSignature(time.Second) })
 		require.NotPanics(t, func() { m.AddProofParseCredential(time.Second) })
 		require.NotPanics(t, func() { m.AddProofSign(time.Second) })
+		require.NotPanics(t, func() { m.SignerGetKey(time.Second) })
+		require.NotPanics(t, func() { m.SignerSign(time.Second) })
 	})
 }
 

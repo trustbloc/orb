@@ -169,3 +169,11 @@ func (m *MetricsProvider) AddProofParseCredential(value time.Duration) {
 // AddProofSign records vct sign in add proof.
 func (m *MetricsProvider) AddProofSign(value time.Duration) {
 }
+
+// SignerGetKey records get key time.
+func (m *MetricsProvider) SignerGetKey(value time.Duration) {
+}
+
+// SignerSign records sign time.
+func (m *MetricsProvider) SignerSign(value time.Duration) {
+}

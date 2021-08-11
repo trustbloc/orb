@@ -85,6 +85,11 @@ const (
 	vctWitnessVerifyVCTTimeMetric        = "witness_verify_vct_signature_seconds"
 	vctAddProofParseCredentialTimeMetric = "witness_add_proof_parse_credential_seconds"
 	vctAddProofSignTimeMetric            = "witness_add_proof_sign_seconds"
+
+	// Signer.
+	signer                 = "signer"
+	signerGetKeyTimeMetric = "get_key_seconds"
+	signerSignMetric       = "sign_seconds"
 )
 
 var logger = log.New("metrics")
@@ -148,6 +153,8 @@ type Metrics struct {
 	vctWitnessVerifyVCTimes         prometheus.Histogram
 	vctAddProofParseCredentialTimes prometheus.Histogram
 	vctAddProofSignTimes            prometheus.Histogram
+	signerGetKeyTimes               prometheus.Histogram
+	signerSignTimes                 prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -209,6 +216,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		vctWitnessVerifyVCTimes:                  newVCTWitnessVerifyVCTTime(),
 		vctAddProofParseCredentialTimes:          newVCTAddProofParseCredentialTime(),
 		vctAddProofSignTimes:                     newVCTAddProofSignTime(),
+		signerGetKeyTimes:                        newSignerGetKeyTime(),
+		signerSignTimes:                          newSignerSignTime(),
 	}
 
 	prometheus.MustRegister(
@@ -225,7 +234,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.docCreateUpdateTime, m.docResolveTime,
 		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
 		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
-		m.vctAddProofSignTimes,
+		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -590,6 +599,20 @@ func (m *Metrics) AddProofSign(value time.Duration) {
 	m.vctAddProofSignTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct sign add proof: %s", value)
+}
+
+// SignerGetKey records get key time.
+func (m *Metrics) SignerGetKey(value time.Duration) {
+	m.signerGetKeyTimes.Observe(value.Seconds())
+
+	logger.Debugf("signer get key time: %s", value)
+}
+
+// SignerSign records sign.
+func (m *Metrics) SignerSign(value time.Duration) {
+	m.signerSignTimes.Observe(value.Seconds())
+
+	logger.Debugf("signer sign time: %s", value)
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
@@ -1035,6 +1058,22 @@ func newVCTAddProofSignTime() prometheus.Histogram {
 	return newHistogram(
 		vct, vctAddProofSignTimeMetric,
 		"The time (in seconds) it takes the sign in add proof.",
+		nil,
+	)
+}
+
+func newSignerGetKeyTime() prometheus.Histogram {
+	return newHistogram(
+		signer, signerGetKeyTimeMetric,
+		"The time (in seconds) it takes the signer to get key.",
+		nil,
+	)
+}
+
+func newSignerSignTime() prometheus.Histogram {
+	return newHistogram(
+		signer, signerSignMetric,
+		"The time (in seconds) it takes the signer to sign.",
 		nil,
 	)
 }
