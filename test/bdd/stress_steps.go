@@ -501,7 +501,8 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "cannot assign requested address") {
+		if !strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, fmt.Errorf("failed to create did: %w", err)
 		}
 	}
@@ -543,7 +544,8 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "cannot assign requested address") {
+		if !strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
 	}
@@ -584,7 +586,8 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "cannot assign requested address") {
+			!strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, err
 		}
 
@@ -634,7 +637,8 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if err != nil && !strings.Contains(err.Error(), "cannot assign requested address") {
+		if err != nil && !strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, err
 		}
 
