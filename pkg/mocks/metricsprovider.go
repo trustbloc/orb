@@ -177,3 +177,7 @@ func (m *MetricsProvider) SignerGetKey(value time.Duration) {
 // SignerSign records sign time.
 func (m *MetricsProvider) SignerSign(value time.Duration) {
 }
+
+// SignerAddLinkedDataProof records add data linked proof.
+func (m *MetricsProvider) SignerAddLinkedDataProof(value time.Duration) {
+}

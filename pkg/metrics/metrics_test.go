@@ -67,6 +67,7 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.AddProofSign(time.Second) })
 		require.NotPanics(t, func() { m.SignerGetKey(time.Second) })
 		require.NotPanics(t, func() { m.SignerSign(time.Second) })
+		require.NotPanics(t, func() { m.SignerAddLinkedDataProof(time.Second) })
 	})
 }
 
