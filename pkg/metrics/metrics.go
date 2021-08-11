@@ -87,9 +87,10 @@ const (
 	vctAddProofSignTimeMetric            = "witness_add_proof_sign_seconds"
 
 	// Signer.
-	signer                 = "signer"
-	signerGetKeyTimeMetric = "get_key_seconds"
-	signerSignMetric       = "sign_seconds"
+	signer                         = "signer"
+	signerGetKeyTimeMetric         = "get_key_seconds"
+	signerSignMetric               = "sign_seconds"
+	signerAddLinkedDataProofMetric = "add_linked_data_proof_seconds"
 )
 
 var logger = log.New("metrics")
@@ -155,6 +156,7 @@ type Metrics struct {
 	vctAddProofSignTimes            prometheus.Histogram
 	signerGetKeyTimes               prometheus.Histogram
 	signerSignTimes                 prometheus.Histogram
+	signerAddLinkedDataProofTimes   prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -218,6 +220,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		vctAddProofSignTimes:                     newVCTAddProofSignTime(),
 		signerGetKeyTimes:                        newSignerGetKeyTime(),
 		signerSignTimes:                          newSignerSignTime(),
+		signerAddLinkedDataProofTimes:            newSignerAddLinkedDataProofTime(),
 	}
 
 	prometheus.MustRegister(
@@ -234,7 +237,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.docCreateUpdateTime, m.docResolveTime,
 		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
 		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
-		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes,
+		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes, m.signerAddLinkedDataProofTimes,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -606,6 +609,13 @@ func (m *Metrics) SignerGetKey(value time.Duration) {
 	m.signerGetKeyTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer get key time: %s", value)
+}
+
+// SignerAddLinkedDataProof records add data linked proof.
+func (m *Metrics) SignerAddLinkedDataProof(value time.Duration) {
+	m.signerAddLinkedDataProofTimes.Observe(value.Seconds())
+
+	logger.Debugf("signer add linked data proof time: %s", value)
 }
 
 // SignerSign records sign.
@@ -1074,6 +1084,14 @@ func newSignerSignTime() prometheus.Histogram {
 	return newHistogram(
 		signer, signerSignMetric,
 		"The time (in seconds) it takes the signer to sign.",
+		nil,
+	)
+}
+
+func newSignerAddLinkedDataProofTime() prometheus.Histogram {
+	return newHistogram(
+		signer, signerAddLinkedDataProofMetric,
+		"The time (in seconds) it takes the signer to add data linked prrof.",
 		nil,
 	)
 }

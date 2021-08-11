@@ -36,6 +36,7 @@ const (
 type metricsProvider interface {
 	SignerSign(value time.Duration)
 	SignerGetKey(value time.Duration)
+	SignerAddLinkedDataProof(value time.Duration)
 }
 
 // SigningParams contains required parameters for signing anchored credential.
@@ -118,10 +119,14 @@ func (s *Signer) Sign(vc *verifiable.Credential, opts ...Opt) (*verifiable.Crede
 		return nil, err
 	}
 
+	addLinkedDataProofStartTime := time.Now()
+
 	err = vc.AddLinkedDataProof(signingCtx, jsonld.WithDocumentLoader(s.Providers.DocLoader))
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign vc: %w", err)
 	}
+
+	s.Providers.Metrics.SignerAddLinkedDataProof(time.Since(addLinkedDataProofStartTime))
 
 	return vc, nil
 }
