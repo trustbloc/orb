@@ -123,20 +123,21 @@ func NewFollowActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	}
 }
 
-// NewInviteWitnessActivity returns a new 'InviteWitness' activity.
-func NewInviteWitnessActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
+// NewInviteActivity returns a new 'InviteWitness' activity.
+func NewInviteActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 	options := NewOptions(opts...)
 
 	return &ActivityType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
 			WithID(options.ID),
-			WithType(TypeInviteWitness),
+			WithType(TypeInvite),
 			WithTo(options.To...),
 		),
 		activity: &activityType{
 			Actor:  NewURLProperty(options.Actor),
 			Object: obj,
+			Target: options.Target,
 		},
 	}
 }

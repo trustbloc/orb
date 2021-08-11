@@ -792,9 +792,10 @@ func TestService_InviteWitness(t *testing.T) {
 	t.Run("Accept", func(t *testing.T) {
 		mockProviders2.witnessInvitationAuth.WithAccept()
 
-		inviteWitness := vocab.NewInviteWitnessActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
+		inviteWitness := vocab.NewInviteActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
 			vocab.WithTo(service2IRI),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service2IRI))),
 		)
 
 		activityID, err := service1.Outbox().Post(inviteWitness)
@@ -869,9 +870,10 @@ func TestService_InviteWitness(t *testing.T) {
 	t.Run("Reject", func(t *testing.T) {
 		mockProviders1.witnessInvitationAuth.WithReject()
 
-		inviteWitness := vocab.NewInviteWitnessActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		inviteWitness := vocab.NewInviteActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
 			vocab.WithTo(service1IRI),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
 		_, err := service2.Outbox().Post(inviteWitness)

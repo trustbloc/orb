@@ -8,6 +8,7 @@ package activityhandler
 
 import (
 	"fmt"
+	"net/url"
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -25,10 +26,14 @@ func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) 
 
 	h.handler = newHandler(cfg, s, activityPubClient,
 		func(follow *vocab.ActivityType) error {
-			return h.undoAddReference(follow, store.Following)
+			return h.undoAddReference(follow, store.Following, func() *url.URL {
+				return follow.Object().IRI()
+			})
 		},
 		func(inviteWitness *vocab.ActivityType) error {
-			return h.undoAddReference(inviteWitness, store.Witness)
+			return h.undoAddReference(inviteWitness, store.Witness, func() *url.URL {
+				return inviteWitness.Target().IRI()
+			})
 		},
 	)
 
@@ -78,12 +83,13 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType) error {
+func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType,
+	getTargetIRI func() *url.URL) error {
 	if activity.Actor().String() != h.ServiceIRI.String() {
 		return fmt.Errorf("this service is not the actor for the 'Undo'")
 	}
 
-	iri := activity.Object().IRI()
+	iri := getTargetIRI()
 	if iri == nil {
 		return fmt.Errorf("no IRI specified in 'object' field")
 	}

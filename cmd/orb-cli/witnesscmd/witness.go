@@ -18,6 +18,7 @@ import (
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 const (
@@ -76,6 +77,7 @@ type witness struct {
 	Actor   string   `json:"actor,omitempty"`
 	To      string   `json:"to,omitempty"`
 	Object  string   `json:"object,omitempty"`
+	Target  string   `json:"target,omitempty"`
 }
 
 // GetCmd returns the Cobra witness command.
@@ -134,13 +136,18 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
 				authTokenEnvKey)
 
-			req := witness{Context: []string{activityCtx}, Actor: actor, To: to}
+			req := witness{
+				Context: []string{activityCtx},
+				Actor:   actor,
+				To:      to,
+			}
 
 			switch action {
 			case inviteWitnessAction:
 				req.Context = append(req.Context, anchorCtx)
-				req.Type = action
-				req.Object = to
+				req.Type = string(vocab.TypeInvite)
+				req.Object = vocab.AnchorWitnessTargetIRI.String()
+				req.Target = to
 			case undoAction:
 				inviteWitness, errGet := cmdutils.GetUserSetVarFromString(cmd, inviteWitnessFlagName,
 					inviteWitnessEnvKey, false)

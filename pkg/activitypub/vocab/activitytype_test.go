@@ -561,14 +561,15 @@ func TestWitnessTypeMarshal(t *testing.T) {
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
-		inviteWitness := NewInviteWitnessActivity(
-			NewObjectProperty(WithIRI(org2Service)),
+		invite := NewInviteActivity(
+			NewObjectProperty(WithIRI(AnchorWitnessTargetIRI)),
 			WithID(witnessActivityID),
 			WithActor(org1Service),
 			WithTo(org2Service),
+			WithTarget(NewObjectProperty(WithIRI(org2Service))),
 		)
 
-		bytes, err := canonicalizer.MarshalCanonical(inviteWitness)
+		bytes, err := canonicalizer.MarshalCanonical(invite)
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
@@ -579,7 +580,7 @@ func TestWitnessTypeMarshal(t *testing.T) {
 		a := &ActivityType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonInviteWitness), a))
 		require.NotNil(t, a.Type())
-		require.True(t, a.Type().Is(TypeInviteWitness))
+		require.True(t, a.Type().Is(TypeInvite))
 		require.Equal(t, witnessActivityID.String(), a.ID().String())
 
 		context := a.Context()
@@ -594,9 +595,12 @@ func TestWitnessTypeMarshal(t *testing.T) {
 		require.Equal(t, org1Service.String(), a.Actor().String())
 
 		objProp := a.Object()
-		require.NotNil(t, objProp)
 		require.NotNil(t, objProp.IRI())
-		require.Equal(t, org2Service.String(), objProp.IRI().String())
+		require.Equal(t, AnchorWitnessTargetIRI.String(), objProp.IRI().String())
+
+		target := a.Target()
+		require.NotNil(t, target.IRI())
+		require.Equal(t, org2Service.String(), target.IRI().String())
 	})
 }
 
@@ -1478,9 +1482,10 @@ const (
   ],
   "actor": "https://org1.com/services/service1",
   "id": "https://sally.example.com/services/orb/activities/37b3d005-abb6-422d-a889-18bc1ee84985",
-  "object": "https://org1.com/services/service2",
+  "object": "https://w3id.org/activityanchors#AnchorWitness",
+  "target": "https://org1.com/services/service2",
   "to": "https://org1.com/services/service2",
-  "type": "InviteWitness"
+  "type": "Invite"
 }`
 
 	proof = `{

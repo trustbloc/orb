@@ -55,10 +55,14 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 
 	h.handler = newHandler(cfg, s, activityPubClient,
 		func(activity *vocab.ActivityType) error {
-			return h.undoAddReference(activity, store.Follower)
+			return h.undoAddReference(activity, store.Follower, func() *url.URL {
+				return activity.Object().IRI()
+			})
 		},
 		func(activity *vocab.ActivityType) error {
-			return h.undoAddReference(activity, store.Witnessing)
+			return h.undoAddReference(activity, store.Witnessing, func() *url.URL {
+				return activity.Target().IRI()
+			})
 		},
 	)
 
@@ -74,8 +78,8 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleCreateActivity(activity)
 	case typeProp.Is(vocab.TypeFollow):
 		return h.handleFollowActivity(activity)
-	case typeProp.Is(vocab.TypeInviteWitness):
-		return h.handleWitnessActivity(activity)
+	case typeProp.Is(vocab.TypeInvite):
+		return h.handleInviteActivity(activity)
 	case typeProp.Is(vocab.TypeAccept):
 		return h.handleAcceptActivity(activity)
 	case typeProp.Is(vocab.TypeReject):
@@ -131,10 +135,10 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 }
 
 func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType store.ReferenceType,
-	auth service.ActorAuth) error {
+	auth service.ActorAuth, getTargetIRI func() *url.URL) error {
 	logger.Debugf("[%s] Handling '%s' activity: %s", h.ServiceName, activity.Type(), activity.ID())
 
-	err := h.validateActivity(activity)
+	err := h.validateActivity(activity, getTargetIRI)
 	if err != nil {
 		return fmt.Errorf("validate '%s' activity [%s]: %w", activity.Type(), activity.ID(), err)
 	}
@@ -176,21 +180,39 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 }
 
 func (h *Inbox) handleFollowActivity(follow *vocab.ActivityType) error {
-	return h.handleReferenceActivity(follow, store.Follower, h.FollowerAuth)
+	return h.handleReferenceActivity(follow, store.Follower, h.FollowerAuth,
+		func() *url.URL {
+			return follow.Object().IRI()
+		},
+	)
 }
 
-func (h *Inbox) handleWitnessActivity(follow *vocab.ActivityType) error {
-	return h.handleReferenceActivity(follow, store.Witnessing, h.WitnessInvitationAuth)
+func (h *Inbox) handleInviteActivity(invite *vocab.ActivityType) error {
+	object := invite.Object().IRI()
+
+	if object == nil {
+		return fmt.Errorf("no object specified in 'Invite' activity")
+	}
+
+	if object.String() == vocab.AnchorWitnessTargetIRI.String() {
+		return h.handleReferenceActivity(invite, store.Witnessing, h.WitnessInvitationAuth,
+			func() *url.URL {
+				return invite.Target().IRI()
+			},
+		)
+	}
+
+	return fmt.Errorf("unsupported object type for 'Invite' activity: %s", object)
 }
 
-func (h *Inbox) validateActivity(activity *vocab.ActivityType) error {
+func (h *Inbox) validateActivity(activity *vocab.ActivityType, getTargetIRI func() *url.URL) error {
 	if activity.Actor() == nil {
 		return fmt.Errorf("no actor specified")
 	}
 
-	iri := activity.Object().IRI()
+	iri := getTargetIRI()
 	if iri == nil {
-		return fmt.Errorf("no IRI specified in 'object' field")
+		return fmt.Errorf("no IRI specified")
 	}
 
 	// Make sure that the IRI is targeting this service. If not then ignore the message
@@ -233,9 +255,9 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
 		}
 
-	case activity.Type().Is(vocab.TypeInviteWitness):
-		if err := h.handleAccept(accept, store.Witness); err != nil {
-			return fmt.Errorf("handle accept 'InviteWitness' activity %s: %w", accept.ID(), err)
+	case activity.Type().Is(vocab.TypeInvite):
+		if err := h.handleAcceptInviteActivity(accept); err != nil {
+			return fmt.Errorf("handle accept 'Invite' activity %s: %w", accept.ID(), err)
 		}
 
 	case activity.Type().Is(vocab.TypeOffer):
@@ -295,7 +317,7 @@ func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
 		return fmt.Errorf("no activity specified in the 'object' field of the '%s' activity", a.Type())
 	}
 
-	if !activity.Type().IsAny(vocab.TypeFollow, vocab.TypeInviteWitness, vocab.TypeOffer) {
+	if !activity.Type().IsAny(vocab.TypeFollow, vocab.TypeInvite, vocab.TypeOffer) {
 		return fmt.Errorf("unsupported activity type [%s] in the 'object' field of the 'Accept' activity",
 			activity.Type())
 	}
@@ -311,6 +333,25 @@ func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
 	}
 
 	return nil
+}
+
+func (h *Inbox) handleAcceptInviteActivity(accept *vocab.ActivityType) error {
+	objectIRI := accept.Object().Activity().Object().IRI()
+
+	if objectIRI == nil {
+		return fmt.Errorf("no object IRI specified in 'Invite' activity")
+	}
+
+	if objectIRI.String() == vocab.AnchorWitnessTargetIRI.String() {
+		err := h.handleAccept(accept, store.Witness)
+		if err != nil {
+			return fmt.Errorf("handle accept 'Invite' witness activity %s: %w", accept.ID(), err)
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("unsupported object for accept 'Invite' activity: %s", objectIRI)
 }
 
 func (h *Inbox) postAccept(activity *vocab.ActivityType, toIRI *url.URL) error {
@@ -730,10 +771,11 @@ func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.Ob
 	return result, nil
 }
 
-func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType) error {
-	iri := activity.Object().IRI()
+func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType,
+	getTargetIRI func() *url.URL) error {
+	iri := getTargetIRI()
 	if iri == nil {
-		return fmt.Errorf("no IRI specified in 'object' field of the '%s' activity", activity.Type())
+		return fmt.Errorf("no IRI specified in the '%s' activity", activity.Type())
 	}
 
 	// Make sure that the IRI is targeting this service. If not then ignore the message.

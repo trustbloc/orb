@@ -154,7 +154,7 @@ func (h *handler) undoActivity(activity *vocab.ActivityType) error {
 	case activity.Type().Is(vocab.TypeFollow):
 		return h.undoFollow(activity)
 
-	case activity.Type().Is(vocab.TypeInviteWitness):
+	case activity.Type().Is(vocab.TypeInvite):
 		return h.undoInviteWitness(activity)
 
 	default:
