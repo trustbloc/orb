@@ -77,12 +77,14 @@ const (
 	dbDeleteTimeMetric  = "delete_seconds"
 
 	// VCT.
-	vct                                = "vct"
-	vctWitnessAddProofVCTNilTimeMetric = "witness_add_proof_vct_nil_seconds"
-	vctWitnessAddVCTimeMetric          = "witness_add_vc_seconds"
-	vctWitnessAddProofTimeMetric       = "witness_add_proof_seconds"
-	vctWitnessWebFingerTimeMetric      = "witness_webfinger_seconds"
-	vctWitnessVerifyVCTTimeMetric      = "witness_verify_vct_signature_seconds"
+	vct                                  = "vct"
+	vctWitnessAddProofVCTNilTimeMetric   = "witness_add_proof_vct_nil_seconds"
+	vctWitnessAddVCTimeMetric            = "witness_add_vc_seconds"
+	vctWitnessAddProofTimeMetric         = "witness_add_proof_seconds"
+	vctWitnessWebFingerTimeMetric        = "witness_webfinger_seconds"
+	vctWitnessVerifyVCTTimeMetric        = "witness_verify_vct_signature_seconds"
+	vctAddProofParseCredentialTimeMetric = "witness_add_proof_parse_credential_seconds"
+	vctAddProofSignTimeMetric            = "witness_add_proof_sign_seconds"
 )
 
 var logger = log.New("metrics")
@@ -139,11 +141,13 @@ type Metrics struct {
 	dbQueryTimes   map[string]prometheus.Histogram
 	dbDeleteTimes  map[string]prometheus.Histogram
 
-	vctWitnessAddProofVCTNilTimes prometheus.Histogram
-	vctWitnessAddVCTimes          prometheus.Histogram
-	vctWitnessAddProofTimes       prometheus.Histogram
-	vctWitnessAddWebFingerTimes   prometheus.Histogram
-	vctWitnessVerifyVCTimes       prometheus.Histogram
+	vctWitnessAddProofVCTNilTimes   prometheus.Histogram
+	vctWitnessAddVCTimes            prometheus.Histogram
+	vctWitnessAddProofTimes         prometheus.Histogram
+	vctWitnessAddWebFingerTimes     prometheus.Histogram
+	vctWitnessVerifyVCTimes         prometheus.Histogram
+	vctAddProofParseCredentialTimes prometheus.Histogram
+	vctAddProofSignTimes            prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -203,6 +207,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		vctWitnessAddProofTimes:                  newVCTWitnessAddProofTime(),
 		vctWitnessAddWebFingerTimes:              newVCTWitnessWebFingerTime(),
 		vctWitnessVerifyVCTimes:                  newVCTWitnessVerifyVCTTime(),
+		vctAddProofParseCredentialTimes:          newVCTAddProofParseCredentialTime(),
+		vctAddProofSignTimes:                     newVCTAddProofSignTime(),
 	}
 
 	prometheus.MustRegister(
@@ -218,7 +224,8 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
 		m.docCreateUpdateTime, m.docResolveTime,
 		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
-		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes,
+		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
+		m.vctAddProofSignTimes,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -569,6 +576,20 @@ func (m *Metrics) WitnessVerifyVCTSignature(value time.Duration) {
 	m.vctWitnessVerifyVCTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness verify vct signature: %s", value)
+}
+
+// AddProofParseCredential records vct parse credential in add proof.
+func (m *Metrics) AddProofParseCredential(value time.Duration) {
+	m.vctAddProofParseCredentialTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct parse credential add proof: %s", value)
+}
+
+// AddProofSign records vct sign in add proof.
+func (m *Metrics) AddProofSign(value time.Duration) {
+	m.vctAddProofSignTimes.Observe(value.Seconds())
+
+	logger.Debugf("vct sign add proof: %s", value)
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
@@ -998,6 +1019,22 @@ func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
 	return newHistogram(
 		vct, vctWitnessVerifyVCTTimeMetric,
 		"The time (in seconds) it takes verify vct signature in witness.",
+		nil,
+	)
+}
+
+func newVCTAddProofParseCredentialTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctAddProofParseCredentialTimeMetric,
+		"The time (in seconds) it takes the parse credential in add proof.",
+		nil,
+	)
+}
+
+func newVCTAddProofSignTime() prometheus.Histogram {
+	return newHistogram(
+		vct, vctAddProofSignTimeMetric,
+		"The time (in seconds) it takes the sign in add proof.",
 		nil,
 	)
 }

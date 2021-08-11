@@ -161,3 +161,11 @@ func (m *MetricsProvider) WitnessWebFinger(value time.Duration) {
 // WitnessVerifyVCTSignature records vct witness verify vct.
 func (m *MetricsProvider) WitnessVerifyVCTSignature(value time.Duration) {
 }
+
+// AddProofParseCredential records vct parse credential in add proof.
+func (m *MetricsProvider) AddProofParseCredential(value time.Duration) {
+}
+
+// AddProofSign records vct sign in add proof.
+func (m *MetricsProvider) AddProofSign(value time.Duration) {
+}
