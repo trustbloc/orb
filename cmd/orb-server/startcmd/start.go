@@ -450,6 +450,7 @@ func startOrbServices(parameters *orbParameters) error {
 		KeyManager: km,
 		Crypto:     cr,
 		DocLoader:  orbDocumentLoader,
+		Metrics:    metrics.Get(),
 	}
 
 	vcSigner, err := vcsigner.New(signingProviders, signingParams)
