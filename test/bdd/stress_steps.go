@@ -566,8 +566,8 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if err != nil && (!strings.Contains(err.Error(), "DID does not exist") ||
-			!strings.Contains(err.Error(), "cannot assign requested address")) {
+		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
+			!strings.Contains(err.Error(), "cannot assign requested address") {
 			return nil, err
 		}
 
