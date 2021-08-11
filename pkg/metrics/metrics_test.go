@@ -63,7 +63,6 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.WitnessAddProof(time.Second) })
 		require.NotPanics(t, func() { m.WitnessWebFinger(time.Second) })
 		require.NotPanics(t, func() { m.WitnessVerifyVCTSignature(time.Second) })
-
 	})
 }
 
