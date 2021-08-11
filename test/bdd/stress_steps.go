@@ -490,10 +490,20 @@ type createDIDResp struct {
 }
 
 func (r *createDIDReq) Invoke() (interface{}, error) {
-	recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err := r.steps.createDID("Ed25519",
-		"Ed25519VerificationKey2018", r.anchorOrigin, uuid.New().URN(), r.vdr)
-	if err != nil {
-		return nil, err
+	var recoveryKeyPrivateKey, updateKeyPrivateKey crypto.PrivateKey
+	var intermID string
+	var err error
+
+	for i := 1; i <= 10; i++ {
+		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID("Ed25519",
+			"Ed25519VerificationKey2018", r.anchorOrigin, uuid.New().URN(), r.vdr)
+		if err == nil {
+			break
+		}
+
+		if !strings.Contains(err.Error(), "cannot assign requested address") {
+			return nil, fmt.Errorf("failed to create did: %w", err)
+		}
 	}
 
 	if atomic.AddInt64(&createLogCount, 1)%100 == 0 {
@@ -527,8 +537,15 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 	svcEndpoint := uuid.New().URN()
 
-	if err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr); err != nil {
-		return nil, fmt.Errorf("failed to update did: %w", err)
+	for i := 1; i <= 10; i++ {
+		err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr)
+		if err == nil {
+			break
+		}
+
+		if !strings.Contains(err.Error(), "cannot assign requested address") {
+			return nil, fmt.Errorf("failed to update did: %w", err)
+		}
 	}
 
 	if atomic.AddInt64(&updateLogCount, 1)%100 == 0 {
