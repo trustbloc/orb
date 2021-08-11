@@ -20,9 +20,14 @@ const (
 	ContextOrb Context = "https://w3id.org/activityanchors/v1"
 )
 
-// PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
 //nolint:gochecknoglobals
-var PublicIRI = MustParseURL("https://www.w3.org/ns/activitystreams#Public")
+var (
+	// PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
+	PublicIRI = MustParseURL("https://www.w3.org/ns/activitystreams#Public")
+
+	// AnchorWitnessTargetIRI indicates that the object/target of the activity is an anchor witness.
+	AnchorWitnessTargetIRI = MustParseURL("https://w3id.org/activityanchors#AnchorWitness")
+)
 
 // Type indicates the type of the object.
 type Type string
@@ -63,6 +68,8 @@ const (
 	TypeAnchorCredential Type = "AnchorCredential"
 	// TypeAnchorCredentialRef specifies the "AnchorCredentialReference" object type.
 	TypeAnchorCredentialRef Type = "AnchorCredentialReference"
+	// TypeAnchorReceipt specifies the "AnchorReceipt" object type.
+	TypeAnchorReceipt Type = "AnchorReceipt"
 	// TypeOffer specifies the "Offer" activity type.
 	TypeOffer Type = "Offer"
 	// TypeUndo specifies the "Undo" activity type.

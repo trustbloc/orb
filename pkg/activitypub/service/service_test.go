@@ -717,6 +717,7 @@ func TestService_Offer(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		activityID, err := service1.Outbox().Post(offer)
@@ -752,20 +753,6 @@ func TestService_Offer(t *testing.T) {
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, mockProviders2.witnessHandler.AnchorCreds())
 		require.NotNil(t, mockProviders1.proofHandler.Proof(obj.ID().String()))
-
-		rit, err := store2.QueryReferences(spi.Liked, spi.NewCriteria(spi.WithObjectIRI(service2IRI)))
-		require.NoError(t, err)
-
-		liked, err := storeutil.ReadReferences(rit, -1)
-		require.NoError(t, err)
-		require.NotEmpty(t, liked)
-
-		rit, err = store1.QueryReferences(spi.Like, spi.NewCriteria(spi.WithObjectIRI(obj.ID().URL())))
-		require.NoError(t, err)
-
-		likes, err := storeutil.ReadReferences(rit, -1)
-		require.NoError(t, err)
-		require.NotEmpty(t, likes)
 	})
 }
 

@@ -246,18 +246,6 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
 
-    # The 'Like' should be in the 'liked' collection of domain1.
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.type" of the response contains "Like"
-    And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
-
-    # A 'Like' activity should be in the inbox of domain2.
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.type" of the response contains "Like"
-    And the JSON path "orderedItems.#.object" of the response contains "http://orb.domain2.com/transactions/bafkreihwsn"
-
     And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${inviteWitnessID}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
 

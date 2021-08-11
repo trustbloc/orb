@@ -235,11 +235,11 @@ func (c *httpClient) setAuthTokenHeader(req *http.Request) {
 	}
 
 	if authToken == "" {
-		logger.Infof("Could not find bearer token for path [%s]", req.URL.Path)
+		logger.Debugf("Could not find bearer token for path [%s]", req.URL.Path)
 		return
 	}
 
-	logger.Infof("Setting authorization header for bearer token [%s] for path [%s]", authToken, req.URL.Path)
+	logger.Debugf("Setting authorization header for bearer token [%s] for path [%s]", authToken, req.URL.Path)
 
 	req.Header.Set(authHeader, tokenPrefix+authToken)
 }

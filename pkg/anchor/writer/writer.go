@@ -553,6 +553,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 		vocab.WithTo(witnessesIRI...),
 		vocab.WithStartTime(&startTime),
 		vocab.WithEndTime(&endTime),
+		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 	)
 
 	// store witnesses before posting offers because handlers sometimes get invoked before

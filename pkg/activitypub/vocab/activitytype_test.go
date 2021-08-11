@@ -672,6 +672,119 @@ func TestAcceptTypeMarshal(t *testing.T) {
 	})
 }
 
+func TestAcceptOfferMarshal(t *testing.T) {
+	org1Service := testutil.MustParseURL("https://org1.com/services/anchor")
+	org2Service := testutil.MustParseURL("https://org2.com/services/anchor")
+
+	acceptID := newMockID(org2Service, "/activities/ea9931ae-116c-4865-b950-a42a73e24771")
+	offerID := newMockID(org1Service, "/activities/ef0f86b1-bfe7-4ccc-9400-aff4732bc1ac")
+
+	result, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(proof)))
+	require.NoError(t, err)
+
+	startTime := getStaticTime()
+	endTime := startTime.Add(1 * time.Minute)
+
+	obj, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorCredential1)))
+	require.NoError(t, err)
+
+	offer := NewOfferActivity(
+		NewObjectProperty(WithObject(obj)),
+		WithID(offerID),
+		WithActor(org1Service),
+		WithTo(org2Service),
+		WithStartTime(&startTime),
+		WithEndTime(&endTime),
+		WithTarget(NewObjectProperty(WithIRI(AnchorWitnessTargetIRI))),
+	)
+
+	offer = NewOfferActivity(
+		NewObjectProperty(WithIRI(obj.ID().URL())),
+		WithID(offer.ID().URL()),
+		WithActor(offer.Actor()),
+		WithTo(offer.To()...),
+		WithTarget(offer.Target()),
+	)
+
+	t.Run("Marshal", func(t *testing.T) {
+		accept := NewAcceptActivity(
+			NewObjectProperty(WithActivity(offer)),
+			WithID(acceptID),
+			WithTo(offer.Actor(), PublicIRI),
+			WithActor(org2Service),
+			WithResult(NewObjectProperty(
+				WithObject(NewObject(
+					WithType(TypeAnchorReceipt),
+					WithInReplyTo(obj.ID().URL()),
+					WithStartTime(&startTime),
+					WithEndTime(&endTime),
+					WithAttachment(result)),
+				),
+			)),
+		)
+
+		bytes, err := canonicalizer.MarshalCanonical(accept)
+		require.NoError(t, err)
+
+		t.Log(string(bytes))
+
+		require.Equal(t, testutil.GetCanonical(t, jsonAcceptOffer), string(bytes))
+	})
+
+	t.Run("Unmarshal", func(t *testing.T) {
+		a := &ActivityType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAcceptOffer), a))
+		require.NotNil(t, a.Type())
+		require.True(t, a.Type().Is(TypeAccept))
+		require.Equal(t, acceptID.String(), a.ID().String())
+
+		context := a.Context()
+		require.NotNil(t, context)
+		context.Contains(ContextActivityStreams)
+
+		to := a.To()
+		require.Len(t, to, 2)
+		require.Equal(t, to[0].String(), org1Service.String())
+		require.Equal(t, to[1].String(), PublicIRI.String())
+
+		require.Equal(t, org2Service.String(), a.Actor().String())
+
+		objProp := a.Object()
+		require.NotNil(t, objProp)
+		require.NotNil(t, objProp.Type())
+		require.True(t, objProp.Type().Is(TypeOffer))
+
+		oa := objProp.Activity()
+		require.NotNil(t, oa)
+		require.NotNil(t, oa.Type())
+		require.True(t, oa.Type().Is(TypeOffer))
+		require.Equal(t, offerID.String(), oa.ID().String())
+
+		oaActor := oa.Actor()
+		require.NotNil(t, oaActor)
+		require.Equal(t, org1Service.String(), oaActor.String())
+
+		target := oa.Target()
+		require.NotNil(t, target)
+		require.Equal(t, AnchorWitnessTargetIRI.String(), target.IRI().String())
+
+		oaTo := oa.To()
+		require.Len(t, oaTo, 1)
+		require.Equal(t, oaTo[0].String(), org2Service.String())
+
+		oaObj := oa.Object()
+		require.NotNil(t, oaObj)
+		objIRI := oaObj.IRI()
+		require.NotNil(t, objIRI)
+		require.Equal(t, obj.ID().String(), objIRI.String())
+
+		result := a.Result().Object()
+		require.NotNil(t, result)
+		require.Equal(t, obj.ID().String(), result.InReplyTo().String())
+		require.Len(t, result.Attachment(), 1)
+	})
+}
+
 func TestRejectTypeMarshal(t *testing.T) {
 	org1Service := testutil.MustParseURL("https://org1.com/services/service1")
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
@@ -759,6 +872,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 			WithTo(to, PublicIRI),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
+			WithTarget(NewObjectProperty(WithIRI(AnchorWitnessTargetIRI))),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(offer)
@@ -784,6 +898,10 @@ func TestOfferTypeMarshal(t *testing.T) {
 		require.Equal(t, a.To()[1].String(), PublicIRI.String())
 
 		require.Equal(t, service1.String(), a.Actor().String())
+
+		target := a.Target()
+		require.NotNil(t, target)
+		require.Equal(t, AnchorWitnessTargetIRI.String(), target.IRI().String())
 
 		start := a.StartTime()
 		require.NotNil(t, start)
@@ -1225,7 +1343,51 @@ const (
   },
   "startTime": "2021-01-27T09:30:10Z",
   "to": ["https://sally.example.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
+  "target": "https://w3id.org/activityanchors#AnchorWitness",
   "type": "Offer"
+}`
+
+	jsonAcceptOffer = `{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://org2.com/services/anchor/activities/ea9931ae-116c-4865-b950-a42a73e24771",
+  "type": "Accept",
+  "actor": "https://org2.com/services/anchor",
+  "to": [
+    "https://org1.com/services/anchor",
+    "https://www.w3.org/ns/activitystreams#Public"
+  ],
+  "object": {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "id": "https://org1.com/services/anchor/activities/ef0f86b1-bfe7-4ccc-9400-aff4732bc1ac",
+    "type": "Offer",
+    "to": "https://org2.com/services/anchor",
+    "actor": "https://org1.com/services/anchor",
+    "object": "http://sally.example.com/transactions/bafkreihwsn",
+    "target": "https://w3id.org/activityanchors#AnchorWitness"
+  },
+  "result": {
+    "type": "AnchorReceipt",
+    "inReplyTo": "http://sally.example.com/transactions/bafkreihwsn",
+    "endTime": "2021-01-27T09:31:10Z",
+    "startTime": "2021-01-27T09:30:10Z",
+    "attachment": [
+      {
+        "@context": [
+          "https://w3id.org/activityanchors/v1",
+          "https://w3id.org/jws/v1"
+        ],
+        "proof": {
+          "created": "2021-01-27T09:30:15Z",
+          "domain": "https://witness1.example.com/ledgers/maple2021",
+          "jws": "eyJ...",
+          "proofPurpose": "assertionMethod",
+          "type": "JsonWebSignature2020",
+          "verificationMethod": "did:example:abcd#key"
+        },
+        "type": "AnchorProof"
+      }
+    ]
+  }
 }`
 
 	jsonCreateWithAnchorCredentialRef = `{
@@ -1319,5 +1481,21 @@ const (
   "object": "https://org1.com/services/service2",
   "to": "https://org1.com/services/service2",
   "type": "InviteWitness"
+}`
+
+	proof = `{
+  "@context": [
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/jws/v1"
+  ],
+  "type": "AnchorProof",
+  "proof": {
+    "type": "JsonWebSignature2020",
+    "proofPurpose": "assertionMethod",
+    "created": "2021-01-27T09:30:15Z",
+    "verificationMethod": "did:example:abcd#key",
+    "domain": "https://witness1.example.com/ledgers/maple2021",
+    "jws": "eyJ..."
+  }
 }`
 )

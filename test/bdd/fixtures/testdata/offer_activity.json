@@ -28,5 +28,6 @@
     ]
   },
   "to": ["https://orb.domain2.com/services/orb/witnesses","https://www.w3.org/ns/activitystreams#Public"],
+  "target": "https://w3id.org/activityanchors#AnchorWitness",
   "type": "Offer"
 }

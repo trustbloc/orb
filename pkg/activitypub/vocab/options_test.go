@@ -96,6 +96,8 @@ func TestNewOptions(t *testing.T) {
 		WithLiked(liked),
 		WithWitnesses(witnesses),
 		WithWitnessing(witnessing),
+		WithInReplyTo(id),
+		WithAttachment(NewObject()),
 	)
 
 	require.NotNil(t, opts)

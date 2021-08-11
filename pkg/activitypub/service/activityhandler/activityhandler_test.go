@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
@@ -1542,6 +1543,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		require.NoError(t, h.HandleActivity(offer))
@@ -1550,13 +1552,6 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(offer.ID()))
 		require.Len(t, witness.AnchorCreds(), 1)
-
-		it, err := h.store.QueryReferences(store.Liked, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
-		require.NoError(t, err)
-
-		liked, err := storeutil.ReadReferences(it, -1)
-		require.NoError(t, err)
-		require.NotEmpty(t, liked)
 	})
 
 	t.Run("No response from witness -> error", func(t *testing.T) {
@@ -1575,6 +1570,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err = h.HandleActivity(offer)
@@ -1600,6 +1596,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		require.True(t, errors.Is(h.HandleActivity(offer), errExpected))
@@ -1617,6 +1614,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err = h.HandleActivity(offer)
@@ -1635,6 +1633,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err = h.HandleActivity(offer)
@@ -1653,6 +1652,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err := h.HandleActivity(offer)
@@ -1671,6 +1671,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err := h.HandleActivity(offer)
@@ -1694,14 +1695,38 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
+			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
 		err = h.HandleActivity(offer)
 		require.NoError(t, err)
 	})
+
+	t.Run("Invalid target", func(t *testing.T) {
+		witness.WithProof([]byte(proof))
+
+		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+		require.NoError(t, err)
+
+		startTime := time.Now()
+		endTime := startTime.Add(time.Hour)
+
+		offer := vocab.NewOfferActivity(
+			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+			vocab.WithStartTime(&startTime),
+			vocab.WithEndTime(&endTime),
+		)
+
+		err = h.HandleActivity(offer)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "object target IRI must be set to https://w3id.org/activityanchors#AnchorWitness")
+	})
 }
 
-func TestHandler_HandleLikeActivity(t *testing.T) {
+func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	log.SetLevel("activitypub_service", log.WARNING)
 
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
@@ -1724,39 +1749,66 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
+	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
+	require.NoError(t, err)
+
+	anchorCredID := obj.ID().URL()
+
+	startTime := time.Now()
+	endTime := startTime.Add(time.Hour)
+
+	offer := vocab.NewOfferActivity(
+		vocab.NewObjectProperty(vocab.WithObject(obj)),
+		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithActor(service1IRI),
+		vocab.WithTo(service2IRI),
+		vocab.WithStartTime(&startTime),
+		vocab.WithEndTime(&endTime),
+		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
+	)
+
+	// Make sure the activity is in our outbox or else it will fail check.
+	require.NoError(t, h.store.AddActivity(offer))
+	require.NoError(t, h.store.AddReference(store.Outbox, h.ServiceIRI, offer.ID().URL()))
+
+	result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
+	require.NoError(t, err)
+
+	objProp := vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+		vocab.WithID(offer.ID().URL()),
+		vocab.WithActor(offer.Actor()),
+		vocab.WithTo(offer.To()...),
+		vocab.WithTarget(offer.Target()),
+	)))
+
+	acceptOffer := vocab.NewAcceptActivity(objProp,
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+		vocab.WithActor(service1IRI),
+		vocab.WithResult(vocab.NewObjectProperty(
+			vocab.WithObject(vocab.NewObject(
+				vocab.WithType(vocab.TypeAnchorReceipt),
+				vocab.WithInReplyTo(obj.ID().URL()),
+				vocab.WithStartTime(&startTime),
+				vocab.WithEndTime(&endTime),
+				vocab.WithAttachment(result)),
+			),
+		)),
+	)
+
+	bytes, err := canonicalizer.MarshalCanonical(acceptOffer)
+	require.NoError(t, err)
+	t.Log(string(bytes))
+
 	t.Run("Success", func(t *testing.T) {
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
-		require.NoError(t, err)
-
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		anchorCredID := newTransactionID(h.ServiceIRI)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
-		)
-
-		require.NoError(t, h.HandleActivity(like))
+		require.NoError(t, h.HandleActivity(acceptOffer))
 
 		time.Sleep(50 * time.Millisecond)
 
-		require.NotNil(t, subscriber.Activity(like.ID()))
+		require.NotNil(t, subscriber.Activity(acceptOffer.ID()))
 
 		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
-
-		it, err := h.store.QueryReferences(store.Like, store.NewCriteria(store.WithObjectIRI(anchorCredID)))
-		require.NoError(t, err)
-
-		likes, err := storeutil.ReadReferences(it, -1)
-		require.NoError(t, err)
-		require.NotEmpty(t, likes)
 	})
 
 	t.Run("HandleProof error", func(t *testing.T) {
@@ -1765,112 +1817,204 @@ func TestHandler_HandleLikeActivity(t *testing.T) {
 		proofHandler.WithError(errExpected)
 		defer proofHandler.WithError(nil)
 
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
-		require.NoError(t, err)
+		require.True(t, errors.Is(h.HandleActivity(acceptOffer), errExpected))
+	})
 
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		anchorCredID := newTransactionID(h.ServiceIRI)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+	t.Run("inReplyTo does not match object IRI in offer activity", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(objProp,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(newActivityID(service1IRI)),
+					vocab.WithStartTime(&startTime),
+					vocab.WithEndTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
 		)
 
-		require.True(t, errors.Is(h.HandleActivity(like), errExpected))
+		e := h.handleAcceptActivity(a)
+		require.Error(t, e)
+		require.Contains(t, e.Error(),
+			"the anchor credential in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
+	})
+
+	t.Run("No object", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(nil,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithEndTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
+		)
+
+		err = h.validateAcceptOfferActivity(a)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "object is required")
+	})
+
+	t.Run("No object IRI", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
+				vocab.NewObjectProperty(),
+				vocab.WithID(offer.ID().URL()),
+				vocab.WithActor(offer.Actor()),
+				vocab.WithTo(offer.To()...),
+			))),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithEndTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
+		)
+
+		err = h.handleAcceptActivity(a)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "object IRI is required")
+	})
+
+	t.Run("No result", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(objProp,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+		)
+
+		err = h.handleAcceptActivity(a)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "result is required")
 	})
 
 	t.Run("No start time", func(t *testing.T) {
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
-		require.NoError(t, err)
-
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		anchorCredID := newTransactionID(h.ServiceIRI)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithEndTime(&endTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		a := vocab.NewAcceptActivity(objProp,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithEndTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
 		)
 
-		err = h.HandleActivity(like)
+		err = h.handleAcceptActivity(a)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "startTime is required")
 	})
 
 	t.Run("No end time", func(t *testing.T) {
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
-		require.NoError(t, err)
-
-		startTime := time.Now()
-
-		anchorCredID := newTransactionID(h.ServiceIRI)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+		a := vocab.NewAcceptActivity(objProp,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
 		)
 
-		err = h.HandleActivity(like)
+		err = h.handleAcceptActivity(a)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "endTime is required")
 	})
 
-	t.Run("No object IRI", func(t *testing.T) {
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(proof)))
-		require.NoError(t, err)
-
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+	t.Run("Invalid object type", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewFollowActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+				vocab.WithID(offer.ID().URL()),
+				vocab.WithActor(offer.Actor()),
+				vocab.WithTo(offer.To()...),
+				vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
+			))),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithAttachment(result)),
+				),
+			)),
 		)
 
-		err = h.HandleActivity(like)
+		err = h.validateAcceptOfferActivity(a)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "object is required")
+		require.Contains(t, err.Error(), "object is not of type 'Offer'")
 	})
 
-	t.Run("No result", func(t *testing.T) {
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		anchorCredID := newTransactionID(h.ServiceIRI)
-
-		like := vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
-			vocab.WithID(newActivityID(h.ServiceIRI)),
-			vocab.WithActor(h.ServiceIRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
+	t.Run("No attachment", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(
+			objProp,
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithEndTime(&endTime),
+				)),
+			)),
 		)
 
-		err := h.HandleActivity(like)
+		err = h.handleAcceptActivity(a)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "result is required")
+		require.Contains(t, err.Error(), "expecting exactly one attachment")
+	})
+
+	t.Run("Invalid target", func(t *testing.T) {
+		a := vocab.NewAcceptActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
+				vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+				vocab.WithID(offer.ID().URL()),
+				vocab.WithActor(offer.Actor()),
+				vocab.WithTo(offer.To()...),
+			))),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
+			vocab.WithActor(service1IRI),
+			vocab.WithResult(vocab.NewObjectProperty(
+				vocab.WithObject(vocab.NewObject(
+					vocab.WithType(vocab.TypeAnchorReceipt),
+					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithStartTime(&endTime),
+					vocab.WithEndTime(&endTime),
+					vocab.WithAttachment(result),
+				)),
+			)),
+		)
+
+		err = h.handleAcceptActivity(a)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "object target IRI must be set to https://w3id.org/activityanchors#AnchorWitness")
 	})
 }
 
