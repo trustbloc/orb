@@ -66,7 +66,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 }
 
 // HandleActivity handles the ActivityPub activity in the inbox.
-func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error { //nolint: cyclop
+func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
 	switch {
@@ -84,8 +84,6 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error { //nolint: c
 		return h.handleAnnounceActivity(activity)
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
-	case typeProp.Is(vocab.TypeLike):
-		return h.handleLikeActivity(activity)
 	case typeProp.Is(vocab.TypeUndo):
 		return h.handleUndoActivity(activity)
 	default:
@@ -224,7 +222,8 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 
 	// Make sure that the original activity was posted to our outbox, otherwise it may be an attempt
 	// to forcefully add an unsolicited follower/witness.
-	if err := h.ensureActivityInOutbox(activity); err != nil {
+	origActivity, err := h.ensureActivityInOutbox(activity)
+	if err != nil {
 		return fmt.Errorf("ensure target activity of 'Accept' is in outbox %s: %w", activity.ID(), err)
 	}
 
@@ -237,6 +236,11 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	case activity.Type().Is(vocab.TypeInviteWitness):
 		if err := h.handleAccept(accept, store.Witness); err != nil {
 			return fmt.Errorf("handle accept 'InviteWitness' activity %s: %w", accept.ID(), err)
+		}
+
+	case activity.Type().Is(vocab.TypeOffer):
+		if err := h.handleAcceptOfferActivity(accept, origActivity); err != nil {
+			return fmt.Errorf("handle accept 'Offer' activity %s: %w", accept.ID(), err)
 		}
 
 	default:
@@ -291,7 +295,7 @@ func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
 		return fmt.Errorf("no activity specified in the 'object' field of the '%s' activity", a.Type())
 	}
 
-	if !activity.Type().IsAny(vocab.TypeFollow, vocab.TypeInviteWitness) {
+	if !activity.Type().IsAny(vocab.TypeFollow, vocab.TypeInviteWitness, vocab.TypeOffer) {
 		return fmt.Errorf("unsupported activity type [%s] in the 'object' field of the 'Accept' activity",
 			activity.Type())
 	}
@@ -420,23 +424,34 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 	startTime := time.Now()
 	endTime := startTime.Add(h.MaxWitnessDelay)
 
-	like := vocab.NewLikeActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorCred.ID().URL())),
-		vocab.WithTo(offer.Actor(), vocab.PublicIRI),
-		vocab.WithStartTime(&startTime),
-		vocab.WithEndTime(&endTime),
-		vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+	// Create a new offer activity with only the bare essentials to return in the 'Accept'.
+	oa := vocab.NewOfferActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(offer.Object().Object().ID().URL())),
+		vocab.WithID(offer.ID().URL()),
+		vocab.WithActor(offer.Actor()),
+		vocab.WithTo(offer.To()...),
+		vocab.WithTarget(offer.Target()),
 	)
 
-	activityID, err := h.outbox.Post(like)
+	accept := vocab.NewAcceptActivity(
+		vocab.NewObjectProperty(vocab.WithActivity(oa)),
+		vocab.WithTo(oa.Actor(), vocab.PublicIRI),
+		vocab.WithResult(vocab.NewObjectProperty(
+			vocab.WithObject(vocab.NewObject(
+				vocab.WithType(vocab.TypeAnchorReceipt),
+				vocab.WithInReplyTo(anchorCred.ID().URL()),
+				vocab.WithStartTime(&startTime),
+				vocab.WithEndTime(&endTime),
+				vocab.WithAttachment(result),
+			),
+			),
+		)),
+	)
+
+	_, err = h.outbox.Post(accept)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to reply with 'Like' to %s for offer [%s]: %w",
 			offer.Actor(), offer.ID(), err))
-	}
-
-	err = h.store.AddReference(store.Liked, h.ServiceIRI, activityID)
-	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("unable to store 'Like' activity for offer [%s]: %w", offer.ID(), err))
 	}
 
 	h.notify(offer)
@@ -444,30 +459,33 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
-	logger.Infof("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) error {
+	logger.Infof("[%s] Handling 'Accept' offer activity: %s", h.ServiceName, accept.ID())
 
-	err := h.validateLikeActivity(like)
+	err := h.validateAcceptOfferActivity(accept)
 	if err != nil {
-		return fmt.Errorf("invalid 'Like' activity [%s]: %w", like.ID(), err)
+		return fmt.Errorf("invalid 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	resultBytes, err := json.Marshal(like.Result().Object())
-	if err != nil {
-		return fmt.Errorf("marshal error of result in 'Like' activity [%s]: %w", like.ID(), err)
+	result := accept.Result().Object()
+
+	anchorCredID := result.InReplyTo()
+
+	if offer.Object().Object().ID().String() != anchorCredID.String() {
+		return errors.New("the anchor credential in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
 	}
 
-	err = h.ProofHandler.HandleProof(like.Actor(), like.Object().IRI().String(), *like.EndTime(), resultBytes)
+	attachmentBytes, err := json.Marshal(result.Attachment()[0])
 	if err != nil {
-		return fmt.Errorf("proof handler returned error for 'Like' activity [%s]: %w", like.ID(), err)
+		return fmt.Errorf("marshal error of attachment in 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	err = h.store.AddReference(store.Like, like.Object().IRI(), like.ID().URL())
+	err = h.ProofHandler.HandleProof(accept.Actor(), anchorCredID.String(), *result.EndTime(), attachmentBytes)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("unable to store 'Like' activity [%s]: %w", like.ID(), err))
+		return fmt.Errorf("proof handler returned error for 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	h.notify(like)
+	h.notify(accept)
 
 	return nil
 }
@@ -627,6 +645,10 @@ func (h *Inbox) validateOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("endTime is required")
 	}
 
+	if offer.Target().IRI() == nil || offer.Target().IRI().String() != vocab.AnchorWitnessTargetIRI.String() {
+		return fmt.Errorf("object target IRI must be set to %s", vocab.AnchorWitnessTargetIRI)
+	}
+
 	obj := offer.Object().Object()
 
 	if obj == nil {
@@ -637,24 +659,48 @@ func (h *Inbox) validateOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("unsupported object type in Offer activity %s", obj.Type())
 	}
 
+	if obj.ID() == nil {
+		return fmt.Errorf("object ID is required")
+	}
+
 	return nil
 }
 
-func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
-	if like.StartTime() == nil {
-		return fmt.Errorf("startTime is required")
+func (h *Inbox) validateAcceptOfferActivity(accept *vocab.ActivityType) error {
+	a := accept.Object().Activity()
+
+	if a == nil {
+		return errors.New("object is required")
 	}
 
-	if like.EndTime() == nil {
-		return fmt.Errorf("endTime is required")
+	if a.Object().IRI() == nil {
+		return errors.New("object IRI is required")
 	}
 
-	if like.Object().IRI() == nil {
-		return fmt.Errorf("object is required")
+	if !a.Type().Is(vocab.TypeOffer) {
+		return errors.New("object is not of type 'Offer'")
 	}
 
-	if like.Result() == nil {
-		return fmt.Errorf("result is required")
+	if a.Target().IRI() == nil || a.Target().IRI().String() != vocab.AnchorWitnessTargetIRI.String() {
+		return fmt.Errorf("object target IRI must be set to %s", vocab.AnchorWitnessTargetIRI)
+	}
+
+	result := accept.Result().Object()
+
+	if result == nil {
+		return errors.New("result is required")
+	}
+
+	if result.StartTime() == nil {
+		return errors.New("result startTime is required")
+	}
+
+	if result.EndTime() == nil {
+		return errors.New("result endTime is required")
+	}
+
+	if len(result.Attachment()) != 1 {
+		return errors.New("expecting exactly one attachment")
 	}
 
 	return nil
@@ -709,23 +755,23 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 	return nil
 }
 
-func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) error {
+func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) (*vocab.ActivityType, error) {
 	obActivity, err := h.getActivityFromOutbox(activity.ID().URL())
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return fmt.Errorf("get activity from outbox: %w", err)
+			return nil, fmt.Errorf("get activity from outbox: %w", err)
 		}
 
-		return orberrors.NewTransient(fmt.Errorf("get activity from outbox: %w", err))
+		return nil, orberrors.NewTransient(fmt.Errorf("get activity from outbox: %w", err))
 	}
 
 	// Ensure the activity in the outbox is the same as the given activity.
 	err = ensureSameActivity(obActivity, activity)
 	if err != nil {
-		return fmt.Errorf("activity not the same as the one in outbox: %w", err)
+		return nil, fmt.Errorf("activity not the same as the one in outbox: %w", err)
 	}
 
-	return nil
+	return obActivity, nil
 }
 
 func (h *Inbox) getActivityFromOutbox(activityIRI *url.URL) (*vocab.ActivityType, error) {

@@ -685,7 +685,7 @@ func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
 		return err
 	}
 
-	logger.Infof("Setting authorization bearer token for [%s] (%s) to [%s]", path, method, token)
+	logger.Debugf("Setting authorization bearer token for [%s] (%s) to [%s]", path, method, token)
 
 	d.state.setAuthToken(path, method, token)
 

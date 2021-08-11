@@ -25,14 +25,16 @@ func NewObject(opts ...Opt) *ObjectType {
 
 	return &ObjectType{
 		object: &objectType{
-			Context:   NewContextProperty(options.Context...),
-			ID:        NewURLProperty(options.ID),
-			CID:       options.CID,
-			Type:      NewTypeProperty(options.Types...),
-			To:        NewURLCollectionProperty(options.To...),
-			Published: options.Published,
-			StartTime: options.StartTime,
-			EndTime:   options.EndTime,
+			Context:    NewContextProperty(options.Context...),
+			ID:         NewURLProperty(options.ID),
+			CID:        options.CID,
+			Type:       NewTypeProperty(options.Types...),
+			To:         NewURLCollectionProperty(options.To...),
+			Published:  options.Published,
+			StartTime:  options.StartTime,
+			EndTime:    options.EndTime,
+			InReplyTo:  NewURLProperty(options.InReplyTo),
+			Attachment: options.Attachment,
 		},
 	}
 }
@@ -59,14 +61,16 @@ func NewObjectWithDocument(doc Document, opts ...Opt) (*ObjectType, error) {
 }
 
 type objectType struct {
-	Context   *ContextProperty       `json:"@context,omitempty"`
-	ID        *URLProperty           `json:"id,omitempty"`
-	Type      *TypeProperty          `json:"type,omitempty"`
-	To        *URLCollectionProperty `json:"to,omitempty"`
-	Published *time.Time             `json:"published,omitempty"`
-	StartTime *time.Time             `json:"startTime,omitempty"`
-	EndTime   *time.Time             `json:"endTime,omitempty"`
-	CID       string                 `json:"cid,omitempty"`
+	Context    *ContextProperty       `json:"@context,omitempty"`
+	ID         *URLProperty           `json:"id,omitempty"`
+	Type       *TypeProperty          `json:"type,omitempty"`
+	To         *URLCollectionProperty `json:"to,omitempty"`
+	Published  *time.Time             `json:"published,omitempty"`
+	StartTime  *time.Time             `json:"startTime,omitempty"`
+	EndTime    *time.Time             `json:"endTime,omitempty"`
+	CID        string                 `json:"cid,omitempty"`
+	InReplyTo  *URLProperty           `json:"inReplyTo,omitempty"`
+	Attachment []*ObjectType          `json:"attachment,omitempty"`
 }
 
 // Context returns the context property.
@@ -102,6 +106,16 @@ func (t *ObjectType) StartTime() *time.Time {
 // EndTime returns the end time.
 func (t *ObjectType) EndTime() *time.Time {
 	return t.object.EndTime
+}
+
+// InReplyTo returns the 'inReplyTo' field.
+func (t *ObjectType) InReplyTo() *URLProperty {
+	return t.object.InReplyTo
+}
+
+// Attachment returns the 'attachment' field.
+func (t *ObjectType) Attachment() []*ObjectType {
+	return t.object.Attachment
 }
 
 // Urls holds a collection of URLs.

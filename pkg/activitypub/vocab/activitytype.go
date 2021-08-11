@@ -155,6 +155,7 @@ func NewAcceptActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 		activity: &activityType{
 			Actor:  NewURLProperty(options.Actor),
 			Object: obj,
+			Result: options.Result,
 		},
 	}
 }
@@ -214,6 +215,7 @@ func NewOfferActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 		activity: &activityType{
 			Actor:  NewURLProperty(options.Actor),
 			Object: obj,
+			Target: options.Target,
 		},
 	}
 }

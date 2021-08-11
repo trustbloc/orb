@@ -13,14 +13,16 @@ import (
 
 // Options holds all of the options for building an ActivityPub object.
 type Options struct {
-	Context   []Context
-	ID        *url.URL
-	To        []*url.URL
-	Published *time.Time
-	StartTime *time.Time
-	EndTime   *time.Time
-	Types     []Type
-	CID       string
+	Context    []Context
+	ID         *url.URL
+	To         []*url.URL
+	Published  *time.Time
+	StartTime  *time.Time
+	EndTime    *time.Time
+	Types      []Type
+	CID        string
+	InReplyTo  *url.URL
+	Attachment []*ObjectType
 
 	ObjectPropertyOptions
 	CollectionOptions
@@ -96,6 +98,20 @@ func WithStartTime(t *time.Time) Opt {
 func WithEndTime(t *time.Time) Opt {
 	return func(opts *Options) {
 		opts.EndTime = t
+	}
+}
+
+// WithInReplyTo sets the 'inReplyTo' property on the object.
+func WithInReplyTo(id *url.URL) Opt {
+	return func(opts *Options) {
+		opts.InReplyTo = id
+	}
+}
+
+// WithAttachment sets the 'attachment' property on the object.
+func WithAttachment(obj ...*ObjectType) Opt {
+	return func(opts *Options) {
+		opts.Attachment = append(opts.Attachment, obj...)
 	}
 }
 
