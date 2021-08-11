@@ -39,6 +39,8 @@ type metricsProvider interface {
 	WitnessAddProof(value time.Duration)
 	WitnessWebFinger(value time.Duration)
 	WitnessVerifyVCTSignature(value time.Duration)
+	AddProofParseCredential(value time.Duration)
+	AddProofSign(value time.Duration)
 }
 
 // HTTPClient represents HTTP client.
@@ -103,6 +105,8 @@ func New(endpoint string, signer signer, metrics metricsProvider, opts ...Client
 }
 
 func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Credential, error) {
+	parseCredentialStartTime := time.Now()
+
 	vc, err := verifiable.ParseCredential(anchorCred,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithNoCustomSchemaCheck(),
@@ -111,6 +115,8 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 	if err != nil {
 		return nil, fmt.Errorf("parse credential: %w", err)
 	}
+
+	c.metrics.AddProofParseCredential(time.Since(parseCredentialStartTime))
 
 	opts := []vcsigner.Opt{
 		vcsigner.WithCreated(time.Unix(0, timestamp)),
@@ -121,8 +127,12 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 		opts = append(opts, vcsigner.WithDomain(c.endpoint))
 	}
 
+	signStartTime := time.Now()
+
 	// adds linked data proof
 	vc, err = c.signer.Sign(vc, opts...) // sets created time from the VCT.
+
+	c.metrics.AddProofSign(time.Since(signStartTime))
 
 	if err != nil {
 		return nil, fmt.Errorf("add proof to credential: %w", err)
