@@ -13,7 +13,8 @@ import (
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
+	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
@@ -62,13 +63,35 @@ func GetCanonical(t *testing.T, raw string) string {
 	return string(bytes)
 }
 
+type provider struct {
+	ContextStore        ldstore.ContextStore
+	RemoteProviderStore ldstore.RemoteProviderStore
+}
+
+func (p *provider) JSONLDContextStore() ldstore.ContextStore {
+	return p.ContextStore
+}
+
+func (p *provider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
+	return p.RemoteProviderStore
+}
+
 // GetLoader returns document loader.
-func GetLoader(t *testing.T) *jsonld.DocumentLoader {
+func GetLoader(t *testing.T) *ld.DocumentLoader {
 	t.Helper()
 
-	documentLoader, err := jsonld.NewDocumentLoader(
-		mem.NewProvider(), jsonld.WithExtraContexts(ldcontext.MustGetAll()...),
-	)
+	contextStore, err := ldstore.NewContextStore(mem.NewProvider())
+	require.NoError(t, err)
+
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(mem.NewProvider())
+	require.NoError(t, err)
+
+	p := &provider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}
+
+	documentLoader, err := ld.NewDocumentLoader(p, ld.WithExtraContexts(ldcontext.MustGetAll()...))
 	require.NoError(t, err)
 
 	return documentLoader

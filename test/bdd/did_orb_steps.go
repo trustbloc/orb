@@ -25,7 +25,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
+	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/commitment"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
@@ -210,6 +211,19 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	return nil
 }
 
+type provider struct {
+	ContextStore        ldstore.ContextStore
+	RemoteProviderStore ldstore.RemoteProviderStore
+}
+
+func (p *provider) JSONLDContextStore() ldstore.ContextStore {
+	return p.ContextStore
+}
+
+func (p *provider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
+	return p.RemoteProviderStore
+}
+
 func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 	logger.Info("requesting anchor origin (client)")
 
@@ -223,9 +237,22 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 		return err
 	}
 
-	docLoader, err := jsonld.NewDocumentLoader(
-		mem.NewProvider(), jsonld.WithExtraContexts(ldcontext.MustGetAll()...),
-	)
+	contextStore, err := ldstore.NewContextStore(mem.NewProvider())
+	if err != nil {
+		return fmt.Errorf("create JSON-LD context store: %w", err)
+	}
+
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(mem.NewProvider())
+	if err != nil {
+		return fmt.Errorf("create remote provider store: %w", err)
+	}
+
+	p := &provider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}
+
+	docLoader, err := ld.NewDocumentLoader(p, ld.WithExtraContexts(ldcontext.MustGetAll()...))
 
 	casClient := ipfs.New(url, 20*time.Second, 0, &mocks.MetricsProvider{})
 

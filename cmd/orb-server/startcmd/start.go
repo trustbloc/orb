@@ -35,7 +35,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
-	jld "github.com/hyperledger/aries-framework-go/pkg/doc/jsonld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -44,6 +44,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
+	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	vdrweb "github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -363,9 +364,22 @@ func startOrbServices(parameters *orbParameters) error {
 
 	jldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
 
-	orbDocumentLoader, err := jld.NewDocumentLoader(jldStorageProvider,
-		jld.WithExtraContexts(defaultContexts...),
-	)
+	contextStore, err := ldstore.NewContextStore(jldStorageProvider)
+	if err != nil {
+		return fmt.Errorf("create JSON-LD context store: %w", err)
+	}
+
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(jldStorageProvider)
+	if err != nil {
+		return fmt.Errorf("create remote provider store: %w", err)
+	}
+
+	ldStore := &ldStoreProvider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}
+
+	orbDocumentLoader, err := ld.NewDocumentLoader(ldStore, ld.WithExtraContexts(defaultContexts...))
 	if err != nil {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
@@ -1082,4 +1096,17 @@ type noOpVerifier struct{}
 
 func (v *noOpVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	return true, nil, nil
+}
+
+type ldStoreProvider struct {
+	ContextStore        ldstore.ContextStore
+	RemoteProviderStore ldstore.RemoteProviderStore
+}
+
+func (p *ldStoreProvider) JSONLDContextStore() ldstore.ContextStore {
+	return p.ContextStore
+}
+
+func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
+	return p.RemoteProviderStore
 }

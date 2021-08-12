@@ -27,7 +27,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/primitive/bbs12381g2pub"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	ariescontext "github.com/hyperledger/aries-framework-go/pkg/framework/context"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -323,7 +324,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 
 func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, kid,
 	signatureSuite string) (*ariesdid.VerificationMethod, error) {
-	var jwk *jose.JWK
+	var jwk *jwk.JWK
 
 	var err error
 
@@ -331,14 +332,14 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 	case P256KeyType:
 		x, y := elliptic.Unmarshal(elliptic.P256(), pubKey)
 
-		jwk, err = jose.JWKFromKey(&ecdsa.PublicKey{X: x, Y: y, Curve: elliptic.P256()})
+		jwk, err = jwksupport.JWKFromKey(&ecdsa.PublicKey{X: x, Y: y, Curve: elliptic.P256()})
 		if err != nil {
 			return nil, err
 		}
 	case p384KeyType:
 		x, y := elliptic.Unmarshal(elliptic.P384(), pubKey)
 
-		jwk, err = jose.JWKFromKey(&ecdsa.PublicKey{X: x, Y: y, Curve: elliptic.P384()})
+		jwk, err = jwksupport.JWKFromKey(&ecdsa.PublicKey{X: x, Y: y, Curve: elliptic.P384()})
 		if err != nil {
 			return nil, err
 		}
@@ -348,12 +349,12 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 			return nil, e
 		}
 
-		jwk, err = jose.JWKFromKey(pk)
+		jwk, err = jwksupport.JWKFromKey(pk)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		jwk, err = jose.JWKFromKey(ed25519.PublicKey(pubKey))
+		jwk, err = jwksupport.JWKFromKey(ed25519.PublicKey(pubKey))
 		if err != nil {
 			return nil, err
 		}
