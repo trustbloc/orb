@@ -46,8 +46,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain1
       - HTTP_SIGNATURES_ENABLED=true
 
@@ -82,8 +82,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb.mq.domain1.com
     networks:
       - orb_net
@@ -128,8 +127,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain1
       - HTTP_SIGNATURES_ENABLED=true
 
@@ -163,8 +162,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb-domain1
       - orb.mq.domain1.com
     networks:
@@ -220,8 +218,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain2
       - HTTP_SIGNATURES_ENABLED=true
 
@@ -255,8 +253,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb.mq.domain2.com
     networks:
       - orb_net
@@ -296,8 +293,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain2
       - HTTP_SIGNATURES_ENABLED=true
 
@@ -331,8 +328,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb.mq.domain2.com
     networks:
       - orb_net
@@ -375,8 +371,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain3.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain3
       - HTTP_SIGNATURES_ENABLED=true
 
@@ -410,8 +406,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb.mq.domain3.com
     networks:
       - orb_net
@@ -454,8 +449,8 @@ services:
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
-      - DATABASE_TYPE=couchdb
-      - DATABASE_URL=${COUCHDB_USERNAME}:${COUCHDB_PASSWORD}@couchdb.shared.com:5984
+      - DATABASE_TYPE=mongodb
+      - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain4
       - HTTP_SIGNATURES_ENABLED=true
       - CREATE_DOCUMENT_STORE_ENABLED=true
@@ -490,8 +485,7 @@ services:
     depends_on:
       - ipfs
       - orb.kms
-      - couchdb.kms.com
-      - couchdb.shared.com
+      - mongodb.shared.com
       - orb.mq.domain4.com
     networks:
       - orb_net
@@ -534,6 +528,14 @@ services:
       - COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
     volumes:
       - ./couchdb-config/config.ini:/opt/couchdb/etc/local.d/config.ini
+    networks:
+      - orb_net
+
+  mongodb.shared.com:
+    container_name: mongodb.shared.com
+    image: ${MONGODB_IMAGE}:${MONGODB_IMAGE_TAG}
+    ports:
+      - "27017:27017"
     networks:
       - orb_net
 

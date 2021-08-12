@@ -22,6 +22,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	shell "github.com/ipfs/go-ipfs-api"
@@ -32,6 +33,7 @@ import (
 const (
 	databaseTypeCouchDBOption = "couchdb"
 	databaseTypeMYSQLDBOption = "mysql"
+	databaseTypeMongoDBOption = "mongodb"
 
 	configStoreID = "orb-config"
 
@@ -850,6 +852,9 @@ func newStoreProvider(domain string) (storage.Provider, error) {
 
 	case databaseTypeMYSQLDBOption:
 		return ariesmysqlstorage.NewProvider(databaseURL, ariesmysqlstorage.WithDBPrefix(domain))
+
+	case databaseTypeMongoDBOption:
+		return ariesmongodbstorage.NewProvider(databaseURL, ariesmongodbstorage.WithDBPrefix(domain)), nil
 
 	default:
 		return nil, fmt.Errorf("unsupported database type [%s]", databaseType)

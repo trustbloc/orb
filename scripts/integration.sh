@@ -9,8 +9,8 @@ set -e
 echo "Running orb integration tests..."
 PWD=`pwd`
 
-export DATABASE_TYPE=couchdb
-export DATABASE_URL=admin:password@localhost:5986
+export DATABASE_TYPE=mongodb
+export DATABASE_URL=mongodb://localhost:27017
 export ORB_KMS_ENDPOINT=http://localhost:7878
 export CAS_TYPE=local
 export COMPOSE_HTTP_TIMEOUT=120

@@ -54,8 +54,10 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 	t.Run("test blank cas type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test",
-			"--" + casTypeFlagName, "", "--" + vctURLFlagName, "test"}
+		args := []string{
+			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test",
+			"--" + casTypeFlagName, "", "--" + vctURLFlagName, "test",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -152,8 +154,10 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing cas url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "localhost:8080", "--" + hostMetricsURLFlagName,
-			"localhost:8081", "--" + vctURLFlagName, "test"}
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080", "--" + hostMetricsURLFlagName,
+			"localhost:8081", "--" + vctURLFlagName, "test",
+		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
@@ -464,7 +468,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
 
 		err := startCmd.Execute()
 
@@ -477,7 +481,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -490,7 +494,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -503,7 +507,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -716,25 +720,40 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 
 func TestStartCmdValidArgs(t *testing.T) {
 	t.Run("IPFS configured and CAS type is local", func(t *testing.T) {
-		startCmd := GetStartCmd()
+		t.Run("Database type is mem", func(t *testing.T) {
+			startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false"))
+			startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false",
+				databaseTypeMemOption, ""))
 
-		go func() {
-			err := startCmd.Execute()
-			require.Nil(t, err)
-			require.Equal(t, log.ERROR, log.GetLevel(""))
-		}()
+			go func() {
+				err := startCmd.Execute()
+				require.Nil(t, err)
+				require.Equal(t, log.ERROR, log.GetLevel(""))
+			}()
 
-		time.Sleep(50 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 
-		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+			require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+		})
+		t.Run("Database type is MongoDB", func(t *testing.T) {
+			t.Run("Fail to create MongoDB client", func(t *testing.T) {
+				startCmd := GetStartCmd()
+
+				startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false",
+					databaseTypeMongoDBOption, ""))
+
+				err := startCmd.Execute()
+				require.EqualError(t, err, "open store: failed to create a new MongoDB client: "+
+					`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
+			})
+		})
 	})
 	t.Run("IPFS configured, CAS type is local, but IPFS node is ipfs.io and replication "+
 		"is enabled. Replication is forced off since ipfs.io doesn't support writes", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("https://ipfs.io", "local", "true"))
+		startCmd.SetArgs(getTestArgs("https://ipfs.io", "local", "true", databaseTypeMemOption, ""))
 
 		go func() {
 			err := startCmd.Execute()
@@ -751,7 +770,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 func TestStartCmdWithConflictingIPFSAndCASTypeSettings(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("https://ipfs.io", "ipfs", "false"))
+	startCmd.SetArgs(getTestArgs("https://ipfs.io", "ipfs", "false", databaseTypeMemOption, ""))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, "CAS type cannot be set to IPFS if ipfs.io is being used as the node "+
@@ -762,7 +781,7 @@ func TestStartCmdWithConflictingIPFSAndCASTypeSettings(t *testing.T) {
 func TestStartCmdWithUnparsableIPFSURL(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("%s", "ipfs", "false"))
+	startCmd.SetArgs(getTestArgs("%s", "ipfs", "false", databaseTypeMemOption, ""))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, `failed to parse IPFS URL: parse "%s": invalid URL escape "%s"`)
@@ -771,7 +790,7 @@ func TestStartCmdWithUnparsableIPFSURL(t *testing.T) {
 func TestStartCmdWithInvalidCASType(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("localhost:8081", "InvalidName", "false"))
+	startCmd.SetArgs(getTestArgs("localhost:8081", "InvalidName", "false", databaseTypeMemOption, ""))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, "InvalidName is not a valid CAS type. It must be either local or ipfs")
@@ -926,13 +945,34 @@ func TestGetMQParameters(t *testing.T) {
 	})
 }
 
+func TestCreateActivityPubStore(t *testing.T) {
+	t.Run("Fail to create CouchDB provider", func(t *testing.T) {
+		activityPubStore, err := createActivityPubStore(
+			&orbParameters{dbParameters: &dbParameters{
+				databaseType: databaseTypeCouchDBOption,
+			}},
+			"serviceEndpoint")
+		require.EqualError(t, err, "failed to create CouchDB storage provider for ActivityPub: "+
+			"failed to ping couchDB: url can't be blank")
+		require.Nil(t, activityPubStore)
+	})
+	t.Run("Fail to create ACtivityPub store using MongoDB", func(t *testing.T) {
+		activityPubStore, err := createActivityPubStore(
+			&orbParameters{dbParameters: &dbParameters{
+				databaseType: databaseTypeMongoDBOption,
+			}},
+			"serviceEndpoint")
+		require.EqualError(t, err, "failed to create Aries storage provider for ActivityPub: "+
+			"failed to open stores: failed to open activity store: failed to create a new MongoDB client: "+
+			`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
+		require.Nil(t, activityPubStore)
+	})
+}
+
 func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS string) {
 	t.Helper()
 
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
-	require.NoError(t, err)
-
-	err = os.Setenv(hostURLEnvKey, "localhost:8238")
 	require.NoError(t, err)
 
 	err = os.Setenv(casTypeEnvKey, casType)
@@ -1028,8 +1068,8 @@ func setEnv(t *testing.T, name, value string) (restore func()) {
 	}
 }
 
-func getTestArgs(ipfsURL string, casType string, localCASReplicateInIPFSEnabled string) []string {
-	return []string{
+func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType, databaseURL string) []string {
+	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + hostMetricsURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
@@ -1040,8 +1080,9 @@ func getTestArgs(ipfsURL string, casType string, localCASReplicateInIPFSEnabled 
 		"--" + maxWitnessDelayFlagName, "600",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + casTypeFlagName, casType,
-		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
-		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+		"--" + didNamespaceFlagName, "namespace",
+		"--" + databaseTypeFlagName, databaseType,
+		"--" + kmsSecretsDatabaseTypeFlagName, databaseType,
 		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
@@ -1049,4 +1090,10 @@ func getTestArgs(ipfsURL string, casType string, localCASReplicateInIPFSEnabled 
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		"--" + localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnabled,
 	}
+
+	if databaseURL != "" {
+		args = append(args, "--"+databaseURLFlagName, databaseURL, "--"+kmsSecretsDatabaseURLFlagName, databaseURL)
+	}
+
+	return args
 }
