@@ -59,6 +59,10 @@ Feature:
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
 
+    # Invalid activity posted to Outbox
+    Given variable "invalidActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","to":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${invalidActivity}" of type "application/json" and the returned status code is 400
+
     # domain2 follows domain1
     Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"

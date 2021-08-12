@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -185,7 +186,7 @@ func TestOutbox_Handler(t *testing.T) {
 		h.handlePost(rw, req)
 
 		result := rw.Result()
-		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -246,7 +247,7 @@ func TestOutbox_Handler(t *testing.T) {
 		h.handlePost(rw, req)
 
 		result := rw.Result()
-		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -271,7 +272,7 @@ func TestOutbox_Handler(t *testing.T) {
 		h.handlePost(rw, req)
 
 		result := rw.Result()
-		require.Equal(t, http.StatusUnauthorized, result.StatusCode)
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 
@@ -308,6 +309,35 @@ func TestOutbox_Handler(t *testing.T) {
 
 		result := rw.Result()
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Bad request", func(t *testing.T) {
+		verifier := &mocks.SignatureVerifier{}
+		verifier.VerifyRequestReturns(true, serviceIRI, nil)
+
+		ob := mocks.NewOutbox().
+			WithActivityID(activityID).
+			WithError(orberrors.NewBadRequest(errors.New("bad request")))
+
+		h := NewPostOutbox(cfg, ob, activityStore, verifier)
+
+		a := vocab.NewUndoActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
+			vocab.WithActor(serviceIRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		aBytes, err := json.Marshal(a)
+		require.NoError(t, err)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, outboxURL, bytes.NewBuffer(aBytes))
+
+		h.handlePost(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
 }

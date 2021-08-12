@@ -115,12 +115,12 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Undo' activity: %s", h.ServiceName, undo.ID())
 
 	if undo.Actor() == nil {
-		return fmt.Errorf("no actor specified in 'Undo' activity")
+		return orberrors.NewBadRequest(fmt.Errorf("no actor specified in 'Undo' activity"))
 	}
 
 	activityInUndo := undo.Object().Activity()
 	if activityInUndo == nil {
-		return fmt.Errorf("no activity specified in 'object' field of the 'Undo' activity")
+		return orberrors.NewBadRequest(fmt.Errorf("no activity specified in 'object' field of the 'Undo' activity"))
 	}
 
 	activity, err := h.store.GetActivity(activityInUndo.ID().URL())
@@ -135,8 +135,9 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 	}
 
 	if activity.Actor().String() != undo.Actor().String() {
-		return fmt.Errorf("not handling 'Undo' activity %s since the actor of the 'Undo' [%s] is not"+
-			" the same as the actor of the original activity [%s]", undo.ID(), undo.Actor(), activity.Actor())
+		return orberrors.NewBadRequest(
+			fmt.Errorf("not handling 'Undo' activity %s since the actor of the 'Undo' [%s] is not"+
+				" the same as the actor of the original activity [%s]", undo.ID(), undo.Actor(), activity.Actor()))
 	}
 
 	err = h.undoActivity(activity)
