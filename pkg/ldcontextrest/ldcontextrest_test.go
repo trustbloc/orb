@@ -27,8 +27,8 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
-	require.Equal(t, client.Path(), "/context/add")
-	require.Equal(t, client.Method(), http.MethodPost)
+	require.Equal(t, "/ld/context", client.Path())
+	require.Equal(t, http.MethodPost, client.Method())
 
 	rw := &responseWriter{}
 	client.Handler()(rw, &http.Request{Body: io.NopCloser(strings.NewReader(`{}`))})
@@ -36,7 +36,7 @@ func TestNew(t *testing.T) {
 
 	rw = &responseWriter{}
 	client.Handler()(rw, &http.Request{Body: io.NopCloser(strings.NewReader(`{"documents":[{}]}`))})
-	require.Equal(t, "context URL is mandatory", string(rw.data))
+	require.Contains(t, string(rw.data), "import contexts")
 }
 
 type responseWriter struct {

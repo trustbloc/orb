@@ -22,7 +22,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
 	docdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jose"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	"github.com/spf13/cobra"
 	gojose "github.com/square/go-jose/v3"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -182,7 +182,7 @@ func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { /
 			return nil, fmt.Errorf("failed to unmarshal to jwk: %w", errUnmarshal)
 		}
 
-		jwk, err := jose.JWKFromKey(jsonWebKey.Key)
+		jwk, err := jwksupport.JWKFromKey(jsonWebKey.Key)
 		if err != nil {
 			return nil, err
 		}

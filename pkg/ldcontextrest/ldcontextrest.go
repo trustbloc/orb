@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"net/http"
 
-	cmdcontext "github.com/hyperledger/aries-framework-go/pkg/controller/command/jsonld/context"
-	ldctxrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest/jsonld/context"
+	ldcmd "github.com/hyperledger/aries-framework-go/pkg/controller/command/ld"
+	ldrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest/ld"
+	ldsvc "github.com/hyperledger/aries-framework-go/pkg/ld"
+	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
@@ -22,25 +24,50 @@ type storageProviderFn func() storage.Provider
 
 func (spf storageProviderFn) StorageProvider() storage.Provider { return spf() }
 
+type ldStoreProvider struct {
+	ContextStore        ldstore.ContextStore
+	RemoteProviderStore ldstore.RemoteProviderStore
+}
+
+func (p *ldStoreProvider) JSONLDContextStore() ldstore.ContextStore {
+	return p.ContextStore
+}
+
+func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
+	return p.RemoteProviderStore
+}
+
 // New returns a handler implementation for the service.
 func New(p storage.Provider) (*Client, error) {
-	ctxCmd, err := cmdcontext.New(storageProviderFn(func() storage.Provider { return p }))
+	storageProvider := storageProviderFn(func() storage.Provider { return p })()
+
+	contextStore, err := ldstore.NewContextStore(storageProvider)
 	if err != nil {
-		return nil, fmt.Errorf("new cmd context: %w", err)
+		return nil, fmt.Errorf("create JSON-LD context store: %w", err)
 	}
 
-	return &Client{ctxCmd: ctxCmd}, nil
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(storageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("create remote provider store: %w", err)
+	}
+
+	ldStore := &ldStoreProvider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}
+
+	return &Client{ctxCmd: ldcmd.New(ldsvc.New(ldStore))}, nil
 }
 
 // Client represents a handler for adding ldcontext.
 type Client struct {
 	*resthandler.AuthHandler
-	ctxCmd *cmdcontext.Command
+	ctxCmd *ldcmd.Command
 }
 
 // Path returns the HTTP REST endpoint for the service.
 func (c *Client) Path() string {
-	return ldctxrest.AddContextPath
+	return ldrest.AddContextsPath
 }
 
 // Method returns the HTTP REST method for the service.
@@ -51,7 +78,7 @@ func (c *Client) Method() string {
 // Handler returns the HTTP REST handler for the WebCAS service.
 func (c *Client) Handler() common.HTTPRequestHandler {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := c.ctxCmd.Add(w, r.Body)
+		err := c.ctxCmd.AddContexts(w, r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error())) // nolint: errcheck, gosec
