@@ -165,6 +165,21 @@ func TestObjectType_WithDocument(t *testing.T) {
 	})
 }
 
+func TestObjectType_Accessors(t *testing.T) {
+	o := &ObjectType{}
+
+	require.Nil(t, o.ID())
+	require.Nil(t, o.To())
+	require.Nil(t, o.EndTime())
+	require.Nil(t, o.StartTime())
+	require.Nil(t, o.InReplyTo())
+	require.Nil(t, o.Attachment())
+	require.Nil(t, o.Type())
+	require.Nil(t, o.Context())
+	require.Empty(t, o.CID())
+	require.Nil(t, o.Published())
+}
+
 const (
 	jsonObject = `{
   "@context": [

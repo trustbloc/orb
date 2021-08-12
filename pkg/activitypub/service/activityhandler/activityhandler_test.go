@@ -2046,6 +2046,13 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		vocab.WithTo(service1IRI),
 	)
 
+	followNotStored := vocab.NewFollowActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
 	followNoIRI := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(),
 		vocab.WithID(newActivityID(service2IRI)),
@@ -2086,7 +2093,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	t.Run("No actor in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
 			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
@@ -2094,7 +2101,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		require.EqualError(t, ibHandler.HandleActivity(undo), "no actor specified in 'Undo' activity")
 	})
 
-	t.Run("No object IRI in activity", func(t *testing.T) {
+	t.Run("No object in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(),
 			vocab.WithID(newActivityID(service2IRI)),
@@ -2104,12 +2111,12 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		)
 
 		require.EqualError(t, ibHandler.HandleActivity(undo),
-			"no IRI specified in 'object' field of the 'Undo' activity")
+			"no activity specified in 'object' field of the 'Undo' activity")
 	})
 
 	t.Run("Activity not found in storage", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(newActivityID(service3IRI))),
+			vocab.NewObjectProperty(vocab.WithActivity(followNotStored)),
 			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
@@ -2122,7 +2129,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2134,7 +2141,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	t.Run("Unsupported activity type for 'Undo'", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(unsupported.ID().URL())),
+			vocab.NewObjectProperty(vocab.WithActivity(unsupported)),
 			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
@@ -2162,7 +2169,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		require.NotNil(t, inboxHandler)
 
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(newActivityID(service3IRI))),
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
 			vocab.WithID(newActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
@@ -2203,7 +2210,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			require.True(t, containsIRI(followers, service2IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(follow)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2227,7 +2234,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(followNoIRI)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2240,7 +2247,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		t.Run("IRI not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(followIRINotLocalService.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(followIRINotLocalService)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2262,7 +2269,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service2IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(follow)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2289,7 +2296,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			require.True(t, containsIRI(following, service1IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(follow)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2312,7 +2319,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(followNoIRI.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(followNoIRI)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2325,7 +2332,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		t.Run("Actor not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(followActorNotLocalService.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(followActorNotLocalService)),
 				vocab.WithActor(service3IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2346,7 +2353,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service1IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(follow.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(follow)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2423,7 +2430,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.True(t, containsIRI(followers, service2IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(invite.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(invite)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2447,7 +2454,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessNoTarget.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2460,7 +2467,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 		t.Run("IRI not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessIRINotLocalService.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessIRINotLocalService)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2482,7 +2489,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service2IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(invite.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(invite)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2509,7 +2516,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.True(t, containsIRI(winesses, service1IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(invite.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(invite)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2532,7 +2539,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessNoTarget.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2545,7 +2552,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 		t.Run("Actor not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(inviteWitnessActorNotLocalService.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessActorNotLocalService)),
 				vocab.WithActor(service3IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2566,7 +2573,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service1IRI))
 
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(invite.ID().URL())),
+				vocab.NewObjectProperty(vocab.WithActivity(invite)),
 				vocab.WithID(newActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
