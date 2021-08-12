@@ -118,14 +118,14 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 		return fmt.Errorf("no actor specified in 'Undo' activity")
 	}
 
-	activityID := undo.Object().IRI()
-	if activityID == nil {
-		return fmt.Errorf("no IRI specified in 'object' field of the 'Undo' activity")
+	activityInUndo := undo.Object().Activity()
+	if activityInUndo == nil {
+		return fmt.Errorf("no activity specified in 'object' field of the 'Undo' activity")
 	}
 
-	activity, err := h.store.GetActivity(activityID)
+	activity, err := h.store.GetActivity(activityInUndo.ID().URL())
 	if err != nil {
-		e := fmt.Errorf("unable to retrieve activity %s from storage: %w", activityID, err)
+		e := fmt.Errorf("unable to retrieve activity %s from storage: %w", activityInUndo.ID().URL(), err)
 
 		if errors.Is(err, store.ErrNotFound) {
 			return e

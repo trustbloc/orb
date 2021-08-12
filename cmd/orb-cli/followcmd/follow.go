@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ import (
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 const (
@@ -66,16 +68,7 @@ const (
 const (
 	followAction = "Follow"
 	undoAction   = "Undo"
-	followCtx    = "https://www.w3.org/ns/activitystreams"
 )
-
-type follow struct {
-	Context []string `json:"@context,omitempty"`
-	Type    string   `json:"type,omitempty"`
-	Actor   string   `json:"actor,omitempty"`
-	To      string   `json:"to,omitempty"`
-	Object  string   `json:"object,omitempty"`
-}
 
 // GetCmd returns the Cobra follow command.
 func GetCmd() *cobra.Command {
@@ -86,7 +79,7 @@ func GetCmd() *cobra.Command {
 	return createCmd
 }
 
-func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
+func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
 		Use:   "follower",
 		Short: "manage followers",
@@ -118,10 +111,20 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 				return err
 			}
 
+			actorIRI, err := url.Parse(actor)
+			if err != nil {
+				return fmt.Errorf("parse 'actor' URL %s: %w", actor, err)
+			}
+
 			to, err := cmdutils.GetUserSetVarFromString(cmd, toFlagName,
 				toEnvKey, false)
 			if err != nil {
 				return err
+			}
+
+			toIRI, err := url.Parse(to)
+			if err != nil {
+				return fmt.Errorf("parse 'to' URL %s: %w", to, err)
 			}
 
 			action, err := cmdutils.GetUserSetVarFromString(cmd, actionFlagName,
@@ -133,12 +136,20 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
 				authTokenEnvKey)
 
-			req := follow{Context: []string{followCtx}, Actor: actor, To: to}
+			var reqBytes []byte
 
 			switch action {
 			case followAction:
-				req.Type = action
-				req.Object = to
+				req := vocab.NewFollowActivity(
+					vocab.NewObjectProperty(vocab.WithIRI(toIRI)),
+					vocab.WithActor(actorIRI),
+					vocab.WithTo(toIRI),
+				)
+
+				reqBytes, err = json.Marshal(req)
+				if err != nil {
+					return err
+				}
 			case undoAction:
 				followID, errGet := cmdutils.GetUserSetVarFromString(cmd, followIDFlagName,
 					followIDEnvKey, false)
@@ -146,15 +157,29 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 					return errGet
 				}
 
-				req.Type = action
-				req.Object = followID
+				followIRI, e := url.Parse(followID)
+				if e != nil {
+					return fmt.Errorf("parse 'followID' URL %s: %w", followID, e)
+				}
+
+				undo := vocab.NewUndoActivity(
+					vocab.NewObjectProperty(vocab.WithActivity(
+						vocab.NewFollowActivity(
+							vocab.NewObjectProperty(vocab.WithIRI(toIRI)),
+							vocab.WithID(followIRI),
+							vocab.WithActor(actorIRI),
+						),
+					)),
+					vocab.WithActor(actorIRI),
+					vocab.WithTo(toIRI),
+				)
+
+				reqBytes, err = json.Marshal(undo)
+				if err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("action %s not supported", action)
-			}
-
-			reqBytes, err := json.Marshal(req)
-			if err != nil {
-				return err
 			}
 
 			headers := make(map[string]string)

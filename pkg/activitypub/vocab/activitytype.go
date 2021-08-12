@@ -26,7 +26,7 @@ type activityType struct {
 
 // Actor returns the actor for the activity.
 func (t *ActivityType) Actor() *url.URL {
-	if t.activity.Actor == nil {
+	if t == nil || t.activity == nil || t.activity.Actor == nil {
 		return nil
 	}
 
@@ -40,16 +40,28 @@ func (t *ActivityType) SetActor(iri *url.URL) {
 
 // Target returns the target of the activity.
 func (t *ActivityType) Target() *ObjectProperty {
+	if t == nil || t.activity == nil {
+		return nil
+	}
+
 	return t.activity.Target
 }
 
 // Object returns the object of the activity.
 func (t *ActivityType) Object() *ObjectProperty {
+	if t == nil || t.activity == nil {
+		return nil
+	}
+
 	return t.activity.Object
 }
 
 // Result returns the result.
 func (t *ActivityType) Result() *ObjectProperty {
+	if t == nil || t.activity == nil {
+		return nil
+	}
+
 	return t.activity.Result
 }
 

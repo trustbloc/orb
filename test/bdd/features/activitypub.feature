@@ -101,7 +101,7 @@ Feature:
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
 
-    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${followID}"}'
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${followID}","object":"${domain1IRI}","type":"Follow"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json"
 
     Then we wait 3 seconds
@@ -155,10 +155,10 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.type" of the response contains "Announce"
 
-    And variable "undoFollow1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${follow1ID}"}'
+    And variable "undoFollow1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${follow1ID}","object":"${domain1IRI}","type":"Follow"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollow1Activity}" of type "application/json"
 
-    And variable "undoFollow2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${follow2ID}"}'
+    And variable "undoFollow2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain3IRI}","to":"${domain2IRI}","object":{"actor":"${domain3IRI}","id":"${follow2ID}","object":"${domain2IRI}","type":"Follow"}}'
     When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${undoFollow2Activity}" of type "application/json"
 
     Then we wait 2 seconds
@@ -208,7 +208,7 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain1IRI}"
 
-    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${inviteWitnessID}"}'
+    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":{"actor":"${domain1IRI}","id":"${inviteWitnessID}","object":"${domain2IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
 
     Then we wait 3 seconds
@@ -246,7 +246,7 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/63b3d005-6cb6-673d-6379-18be1ee84973"
 
-    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${inviteWitnessID}"}'
+    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"${domain1IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
 
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/witnessing?page=true"
@@ -280,7 +280,7 @@ Feature:
     # Valid signature on GET with actor as non-follower/non-witness - should be denied
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox" signed with KMS key from "domain3" and the returned status code is 401
 
-    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${followID}"}'
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${followID}","object":"${domain1IRI}","type":"Follow"}}'
     Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json" signed with KMS key from "domain2"
 
   @activitypub_auth_token
@@ -298,7 +298,7 @@ Feature:
 
     Then we wait 2 seconds
 
-    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":["${domain1IRI}","https://www.w3.org/ns/activitystreams#Public"],"object":"${followID}"}'
+    And variable "undoFollowActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":["${domain1IRI}","https://www.w3.org/ns/activitystreams#Public"],"object":{"actor":"${domain2IRI}","id":"${followID}","object":"${domain1IRI}","type":"Follow"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollowActivity}" of type "application/json"
     Then the value of the JSON string response is saved to variable "undoFollowID"
 

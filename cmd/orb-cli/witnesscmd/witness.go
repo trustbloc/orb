@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -67,18 +68,7 @@ const (
 const (
 	inviteWitnessAction = "InviteWitness"
 	undoAction          = "Undo"
-	activityCtx         = "https://www.w3.org/ns/activitystreams"
-	anchorCtx           = "https://w3id.org/activityanchors/v1"
 )
-
-type witness struct {
-	Context []string `json:"@context,omitempty"`
-	Type    string   `json:"type,omitempty"`
-	Actor   string   `json:"actor,omitempty"`
-	To      string   `json:"to,omitempty"`
-	Object  string   `json:"object,omitempty"`
-	Target  string   `json:"target,omitempty"`
-}
 
 // GetCmd returns the Cobra witness command.
 func GetCmd() *cobra.Command {
@@ -89,7 +79,7 @@ func GetCmd() *cobra.Command {
 	return cmd
 }
 
-func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
+func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
 		Use:   "witness",
 		Short: "manage witness",
@@ -121,10 +111,20 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 				return err
 			}
 
+			actorIRI, err := url.Parse(actor)
+			if err != nil {
+				return fmt.Errorf("parse 'actor' URL %s: %w", actor, err)
+			}
+
 			to, err := cmdutils.GetUserSetVarFromString(cmd, toFlagName,
 				toEnvKey, false)
 			if err != nil {
 				return err
+			}
+
+			toIRI, err := url.Parse(to)
+			if err != nil {
+				return fmt.Errorf("parse 'to' URL %s: %w", to, err)
 			}
 
 			action, err := cmdutils.GetUserSetVarFromString(cmd, actionFlagName,
@@ -136,18 +136,22 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
 				authTokenEnvKey)
 
-			req := witness{
-				Context: []string{activityCtx},
-				Actor:   actor,
-				To:      to,
-			}
+			var reqBytes []byte
 
 			switch action {
 			case inviteWitnessAction:
-				req.Context = append(req.Context, anchorCtx)
-				req.Type = string(vocab.TypeInvite)
-				req.Object = vocab.AnchorWitnessTargetIRI.String()
-				req.Target = to
+				req := vocab.NewInviteActivity(
+					vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
+					vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(toIRI))),
+					vocab.WithActor(actorIRI),
+					vocab.WithTo(toIRI),
+				)
+
+				reqBytes, err = json.Marshal(req)
+				if err != nil {
+					return err
+				}
+
 			case undoAction:
 				inviteWitness, errGet := cmdutils.GetUserSetVarFromString(cmd, inviteWitnessFlagName,
 					inviteWitnessEnvKey, false)
@@ -155,15 +159,31 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop
 					return errGet
 				}
 
-				req.Type = action
-				req.Object = inviteWitness
+				inviteWitnessIRI, e := url.Parse(inviteWitness)
+				if e != nil {
+					return fmt.Errorf("parse 'witnessID' URL %s: %w", inviteWitness, e)
+				}
+
+				undo := vocab.NewUndoActivity(
+					vocab.NewObjectProperty(vocab.WithActivity(
+						vocab.NewInviteActivity(
+							vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
+							vocab.WithID(inviteWitnessIRI),
+							vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(toIRI))),
+							vocab.WithActor(actorIRI),
+						),
+					)),
+					vocab.WithActor(actorIRI),
+					vocab.WithTo(toIRI),
+				)
+
+				reqBytes, err = json.Marshal(undo)
+				if err != nil {
+					return err
+				}
+
 			default:
 				return fmt.Errorf("action %s not supported", action)
-			}
-
-			reqBytes, err := json.Marshal(req)
-			if err != nil {
-				return err
 			}
 
 			headers := make(map[string]string)

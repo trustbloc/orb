@@ -75,11 +75,19 @@ type objectType struct {
 
 // Context returns the context property.
 func (t *ObjectType) Context() *ContextProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.Context
 }
 
 // ID returns the object's ID.
 func (t *ObjectType) ID() *URLProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.ID
 }
 
@@ -90,31 +98,55 @@ func (t *ObjectType) SetID(id *url.URL) {
 
 // Type returns the type of the object.
 func (t *ObjectType) Type() *TypeProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.Type
 }
 
 // Published returns the time when the object was published.
 func (t *ObjectType) Published() *time.Time {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.Published
 }
 
 // StartTime returns the start time.
 func (t *ObjectType) StartTime() *time.Time {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.StartTime
 }
 
 // EndTime returns the end time.
 func (t *ObjectType) EndTime() *time.Time {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.EndTime
 }
 
 // InReplyTo returns the 'inReplyTo' field.
 func (t *ObjectType) InReplyTo() *URLProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.InReplyTo
 }
 
 // Attachment returns the 'attachment' field.
 func (t *ObjectType) Attachment() []*ObjectType {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
 	return t.object.Attachment
 }
 
@@ -134,7 +166,7 @@ func (u Urls) Contains(v fmt.Stringer) bool {
 
 // To returns a set of URLs to which the object should be sent.
 func (t *ObjectType) To() Urls {
-	if t.object.To == nil {
+	if t == nil || t.object == nil || t.object.To == nil {
 		return nil
 	}
 
@@ -149,11 +181,19 @@ func (t *ObjectType) To() Urls {
 
 // CID returns the object's content ID.
 func (t *ObjectType) CID() string {
+	if t == nil || t.object == nil {
+		return ""
+	}
+
 	return t.object.CID
 }
 
 // Value returns the value of a property.
 func (t *ObjectType) Value(key string) (interface{}, bool) {
+	if t == nil {
+		return nil, false
+	}
+
 	v, ok := t.additional[key]
 
 	return v, ok

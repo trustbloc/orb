@@ -1008,8 +1008,15 @@ func TestUndoTypeMarshal(t *testing.T) {
 	org2Service := testutil.MustParseURL("https://org1.com/services/service2")
 
 	t.Run("Marshal", func(t *testing.T) {
+		follow := NewFollowActivity(
+			NewObjectProperty(WithIRI(org2Service)),
+			WithID(followActivityID),
+			WithActor(org1Service),
+			WithTo(org2Service),
+		)
+
 		accept := NewUndoActivity(
-			NewObjectProperty(WithIRI(followActivityID)),
+			NewObjectProperty(WithActivity(follow)),
 			WithID(undoActivityID),
 			WithActor(org1Service),
 			WithTo(org2Service),
@@ -1039,11 +1046,30 @@ func TestUndoTypeMarshal(t *testing.T) {
 
 		require.Equal(t, org1Service.String(), a.Actor().String())
 
-		objProp := a.Object()
-		require.NotNil(t, objProp)
-		require.NotNil(t, objProp.IRI())
-		require.True(t, objProp.IRI().String() == followActivityID.String())
+		obj := a.Object().Activity()
+		require.NotNil(t, obj.ID())
+		require.True(t, obj.ID().String() == followActivityID.String())
 	})
+}
+
+func TestActivityType_Accessors(t *testing.T) {
+	a := &ActivityType{}
+
+	// Ensure that we don't panic when dereferencing properties of the activity.
+
+	require.Nil(t, a.ID())
+	require.Nil(t, a.Type())
+	require.Nil(t, a.Object())
+	require.Nil(t, a.Object().IRI())
+	require.Nil(t, a.Object().Activity())
+	require.Nil(t, a.Actor())
+	require.Nil(t, a.Attachment())
+	require.Nil(t, a.InReplyTo())
+	require.Nil(t, a.Result())
+	require.Nil(t, a.Target())
+	require.Nil(t, a.StartTime())
+	require.Nil(t, a.EndTime())
+	require.Nil(t, a.To())
 }
 
 func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
@@ -1470,7 +1496,14 @@ const (
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://org1.com/services/service1",
   "id": "https://sally.example.com/services/orb/activities/77bcd005-abb6-433d-a889-18bc1ce64981",
-  "object": "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988",
+  "object": {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    "actor": "https://org1.com/services/service1",
+    "id": "https://sally.example.com/services/orb/activities/97b3d005-abb6-422d-a889-18bc1ee84988",
+    "object": "https://org1.com/services/service2",
+    "to": "https://org1.com/services/service2",
+    "type": "Follow"
+  },
   "to": "https://org1.com/services/service2",
   "type": "Undo"
 }`

@@ -57,6 +57,22 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 
+	t.Run("test invalid 'actor' arg", func(t *testing.T) {
+		startCmd := GetCmd()
+
+		var args []string
+		args = append(args, outboxURL("localhost:8080")...)
+		args = append(args, actor(string([]byte{0x0}))...)
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"parse 'actor' URL \u0000: parse \"\\x00\": net/url: invalid control character in URL",
+			err.Error())
+	})
+
 	t.Run("test missing to arg", func(t *testing.T) {
 		startCmd := GetCmd()
 
@@ -70,6 +86,23 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t,
 			"Neither to (command line flag) nor ORB_CLI_TO (environment variable) have been set.",
+			err.Error())
+	})
+
+	t.Run("test invalid 'to' arg", func(t *testing.T) {
+		startCmd := GetCmd()
+
+		var args []string
+		args = append(args, outboxURL("localhost:8080")...)
+		args = append(args, actor("actor")...)
+		args = append(args, to(string([]byte{0x0}))...)
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"parse 'to' URL \u0000: parse \"\\x00\": net/url: invalid control character in URL",
 			err.Error())
 	})
 
@@ -106,6 +139,26 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t,
 			"Neither invite-witness-id (command line flag) nor ORB_CLI_INVITE_WITNESS_ID (environment variable) have been set.",
+			err.Error())
+	})
+
+	t.Run("test invalid 'inviteWitnessID' arg", func(t *testing.T) {
+		startCmd := GetCmd()
+
+		var args []string
+		args = append(args, outboxURL("https://localhost:8080")...)
+		args = append(args, actor("actor")...)
+		args = append(args, to("to")...)
+		args = append(args, action("Undo")...)
+		args = append(args, inviteWitnessID(string([]byte{0x0}))...)
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"parse 'witnessID' URL \u0000: parse \"\\x00\": net/url: invalid control character in URL",
 			err.Error())
 	})
 
