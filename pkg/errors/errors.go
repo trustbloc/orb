@@ -13,6 +13,8 @@ import (
 var (
 	transientType = &transient{} //nolint:gochecknoglobals
 
+	invalidRequestType = &badRequest{} //nolint:gochecknoglobals
+
 	// ErrContentNotFound is used to indicate that content at a given address could not be found.
 	ErrContentNotFound = errors.New("content not found")
 )
@@ -28,6 +30,17 @@ func IsTransient(err error) bool {
 	return errors.As(err, &transientType)
 }
 
+// NewBadRequest returns a 'bad request' error that wraps the given error in order to indicate to the caller that
+// the request was invalid.
+func NewBadRequest(err error) error {
+	return &badRequest{err: err}
+}
+
+// IsBadRequest returns true if the given error is a 'bad request' error.
+func IsBadRequest(err error) bool {
+	return errors.As(err, &invalidRequestType)
+}
+
 type transient struct {
 	err error
 }
@@ -37,5 +50,17 @@ func (e *transient) Error() string {
 }
 
 func (e *transient) Unwrap() error {
+	return e.err
+}
+
+type badRequest struct {
+	err error
+}
+
+func (e *badRequest) Error() string {
+	return e.err.Error()
+}
+
+func (e *badRequest) Unwrap() error {
 	return e.err
 }

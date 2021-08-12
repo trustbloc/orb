@@ -399,6 +399,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		activityID, err := ob.Post(activity)
 		require.True(t, errors.Is(err, errExpected))
+		require.True(t, orberrors.IsBadRequest(err))
 		require.Nil(t, activityID)
 
 		time.Sleep(100 * time.Millisecond)
@@ -539,6 +540,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		require.Error(t, err)
 		require.EqualError(t, err, "invalid actor IRI")
+		require.True(t, orberrors.IsBadRequest(err))
 		require.Nil(t, activityID)
 
 		ob.Stop()

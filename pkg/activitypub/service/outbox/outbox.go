@@ -230,7 +230,7 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 
 	activityBytes, err := h.jsonMarshal(activity)
 	if err != nil {
-		return nil, fmt.Errorf("marshal: %w", err)
+		return nil, orberrors.NewBadRequest(fmt.Errorf("marshal: %w", err))
 	}
 
 	logger.Debugf("[%s] Posting activity: %s", h.ServiceName, activityBytes)
@@ -537,7 +537,7 @@ func (h *Outbox) validateAndPopulateActivity(activity *vocab.ActivityType) (*voc
 
 	if activity.Actor() != nil {
 		if activity.Actor().String() != h.ServiceIRI.String() {
-			return nil, fmt.Errorf("invalid actor IRI")
+			return nil, orberrors.NewBadRequest(fmt.Errorf("invalid actor IRI"))
 		}
 	} else {
 		activity.SetActor(h.ServiceIRI)

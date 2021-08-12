@@ -25,3 +25,15 @@ func TestTransientError(t *testing.T) {
 	require.False(t, IsTransient(ep))
 	require.EqualError(t, err, "got error: some transient error")
 }
+
+func TestBadRequestError(t *testing.T) {
+	eir := errors.New("some bad request error")
+	e := errors.New("some other error")
+
+	err := fmt.Errorf("got error: %w", NewBadRequest(eir))
+
+	require.True(t, IsBadRequest(err))
+	require.True(t, errors.Is(err, eir))
+	require.False(t, IsBadRequest(e))
+	require.EqualError(t, err, "got error: some bad request error")
+}

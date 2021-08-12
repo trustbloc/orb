@@ -17,6 +17,7 @@ import (
 
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 type outbox interface {
@@ -63,7 +64,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 	return h.handlePost
 }
 
-func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
+func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint:funlen
 	ok, _, err := h.Authorize(req)
 	if err != nil {
 		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
@@ -85,7 +86,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		logger.Errorf("[%s] Error reading request body: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -94,18 +95,24 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 
 	activity, err := h.unmarshalAndValidateActivity(activityBytes)
 	if err != nil {
-		logger.Errorf("[%s] Invalid activity: %s", h.endpoint, err)
+		logger.Debugf("[%s] Invalid activity: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
+		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
 
 	activityID, err := h.ob.Post(activity)
 	if err != nil {
-		logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
+		if orberrors.IsBadRequest(err) {
+			logger.Debugf("[%s] Error posting activity: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+			h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		} else {
+			logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
+
+			h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		}
 
 		return
 	}
