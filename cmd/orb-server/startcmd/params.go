@@ -160,12 +160,12 @@ const (
 	databaseTypeEnvKey        = "DATABASE_TYPE"
 	databaseTypeFlagShorthand = "t"
 	databaseTypeFlagUsage     = "The type of database to use for everything except key storage. " +
-		"Supported options: mem, couchdb, mysql. " + commonEnvVarUsageText + databaseTypeEnvKey
+		"Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + databaseTypeEnvKey
 
 	databaseURLFlagName      = "database-url"
 	databaseURLEnvKey        = "DATABASE_URL"
 	databaseURLFlagShorthand = "v"
-	databaseURLFlagUsage     = "The URL of the database. Not needed if using memstore." +
+	databaseURLFlagUsage     = "The URL (or connection string) of the database. Not needed if using memstore." +
 		" For CouchDB, include the username:password@ text if required. " + commonEnvVarUsageText + databaseURLEnvKey
 
 	databasePrefixFlagName  = "database-prefix"
@@ -178,12 +178,12 @@ const (
 	kmsSecretsDatabaseTypeEnvKey        = "KMSSECRETS_DATABASE_TYPE"  //nolint: gosec
 	kmsSecretsDatabaseTypeFlagShorthand = "k"
 	kmsSecretsDatabaseTypeFlagUsage     = "The type of database to use for storage of KMS secrets. " +
-		"Supported options: mem, couchdb, mysql. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
+		"Supported options: mem, couchdb, mysql, mongodb. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
 
 	kmsSecretsDatabaseURLFlagName      = "kms-secrets-database-url" //nolint: gosec
 	kmsSecretsDatabaseURLEnvKey        = "KMSSECRETS_DATABASE_URL"  //nolint: gosec
 	kmsSecretsDatabaseURLFlagShorthand = "s"
-	kmsSecretsDatabaseURLFlagUsage     = "The URL of the database. Not needed if using memstore. For CouchDB, " +
+	kmsSecretsDatabaseURLFlagUsage     = "The URL (or connection string) of the database. Not needed if using memstore. For CouchDB, " +
 		"include the username:password@ text if required. " +
 		commonEnvVarUsageText + databaseURLEnvKey
 
@@ -195,6 +195,7 @@ const (
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
 	databaseTypeMYSQLDBOption = "mysql"
+	databaseTypeMongoDBOption = "mongodb"
 
 	anchorCredentialIssuerFlagName      = "anchor-credential-issuer"
 	anchorCredentialIssuerEnvKey        = "ANCHOR_CREDENTIAL_ISSUER"
