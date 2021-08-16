@@ -11,7 +11,7 @@ require (
 	github.com/cucumber/messages-go/v10 v10.0.3
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210813122903-2b268f3c37dd
+	github.com/hyperledger/aries-framework-go v0.1.7-0.20210816171017-5da380dba24e
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210714131038-41b5bccef1f9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210812165607-4eae28b3c74b
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210714131038-41b5bccef1f9
