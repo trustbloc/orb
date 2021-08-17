@@ -40,7 +40,7 @@ const (
 	anchorWriteSignLocalWitnessLogTimeMetric       = "write_sign_local_witness_log_seconds"
 	anchorWriteSignLocalStoreTimeMetric            = "write_sign_local_store_seconds"
 	anchorWriteSignLocalWatchTimeMetric            = "write_sign_local_watch_seconds"
-	anchorWriteResolveHostMetaLinkTimeMetric       = "write_sign_resolve_host_meta_link_seconds"
+	anchorWriteResolveHostMetaLinkTimeMetric       = "write_resolve_host_meta_link_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -241,6 +241,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
 		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
 		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes, m.signerAddLinkedDataProofTimes,
+		m.anchorWriteResolveHostMetaLinkTime,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
