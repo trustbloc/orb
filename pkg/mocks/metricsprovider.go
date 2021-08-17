@@ -71,6 +71,10 @@ func (m *MetricsProvider) WriteAnchorSignLocalStoreTime(value time.Duration) {
 func (m *MetricsProvider) WriteAnchorSignLocalWatchTime(value time.Duration) {
 }
 
+// WriteAnchorResolveHostMetaLinkTime records the time it takes to resolve host meta link.
+func (m *MetricsProvider) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
+}
+
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
 func (m *MetricsProvider) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
