@@ -27,7 +27,7 @@
           "as": "https://www.w3.org/ns/activitystreams#",
           "resources": {
             "@id": "aa:resources",
-            "@container": "@list"
+            "@type": "@json"
           }
         }
       },
