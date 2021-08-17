@@ -48,7 +48,7 @@ func (e *Steps) RegisterSteps(s *godog.Suite) {
 }
 
 func (e *Steps) checkCreatedDID() error {
-	const numberOfVerificationMethods = 2
+	const numberOfVerificationMethods = 3
 
 	const numberOfServices = 2
 
