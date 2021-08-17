@@ -55,6 +55,7 @@ type metricsProvider interface {
 	WriteAnchorSignLocalWitnessLogTime(value time.Duration)
 	WriteAnchorSignLocalStoreTime(value time.Duration)
 	WriteAnchorSignLocalWatchTime(value time.Duration)
+	WriteAnchorResolveHostMetaLinkTime(value time.Duration)
 }
 
 // Writer implements writing anchors.
@@ -627,10 +628,14 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 
 		logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
 
+		resolveStartTime := time.Now()
+
 		resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve witness: %w", err)
 		}
+
+		c.metrics.WriteAnchorResolveHostMetaLinkTime(time.Since(resolveStartTime))
 
 		logger.Debugf("Successfully resolved witness %s from %s", resolvedWitness, anchorOrigin)
 

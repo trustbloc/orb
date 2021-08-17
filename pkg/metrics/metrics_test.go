@@ -36,6 +36,7 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.WriteAnchorSignLocalWitnessLogTime(time.Second) })
 		require.NotPanics(t, func() { m.WriteAnchorSignLocalStoreTime(time.Second) })
 		require.NotPanics(t, func() { m.WriteAnchorSignLocalWatchTime(time.Second) })
+		require.NotPanics(t, func() { m.WriteAnchorResolveHostMetaLinkTime(time.Second) })
 		require.NotPanics(t, func() { m.ProcessWitnessedAnchorCredentialTime(time.Second) })
 		require.NotPanics(t, func() { m.AddOperationTime(time.Second) })
 		require.NotPanics(t, func() { m.BatchCutTime(time.Second) })

@@ -40,6 +40,7 @@ const (
 	anchorWriteSignLocalWitnessLogTimeMetric       = "write_sign_local_witness_log_seconds"
 	anchorWriteSignLocalStoreTimeMetric            = "write_sign_local_store_seconds"
 	anchorWriteSignLocalWatchTimeMetric            = "write_sign_local_watch_seconds"
+	anchorWriteResolveHostMetaLinkTimeMetric       = "write_sign_resolve_host_meta_link_seconds"
 
 	// Operation queue.
 	operationQueue                 = "opqueue"
@@ -121,6 +122,7 @@ type Metrics struct {
 	anchorWriteSignLocalWitnessLogTime       prometheus.Histogram
 	anchorWriteSignLocalStoreTime            prometheus.Histogram
 	anchorWriteSignLocalWatchTime            prometheus.Histogram
+	anchorWriteResolveHostMetaLinkTime       prometheus.Histogram
 
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
@@ -189,6 +191,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		anchorWriteSignLocalWitnessLogTime:       newAnchorWriteSignLocalWitnessLogTime(),
 		anchorWriteSignLocalStoreTime:            newAnchorWriteSignLocalStoreTime(),
 		anchorWriteSignLocalWatchTime:            newAnchorWriteSignLocalWatchTime(),
+		anchorWriteResolveHostMetaLinkTime:       newAnchorWriteResolveHostMetaLinkTime(),
 		opqueueAddOperationTime:                  newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:                      newOpQueueBatchCutTime(),
 		opqueueBatchRollbackTime:                 newOpQueueBatchRollbackTime(),
@@ -383,6 +386,13 @@ func (m *Metrics) WriteAnchorSignLocalWatchTime(value time.Duration) {
 	m.anchorWriteSignLocalWatchTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor watch inside sign local time: %s", value)
+}
+
+// WriteAnchorResolveHostMetaLinkTime records the time it takes to resolve host meta link.
+func (m *Metrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
+	m.anchorWriteResolveHostMetaLinkTime.Observe(value.Seconds())
+
+	logger.Debugf("WriteAnchor resolve host meta link time: %s", value)
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -809,6 +819,14 @@ func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
 	return newHistogram(
 		anchor, anchorWriteSignLocalWatchTimeMetric,
 		"The time (in seconds) that it takes to watxch inside sign local.",
+		nil,
+	)
+}
+
+func newAnchorWriteResolveHostMetaLinkTime() prometheus.Histogram {
+	return newHistogram(
+		anchor, anchorWriteResolveHostMetaLinkTimeMetric,
+		"The time (in seconds) that it takes to resolve host meta link.",
 		nil,
 	)
 }
