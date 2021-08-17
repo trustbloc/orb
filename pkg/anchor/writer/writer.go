@@ -179,7 +179,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 }
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
-func (c *Writer) WriteAnchor(anchor string, _ []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) error { //nolint:lll
+func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) error { //nolint:lll
 	startTime := time.Now()
 
 	defer func() { c.metrics.WriteAnchorTime(time.Since(startTime)) }()
@@ -187,7 +187,7 @@ func (c *Writer) WriteAnchor(anchor string, _ []*protocol.AnchorDocument, refs [
 	buildCredStartTime := time.Now()
 
 	// build anchor credential
-	vc, err := c.buildCredential(anchor, refs, version)
+	vc, err := c.buildCredential(anchor, attachments, refs, version)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func getSuffixes(refs []*operation.Reference) []string {
 }
 
 // buildCredential builds and signs anchor credential.
-func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
+func (c *Writer) buildCredential(anchor string, attachments []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
 	// get previous anchors for each did that is referenced in this anchor
 	getPreviousAnchorsStartTime := time.Now()
 
@@ -291,6 +291,7 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 	payload := &subject.Payload{
 		OperationCount:  ad.OperationCount,
 		CoreIndex:       ad.CoreIndexFileURI,
+		Attachments:     getAttachmentURIs(attachments),
 		Namespace:       c.namespace,
 		Version:         version,
 		PreviousAnchors: previousAnchors,
@@ -304,6 +305,16 @@ func (c *Writer) buildCredential(anchor string, refs []*operation.Reference, ver
 	}
 
 	return vc, nil
+}
+
+func getAttachmentURIs(attachments []*protocol.AnchorDocument) []string {
+	var attachURIs []string
+
+	for _, attach := range attachments {
+		attachURIs = append(attachURIs, attach.ID)
+	}
+
+	return attachURIs
 }
 
 func (c *Writer) signCredential(vc *verifiable.Credential, witnesses []string) (*verifiable.Credential, error) {
