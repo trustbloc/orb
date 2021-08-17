@@ -22,6 +22,7 @@ const (
 
 	anchorEventType    = "AnchorEvent"
 	anchorIndexType    = "AnchorIndex"
+	anchorObjectType   = "AnchorObject"
 	anchorResourceType = "AnchorResource"
 
 	idKey             = "id"
@@ -89,19 +90,25 @@ func BuildActivityFromPayload(payload *subject.Payload) (*Activity, error) {
 		}
 	}
 
-	attachment := []Attachment{{
+	attachments := []Attachment{{
 		Type:      anchorIndexType,
 		Generator: gen,
 		URL:       payload.CoreIndex,
 		Resources: resources,
 	}}
 
+	for _, attach := range payload.Attachments {
+		if attach != payload.CoreIndex {
+			attachments = append(attachments, Attachment{Type: anchorObjectType, URL: attach})
+		}
+	}
+
 	return &Activity{
 		Type:         anchorEventType,
 		AttributedTo: payload.AnchorOrigin,
 		Published:    payload.Published,
 		Parent:       previous,
-		Attachment:   attachment,
+		Attachment:   attachments,
 	}, nil
 }
 
@@ -111,23 +118,23 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 		return nil, fmt.Errorf("activity is missing attachment")
 	}
 
-	// TODO: issue-670 add support for multiple attachments (read additional artifacts/batch files from sidetree)
-	attach := activity.Attachment[0]
+	anchorIndex, err := getAnchorIndex(activity.Attachment)
+	if err != nil {
+		return nil, err
+	}
 
-	ns, ver, err := generator.ParseNamespaceAndVersion(attach.Generator)
+	ns, ver, err := generator.ParseNamespaceAndVersion(anchorIndex.Generator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse namespace and version from activity generator: %w", err)
 	}
 
-	if attach.URL == "" {
-		return nil, fmt.Errorf("activity is missing attachment URL")
+	if anchorIndex.URL == "" {
+		return nil, fmt.Errorf("anchor index is missing URL")
 	}
 
-	coreIndex := attach.URL
+	operationCount := uint64(len(anchorIndex.Resources))
 
-	operationCount := uint64(len(attach.Resources))
-
-	prevAnchors, err := getPreviousAnchors(attach.Resources, activity.Parent)
+	prevAnchors, err := getPreviousAnchors(anchorIndex.Resources, activity.Parent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse previous anchors from activity: %w", err)
 	}
@@ -135,14 +142,37 @@ func GetPayloadFromActivity(activity *Activity) (*subject.Payload, error) {
 	payload := &subject.Payload{
 		Namespace:       ns,
 		Version:         ver,
-		CoreIndex:       coreIndex,
+		CoreIndex:       anchorIndex.URL,
 		OperationCount:  operationCount,
 		PreviousAnchors: prevAnchors,
+		Attachments:     getAnchorObjects(activity.Attachment),
 		AnchorOrigin:    activity.AttributedTo,
 		Published:       activity.Published,
 	}
 
 	return payload, nil
+}
+
+func getAnchorIndex(attachments []Attachment) (Attachment, error) {
+	for _, attach := range attachments {
+		if attach.Type == anchorIndexType {
+			return attach, nil
+		}
+	}
+
+	return Attachment{}, fmt.Errorf("anchor index not found")
+}
+
+func getAnchorObjects(attachments []Attachment) []string {
+	var anchorObjects []string
+
+	for _, attach := range attachments {
+		if attach.Type == anchorObjectType {
+			anchorObjects = append(anchorObjects, attach.URL)
+		}
+	}
+
+	return anchorObjects
 }
 
 func getPreviousAnchors(resources []interface{}, previous []string) (map[string]string, error) {

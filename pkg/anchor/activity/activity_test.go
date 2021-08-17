@@ -23,6 +23,8 @@ const (
 	anchorOrigin = "ipns://k51qzi5uqu5dl3ua2aal8vdw82j4i8s112p495j1spfkd2blqygghwccsw1z0p"
 	coreIndex    = "hl:uEiD2k2kSGESB9e3UwwTOJ8WhqCeAT8fzKfQ9JzuGIYcHdg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlEMmsya1NHRVNCOWUzVXd3VE9KOFdocUNlQVQ4ZnpLZlE5Snp1R0lZY0hkZ3hCaXBmczovL2JhZmtyZWlod3NudXJlZ2NlcWgyNjN2Z2RhdGhjcHJuYnZhdHlhdDZoNm11N2lwamhob2RjZGJ5aG95" //nolint:lll
 
+	sampleAttachment = "hl:uEiCrkp_NVZQDeWB5LqC5jK9f2va2BkXk7ySMKNt0Jg85Pg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlDcmtwX05WWlFEZVdCNUxxQzVqSzlmMnZhMkJrWGs3eVNNS050MEpnODVQZ3hCaXBmczovL2JhZmtyZWlmbHNrcDQydm11YW40d2E2am91YzR5emwyNzNsM2xtYnNmNHR4c2pkYmkzbjJjbWR6emh5" //nolint:lll
+
 	updateSuffix       = "uEiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA"
 	updatePrevAnchorID = "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg"
 	updatePrevAnchor   = "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5" //nolint:lll
@@ -41,6 +43,7 @@ func TestBuildActivityFromPayload(t *testing.T) {
 			Namespace:       namespace,
 			Version:         1,
 			AnchorOrigin:    anchorOrigin,
+			Attachments:     []string{coreIndex, sampleAttachment},
 			PreviousAnchors: previousAnchors,
 			Published:       &util.TimeWithTrailingZeroMsec{Time: time.Now()},
 		}
@@ -56,12 +59,16 @@ func TestBuildActivityFromPayload(t *testing.T) {
 		require.Equal(t, updatePrevAnchor, activity.Parent[0])
 
 		// check attachment
-		require.Equal(t, 1, len(activity.Attachment))
+		require.Equal(t, 2, len(activity.Attachment))
 
+		// first attachment is core index
 		require.Equal(t, coreIndex, activity.Attachment[0].URL)
 		require.Equal(t, anchorIndexType, activity.Attachment[0].Type)
 		require.Equal(t, "https://w3id.org/orb#v1", activity.Attachment[0].Generator)
 		require.Equal(t, 2, len(activity.Attachment[0].Resources))
+
+		require.Equal(t, sampleAttachment, activity.Attachment[1].URL)
+		require.Equal(t, anchorObjectType, activity.Attachment[1].Type)
 
 		expectedResource := Resource{
 			ID:             multihashPrefix + ":" + updateSuffix,
@@ -94,9 +101,14 @@ func TestBuildActivityFromPayload(t *testing.T) {
 		// check previous (two items - no create)
 		require.Equal(t, 2, len(activity.Parent))
 
+		require.Equal(t, 2, len(activity.Attachment))
+
 		require.Equal(t, anchorIndexType, activity.Attachment[0].Type)
 		require.Equal(t, "https://w3id.org/orb#v1", activity.Attachment[0].Generator)
 		require.Equal(t, 3, len(activity.Attachment[0].Resources))
+
+		require.Equal(t, anchorObjectType, activity.Attachment[1].Type)
+		require.Equal(t, sampleAttachment, activity.Attachment[1].URL)
 	})
 
 	t.Run("error - namespace not supported", func(t *testing.T) {
@@ -146,6 +158,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 
 	inPayload := &subject.Payload{
 		CoreIndex:       coreIndex,
+		Attachments:     []string{"URL-1", "URL-2"},
 		Namespace:       namespace,
 		Version:         1,
 		AnchorOrigin:    anchorOrigin,
@@ -173,6 +186,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		require.Equal(t, inPayload.CoreIndex, outPayload.CoreIndex)
 		require.Equal(t, inPayload.PreviousAnchors, outPayload.PreviousAnchors)
 		require.Equal(t, inPayload.OperationCount, outPayload.OperationCount)
+		require.Equal(t, inPayload.Attachments, outPayload.Attachments)
 	})
 
 	t.Run("error - missing attachment", func(t *testing.T) {
@@ -186,7 +200,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 
 	t.Run("error - namespace not supported", func(t *testing.T) {
 		activity := Activity{
-			Attachment: []Attachment{{Generator: "invalid-generator"}},
+			Attachment: []Attachment{{Type: anchorIndexType, Generator: "invalid-generator"}},
 		}
 
 		payload, err := GetPayloadFromActivity(&activity)
@@ -196,15 +210,37 @@ func TestGetPayloadFromActivity(t *testing.T) {
 			"failed to parse namespace and version from activity generator: invalid namespace and version format")
 	})
 
-	t.Run("error - activity is missing attachment URL", func(t *testing.T) {
+	t.Run("error - activity is missing anchor index", func(t *testing.T) {
 		activity := Activity{
-			Attachment: []Attachment{{Generator: "https://w3id.org/orb#v1"}},
+			Attachment: []Attachment{{Type: anchorObjectType, URL: "URL"}},
 		}
 
 		payload, err := GetPayloadFromActivity(&activity)
 		require.Error(t, err)
 		require.Nil(t, payload)
-		require.Contains(t, err.Error(), "activity is missing attachment URL")
+		require.Contains(t, err.Error(), "anchor index not found")
+	})
+
+	t.Run("error - activity is missing anchor index URL", func(t *testing.T) {
+		activity := Activity{
+			Attachment: []Attachment{{Type: anchorIndexType, Generator: "https://w3id.org/orb#v1"}},
+		}
+
+		payload, err := GetPayloadFromActivity(&activity)
+		require.Error(t, err)
+		require.Nil(t, payload)
+		require.Contains(t, err.Error(), "anchor index is missing URL")
+	})
+
+	t.Run("error - activity is missing attachment URL", func(t *testing.T) {
+		activity := Activity{
+			Attachment: []Attachment{{Type: anchorIndexType, Generator: "https://w3id.org/orb#v1"}},
+		}
+
+		payload, err := GetPayloadFromActivity(&activity)
+		require.Error(t, err)
+		require.Nil(t, payload)
+		require.Contains(t, err.Error(), "anchor index is missing URL")
 	})
 
 	t.Run("error - invalid id", func(t *testing.T) {

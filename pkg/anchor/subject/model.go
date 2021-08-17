@@ -13,6 +13,7 @@ import "github.com/hyperledger/aries-framework-go/pkg/doc/util"
 type Payload struct {
 	OperationCount  uint64                         `json:"operationCount"`
 	CoreIndex       string                         `json:"coreIndex"`
+	Attachments     []string                       `json:"attachments"`
 	Namespace       string                         `json:"namespace"`
 	Version         uint64                         `json:"version"`
 	AnchorOrigin    string                         `json:"anchorOrigin"`
