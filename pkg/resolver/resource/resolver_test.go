@@ -95,7 +95,9 @@ func TestResolver_Resolve(t *testing.T) {
 			discoveryrest.ActivityJSONType)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get host-meta document via IPNS: "+
-			`failed to read from IPNS: Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjc`+
+			`failed to read from IPNS: cat IPFS of CID `+
+			`[/ipns/k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek/.well-known/host-meta.json]: `+
+			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjc`+
 			`eyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek%2F.well-known%2Fhost-meta.json": dial tcp: `+
 			"lookup SomeIPFSNodeURL:")
 		require.Empty(t, resource)

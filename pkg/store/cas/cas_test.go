@@ -178,6 +178,16 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, content2, content)
 	})
+
+	t.Run("Empty content", func(t *testing.T) {
+		provider, err := localcas.New(&ariesmockstorage.Provider{}, casLink,
+			nil, &orbmocks.MetricsProvider{}, 0)
+		require.NoError(t, err)
+
+		address, err := provider.Write(nil)
+		require.EqualError(t, err, "empty content")
+		require.Empty(t, address)
+	})
 }
 
 func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
