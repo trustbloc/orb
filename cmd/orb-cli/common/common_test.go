@@ -51,6 +51,23 @@ const (
   "type": "JsonWebKey2020",
   "purposes": ["authentication"],
   "jwkPath": "%s"
+ },
+ {
+  "id": "key3",
+  "type": "Ed25519VerificationKey2018",
+  "purposes": ["assertionMethod"],
+  "b58Key": "36d8RkFy2SdabnGzcZ3LcCSDA8NP5T4bsoADwuXtoN3B"
+ }
+]`
+
+	publicKeyDataWithJWKAndB58 = `
+[
+ {
+  "id": "key1",
+  "type": "Ed25519VerificationKey2018",
+  "purposes": ["authentication","assertionMethod","keyAgreement","capabilityDelegation","capabilityInvocation"],
+  "jwkPath": "%s",
+  "b58Key": "36d8RkFy2SdabnGzcZ3LcCSDA8NP5T4bsoADwuXtoN3B"
  }
 ]`
 
@@ -313,6 +330,53 @@ func TestGetVDRPublicKeys(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to read jwk file ")
 	})
 
+	t.Run("test public key unmarshal error", func(t *testing.T) {
+		jwk1File, err := ioutil.TempFile("", "*.json")
+		require.NoError(t, err)
+
+		_, err = jwk1File.WriteString("oops")
+		require.NoError(t, err)
+
+		jwk2File, err := ioutil.TempFile("", "*.json")
+		require.NoError(t, err)
+
+		_, err = jwk2File.WriteString("oops again")
+		require.NoError(t, err)
+
+		file, err := ioutil.TempFile("", "*.json")
+		require.NoError(t, err)
+
+		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))
+		require.NoError(t, err)
+
+		defer func() {
+			require.NoError(t, os.Remove(file.Name()))
+			require.NoError(t, os.Remove(jwk1File.Name()))
+			require.NoError(t, os.Remove(jwk2File.Name()))
+		}()
+
+		didDoc, err := GetVDRPublicKeysFromFile(file.Name())
+		require.Error(t, err)
+		require.Nil(t, didDoc)
+
+		require.Contains(t, err.Error(), "failed to unmarshal to jwk")
+	})
+
+	t.Run("test public key multiple key material fields", func(t *testing.T) {
+		file, err := ioutil.TempFile("", "*.json")
+		require.NoError(t, err)
+
+		_, err = file.WriteString(publicKeyDataWithJWKAndB58)
+		require.NoError(t, err)
+
+		defer func() { require.NoError(t, os.Remove(file.Name())) }()
+
+		_, err = GetVDRPublicKeysFromFile(file.Name())
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "public key needs exactly one of jwkPath and b58Key")
+	})
+
 	t.Run("test public key success", func(t *testing.T) {
 		jwk1File, err := ioutil.TempFile("", "*.json")
 		require.NoError(t, err)
@@ -332,7 +396,11 @@ func TestGetVDRPublicKeys(t *testing.T) {
 		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))
 		require.NoError(t, err)
 
-		defer func() { require.NoError(t, os.Remove(file.Name())) }()
+		defer func() {
+			require.NoError(t, os.Remove(file.Name()))
+			require.NoError(t, os.Remove(jwk1File.Name()))
+			require.NoError(t, os.Remove(jwk2File.Name()))
+		}()
 
 		didDoc, err := GetVDRPublicKeysFromFile(file.Name())
 		require.NoError(t, err)

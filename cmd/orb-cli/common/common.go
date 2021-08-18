@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
 	docdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
+	jwk2 "github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
 	"github.com/spf13/cobra"
-	gojose "github.com/square/go-jose/v3"
 	"github.com/trustbloc/edge-core/pkg/log"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 )
@@ -37,6 +37,7 @@ type PublicKey struct {
 	Type     string   `json:"type,omitempty"`
 	Purposes []string `json:"purposes,omitempty"`
 	JWKPath  string   `json:"jwkPath,omitempty"`
+	B58Key   string   `json:"b58Key,omitempty"`
 }
 
 // PublicKeyFromFile public key from file.
@@ -158,7 +159,7 @@ func GetKey(cmd *cobra.Command, keyFlagName, keyEnvKey, keyFileFlagName, keyFile
 }
 
 // GetVDRPublicKeysFromFile get public keys from file.
-func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { //nolint:gocyclo,cyclop
+func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { //nolint:gocyclo,cyclop,funlen
 	pkData, err := ioutil.ReadFile(filepath.Clean(publicKeyFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to public key file '%s' : %w", publicKeyFilePath, err)
@@ -172,24 +173,29 @@ func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { /
 	didDoc := &docdid.Doc{}
 
 	for _, v := range publicKeys {
-		jwkData, err := ioutil.ReadFile(filepath.Clean(v.JWKPath))
-		if err != nil {
-			return nil, fmt.Errorf("failed to read jwk file '%s' : %w", v.JWKPath, err)
+		if (v.JWKPath == "") == (v.B58Key == "") {
+			return nil, fmt.Errorf("public key needs exactly one of jwkPath and b58Key")
 		}
 
-		var jsonWebKey gojose.JSONWebKey
-		if errUnmarshal := jsonWebKey.UnmarshalJSON(jwkData); errUnmarshal != nil {
-			return nil, fmt.Errorf("failed to unmarshal to jwk: %w", errUnmarshal)
-		}
+		var vm *docdid.VerificationMethod
 
-		jwk, err := jwksupport.JWKFromKey(jsonWebKey.Key)
-		if err != nil {
-			return nil, err
-		}
+		if v.JWKPath != "" {
+			jwkData, err := ioutil.ReadFile(filepath.Clean(v.JWKPath))
+			if err != nil {
+				return nil, fmt.Errorf("failed to read jwk file '%s' : %w", v.JWKPath, err)
+			}
 
-		vm, err := docdid.NewVerificationMethodFromJWK(v.ID, v.Type, "", jwk)
-		if err != nil {
-			return nil, err
+			var jwk jwk2.JWK
+			if errUnmarshal := jwk.UnmarshalJSON(jwkData); errUnmarshal != nil {
+				return nil, fmt.Errorf("failed to unmarshal to jwk: %w", errUnmarshal)
+			}
+
+			vm, err = docdid.NewVerificationMethodFromJWK(v.ID, v.Type, "", &jwk)
+			if err != nil {
+				return nil, err
+			}
+		} else if v.B58Key != "" {
+			vm = docdid.NewVerificationMethodFromBytes(v.ID, v.Type, "", base58.Decode(v.B58Key))
 		}
 
 		for _, p := range v.Purposes {
