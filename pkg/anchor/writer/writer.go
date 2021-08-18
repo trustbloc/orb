@@ -68,6 +68,9 @@ type Writer struct {
 	signWithLocalWitness bool
 	resourceResolver     *resourceresolver.Resolver
 	metrics              metricsProvider
+
+	// allowed origins is specified for optimization purposes only
+	allowedOrigins []string
 }
 
 // Providers contains all of the providers required by the client.
@@ -150,12 +153,22 @@ type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 }
 
+// Option is an option for writer.
+type Option func(opts *Writer)
+
+// WithAllowedOrigins is only specified for optimization purposes (used for closed systems).
+func WithAllowedOrigins(allowedOrigins []string) Option {
+	return func(opts *Writer) {
+		opts.allowedOrigins = allowedOrigins
+	}
+}
+
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 	anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
 	documentLoader ld.DocumentLoader, resourceResolver *resourceresolver.Resolver,
-	metrics metricsProvider) (*Writer, error) {
+	metrics metricsProvider, opts ...Option) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -166,6 +179,11 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		signWithLocalWitness: signWithLocalWitness,
 		resourceResolver:     resourceResolver,
 		metrics:              metrics,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(w)
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
@@ -608,8 +626,10 @@ func (c *Writer) getBatchWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 // getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.
 // Create and recover operations contain anchor origin in operation references.
 // For update and deactivate operations we have to 'resolve' did in order to figure out anchor origin.
-func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
+func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) { //nolint:funlen,gocyclo,cyclop
 	var witnesses []string
+
+	var updateOrDeactivateExists bool
 
 	uniqueWitnesses := make(map[string]bool)
 
@@ -621,6 +641,16 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 			anchorOriginObj = ref.AnchorOrigin
 
 		case operation.TypeUpdate, operation.TypeDeactivate:
+			updateOrDeactivateExists = true
+
+			if len(c.allowedOrigins) > 0 {
+				// in closed systems that list allowed origins if optimization is enabled we will add
+				// all allowed origins to the list instead of resolving every single update in the batch
+				// resolving every did for large batch sizes is costly
+				continue
+			}
+
+			// we don't have preset list for updates so have to check anchor origin for every update
 			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
 			if err != nil {
 				return nil, err
@@ -650,6 +680,25 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 		if !ok {
 			witnesses = append(witnesses, resolvedWitness)
 			uniqueWitnesses[resolvedWitness] = true
+		}
+	}
+
+	if updateOrDeactivateExists && len(c.allowedOrigins) > 0 {
+		// TODO: this is temporary solution for performance testing to continue???
+		for _, anchorOrigin := range c.allowedOrigins {
+			resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve witness: %w", err)
+			}
+
+			logger.Debugf("Successfully resolved allowed witness %s from %s", resolvedWitness, anchorOrigin)
+
+			_, ok := uniqueWitnesses[resolvedWitness]
+
+			if !ok {
+				witnesses = append(witnesses, resolvedWitness)
+				uniqueWitnesses[resolvedWitness] = true
+			}
 		}
 	}
 

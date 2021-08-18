@@ -122,15 +122,16 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	defaultMaxWitnessDelay                = 600 * time.Second // 10 minutes
-	defaultSyncTimeout                    = 1
-	defaulthttpSignaturesEnabled          = true
-	defaultDidDiscoveryEnabled            = false
-	defaultCreateDocumentStoreEnabled     = false
-	defaultLocalCASReplicateInIPFSEnabled = false
-	defaultDevModeEnabled                 = false
-	defaultPolicyCacheExpiry              = 30 * time.Second
-	defaultCasCacheSize                   = 1000
+	defaultMaxWitnessDelay                   = 600 * time.Second // 10 minutes
+	defaultSyncTimeout                       = 1
+	defaulthttpSignaturesEnabled             = true
+	defaultDidDiscoveryEnabled               = false
+	defaultAllowedOriginsOptimizationEnabled = false
+	defaultCreateDocumentStoreEnabled        = false
+	defaultLocalCASReplicateInIPFSEnabled    = false
+	defaultDevModeEnabled                    = false
+	defaultPolicyCacheExpiry                 = 30 * time.Second
+	defaultCasCacheSize                      = 1000
 
 	unpublishedDIDLabel = "uAAA"
 )
@@ -633,6 +634,12 @@ func startOrbServices(parameters *orbParameters) error {
 		WFClient:      wfClient,
 	}
 
+	var anchorWriterOpts []writer.Option
+
+	if parameters.allowedOriginsOptimizationEnabled {
+		anchorWriterOpts = append(anchorWriterOpts, writer.WithAllowedOrigins(parameters.allowedOrigins))
+	}
+
 	anchorWriter, err := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
@@ -640,7 +647,8 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader, resourceResolver,
-		metrics.Get())
+		metrics.Get(),
+		anchorWriterOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
