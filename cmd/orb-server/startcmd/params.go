@@ -266,6 +266,12 @@ const (
 		`Used for resolving unpublished created documents.` +
 		commonEnvVarUsageText + enableCreateDocumentStoreEnvKey
 
+	enableAllowedOriginsOptimizationFlagName = "enable-allowed-origins-optimization"
+	enableAllowedOriginsOptimizationEnvKey   = "ALLOWED_ORIGINS_OPTIMIZATION_ENABLED"
+	enableAllowedOriginsOptimizationUsage    = `Set to "true" to enable allowed origins optimization. ` +
+		`Used for resolving unpublished created documents.` +
+		commonEnvVarUsageText + enableAllowedOriginsOptimizationEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -304,49 +310,50 @@ const (
 )
 
 type orbParameters struct {
-	hostURL                        string
-	hostMetricsURL                 string
-	vctURL                         string
-	keyID                          string
-	privateKeyBase64               string
-	secretLockKeyPath              string
-	kmsEndpoint                    string
-	kmsStoreEndpoint               string
-	externalEndpoint               string
-	discoveryDomain                string
-	didNamespace                   string
-	didAliases                     []string
-	batchWriterTimeout             time.Duration
-	casType                        string
-	ipfsURL                        string
-	localCASReplicateInIPFSEnabled bool
-	cidVersion                     int
-	mqURL                          string
-	mqMaxConnectionSubscriptions   int
-	dbParameters                   *dbParameters
-	logLevel                       string
-	methodContext                  []string
-	baseEnabled                    bool
-	allowedOrigins                 []string
-	tlsCertificate                 string
-	tlsKey                         string
-	anchorCredentialParams         *anchorCredentialParams
-	discoveryDomains               []string
-	discoveryVctDomains            []string
-	discoveryMinimumResolvers      int
-	maxWitnessDelay                time.Duration
-	syncTimeout                    uint64
-	signWithLocalWitness           bool
-	httpSignaturesEnabled          bool
-	didDiscoveryEnabled            bool
-	createDocumentStoreEnabled     bool
-	authTokenDefinitions           []*auth.TokenDef
-	authTokens                     map[string]string
-	opQueuePoolSize                uint
-	activityPubPageSize            int
-	enableDevMode                  bool
-	nodeInfoRefreshInterval        time.Duration
-	ipfsTimeout                    time.Duration
+	hostURL                           string
+	hostMetricsURL                    string
+	vctURL                            string
+	keyID                             string
+	privateKeyBase64                  string
+	secretLockKeyPath                 string
+	kmsEndpoint                       string
+	kmsStoreEndpoint                  string
+	externalEndpoint                  string
+	discoveryDomain                   string
+	didNamespace                      string
+	didAliases                        []string
+	batchWriterTimeout                time.Duration
+	casType                           string
+	ipfsURL                           string
+	localCASReplicateInIPFSEnabled    bool
+	cidVersion                        int
+	mqURL                             string
+	mqMaxConnectionSubscriptions      int
+	dbParameters                      *dbParameters
+	logLevel                          string
+	methodContext                     []string
+	baseEnabled                       bool
+	allowedOrigins                    []string
+	tlsCertificate                    string
+	tlsKey                            string
+	anchorCredentialParams            *anchorCredentialParams
+	discoveryDomains                  []string
+	discoveryVctDomains               []string
+	discoveryMinimumResolvers         int
+	maxWitnessDelay                   time.Duration
+	syncTimeout                       uint64
+	signWithLocalWitness              bool
+	httpSignaturesEnabled             bool
+	didDiscoveryEnabled               bool
+	allowedOriginsOptimizationEnabled bool
+	createDocumentStoreEnabled        bool
+	authTokenDefinitions              []*auth.TokenDef
+	authTokens                        map[string]string
+	opQueuePoolSize                   uint
+	activityPubPageSize               int
+	enableDevMode                     bool
+	nodeInfoRefreshInterval           time.Duration
+	ipfsTimeout                       time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -583,6 +590,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		createDocumentStoreEnabled = enable
 	}
 
+	enableAllowedOriginsOptimizationStr, err := cmdutils.GetUserSetVarFromString(cmd, enableAllowedOriginsOptimizationFlagName, enableAllowedOriginsOptimizationEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	allowedOriginsOptimizationEnabled := defaultAllowedOriginsOptimizationEnabled
+	if enableAllowedOriginsOptimizationStr != "" {
+		enable, parseErr := strconv.ParseBool(enableAllowedOriginsOptimizationStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", enableAllowedOriginsOptimizationFlagName, parseErr)
+		}
+
+		allowedOriginsOptimizationEnabled = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -651,47 +673,48 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		hostURL:                        hostURL,
-		hostMetricsURL:                 hostMetricsURL,
-		vctURL:                         vctURL,
-		kmsEndpoint:                    kmsEndpoint,
-		keyID:                          keyID,
-		privateKeyBase64:               privateKeyBase64,
-		secretLockKeyPath:              secretLockKeyPath,
-		kmsStoreEndpoint:               kmsStoreEndpoint,
-		discoveryDomain:                discoveryDomain,
-		externalEndpoint:               externalEndpoint,
-		tlsKey:                         tlsKey,
-		tlsCertificate:                 tlsCertificate,
-		didNamespace:                   didNamespace,
-		didAliases:                     didAliases,
-		allowedOrigins:                 allowedOrigins,
-		casType:                        casType,
-		ipfsURL:                        ipfsURL,
-		localCASReplicateInIPFSEnabled: localCASReplicateInIPFSEnabled,
-		cidVersion:                     cidVersion,
-		mqURL:                          mqURL,
-		mqMaxConnectionSubscriptions:   mqMaxSubscriptionsPerConnection,
-		opQueuePoolSize:                uint(mqOpPoolSize),
-		batchWriterTimeout:             batchWriterTimeout,
-		anchorCredentialParams:         anchorCredentialParams,
-		logLevel:                       loggingLevel,
-		dbParameters:                   dbParams,
-		discoveryDomains:               discoveryDomains,
-		discoveryVctDomains:            discoveryVctDomains,
-		discoveryMinimumResolvers:      discoveryMinimumResolvers,
-		maxWitnessDelay:                maxWitnessDelay,
-		syncTimeout:                    syncTimeout,
-		signWithLocalWitness:           signWithLocalWitness,
-		httpSignaturesEnabled:          httpSignaturesEnabled,
-		didDiscoveryEnabled:            didDiscoveryEnabled,
-		createDocumentStoreEnabled:     createDocumentStoreEnabled,
-		authTokenDefinitions:           authTokenDefs,
-		authTokens:                     authTokens,
-		activityPubPageSize:            activityPubPageSize,
-		enableDevMode:                  enableDevMode,
-		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
-		ipfsTimeout:                    ipfsTimeout,
+		hostURL:                           hostURL,
+		hostMetricsURL:                    hostMetricsURL,
+		vctURL:                            vctURL,
+		kmsEndpoint:                       kmsEndpoint,
+		keyID:                             keyID,
+		privateKeyBase64:                  privateKeyBase64,
+		secretLockKeyPath:                 secretLockKeyPath,
+		kmsStoreEndpoint:                  kmsStoreEndpoint,
+		discoveryDomain:                   discoveryDomain,
+		externalEndpoint:                  externalEndpoint,
+		tlsKey:                            tlsKey,
+		tlsCertificate:                    tlsCertificate,
+		didNamespace:                      didNamespace,
+		didAliases:                        didAliases,
+		allowedOrigins:                    allowedOrigins,
+		casType:                           casType,
+		ipfsURL:                           ipfsURL,
+		localCASReplicateInIPFSEnabled:    localCASReplicateInIPFSEnabled,
+		cidVersion:                        cidVersion,
+		mqURL:                             mqURL,
+		mqMaxConnectionSubscriptions:      mqMaxSubscriptionsPerConnection,
+		opQueuePoolSize:                   uint(mqOpPoolSize),
+		batchWriterTimeout:                batchWriterTimeout,
+		anchorCredentialParams:            anchorCredentialParams,
+		logLevel:                          loggingLevel,
+		dbParameters:                      dbParams,
+		discoveryDomains:                  discoveryDomains,
+		discoveryVctDomains:               discoveryVctDomains,
+		discoveryMinimumResolvers:         discoveryMinimumResolvers,
+		maxWitnessDelay:                   maxWitnessDelay,
+		syncTimeout:                       syncTimeout,
+		signWithLocalWitness:              signWithLocalWitness,
+		httpSignaturesEnabled:             httpSignaturesEnabled,
+		didDiscoveryEnabled:               didDiscoveryEnabled,
+		allowedOriginsOptimizationEnabled: allowedOriginsOptimizationEnabled,
+		createDocumentStoreEnabled:        createDocumentStoreEnabled,
+		authTokenDefinitions:              authTokenDefs,
+		authTokens:                        authTokens,
+		activityPubPageSize:               activityPubPageSize,
+		enableDevMode:                     enableDevMode,
+		nodeInfoRefreshInterval:           nodeInfoRefreshInterval,
+		ipfsTimeout:                       ipfsTimeout,
 	}, nil
 }
 
@@ -967,6 +990,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
 	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
+	startCmd.Flags().String(enableAllowedOriginsOptimizationFlagName, "", enableAllowedOriginsOptimizationUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)
