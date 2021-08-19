@@ -19,7 +19,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210819195944-a3500e365d5c
 	github.com/trustbloc/orb v0.0.0
-	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210817155948-c3cb7a03f63b
+	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210819194614-967518c8a4a2
 	github.com/trustbloc/vct v0.1.3-0.20210812104204-d8ddd5781928
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
 )

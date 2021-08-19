@@ -179,7 +179,7 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 	dc := doccomposer.New()
 	oa := operationapplier.New(latest, parser, dc)
 
-	dv := didvalidator.New(m.opStoreClient)
+	dv := didvalidator.New()
 	dt := didtransformer.New(didtransformer.WithMethodContext(m.methodCtx), didtransformer.WithBase(m.baseEnabled))
 
 	txnProcessor := txnprocessor.New(
