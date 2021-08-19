@@ -14,7 +14,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48327
@@ -95,7 +95,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48527
@@ -192,7 +192,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_HOST_URL=0.0.0.0:80
       - ORB_HOST_METRICS_URL=0.0.0.0:48827
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
@@ -267,7 +267,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_HOST_URL=0.0.0.0:80
       - ORB_HOST_METRICS_URL=0.0.0.0:48927
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
@@ -342,7 +342,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb3key
       - ORB_HOST_URL=0.0.0.0:443
@@ -421,7 +421,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48727
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
