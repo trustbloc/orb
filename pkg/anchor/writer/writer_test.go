@@ -799,7 +799,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		err = c.WriteAnchor("1.anchor", nil, opRefs, 1)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), `failed to get host-meta document via IPNS: failed to read from IPNS: `+
+		require.Contains(t, err.Error(), `failed to get host-meta document via IPNS: failed to read from IPNS: cat IPFS `+
+			`of CID [/ipns/k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek/.well-known/host-meta.json]: `+
 			`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mh`+
 			`l7uyhdre8ateqek%2F.well-known%2Fhost-meta.json":`)
 	})

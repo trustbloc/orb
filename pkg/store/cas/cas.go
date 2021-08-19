@@ -97,10 +97,16 @@ func (p *CAS) Write(content []byte) (string, error) {
 // TODO (#418): Support creating IPFS-compatible CIDs when content is > 256KB.
 // TODO (#443): Support v1 CID formats (different multibases and multicodecs) other than just the IPFS default.
 func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFormatOption) (string, error) {
+	if len(content) == 0 {
+		return "", errors.New("empty content")
+	}
+
 	resourceHash, err := p.hl.CreateResourceHash(content)
 	if err != nil {
 		return "", fmt.Errorf("failed to create resource hash from content: %w", err)
 	}
+
+	logger.Debugf("Writing to CAS store [%s]: %s", resourceHash, content)
 
 	err = p.cas.Put(resourceHash, content)
 	if err != nil {

@@ -8,6 +8,7 @@ package ipfs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,10 +37,15 @@ type metricsProvider interface {
 	CASReadTime(casType string, value time.Duration)
 }
 
+type ipfsClient interface {
+	Cat(path string) (io.ReadCloser, error)
+	Add(r io.Reader, options ...shell.AddOpts) (string, error)
+}
+
 // Client will write new documents to IPFS and read existing documents from IPFS based on CID.
 // It implements Sidetree CAS interface.
 type Client struct {
-	ipfs    *shell.Shell
+	ipfs    ipfsClient
 	opts    []extendedcasclient.CIDFormatOption
 	hl      *hashlink.HashLink
 	cache   gcache.Cache
@@ -51,9 +57,13 @@ type Client struct {
 func New(url string, timeout time.Duration, cacheSize int, metrics metricsProvider,
 	opts ...extendedcasclient.CIDFormatOption) *Client {
 	ipfs := shell.NewShell(url)
-
 	ipfs.SetTimeout(timeout)
 
+	return newClient(ipfs, cacheSize, metrics, opts...)
+}
+
+func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
+	opts ...extendedcasclient.CIDFormatOption) *Client {
 	if cacheSize == 0 {
 		cacheSize = defaultCacheSize
 	}
@@ -61,14 +71,14 @@ func New(url string, timeout time.Duration, cacheSize int, metrics metricsProvid
 	c := &Client{ipfs: ipfs, opts: opts, hl: hashlink.New(), metrics: metrics}
 
 	c.cache = gcache.New(cacheSize).LoaderFunc(func(key interface{}) (interface{}, error) {
-		cid, err := c.get(key.(string))
+		content, err := c.get(key.(string))
 		if err != nil {
 			return nil, err
 		}
 
-		logger.Debugf("Cached content for CID [%s]", cid)
+		logger.Debugf("Cached content for key [%s]: [%s]", key, content)
 
-		return cid, nil
+		return content, nil
 	}).Build()
 
 	return c
@@ -96,6 +106,10 @@ func (m *Client) Write(content []byte) (string, error) {
 // Returns the address (CID) of the content.
 // TODO (#443): Support v1 CID formats (different multibases and multicodecs) other than just the IPFS default.
 func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFormatOption) (string, error) {
+	if len(content) == 0 {
+		return "", errors.New("empty content")
+	}
+
 	options, err := getOptions(opts)
 	if err != nil {
 		return "", err
@@ -116,7 +130,8 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debugf("ipfs added content returned cid: %s", cid)
+	logger.Debugf("ipfs Add returned cid [%s] using version %d, content: %s",
+		cid, options.CIDVersion, content)
 
 	return cid, nil
 }
@@ -161,12 +176,25 @@ func (m *Client) get(cid string) ([]byte, error) {
 			return nil, orberrors.NewTransient(fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound))
 		}
 
-		return nil, orberrors.NewTransient(err)
+		return nil, orberrors.NewTransient(fmt.Errorf("cat IPFS of CID [%s]: %w", cid, err))
 	}
 
 	defer closeAndLog(reader)
 
-	return ioutil.ReadAll(reader)
+	content, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
+	}
+
+	logger.Debugf("Got content from IPFS for CID [%s]: %s", cid, content)
+
+	if string(content) == "null" {
+		logger.Debugf("Got 'null' from IPFS for CID [%s]", cid)
+
+		return nil, orberrors.NewTransient(orberrors.ErrContentNotFound)
+	}
+
+	return content, nil
 }
 
 func (m *Client) getCID(cidOrHash string) (string, error) {

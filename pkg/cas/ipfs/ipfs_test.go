@@ -7,7 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package ipfs
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,8 +22,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
+	"github.com/trustbloc/orb/pkg/cas/ipfs/mocks"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
+
+//go:generate counterfeiter -o ./mocks/ipfsclient.gen.go --fake-name IPFSClient . ipfsClient
 
 func TestNew(t *testing.T) {
 	c := New("ipfs:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
@@ -147,6 +154,44 @@ func TestWrite(t *testing.T) {
 		require.Empty(t, cid)
 		require.EqualError(t, err, "2 is not a supported CID version. It must be either 0 or 1")
 	})
+
+	t.Run("empty content", func(t *testing.T) {
+		cas := New("IPFS URL", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		require.NotNil(t, cas)
+
+		cid, err := cas.Write(nil)
+		require.Empty(t, cid)
+		require.EqualError(t, err, "empty content")
+	})
+
+	t.Run("reader error", func(t *testing.T) {
+		ipfs := &mocks.IPFSClient{}
+
+		errExpected := errors.New("injected reader error")
+
+		ipfs.CatReturns(newMockReader([]byte("content")).withError(errExpected), nil)
+
+		cas := newClient(ipfs, 0, &orbmocks.MetricsProvider{})
+		require.NotNil(t, cas)
+
+		cid, err := cas.Read("bafkreihnoabliopjvscf6irvpwbcxlauirzq7pnwafwt5skdekl3t3e7om")
+		require.Empty(t, cid)
+		require.EqualError(t, err, err.Error())
+	})
+
+	t.Run("null content returned", func(t *testing.T) {
+		ipfs := &mocks.IPFSClient{}
+
+		ipfs.CatReturns(newMockReader([]byte("null")), nil)
+
+		cas := newClient(ipfs, 0, &orbmocks.MetricsProvider{})
+		require.NotNil(t, cas)
+
+		cid, err := cas.Read("bafkreihnoabliopjvscf6irvpwbcxlauirzq7pnwafwt5skdekl3t3e7om")
+		require.Empty(t, cid)
+		require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
+	})
+
 	t.Run("fail to write since node (ipfs.io) doesn't support writes", func(t *testing.T) {
 		cas := New("https://ipfs.io", 5*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
@@ -223,4 +268,31 @@ func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
 	}
 
 	return pool, ipfsResource
+}
+
+type mockReader struct {
+	io.Reader
+	err error
+}
+
+func newMockReader(value []byte) *mockReader {
+	return &mockReader{Reader: bytes.NewBuffer(value)}
+}
+
+func (r *mockReader) withError(err error) *mockReader {
+	r.err = err
+
+	return r
+}
+
+func (r *mockReader) Read(p []byte) (n int, err error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+
+	return r.Reader.Read(p)
+}
+
+func (r *mockReader) Close() error {
+	return nil
 }
