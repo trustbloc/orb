@@ -16,26 +16,24 @@ const (
 	// LogLevelFlagShorthand is the shorthand flag name used for setting the default log level.
 	LogLevelFlagShorthand = "l"
 	// LogLevelPrefixFlagUsage is the usage text for the log level flag.
-	LogLevelPrefixFlagUsage = "Logging level to set. Supported options: CRITICAL, ERROR, WARNING, INFO, DEBUG." +
+	LogLevelPrefixFlagUsage = "Sets logging levels for individual modules as well as the default level. `+" +
+		"`The format of the string is as follows: module1=level1:module2=level2:defaultLevel. `+" +
+		"`Supported levels are: CRITICAL, ERROR, WARNING, INFO, DEBUG." +
+		"`Example: metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG. `+" +
 		`Defaults to info if not set. Setting to debug may adversely impact performance. Alternatively, this can be ` +
 		"set with the following environment variable: " + LogLevelEnvKey
 )
 
-// SetDefaultLogLevel sets the default log level.
-func SetDefaultLogLevel(logger log.Logger, userLogLevel string) {
-	logLevel, err := log.ParseLevel(userLogLevel)
-	if err != nil {
-		logger.Warnf(`%s is not a valid logging level. It must be one of the following: `+
-			log.ParseString(log.CRITICAL)+", "+
-			log.ParseString(log.ERROR)+", "+
-			log.ParseString(log.WARNING)+", "+
-			log.ParseString(log.INFO)+", "+
-			log.ParseString(log.DEBUG)+". Defaulting to info.", userLogLevel)
+const logSpecErrorMsg = `Invalid log spec. It needs to be in the following format: "ModuleName1=Level1` +
+	`:ModuleName2=Level2:ModuleNameN=LevelN:AllOtherModuleDefaultLevel"
+Valid log levels: critical,error,warn,info,debug
+Error: %s`
 
-		logLevel = log.INFO
-	} else if logLevel == log.DEBUG {
-		logger.Infof(`Log level set to "debug". Performance may be adversely impacted.`)
+// setLogLevels sets the log levels for individual modules as well as the default level.
+func setLogLevels(logger log.Logger, logSpec string) {
+	if err := log.SetSpec(logSpec); err != nil {
+		logger.Warnf(logSpecErrorMsg, err.Error())
+
+		log.SetLevel("", log.INFO)
 	}
-
-	log.SetLevel("", logLevel)
 }

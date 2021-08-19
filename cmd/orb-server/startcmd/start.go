@@ -288,7 +288,7 @@ func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.
 // nolint: gocyclo,funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
-		SetDefaultLogLevel(logger, parameters.logLevel)
+		setLogLevels(logger, parameters.logLevel)
 	}
 
 	storeProviders, err := createStoreProviders(parameters)
