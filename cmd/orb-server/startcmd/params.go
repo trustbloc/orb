@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultBatchWriterTimeout           = 1000 * time.Millisecond
+	defaultBatchWriterTimeout           = 60000 * time.Millisecond
 	defaultDiscoveryMinimumResolvers    = 1
 	defaultActivityPubPageSize          = 50
 	defaultNodeInfoRefreshInterval      = 15 * time.Second
