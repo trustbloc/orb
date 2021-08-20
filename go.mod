@@ -34,7 +34,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210819195944-a3500e365d5c
-	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210817155948-c3cb7a03f63b
+	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210819194614-967518c8a4a2
 	github.com/trustbloc/vct v0.1.3-0.20210812104204-d8ddd5781928
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
 )

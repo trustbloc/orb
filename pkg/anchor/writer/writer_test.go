@@ -474,7 +474,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
-				AnchorOrigin: "origin.com",
 			},
 		}
 
@@ -1329,6 +1328,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
+				AnchorOrigin: testAnchorOrigin,
 			},
 			{
 				UniqueSuffix: "did-2",
@@ -1338,6 +1338,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			{
 				UniqueSuffix: "did-3",
 				Type:         operation.TypeDeactivate,
+				AnchorOrigin: testAnchorOrigin,
 			},
 			{
 				UniqueSuffix: "did-4",
@@ -1415,6 +1416,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
+				AnchorOrigin: 10,
 			},
 		}
 

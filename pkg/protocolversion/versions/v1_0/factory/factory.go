@@ -57,7 +57,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
 
-	dv := didvalidator.New(opStore)
+	dv := didvalidator.New()
 	dt := didtransformer.New(
 		didtransformer.WithMethodContext(sidetreeCfg.MethodContext),
 		didtransformer.WithBase(sidetreeCfg.EnableBase))

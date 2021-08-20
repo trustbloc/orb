@@ -634,12 +634,6 @@ func startOrbServices(parameters *orbParameters) error {
 		WFClient:      wfClient,
 	}
 
-	var anchorWriterOpts []writer.Option
-
-	if parameters.allowedOriginsOptimizationEnabled {
-		anchorWriterOpts = append(anchorWriterOpts, writer.WithAllowedOrigins(parameters.allowedOrigins))
-	}
-
 	anchorWriter, err := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
 		anchorWriterProviders,
@@ -647,8 +641,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		orbDocumentLoader, resourceResolver,
-		metrics.Get(),
-		anchorWriterOpts...)
+		metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
