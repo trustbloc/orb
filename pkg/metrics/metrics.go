@@ -172,7 +172,7 @@ func Get() *Metrics {
 
 func newMetrics() *Metrics { //nolint:funlen
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
-	dbTypes := []string{"CouchDB"}
+	dbTypes := []string{"CouchDB", "MongoDB"}
 
 	m := &Metrics{
 		apOutboxPostTime:                         newOutboxPostTime(),
