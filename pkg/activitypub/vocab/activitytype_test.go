@@ -110,14 +110,14 @@ func TestCreateTypeMarshal(t *testing.T) {
 		require.True(t, obj.Type().Is(TypeVerifiableCredential, TypeAnchorCredential))
 	})
 
-	t.Run("With AnchorCredentialReference", func(t *testing.T) {
+	t.Run("With AnchorReference", func(t *testing.T) {
 		refID := newMockID(host1, "/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 		t.Run("Marshal", func(t *testing.T) {
 			create := NewCreateActivity(
 				NewObjectProperty(
-					WithAnchorCredentialReference(
-						NewAnchorCredentialReference(refID, anchorCredIRI, cid),
+					WithAnchorReference(
+						NewAnchorReference(refID, anchorCredIRI, cid),
 					),
 				),
 				WithID(createActivityID),
@@ -161,9 +161,9 @@ func TestCreateTypeMarshal(t *testing.T) {
 			objProp := a.Object()
 			require.NotNil(t, objProp)
 
-			ref := objProp.AnchorCredentialReference()
+			ref := objProp.AnchorReference()
 			require.NotNil(t, ref)
-			require.True(t, ref.Type().Is(TypeAnchorCredentialRef))
+			require.True(t, ref.Type().Is(TypeAnchorRef))
 
 			refTarget := ref.Target()
 			require.NotNil(t, refTarget)
@@ -311,7 +311,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 		})
 	})
 
-	t.Run("With AnchorCredentialReferences", func(t *testing.T) {
+	t.Run("With AnchorReferences", func(t *testing.T) {
 		const (
 			cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 			cid2 = "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y"
@@ -328,13 +328,13 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 		t.Run("Marshal", func(t *testing.T) {
 			items := []*ObjectProperty{
 				NewObjectProperty(
-					WithAnchorCredentialReference(
-						NewAnchorCredentialReference(refID1, anchorCredIRI1, cid1),
+					WithAnchorReference(
+						NewAnchorReference(refID1, anchorCredIRI1, cid1),
 					),
 				),
 				NewObjectProperty(
-					WithAnchorCredentialReference(
-						NewAnchorCredentialReference(refID2, anchorCredIRI2, cid2),
+					WithAnchorReference(
+						NewAnchorReference(refID2, anchorCredIRI2, cid2),
 					),
 				),
 			}
@@ -390,8 +390,8 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			item := items[0]
 
-			require.True(t, item.Type().Is(TypeAnchorCredentialRef))
-			ref := item.AnchorCredentialReference()
+			require.True(t, item.Type().Is(TypeAnchorRef))
+			ref := item.AnchorReference()
 			require.NotNil(t, ref)
 			require.Equal(t, refID1.String(), ref.ID().String())
 
@@ -405,7 +405,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			item = items[1]
 
-			ref = item.AnchorCredentialReference()
+			ref = item.AnchorReference()
 			require.NotNil(t, ref)
 			require.Equal(t, refID2.String(), ref.ID().String())
 
@@ -419,20 +419,20 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 		})
 	})
 
-	t.Run("With AnchorCredentialReference and embedded object", func(t *testing.T) {
+	t.Run("With AnchorReference and embedded object", func(t *testing.T) {
 		refID := newMockID(host1, "/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 		published := getStaticTime()
 
 		t.Run("Marshal", func(t *testing.T) {
-			ref, err := NewAnchorCredentialReferenceWithDocument(refID, anchorCredIRI, cid,
+			ref, err := NewAnchorReferenceWithDocument(refID, anchorCredIRI, cid,
 				MustUnmarshalToDoc([]byte(anchorCredential)),
 			)
 			require.NoError(t, err)
 
 			items := []*ObjectProperty{
 				NewObjectProperty(
-					WithAnchorCredentialReference(ref),
+					WithAnchorReference(ref),
 				),
 			}
 
@@ -489,7 +489,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			item := items[0]
 
-			ref := item.AnchorCredentialReference()
+			ref := item.AnchorReference()
 			require.NotNil(t, ref)
 			require.NotNil(t, refID, ref.ID())
 
@@ -1156,7 +1156,7 @@ const (
           "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-        "type": "AnchorCredentialReference",
+        "type": "AnchorReference",
         "target": {
           "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
           "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
@@ -1169,7 +1169,7 @@ const (
           "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-        "type": "AnchorCredentialReference",
+        "type": "AnchorReference",
         "target": {
           "id": "https://sally.example.com/cas/bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
           "cid": "bafkreiatkubvbkdedscmqwnkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
@@ -1200,7 +1200,7 @@ const (
           "https://w3id.org/activityanchors/v1"
         ],
         "id": "https://sally.example.com/transactions/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-        "type": "AnchorCredentialReference",
+        "type": "AnchorReference",
         "target": {
           "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
           "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
@@ -1439,7 +1439,7 @@ const (
       "https://w3id.org/activityanchors/v1"
     ],
     "id": "https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "type": "AnchorCredentialReference",
+    "type": "AnchorReference",
     "target": {
       "type": "ContentAddressedStorage",
       "id": "https://sally.example.com/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",

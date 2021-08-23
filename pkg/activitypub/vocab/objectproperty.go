@@ -20,7 +20,7 @@ type ObjectProperty struct {
 	coll          *CollectionType
 	orderedColl   *OrderedCollectionType
 	activity      *ActivityType
-	anchorCredRef *AnchorCredentialReferenceType
+	anchorCredRef *AnchorReferenceType
 }
 
 // NewObjectProperty returns a new 'object' property with the given options.
@@ -112,9 +112,9 @@ func (p *ObjectProperty) Activity() *ActivityType {
 	return p.activity
 }
 
-// AnchorCredentialReference returns the anchored credential reference or nil if
+// AnchorReference returns the anchored credential reference or nil if
 // the anchored credential reference is not set.
-func (p *ObjectProperty) AnchorCredentialReference() *AnchorCredentialReferenceType {
+func (p *ObjectProperty) AnchorReference() *AnchorReferenceType {
 	if p == nil {
 		return nil
 	}
@@ -185,8 +185,8 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 	case obj.object.Type.IsAny(TypeFollow, TypeAccept, TypeReject, TypeOffer, TypeLike, TypeInvite):
 		err = p.unmarshalActivity(bytes)
 
-	case obj.object.Type.Is(TypeAnchorCredentialRef):
-		err = p.unmarshalAnchorCredentialReference(bytes)
+	case obj.object.Type.Is(TypeAnchorRef):
+		err = p.unmarshalAnchorReference(bytes)
 
 	default:
 		p.obj = obj
@@ -231,8 +231,8 @@ func (p *ObjectProperty) unmarshalActivity(bytes []byte) error {
 	return nil
 }
 
-func (p *ObjectProperty) unmarshalAnchorCredentialReference(bytes []byte) error {
-	ot := &AnchorCredentialReferenceType{}
+func (p *ObjectProperty) unmarshalAnchorReference(bytes []byte) error {
+	ot := &AnchorReferenceType{}
 
 	if err := json.Unmarshal(bytes, &ot); err != nil {
 		return err

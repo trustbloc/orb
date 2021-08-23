@@ -10,29 +10,29 @@ import (
 	"net/url"
 )
 
-// AnchorCredentialReferenceType defines an "AnchorCredentialReference" type.
-type AnchorCredentialReferenceType struct {
+// AnchorReferenceType defines an "AnchorReference" type.
+type AnchorReferenceType struct {
 	*ObjectType
 
-	ref *anchorCredentialReferenceType
+	ref *anchorReferenceType
 }
 
-type anchorCredentialReferenceType struct {
+type anchorReferenceType struct {
 	Target *ObjectProperty `json:"target,omitempty"`
 	Object *ObjectProperty `json:"object,omitempty"`
 }
 
-// NewAnchorCredentialReference returns a new "AnchorCredentialReference".
-func NewAnchorCredentialReference(id, anchorCredID *url.URL, cid string, opts ...Opt) *AnchorCredentialReferenceType {
+// NewAnchorReference returns a new "AnchorReference".
+func NewAnchorReference(id, anchorCredID *url.URL, cid string, opts ...Opt) *AnchorReferenceType {
 	options := NewOptions(opts...)
 
-	return &AnchorCredentialReferenceType{
+	return &AnchorReferenceType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
 			WithID(id),
-			WithType(TypeAnchorCredentialRef),
+			WithType(TypeAnchorRef),
 		),
-		ref: &anchorCredentialReferenceType{
+		ref: &anchorReferenceType{
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
@@ -44,9 +44,9 @@ func NewAnchorCredentialReference(id, anchorCredID *url.URL, cid string, opts ..
 	}
 }
 
-// NewAnchorCredentialReferenceWithDocument returns a new "AnchorCredentialReference" with the given document embedded.
-func NewAnchorCredentialReferenceWithDocument(
-	id, anchorCredID *url.URL, cid string, doc Document, opts ...Opt) (*AnchorCredentialReferenceType, error) {
+// NewAnchorReferenceWithDocument returns a new "AnchorReference" with the given document embedded.
+func NewAnchorReferenceWithDocument(
+	id, anchorCredID *url.URL, cid string, doc Document, opts ...Opt) (*AnchorReferenceType, error) {
 	options := NewOptions(opts...)
 
 	obj, err := NewObjectWithDocument(doc)
@@ -54,13 +54,13 @@ func NewAnchorCredentialReferenceWithDocument(
 		return nil, err
 	}
 
-	return &AnchorCredentialReferenceType{
+	return &AnchorReferenceType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
 			WithID(id),
-			WithType(TypeAnchorCredentialRef),
+			WithType(TypeAnchorRef),
 		),
-		ref: &anchorCredentialReferenceType{
+		ref: &anchorReferenceType{
 			Target: NewObjectProperty(
 				WithObject(
 					NewObject(
@@ -76,24 +76,24 @@ func NewAnchorCredentialReferenceWithDocument(
 }
 
 // Target returns the target of the anchor credential reference.
-func (t *AnchorCredentialReferenceType) Target() *ObjectProperty {
+func (t *AnchorReferenceType) Target() *ObjectProperty {
 	return t.ref.Target
 }
 
 // Object returns the embedded object (if any).
-func (t *AnchorCredentialReferenceType) Object() *ObjectProperty {
+func (t *AnchorReferenceType) Object() *ObjectProperty {
 	return t.ref.Object
 }
 
 // MarshalJSON mmarshals the object to JSON.
-func (t *AnchorCredentialReferenceType) MarshalJSON() ([]byte, error) {
+func (t *AnchorReferenceType) MarshalJSON() ([]byte, error) {
 	return MarshalJSON(t.ObjectType, t.ref)
 }
 
 // UnmarshalJSON ummarshals the object from JSON.
-func (t *AnchorCredentialReferenceType) UnmarshalJSON(bytes []byte) error {
+func (t *AnchorReferenceType) UnmarshalJSON(bytes []byte) error {
 	t.ObjectType = NewObject()
-	t.ref = &anchorCredentialReferenceType{}
+	t.ref = &anchorReferenceType{}
 
 	return UnmarshalJSON(bytes, t.ObjectType, t.ref)
 }

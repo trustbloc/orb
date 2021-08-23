@@ -61,8 +61,8 @@
           "type": "@type"
         }
       },
-      "AnchorCredentialReference": {
-        "@id": "https://w3id.org/activityanchors#AnchorCredentialReference",
+      "AnchorReference": {
+        "@id": "https://w3id.org/activityanchors#AnchorReference",
         "@context": {
           "@version": 1.1,
           "@protected": true,
