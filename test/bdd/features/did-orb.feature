@@ -55,8 +55,8 @@ Feature:
 
     Then we wait 3 seconds
 
-    @discover_did
-    Scenario: discover did
+    @discover_did_hashlink
+    Scenario: discover did (hashlink)
       When client discover orb endpoints
 
       # orb-domain1 keeps accepting requests
@@ -84,6 +84,42 @@ Feature:
 
       Then we wait 3 seconds
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "recoveryKey"
+
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "recoveryKey"
+
+    @discover_did_https
+    Scenario: discover did (https)
+      When client discover orb endpoints
+
+      # orb-domain1 keeps accepting requests
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      Then we wait 2 seconds
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "canonicalId"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
+      Then check for request success
+      Then we wait 2 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "recoveryKey"
+      Then check success response contains "#canonicalDID"
+
+      # resolve did in domain4 - it will trigger did discovery in different organisations
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with hint "https:orb.domain1.com"
+      Then check error response contains "not found"
+
+      Then we wait 3 seconds
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with hint "https:orb.domain1.com"
       Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
 
