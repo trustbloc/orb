@@ -654,6 +654,18 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDID(url string) error {
 	return d.resolveDIDDocumentWithID(url, d.canonicalDID)
 }
 
+func (d *DIDOrbSteps) resolveDIDDocumentWithHint(url, hint string) error {
+	cannonicalDIDParts := strings.SplitAfter(d.canonicalDID, d.namespace)
+
+	didWithHint := cannonicalDIDParts[0] + ":" + hint + cannonicalDIDParts[1]
+
+	logger.Infof("resolving did with hint: %s", didWithHint)
+
+	d.retryDID = didWithHint
+
+	return d.resolveDIDDocumentWithID(url, didWithHint)
+}
+
 func (d *DIDOrbSteps) resolveDIDDocumentWithPreviousCanonicalDID(url string) error {
 	logger.Infof("resolving did document with previous canonical did: %s", d.prevCanonicalDID)
 
@@ -1177,6 +1189,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with invalid CID in canonical did$`, d.resolveDIDDocumentWithInvalidCIDInDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent did$`, d.resolveDIDDocumentWithEquivalentDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous equivalent did$`, d.resolveDIDDocumentWithPreviousEquivalentDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with hint "([^"]*)"`, d.resolveDIDDocumentWithHint)
 	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)
