@@ -141,8 +141,8 @@ func NewMockCreateActivities(num int) []*vocab.ActivityType {
 func NewMockCreateActivity(id, objID string) *vocab.ActivityType {
 	return vocab.NewCreateActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorCredentialReference(
-				vocab.NewAnchorCredentialReference(
+			vocab.WithAnchorReference(
+				vocab.NewAnchorReference(
 					testutil.MustParseURL(objID),
 					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
 					"bafkd34G7hD6gbj94fnKm5D"),
@@ -167,8 +167,8 @@ func NewMockLikeActivities(num int) []*vocab.ActivityType {
 func NewMockLikeActivity(id, objID string) *vocab.ActivityType {
 	return vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorCredentialReference(
-				vocab.NewAnchorCredentialReference(
+			vocab.WithAnchorReference(
+				vocab.NewAnchorReference(
 					testutil.MustParseURL(objID),
 					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
 					"bafkd34G7hD6gbj94fnKm5D"),

@@ -34,7 +34,7 @@ func TestNewObjectProperty(t *testing.T) {
 		require.Nil(t, p.Collection())
 		require.Nil(t, p.OrderedCollection())
 		require.Nil(t, p.Activity())
-		require.Nil(t, p.AnchorCredentialReference())
+		require.Nil(t, p.AnchorReference())
 	})
 
 	t.Run("Empty", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestNewObjectProperty(t *testing.T) {
 		require.Nil(t, p.Collection())
 		require.Nil(t, p.OrderedCollection())
 		require.Nil(t, p.Activity())
-		require.Nil(t, p.AnchorCredentialReference())
+		require.Nil(t, p.AnchorReference())
 	})
 
 	t.Run("WithIRI", func(t *testing.T) {

@@ -66,8 +66,8 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 	case obj.Type().Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
 		target = create.Target()
 
-	case obj.Type().Is(vocab.TypeAnchorCredentialRef):
-		target = obj.AnchorCredentialReference().Target()
+	case obj.Type().Is(vocab.TypeAnchorRef):
+		target = obj.AnchorReference().Target()
 
 	default:
 		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", obj.Type(), create.ID())

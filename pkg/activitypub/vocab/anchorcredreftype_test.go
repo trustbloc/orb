@@ -23,9 +23,9 @@ var (
 	txID          = testutil.MustParseURL("https://org1.com/transactions/tx1")
 )
 
-func TestNewAnchorCredentialReference(t *testing.T) {
+func TestNewAnchorReference(t *testing.T) {
 	t.Run("No document", func(t *testing.T) {
-		ref := NewAnchorCredentialReference(txID, anchorCredIRI, cid,
+		ref := NewAnchorReference(txID, anchorCredIRI, cid,
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
@@ -44,7 +44,7 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeAnchorCredentialRef))
+		require.True(t, typeProp.Is(TypeAnchorRef))
 
 		targetProp := ref.Target()
 		require.NotNil(t, targetProp)
@@ -60,12 +60,12 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 	})
 
 	t.Run("With document", func(t *testing.T) {
-		ref, err := NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid, nil)
+		ref, err := NewAnchorReferenceWithDocument(txID, anchorCredIRI, cid, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "nil document")
 		require.Nil(t, ref)
 
-		ref, err = NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid,
+		ref, err = NewAnchorReferenceWithDocument(txID, anchorCredIRI, cid,
 			MustUnmarshalToDoc([]byte(anchorCredential)),
 		)
 		require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeAnchorCredentialRef))
+		require.True(t, typeProp.Is(TypeAnchorRef))
 
 		targetProp := ref.Target()
 		require.NotNil(t, targetProp)
@@ -109,9 +109,9 @@ func TestNewAnchorCredentialReference(t *testing.T) {
 	})
 }
 
-func TestAnchorCredentialReferenceMarshal(t *testing.T) {
+func TestAnchorReferenceMarshal(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
-		ref := NewAnchorCredentialReference(txID, anchorCredIRI, cid,
+		ref := NewAnchorReference(txID, anchorCredIRI, cid,
 			WithTarget(
 				NewObjectProperty(
 					WithObject(
@@ -125,12 +125,12 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, testutil.GetCanonical(t, anchorCredentialReference), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, anchorReference), string(bytes))
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
-		ref := &AnchorCredentialReferenceType{}
-		require.NoError(t, json.Unmarshal([]byte(anchorCredentialReference), ref))
+		ref := &AnchorReferenceType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorReference), ref))
 
 		require.Equal(t, txID.String(), ref.ID().String())
 
@@ -140,7 +140,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeAnchorCredentialRef))
+		require.True(t, typeProp.Is(TypeAnchorRef))
 
 		targetProp := ref.Target()
 		require.NotNil(t, targetProp)
@@ -156,7 +156,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 	})
 
 	t.Run("Marshal with document", func(t *testing.T) {
-		ref, err := NewAnchorCredentialReferenceWithDocument(txID, anchorCredIRI, cid,
+		ref, err := NewAnchorReferenceWithDocument(txID, anchorCredIRI, cid,
 			MustUnmarshalToDoc([]byte(anchorCredential)),
 		)
 		require.NoError(t, err)
@@ -165,12 +165,12 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(string(bytes))
 
-		require.Equal(t, testutil.GetCanonical(t, anchorCredentialReferenceWithDoc), string(bytes))
+		require.Equal(t, testutil.GetCanonical(t, anchorReferenceWithDoc), string(bytes))
 	})
 
 	t.Run("Unmarshal with doc", func(t *testing.T) {
-		ref := &AnchorCredentialReferenceType{}
-		require.NoError(t, json.Unmarshal([]byte(anchorCredentialReferenceWithDoc), ref))
+		ref := &AnchorReferenceType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorReferenceWithDoc), ref))
 
 		require.NotNil(t, ref)
 		require.Equal(t, txID.String(), ref.ID().String())
@@ -181,7 +181,7 @@ func TestAnchorCredentialReferenceMarshal(t *testing.T) {
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeAnchorCredentialRef))
+		require.True(t, typeProp.Is(TypeAnchorRef))
 
 		targetProp := ref.Target()
 		require.NotNil(t, targetProp)
@@ -236,7 +236,7 @@ const (
   },
   "proof": {}
 }`
-	anchorCredentialReference = `{
+	anchorReference = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
@@ -247,9 +247,9 @@ const (
     "cid": "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
     "type": "ContentAddressedStorage"
   },
-  "type": "AnchorCredentialReference"
+  "type": "AnchorReference"
 }`
-	anchorCredentialReferenceWithDoc = `{
+	anchorReferenceWithDoc = `{
   "@context": [
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
@@ -284,6 +284,6 @@ const (
     "type": "ContentAddressedStorage",
     "cid":  "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
   },
-  "type": "AnchorCredentialReference"
+  "type": "AnchorReference"
 }`
 )

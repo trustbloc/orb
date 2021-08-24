@@ -186,8 +186,8 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 		t.Run("Success", func(t *testing.T) {
 			create := newMockCreateActivity(service1IRI, service2IRI, target3ID, vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, target3ID, cid),
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReference(refID, target3ID, cid),
 				),
 			))
 
@@ -223,8 +223,8 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			defer func() { anchorCredHandler.WithError(nil) }()
 
 			create := newMockCreateActivity(service1IRI, service2IRI, target4ID, vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, target4ID, cid),
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReference(refID, target4ID, cid),
 				),
 			))
 
@@ -290,8 +290,8 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 
 		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, targetID, cid),
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReference(refID, targetID, cid),
 				),
 			))
 
@@ -1268,15 +1268,15 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	go subscriber.Listen()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), targetID, cid)
-		duplicateRef := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), target2ID, cid)
+		ref := vocab.NewAnchorReference(newTransactionID(service1IRI), targetID, cid)
+		duplicateRef := vocab.NewAnchorReference(newTransactionID(service1IRI), target2ID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(ref),
+				vocab.WithAnchorReference(ref),
 			),
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(duplicateRef),
+				vocab.WithAnchorReference(duplicateRef),
 			),
 		}
 
@@ -1319,12 +1319,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
 		const cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoa"
 
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI),
+		ref := vocab.NewAnchorReference(newTransactionID(service1IRI),
 			testutil.MustParseURL(fmt.Sprintf("http://localhost:8301/cas/%s", cid1)), cid1)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(ref),
+				vocab.WithAnchorReference(ref),
 			),
 		}
 
@@ -1359,7 +1359,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
 		const cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhob"
 
-		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service1IRI),
+		ref, err := vocab.NewAnchorReferenceWithDocument(newTransactionID(service1IRI),
 			testutil.MustParseURL(fmt.Sprintf("http://localhost:8301/cas/%s", cid1)), cid1,
 			vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
@@ -1367,7 +1367,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(ref),
+				vocab.WithAnchorReference(ref),
 			),
 		}
 
@@ -1422,7 +1422,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		err := h.HandleActivity(announce)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "expecting 'AnchorCredentialReference' type")
+		require.Contains(t, err.Error(), "expecting 'AnchorReference' type")
 	})
 
 	t.Run("Anchor credential ref - ordered collection - unsupported object type", func(t *testing.T) {
@@ -1448,7 +1448,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		err := h.HandleActivity(announce)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "expecting 'AnchorCredentialReference' type")
+		require.Contains(t, err.Error(), "expecting 'AnchorReference' type")
 	})
 
 	t.Run("Anchor credential ref - unsupported object type", func(t *testing.T) {
@@ -1470,7 +1470,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Add to shares error", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newTransactionID(service1IRI), targetID, cid)
+		ref := vocab.NewAnchorReference(newTransactionID(service1IRI), targetID, cid)
 
 		published := time.Now()
 
@@ -1479,7 +1479,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 				vocab.WithCollection(
 					vocab.NewCollection([]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorCredentialReference(ref),
+							vocab.WithAnchorReference(ref),
 						),
 					}),
 				),
@@ -2192,7 +2192,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		err = inboxHandler.announceAnchorCredential(create)
 		require.True(t, orberrors.IsTransient(err))
 
-		err = inboxHandler.announceAnchorCredentialRef(create)
+		err = inboxHandler.announceAnchorRef(create)
 		require.True(t, orberrors.IsTransient(err))
 	})
 
@@ -2658,8 +2658,8 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 
 		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(
-					vocab.NewAnchorCredentialReference(refID, targetID, cid),
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReference(refID, targetID, cid),
 				),
 			),
 		)
@@ -2678,7 +2678,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorCredentialRef(create))
+			require.NoError(t, h.announceAnchorRef(create))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2706,7 +2706,7 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorCredentialRef(create))
+			require.NoError(t, h.announceAnchorRef(create))
 		})
 	})
 }

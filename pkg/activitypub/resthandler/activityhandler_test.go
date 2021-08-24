@@ -1087,7 +1087,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1105,7 +1105,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1123,7 +1123,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1141,7 +1141,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     }
@@ -1168,7 +1168,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1186,7 +1186,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1204,7 +1204,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     }
@@ -1233,7 +1233,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1251,7 +1251,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1269,7 +1269,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     },
@@ -1287,7 +1287,7 @@ const (
           "cid": "bafkd34G7hD6gbj94fnKm5D",
           "type": "ContentAddressedStorage"
         },
-        "type": "AnchorCredentialReference"
+        "type": "AnchorReference"
       },
       "type": "Create"
     }

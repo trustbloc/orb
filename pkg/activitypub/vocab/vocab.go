@@ -66,8 +66,8 @@ const (
 	TypeContentAddressedStorage Type = "ContentAddressedStorage"
 	// TypeAnchorCredential specifies the "AnchorCredential" object type.
 	TypeAnchorCredential Type = "AnchorCredential"
-	// TypeAnchorCredentialRef specifies the "AnchorCredentialReference" object type.
-	TypeAnchorCredentialRef Type = "AnchorCredentialReference"
+	// TypeAnchorRef specifies the "AnchorReference" object type.
+	TypeAnchorRef Type = "AnchorReference"
 	// TypeAnchorReceipt specifies the "AnchorReceipt" object type.
 	TypeAnchorReceipt Type = "AnchorReceipt"
 	// TypeOffer specifies the "Offer" activity type.

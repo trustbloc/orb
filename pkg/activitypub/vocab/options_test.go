@@ -60,7 +60,7 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(testutil.MustParseURL("https://property_result")),
 	}
 
-	anchorRef := NewAnchorCredentialReference(
+	anchorRef := NewAnchorReference(
 		testutil.MustParseURL("https://example.com/anchor_cred_ref_id"),
 		testutil.MustParseURL("https://example.com/anchor_cred_iri"),
 		"cid")
@@ -87,7 +87,7 @@ func TestNewOptions(t *testing.T) {
 		WithTarget(target),
 		WithActor(actor),
 		WithResult(result),
-		WithAnchorCredentialReference(anchorRef),
+		WithAnchorReference(anchorRef),
 		WithFollowers(followers),
 		WithFollowing(following),
 		WithInbox(inbox),

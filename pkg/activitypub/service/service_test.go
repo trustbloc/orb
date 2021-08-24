@@ -440,11 +440,11 @@ func TestService_Announce(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Announce - anchor credential ref (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorCredentialReference(newActivityID(service2IRI), anchorCredID, cid)
+		ref := vocab.NewAnchorReference(newActivityID(service2IRI), anchorCredID, cid)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(ref),
+				vocab.WithAnchorReference(ref),
 			),
 		}
 
@@ -496,14 +496,14 @@ func TestService_Announce(t *testing.T) {
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
-		ref, err := vocab.NewAnchorCredentialReferenceWithDocument(newTransactionID(service2IRI), anchorCredID,
+		ref, err := vocab.NewAnchorReferenceWithDocument(newTransactionID(service2IRI), anchorCredID,
 			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
 		)
 		require.NoError(t, err)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorCredentialReference(ref),
+				vocab.WithAnchorReference(ref),
 			),
 		}
 

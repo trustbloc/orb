@@ -113,14 +113,14 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 				h.ServiceIRI, create.ID(), err)
 		}
 
-	case t.Is(vocab.TypeAnchorCredentialRef):
-		ref := obj.AnchorCredentialReference()
+	case t.Is(vocab.TypeAnchorRef):
+		ref := obj.AnchorReference()
 
 		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
-		if err := h.announceAnchorCredentialRef(create); err != nil {
+		if err := h.announceAnchorRef(create); err != nil {
 			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
 				h.ServiceIRI, create.ID(), err)
 		}
@@ -573,11 +573,11 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 	var anchorCredIDs []*url.URL
 
 	for _, item := range items {
-		if !item.Type().Is(vocab.TypeAnchorCredentialRef) {
-			return fmt.Errorf("expecting 'AnchorCredentialReference' type")
+		if !item.Type().Is(vocab.TypeAnchorRef) {
+			return fmt.Errorf("expecting 'AnchorReference' type")
 		}
 
-		ref := item.AnchorCredentialReference()
+		ref := item.AnchorReference()
 		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
 			// Continue processing other anchor credentials on duplicate error.
 			if !errors.Is(err, errDuplicateAnchorCredential) {
@@ -607,7 +607,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 }
 
 func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
-	ref, err := newAnchorCredentialReferenceFromCreate(create)
+	ref, err := newAnchorReferenceFromCreate(create)
 	if err != nil {
 		return err
 	}
@@ -620,7 +620,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				vocab.NewCollection(
 					[]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorCredentialReference(ref),
+							vocab.WithAnchorReference(ref),
 						),
 					},
 				),
@@ -638,8 +638,8 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
-	ref := create.Object().AnchorCredentialReference()
+func (h *Inbox) announceAnchorRef(create *vocab.ActivityType) error {
+	ref := create.Object().AnchorReference()
 
 	published := time.Now()
 
@@ -649,7 +649,7 @@ func (h *Inbox) announceAnchorCredentialRef(create *vocab.ActivityType) error {
 				vocab.NewCollection(
 					[]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorCredentialReference(ref),
+							vocab.WithAnchorReference(ref),
 						),
 					},
 				),
@@ -838,7 +838,7 @@ func (h *Inbox) getActivityFromOutbox(activityIRI *url.URL) (*vocab.ActivityType
 	return activities[0], nil
 }
 
-func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorCredentialReferenceType, error) {
+func newAnchorReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorReferenceType, error) {
 	anchorCredential := create.Object().Object()
 
 	anchorCredentialBytes, err := json.Marshal(anchorCredential)
@@ -853,7 +853,7 @@ func newAnchorCredentialReferenceFromCreate(create *vocab.ActivityType) (*vocab.
 
 	targetObj := create.Target().Object()
 
-	return vocab.NewAnchorCredentialReferenceWithDocument(anchorCredential.ID().URL(),
+	return vocab.NewAnchorReferenceWithDocument(anchorCredential.ID().URL(),
 		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
 }
 
