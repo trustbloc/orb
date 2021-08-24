@@ -12,10 +12,6 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
-	"github.com/trustbloc/sidetree-core-go/pkg/compression"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
@@ -44,23 +40,7 @@ func TestFactory_Create(t *testing.T) {
 	})
 }
 
-func TestOperationProviderWrapper_GetTxnOperations(t *testing.T) {
-	t.Run("parse anchor data failed", func(t *testing.T) {
-		p := protocol.Protocol{}
-		opWrapper := operationProviderWrapper{
-			Protocol: &p, parser: operationparser.New(p),
-			dp: compression.New(compression.WithDefaultAlgorithms()),
-		}
-
-		anchoredOperations, err := opWrapper.GetTxnOperations(&txn.SidetreeTxn{
-			EquivalentReferences: []string{"webcas:orb.domain1.com"},
-		})
-		require.EqualError(t, err, "parse anchor data[] failed: expecting [2] parts, got [1] parts")
-		require.Nil(t, anchoredOperations)
-	})
-}
-
-func TestCasClientWrapper_Read(t *testing.T) {
+func TestCasReader_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
 
@@ -70,23 +50,22 @@ func TestCasClientWrapper_Read(t *testing.T) {
 
 		resolver := createNewResolver(t, casClient)
 
-		wrapper := &casClientWrapper{
-			resolver:                 resolver,
-			casHintWithTrailingColon: "webcas:orb.domain1.com:",
+		reader := &casReader{
+			resolver: resolver,
 		}
 
-		data, err := wrapper.Read(cid)
+		data, err := reader.Read(cid)
 		require.NoError(t, err)
 		require.Equal(t, "sample data", string(data))
 	})
 	t.Run("fail to resolve", func(t *testing.T) {
 		resolver := createNewResolver(t, createInMemoryCAS(t))
 
-		wrapper := &casClientWrapper{
+		reader := &casReader{
 			resolver: resolver,
 		}
 
-		data, err := wrapper.Read("QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ")
+		data, err := reader.Read("QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ")
 		require.Error(t, err)
 		require.EqualError(t, err, "failed to resolve CID: failed to get data stored at "+
 			"QmRQB1fQpB4ahvV1fsbjE3fKkT4U9oPjinRofjgS3B9ZEQ from the local CAS: content not found")
