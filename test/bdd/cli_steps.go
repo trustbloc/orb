@@ -144,7 +144,6 @@ func (e *Steps) resolveDID(did string) (*ariesdid.DocResolution, error) {
 
 	for i := 1; i <= maxRetry; i++ {
 		resp, err := e.httpClient.Get(didURL)
-
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +316,6 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 	}
 
 	value, err := execCMD(args...)
-
 	if err != nil {
 		return err
 	}
@@ -340,7 +338,6 @@ func (e *Steps) updateDID() error {
 		"--add-service-file", "fixtures/did-services/update/services.json")
 
 	value, err := execCMD(args...)
-
 	if err != nil {
 		return err
 	}
@@ -357,7 +354,7 @@ func (e *Steps) recoverDID() error {
 		"did", "recover",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
-		"--did-anchor-origin", "https://orb.domain2.com/services/orb",
+		"--did-anchor-origin", "https://orb.domain2.com",
 		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
 		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "ADMIN_TOKEN",
@@ -366,7 +363,6 @@ func (e *Steps) recoverDID() error {
 		"./fixtures/keys/update3/public.pem", "--signingkey-file", "./fixtures/keys/recover/key_encrypted.pem")
 
 	value, err := execCMD(args...)
-
 	if err != nil {
 		return err
 	}
@@ -387,7 +383,6 @@ func (e *Steps) deactivateDID() error {
 		"--signingkey-file", "./fixtures/keys/recover2/key_encrypted.pem")
 
 	value, err := execCMD(args...)
-
 	if err != nil {
 		return err
 	}
@@ -400,14 +395,13 @@ func (e *Steps) deactivateDID() error {
 func (e *Steps) createDID() error {
 	var args []string
 
-	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain2.com/services/orb",
+	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain2.com",
 		"--sidetree-url", "https://localhost:48326/sidetree/v1/operations", "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/create/publickeys.json",
 		"--sidetree-write-token", "ADMIN_TOKEN", "--service-file", "fixtures/did-services/create/services.json",
 		"--recoverykey-file", "./fixtures/keys/recover/public.pem", "--updatekey-file", "./fixtures/keys/update/public.pem")
 
 	value, err := execCMD(args...)
-
 	if err != nil {
 		return err
 	}

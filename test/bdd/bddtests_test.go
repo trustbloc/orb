@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 					panic(err.Error())
 				}
 
-				if err := os.Setenv("ORB_STRESS_ANCHOR_ORIGIN", "https://orb.domain2.com/services/orb"); err != nil {
+				if err := os.Setenv("ORB_STRESS_ANCHOR_ORIGIN", "https://orb.domain2.com"); err != nil {
 					panic(err.Error())
 				}
 
