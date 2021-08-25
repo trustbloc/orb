@@ -10,9 +10,7 @@ import (
 	"fmt"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
@@ -52,7 +50,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	orbParser := orboperationparser.New(opParser)
 
 	cp := compression.New(compression.WithDefaultAlgorithms())
-	op := newOperationProviderWrapper(&p, opParser, casResolver, cp)
+	op := txnprovider.NewOperationProvider(p, opParser, &casReader{casResolver}, cp)
 	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser)
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
@@ -83,52 +81,15 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	}, nil
 }
 
-type decompressionProvider interface {
-	Decompress(alg string, data []byte) ([]byte, error)
+type casReader struct {
+	resolver ctxcommon.CASResolver
 }
 
-// operationProviderWrapper wraps an OperationProvider with a CAS resolver that can fetch data using WebCAS.
-type operationProviderWrapper struct {
-	*txnprovider.OperationProvider
-
-	*protocol.Protocol
-	parser      txnprovider.OperationParser
-	casResolver ctxcommon.CASResolver
-	dp          decompressionProvider
-}
-
-// GetTxnOperations returns transaction operation from the underlying operation provider.
-func (h *operationProviderWrapper) GetTxnOperations(transaction *txn.SidetreeTxn) ([]*operation.AnchoredOperation, error) { //nolint:lll
-	casClient := &casClientWrapper{
-		resolver: h.casResolver,
-	}
-
-	// TODO: no need for wrapper any more (issue-671)
-	op := txnprovider.NewOperationProvider(*h.Protocol, h.parser, casClient, h.dp)
-
-	return op.GetTxnOperations(transaction)
-}
-
-type casClientWrapper struct {
-	resolver                 ctxcommon.CASResolver
-	casHintWithTrailingColon string
-}
-
-func (c *casClientWrapper) Read(cid string) ([]byte, error) {
+func (c *casReader) Read(cid string) ([]byte, error) {
 	data, err := c.resolver.Resolve(nil, cid, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve CID: %w", err)
 	}
 
 	return data, nil
-}
-
-func newOperationProviderWrapper(p *protocol.Protocol, parser *operationparser.Parser, resolver ctxcommon.CASResolver,
-	cp *compression.Registry) *operationProviderWrapper {
-	return &operationProviderWrapper{
-		Protocol:    p,
-		parser:      parser,
-		casResolver: resolver,
-		dp:          cp,
-	}
 }
