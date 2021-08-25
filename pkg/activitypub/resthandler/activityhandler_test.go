@@ -1002,25 +1002,25 @@ func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityT
 	}
 
 	if t == vocab.TypeLike {
-		result, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(jsonLikeResult)))
-		if err != nil {
-			panic(err)
-		}
-
 		actor := testutil.MustParseURL("https://example1.com/services/orb")
-		credID := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+		ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")           //nolint:lll
+		additionalRef := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
 
-		startTime := getStaticTime()
-		endTime := startTime.Add(1 * time.Minute)
+		publishedTime := getStaticTime()
 
 		return vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithIRI(credID)),
+			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(
+				vocab.WithType(vocab.TypeAnchorRef),
+				vocab.WithURL(ref),
+			))),
 			vocab.WithID(id),
 			vocab.WithActor(actor),
 			vocab.WithTo(to...),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(result))),
+			vocab.WithPublishedTime(&publishedTime),
+			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(
+				vocab.WithType(vocab.TypeAnchorRef),
+				vocab.WithURL(additionalRef),
+			)))),
 		)
 	}
 
@@ -1393,75 +1393,51 @@ const (
   "last": "https://example1.com/services/orb/liked?page=true&page-num=0"
 }`
 
+	//nolint:lll
 	likedFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/liked?page=true&page-num=9",
   "next": "https://example1.com/services/orb/liked?page=true&page-num=8",
   "orderedItems": [
     {
-      "@context": "https://www.w3.org/ns/activitystreams",
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/activityanchors/v1"
+      ],
       "actor": "https://example1.com/services/orb",
-      "endTime": "2021-01-27T09:31:10Z",
       "id": "https://example18.com/activities/like_activity_18",
-      "object": "http://sally.example.com/transactions/bafkreihwsn",
-      "result": {
-        "@context": [
-          "https://w3id.org/security/v1",
-          "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-        ],
-        "proof": {
-          "created": "2021-01-27T09:30:15Z",
-          "domain": "https://witness1.example.com/ledgers/maple2021",
-          "jws": "eyJ...",
-          "proofPurpose": "assertionMethod",
-          "type": "JsonWebSignature2020",
-          "verificationMethod": "did:example:abcd#key"
-        }
+      "object": {
+        "type": "AnchorReference",
+        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
-      "startTime": "2021-01-27T09:30:10Z",
+      "published": "2021-01-27T09:30:10Z",
+      "result": {
+        "type": "AnchorReference",
+        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
+      },
       "type": "Like"
     },
     {
-      "@context": "https://www.w3.org/ns/activitystreams",
+      "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://w3id.org/activityanchors/v1"
+      ],
       "actor": "https://example1.com/services/orb",
-      "endTime": "2021-01-27T09:31:10Z",
       "id": "https://example17.com/activities/like_activity_17",
-      "object": "http://sally.example.com/transactions/bafkreihwsn",
-      "result": {
-        "@context": [
-          "https://w3id.org/security/v1",
-          "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-        ],
-        "proof": {
-          "created": "2021-01-27T09:30:15Z",
-          "domain": "https://witness1.example.com/ledgers/maple2021",
-          "jws": "eyJ...",
-          "proofPurpose": "assertionMethod",
-          "type": "JsonWebSignature2020",
-          "verificationMethod": "did:example:abcd#key"
-        }
+      "object": {
+        "type": "AnchorReference",
+        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
-      "startTime": "2021-01-27T09:30:10Z",
+      "published": "2021-01-27T09:30:10Z",
+      "result": {
+        "type": "AnchorReference",
+        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
+      },
       "type": "Like"
     }
   ],
   "totalItems": 19,
   "type": "OrderedCollectionPage"
-}`
-
-	jsonLikeResult = `{
-  "@context": [
-    "https://w3id.org/security/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-  ],
-  "proof": {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:15Z",
-    "verificationMethod": "did:example:abcd#key",
-    "domain": "https://witness1.example.com/ledgers/maple2021",
-    "jws": "eyJ..."
-  }
 }`
 
 	activityJSON = `{

@@ -512,7 +512,7 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, hl string) error 
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
 		vocab.WithTarget(targetProperty),
-		vocab.WithContext(vocab.ContextOrb),
+		vocab.WithContext(vocab.ContextActivityAnchors),
 		vocab.WithTo(systemFollowers, vocab.PublicIRI),
 	)
 

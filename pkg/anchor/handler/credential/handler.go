@@ -84,8 +84,9 @@ func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
 }
 
 // HandleAnchorCredential handles anchor credential.
-func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, hl string, anchorCred []byte) error {
-	logger.Debugf("Received request: ID [%s], CID [%s], Anchor credential: %s", id, hl, string(anchorCred))
+func (h *AnchorCredentialHandler) HandleAnchorCredential(actor, id *url.URL, hl string, anchorCred []byte) error {
+	logger.Debugf("Received request from [%s]: ID [%s], CID [%s], Anchor credential: %s",
+		actor, id, hl, string(anchorCred))
 
 	newCred, err := h.casResolver.Resolve(id, hl, anchorCred)
 	if err != nil {
@@ -123,5 +124,10 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, hl string,
 		}
 	}
 
-	return h.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: hl})
+	return h.anchorPublisher.PublishAnchor(
+		&anchorinfo.AnchorInfo{
+			Hashlink:     hl,
+			AttributedTo: actor.String(),
+		},
+	)
 }

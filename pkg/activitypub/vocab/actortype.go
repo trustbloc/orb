@@ -135,7 +135,7 @@ func NewService(id *url.URL, opts ...Opt) *ActorType {
 
 	return &ActorType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams, ContextSecurity, ContextOrb)...),
+			WithContext(getContexts(options, ContextActivityStreams, ContextSecurity, ContextActivityAnchors)...),
 			WithID(id),
 			WithType(TypeService),
 		),

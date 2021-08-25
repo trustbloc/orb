@@ -70,7 +70,7 @@ func TestActor(t *testing.T) {
 
 		context := a.Context()
 		require.NotNil(t, context)
-		context.Contains(ContextActivityStreams, ContextSecurity, ContextOrb)
+		context.Contains(ContextActivityStreams, ContextSecurity, ContextActivityAnchors)
 
 		key := a.PublicKey()
 		require.NotNil(t, key)

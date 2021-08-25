@@ -18,6 +18,7 @@ import (
 
 func TestObjectType_WithoutDocument(t *testing.T) {
 	id := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+	u := testutil.MustParseURL("http://sally.example.com/transactions/xyz")
 	to1 := testutil.MustParseURL("https://to1")
 	to2 := testutil.MustParseURL("https://to2")
 
@@ -27,7 +28,8 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 	t.Run("NewObject", func(t *testing.T) {
 		obj := NewObject(
-			WithContext(ContextCredentials, ContextOrb),
+			WithURL(u),
+			WithContext(ContextCredentials, ContextActivityAnchors),
 			WithType(TypeVerifiableCredential, TypeAnchorCredential),
 			WithTo(to1, to2),
 			WithPublishedTime(&publishedTime),
@@ -39,9 +41,11 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		context := obj.Context()
 		require.NotNil(t, context)
-		require.True(t, context.Contains(ContextCredentials, ContextOrb))
+		require.True(t, context.Contains(ContextCredentials, ContextActivityAnchors))
 
 		require.Equal(t, id.String(), obj.ID().String())
+
+		require.True(t, obj.URL().Contains(u))
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
@@ -60,7 +64,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 	t.Run("MarshalJSON", func(t *testing.T) {
 		obj := NewObject(
 			WithID(id),
-			WithContext(ContextCredentials, ContextOrb),
+			WithContext(ContextCredentials, ContextActivityAnchors),
 			WithType(TypeVerifiableCredential, TypeAnchorCredential),
 			WithPublishedTime(&publishedTime),
 			WithStartTime(&startTime),
@@ -82,7 +86,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		context := obj.Context()
 		require.NotNil(t, context)
-		require.True(t, context.Contains(ContextCredentials, ContextOrb))
+		require.True(t, context.Contains(ContextCredentials, ContextActivityAnchors))
 
 		require.Equal(t, id.String(), obj.ID().String())
 
@@ -125,7 +129,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 				"proofChain":   []interface{}{},
 			},
 			WithID(id),
-			WithContext(ContextCredentials, ContextOrb),
+			WithContext(ContextCredentials, ContextActivityAnchors),
 			WithType(TypeVerifiableCredential, TypeAnchorCredential),
 			WithTo(to1, to2),
 			WithPublishedTime(&publishedTime),
@@ -149,7 +153,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 
 		context := obj.Context()
 		require.NotNil(t, context)
-		require.True(t, context.Contains(ContextCredentials, ContextOrb))
+		require.True(t, context.Contains(ContextCredentials, ContextActivityAnchors))
 
 		require.Equal(t, id.String(), obj.ID().String())
 
@@ -178,6 +182,7 @@ func TestObjectType_Accessors(t *testing.T) {
 	require.Nil(t, o.Context())
 	require.Empty(t, o.CID())
 	require.Nil(t, o.Published())
+	require.Empty(t, o.URL())
 }
 
 const (

@@ -15,6 +15,7 @@ import (
 type Options struct {
 	Context    []Context
 	ID         *url.URL
+	URL        []*url.URL
 	To         []*url.URL
 	Published  *time.Time
 	StartTime  *time.Time
@@ -56,6 +57,13 @@ func WithContext(context ...Context) Opt {
 func WithID(id *url.URL) Opt {
 	return func(opts *Options) {
 		opts.ID = id
+	}
+}
+
+// WithURL sets the 'url' property on the object.
+func WithURL(u ...*url.URL) Opt {
+	return func(opts *Options) {
+		opts.URL = append(opts.URL, u...)
 	}
 }
 

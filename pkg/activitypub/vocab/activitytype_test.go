@@ -57,7 +57,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 			WithTarget(targetProperty),
 			WithTo(followers),
 			WithTo(public),
-			WithContext(ContextOrb),
+			WithContext(ContextActivityAnchors),
 			WithPublishedTime(&published),
 		)
 
@@ -124,7 +124,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 				WithActor(service1),
 				WithTo(followers),
 				WithTo(public),
-				WithContext(ContextOrb),
+				WithContext(ContextActivityAnchors),
 				WithPublishedTime(&published),
 			)
 
@@ -199,7 +199,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 				WithActor(service1),
 				WithTo(followers),
 				WithTo(public),
-				WithContext(ContextOrb),
+				WithContext(ContextActivityAnchors),
 				WithPublishedTime(&published),
 			)
 
@@ -293,7 +293,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			context := a.Context()
 			require.NotNil(t, context)
 			context.Contains(ContextActivityStreams)
-			context.Contains(ContextOrb)
+			context.Contains(ContextActivityAnchors)
 
 			to := a.To()
 			require.Len(t, to, 2)
@@ -365,7 +365,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			context := a.Context()
 			require.NotNil(t, context)
-			context.Contains(ContextActivityStreams, ContextOrb)
+			context.Contains(ContextActivityStreams, ContextActivityAnchors)
 
 			to := a.To()
 			require.Len(t, to, 2)
@@ -464,7 +464,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			context := a.Context()
 			require.NotNil(t, context)
-			context.Contains(ContextActivityStreams, ContextOrb)
+			context.Contains(ContextActivityStreams, ContextActivityAnchors)
 
 			to := a.To()
 			require.Len(t, to, 2)
@@ -586,7 +586,7 @@ func TestWitnessTypeMarshal(t *testing.T) {
 		context := a.Context()
 		require.NotNil(t, context)
 		context.Contains(ContextActivityStreams)
-		context.Contains(ContextOrb)
+		context.Contains(ContextActivityAnchors)
 
 		to := a.To()
 		require.Len(t, to, 1)
@@ -929,23 +929,34 @@ func TestOfferTypeMarshal(t *testing.T) {
 
 func TestLikeTypeMarshal(t *testing.T) {
 	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
-	credID := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
+	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbG" +
+		"x5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZm" +
+		"tyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHR" +
+		"wczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHR" +
+		"wxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")
 
-	startTime := getStaticTime()
-	endTime := startTime.Add(1 * time.Minute)
+	publishedTime := getStaticTime()
 
 	t.Run("Marshal", func(t *testing.T) {
-		result, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(jsonLikeResult)))
-		require.NoError(t, err)
-
 		like := NewLikeActivity(
-			NewObjectProperty(WithIRI(credID)),
+			NewObjectProperty(WithObject(NewObject(
+				WithType(TypeAnchorRef),
+				WithURL(ref),
+			))),
 			WithID(likeActivityID),
 			WithActor(actor),
 			WithTo(service1, PublicIRI),
-			WithStartTime(&startTime),
-			WithEndTime(&endTime),
-			WithResult(NewObjectProperty(WithObject(result))),
+			WithPublishedTime(&publishedTime),
+			WithResult(
+				NewObjectProperty(WithObject(
+					NewObject(
+						WithType(TypeAnchorRef),
+						WithURL(additionalRef1, additionalRef2),
+					),
+				)),
+			),
 		)
 
 		bytes, err := canonicalizer.MarshalCanonical(like)
@@ -964,7 +975,7 @@ func TestLikeTypeMarshal(t *testing.T) {
 
 		context := a.Context()
 		require.NotNil(t, context)
-		context.Contains(ContextActivityStreams)
+		context.Contains(ContextActivityStreams, ContextActivityAnchors)
 
 		require.Len(t, a.To(), 2)
 		require.Equal(t, a.To()[0].String(), service1.String())
@@ -972,28 +983,14 @@ func TestLikeTypeMarshal(t *testing.T) {
 
 		require.Equal(t, actor.String(), a.Actor().String())
 
-		start := a.StartTime()
-		require.NotNil(t, start)
-		require.Equal(t, startTime, *start)
+		published := a.Published()
+		require.NotNil(t, published)
+		require.Equal(t, publishedTime, *published)
 
-		end := a.EndTime()
-		require.NotNil(t, end)
-		require.Equal(t, endTime, *end)
+		require.True(t, a.Object().AnchorReference().URL().Contains(ref))
 
-		objProp := a.Object()
-		require.NotNil(t, objProp)
-
-		iri := objProp.IRI()
-		require.NotNil(t, iri)
-		require.Equal(t, credID.String(), iri.String())
-
-		resultProp := a.Result()
-		require.NotNil(t, resultProp)
-
-		result := resultProp.Object()
-		require.NotNil(t, result)
-		_, ok := result.Value("proof")
-		require.True(t, ok)
+		require.True(t, a.Result().AnchorReference().URL().Contains(additionalRef1))
+		require.True(t, a.Result().AnchorReference().URL().Contains(additionalRef2))
 
 		bytes, err := canonicalizer.MarshalCanonical(a)
 		require.NoError(t, err)
@@ -1299,47 +1296,31 @@ const (
   "proofChain": [{}]
 }`
 
+	//nolint:lll
 	jsonLike = `{
-  "@context": "https://www.w3.org/ns/activitystreams",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "actor": "https://witness1.example.com/services/orb",
-  "endTime": "2021-01-27T09:31:10Z",
   "id": "https://witness1.example.com/services/orb/likes/87bcd005-abb6-433d-a889-18bc1ce84988",
-  "object": "http://sally.example.com/transactions/bafkreihwsn",
-  "result": {
-    "@context": [
-      "https://w3id.org/security/v1",
-      "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-    ],
-    "proof": {
-      "created": "2021-01-27T09:30:15Z",
-      "domain": "https://witness1.example.com/ledgers/maple2021",
-      "jws": "eyJ...",
-      "proofPurpose": "assertionMethod",
-      "type": "JsonWebSignature2020",
-      "verificationMethod": "did:example:abcd#key"
-    }
+  "object": {
+    "type": "AnchorReference",
+    "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
   },
-  "startTime": "2021-01-27T09:30:10Z",
+  "published": "2021-01-27T09:30:10Z",
+  "result": {
+    "type": "AnchorReference",
+    "url": [
+      "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw",
+      "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw"
+    ]
+  },
   "to": [
     "https://sally.example.com/services/orb",
     "https://www.w3.org/ns/activitystreams#Public"
   ],
   "type": "Like"
-}`
-
-	jsonLikeResult = `{
-  "@context": [
-    "https://w3id.org/security/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-  ],
-  "proof": {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "created": "2021-01-27T09:30:15Z",
-    "verificationMethod": "did:example:abcd#key",
-    "domain": "https://witness1.example.com/ledgers/maple2021",
-    "jws": "eyJ..."
-  }
 }`
 
 	jsonOffer = `{

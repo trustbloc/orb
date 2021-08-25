@@ -16,8 +16,8 @@ const (
 	ContextSecurity Context = "https://w3id.org/security/v1"
 	// ContextCredentials is the verifiable credential context.
 	ContextCredentials Context = "https://www.w3.org/2018/credentials/v1"
-	// ContextOrb is the Orb context.
-	ContextOrb Context = "https://w3id.org/activityanchors/v1"
+	// ContextActivityAnchors is the Activity Anchors context.
+	ContextActivityAnchors Context = "https://w3id.org/activityanchors/v1"
 )
 
 //nolint:gochecknoglobals

@@ -118,7 +118,7 @@ func TestStartObserver(t *testing.T) {
 
 		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid}
+		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid, AttributedTo: "https://example.com/services/orb"}
 
 		prevAnchors = make(map[string]string)
 		prevAnchors["did2"] = ""
@@ -137,6 +137,7 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			Outbox:                 func() Outbox { return apmocks.NewOutbox() },
 		}
 
 		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))

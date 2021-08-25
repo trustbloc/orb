@@ -8,5 +8,6 @@ package info
 
 // AnchorInfo represents a hashlink that can be used to fetch the anchor.
 type AnchorInfo struct {
-	Hashlink string
+	Hashlink     string `json:"hashLink"`
+	AttributedTo string `json:"attributedTo,omitempty"`
 }

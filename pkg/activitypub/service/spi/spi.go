@@ -39,7 +39,12 @@ type Inbox interface {
 
 // AnchorCredentialHandler handles a new, published anchor credential.
 type AnchorCredentialHandler interface {
-	HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error
+	HandleAnchorCredential(actor, id *url.URL, cid string, anchorCred []byte) error
+}
+
+// AnchorEventNotificationHandler handles notification of a successful anchor event processed from an Orb server.
+type AnchorEventNotificationHandler interface {
+	AnchorEventProcessed(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
 }
 
 // ActorAuth makes the decision of whether or not a request by the given
@@ -76,12 +81,13 @@ type UndeliverableActivityHandler interface {
 
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
-	UndeliverableHandler    UndeliverableActivityHandler
-	AnchorCredentialHandler AnchorCredentialHandler
-	FollowerAuth            ActorAuth
-	WitnessInvitationAuth   ActorAuth
-	Witness                 WitnessHandler
-	ProofHandler            ProofHandler
+	UndeliverableHandler           UndeliverableActivityHandler
+	AnchorCredentialHandler        AnchorCredentialHandler
+	FollowerAuth                   ActorAuth
+	WitnessInvitationAuth          ActorAuth
+	Witness                        WitnessHandler
+	ProofHandler                   ProofHandler
+	AnchorEventNotificationHandler AnchorEventNotificationHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -126,5 +132,13 @@ func WithWitness(handler WitnessHandler) HandlerOpt {
 func WithProofHandler(handler ProofHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.ProofHandler = handler
+	}
+}
+
+// WithAnchorEventNotificationHandler sets the handler for notifications of successful anchor event processed
+// from an Orb server.
+func WithAnchorEventNotificationHandler(handler AnchorEventNotificationHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.AnchorEventNotificationHandler = handler
 	}
 }

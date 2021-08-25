@@ -136,7 +136,7 @@ func TestService_Create(t *testing.T) {
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithObject(obj)),
 		vocab.WithTarget(targetProperty),
-		vocab.WithContext(vocab.ContextOrb),
+		vocab.WithContext(vocab.ContextActivityAnchors),
 		vocab.WithTo(service2IRI, unavailableServiceIRI),
 	)
 
@@ -605,7 +605,7 @@ func TestService_Announce(t *testing.T) {
 		create := vocab.NewCreateActivity(
 			vocab.NewObjectProperty(vocab.WithObject(obj)),
 			vocab.WithTarget(targetProperty),
-			vocab.WithContext(vocab.ContextOrb),
+			vocab.WithContext(vocab.ContextActivityAnchors),
 			vocab.WithTo(service2IRI),
 		)
 
@@ -945,13 +945,14 @@ func TestService_InviteWitness(t *testing.T) {
 }
 
 type mockProviders struct {
-	actorRetriever          *mocks.ActorRetriever
-	anchorCredentialHandler *mocks.AnchorCredentialHandler
-	followerAuth            *mocks.ActorAuth
-	witnessInvitationAuth   *mocks.ActorAuth
-	undeliverableHandler    *mocks.UndeliverableHandler
-	proofHandler            *mocks.ProofHandler
-	witnessHandler          *mocks.WitnessHandler
+	actorRetriever                 *mocks.ActorRetriever
+	anchorCredentialHandler        *mocks.AnchorCredentialHandler
+	followerAuth                   *mocks.ActorAuth
+	witnessInvitationAuth          *mocks.ActorAuth
+	undeliverableHandler           *mocks.UndeliverableHandler
+	proofHandler                   *mocks.ProofHandler
+	witnessHandler                 *mocks.WitnessHandler
+	anchorEventNotificationHandler *mocks.AnchorEventNotificationHandler
 }
 
 func newServiceWithMocks(t *testing.T, endpoint string,
@@ -973,13 +974,14 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	}
 
 	providers := &mockProviders{
-		actorRetriever:          mocks.NewActorRetriever(),
-		anchorCredentialHandler: mocks.NewAnchorCredentialHandler(),
-		followerAuth:            mocks.NewActorAuth(),
-		witnessInvitationAuth:   mocks.NewActorAuth(),
-		undeliverableHandler:    mocks.NewUndeliverableHandler(),
-		proofHandler:            mocks.NewProofHandler(),
-		witnessHandler:          mocks.NewWitnessHandler(),
+		actorRetriever:                 mocks.NewActorRetriever(),
+		anchorCredentialHandler:        mocks.NewAnchorCredentialHandler(),
+		followerAuth:                   mocks.NewActorAuth(),
+		witnessInvitationAuth:          mocks.NewActorAuth(),
+		undeliverableHandler:           mocks.NewUndeliverableHandler(),
+		proofHandler:                   mocks.NewProofHandler(),
+		witnessHandler:                 mocks.NewWitnessHandler(),
+		anchorEventNotificationHandler: mocks.NewAnchorEventNotificationHandler(),
 	}
 
 	pubKeyBytes, privKey, err := ed25519.GenerateKey(rand.Reader)
@@ -1016,6 +1018,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		service.WithWitnessInvitationAuth(providers.witnessInvitationAuth),
 		service.WithWitness(providers.witnessHandler),
 		service.WithProofHandler(providers.proofHandler),
+		service.WithAnchorEventNotificationHandler(providers.anchorEventNotificationHandler),
 	)
 	require.NoError(t, err)
 
