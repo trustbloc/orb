@@ -113,18 +113,16 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if errors.Is(err, orberrors.ErrContentNotFound) {
 			if len(casLinks) > 0 {
-				// TODO: Add support for multiple links (issue-672)
-				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromWebCASEndpoint(casLinks[0], resourceHash) //nolint:lll
+				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromWebCASEndpoints(casLinks, resourceHash)
 				if errGetAndStoreRemoteData != nil {
 					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
-						"WebCAS endpoint: %w", errGetAndStoreRemoteData)
+						"WebCAS endpoints: %w", errGetAndStoreRemoteData)
 				}
 
 				return dataFromRemote, nil
 			}
 
 			if h.ipfsReader != nil && len(ipfsLinks) > 0 {
-				// TODO: Add support for multiple links if it makes sense for ipfs (issue-672)
 				cid := ipfsLinks[0][len(ipfsPrefix):]
 
 				return h.getAndStoreDataFromIPFS(cid, resourceHash)
@@ -215,6 +213,38 @@ func (h *Resolver) getAndStoreDataFromDomain(domain, resourceHash string) ([]byt
 	logger.Debugf("successfully retrieved data for resource hash[%s] from https domain[%s]", resourceHash, domain)
 
 	return dataFromRemote, nil
+}
+
+func (h *Resolver) getAndStoreDataFromWebCASEndpoints(webCASEndpoints []string, cid string) ([]byte, error) {
+	if len(webCASEndpoints) == 0 {
+		return nil, fmt.Errorf("must provide at least one cas endpoint in order to retrieve data")
+	}
+
+	var isTransient bool
+
+	var errMsgs []string
+
+	for _, webCASEndpoint := range webCASEndpoints {
+		data, err := h.getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid)
+		if err != nil {
+			errMsg := fmt.Sprintf("endpoint[%s]: %s", webCASEndpoint, err.Error())
+
+			errMsgs = append(errMsgs, errMsg)
+			isTransient = isTransient || orberrors.IsTransient(err)
+
+			continue
+		}
+
+		return data, nil
+	}
+
+	err := fmt.Errorf("%s", errMsgs)
+
+	if isTransient {
+		return nil, orberrors.NewTransient(err)
+	}
+
+	return nil, err
 }
 
 func (h *Resolver) getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid string) ([]byte, error) {

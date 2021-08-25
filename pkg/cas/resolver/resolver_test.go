@@ -168,6 +168,42 @@ func TestResolver_Resolve(t *testing.T) {
 			require.Equal(t, string(data), sampleData)
 		})
 	})
+	t.Run("Had to retrieve data from second remote server", func(t *testing.T) {
+		casClient := createInMemoryCAS(t)
+
+		hl, err := casClient.Write([]byte(sampleData))
+		require.NoError(t, err)
+		require.NotEmpty(t, hl)
+
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		require.NotNil(t, webCAS)
+
+		router := mux.NewRouter()
+
+		router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+		// This test server is our "remote Orb server" for this test. Its CAS will have the data we need.
+		testServer := httptest.NewServer(router)
+		defer testServer.Close()
+
+		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
+		// for it.
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
+		require.NoError(t, err)
+
+		links := []string{"https://localhost:9090/cas", fmt.Sprintf("%s/cas/%s", testServer.URL, rh)}
+
+		md, err := hashlink.New().CreateMetadataFromLinks(links)
+		require.NoError(t, err)
+
+		hl = hashlink.GetHashLink(rh, md)
+
+		data, err := resolver.Resolve(nil, hl, nil)
+		require.NoError(t, err)
+		require.Equal(t, string(data), sampleData)
+	})
 
 	t.Run("Had to retrieve data from remote server via hint", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
@@ -270,6 +306,37 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Equal(t, string(data), sampleData)
 	})
 
+	t.Run("error - failed to retrieve data from two servers", func(t *testing.T) {
+		casClient := createInMemoryCAS(t)
+
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		require.NotNil(t, webCAS)
+
+		router := mux.NewRouter()
+
+		router.HandleFunc(webCAS.Path(), webCAS.Handler())
+
+		// The local resolver here has a CAS without the data we need, so it'll have to ask the remote Orb server
+		// for it.
+		resolver := createNewResolver(t, createInMemoryCAS(t), nil)
+
+		rh, err := hashlink.New().CreateResourceHash([]byte(sampleData))
+		require.NoError(t, err)
+
+		links := []string{"https://localhost:9090/cas", "https://localhost:9091/cas"}
+
+		md, err := hashlink.New().CreateMetadataFromLinks(links)
+		require.NoError(t, err)
+
+		hl := hashlink.GetHashLink(rh, md)
+
+		data, err := resolver.Resolve(nil, hl, nil)
+		require.Error(t, err)
+		require.Nil(t, data)
+		require.Contains(t, err.Error(), "https://localhost:9090/cas")
+		require.Contains(t, err.Error(), "https://localhost:9091/cas")
+	})
+
 	t.Run("error - hint not supported", func(t *testing.T) {
 		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, sampleData)
@@ -334,8 +401,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		data, err := resolver.Resolve(nil, hl, nil)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failure while getting and storing data from the remote "+
-			"WebCAS endpoint: failed to get data via")
+		require.Contains(t, err.Error(), "failure while getting and storing data from the remote WebCAS endpoints")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
 			"no content at uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ was found: content not found")
 		require.Nil(t, data)
@@ -379,10 +445,7 @@ func TestResolver_Resolve(t *testing.T) {
 		hl = hashlink.GetHashLink(rh, md)
 
 		data, err := resolver.Resolve(nil, hl, nil)
-		require.EqualError(t, err, "failure while getting and storing data from the remote WebCAS endpoint: "+
-			"failure while storing data retrieved from the remote WebCAS endpoint locally: "+
-			"failed to write data to CAS (and calculate CID in the process of doing so): "+
-			"failed to put content into underlying storage provider: put error")
+		require.Contains(t, err.Error(), "failed to put content into underlying storage provider: put error")
 		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, data)
 	})
