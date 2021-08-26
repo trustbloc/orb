@@ -155,7 +155,8 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(target1ID.String()))
+			_, exists := anchorCredHandler.AnchorCred(target1ID.String())
+			require.True(t, exists)
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
 			it, err := activityStore.QueryReferences(store.AnchorCredential,
@@ -197,7 +198,8 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			require.NotNil(t, anchorCredHandler.AnchorCred(target1ID.String()))
+			_, exists := anchorCredHandler.AnchorCred(target1ID.String())
+			require.True(t, exists)
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
 			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(target3ID)))

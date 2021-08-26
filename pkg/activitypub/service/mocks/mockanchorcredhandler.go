@@ -47,9 +47,11 @@ func (m *AnchorCredentialHandler) HandleAnchorCredential(actor, id *url.URL, cid
 }
 
 // AnchorCred returns the anchor credential by ID or nil if it doesn't exist.
-func (m *AnchorCredentialHandler) AnchorCred(id string) []byte {
+func (m *AnchorCredentialHandler) AnchorCred(id string) ([]byte, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	return m.anchorCreds[id]
+	value, ok := m.anchorCreds[id]
+
+	return value, ok
 }

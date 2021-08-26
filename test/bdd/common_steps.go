@@ -854,7 +854,7 @@ func newStoreProvider(domain string) (storage.Provider, error) {
 		return ariesmysqlstorage.NewProvider(databaseURL, ariesmysqlstorage.WithDBPrefix(domain))
 
 	case databaseTypeMongoDBOption:
-		return ariesmongodbstorage.NewProvider(databaseURL, ariesmongodbstorage.WithDBPrefix(domain)), nil
+		return ariesmongodbstorage.NewProvider(databaseURL, ariesmongodbstorage.WithDBPrefix(domain))
 
 	default:
 		return nil, fmt.Errorf("unsupported database type [%s]", databaseType)

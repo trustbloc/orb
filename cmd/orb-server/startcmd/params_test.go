@@ -744,8 +744,9 @@ func TestStartCmdValidArgs(t *testing.T) {
 					databaseTypeMongoDBOption, ""))
 
 				err := startCmd.Execute()
-				require.EqualError(t, err, "open store: failed to create a new MongoDB client: "+
-					`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
+				require.EqualError(t, err,
+					"create MongoDB storage provider: failed to create a new MongoDB client: "+
+						`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
 			})
 		})
 	})
@@ -956,15 +957,14 @@ func TestCreateActivityPubStore(t *testing.T) {
 			"failed to ping couchDB: url can't be blank")
 		require.Nil(t, activityPubStore)
 	})
-	t.Run("Fail to create ACtivityPub store using MongoDB", func(t *testing.T) {
+	t.Run("Fail to create ActivityPub store using MongoDB", func(t *testing.T) {
 		activityPubStore, err := createActivityPubStore(
 			&orbParameters{dbParameters: &dbParameters{
 				databaseType: databaseTypeMongoDBOption,
 			}},
 			"serviceEndpoint")
-		require.EqualError(t, err, "failed to create Aries storage provider for ActivityPub: "+
-			"failed to open stores: failed to open activity store: failed to create a new MongoDB client: "+
-			`error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
+		require.EqualError(t, err, "create MongoDB storage provider for ActivityPub: failed to create "+
+			`a new MongoDB client: error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
 		require.Nil(t, activityPubStore)
 	})
 }

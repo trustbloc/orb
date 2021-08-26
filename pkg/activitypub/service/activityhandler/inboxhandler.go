@@ -550,9 +550,13 @@ func (h *Inbox) handleAnchorCredential(actor *url.URL, target *vocab.ObjectPrope
 		return fmt.Errorf("handle anchor credential [%s]: %w", targetIRI, errDuplicateAnchorCredential)
 	}
 
-	bytes, err := json.Marshal(obj)
-	if err != nil {
-		return err
+	var bytes []byte
+
+	if obj != nil {
+		bytes, err = json.Marshal(obj)
+		if err != nil {
+			return fmt.Errorf("marshal anchor credential: %w", err)
+		}
 	}
 
 	err = h.AnchorCredentialHandler.HandleAnchorCredential(actor, targetIRI, target.Object().CID(), bytes)

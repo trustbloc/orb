@@ -8,6 +8,7 @@ package vcstatus
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -38,13 +39,17 @@ func New(provider storage.Provider) (*Store, error) {
 	}
 
 	return &Store{
-		store: store,
+		store:     store,
+		marshal:   json.Marshal,
+		unmarshal: json.Unmarshal,
 	}, nil
 }
 
 // Store is db implementation of vc status store.
 type Store struct {
-	store storage.Store
+	store     storage.Store
+	marshal   func(v interface{}) ([]byte, error)
+	unmarshal func(data []byte, v interface{}) error
 }
 
 // AddStatus adds verifiable credential proof collecting status.
@@ -56,7 +61,12 @@ func (s *Store) AddStatus(vcID string, status proof.VCStatus) error {
 		Value: vcIDEncoded,
 	}
 
-	err := s.store.Put(uuid.New().String(), []byte(status), tag)
+	statusBytes, err := s.marshal(status)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+
+	err = s.store.Put(uuid.New().String(), statusBytes, tag)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to store vcID[%s] status '%s': %w",
 			vcID, status, err))
@@ -90,16 +100,21 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 		return "", fmt.Errorf("status not found for vcID: %s", vcID)
 	}
 
-	var value []byte
+	var status proof.VCStatus
 
 	for ok {
-		value, err = iter.Value()
+		value, err := iter.Value()
 		if err != nil {
 			return "", orberrors.NewTransient(fmt.Errorf("failed to get iterator value for vcID[%s]: %w",
 				vcID, err))
 		}
 
-		if proof.VCStatus(value) == proof.VCStatusCompleted {
+		err = s.unmarshal(value, &status)
+		if err != nil {
+			return "", fmt.Errorf("unmarshal status: %w", err)
+		}
+
+		if status == proof.VCStatusCompleted {
 			return proof.VCStatusCompleted, nil
 		}
 
@@ -108,8 +123,6 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 			return "", orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s]: %w", vcID, err))
 		}
 	}
-
-	status := proof.VCStatus(value)
 
 	logger.Debugf("status for vcID[%s]: %s", vcID, status)
 

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package vcstatus
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -60,6 +61,23 @@ func TestStore_Put(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("error - marshal error", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		errExpected := errors.New("injected marshal error")
+
+		s.marshal = func(interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
+
+		err = s.AddStatus(vcID, proof.VCStatusInProcess)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
 	t.Run("error - store error ", func(t *testing.T) {
 		store := &mocks.Store{}
 		store.PutReturns(fmt.Errorf("put error"))
@@ -106,6 +124,26 @@ func TestStore_Get(t *testing.T) {
 		status, err := s.GetStatus(vcID)
 		require.NoError(t, err)
 		require.Equal(t, proof.VCStatusCompleted, status)
+	})
+
+	t.Run("error - unmarshal error", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		errExpected := errors.New("injected unmarshal error")
+
+		s.unmarshal = func([]byte, interface{}) error {
+			return errExpected
+		}
+
+		err = s.AddStatus(vcID, proof.VCStatusInProcess)
+		require.NoError(t, err)
+
+		_, err = s.GetStatus(vcID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("error - not found", func(t *testing.T) {

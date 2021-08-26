@@ -185,8 +185,13 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI, refe
 		return fmt.Errorf("no store found for %s", string(referenceType))
 	}
 
-	err := referenceStore.Put(objectIRI.String()+referenceIRI.String(),
-		[]byte(referenceIRI.String()), ariesstorage.Tag{
+	valueBytes, err := json.Marshal(referenceIRI.String())
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+
+	err = referenceStore.Put(objectIRI.String()+referenceIRI.String(), valueBytes,
+		ariesstorage.Tag{
 			Name:  objectIRITagName,
 			Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
 		}, ariesstorage.Tag{
@@ -264,7 +269,14 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 		return nil, orberrors.NewTransient(fmt.Errorf("unexpected failure while getting reference: %w", err))
 	}
 
-	retrievedURL, err := url.Parse(string(retrievedURLBytes))
+	var urlStr string
+
+	err = json.Unmarshal(retrievedURLBytes, &urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal URL: %w", err)
+	}
+
+	retrievedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL from storage: %w", err)
 	}
@@ -384,7 +396,14 @@ func (r *referenceIterator) Next() (*url.URL, error) {
 			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
 		}
 
-		retrievedURL, err := url.Parse(string(urlBytes))
+		var urlStr string
+
+		err = json.Unmarshal(urlBytes, &urlStr)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal URL: %w", err)
+		}
+
+		retrievedURL, err := url.Parse(urlStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse stored value as a URL: %w", err)
 		}

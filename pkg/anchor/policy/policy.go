@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package policy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -114,9 +115,12 @@ func (wp *WitnessPolicy) loadWitnessPolicy(key interface{}) (interface{}, *time.
 		return nil, nil, err
 	}
 
-	policy := ""
-	if witnessPolicy != nil {
-		policy = string(witnessPolicy)
+	var policy string
+
+	if len(witnessPolicy) != 0 {
+		if err := json.Unmarshal(witnessPolicy, &policy); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal policy error: %w", err)
+		}
 	}
 
 	logger.Debugf("loaded witness policy from store: %s", policy)

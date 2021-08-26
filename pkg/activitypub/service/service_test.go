@@ -171,7 +171,9 @@ func TestService_Create(t *testing.T) {
 	require.True(t, containsActivity(activities, create.ID()))
 
 	require.NotEmpty(t, subscriber2.Activities())
-	require.NotEmpty(t, mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
+
+	_, exists := mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+	require.True(t, exists)
 
 	ua := mockProviders1.undeliverableHandler.Activities()
 	require.Len(t, ua, 1)
@@ -492,7 +494,8 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
+		_, exists := mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		require.True(t, exists)
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
@@ -551,7 +554,8 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		require.NotEmpty(t, mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
+		_, exists := mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		require.True(t, exists)
 	})
 
 	t.Run("Create and announce", func(t *testing.T) {
@@ -640,7 +644,9 @@ func TestService_Announce(t *testing.T) {
 		require.True(t, containsActivity(activities, create.ID()))
 
 		require.NotEmpty(t, subscriber2.Activities())
-		require.NotEmpty(t, mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String()))
+
+		_, exists := mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		require.True(t, exists)
 
 		// Service3 should have received an 'Announce' activity from Service2
 		it, err = store3.QueryActivities(
