@@ -69,7 +69,7 @@ func (a *SignatureHashAlgorithm) Create(secret httpsig.Secret, data []byte) ([]b
 		return nil, fmt.Errorf("get key handle: %w", err)
 	}
 
-	logger.Debugf("Got key handle for key ID [%s]: %+v. Signing ...", secret.KeyID, kh)
+	logger.Debugf("Got key handle for key ID [%s]. Signing ...", secret.KeyID)
 
 	sig, err := a.Crypto.Sign(data, kh)
 	if err != nil {

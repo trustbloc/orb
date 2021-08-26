@@ -8,6 +8,7 @@ package resthandler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -109,6 +110,33 @@ func TestHandler(t *testing.T) {
 
 		policyConfigurator := New(configStore)
 		require.NotNil(t, policyConfigurator)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))
+
+		policyConfigurator.handle(rw, req)
+
+		result := rw.Result()
+		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+		require.NoError(t, result.Body.Close())
+
+		respBytes, err := ioutil.ReadAll(result.Body)
+		require.NoError(t, err)
+		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("error - marshal error", func(t *testing.T) {
+		configStore := &storemocks.Store{}
+
+		policyConfigurator := New(configStore)
+		require.NotNil(t, policyConfigurator)
+
+		errExpected := errors.New("injected marshal error")
+
+		policyConfigurator.marshal = func(interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))

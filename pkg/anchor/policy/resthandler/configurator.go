@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -31,6 +32,7 @@ var logger = log.New("policy-rest-handler")
 type PolicyConfigurator struct {
 	VerifyActorInSignature bool
 	configStore            storage.Store
+	marshal                func(interface{}) ([]byte, error)
 }
 
 // Path returns the HTTP REST endpoint for the PolicyConfigurator service.
@@ -52,6 +54,7 @@ func (pc *PolicyConfigurator) Handler() common.HTTPRequestHandler {
 func New(cfgStore storage.Store) *PolicyConfigurator {
 	h := &PolicyConfigurator{
 		configStore: cfgStore,
+		marshal:     json.Marshal,
 	}
 
 	return h
@@ -67,7 +70,9 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = config.Parse(string(policyBytes))
+	policyStr := string(policyBytes)
+
+	_, err = config.Parse(policyStr)
 	if err != nil {
 		logger.Errorf("[%s] Invalid witness policy: %s", endpoint, err)
 
@@ -76,7 +81,16 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = pc.configStore.Put(policy.WitnessPolicyKey, policyBytes)
+	valueBytes, err := pc.marshal(policyStr)
+	if err != nil {
+		logger.Errorf("[%s] Marshal witness policy error: %s", endpoint, err)
+
+		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+
+		return
+	}
+
+	err = pc.configStore.Put(policy.WitnessPolicyKey, valueBytes)
 	if err != nil {
 		logger.Errorf("[%s] Error storing witness policy: %s", endpoint, err)
 

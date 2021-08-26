@@ -10,11 +10,11 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210816113201-26c0665ef2b9
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210812165607-4eae28b3c74b
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210812165607-4eae28b3c74b
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210812165607-4eae28b3c74b
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210826164831-40568174ea45
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210826164831-40568174ea45
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210826164831-40568174ea45
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210812172004-259b50ab3879
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210812172004-259b50ab3879
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210820204349-ab3143ab760b
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210819195944-a3500e365d5c

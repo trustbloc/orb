@@ -878,13 +878,14 @@ func createActivityPubStore(parameters *orbParameters, serviceEndpoint string) (
 		databasePrefix := fmt.Sprintf("%s%s_", parameters.dbParameters.databasePrefix,
 			strings.ReplaceAll(serviceEndpoint, "/", "-"))
 
-		mongoDBProvider := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(databasePrefix),
 			ariesmongodbstorage.WithLogger(logger))
+		if err != nil {
+			return nil, fmt.Errorf("create MongoDB storage provider for ActivityPub: %w", err)
+		}
 
 		mongoDBProviderWrapper := wrapper.NewProvider(mongoDBProvider, "MongoDB")
-
-		var err error
 
 		apStore, err = apariesstore.New(mongoDBProviderWrapper, serviceEndpoint)
 		if err != nil {
@@ -955,9 +956,12 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 
 		edgeServiceProvs.provider = wrapper.NewProvider(couchDBProvider, "CouchDB")
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
-		mongoDBProvider := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
 			ariesmongodbstorage.WithLogger(logger))
+		if err != nil {
+			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
+		}
 
 		edgeServiceProvs.provider = wrapper.NewProvider(mongoDBProvider, "MongoDB")
 
@@ -992,9 +996,12 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return &storageProviders{}, err
 		}
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
-		mongoDBProvider := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
 			ariesmongodbstorage.WithLogger(logger))
+		if err != nil {
+			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
+		}
 
 		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(mongoDBProvider, "MongoDB")
 	default:
