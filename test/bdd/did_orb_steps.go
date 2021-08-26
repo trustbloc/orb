@@ -68,11 +68,11 @@ var localURLs = map[string]string{
 }
 
 var anchorOriginURLs = map[string]string{
-	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com",
 	"https://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
-	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
-	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com/services/orb",
+	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com",
+	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com",
+	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com",
 }
 
 const addPublicKeysTemplate = `[
@@ -127,8 +127,6 @@ const docTemplate = `{
 	}
   ]
 }`
-
-var emptyJson = []byte("{}")
 
 // DIDOrbSteps
 type DIDOrbSteps struct {
@@ -275,7 +273,7 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 
 	logger.Infof("got anchor origin: %s", anchorOrigin)
 
-	expectedOrigin := "https://orb.domain1.com/services/orb"
+	expectedOrigin := "https://orb.domain1.com"
 	if anchorOrigin != expectedOrigin {
 		return fmt.Errorf("anchor origin: expected %s, got %s", expectedOrigin, anchorOrigin)
 	}
