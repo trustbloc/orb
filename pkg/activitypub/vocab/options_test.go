@@ -17,6 +17,8 @@ import (
 
 func TestNewOptions(t *testing.T) {
 	id := testutil.MustParseURL("https://example.com/1234")
+	u1 := testutil.MustParseURL("https://example.com/5678")
+	u2 := testutil.MustParseURL("https://example.com/5679")
 
 	to1 := testutil.MustParseURL("https://to1")
 	to2 := testutil.MustParseURL("https://to2")
@@ -67,6 +69,7 @@ func TestNewOptions(t *testing.T) {
 
 	opts := NewOptions(
 		WithID(id),
+		WithURL(u1, u2),
 		WithContext(ContextCredentials, ContextActivityStreams),
 		WithType(TypeCreate),
 		WithTo(to1, to2),
@@ -103,6 +106,10 @@ func TestNewOptions(t *testing.T) {
 	require.NotNil(t, opts)
 
 	require.Equal(t, id, opts.ID)
+
+	require.Len(t, opts.URL, 2)
+	require.Equal(t, u1.String(), opts.URL[0].String())
+	require.Equal(t, u2.String(), opts.URL[1].String())
 
 	require.Len(t, opts.Context, 2)
 	require.Equal(t, ContextCredentials, opts.Context[0])

@@ -174,7 +174,7 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, newAnchorInfo(anchorInfo.Hashlink), h.processAnchors(anchorInfo))
+	h.ackNackMessage(msg, newAnchorInfo(anchorInfo), h.processAnchors(anchorInfo))
 }
 
 func (h *PubSub) handleDIDMessage(msg *message.Message) {
@@ -217,15 +217,24 @@ func (h *PubSub) ackNackMessage(msg *message.Message, info fmt.Stringer, err err
 }
 
 type anchorInfo struct {
-	cid string
+	hashLink     string
+	attributedTo string
 }
 
-func newAnchorInfo(cid string) *anchorInfo {
-	return &anchorInfo{cid: cid}
+func newAnchorInfo(info *anchorinfo.AnchorInfo) *anchorInfo {
+	return &anchorInfo{
+		hashLink:     info.Hashlink,
+		attributedTo: info.AttributedTo,
+	}
 }
 
 func (info *anchorInfo) String() string {
-	return fmt.Sprintf("anchor [%s]", info.cid)
+	str := fmt.Sprintf("anchor - HL [%s]", info.hashLink)
+	if info.attributedTo == "" {
+		return str
+	}
+
+	return fmt.Sprintf("%s, attributedTo [%s]", str, info.attributedTo)
 }
 
 type didInfo struct {

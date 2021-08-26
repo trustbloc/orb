@@ -9,6 +9,7 @@ package observer
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
@@ -65,6 +67,13 @@ type metricsProvider interface {
 	ProcessDIDTime(value time.Duration)
 }
 
+// Outbox defines an ActivityPub outbox.
+type Outbox interface {
+	Post(activity *vocab.ActivityType) (*url.URL, error)
+}
+
+type outboxProvider func() Outbox
+
 // Option is an option for observer.
 type Option func(opts *Observer)
 
@@ -82,6 +91,7 @@ type Providers struct {
 	DidAnchors didAnchors
 	PubSub     pubSub
 	Metrics    metricsProvider
+	Outbox     outboxProvider
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -129,7 +139,7 @@ func (o *Observer) Publisher() Publisher {
 }
 
 func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
-	logger.Debugf("observing anchor: %s", anchor.Hashlink)
+	logger.Debugf("observing anchor [%s], attributedTo [%s]", anchor.Hashlink, anchor.AttributedTo)
 
 	startTime := time.Now()
 
@@ -210,8 +220,9 @@ func getDidParts(did string) (cid, suffix string, err error) {
 	return did[0:pos], did[pos+1:], nil
 }
 
+//nolint:funlen
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
-	logger.Debugf("processing anchor[%s], suffixes: %s", anchor.Hashlink, suffixes)
+	logger.Debugf("processing anchor[%s] from [%s], suffixes: %s", anchor.Hashlink, anchor.AttributedTo, suffixes)
 
 	anchorPayload, err := util.GetAnchorSubject(info)
 	if err != nil {
@@ -267,7 +278,72 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	}
 
 	logger.Infof("Successfully processed %d DIDs in anchor[%s], core index[%s]",
-		len(acSuffixes), anchor.Hashlink, anchorPayload.CoreIndex)
+		len(anchorPayload.PreviousAnchors), anchor.Hashlink, anchorPayload.CoreIndex)
+
+	// Post a 'Like' activity to the originator of the anchor credential.
+	err = o.postLikeActivity(anchor, equivalentRefs)
+	if err != nil {
+		// This is not a critical error. We have already processed the anchor, so we don't want
+		// to trigger a retry by returning a transient error. Just log a warning.
+		logger.Warnf("A 'Like' activity could not be posted to the outbox: %s", err)
+	}
+
+	return nil
+}
+
+func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo, equivalentRefs []string) error {
+	if anchor.AttributedTo == "" {
+		logger.Debugf("Not posting 'Like' activity since no attributedTo ID was specified for anchor [%s]",
+			anchor.Hashlink)
+
+		return nil
+	}
+
+	logger.Debugf("Posting 'Like' activity to [%s] for anchor [%s]",
+		anchor.AttributedTo, anchor.Hashlink)
+
+	refURL, err := url.Parse(anchor.Hashlink)
+	if err != nil {
+		return fmt.Errorf("parse hash link [%s]: %w", anchor.Hashlink, err)
+	}
+
+	attributedTo, err := url.Parse(anchor.AttributedTo)
+	if err != nil {
+		return fmt.Errorf("parse origin [%s]: %w", anchor.AttributedTo, err)
+	}
+
+	publishedTime := time.Now()
+
+	var result *vocab.ObjectProperty
+
+	if len(equivalentRefs) > 1 {
+		u, e := url.Parse(equivalentRefs[1])
+		if e != nil {
+			return fmt.Errorf("parse equivalent ref [%s]: %w", equivalentRefs[1], e)
+		}
+
+		result = vocab.NewObjectProperty(vocab.WithAnchorReference(
+			vocab.NewAnchorReferenceWithOpts(
+				vocab.WithURL(u),
+			)),
+		)
+	}
+
+	like := vocab.NewLikeActivity(
+		vocab.NewObjectProperty(vocab.WithAnchorReference(
+			vocab.NewAnchorReferenceWithOpts(
+				vocab.WithURL(refURL),
+			)),
+		),
+		vocab.WithTo(attributedTo, vocab.PublicIRI),
+		vocab.WithPublishedTime(&publishedTime),
+		vocab.WithResult(result),
+	)
+
+	_, err = o.Outbox().Post(like)
+	if err != nil {
+		return fmt.Errorf("post like: %w", err)
+	}
 
 	return nil
 }

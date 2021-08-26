@@ -90,13 +90,15 @@ func TestNew(t *testing.T) {
 }
 
 func TestAnchorCredentialHandler(t *testing.T) {
+	actor := testutil.MustParseURL("https://domain1.com/services/orb")
+
 	t.Run("Success", func(t *testing.T) {
 		anchorCredentialHandler := createNewAnchorCredentialHandler(t, createInMemoryCAS(t))
 
 		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorCredential), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorCredential(nil, hl,
+		err = anchorCredentialHandler.HandleAnchorCredential(actor, nil, hl,
 			[]byte(sampleAnchorCredential))
 		require.NoError(t, err)
 	})
@@ -107,7 +109,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(cred), nil)
 		require.NoError(t, err)
 
-		err = createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(nil, hl,
+		err = createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(actor, nil, hl,
 			[]byte(cred))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse created: parsing time")
@@ -122,7 +124,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
-			nil, hl, []byte(cred),
+			actor, nil, hl, []byte(cred),
 		))
 	})
 
@@ -131,7 +133,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, createNewAnchorCredentialHandler(t, createInMemoryCAS(t)).HandleAnchorCredential(
-			nil, hl, []byte("null"),
+			actor, nil, hl, []byte("null"),
 		))
 	})
 
@@ -154,7 +156,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorCredential), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorCredential(nil, hl, nil)
+		err = anchorCredentialHandler.HandleAnchorCredential(actor, nil, hl, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to resolve anchor credential: failed to get data stored at uEiCHEWFkVxHMYKiLFChC_rndCmoY1sMGIvMfpaYOJalZjA from the local CAS: content not found") //nolint:lll

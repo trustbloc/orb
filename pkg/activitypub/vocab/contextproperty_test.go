@@ -23,8 +23,8 @@ func TestContextProperty(t *testing.T) {
 		p := NewContextProperty()
 		require.Nil(t, p)
 		require.Empty(t, p.Contexts())
-		require.False(t, p.Contains(ContextOrb))
-		require.False(t, p.ContainsAny(ContextOrb))
+		require.False(t, p.Contains(ContextActivityAnchors))
+		require.False(t, p.ContainsAny(ContextActivityAnchors))
 		require.Equal(t, "", p.String())
 	})
 
@@ -63,7 +63,7 @@ func TestContextProperty(t *testing.T) {
 		p2 := &ContextProperty{}
 		require.NoError(t, json.Unmarshal([]byte(jsonMultiContext), p2))
 		require.True(t, p2.Contains(ContextCredentials, ContextSecurity))
-		require.False(t, p2.Contains(ContextCredentials, ContextOrb))
+		require.False(t, p2.Contains(ContextCredentials, ContextActivityAnchors))
 		require.True(t, p2.ContainsAny(ContextSecurity))
 		require.Equal(t, "[https://www.w3.org/2018/credentials/v1 https://w3id.org/security/v1]", p.String())
 	})

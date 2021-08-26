@@ -18,8 +18,9 @@ type AnchorReferenceType struct {
 }
 
 type anchorReferenceType struct {
-	Target *ObjectProperty `json:"target,omitempty"`
-	Object *ObjectProperty `json:"object,omitempty"`
+	Target *ObjectProperty        `json:"target,omitempty"`
+	Object *ObjectProperty        `json:"object,omitempty"`
+	URL    *URLCollectionProperty `json:"url,omitempty"`
 }
 
 // NewAnchorReference returns a new "AnchorReference".
@@ -28,7 +29,7 @@ func NewAnchorReference(id, anchorCredID *url.URL, cid string, opts ...Opt) *Anc
 
 	return &AnchorReferenceType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
+			WithContext(getContexts(options, ContextActivityStreams, ContextActivityAnchors)...),
 			WithID(id),
 			WithType(TypeAnchorRef),
 		),
@@ -56,7 +57,7 @@ func NewAnchorReferenceWithDocument(
 
 	return &AnchorReferenceType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
+			WithContext(getContexts(options, ContextActivityStreams, ContextActivityAnchors)...),
 			WithID(id),
 			WithType(TypeAnchorRef),
 		),
@@ -75,13 +76,34 @@ func NewAnchorReferenceWithDocument(
 	}, nil
 }
 
+// NewAnchorReferenceWithOpts returns a new "AnchorReference".
+func NewAnchorReferenceWithOpts(opts ...Opt) *AnchorReferenceType {
+	options := NewOptions(opts...)
+
+	return &AnchorReferenceType{
+		ObjectType: NewObject(
+			WithType(TypeAnchorRef),
+			WithURL(options.URL...),
+			WithAttachment(options.Attachment...),
+		),
+	}
+}
+
 // Target returns the target of the anchor credential reference.
 func (t *AnchorReferenceType) Target() *ObjectProperty {
+	if t == nil || t.ref == nil {
+		return nil
+	}
+
 	return t.ref.Target
 }
 
 // Object returns the embedded object (if any).
 func (t *AnchorReferenceType) Object() *ObjectProperty {
+	if t == nil || t.ref == nil {
+		return nil
+	}
+
 	return t.ref.Object
 }
 

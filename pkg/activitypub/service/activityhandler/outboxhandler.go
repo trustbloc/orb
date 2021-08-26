@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -49,6 +50,8 @@ func (h *Outbox) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleCreateActivity(activity)
 	case typeProp.Is(vocab.TypeUndo):
 		return h.handleUndoActivity(activity)
+	case typeProp.Is(vocab.TypeLike):
+		return h.handleLikeActivity(activity)
 	default:
 		// Nothing to do for activity.
 		return nil
@@ -101,6 +104,25 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 
 	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
 		h.ServiceIRI, iri, h.ServiceIRI, refType)
+
+	return nil
+}
+
+func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+
+	ref := like.Object().AnchorReference()
+
+	if ref == nil || len(ref.URL()) == 0 {
+		return errors.New("no anchor reference URL in 'Like' activity")
+	}
+
+	logger.Debugf("[%s] Storing activity in the 'Liked' collection: %s", h.ServiceName, ref.URL())
+
+	err := h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL())
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("add activity to 'Liked' collection: %w", err))
+	}
 
 	return nil
 }

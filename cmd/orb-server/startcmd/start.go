@@ -584,6 +584,8 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
+	var activityPubService *apservice.Service
+
 	// create new observer and start it
 	providers := &observer.Providers{
 		ProtocolClientProvider: pcp,
@@ -591,6 +593,7 @@ func startOrbServices(parameters *orbParameters) error {
 		DidAnchors:             didAnchors,
 		PubSub:                 pubSub,
 		Metrics:                metrics.Get(),
+		Outbox:                 func() observer.Outbox { return activityPubService.Outbox() },
 	}
 
 	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
@@ -598,11 +601,9 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}
 
-	o.Start()
-
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
-	activityPubService, err := apservice.New(apConfig,
+	activityPubService, err = apservice.New(apConfig,
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
@@ -613,10 +614,13 @@ func startOrbServices(parameters *orbParameters) error {
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		// apspi.WithFollowerAuth(followerAuth),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
+		// apspi.WithAnchorEventNotificationHandler(anchorEventHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
+
+	o.Start()
 
 	anchorWriterProviders := &writer.Providers{
 		AnchorGraph:   anchorGraph,

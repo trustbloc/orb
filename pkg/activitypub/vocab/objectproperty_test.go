@@ -150,7 +150,7 @@ func TestObjectProperty_MarshalJSON(t *testing.T) {
 			NewObject(
 				WithType(TypeVerifiableCredential),
 				WithID(objectPropertyID),
-				WithContext(ContextOrb),
+				WithContext(ContextActivityAnchors),
 			),
 		))
 		require.NotNil(t, p)
@@ -232,7 +232,7 @@ func TestObjectProperty_UnmarshalJSON(t *testing.T) {
 
 		context := obj.Context()
 		require.NotNil(t, context)
-		require.True(t, context.Contains(ContextOrb))
+		require.True(t, context.Contains(ContextActivityAnchors))
 
 		require.Equal(t, objectPropertyID.String(), obj.ID().String())
 

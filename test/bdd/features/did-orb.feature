@@ -196,6 +196,16 @@ Feature:
      Then we wait 5 seconds
      Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
+     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
+     Then the JSON path "type" of the response equals "OrderedCollectionPage"
+     And the JSON path "orderedItems" of the array response is not empty
+     And the JSON path "orderedItems.0.object.url" of the response is saved to variable "anchorHash"
+
+     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
+     Then the JSON path "type" of the response equals "OrderedCollectionPage"
+     And the JSON path "orderedItems" of the array response is not empty
+     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
+
     @enable_create_document_store
     Scenario: domain4 has create document store enabled
 

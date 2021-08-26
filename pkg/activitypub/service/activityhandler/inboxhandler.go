@@ -70,6 +70,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 }
 
 // HandleActivity handles the ActivityPub activity in the inbox.
+//nolint:cyclop
 func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
@@ -88,6 +89,8 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 		return h.handleAnnounceActivity(activity)
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
+	case typeProp.Is(vocab.TypeLike):
+		return h.handleLikeActivity(activity)
 	case typeProp.Is(vocab.TypeUndo):
 		return h.handleUndoActivity(activity)
 	default:
@@ -104,7 +107,7 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 
 	switch {
 	case t.Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
-		if err := h.handleAnchorCredential(create.Target(), obj.Object()); err != nil {
+		if err := h.handleAnchorCredential(create.Actor(), create.Target(), obj.Object()); err != nil {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
@@ -116,7 +119,7 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 	case t.Is(vocab.TypeAnchorRef):
 		ref := obj.AnchorReference()
 
-		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
+		if err := h.handleAnchorCredential(create.Actor(), ref.Target(), ref.Object().Object()); err != nil {
 			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 		}
 
@@ -531,7 +534,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 	return nil
 }
 
-func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
+func (h *Inbox) handleAnchorCredential(actor *url.URL, target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
 	if !target.Type().Is(vocab.TypeContentAddressedStorage) {
 		return fmt.Errorf("unsupported target type %s", target.Type().Types())
 	}
@@ -552,7 +555,7 @@ func (h *Inbox) handleAnchorCredential(target *vocab.ObjectProperty, obj *vocab.
 		return err
 	}
 
-	err = h.AnchorCredentialHandler.HandleAnchorCredential(targetIRI, target.Object().CID(), bytes)
+	err = h.AnchorCredentialHandler.HandleAnchorCredential(actor, targetIRI, target.Object().CID(), bytes)
 	if err != nil {
 		return fmt.Errorf("handler anchor credential: %w", err)
 	}
@@ -578,7 +581,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 		}
 
 		ref := item.AnchorReference()
-		if err := h.handleAnchorCredential(ref.Target(), ref.Object().Object()); err != nil {
+		if err := h.handleAnchorCredential(announce.Actor(), ref.Target(), ref.Object().Object()); err != nil {
 			// Continue processing other anchor credentials on duplicate error.
 			if !errors.Is(err, errDuplicateAnchorCredential) {
 				return err
@@ -602,6 +605,32 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 				h.ServiceIRI, announce.ID(), anchorCredID, err)
 		}
 	}
+
+	return nil
+}
+
+func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
+	logger.Infof("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+
+	if err := h.validateLikeActivity(like); err != nil {
+		return fmt.Errorf("invalid 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	// TODO: Will there always be only one URL?
+	refURL := like.Object().AnchorReference().URL()[0]
+
+	if err := h.AnchorEventNotificationHandler.AnchorEventProcessed(like.Actor(), refURL,
+		like.Result().AnchorReference().URL()); err != nil {
+		return fmt.Errorf("error creating result for 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
+	logger.Debugf("[%s] Storing activity in the 'Likes' collection: %s", h.ServiceName, refURL)
+
+	if err := h.store.AddReference(store.Like, refURL, like.ID().URL()); err != nil {
+		return orberrors.NewTransient(fmt.Errorf("add activity to 'Likes' collection: %w", err))
+	}
+
+	h.notify(like)
 
 	return nil
 }
@@ -747,6 +776,28 @@ func (h *Inbox) validateAcceptOfferActivity(accept *vocab.ActivityType) error {
 	return nil
 }
 
+func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
+	if like.Actor() == nil {
+		return fmt.Errorf("actor is required")
+	}
+
+	ref := like.Object().AnchorReference()
+
+	if len(ref.URL()) == 0 {
+		return fmt.Errorf("anchor reference URL is required")
+	}
+
+	result := like.Result()
+
+	if result != nil {
+		if len(result.AnchorReference().URL()) == 0 {
+			return fmt.Errorf("at least one result URL is required")
+		}
+	}
+
+	return nil
+}
+
 func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.ObjectType, error) {
 	bytes, err := json.Marshal(anchorCred)
 	if err != nil {
@@ -871,7 +922,8 @@ func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 
 type noOpAnchorCredentialPublisher struct{}
 
-func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(*url.URL, string, []byte) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(actor, id *url.URL, cid string,
+	anchorCred []byte) error {
 	return nil
 }
 
@@ -883,6 +935,14 @@ func (a *acceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
 
 type noOpProofHandler struct{}
 
-func (p *noOpProofHandler) HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error { //nolint:lll
+func (p *noOpProofHandler) HandleProof(witness *url.URL, anchorCredID string,
+	endTime time.Time, proof []byte) error {
+	return nil
+}
+
+type noOpAnchorEventNotificationHandler struct{}
+
+func (p *noOpAnchorEventNotificationHandler) AnchorEventProcessed(actor, anchorRef *url.URL,
+	additionalAnchorRefs []*url.URL) error {
 	return nil
 }

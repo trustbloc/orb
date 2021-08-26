@@ -33,7 +33,7 @@ func (m *AnchorCredentialHandler) WithError(err error) *AnchorCredentialHandler 
 }
 
 // HandleAnchorCredential stores the anchor credential or returns an error if it was set.
-func (m *AnchorCredentialHandler) HandleAnchorCredential(id *url.URL, cid string, anchorCred []byte) error {
+func (m *AnchorCredentialHandler) HandleAnchorCredential(actor, id *url.URL, cid string, anchorCred []byte) error {
 	if m.err != nil {
 		return m.err
 	}

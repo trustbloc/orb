@@ -2711,6 +2711,220 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 	})
 }
 
+func TestHandler_InboxHandleLikeActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
+	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+
+	publishedTime := time.Now()
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+
+	activityStore := memstore.New(cfg.ServiceName)
+	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+
+	h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
+	require.NotNil(t, h)
+
+	h.Start()
+	defer h.Stop()
+
+	subscriber := newMockActivitySubscriber(h.Subscribe())
+	go subscriber.Listen()
+
+	like := vocab.NewLikeActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorReference(
+				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+		vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
+		vocab.WithActor(actor),
+		vocab.WithTo(service1IRI, vocab.PublicIRI),
+		vocab.WithPublishedTime(&publishedTime),
+		vocab.WithResult(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+		),
+	)
+
+	t.Run("Success", func(t *testing.T) {
+		require.NoError(t, h.HandleActivity(like))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(like.ID()))
+
+		it, err := activityStore.QueryReferences(store.Like,
+			store.NewCriteria(store.WithObjectIRI(ref)))
+		require.NoError(t, err)
+
+		refs, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, refs)
+	})
+
+	t.Run("Invalid like", func(t *testing.T) {
+		invalidLike := vocab.NewLikeActivity(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts())),
+			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
+			vocab.WithActor(actor),
+			vocab.WithTo(service1IRI, vocab.PublicIRI),
+			vocab.WithPublishedTime(&publishedTime),
+			vocab.WithResult(
+				vocab.NewObjectProperty(
+					vocab.WithAnchorReference(
+						vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+			),
+		)
+
+		err := h.HandleActivity(invalidLike)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor reference URL is required")
+	})
+
+	t.Run("Handler error", func(t *testing.T) {
+		errExpected := errors.New("injected handler error")
+
+		anchorEventHandler := mocks.NewAnchorEventNotificationHandler().WithError(errExpected)
+
+		h := NewInbox(cfg, activityStore, ob,
+			mocks.NewActorRetriever(),
+			spi.WithAnchorCredentialHandler(anchorCredHandler),
+			spi.WithAnchorEventNotificationHandler(anchorEventHandler),
+		)
+		require.NotNil(t, h)
+
+		h.Start()
+		defer h.Stop()
+
+		err := h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Store error", func(t *testing.T) {
+		errExpected := errors.New("injected store error")
+
+		activityStore := &mocks.ActivityStore{}
+		activityStore.AddReferenceReturns(errExpected)
+
+		h := NewInbox(cfg, activityStore, ob,
+			mocks.NewActorRetriever(),
+			spi.WithAnchorCredentialHandler(anchorCredHandler),
+		)
+		require.NotNil(t, h)
+
+		h.Start()
+		defer h.Stop()
+
+		err := h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
+func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
+	log.SetLevel("activitypub_service", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
+	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+
+	publishedTime := time.Now()
+
+	cfg := &Config{
+		ServiceName: "service2",
+		ServiceIRI:  service2IRI,
+	}
+
+	activityStore := memstore.New(cfg.ServiceName)
+
+	h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
+
+	h.Start()
+	defer h.Stop()
+
+	like := vocab.NewLikeActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorReference(
+				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+		vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
+		vocab.WithActor(actor),
+		vocab.WithTo(service1IRI, vocab.PublicIRI),
+		vocab.WithPublishedTime(&publishedTime),
+		vocab.WithResult(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+		),
+	)
+
+	t.Run("Success", func(t *testing.T) {
+		require.NoError(t, h.HandleActivity(like))
+
+		it, err := activityStore.QueryReferences(store.Liked,
+			store.NewCriteria(store.WithObjectIRI(service2IRI)))
+		require.NoError(t, err)
+
+		refs, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, refs)
+		require.Equal(t, like.ID().String(), refs[0].String())
+	})
+
+	t.Run("No anchor ref", func(t *testing.T) {
+		invalidLike := vocab.NewLikeActivity(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts())),
+			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
+			vocab.WithActor(actor),
+			vocab.WithTo(service1IRI, vocab.PublicIRI),
+			vocab.WithPublishedTime(&publishedTime),
+			vocab.WithResult(
+				vocab.NewObjectProperty(
+					vocab.WithAnchorReference(
+						vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+			),
+		)
+
+		require.EqualError(t, h.HandleActivity(invalidLike), "no anchor reference URL in 'Like' activity")
+	})
+
+	t.Run("Store error", func(t *testing.T) {
+		errExpected := errors.New("injected store error")
+
+		activityStore := &mocks.ActivityStore{}
+		activityStore.AddReferenceReturns(errExpected)
+
+		h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
+
+		h.Start()
+		defer h.Stop()
+
+		err := h.HandleActivity(like)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), err.Error())
+	})
+}
+
 type mockActivitySubscriber struct {
 	mutex        sync.RWMutex
 	activities   map[string]*vocab.ActivityType
@@ -2803,7 +3017,7 @@ func newMockCreateActivity(actorIRI, toIRI, targetIRI *url.URL, objProp *vocab.O
 				vocab.WithType(vocab.TypeContentAddressedStorage),
 			),
 		))),
-		vocab.WithContext(vocab.ContextOrb),
+		vocab.WithContext(vocab.ContextActivityAnchors),
 		vocab.WithTo(toIRI),
 		vocab.WithPublishedTime(&published),
 	)

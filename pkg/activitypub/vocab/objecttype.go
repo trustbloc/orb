@@ -27,6 +27,7 @@ func NewObject(opts ...Opt) *ObjectType {
 		object: &objectType{
 			Context:    NewContextProperty(options.Context...),
 			ID:         NewURLProperty(options.ID),
+			URL:        NewURLCollectionProperty(options.URL...),
 			CID:        options.CID,
 			Type:       NewTypeProperty(options.Types...),
 			To:         NewURLCollectionProperty(options.To...),
@@ -63,6 +64,7 @@ func NewObjectWithDocument(doc Document, opts ...Opt) (*ObjectType, error) {
 type objectType struct {
 	Context    *ContextProperty       `json:"@context,omitempty"`
 	ID         *URLProperty           `json:"id,omitempty"`
+	URL        *URLCollectionProperty `json:"url,omitempty"`
 	Type       *TypeProperty          `json:"type,omitempty"`
 	To         *URLCollectionProperty `json:"to,omitempty"`
 	Published  *time.Time             `json:"published,omitempty"`
@@ -94,6 +96,21 @@ func (t *ObjectType) ID() *URLProperty {
 // SetID sets the object's ID.
 func (t *ObjectType) SetID(id *url.URL) {
 	t.object.ID = NewURLProperty(id)
+}
+
+// URL returns the object's URLs.
+func (t *ObjectType) URL() Urls {
+	if t == nil || t.object == nil || t.object.URL == nil {
+		return nil
+	}
+
+	urls := make([]*url.URL, len(t.object.URL.urls))
+
+	for i, u := range t.object.URL.urls {
+		urls[i] = u.u
+	}
+
+	return urls
 }
 
 // Type returns the type of the object.

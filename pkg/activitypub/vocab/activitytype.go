@@ -141,7 +141,7 @@ func NewInviteActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 
 	return &ActivityType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams, ContextOrb)...),
+			WithContext(getContexts(options, ContextActivityStreams, ContextActivityAnchors)...),
 			WithID(options.ID),
 			WithType(TypeInvite),
 			WithTo(options.To...),
@@ -197,12 +197,11 @@ func NewLikeActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 
 	return &ActivityType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams)...),
+			WithContext(getContexts(options, ContextActivityStreams, ContextActivityAnchors)...),
 			WithID(options.ID),
 			WithType(TypeLike),
 			WithTo(options.To...),
-			WithStartTime(options.StartTime),
-			WithEndTime(options.EndTime),
+			WithPublishedTime(options.Published),
 		),
 		activity: &activityType{
 			Actor:  NewURLProperty(options.Actor),

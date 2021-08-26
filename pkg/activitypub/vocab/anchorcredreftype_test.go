@@ -40,23 +40,11 @@ func TestNewAnchorReference(t *testing.T) {
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
-		require.True(t, contextProp.Contains(ContextActivityStreams, ContextOrb))
+		require.True(t, contextProp.Contains(ContextActivityStreams, ContextActivityAnchors))
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeAnchorRef))
-
-		targetProp := ref.Target()
-		require.NotNil(t, targetProp)
-
-		targetObjProp := targetProp.Object()
-		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
-		require.Equal(t, cid, targetObjProp.CID())
-
-		targetTypeProp := targetObjProp.Type()
-		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 	})
 
 	t.Run("With document", func(t *testing.T) {
@@ -75,7 +63,7 @@ func TestNewAnchorReference(t *testing.T) {
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
-		require.True(t, contextProp.Contains(ContextActivityStreams, ContextOrb))
+		require.True(t, contextProp.Contains(ContextActivityStreams, ContextActivityAnchors))
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
@@ -105,7 +93,17 @@ func TestNewAnchorReference(t *testing.T) {
 
 		refObjContext := refObj.Context()
 		require.NotNil(t, refObjContext)
-		require.True(t, refObjContext.Contains(ContextCredentials, ContextOrb))
+		require.True(t, refObjContext.Contains(ContextCredentials, ContextActivityAnchors))
+	})
+
+	t.Run("With URL", func(t *testing.T) {
+		ref := NewAnchorReferenceWithOpts(WithURL(anchorCredIRI))
+		require.NotNil(t, ref)
+		require.True(t, ref.URL().Contains(anchorCredIRI))
+
+		typeProp := ref.Type()
+		require.NotNil(t, typeProp)
+		require.True(t, typeProp.Is(TypeAnchorRef))
 	})
 }
 
@@ -136,23 +134,11 @@ func TestAnchorReferenceMarshal(t *testing.T) {
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
-		require.True(t, contextProp.Contains(ContextActivityStreams, ContextOrb))
+		require.True(t, contextProp.Contains(ContextActivityStreams, ContextActivityAnchors))
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
 		require.True(t, typeProp.Is(TypeAnchorRef))
-
-		targetProp := ref.Target()
-		require.NotNil(t, targetProp)
-
-		targetObjProp := targetProp.Object()
-		require.NotNil(t, targetObjProp)
-		require.Equal(t, anchorCredIRI.String(), targetObjProp.ID().String())
-		require.Equal(t, cid, targetObjProp.CID())
-
-		targetTypeProp := targetObjProp.Type()
-		require.NotNil(t, targetTypeProp)
-		require.True(t, targetTypeProp.Is(TypeContentAddressedStorage))
 	})
 
 	t.Run("Marshal with document", func(t *testing.T) {
@@ -177,7 +163,7 @@ func TestAnchorReferenceMarshal(t *testing.T) {
 
 		contextProp := ref.Context()
 		require.NotNil(t, contextProp)
-		require.True(t, contextProp.Contains(ContextActivityStreams, ContextOrb))
+		require.True(t, contextProp.Contains(ContextActivityStreams, ContextActivityAnchors))
 
 		typeProp := ref.Type()
 		require.NotNil(t, typeProp)
@@ -207,8 +193,15 @@ func TestAnchorReferenceMarshal(t *testing.T) {
 
 		refObjContext := refObj.Context()
 		require.NotNil(t, refObjContext)
-		require.True(t, refObjContext.Contains(ContextCredentials, ContextOrb))
+		require.True(t, refObjContext.Contains(ContextCredentials, ContextActivityAnchors))
 	})
+}
+
+func TestAccessors(t *testing.T) {
+	var ref *AnchorReferenceType
+
+	require.Nil(t, ref.Target())
+	require.Nil(t, ref.Object())
 }
 
 const (
