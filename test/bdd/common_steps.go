@@ -100,6 +100,12 @@ func (d *CommonSteps) setJSONVariable(varName, value string) error {
 	m := make(map[string]interface{})
 	var bytes []byte
 
+	// First resolve all of the raw JSON variables.
+	value, err := d.state.resolveWithPrefix("#", value)
+	if err != nil {
+		return fmt.Errorf("invalid JSON %s: %w", value, err)
+	}
+
 	if err := json.Unmarshal([]byte(value), &m); err != nil {
 		var arr []interface{}
 		if err := json.Unmarshal([]byte(value), &arr); err != nil {

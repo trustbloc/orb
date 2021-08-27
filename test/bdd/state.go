@@ -97,10 +97,14 @@ func (s *state) getVar(varName string) (string, bool) {
 //		"${arr1[0]_arr1[1]_arr1[2]}" = "value1_value2_value3"
 //
 func (s *state) resolve(arg string) (string, error) {
+	return s.resolveWithPrefix("$", arg)
+}
+
+func (s *state) resolveWithPrefix(prefix, arg string) (string, error) {
 	for {
 		logger.Debugf("Resolving vars for %s", arg)
 
-		str, err := doResolve(s.vars, arg)
+		str, err := doResolve(s.vars, prefix, arg)
 		if err != nil {
 			return arg, err
 		}
@@ -124,12 +128,12 @@ func (s *state) resolveAll(args []string) ([]string, error) {
 	return argArr, nil
 }
 
-func doResolve(vars map[string]string, arg string) (string, error) {
+func doResolve(vars map[string]string, prefix, arg string) (string, error) {
 	if len(arg) <= 3 {
 		return arg, nil
 	}
 
-	open := strings.Index(arg, "${")
+	open := strings.Index(arg, fmt.Sprintf("%s{", prefix))
 	if open == -1 {
 		return arg, nil
 	}

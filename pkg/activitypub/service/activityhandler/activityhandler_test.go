@@ -2076,7 +2076,13 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		vocab.WithTo(service1IRI),
 	)
 
-	unsupported := vocab.NewLikeActivity(
+	followNoActor := vocab.NewFollowActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithTo(service1IRI),
+	)
+
+	unsupported := vocab.NewRejectActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 		vocab.WithID(newActivityID(ibHandler.ServiceIRI)),
 		vocab.WithActor(service2IRI),
@@ -2091,6 +2097,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	require.NoError(t, ibHandler.store.AddActivity(follow))
 	require.NoError(t, ibHandler.store.AddActivity(followNoIRI))
 	require.NoError(t, ibHandler.store.AddActivity(followIRINotLocalService))
+	require.NoError(t, ibHandler.store.AddActivity(followNoActor))
 	require.NoError(t, ibHandler.store.AddActivity(unsupported))
 
 	t.Run("No actor in activity", func(t *testing.T) {
@@ -2127,6 +2134,18 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		err := ibHandler.HandleActivity(undo)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, store.ErrNotFound))
+	})
+
+	t.Run("No actor in activity", func(t *testing.T) {
+		undo := vocab.NewUndoActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(followNoActor)),
+			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		err := ibHandler.HandleActivity(undo)
+		require.EqualError(t, err, "no actor specified in 'Follow' activity")
 	})
 
 	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
@@ -2586,6 +2605,148 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 
 			require.NotNil(t, obSubscriber.Activity(undo.ID()))
+		})
+	})
+}
+
+func TestHandler_HandleUndoLikeActivity(t *testing.T) {
+	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
+
+	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+
+	publishedTime := time.Now()
+
+	ibHandler, obHandler, ibSubscriber, obSubscriber, stop := startInboxOutboxWithMocks(t, service1IRI, service2IRI)
+	defer stop()
+
+	like := vocab.NewLikeActivity(
+		vocab.NewObjectProperty(
+			vocab.WithAnchorReference(
+				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref))),
+		),
+		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI, vocab.PublicIRI),
+		vocab.WithPublishedTime(&publishedTime),
+		vocab.WithResult(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2))),
+			),
+		),
+	)
+
+	require.NoError(t, obHandler.store.AddActivity(like))
+
+	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
+	require.NoError(t, ibHandler.store.AddActivity(like))
+
+	t.Run("Inbox Undo Like", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, ibHandler.store.AddReference(store.Like, ref, like.ID().URL()))
+
+			it, err := ibHandler.store.QueryReferences(store.Like,
+				store.NewCriteria(store.WithObjectIRI(ref)))
+			require.NoError(t, err)
+
+			likes, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(likes, like.ID().URL()))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(like)),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, ibHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, ibSubscriber.Activity(undo.ID()))
+
+			it, err = ibHandler.store.QueryReferences(store.Like,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			likes, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(likes, like.ID().URL()))
+		})
+
+		t.Run("No URL in anchor reference", func(t *testing.T) {
+			likeNoURL := vocab.NewLikeActivity(
+				vocab.NewObjectProperty(
+					vocab.WithAnchorReference(
+						vocab.NewAnchorReferenceWithOpts()),
+				),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI, vocab.PublicIRI),
+				vocab.WithPublishedTime(&publishedTime),
+				vocab.WithResult(
+					vocab.NewObjectProperty(
+						vocab.WithAnchorReference(
+							vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2))),
+					),
+				),
+			)
+
+			require.NoError(t, ibHandler.store.AddActivity(likeNoURL))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(likeNoURL)),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid anchor reference in the 'Like' activity")
+		})
+	})
+
+	t.Run("Outbox Undo Like", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, obHandler.store.AddReference(store.Liked, obHandler.ServiceIRI, like.ID().URL()))
+
+			it, err := obHandler.store.QueryReferences(store.Liked,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			liked, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(liked, like.ID().URL()))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(like)),
+				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			require.NoError(t, obHandler.HandleActivity(undo))
+
+			time.Sleep(50 * time.Millisecond)
+
+			require.NotNil(t, obSubscriber.Activity(undo.ID()))
+
+			it, err = obHandler.store.QueryReferences(store.Liked,
+				store.NewCriteria(store.WithObjectIRI(obHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			liked, err = storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.False(t, containsIRI(liked, like.ID().URL()))
 		})
 	})
 }

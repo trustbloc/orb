@@ -200,11 +200,26 @@ Feature:
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
      And the JSON path "orderedItems" of the array response is not empty
      And the JSON path "orderedItems.0.object.url" of the response is saved to variable "anchorHash"
+     And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity"
+     And the JSON path "orderedItems.0.id" of the response is saved to variable "likeID"
+     And the JSON path "orderedItems.0.actor" of the response is saved to variable "likeActor"
+     And the JSON path "orderedItems.0.to" of the raw response is saved to variable "likeTo"
 
      When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
      And the JSON path "orderedItems" of the array response is not empty
      And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
+
+     Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor}","to":#{likeTo},"object":#{likeActivity}}'
+     When an HTTP POST is sent to "${likeActor}/outbox" with content "${undoLikeActivity}" of type "application/json"
+
+     Then we wait 2 seconds
+
+     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
+     Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorHash}"
+
+     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
+     Then the JSON path "orderedItems.#" of the response has 0 items
 
     @enable_create_document_store
     Scenario: domain4 has create document store enabled

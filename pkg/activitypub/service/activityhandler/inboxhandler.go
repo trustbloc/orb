@@ -64,6 +64,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 				return activity.Target().IRI()
 			})
 		},
+		h.inboxUndoLike,
 	)
 
 	return h
@@ -848,6 +849,27 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 
 	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
 		h.ServiceIRI, actorIRI, h.ServiceIRI, refType)
+
+	return nil
+}
+
+func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
+	ref := like.Object().AnchorReference()
+
+	if ref == nil || len(ref.URL()) == 0 {
+		return fmt.Errorf("invalid anchor reference in the 'Like' activity")
+	}
+
+	u := ref.URL()[0]
+
+	err := h.store.DeleteReference(store.Like, u, like.ID().URL())
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("unable to delete %s from %s's collection of 'Likes'",
+			like.ID(), u))
+	}
+
+	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of 'Likes'",
+		h.ServiceIRI, like.ID(), u)
 
 	return nil
 }

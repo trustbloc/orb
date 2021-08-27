@@ -26,14 +26,19 @@ func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) 
 	h := &Outbox{}
 
 	h.handler = newHandler(cfg, s, activityPubClient,
-		func(follow *vocab.ActivityType) error {
-			return h.undoAddReference(follow, store.Following, func() *url.URL {
-				return follow.Object().IRI()
+		func(activity *vocab.ActivityType) error {
+			return h.undoAddReference(activity, store.Following, func() *url.URL {
+				return activity.Object().IRI()
 			})
 		},
-		func(inviteWitness *vocab.ActivityType) error {
-			return h.undoAddReference(inviteWitness, store.Witness, func() *url.URL {
-				return inviteWitness.Target().IRI()
+		func(activity *vocab.ActivityType) error {
+			return h.undoAddReference(activity, store.Witness, func() *url.URL {
+				return activity.Target().IRI()
+			})
+		},
+		func(activity *vocab.ActivityType) error {
+			return h.undoAddReference(activity, store.Liked, func() *url.URL {
+				return activity.ID().URL()
 			})
 		},
 	)
