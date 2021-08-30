@@ -62,10 +62,11 @@ type handler struct {
 	client            activityPubClient
 	undoFollow        undoFunc
 	undoInviteWitness undoFunc
+	undoLike          undoFunc
 }
 
 func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
-	undoFollow, undoInviteWitness undoFunc) *handler {
+	undoFollow, undoInviteWitness, undoLike undoFunc) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -80,6 +81,7 @@ func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
 		client:            activityPubClient,
 		undoFollow:        undoFollow,
 		undoInviteWitness: undoInviteWitness,
+		undoLike:          undoLike,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -119,7 +121,7 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 	}
 
 	activityInUndo := undo.Object().Activity()
-	if activityInUndo == nil {
+	if activityInUndo == nil || activityInUndo.ID() == nil {
 		return orberrors.NewBadRequest(fmt.Errorf("no activity specified in 'object' field of the 'Undo' activity"))
 	}
 
@@ -132,6 +134,10 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 		}
 
 		return orberrors.NewTransient(e)
+	}
+
+	if activity.Actor() == nil {
+		return orberrors.NewBadRequest(fmt.Errorf("no actor specified in '%s' activity", activity.Type()))
 	}
 
 	if activity.Actor().String() != undo.Actor().String() {
@@ -157,6 +163,9 @@ func (h *handler) undoActivity(activity *vocab.ActivityType) error {
 
 	case activity.Type().Is(vocab.TypeInvite):
 		return h.undoInviteWitness(activity)
+
+	case activity.Type().Is(vocab.TypeLike):
+		return h.undoLike(activity)
 
 	default:
 		return fmt.Errorf("undo of type %s is not supported", activity.Type())
