@@ -623,8 +623,13 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 	// TODO: Will there always be only one URL?
 	refURL := like.Object().AnchorReference().URL()[0]
 
-	if err := h.AnchorEventNotificationHandler.AnchorEventProcessed(like.Actor(), refURL,
-		like.Result().AnchorReference().URL()); err != nil {
+	var additionalRefs []*url.URL
+
+	if like.Result() != nil {
+		additionalRefs = like.Result().AnchorReference().URL()
+	}
+
+	if err := h.AnchorEventNotificationHandler.AnchorEventProcessed(like.Actor(), refURL, additionalRefs); err != nil {
 		return fmt.Errorf("error creating result for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
@@ -789,14 +794,6 @@ func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
 
 	if len(ref.URL()) == 0 {
 		return fmt.Errorf("anchor reference URL is required")
-	}
-
-	result := like.Result()
-
-	if result != nil {
-		if len(result.AnchorReference().URL()) == 0 {
-			return fmt.Errorf("at least one result URL is required")
-		}
 	}
 
 	return nil

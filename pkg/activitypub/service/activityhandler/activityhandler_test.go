@@ -2776,6 +2776,32 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		require.NotEmpty(t, refs)
 	})
 
+	t.Run("No result -> Success", func(t *testing.T) {
+		likeNoResult := vocab.NewLikeActivity(
+			vocab.NewObjectProperty(
+				vocab.WithAnchorReference(
+					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
+			vocab.WithActor(actor),
+			vocab.WithTo(service1IRI, vocab.PublicIRI),
+			vocab.WithPublishedTime(&publishedTime),
+		)
+
+		require.NoError(t, h.HandleActivity(likeNoResult))
+
+		time.Sleep(50 * time.Millisecond)
+
+		require.NotNil(t, subscriber.Activity(likeNoResult.ID()))
+
+		it, err := activityStore.QueryReferences(store.Like,
+			store.NewCriteria(store.WithObjectIRI(ref)))
+		require.NoError(t, err)
+
+		refs, err := storeutil.ReadReferences(it, -1)
+		require.NoError(t, err)
+		require.NotEmpty(t, refs)
+	})
+
 	t.Run("Invalid like", func(t *testing.T) {
 		invalidLike := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
