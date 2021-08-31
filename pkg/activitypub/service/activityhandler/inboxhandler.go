@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 var errDuplicateAnchorCredential = errors.New("anchor credential already handled")
@@ -630,7 +631,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		additionalRefs = like.Result().AnchorReference().URL()
 	}
 
-	if err := h.AnchorEventNotificationHandler.AnchorEventProcessed(like.Actor(), refURL, additionalRefs); err != nil {
+	if err := h.AnchorEventAckHandler.AnchorEventAcknowledged(like.Actor(), refURL, additionalRefs); err != nil {
 		return fmt.Errorf("error creating result for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
@@ -963,9 +964,41 @@ func (p *noOpProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 	return nil
 }
 
-type noOpAnchorEventNotificationHandler struct{}
+type noOpAnchorEventAcknowledgementHandler struct{}
 
-func (p *noOpAnchorEventNotificationHandler) AnchorEventProcessed(actor, anchorRef *url.URL,
+func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
+	logger.Infof("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
+		actor, newHashLinkInfo(anchorRef), newHashLinkInfo(additionalAnchorRefs...))
+
 	return nil
+}
+
+type hashLinkInfo struct {
+	hl []*url.URL
+}
+
+func newHashLinkInfo(hl ...*url.URL) *hashLinkInfo {
+	return &hashLinkInfo{hl: hl}
+}
+
+func (hlInfo *hashLinkInfo) String() string {
+	str := ""
+
+	parser := hashlink.New()
+
+	for i, hl := range hlInfo.hl {
+		if i > 0 {
+			str += ", "
+		}
+
+		info, err := parser.ParseHashLink(hl.String())
+		if err != nil {
+			str += fmt.Sprintf("{INVALID HASHLINK [%s]}", hl)
+		} else {
+			str += fmt.Sprintf("{Hash [%s], Links %s}", info.ResourceHash, info.Links)
+		}
+	}
+
+	return str
 }

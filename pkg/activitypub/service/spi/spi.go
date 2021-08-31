@@ -42,9 +42,9 @@ type AnchorCredentialHandler interface {
 	HandleAnchorCredential(actor, id *url.URL, cid string, anchorCred []byte) error
 }
 
-// AnchorEventNotificationHandler handles notification of a successful anchor event processed from an Orb server.
-type AnchorEventNotificationHandler interface {
-	AnchorEventProcessed(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
+// AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server.
+type AnchorEventAcknowledgementHandler interface {
+	AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
 }
 
 // ActorAuth makes the decision of whether or not a request by the given
@@ -81,13 +81,13 @@ type UndeliverableActivityHandler interface {
 
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
-	UndeliverableHandler           UndeliverableActivityHandler
-	AnchorCredentialHandler        AnchorCredentialHandler
-	FollowerAuth                   ActorAuth
-	WitnessInvitationAuth          ActorAuth
-	Witness                        WitnessHandler
-	ProofHandler                   ProofHandler
-	AnchorEventNotificationHandler AnchorEventNotificationHandler
+	UndeliverableHandler    UndeliverableActivityHandler
+	AnchorCredentialHandler AnchorCredentialHandler
+	FollowerAuth            ActorAuth
+	WitnessInvitationAuth   ActorAuth
+	Witness                 WitnessHandler
+	ProofHandler            ProofHandler
+	AnchorEventAckHandler   AnchorEventAcknowledgementHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -135,10 +135,10 @@ func WithProofHandler(handler ProofHandler) HandlerOpt {
 	}
 }
 
-// WithAnchorEventNotificationHandler sets the handler for notifications of successful anchor event processed
-// from an Orb server.
-func WithAnchorEventNotificationHandler(handler AnchorEventNotificationHandler) HandlerOpt {
+// WithAnchorEventAcknowledgementHandler sets the handler for an acknowledgement of a successful anchor event
+// that was processed by another Orb server.
+func WithAnchorEventAcknowledgementHandler(handler AnchorEventAcknowledgementHandler) HandlerOpt {
 	return func(options *Handlers) {
-		options.AnchorEventNotificationHandler = handler
+		options.AnchorEventAckHandler = handler
 	}
 }

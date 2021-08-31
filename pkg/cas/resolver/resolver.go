@@ -71,32 +71,30 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolv
 
 // Resolve does the following:
 // 1. If data is provided (not nil), then it will be stored via the local CAS. That data passed in will then simply be
-//    returned back to the caller.
+//    returned back to the caller, along with the hashlink of the stored data.
 // 2. If data is not provided (is nil), then the local CAS will be checked to see if it has data at the cid provided.
 //    If it does, then it is returned. If it doesn't, and a webCASURL is provided, then the data will be retrieved by
 //    querying the webCASURL. This data will then get stored in the local CAS.
-//    Finally, the data is returned to the caller.
+//    Finally, the data is returned to the caller, along with the hashlink of the stored data.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, error) { //nolint:gocyclo,cyclop,lll
+func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:gocyclo,cyclop,lll
 	startTime := time.Now()
 
-	defer func() {
-		h.metrics.CASResolveTime(time.Since(startTime))
-	}()
+	defer h.metrics.CASResolveTime(time.Since(startTime))
 
 	resourceHash, domain, links, err := h.getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get resource hash from[%s]: %w", hashWithPossibleHint, err)
+		return nil, "", fmt.Errorf("failed to get resource hash from[%s]: %w", hashWithPossibleHint, err)
 	}
 
 	if data != nil {
-		err = h.storeLocallyAndVerifyHash(data, resourceHash)
-		if err != nil {
-			return nil, fmt.Errorf("failed to store the data in the local CAS: %w", err)
+		localHL, e := h.storeLocallyAndVerifyHash(data, resourceHash)
+		if e != nil {
+			return nil, "", fmt.Errorf("failed to store the data in the local CAS: %w", e)
 		}
 
-		return data, nil
+		return data, localHL, nil
 	}
 
 	casLinks, ipfsLinks := separateLinks(links)
@@ -105,7 +103,12 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 	if h.localCAS.GetPrimaryWriterType() == "ipfs" && len(ipfsLinks) > 0 {
 		cid := ipfsLinks[0][len(ipfsPrefix):]
 
-		return h.localCAS.Read(cid)
+		data, e := h.localCAS.Read(cid)
+		if e != nil {
+			return nil, "", fmt.Errorf("read from IPFS: %w", e)
+		}
+
+		return data, "", nil
 	}
 
 	// Ensure we have the data stored in the local CAS.
@@ -113,19 +116,17 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 	if err != nil { //nolint: nestif // Breaking this up seems worse than leaving the nested ifs
 		if errors.Is(err, orberrors.ErrContentNotFound) {
 			if len(casLinks) > 0 {
-				dataFromRemote, errGetAndStoreRemoteData := h.getAndStoreDataFromWebCASEndpoints(casLinks, resourceHash)
+				dataFromRemote, localHL, errGetAndStoreRemoteData := h.getAndStoreDataFromWebCASEndpoints(casLinks, resourceHash)
 				if errGetAndStoreRemoteData != nil {
-					return nil, fmt.Errorf("failure while getting and storing data from the remote "+
+					return nil, "", fmt.Errorf("failure while getting and storing data from the remote "+
 						"WebCAS endpoints: %w", errGetAndStoreRemoteData)
 				}
 
-				return dataFromRemote, nil
+				return dataFromRemote, localHL, nil
 			}
 
 			if h.ipfsReader != nil && len(ipfsLinks) > 0 {
-				cid := ipfsLinks[0][len(ipfsPrefix):]
-
-				return h.getAndStoreDataFromIPFS(cid, resourceHash)
+				return h.getAndStoreDataFromIPFS(ipfsLinks[0][len(ipfsPrefix):], resourceHash)
 			}
 
 			if domain != "" {
@@ -133,10 +134,10 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 			}
 		}
 
-		return nil, fmt.Errorf("failed to get data stored at %s from the local CAS: %w", resourceHash, err)
+		return nil, "", fmt.Errorf("failed to get data stored at %s from the local CAS: %w", resourceHash, err)
 	}
 
-	return dataFromLocal, nil
+	return dataFromLocal, "", nil
 }
 
 func (h *Resolver) getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHint string) (string, string, []string, error) { //nolint:lll
@@ -198,26 +199,26 @@ func separateLinks(links []string) ([]string, []string) {
 	return webcasLinks, ipfsLinks
 }
 
-func (h *Resolver) getAndStoreDataFromDomain(domain, resourceHash string) ([]byte, error) {
+func (h *Resolver) getAndStoreDataFromDomain(domain, resourceHash string) ([]byte, string, error) {
 	dataFromRemote, err := h.webCASResolver.Resolve(domain, resourceHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve domain and resource hash via WebCAS: %w", err)
+		return nil, "", fmt.Errorf("failed to resolve domain and resource hash via WebCAS: %w", err)
 	}
 
-	errStoreLocallyAndVerifyHash := h.storeLocallyAndVerifyHash(dataFromRemote, resourceHash)
+	localHL, errStoreLocallyAndVerifyHash := h.storeLocallyAndVerifyHash(dataFromRemote, resourceHash)
 	if errStoreLocallyAndVerifyHash != nil {
-		return nil, fmt.Errorf("failure while storing data retrieved from the remote "+
+		return nil, "", fmt.Errorf("failure while storing data retrieved from the remote "+
 			"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyHash)
 	}
 
 	logger.Debugf("successfully retrieved data for resource hash[%s] from https domain[%s]", resourceHash, domain)
 
-	return dataFromRemote, nil
+	return dataFromRemote, localHL, nil
 }
 
-func (h *Resolver) getAndStoreDataFromWebCASEndpoints(webCASEndpoints []string, cid string) ([]byte, error) {
+func (h *Resolver) getAndStoreDataFromWebCASEndpoints(webCASEndpoints []string, cid string) ([]byte, string, error) {
 	if len(webCASEndpoints) == 0 {
-		return nil, fmt.Errorf("must provide at least one cas endpoint in order to retrieve data")
+		return nil, "", fmt.Errorf("must provide at least one cas endpoint in order to retrieve data")
 	}
 
 	var isTransient bool
@@ -225,7 +226,7 @@ func (h *Resolver) getAndStoreDataFromWebCASEndpoints(webCASEndpoints []string, 
 	var errMsgs []string
 
 	for _, webCASEndpoint := range webCASEndpoints {
-		data, err := h.getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid)
+		data, localHL, err := h.getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid)
 		if err != nil {
 			errMsg := fmt.Sprintf("endpoint[%s]: %s", webCASEndpoint, err.Error())
 
@@ -235,57 +236,57 @@ func (h *Resolver) getAndStoreDataFromWebCASEndpoints(webCASEndpoints []string, 
 			continue
 		}
 
-		return data, nil
+		return data, localHL, nil
 	}
 
 	err := fmt.Errorf("%s", errMsgs)
 
 	if isTransient {
-		return nil, orberrors.NewTransient(err)
+		return nil, "", orberrors.NewTransient(err)
 	}
 
-	return nil, err
+	return nil, "", err
 }
 
-func (h *Resolver) getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid string) ([]byte, error) {
+func (h *Resolver) getAndStoreDataFromWebCASEndpoint(webCASEndpoint, cid string) ([]byte, string, error) {
 	webCASEndpointLink, err := url.Parse(webCASEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse webcas endpoint: %w", err)
+		return nil, "", fmt.Errorf("failed to parse webcas endpoint: %w", err)
 	}
 
 	dataFromRemote, err := h.webCASResolver.GetDataViaWebCASEndpoint(webCASEndpointLink)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get data via WebCAS endpoint: %w", err)
+		return nil, "", fmt.Errorf("failed to get data via WebCAS endpoint: %w", err)
 	}
 
-	errStoreLocallyAndVerifyCID := h.storeLocallyAndVerifyHash(dataFromRemote, cid)
+	localHL, errStoreLocallyAndVerifyCID := h.storeLocallyAndVerifyHash(dataFromRemote, cid)
 	if errStoreLocallyAndVerifyCID != nil {
-		return nil, fmt.Errorf("failure while storing data retrieved from the remote "+
+		return nil, "", fmt.Errorf("failure while storing data retrieved from the remote "+
 			"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyCID)
 	}
 
-	return dataFromRemote, nil
+	return dataFromRemote, localHL, nil
 }
 
-func (h *Resolver) getAndStoreDataFromIPFS(cid, resourceHash string) ([]byte, error) {
+func (h *Resolver) getAndStoreDataFromIPFS(cid, resourceHash string) ([]byte, string, error) {
 	resp, err := h.ipfsReader.Read(cid)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read cid[%s] from ipfs: %w", cid, err)
+		return nil, "", fmt.Errorf("failed to read cid[%s] from ipfs: %w", cid, err)
 	}
 
-	err = h.storeLocallyAndVerifyHash(resp, resourceHash)
+	localHL, err := h.storeLocallyAndVerifyHash(resp, resourceHash)
 	if err != nil {
-		return nil, fmt.Errorf("failure while storing data retrieved from the ipfs: %w",
+		return nil, "", fmt.Errorf("failure while storing data retrieved from the ipfs: %w",
 			err)
 	}
 
-	return resp, nil
+	return resp, localHL, nil
 }
 
-func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) error {
+func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) (string, error) {
 	newHLFromLocalCAS, err := h.localCAS.Write(data)
 	if err != nil {
-		return fmt.Errorf("failed to write data to CAS "+
+		return "", fmt.Errorf("failed to write data to CAS "+
 			"(and calculate CID in the process of doing so): %w", err)
 	}
 
@@ -295,17 +296,17 @@ func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) e
 
 	newResourceHash, err := hashlink.GetResourceHashFromHashLink(newHLFromLocalCAS)
 	if err != nil {
-		return fmt.Errorf("failed to write data to CAS "+
+		return "", fmt.Errorf("failed to write data to CAS "+
 			"(and get resource hash in the process of doing so): %w", err)
 	}
 
 	if newResourceHash != resourceHash {
-		return fmt.Errorf("successfully stored data into the local CAS, but the resource hash produced by "+
+		return "", fmt.Errorf("successfully stored data into the local CAS, but the resource hash produced by "+
 			"the local CAS (%s) does not match the resource hash from the original request (%s)",
 			newResourceHash, resourceHash)
 	}
 
-	return nil
+	return newHLFromLocalCAS, nil
 }
 
 // WebCASResolver is used to resolve data from another Orb server's CAS.

@@ -86,7 +86,7 @@ type casReader struct {
 }
 
 func (c *casReader) Read(cid string) ([]byte, error) {
-	data, err := c.resolver.Resolve(nil, cid, nil)
+	data, _, err := c.resolver.Resolve(nil, cid, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve CID: %w", err)
 	}

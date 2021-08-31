@@ -139,13 +139,12 @@ func (o *Observer) Publisher() Publisher {
 }
 
 func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
-	logger.Debugf("observing anchor [%s], attributedTo [%s]", anchor.Hashlink, anchor.AttributedTo)
+	logger.Debugf("observing anchor - hashlink [%s], local hashlink [%s], attributedTo [%s]",
+		anchor.Hashlink, anchor.Hashlink, anchor.AttributedTo)
 
 	startTime := time.Now()
 
-	defer func() {
-		o.Metrics.ProcessAnchorTime(time.Since(startTime))
-	}()
+	defer o.Metrics.ProcessAnchorTime(time.Since(startTime))
 
 	anchorInfo, err := o.AnchorGraph.Read(anchor.Hashlink)
 	if err != nil {
@@ -281,7 +280,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		len(anchorPayload.PreviousAnchors), anchor.Hashlink, anchorPayload.CoreIndex)
 
 	// Post a 'Like' activity to the originator of the anchor credential.
-	err = o.postLikeActivity(anchor, equivalentRefs)
+	err = o.postLikeActivity(anchor)
 	if err != nil {
 		// This is not a critical error. We have already processed the anchor, so we don't want
 		// to trigger a retry by returning a transient error. Just log a warning.
@@ -291,7 +290,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	return nil
 }
 
-func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo, equivalentRefs []string) error {
+func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 	if anchor.AttributedTo == "" {
 		logger.Debugf("Not posting 'Like' activity since no attributedTo ID was specified for anchor [%s]",
 			anchor.Hashlink)
@@ -316,10 +315,10 @@ func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo, equivalentRef
 
 	var result *vocab.ObjectProperty
 
-	if len(equivalentRefs) > 1 {
-		u, e := url.Parse(equivalentRefs[1])
+	if anchor.LocalHashlink != "" {
+		u, e := url.Parse(anchor.LocalHashlink)
 		if e != nil {
-			return fmt.Errorf("parse equivalent ref [%s]: %w", equivalentRefs[1], e)
+			return fmt.Errorf("parse local hashlink [%s]: %w", anchor.LocalHashlink, e)
 		}
 
 		result = vocab.NewObjectProperty(vocab.WithAnchorReference(
