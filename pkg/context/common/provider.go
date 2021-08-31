@@ -26,9 +26,9 @@ type AnchorGraph interface {
 	GetDidAnchors(cid, suffix string) ([]graph.Anchor, error)
 }
 
-// CASResolver interface to resolve cid.
+// CASResolver interface to resolve cid. Returns the content and a hashlink to the local CAS store.
 type CASResolver interface {
-	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
+	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, string, error)
 }
 
 // CASReader interface to read from content addressable storage.

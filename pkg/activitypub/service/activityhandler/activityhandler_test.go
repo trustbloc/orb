@@ -2987,12 +2987,12 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	t.Run("Handler error", func(t *testing.T) {
 		errExpected := errors.New("injected handler error")
 
-		anchorEventHandler := mocks.NewAnchorEventNotificationHandler().WithError(errExpected)
+		anchorEventHandler := mocks.NewAnchorEventAcknowledgementHandler().WithError(errExpected)
 
 		h := NewInbox(cfg, activityStore, ob,
 			mocks.NewActorRetriever(),
 			spi.WithAnchorCredentialHandler(anchorCredHandler),
-			spi.WithAnchorEventNotificationHandler(anchorEventHandler),
+			spi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
 		)
 		require.NotNil(t, h)
 
@@ -3251,3 +3251,20 @@ const proof = `{
     "jws": "eyJ..."
   }
 }`
+
+func TestNoOpAnchorEventAcknowledgementHandler(t *testing.T) {
+	actor := testutil.MustParseURL("https://orb.domain2.com/services/orb")
+	ref := testutil.MustParseURL("hl:uEiC0IYovFG8fmxcyK-9049AY2VUbQmb6K6x9XmbCSf4_Mg:" +
+		"uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBJWW92Rkc4Zm14Y3lLLTkwNDlBWTJWVWJRbWI2SzZ4OVhtYkNTZjRfTWc")
+	additionalRefs := []*url.URL{
+		testutil.MustParseURL("hl:uEiC0IYovFG8fmxcyK-9049AY2VUbQmb6K6x9XmbCSf4_Mg:" +
+			"uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzBJWW92Rkc4Zm14Y3lLLTkwND" +
+			"lBWTJWVWJRbWI2SzZ4OVhtYkNTZjRfTWd4QmlwZnM6Ly9iYWZrcmVpZnVlZ2ZjNmZkcGQ2bnJvbX" +
+			"JsNTUyb2h1YXkzZmtyd3F0ZzdpdjJ5N2s2bTNiZXQ3cjdnaQ"),
+		testutil.MustParseURL("https://domain1.com"), // Invalid hashlink
+	}
+
+	h := &noOpAnchorEventAcknowledgementHandler{}
+
+	require.NoError(t, h.AnchorEventAcknowledged(actor, ref, additionalRefs))
+}

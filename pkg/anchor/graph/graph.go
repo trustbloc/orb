@@ -42,7 +42,7 @@ func New(providers *Providers) *Graph {
 }
 
 type casResolver interface {
-	Resolve(webCASURL *url.URL, hl string, data []byte) ([]byte, error)
+	Resolve(webCASURL *url.URL, hl string, data []byte) ([]byte, string, error)
 }
 
 type casWriter interface {
@@ -74,7 +74,7 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 
 // Read reads anchor.
 func (g *Graph) Read(hl string) (*verifiable.Credential, error) {
-	anchorBytes, err := g.CasResolver.Resolve(nil, hl, nil)
+	anchorBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
 	if err != nil {
 		return nil, err
 	}

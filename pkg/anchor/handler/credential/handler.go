@@ -34,7 +34,7 @@ type AnchorCredentialHandler struct {
 }
 
 type casResolver interface {
-	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, error)
+	Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, string, error)
 }
 
 type anchorPublisher interface {
@@ -88,7 +88,7 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(actor, id *url.URL, hl 
 	logger.Debugf("Received request from [%s]: ID [%s], CID [%s], Anchor credential: %s",
 		actor, id, hl, string(anchorCred))
 
-	newCred, err := h.casResolver.Resolve(id, hl, anchorCred)
+	newCred, localHL, err := h.casResolver.Resolve(id, hl, anchorCred)
 	if err != nil {
 		return fmt.Errorf("failed to resolve anchor credential: %w", err)
 	}
@@ -126,8 +126,9 @@ func (h *AnchorCredentialHandler) HandleAnchorCredential(actor, id *url.URL, hl 
 
 	return h.anchorPublisher.PublishAnchor(
 		&anchorinfo.AnchorInfo{
-			Hashlink:     hl,
-			AttributedTo: actor.String(),
+			Hashlink:      hl,
+			LocalHashlink: localHL,
+			AttributedTo:  actor.String(),
 		},
 	)
 }

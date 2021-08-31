@@ -9,48 +9,49 @@ import (
 )
 
 type CASResolver struct {
-	ResolveStub        func(*url.URL, string, []byte) ([]byte, error)
+	ResolveStub        func(webCASURL *url.URL, cid string, data []byte) ([]byte, string, error)
 	resolveMutex       sync.RWMutex
 	resolveArgsForCall []struct {
-		arg1 *url.URL
-		arg2 string
-		arg3 []byte
+		webCASURL *url.URL
+		cid       string
+		data      []byte
 	}
 	resolveReturns struct {
 		result1 []byte
-		result2 error
+		result2 string
+		result3 error
 	}
 	resolveReturnsOnCall map[int]struct {
 		result1 []byte
-		result2 error
+		result2 string
+		result3 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *CASResolver) Resolve(arg1 *url.URL, arg2 string, arg3 []byte) ([]byte, error) {
-	var arg3Copy []byte
-	if arg3 != nil {
-		arg3Copy = make([]byte, len(arg3))
-		copy(arg3Copy, arg3)
+func (fake *CASResolver) Resolve(webCASURL *url.URL, cid string, data []byte) ([]byte, string, error) {
+	var dataCopy []byte
+	if data != nil {
+		dataCopy = make([]byte, len(data))
+		copy(dataCopy, data)
 	}
 	fake.resolveMutex.Lock()
 	ret, specificReturn := fake.resolveReturnsOnCall[len(fake.resolveArgsForCall)]
 	fake.resolveArgsForCall = append(fake.resolveArgsForCall, struct {
-		arg1 *url.URL
-		arg2 string
-		arg3 []byte
-	}{arg1, arg2, arg3Copy})
-	fake.recordInvocation("Resolve", []interface{}{arg1, arg2, arg3Copy})
+		webCASURL *url.URL
+		cid       string
+		data      []byte
+	}{webCASURL, cid, dataCopy})
+	fake.recordInvocation("Resolve", []interface{}{webCASURL, cid, dataCopy})
 	fake.resolveMutex.Unlock()
 	if fake.ResolveStub != nil {
-		return fake.ResolveStub(arg1, arg2, arg3)
+		return fake.ResolveStub(webCASURL, cid, data)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	fakeReturns := fake.resolveReturns
-	return fakeReturns.result1, fakeReturns.result2
+	return fake.resolveReturns.result1, fake.resolveReturns.result2, fake.resolveReturns.result3
 }
 
 func (fake *CASResolver) ResolveCallCount() int {
@@ -59,43 +60,35 @@ func (fake *CASResolver) ResolveCallCount() int {
 	return len(fake.resolveArgsForCall)
 }
 
-func (fake *CASResolver) ResolveCalls(stub func(*url.URL, string, []byte) ([]byte, error)) {
-	fake.resolveMutex.Lock()
-	defer fake.resolveMutex.Unlock()
-	fake.ResolveStub = stub
-}
-
 func (fake *CASResolver) ResolveArgsForCall(i int) (*url.URL, string, []byte) {
 	fake.resolveMutex.RLock()
 	defer fake.resolveMutex.RUnlock()
-	argsForCall := fake.resolveArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return fake.resolveArgsForCall[i].webCASURL, fake.resolveArgsForCall[i].cid, fake.resolveArgsForCall[i].data
 }
 
-func (fake *CASResolver) ResolveReturns(result1 []byte, result2 error) {
-	fake.resolveMutex.Lock()
-	defer fake.resolveMutex.Unlock()
+func (fake *CASResolver) ResolveReturns(result1 []byte, result2 string, result3 error) {
 	fake.ResolveStub = nil
 	fake.resolveReturns = struct {
 		result1 []byte
-		result2 error
-	}{result1, result2}
+		result2 string
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *CASResolver) ResolveReturnsOnCall(i int, result1 []byte, result2 error) {
-	fake.resolveMutex.Lock()
-	defer fake.resolveMutex.Unlock()
+func (fake *CASResolver) ResolveReturnsOnCall(i int, result1 []byte, result2 string, result3 error) {
 	fake.ResolveStub = nil
 	if fake.resolveReturnsOnCall == nil {
 		fake.resolveReturnsOnCall = make(map[int]struct {
 			result1 []byte
-			result2 error
+			result2 string
+			result3 error
 		})
 	}
 	fake.resolveReturnsOnCall[i] = struct {
 		result1 []byte
-		result2 error
-	}{result1, result2}
+		result2 string
+		result3 error
+	}{result1, result2, result3}
 }
 
 func (fake *CASResolver) Invocations() map[string][][]interface{} {

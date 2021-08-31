@@ -118,7 +118,11 @@ func TestStartObserver(t *testing.T) {
 
 		cid, err := anchorGraph.Add(c)
 		require.NoError(t, err)
-		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid, AttributedTo: "https://example.com/services/orb"}
+		anchor1 := &anchorinfo.AnchorInfo{
+			Hashlink:      cid,
+			LocalHashlink: cid,
+			AttributedTo:  "https://example.com/services/orb",
+		}
 
 		prevAnchors = make(map[string]string)
 		prevAnchors["did2"] = ""

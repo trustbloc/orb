@@ -614,7 +614,7 @@ func startOrbServices(parameters *orbParameters) error {
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		// apspi.WithFollowerAuth(followerAuth),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
-		// apspi.WithAnchorEventNotificationHandler(anchorEventHandler),
+		// apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
@@ -903,7 +903,9 @@ type discoveryCAS struct {
 }
 
 func (dc *discoveryCAS) Read(key string) ([]byte, error) {
-	return dc.resolver.Resolve(nil, key, nil)
+	data, _, err := dc.resolver.Resolve(nil, key, nil)
+
+	return data, err
 }
 
 type webVDR struct {
