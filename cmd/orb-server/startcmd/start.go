@@ -29,7 +29,6 @@ import (
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
-	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
@@ -985,15 +984,6 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
 
 		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
-		if err != nil {
-			return &storageProviders{}, err
-		}
-	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMYSQLDBOption):
-		var err error
-
-		edgeServiceProvs.kmsSecretsProvider, err =
-			ariesmysqlstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
-				ariesmysqlstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
 		if err != nil {
 			return &storageProviders{}, err
 		}
