@@ -517,8 +517,6 @@ func (m *Metrics) DBPutTime(dbType string, value time.Duration) {
 	if c, ok := m.dbPutTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time put [%s]: %s", dbType, value)
 }
 
 // DBGetTime records the time it takes to get data in db.
@@ -526,8 +524,6 @@ func (m *Metrics) DBGetTime(dbType string, value time.Duration) {
 	if c, ok := m.dbGetTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time get [%s]: %s", dbType, value)
 }
 
 // DBGetTagsTime records the time it takes to get tags in db.
@@ -535,8 +531,6 @@ func (m *Metrics) DBGetTagsTime(dbType string, value time.Duration) {
 	if c, ok := m.dbGetTagsTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time get tags [%s]: %s", dbType, value)
 }
 
 // DBGetBulkTime records the time it takes to get bulk in db.
@@ -544,8 +538,6 @@ func (m *Metrics) DBGetBulkTime(dbType string, value time.Duration) {
 	if c, ok := m.dbGetBulkTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time get bulk [%s]: %s", dbType, value)
 }
 
 // DBQueryTime records the time it takes to query in db.
@@ -553,8 +545,6 @@ func (m *Metrics) DBQueryTime(dbType string, value time.Duration) {
 	if c, ok := m.dbQueryTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time query [%s]: %s", dbType, value)
 }
 
 // DBDeleteTime records the time it takes to delete in db.
@@ -562,8 +552,6 @@ func (m *Metrics) DBDeleteTime(dbType string, value time.Duration) {
 	if c, ok := m.dbDeleteTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
-
-	logger.Debugf("DB time delete [%s]: %s", dbType, value)
 }
 
 // WitnessAddProofVctNil records vct witness.
