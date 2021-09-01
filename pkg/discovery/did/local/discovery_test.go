@@ -69,15 +69,13 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid number of parts[3] for Orb identifier")
 	})
 
-	t.Run("error - endpoint client error", func(t *testing.T) {
+	t.Run("get cid from did", func(t *testing.T) {
 		endpointClient := &mocks.EndpointClient{}
 		endpointClient.GetEndpointFromAnchorOriginReturns(nil, fmt.Errorf("endpoint error"))
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
 		err := d.RequestDiscovery("did:orb:ipfs:abc:123")
-		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"failed to discover latest CID for did[did:orb:ipfs:abc:123]: failed to get endpoints: endpoint error")
+		require.NoError(t, err)
 	})
 }

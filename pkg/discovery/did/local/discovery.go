@@ -14,6 +14,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
+	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 var logger = log.New("local-discovery")
@@ -32,6 +33,7 @@ func New(namespace string, didPublisher didPublisher, client endpointClient) *Di
 		namespace:      namespace,
 		publisher:      didPublisher,
 		endpointClient: client,
+		hl:             hashlink.New(),
 	}
 }
 
@@ -40,6 +42,7 @@ type Discovery struct {
 	namespace      string
 	publisher      didPublisher
 	endpointClient endpointClient
+	hl             *hashlink.HashLink
 }
 
 // RequestDiscovery requests did discovery.
@@ -51,10 +54,70 @@ func (d *Discovery) RequestDiscovery(did string) error {
 
 	latestCID, err := d.discoverLatestCID(did)
 	if err != nil {
-		return fmt.Errorf("failed to discover latest CID for did[%s]: %w", did, err)
+		logger.Warnf("failed to discover latest CID for did[%s]: %w", did, err)
+		logger.Warnf("getting cid from did")
+
+		latestCID, err = d.getCID(did, suffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	return d.publisher.PublishDID(latestCID + docutil.NamespaceDelimiter + suffix)
+}
+
+func (d *Discovery) getCID(id, suffix string) (string, error) {
+	parts := strings.Split(id, docutil.NamespaceDelimiter)
+
+	const minOrbIdentifierParts = 4
+	if len(parts) < minOrbIdentifierParts {
+		return "", fmt.Errorf("invalid number of parts[%d] for Orb identifier", len(parts))
+	}
+
+	// cid is always second last (an exception is hashlink with metadata)
+	cid := parts[len(parts)-2]
+
+	if len(parts) == minOrbIdentifierParts {
+		// canonical id
+		return cid, nil
+	}
+
+	hlOrHint, err := betweenStrings(id, d.namespace+docutil.NamespaceDelimiter, docutil.NamespaceDelimiter+suffix)
+	if err != nil {
+		return "", fmt.Errorf("failed to get value between namespace and suffix: %w", err)
+	}
+
+	if strings.HasPrefix(hlOrHint, hashlink.HLPrefix) {
+		hlInfo, err := d.hl.ParseHashLink(hlOrHint)
+		if err != nil {
+			return "", err
+		}
+
+		cid = hlInfo.ResourceHash
+	}
+
+	logger.Debugf("returning cid[%] for id[%]", cid, id)
+
+	return cid, nil
+}
+
+func betweenStrings(value, first, second string) (string, error) {
+	posFirst := strings.Index(value, first)
+	if posFirst == -1 {
+		return "", fmt.Errorf("value[%s] doesn't contain first[%s]", value, first)
+	}
+
+	posSecond := strings.Index(value, second)
+	if posSecond == -1 {
+		return "", fmt.Errorf("value[%s] doesn't contain second[%s]", value, second)
+	}
+
+	posFirstAdjusted := posFirst + len(first)
+	if posFirstAdjusted >= posSecond {
+		return "", fmt.Errorf("second[%s] is before first[%s] in value[%s]", second, first, value)
+	}
+
+	return value[posFirstAdjusted:posSecond], nil
 }
 
 func (d *Discovery) discoverLatestCID(did string) (string, error) {
