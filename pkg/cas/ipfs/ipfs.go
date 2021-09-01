@@ -130,8 +130,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debugf("ipfs Add returned cid [%s] using version %d, content: %s",
-		cid, options.CIDVersion, content)
+	logger.Debugf("ipfs Add returned cid [%s] using version %d", cid, options.CIDVersion)
 
 	return cid, nil
 }
