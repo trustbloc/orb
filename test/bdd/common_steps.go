@@ -23,7 +23,6 @@ import (
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
-	ariesmysqlstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mysql"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/tidwall/gjson"
@@ -32,7 +31,6 @@ import (
 
 const (
 	databaseTypeCouchDBOption = "couchdb"
-	databaseTypeMYSQLDBOption = "mysql"
 	databaseTypeMongoDBOption = "mongodb"
 
 	configStoreID = "orb-config"
@@ -855,9 +853,6 @@ func newStoreProvider(domain string) (storage.Provider, error) {
 	switch databaseType {
 	case databaseTypeCouchDBOption:
 		return ariescouchdbstorage.NewProvider(databaseURL, ariescouchdbstorage.WithDBPrefix(domain))
-
-	case databaseTypeMYSQLDBOption:
-		return ariesmysqlstorage.NewProvider(databaseURL, ariesmysqlstorage.WithDBPrefix(domain))
 
 	case databaseTypeMongoDBOption:
 		return ariesmongodbstorage.NewProvider(databaseURL, ariesmongodbstorage.WithDBPrefix(domain))

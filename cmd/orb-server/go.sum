@@ -426,7 +426,6 @@ github.com/go-redis/redis v6.15.9+incompatible/go.mod h1:NAIEuMOZ/fxfXJIrKDQDz8w
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
-github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/go-stack/stack v1.8.0 h1:5SgMzNM5HxrEjV0ww2lTmX6E2Izsfxas4+YHWRs3Lsk=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
@@ -756,11 +755,9 @@ github.com/hyperledger/aries-framework-go v0.1.7-0.20210816113201-26c0665ef2b9/g
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210714131038-41b5bccef1f9/go.mod h1:We+7ZhPTzGrWLmaELzo8tvUT/ZqCa4v9SV961gH8b60=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210826164831-40568174ea45 h1:dDpdNARr9Vmi331sRlMstPB/UunD7rs8CGXzpNRTJ90=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210826164831-40568174ea45/go.mod h1:g0UemAJA/vsLIFXqxROynaqxhYf4xkLDK9VKf6EP9DU=
-github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210826164831-40568174ea45 h1:xqhWs/KI+Wc8mG0nZNvRe9ABQRG0gIzmXYst9mKKhYY=
-github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210826164831-40568174ea45/go.mod h1:KNkn5L+Tl3b9w9f5iqFbIyvM+nMkkzWXq5A6BRgAqRQ=
+github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210902181211-b14183815de7 h1:dK3mgmba20ubGY9Br6koUnHkhDJpLlGoxhQ2zCggkVU=
+github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210902181211-b14183815de7/go.mod h1:KNkn5L+Tl3b9w9f5iqFbIyvM+nMkkzWXq5A6BRgAqRQ=
 github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210714131038-41b5bccef1f9/go.mod h1:c4b+LAZgp43XFk1jQb72xF+v6J3BplPY2t16b/R8mvI=
-github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210826164831-40568174ea45 h1:ZfA2dOW9WTOWaE4OcqXZz4KC8efRoztE5uwK2E5pVYM=
-github.com/hyperledger/aries-framework-go-ext/component/storage/mysql v0.0.0-20210826164831-40568174ea45/go.mod h1:eRttszwin7q3lHT/956Ktw03PSrKIQQ8OiMYs1mpdiQ=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210520055214-ae429bb89bf7/go.mod h1:7D+Y5J9cIsUrMGFAsIED+3bAPNjxp6ggXo0/kT5N6BI=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210807121559-b41545a4f1e8/go.mod h1:00tdiDIlEdmcLuN/5zSr3NI8AycnvRMMt4M07VSqiqw=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210409151411-eeeb8508bd87/go.mod h1:kJT7bcaKsvk1lMp2jqS8srF+ZUie2H4MoPbL2V29dgA=
