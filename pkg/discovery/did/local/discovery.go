@@ -14,7 +14,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
-	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 var logger = log.New("local-discovery")
@@ -33,7 +32,6 @@ func New(namespace string, didPublisher didPublisher, client endpointClient) *Di
 		namespace:      namespace,
 		publisher:      didPublisher,
 		endpointClient: client,
-		hl:             hashlink.New(),
 	}
 }
 
@@ -42,7 +40,6 @@ type Discovery struct {
 	namespace      string
 	publisher      didPublisher
 	endpointClient endpointClient
-	hl             *hashlink.HashLink
 }
 
 // RequestDiscovery requests did discovery.
@@ -87,18 +84,7 @@ func (d *Discovery) getCID(id, suffix string) (string, error) {
 		return "", fmt.Errorf("failed to get value between namespace and suffix: %w", err)
 	}
 
-	if strings.HasPrefix(hlOrHint, hashlink.HLPrefix) {
-		hlInfo, err := d.hl.ParseHashLink(hlOrHint)
-		if err != nil {
-			return "", err
-		}
-
-		cid = hlInfo.ResourceHash
-	}
-
-	logger.Debugf("returning cid[%] for id[%]", cid, id)
-
-	return cid, nil
+	return hlOrHint, nil
 }
 
 func betweenStrings(value, first, second string) (string, error) {
