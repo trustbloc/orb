@@ -52,15 +52,9 @@ func (d *Discovery) RequestDiscovery(did string) error {
 		return err
 	}
 
-	latestCID, err := d.discoverLatestCID(did)
+	latestCID, err := d.getCID(did, suffix)
 	if err != nil {
-		logger.Warnf("failed to discover latest CID for did[%s]: %w", did, err)
-		logger.Warnf("getting cid from did")
-
-		latestCID, err = d.getCID(did, suffix)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	return d.publisher.PublishDID(latestCID + docutil.NamespaceDelimiter + suffix)
