@@ -119,7 +119,7 @@ const (
 	ipfsURLFlagUsage     = "Enables IPFS support. If set, this Orb server will use the node at the given URL. " +
 		"To use the public ipfs.io node, set this to https://ipfs.io (or http://ipfs.io). If using ipfs.io, " +
 		"then the CAS type flag must be set to local since the ipfs.io node is read-only. " +
-		"If the URL doesnt include a scheme, then HTTP will be used by default. " + commonEnvVarUsageText + ipfsURLEnvKey
+		"If the URL doesn't include a scheme, then HTTP will be used by default. " + commonEnvVarUsageText + ipfsURLEnvKey
 
 	localCASReplicateInIPFSFlagName  = "replicate-local-cas-writes-in-ipfs"
 	localCASReplicateInIPFSEnvKey    = "REPLICATE_LOCAL_CAS_WRITES_IN_IPFS"
@@ -178,7 +178,7 @@ const (
 	kmsSecretsDatabaseTypeEnvKey        = "KMSSECRETS_DATABASE_TYPE"  //nolint: gosec
 	kmsSecretsDatabaseTypeFlagShorthand = "k"
 	kmsSecretsDatabaseTypeFlagUsage     = "The type of database to use for storage of KMS secrets. " +
-		"Supported options: mem, couchdb, mysql, mongodb. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
+		"Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
 
 	kmsSecretsDatabaseURLFlagName      = "kms-secrets-database-url" //nolint: gosec
 	kmsSecretsDatabaseURLEnvKey        = "KMSSECRETS_DATABASE_URL"  //nolint: gosec
@@ -194,7 +194,6 @@ const (
 
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
-	databaseTypeMYSQLDBOption = "mysql"
 	databaseTypeMongoDBOption = "mongodb"
 
 	anchorCredentialIssuerFlagName      = "anchor-credential-issuer"

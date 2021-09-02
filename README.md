@@ -9,13 +9,13 @@
 
 ## Build
 
-The project is built using make. 
+The project is built using `make`. 
 
-BDD test suit can be run via `make bdd-test`
+The BDD test suite can be run via `make bdd-test`.
 
 ## Run
 
-To run Orb nodes you can use docker-compose.
+To run Orb nodes you can use `docker-compose`.
 
 First run the docker compose itself via
 
@@ -126,7 +126,7 @@ Flags:
       --key-id string                               Key ID (ED25519Type). Alternatively, this can be set with the following environment variable: ORB_KEY_ID
       --kms-endpoint string                         Remote KMS URL. Alternatively, this can be set with the following environment variable: ORB_KMS_ENDPOINT
       --kms-secrets-database-prefix string          An optional prefix to be used when creating and retrieving the underlying KMS secrets database. Alternatively, this can be set with the following environment variable: KMSSECRETS_DATABASE_PREFIX
-  -k, --kms-secrets-database-type string            The type of database to use for storage of KMS secrets. Supported options: mem, couchdb, mysql, mongodb. Alternatively, this can be set with the following environment variable: KMSSECRETS_DATABASE_TYPE
+  -k, --kms-secrets-database-type string            The type of database to use for storage of KMS secrets. Supported options: mem, couchdb, mongodb. Alternatively, this can be set with the following environment variable: KMSSECRETS_DATABASE_TYPE
   -s, --kms-secrets-database-url string             The URL of the database. Not needed if using memstore. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: DATABASE_URL
       --kms-store-endpoint string                   Remote KMS URL. Alternatively, this can be set with the following environment variable: ORB_KMS_STORE_ENDPOINT
   -l, --log-level string                            Logging level to set. Supported options: CRITICAL, ERROR, WARNING, INFO, DEBUG.Defaults to info if not set. Setting to debug may adversely impact performance. Alternatively, this can be set with the following environment variable: LOG_LEVEL
@@ -158,7 +158,7 @@ ORB uses Aries generic storage interface for storing data.
 Backup should be done similarly to other trustbloc projects.
 In ORB we support the following databases:
 * CouchDB
-* MySQL
+* MongoDB
 * Memory (backup is not supported)
 
 Use the database-specific command to get all databases and filter them by `DATABASE_PREFIX` and `KMSSECRETS_DATABASE_PREFIX` env.
