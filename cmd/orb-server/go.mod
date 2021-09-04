@@ -11,9 +11,9 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210816113201-26c0665ef2b9
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210826164831-40568174ea45
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210902181211-b14183815de7
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210903215754-11447fcf4d91
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210812172004-259b50ab3879
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210820204349-ab3143ab760b
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210902194940-97c6f2cded6c
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7-0.20210819195944-a3500e365d5c
