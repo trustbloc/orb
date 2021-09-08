@@ -57,7 +57,7 @@ func TestUpdateHandler_Namespace(t *testing.T) {
 func TestUpdateHandler_ProcessOperation(t *testing.T) {
 	t.Run("success - created documents storage enabled(create)", func(t *testing.T) {
 		doc := make(document.Document)
-		doc[document.IDProperty] = "testID"
+		doc[document.IDProperty] = "did:orb:uAAA:testID"
 
 		coreProcessor := &mocks.Processor{}
 		coreProcessor.ProcessOperationReturns(&document.ResolutionResult{Document: doc}, nil)
@@ -88,7 +88,7 @@ func TestUpdateHandler_ProcessOperation(t *testing.T) {
 
 	t.Run("success - created documents storage disabled(create)", func(t *testing.T) {
 		doc := make(document.Document)
-		doc[document.IDProperty] = "someID"
+		doc[document.IDProperty] = "did:orb:uAAA:someID"
 
 		coreProcessor := &mocks.Processor{}
 		coreProcessor.ProcessOperationReturns(&document.ResolutionResult{Document: doc}, nil)
@@ -114,7 +114,7 @@ func TestUpdateHandler_ProcessOperation(t *testing.T) {
 
 	t.Run("error - document store error", func(t *testing.T) {
 		doc := make(document.Document)
-		doc[document.IDProperty] = "testID"
+		doc[document.IDProperty] = "did:orb:https:domain.com:uAAA:testID"
 
 		coreProcessor := &mocks.Processor{}
 		coreProcessor.ProcessOperationReturns(&document.ResolutionResult{Document: doc}, nil)

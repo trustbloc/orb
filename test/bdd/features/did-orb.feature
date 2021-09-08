@@ -221,8 +221,8 @@ Feature:
      When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
      Then the JSON path "orderedItems.#" of the response has 0 items
 
-    @enable_create_document_store
-    Scenario: domain4 has create document store enabled
+    @enable_create_document_store_interim
+    Scenario: domain4 has create document store enabled (interim DID)
 
       When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#interimDID"
@@ -235,3 +235,14 @@ Feature:
       Then we wait 3 seconds
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
+
+    @enable_create_document_store_interim_with_hint
+    Scenario: domain4 has create document store enabled (interim DID with hint)
+
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain4.com"
+      Then check success response does NOT contain "canonicalId"
+
+

@@ -42,7 +42,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:webcas:domain.com:cid:suffix")
+		err := d.RequestDiscovery("did:orb:https:domain.com:cid:suffix")
 		require.NoError(t, err)
 	})
 

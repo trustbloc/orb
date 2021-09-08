@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
 
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
@@ -152,7 +153,14 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 }
 
 func (r *ResolveHandler) deleteDocumentFromCreateDocumentStore(id string) {
-	deleteErr := r.store.Delete(id)
+	suffix, err := util.GetSuffix(id)
+	if err != nil {
+		logger.Warnf("failed to delete document id[%s] from create document store: %s", id, err.Error())
+
+		return
+	}
+
+	deleteErr := r.store.Delete(suffix)
 	if deleteErr != nil {
 		logger.Warnf("failed to delete id[%s] from create document store: %s", id, deleteErr.Error())
 	} else {
@@ -161,7 +169,14 @@ func (r *ResolveHandler) deleteDocumentFromCreateDocumentStore(id string) {
 }
 
 func (r *ResolveHandler) resolveDocumentFromCreateDocumentStore(id string) (*document.ResolutionResult, error) {
-	createDocBytes, err := r.store.Get(id)
+	suffix, err := util.GetSuffix(id)
+	if err != nil {
+		logger.Warnf("failed to resolve document id[%s] from create document store: %s", id, err.Error())
+
+		return nil, err
+	}
+
+	createDocBytes, err := r.store.Get(suffix)
 	if err != nil {
 		if !errors.Is(err, storage.ErrDataNotFound) {
 			logger.Warnf("failed to retrieve id[%s] from create document store: %s", id, err.Error())
@@ -245,25 +260,22 @@ func (r *ResolveHandler) verifyCIDExistenceInAnchorGraph(cid, anchorCID, anchorS
 }
 
 func (r *ResolveHandler) getCIDAndSuffix(id string) (string, string, error) {
-	parts := strings.Split(id, docutil.NamespaceDelimiter)
-
-	const minOrbIdentifierParts = 4
-	if len(parts) < minOrbIdentifierParts {
-		return "", "", fmt.Errorf("invalid number of parts[%d] for Orb identifier", len(parts))
+	suffix, err := util.GetSuffix(id)
+	if err != nil {
+		return "", "", err
 	}
 
-	// suffix is always last
-	suffix := parts[len(parts)-1]
+	parts := strings.Split(id, docutil.NamespaceDelimiter)
 
 	// cid is always second last (an exception is hashlink with metadata)
 	cid := parts[len(parts)-2]
 
-	if len(parts) == minOrbIdentifierParts {
+	if len(parts) == util.MinOrbIdentifierParts {
 		// canonical id
 		return cid, suffix, nil
 	}
 
-	hlOrHint, err := betweenStrings(id, r.namespace+docutil.NamespaceDelimiter, docutil.NamespaceDelimiter+suffix)
+	hlOrHint, err := util.BetweenStrings(id, r.namespace+docutil.NamespaceDelimiter, docutil.NamespaceDelimiter+suffix)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get value between namespace and suffix: %w", err)
 	}
@@ -280,23 +292,4 @@ func (r *ResolveHandler) getCIDAndSuffix(id string) (string, string, error) {
 	logger.Debugf("returning cid[%] and suffix[%] for id[%]", cid, suffix, id)
 
 	return cid, suffix, nil
-}
-
-func betweenStrings(value, first, second string) (string, error) {
-	posFirst := strings.Index(value, first)
-	if posFirst == -1 {
-		return "", fmt.Errorf("value[%s] doesn't contain first[%s]", value, first)
-	}
-
-	posSecond := strings.Index(value, second)
-	if posSecond == -1 {
-		return "", fmt.Errorf("value[%s] doesn't contain second[%s]", value, second)
-	}
-
-	posFirstAdjusted := posFirst + len(first)
-	if posFirstAdjusted >= posSecond {
-		return "", fmt.Errorf("second[%s] is before first[%s] in value[%s]", second, first, value)
-	}
-
-	return value[posFirstAdjusted:posSecond], nil
 }

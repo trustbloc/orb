@@ -14,6 +14,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
+
+	"github.com/trustbloc/orb/pkg/document/util"
 )
 
 var logger = log.New("orb-update-handler")
@@ -86,6 +88,13 @@ func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolGenesis
 func (r *UpdateHandler) storeResultToCreateDocumentStore(doc *document.ResolutionResult) {
 	id := doc.Document.ID()
 
+	suffix, err := util.GetSuffix(id)
+	if err != nil {
+		logger.Warnf("failed to get suffix from id[%s] for create document store: %s", id, err.Error())
+
+		return
+	}
+
 	docBytes, err := json.Marshal(doc)
 	if err != nil {
 		logger.Warnf("failed to marshal resolution result for create operation for id[%s]: %s", id, err.Error())
@@ -93,12 +102,12 @@ func (r *UpdateHandler) storeResultToCreateDocumentStore(doc *document.Resolutio
 		return
 	}
 
-	err = r.store.Put(id, docBytes)
+	err = r.store.Put(suffix, docBytes)
 	if err != nil {
 		logger.Warnf("failed to store create document id[%s] to create operation store: %s", id, err.Error())
 
 		return
 	}
 
-	logger.Debugf("stored create document id[%s] result into create document store", id)
+	logger.Debugf("stored create document with id[%s] result into create document store", id)
 }

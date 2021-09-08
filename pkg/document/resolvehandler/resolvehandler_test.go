@@ -24,6 +24,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler/mocks"
+	"github.com/trustbloc/orb/pkg/document/util"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
@@ -38,8 +39,9 @@ const (
 	testDIDWithHL    = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUs0S3VzSHlyRXlpTkUyZmRZdU9KUUc4dDU1dzZYcUZkbG9DZEtXLTBqbkF4QmlwZnM6Ly9iYWZrcmVpYWs0Y3YyeWh6a3l0ZmNncmd6NjVtbHJ5c3FkcGZ4dHp5b3M2dWZvem5hZTVmZngzamR0cQ:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw" //nolint:lll
 	testDIDCanonical = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw"                                                                                                                                                                                                         //nolint:lll
 
-	testInterimDID = "did:orb:uAAA:suffix"
-	invalidTestDID = "did:webcas"
+	testInterimDID         = "did:orb:uAAA:suffix"
+	testInterimDIDWithHint = "did:orb:https:domain.com:uAAA:suffix"
+	invalidTestDID         = "did:webcas"
 
 	createDocumentStore = "create-document"
 
@@ -135,7 +137,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		rrBytes, err := json.Marshal(&document.ResolutionResult{Document: doc})
 		require.NoError(t, err)
 
-		err = store.Put(testInterimDID, rrBytes)
+		err = store.Put("suffix", rrBytes)
 		require.NoError(t, err)
 
 		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
@@ -147,8 +149,57 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.NotNil(t, response)
 
 		// since did is found in operation store it will be deleted from create operation store
-		_, err = store.Get(testInterimDID)
+		_, err = store.Get("suffix")
 		require.Equal(t, err, storage.ErrDataNotFound)
+	})
+
+	t.Run("success - with create document store(interim did with hint)", func(t *testing.T) {
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{}, nil)
+
+		discovery := &mocks.Discovery{}
+
+		store, err := mem.NewProvider().OpenStore(createDocumentStore)
+		require.NoError(t, err)
+
+		doc := make(document.Document)
+		doc[document.IDProperty] = testInterimDID
+
+		rrBytes, err := json.Marshal(&document.ResolutionResult{Document: doc})
+		require.NoError(t, err)
+
+		err = store.Put("suffix", rrBytes)
+		require.NoError(t, err)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithCreateDocumentStore(store))
+
+		response, err := handler.ResolveDocument(testInterimDIDWithHint)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+
+		// since did is found in operation store it will be deleted from create operation store
+		_, err = store.Get("suffix")
+		require.Equal(t, err, storage.ErrDataNotFound)
+	})
+
+	t.Run("success - invalid did passed in for deletion from create document store", func(t *testing.T) {
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{}, nil)
+
+		discovery := &mocks.Discovery{}
+
+		store, err := mem.NewProvider().OpenStore(createDocumentStore)
+		require.NoError(t, err)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithCreateDocumentStore(store))
+
+		response, err := handler.ResolveDocument("did:orb:uAAA")
+		require.NoError(t, err)
+		require.NotNil(t, response)
 	})
 
 	t.Run("success - did not found in operation store and did found in create document store", func(t *testing.T) {
@@ -166,7 +217,10 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		rrBytes, err := json.Marshal(&document.ResolutionResult{Document: doc})
 		require.NoError(t, err)
 
-		err = store.Put(testInterimDID, rrBytes)
+		suffix, err := util.GetSuffix(testInterimDID)
+		require.NoError(t, err)
+
+		err = store.Put(suffix, rrBytes)
 		require.NoError(t, err)
 
 		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
@@ -178,6 +232,69 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		require.Equal(t, testInterimDID, response.Document["id"])
+	})
+
+	t.Run("success - interim did with hint resolved from create document store", func(t *testing.T) {
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(nil, errors.New("not found"))
+
+		discovery := &mocks.Discovery{}
+
+		store, err := mem.NewProvider().OpenStore(createDocumentStore)
+		require.NoError(t, err)
+
+		doc := make(document.Document)
+		doc[document.IDProperty] = testInterimDID
+
+		rrBytes, err := json.Marshal(&document.ResolutionResult{Document: doc})
+		require.NoError(t, err)
+
+		suffix, err := util.GetSuffix(testInterimDID)
+		require.NoError(t, err)
+
+		err = store.Put(suffix, rrBytes)
+		require.NoError(t, err)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithCreateDocumentStore(store),
+			WithEnableDIDDiscovery(true))
+
+		response, err := handler.ResolveDocument(testInterimDIDWithHint)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, testInterimDID, response.Document["id"])
+	})
+
+	t.Run("success - unable to resolve interim did from create document store", func(t *testing.T) {
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(nil, errors.New("not found"))
+
+		discovery := &mocks.Discovery{}
+
+		store, err := mem.NewProvider().OpenStore(createDocumentStore)
+		require.NoError(t, err)
+
+		doc := make(document.Document)
+		doc[document.IDProperty] = testInterimDID
+
+		rrBytes, err := json.Marshal(&document.ResolutionResult{Document: doc})
+		require.NoError(t, err)
+
+		suffix, err := util.GetSuffix(testInterimDID)
+		require.NoError(t, err)
+
+		err = store.Put(suffix, rrBytes)
+		require.NoError(t, err)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery, anchorGraph, &orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithCreateDocumentStore(store),
+			WithEnableDIDDiscovery(true))
+
+		response, err := handler.ResolveDocument("did:orb:uAAA")
+		require.Error(t, err)
+		require.Nil(t, response)
 	})
 
 	t.Run("error - not found error (invalid did)", func(t *testing.T) {
