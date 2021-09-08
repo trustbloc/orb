@@ -204,6 +204,17 @@ func TestAMQP_Error(t *testing.T) {
 	})
 }
 
+func TestExtractEndpoint(t *testing.T) {
+	require.Equal(t, "example.com:5671/mq",
+		extractEndpoint("amqps://user:password@example.com:5671/mq"))
+
+	require.Equal(t, "example.com:5671/mq",
+		extractEndpoint("amqps://example.com:5671/mq"))
+
+	require.Equal(t, "",
+		extractEndpoint("example.com:5671/mq"))
+}
+
 func TestMain(m *testing.M) {
 	code := 1
 

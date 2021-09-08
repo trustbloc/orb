@@ -9,6 +9,7 @@ package amqp
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -183,7 +184,7 @@ func (p *PubSub) stop() {
 }
 
 func (p *PubSub) start() {
-	logger.Infof("Connecting to message queue at %s", p.config.Connection.AmqpURI)
+	logger.Infof("Connecting to message queue at %s", extractEndpoint(p.config.Connection.AmqpURI))
 
 	maxRetries := p.MaxConnectRetries
 	if maxRetries == 0 {
@@ -196,15 +197,15 @@ func (p *PubSub) start() {
 		},
 		backoff.WithMaxRetries(newBackOff(), maxRetries),
 		func(err error, duration time.Duration) {
-			logger.Infof("Error connecting to AMQP service %s after %s: %s",
-				p.config.Connection.AmqpURI, duration, err)
+			logger.Debugf("Error connecting to AMQP service %s after %s: %s. Retrying...",
+				extractEndpoint(p.config.Connection.AmqpURI), duration, err)
 		},
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to connect to message queue after %d attempts", maxRetries))
 	}
 
-	logger.Warnf("Successfully connected to message queue: %s", p.config.Connection.AmqpURI)
+	logger.Infof("Successfully connected to message queue: %s", extractEndpoint(p.config.Connection.AmqpURI))
 }
 
 func (p *PubSub) connect() error {
@@ -312,4 +313,21 @@ func (m *subscriberConnectionMgr) get() (subscriber, error) {
 		len(m.subscribers), m.current.subscriptions)
 
 	return m.current.subscriber, nil
+}
+
+// extractEndpoint returns the endpoint of the AMQP URL, i.e. everything after @.
+func extractEndpoint(amqpURL string) string {
+	i := strings.Index(amqpURL, "://")
+	if i < 0 {
+		return ""
+	}
+
+	path := amqpURL[i+3:]
+
+	j := strings.Index(path, "@")
+	if j < 0 {
+		return path
+	}
+
+	return path[j+1:]
 }
