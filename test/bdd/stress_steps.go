@@ -148,6 +148,37 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		vdrs = append(vdrs, vdr)
 	}
 
+	verMethodsCreate := make([]*ariesdid.VerificationMethod, 0)
+	verMethodsUpdate := make([]*ariesdid.VerificationMethod, 0)
+
+	for i := 1; i < 7; i++ {
+		kid, pubKey, err := e.getPublicKey("Ed25519")
+		if err != nil {
+			return err
+		}
+
+		vm, err := e.createVerificationMethod("Ed25519", pubKey, kid, "Ed25519VerificationKey2018")
+		if err != nil {
+			return err
+		}
+
+		verMethodsCreate = append(verMethodsCreate, vm)
+	}
+
+	for i := 1; i < 3; i++ {
+		kid, pubKey, err := e.getPublicKey("Ed25519")
+		if err != nil {
+			return err
+		}
+
+		vm, err := e.createVerificationMethod("Ed25519", pubKey, kid, "Ed25519VerificationKey2018")
+		if err != nil {
+			return err
+		}
+
+		verMethodsUpdate = append(verMethodsUpdate, vm)
+	}
+
 	createPool := NewWorkerPool(concurrencyReq)
 
 	createPool.Start()
@@ -158,9 +189,10 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		randomVDR := vdrs[mrand.Intn(len(urls))]
 
 		createPool.Submit(&createDIDReq{
-			vdr:          randomVDR,
-			anchorOrigin: anchorOrigin,
-			steps:        e,
+			vdr:              randomVDR,
+			anchorOrigin:     anchorOrigin,
+			steps:            e,
+			verMethodsCreate: verMethodsCreate,
 		})
 	}
 
@@ -179,6 +211,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	resolvePool.Start()
 
 	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
+	resolveMethodTime := tachymeter.New(&tachymeter.Config{Size: 1000000000})
 
 	resolveStart := time.Now()
 
@@ -197,6 +230,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			kr:                    kr,
 			maxRetry:              maxRetry,
 			resolveCreatedDIDTime: resolveCreatedDIDTime,
+			resolveMethodTime:     resolveMethodTime,
 			intermID:              r.intermID,
 			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
 			updateKeyPrivateKey:   r.updateKeyPrivateKey,
@@ -235,11 +269,13 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 		}
 
 		updatePool.Submit(&updateDIDReq{
-			vdr:          r.vdr,
-			anchorOrigin: anchorOrigin,
-			steps:        e,
-			canonicalID:  r.canonicalID,
-			kr:           kr,
+			vdr:              r.vdr,
+			anchorOrigin:     anchorOrigin,
+			steps:            e,
+			canonicalID:      r.canonicalID,
+			kr:               kr,
+			verMethodsCreate: verMethodsCreate,
+			verMethodsUpdate: verMethodsUpdate,
 		})
 	}
 
@@ -309,6 +345,10 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
 	fmt.Println("------")
 
+	fmt.Println("Resolve method times:")
+	fmt.Println(resolveMethodTime.Calc())
+	fmt.Println("------")
+
 	fmt.Println("Resolve anchor did times:")
 	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
 	fmt.Println(resolveCreatedDIDTime.Calc())
@@ -363,12 +403,9 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 	return ariesdid.NewVerificationMethodFromJWK(kid, signatureSuite, "", jwk)
 }
 
-func (e *StressSteps) createDID(keyType, signatureSuite, origin, svcEndpoint string, vdr *orb.VDR) (crypto.PrivateKey,
+func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
+	origin, svcEndpoint string, vdr *orb.VDR) (crypto.PrivateKey,
 	crypto.PrivateKey, string, error) {
-	kid, pubKey, err := e.getPublicKey(keyType)
-	if err != nil {
-		return nil, nil, "", err
-	}
 
 	recoveryKey, recoveryKeyPrivateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -380,15 +417,12 @@ func (e *StressSteps) createDID(keyType, signatureSuite, origin, svcEndpoint str
 		return nil, nil, "", err
 	}
 
-	vm, err := e.createVerificationMethod(keyType, pubKey, kid, signatureSuite)
-	if err != nil {
-		return nil, nil, "", err
-	}
-
 	didDoc := &ariesdid.Doc{}
 
-	didDoc.Authentication = append(didDoc.Authentication, *ariesdid.NewReferencedVerification(vm,
-		ariesdid.Authentication))
+	for _, vm := range verMethodsCreate {
+		didDoc.Authentication = append(didDoc.Authentication, *ariesdid.NewReferencedVerification(vm,
+			ariesdid.Authentication))
+	}
 
 	didDoc.Service = []ariesdid.Service{{ID: serviceID, Type: "type", ServiceEndpoint: svcEndpoint}}
 
@@ -403,13 +437,26 @@ func (e *StressSteps) createDID(keyType, signatureSuite, origin, svcEndpoint str
 	return recoveryKeyPrivateKey, updateKeyPrivateKey, createdDocResolution.DIDDocument.ID, nil
 }
 
-func (e *StressSteps) updateDID(didID string, origin, svcEndpoint string, vdr *orb.VDR) error {
+func (e *StressSteps) updateDID(didID string, origin, svcEndpoint string, vdr *orb.VDR,
+	verMethodsCreate []*ariesdid.VerificationMethod, verMethodsUpdate []*ariesdid.VerificationMethod) error {
 	didDoc := &ariesdid.Doc{ID: didID}
 
 	didDoc.Service = []ariesdid.Service{{ID: serviceID, Type: "type", ServiceEndpoint: svcEndpoint}}
 
-	return vdr.Update(didDoc,
+	for _, vm := range verMethodsCreate {
+		didDoc.Authentication = append(didDoc.Authentication, *ariesdid.NewReferencedVerification(vm,
+			ariesdid.Authentication))
+	}
+
+	for _, vm := range verMethodsUpdate {
+		didDoc.Authentication = append(didDoc.Authentication, *ariesdid.NewReferencedVerification(vm,
+			ariesdid.Authentication))
+	}
+
+	err := vdr.Update(didDoc,
 		vdrapi.WithOption(orb.AnchorOriginOpt, origin))
+
+	return err
 }
 
 func (e *StressSteps) getPublicKey(keyType string) (string, []byte, error) { //nolint:gocritic
@@ -478,9 +525,10 @@ func (k *keyRetrieverMap) WriteNextUpdatePublicKey(didID string, key crypto.Publ
 }
 
 type createDIDReq struct {
-	vdr          *orb.VDR
-	steps        *StressSteps
-	anchorOrigin string
+	vdr              *orb.VDR
+	steps            *StressSteps
+	anchorOrigin     string
+	verMethodsCreate []*ariesdid.VerificationMethod
 }
 
 type createDIDResp struct {
@@ -496,8 +544,8 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 	var err error
 
 	for i := 1; i <= 10; i++ {
-		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID("Ed25519",
-			"Ed25519VerificationKey2018", r.anchorOrigin, uuid.New().URN(), r.vdr)
+		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID(r.verMethodsCreate,
+			r.anchorOrigin, uuid.New().URN(), r.vdr)
 		if err == nil {
 			break
 		}
@@ -516,11 +564,13 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 }
 
 type updateDIDReq struct {
-	vdr          *orb.VDR
-	canonicalID  string
-	kr           *keyRetrieverMap
-	steps        *StressSteps
-	anchorOrigin string
+	vdr              *orb.VDR
+	canonicalID      string
+	kr               *keyRetrieverMap
+	steps            *StressSteps
+	anchorOrigin     string
+	verMethodsCreate []*ariesdid.VerificationMethod
+	verMethodsUpdate []*ariesdid.VerificationMethod
 }
 
 type updateDIDResp struct {
@@ -540,7 +590,8 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 	svcEndpoint := uuid.New().URN()
 
 	for i := 1; i <= 10; i++ {
-		err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr)
+		err := r.steps.updateDID(r.canonicalID, r.anchorOrigin, svcEndpoint, r.vdr,
+			r.verMethodsCreate, r.verMethodsUpdate)
 		if err == nil {
 			break
 		}
@@ -561,6 +612,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 type resolveDIDReq struct {
 	vdr                   *orb.VDR
 	resolveCreatedDIDTime *tachymeter.Tachymeter
+	resolveMethodTime     *tachymeter.Tachymeter
 	kr                    *keyRetrieverMap
 	maxRetry              int
 	intermID              string
@@ -580,7 +632,12 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
+
+		readStartTime := time.Now()
+
 		docResolution, err = r.vdr.Read(r.intermID)
+
+		r.resolveMethodTime.AddTime(time.Since(readStartTime))
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
