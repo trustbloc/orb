@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 					panic(err.Error())
 				}
 
-				if err := os.Setenv("ORB_STRESS_DID_NUMS", "10"); err != nil {
+				if err := os.Setenv("ORB_STRESS_DID_NUMS", "5"); err != nil {
 					panic(err.Error())
 				}
 
@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 					panic(err.Error())
 				}
 
-				if err := os.Setenv("ORB_STRESS_CONCURRENT_REQ", "10"); err != nil {
+				if err := os.Setenv("ORB_STRESS_CONCURRENT_REQ", "1"); err != nil {
 					panic(err.Error())
 				}
 
