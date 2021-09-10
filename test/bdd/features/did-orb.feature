@@ -207,8 +207,21 @@ Feature:
 
      When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
-     And the JSON path "orderedItems" of the array response is not empty
+     # There should be two Like's:
+     # 1 - From domain1 (which received the 'Create');
+     # 2 - From domain3 (which received the 'Announce')
+     And the JSON path "orderedItems.#" of the response has 2 items
+     And the JSON path "orderedItems.#.actor" of the response contains "${domain1IRI}"
+     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
      And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
+
+      When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorHash}&page=true"
+      Then the JSON path "type" of the response equals "OrderedCollectionPage"
+     # There should be one Like:
+     # 1 - From domain3 (which received the 'Announce')
+      And the JSON path "orderedItems.#" of the response has 1 items
+      And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
+      And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
 
      Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor}","to":#{likeTo},"object":#{likeActivity}}'
      When an HTTP POST is sent to "${likeActor}/outbox" with content "${undoLikeActivity}" of type "application/json"
@@ -219,7 +232,8 @@ Feature:
      Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorHash}"
 
      When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
-     Then the JSON path "orderedItems.#" of the response has 0 items
+     Then the JSON path "orderedItems.#" of the response has 1 items
+     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
 
     @enable_create_document_store_interim
     Scenario: domain4 has create document store enabled (interim DID)

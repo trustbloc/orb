@@ -32,6 +32,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
+	protomocks "github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -135,6 +136,23 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
+		payload3 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core3", PreviousAnchors: prevAnchors}
+
+		c, err = buildCredential(&payload3)
+		require.NoError(t, err)
+
+		cid, err = anchorGraph.Add(c)
+		require.NoError(t, err)
+
+		anchor3 := &anchorinfo.AnchorInfo{
+			Hashlink:      cid,
+			LocalHashlink: cid,
+			AttributedTo:  "https://orb.domain2.com/services/orb",
+		}
+
+		casResolver := &protomocks.CASResolver{}
+		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
 			AnchorGraph:            anchorGraph,
@@ -142,6 +160,9 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			Outbox:                 func() Outbox { return apmocks.NewOutbox() },
+			WebFingerResolver:      &apmocks.WebFingerResolver{},
+			CASResolver:            casResolver,
+			DocLoader:              testutil.GetLoader(t),
 		}
 
 		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))
@@ -153,10 +174,11 @@ func TestStartObserver(t *testing.T) {
 
 		require.NoError(t, o.pubSub.PublishAnchor(anchor1))
 		require.NoError(t, o.pubSub.PublishAnchor(anchor2))
+		require.NoError(t, o.pubSub.PublishAnchor(anchor3))
 
 		time.Sleep(200 * time.Millisecond)
 
-		require.Equal(t, 1, tp.ProcessCallCount())
+		require.Equal(t, 2, tp.ProcessCallCount())
 	})
 
 	t.Run("success - process did (multiple, just create)", func(t *testing.T) {
@@ -673,6 +695,74 @@ func TestStartObserver(t *testing.T) {
 	})
 }
 
+func TestResolveActorFromHashlink(t *testing.T) {
+	const hl = "hl:uEiAFwmZwzDoQ0XpnsKVHwwAjGCJ6g1prSDwUEMsDKv86NQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWFmeWp0aGJ0YjJjZGl4" +
+		"dXo1cXV2ZDRnYWJkZGFyaHZhMjJubmVkeWZhcXptYnN2N3oyZ3U"
+
+	casResolver := &protomocks.CASResolver{}
+	wfResolver := &apmocks.WebFingerResolver{}
+
+	providers := &Providers{
+		PubSub:            mempubsub.New(mempubsub.DefaultConfig()),
+		WebFingerResolver: wfResolver,
+		CASResolver:       casResolver,
+		DocLoader:         testutil.GetLoader(t),
+	}
+
+	o, e := New(providers)
+	require.NotNil(t, o)
+	require.NoError(t, e)
+
+	t.Run("Success", func(t *testing.T) {
+		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+
+		actor, err := o.resolveActorFromHashlink(hl)
+		require.NoError(t, err)
+		require.Equal(t, "https://orb.domain2.com/services/orb", actor.String())
+	})
+
+	t.Run("CAS resolve error", func(t *testing.T) {
+		errExpected := errors.New("injected resolve error")
+
+		casResolver.ResolveReturns(nil, "", errExpected)
+
+		_, err := o.resolveActorFromHashlink(hl)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Parse VC error", func(t *testing.T) {
+		casResolver.ResolveReturns([]byte(anchorCredentialInvalid), "", nil)
+
+		_, err := o.resolveActorFromHashlink(hl)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unexpected end of JSON input")
+	})
+
+	t.Run("No subject in VC error", func(t *testing.T) {
+		casResolver.ResolveReturns([]byte(anchorCredentialNoSubject), "", nil)
+
+		_, err := o.resolveActorFromHashlink(hl)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "\"attributedTo\" field not found in anchor credential")
+	})
+
+	t.Run("WebFinger resolve error", func(t *testing.T) {
+		errExpected := errors.New("injected WebFinger resolve error")
+
+		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+		wfResolver.Err = errExpected
+
+		defer func() {
+			wfResolver.Err = nil
+		}()
+
+		_, err := o.resolveActorFromHashlink(hl)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
 func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
@@ -709,3 +799,101 @@ func (m *mockDidAnchor) PutBulk(_ []string, _ string) error {
 
 	return nil
 }
+
+//nolint:lll
+const anchorCredential = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/jws/v1"
+  ],
+  "credentialSubject": {
+    "attachment": [
+      {
+        "generator": "https://w3id.org/orb#v0",
+        "resources": [
+          "did:orb:uAAA:EiCj5WmLy82AIT_GD5KaRC_eLcx5gBRnMSnGfi7iv7cGEw"
+        ],
+        "type": "AnchorIndex",
+        "url": "hl:uEiBAk1gK831wNVhPHCG92OSbIOSpsMCBrCYjjEySpbbwrg:uoQ-BeDVpcGZzOi8vUW1YNHlmSFpobWJxaGZFRWFhMzRjSG5EV2FTTEtETm5SRjRUbXdiNlBnenNISg"
+      },
+      {
+        "type": "AnchorObject",
+        "url": "hl:uEiBFMUG4hvCj7ffrVKYDksJNz-t5DEZCpV_qMFrPYVXz8g:uoQ-BeDVpcGZzOi8vUW1lTlJTQ2E3RVMyWWJKTFY5VW5NanNvdk5WM2cyRW1iV2dycHRza3NoRVhYUQ"
+      },
+      {
+        "type": "AnchorObject",
+        "url": "hl:uEiD0JfD_5SOENYh4E37BSbIzHiM7bOMIf3_mWdefRaUiwQ:uoQ-BeDVpcGZzOi8vUW1QWlhHdzI4QjRyU2M4bzJObXhlTExhbnRzUGRkRmt0bzhZWG5BR2lYZ3QyVg"
+      }
+    ],
+    "attributedTo": "https://orb.domain2.com/services/orb",
+    "published": "2021-09-10T14:04:11.086419939Z",
+    "type": "AnchorEvent"
+  },
+  "id": "http://orb.domain2.com/vc/18d68624-3011-4365-a938-3703e9cac868",
+  "issuanceDate": "2021-09-10T14:04:11.086419939Z",
+  "issuer": "http://orb.domain2.com",
+  "proof": [
+    {
+      "created": "2021-09-10T14:04:11.399Z",
+      "domain": "http://orb.vct:8077/maple2020",
+      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
+      "proofPurpose": "assertionMethod",
+      "type": "Ed25519Signature2018",
+      "verificationMethod": "did:web:orb.domain1.com#orb1key"
+    },
+    {
+      "created": "2021-09-10T14:04:11.399Z",
+      "domain": "http://orb.vct:8077/maple2020",
+      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
+      "proofPurpose": "assertionMethod",
+      "type": "Ed25519Signature2018",
+      "verificationMethod": "did:web:orb.domain1.com#orb1key"
+    }
+  ],
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+const anchorCredentialInvalid = `{
+  "@context": [
+`
+
+//nolint:lll
+const anchorCredentialNoSubject = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/jws/v1"
+  ],
+  "credentialSubject": {},
+  "id": "http://orb.domain2.com/vc/18d68624-3011-4365-a938-3703e9cac868",
+  "issuanceDate": "2021-09-10T14:04:11.086419939Z",
+  "issuer": "http://orb.domain2.com",
+  "proof": [
+    {
+      "created": "2021-09-10T14:04:11.399Z",
+      "domain": "http://orb.vct:8077/maple2020",
+      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
+      "proofPurpose": "assertionMethod",
+      "type": "Ed25519Signature2018",
+      "verificationMethod": "did:web:orb.domain1.com#orb1key"
+    },
+    {
+      "created": "2021-09-10T14:04:11.399Z",
+      "domain": "http://orb.vct:8077/maple2020",
+      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
+      "proofPurpose": "assertionMethod",
+      "type": "Ed25519Signature2018",
+      "verificationMethod": "did:web:orb.domain1.com#orb1key"
+    }
+  ],
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
