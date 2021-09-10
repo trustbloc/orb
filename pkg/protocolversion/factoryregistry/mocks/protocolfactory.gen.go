@@ -4,6 +4,7 @@ package mocks
 import (
 	"sync"
 
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -11,15 +12,15 @@ import (
 )
 
 type ProtocolFactory struct {
-	CreateStub        func(string, cas.Client, common.CASResolver, common.OperationStore, common.AnchorGraph, config.Sidetree) (protocol.Version, error)
+	CreateStub        func(string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree) (protocol.Version, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
 		arg1 string
 		arg2 cas.Client
 		arg3 common.CASResolver
 		arg4 common.OperationStore
-		arg5 common.AnchorGraph
-		arg6 config.Sidetree
+		arg5 storage.Provider
+		arg6 *config.Sidetree
 	}
 	createReturns struct {
 		result1 protocol.Version
@@ -33,7 +34,7 @@ type ProtocolFactory struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CASResolver, arg4 common.OperationStore, arg5 common.AnchorGraph, arg6 config.Sidetree) (protocol.Version, error) {
+func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CASResolver, arg4 common.OperationStore, arg5 storage.Provider, arg6 *config.Sidetree) (protocol.Version, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
@@ -41,8 +42,8 @@ func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CA
 		arg2 cas.Client
 		arg3 common.CASResolver
 		arg4 common.OperationStore
-		arg5 common.AnchorGraph
-		arg6 config.Sidetree
+		arg5 storage.Provider
+		arg6 *config.Sidetree
 	}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.recordInvocation("Create", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.createMutex.Unlock()
@@ -62,13 +63,13 @@ func (fake *ProtocolFactory) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *ProtocolFactory) CreateCalls(stub func(string, cas.Client, common.CASResolver, common.OperationStore, common.AnchorGraph, config.Sidetree) (protocol.Version, error)) {
+func (fake *ProtocolFactory) CreateCalls(stub func(string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree) (protocol.Version, error)) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = stub
 }
 
-func (fake *ProtocolFactory) CreateArgsForCall(i int) (string, cas.Client, common.CASResolver, common.OperationStore, common.AnchorGraph, config.Sidetree) {
+func (fake *ProtocolFactory) CreateArgsForCall(i int) (string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree) {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
 	argsForCall := fake.createArgsForCall[i]

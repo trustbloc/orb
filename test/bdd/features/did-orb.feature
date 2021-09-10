@@ -232,7 +232,7 @@ Feature:
       Then check success response contains "#interimDID"
       Then check success response does NOT contain "canonicalId"
 
-      Then we wait 3 seconds
+      Then we wait 6 seconds
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
 
@@ -245,4 +245,41 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain4.com"
       Then check success response does NOT contain "canonicalId"
 
+    @enable_update_document_store
+    Scenario: domain4 has update document store enabled
 
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      # since domain4 has create document store enabled we are able to resolve did document immediately from the store
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#interimDID"
+      Then check success response does NOT contain "canonicalId"
+
+      # re-try until create operation is published
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "canonicalId"
+
+      # now that create is published we can update document
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
+      Then check for request success
+
+      # update request can be immediately resolved
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+
+      # request second update while first one is pending - error expected
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+      Then check error response contains "pending operation found"
+      Then check error response contains "please re-submit your operation request at later time"
+
+      # wait for pending operation to clear
+      Then we wait 6 seconds
+
+      # re-send second update - since first one cleared it will be successful
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+      Then check for request success
+
+      # resolve second update right away
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "secondKey"

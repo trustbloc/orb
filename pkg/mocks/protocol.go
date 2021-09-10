@@ -14,7 +14,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
-	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/docvalidator/didvalidator"
@@ -63,10 +62,9 @@ func NewMockProtocolClientProvider() *MockProtocolClientProvider {
 	casClient := mocks.NewMockCasClient(nil)
 
 	return &MockProtocolClientProvider{
-		clients:       make(map[string]protocol.Client),
-		opStore:       opStore,
-		opStoreClient: opStore,
-		casClient:     casClient,
+		clients:   make(map[string]protocol.Client),
+		opStore:   opStore,
+		casClient: casClient,
 	}
 }
 
@@ -74,20 +72,12 @@ func NewMockProtocolClientProvider() *MockProtocolClientProvider {
 type MockProtocolClientProvider struct {
 	mutex          sync.Mutex
 	clients        map[string]protocol.Client
-	opStoreClient  processor.OperationStoreClient
 	opStore        common.OperationStore
 	casClient      cas.Client
 	anchorGraph    common.AnchorGraph
 	methodCtx      []string
 	baseEnabled    bool
 	allowedOrigins []string
-}
-
-// WithOpStoreClient sets the operation store client.
-func (m *MockProtocolClientProvider) WithOpStoreClient(opStoreClient processor.OperationStoreClient) *MockProtocolClientProvider { //nolint:lll
-	m.opStoreClient = opStoreClient
-
-	return m
 }
 
 // WithOpStore sets the operation store.

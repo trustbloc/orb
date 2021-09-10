@@ -25,7 +25,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
 	github.com/trustbloc/orb v0.1.3-0.20210826224204-8f7cf7841ff2
-	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210819194614-967518c8a4a2
+	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210910132742-a2e8795453c1
 )
 
 replace github.com/trustbloc/orb => ../../

@@ -437,7 +437,7 @@ services:
       - DID_DISCOVERY_ENABLED=true
       - ALLOWED_ORIGINS=https://orb.domain4.com,https://orb.domain1.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=1000
+      - BATCH_WRITER_TIMEOUT=5000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=20s
@@ -456,6 +456,7 @@ services:
       - DATABASE_PREFIX=domain4
       - HTTP_SIGNATURES_ENABLED=true
       - CREATE_DOCUMENT_STORE_ENABLED=true
+      - UPDATE_DOCUMENT_STORE_ENABLED=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

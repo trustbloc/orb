@@ -26,15 +26,44 @@ type Providers struct {
 	OperationProtocolProvider protocol.OperationProvider
 }
 
+type unpublishedOperationStore interface {
+	// DeleteAll deletes unpublished operation for provided suffixes.
+	DeleteAll(suffixes []string) error
+}
+
 // TxnProcessor processes Sidetree transactions by persisting them to an operation store.
 type TxnProcessor struct {
 	*Providers
+
+	unpublishedOperationStore unpublishedOperationStore
+	unpublishedOperationTypes []operation.Type
 }
 
 // New returns a new document operation processor.
-func New(providers *Providers) *TxnProcessor {
-	return &TxnProcessor{
+func New(providers *Providers, opts ...Option) *TxnProcessor {
+	tp := &TxnProcessor{
 		Providers: providers,
+
+		unpublishedOperationStore: &noopUnpublishedOpsStore{},
+		unpublishedOperationTypes: []operation.Type{},
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(tp)
+	}
+
+	return tp
+}
+
+// Option is an option for transaction processor.
+type Option func(opts *TxnProcessor)
+
+// WithUnpublishedOperationStore is unpublished operation store option.
+func WithUnpublishedOperationStore(store unpublishedOperationStore, opTypes []operation.Type) Option {
+	return func(opts *TxnProcessor) {
+		opts.unpublishedOperationStore = store
+		opts.unpublishedOperationTypes = opTypes
 	}
 }
 
@@ -76,10 +105,12 @@ func contains(arr []string, v string) bool {
 	return false
 }
 
-func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn *txn.SidetreeTxn) error {
+func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn *txn.SidetreeTxn) error { //nolint:funlen,lll
 	logger.Debugf("processing %d transaction operations", len(txnOps))
 
 	batchSuffixes := make(map[string]bool)
+
+	var unpublishedOpsSuffixes []string
 
 	var ops []*operation.AnchoredOperation
 
@@ -114,6 +145,11 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		ops = append(ops, op)
 
 		batchSuffixes[op.UniqueSuffix] = true
+
+		if containsOperationType(p.unpublishedOperationTypes, op.Type) {
+			logger.Debugf("added suffix[%s] for deletion of unpublished operation", op.UniqueSuffix)
+			unpublishedOpsSuffixes = append(unpublishedOpsSuffixes, op.UniqueSuffix)
+		}
 	}
 
 	if len(ops) == 0 {
@@ -124,6 +160,11 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 
 	if err := p.OpStore.Put(ops); err != nil {
 		return fmt.Errorf("failed to store operation from anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
+	}
+
+	err := p.unpublishedOperationStore.DeleteAll(unpublishedOpsSuffixes)
+	if err != nil {
+		return fmt.Errorf("failed to delete unpublished operations for anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
 	}
 
 	return nil
@@ -137,4 +178,20 @@ func containsCanonicalReference(ops []*operation.AnchoredOperation, ref string) 
 	}
 
 	return false
+}
+
+func containsOperationType(values []operation.Type, value operation.Type) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+
+	return false
+}
+
+type noopUnpublishedOpsStore struct{}
+
+func (noop *noopUnpublishedOpsStore) DeleteAll(_ []string) error {
+	return nil
 }
