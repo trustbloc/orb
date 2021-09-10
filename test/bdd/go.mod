@@ -12,11 +12,11 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/aries-framework-go v0.1.7-0.20210816171017-5da380dba24e
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210826164831-40568174ea45
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210903215754-11447fcf4d91
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210908194819-812cc66d2834
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210807121559-b41545a4f1e8
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210902194940-97c6f2cded6c
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210910143505-343c246c837c
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/jamiealquiza/tachymeter v2.0.0+incompatible
