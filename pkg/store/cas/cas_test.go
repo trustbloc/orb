@@ -18,6 +18,7 @@ import (
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
@@ -47,6 +48,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestProvider_Write_Read(t *testing.T) {
+	log.SetLevel("cas-store", log.DEBUG)
+
 	pool, ipfsResource := startIPFSDockerContainer(t)
 
 	defer func() {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -24,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
@@ -72,6 +74,18 @@ type Outbox interface {
 	Post(activity *vocab.ActivityType) (*url.URL, error)
 }
 
+type resourceResolver interface {
+	ResolveHostMetaLink(uri, linkType string) (string, error)
+}
+
+type casResolver interface {
+	Resolve(webCASURL *url.URL, hl string, data []byte) ([]byte, string, error)
+}
+
+type documentLoader interface {
+	LoadDocument(u string) (*ld.RemoteDocument, error)
+}
+
 type outboxProvider func() Outbox
 
 // Option is an option for observer.
@@ -88,10 +102,13 @@ func WithDiscoveryDomain(domain string) Option {
 type Providers struct {
 	ProtocolClientProvider protocol.ClientProvider
 	AnchorGraph
-	DidAnchors didAnchors
-	PubSub     pubSub
-	Metrics    metricsProvider
-	Outbox     outboxProvider
+	DidAnchors        didAnchors
+	PubSub            pubSub
+	Metrics           metricsProvider
+	Outbox            outboxProvider
+	WebFingerResolver resourceResolver
+	CASResolver       casResolver
+	DocLoader         documentLoader
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -298,9 +315,6 @@ func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 		return nil
 	}
 
-	logger.Debugf("Posting 'Like' activity to [%s] for anchor [%s]",
-		anchor.AttributedTo, anchor.Hashlink)
-
 	refURL, err := url.Parse(anchor.Hashlink)
 	if err != nil {
 		return fmt.Errorf("parse hash link [%s]: %w", anchor.Hashlink, err)
@@ -310,8 +324,6 @@ func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 	if err != nil {
 		return fmt.Errorf("parse origin [%s]: %w", anchor.AttributedTo, err)
 	}
-
-	publishedTime := time.Now()
 
 	var result *vocab.ObjectProperty
 
@@ -328,23 +340,85 @@ func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 		)
 	}
 
+	err = o.doPostLikeActivity(attributedTo, refURL, result)
+	if err != nil {
+		return fmt.Errorf("post like: %w", err)
+	}
+
+	// Also post a 'Like' to the creator of the anchor credential (if it's not the same as the actor above).
+	originActor, err := o.resolveActorFromHashlink(refURL.String())
+	if err != nil {
+		return fmt.Errorf("resolve origin actor for hashlink [%s]: %w", refURL, err)
+	}
+
+	if anchor.AttributedTo == originActor.String() {
+		// Already posted a 'Like' to this actor.
+		return nil
+	}
+
+	err = o.doPostLikeActivity(originActor, refURL, result)
+	if err != nil {
+		return fmt.Errorf("post 'Like' activity to outbox for hashlink [%s]: %w", refURL, err)
+	}
+
+	return nil
+}
+
+func (o *Observer) doPostLikeActivity(to, refURL *url.URL, result *vocab.ObjectProperty) error {
+	publishedTime := time.Now()
+
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithAnchorReference(
 			vocab.NewAnchorReferenceWithOpts(
 				vocab.WithURL(refURL),
 			)),
 		),
-		vocab.WithTo(attributedTo, vocab.PublicIRI),
+		vocab.WithTo(to, vocab.PublicIRI),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(result),
 	)
 
-	_, err = o.Outbox().Post(like)
-	if err != nil {
+	if _, err := o.Outbox().Post(like); err != nil {
 		return fmt.Errorf("post like: %w", err)
 	}
 
+	logger.Debugf("Posted a 'Like' activity to [%s] for hashlink [%s]", to, refURL)
+
 	return nil
+}
+
+func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
+	vcBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("resolve anchor credential: %w", err)
+	}
+
+	logger.Debugf("Retrieved anchor credential from [%s]: %s", hl, vcBytes)
+
+	vc, err := verifiable.ParseCredential(vcBytes,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse anchor credential: %w", err)
+	}
+
+	attributedTo, ok := vc.Subject.([]verifiable.Subject)[0].CustomFields["attributedTo"]
+	if !ok {
+		return nil, fmt.Errorf(`"attributedTo" field not found in anchor credential for [%s]`, hl)
+	}
+
+	hml, err := o.WebFingerResolver.ResolveHostMetaLink(attributedTo.(string), discoveryrest.ActivityJSONType)
+	if err != nil {
+		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", attributedTo, err)
+	}
+
+	actor, err := url.Parse(hml)
+	if err != nil {
+		return nil, fmt.Errorf(`parse URL [%s]: %w`, hml, err)
+	}
+
+	return actor, nil
 }
 
 func getKeys(m map[string]string) []string {

@@ -603,6 +603,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var activityPubService *apservice.Service
 
+	resourceResolver := resource.New(httpClient, ipfsReader)
+
 	// create new observer and start it
 	providers := &observer.Providers{
 		ProtocolClientProvider: pcp,
@@ -611,14 +613,15 @@ func startOrbServices(parameters *orbParameters) error {
 		PubSub:                 pubSub,
 		Metrics:                metrics.Get(),
 		Outbox:                 func() observer.Outbox { return activityPubService.Outbox() },
+		WebFingerResolver:      resourceResolver,
+		CASResolver:            casResolver,
+		DocLoader:              orbDocumentLoader,
 	}
 
 	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}
-
-	resourceResolver := resource.New(httpClient, ipfsReader)
 
 	activityPubService, err = apservice.New(apConfig,
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),

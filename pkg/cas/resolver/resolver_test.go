@@ -21,6 +21,7 @@ import (
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -101,6 +102,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestResolver_Resolve(t *testing.T) {
+	log.SetLevel(logModule, log.DEBUG)
+
 	t.Run("Success", func(t *testing.T) {
 		t.Run("No need to get data from remote since it was passed in", func(t *testing.T) {
 			resolver := createNewResolver(t, createInMemoryCAS(t), nil)

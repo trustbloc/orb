@@ -8,6 +8,7 @@ package ipfs
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -25,7 +26,9 @@ import (
 	"github.com/trustbloc/orb/pkg/multihash"
 )
 
-var logger = log.New("cas-ipfs")
+const logModule = "cas-ipfs"
+
+var logger = log.New(logModule)
 
 const (
 	defaultCacheSize = 1000
@@ -76,7 +79,7 @@ func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
 			return nil, err
 		}
 
-		logger.Debugf("Cached content for key [%s]: [%s]", key, content)
+		logger.Debugf("Content was cached for key [%s]", key)
 
 		return content, nil
 	}).Build()
@@ -185,7 +188,10 @@ func (m *Client) get(cid string) ([]byte, error) {
 		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
 	}
 
-	logger.Debugf("Got content from IPFS for CID [%s]: %s", cid, content)
+	if log.IsEnabledFor(logModule, log.DEBUG) {
+		logger.Debugf("Got content from IPFS for CID (base64-encoded) [%s]: %s", cid,
+			base64.RawStdEncoding.EncodeToString(content))
+	}
 
 	if string(content) == "null" {
 		logger.Debugf("Got 'null' from IPFS for CID [%s]", cid)

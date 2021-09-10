@@ -20,6 +20,7 @@ import (
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs/mocks"
@@ -35,6 +36,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
+	log.SetLevel(logModule, log.DEBUG)
+
 	t.Run("success", func(t *testing.T) {
 		pool, ipfsResource := startIPFSDockerContainer(t)
 

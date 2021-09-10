@@ -8,6 +8,7 @@ package resolver
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -33,7 +34,9 @@ const (
 	cidWithPossibleHintNumPartsWithDomainPort = 4
 )
 
-var logger = log.New("cas-resolver")
+const logModule = "cas-resolver"
+
+var logger = log.New(logModule)
 
 type httpClient interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
@@ -290,9 +293,11 @@ func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) (
 			"(and calculate CID in the process of doing so): %w", err)
 	}
 
-	logger.Debugf("Successfully stored data into CAS. Request resource hash[%s], "+
-		"resource hash as determined by local store [%s], Data: %s", resourceHash, newHLFromLocalCAS,
-		string(data))
+	if log.IsEnabledFor(logModule, log.DEBUG) {
+		logger.Debugf("Successfully stored data into CAS. Request resource hash[%s], "+
+			"resource hash as determined by local store [%s], Data (base64-encoded): %s",
+			resourceHash, newHLFromLocalCAS, base64.RawStdEncoding.EncodeToString(data))
+	}
 
 	newResourceHash, err := hashlink.GetResourceHashFromHashLink(newHLFromLocalCAS)
 	if err != nil {
