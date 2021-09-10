@@ -383,12 +383,17 @@ func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error
 
 	logger.Infof("update did document: %s", uniqueSuffix)
 
-	req, err := d.getUpdateRequest(uniqueSuffix, patches)
+	req, updateKey, err := d.getUpdateRequest(uniqueSuffix, patches)
 	if err != nil {
 		return err
 	}
 
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
+	if err == nil && d.resp.StatusCode == http.StatusOK {
+		// update update key for subsequent update requests
+		d.updateKey = updateKey
+	}
+
 	return err
 }
 
@@ -432,12 +437,18 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 		return err
 	}
 
-	req, err := d.getRecoverRequest(opaqueDoc, nil, uniqueSuffix)
+	req, recoveryKey, updateKey, err := d.getRecoverRequest(opaqueDoc, nil, uniqueSuffix)
 	if err != nil {
 		return err
 	}
 
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
+	if err == nil && d.resp.StatusCode == http.StatusOK {
+		// update recovery and update key for subsequent requests
+		d.recoveryKey = recoveryKey
+		d.updateKey = updateKey
+	}
+
 	return err
 }
 
@@ -811,33 +822,33 @@ func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.Pri
 	return recoveryKey, updateKey, reqBytes, nil
 }
 
-func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqueSuffix string) ([]byte, error) {
+func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqueSuffix string) ([]byte, *ecdsa.PrivateKey, *ecdsa.PrivateKey, error) {
 	recoveryKey, recoveryCommitment, err := generateKeyAndCommitment()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	updateKey, updateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	// recovery key and signer passed in are generated during previous operations
 	recoveryPubKey, err := pubkey.GetPublicKeyJWK(&d.recoveryKey.PublicKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	revealValue, err := commitment.GetRevealValue(recoveryPubKey, sha2_256)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	now := time.Now().Unix()
 
 	origin, ok := anchorOriginURLs[d.sidetreeURL]
 	if !ok {
-		return nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
+		return nil, nil, nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
 	}
 
 	recoverRequest, err := client.NewRecoverRequest(&client.RecoverRequestInfo{
@@ -855,14 +866,10 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		AnchorOrigin:       origin,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	// update recovery and update key for subsequent requests
-	d.recoveryKey = recoveryKey
-	d.updateKey = updateKey
-
-	return recoverRequest, nil
+	return recoverRequest, recoveryKey, updateKey, nil
 }
 
 func (d *DIDOrbSteps) getUniqueSuffix() (string, error) {
@@ -890,21 +897,21 @@ func (d *DIDOrbSteps) getDeactivateRequest(did string) ([]byte, error) {
 	})
 }
 
-func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byte, error) {
+func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byte, *ecdsa.PrivateKey, error) {
 	updateKey, updateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// update key and signer passed in are generated during previous operations
 	updatePubKey, err := pubkey.GetPublicKeyJWK(&d.updateKey.PublicKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	revealValue, err := commitment.GetRevealValue(updatePubKey, sha2_256)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	now := time.Now().Unix()
@@ -921,13 +928,10 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 		AnchorUntil:      now + anchorTimeDelta,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// update update key for subsequent update requests
-	d.updateKey = updateKey
-
-	return req, nil
+	return req, updateKey, nil
 }
 
 func generateKeyAndCommitment() (*ecdsa.PrivateKey, string, error) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
@@ -21,6 +22,7 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
@@ -30,11 +32,22 @@ func TestFactory_Create(t *testing.T) {
 
 	casClient := &mocks.CasClient{}
 	opStore := &mocks.OperationStore{}
-	anchorGraph := &mocks.AnchorGraph{}
 	casResolver := &mocks.CASResolver{}
+	storeProvider := &storemocks.Provider{}
 
 	t.Run("success", func(t *testing.T) {
-		pv, err := f.Create("1.0", casClient, casResolver, opStore, anchorGraph, config.Sidetree{})
+		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
+		require.NoError(t, err)
+		require.NotNil(t, pv)
+	})
+
+	t.Run("success - with update store config", func(t *testing.T) {
+		cfg := &config.Sidetree{
+			UpdateDocumentStoreEnabled: true,
+			UpdateDocumentStoreTypes:   []operation.Type{operation.TypeUpdate},
+		}
+
+		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, cfg)
 		require.NoError(t, err)
 		require.NotNil(t, pv)
 	})

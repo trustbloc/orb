@@ -39,7 +39,7 @@ jobs:
   bddTest:
     name: BDD test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Setup Go 1.16
         uses: actions/setup-go@v2
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run bdd test
-        timeout-minutes: 30
+        timeout-minutes: 35
         run: |
           echo '127.0.0.1 orb.domain1.com' | sudo tee -a /etc/hosts
           make bdd-test

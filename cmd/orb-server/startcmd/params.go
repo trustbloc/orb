@@ -16,6 +16,7 @@ import (
 
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
@@ -265,6 +266,12 @@ const (
 		`Used for resolving unpublished created documents.` +
 		commonEnvVarUsageText + enableCreateDocumentStoreEnvKey
 
+	enableUpdateDocumentStoreFlagName = "enable-update-document-store"
+	enableUpdateDocumentStoreEnvKey   = "UPDATE_DOCUMENT_STORE_ENABLED"
+	enableUpdateDocumentStoreUsage    = `Set to "true" to enable update document store. ` +
+		`Used for resolving unpublished updates for documents.` +
+		commonEnvVarUsageText + enableUpdateDocumentStoreEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -339,6 +346,8 @@ type orbParameters struct {
 	httpSignaturesEnabled          bool
 	didDiscoveryEnabled            bool
 	createDocumentStoreEnabled     bool
+	updateDocumentStoreEnabled     bool
+	updateDocumentStoreTypes       []operation.Type
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
 	opQueuePoolSize                uint
@@ -582,6 +591,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		createDocumentStoreEnabled = enable
 	}
 
+	enableUpdateDocStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableUpdateDocumentStoreFlagName, enableUpdateDocumentStoreEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	updateDocumentStoreEnabled := defaultUpdateDocumentStoreEnabled
+	if enableUpdateDocStoreStr != "" {
+		enable, parseErr := strconv.ParseBool(enableUpdateDocStoreStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", enableUpdateDocumentStoreFlagName, parseErr)
+		}
+
+		updateDocumentStoreEnabled = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -685,6 +709,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpSignaturesEnabled:          httpSignaturesEnabled,
 		didDiscoveryEnabled:            didDiscoveryEnabled,
 		createDocumentStoreEnabled:     createDocumentStoreEnabled,
+		updateDocumentStoreEnabled:     updateDocumentStoreEnabled,
 		authTokenDefinitions:           authTokenDefs,
 		authTokens:                     authTokens,
 		activityPubPageSize:            activityPubPageSize,
@@ -966,6 +991,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
 	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
+	startCmd.Flags().String(enableUpdateDocumentStoreFlagName, "", enableUpdateDocumentStoreUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)

@@ -9,6 +9,7 @@ package factory
 import (
 	"fmt"
 
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
@@ -23,6 +24,7 @@ import (
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/config"
+	"github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -39,8 +41,8 @@ func New() *Factory {
 
 // Create creates a new protocol version.
 func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
-	opStore ctxcommon.OperationStore, anchorGraph ctxcommon.AnchorGraph,
-	sidetreeCfg config.Sidetree) (protocol.Version, error) {
+	opStore ctxcommon.OperationStore, provider storage.Provider,
+	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
 	p := protocolcfg.GetProtocolConfig()
 
 	opParser := operationparser.New(p,
@@ -60,11 +62,24 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 		didtransformer.WithMethodContext(sidetreeCfg.MethodContext),
 		didtransformer.WithBase(sidetreeCfg.EnableBase))
 
+	var orbTxnProcessorOpts []txnprocessor.Option
+
+	if sidetreeCfg.UpdateDocumentStoreEnabled {
+		updateDocumentStore, err := unpublished.New(provider)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create unpublished document store: %w", err)
+		}
+
+		orbTxnProcessorOpts = append(orbTxnProcessorOpts,
+			txnprocessor.WithUnpublishedOperationStore(updateDocumentStore, sidetreeCfg.UpdateDocumentStoreTypes))
+	}
+
 	orbTxnProcessor := txnprocessor.New(
 		&txnprocessor.Providers{
 			OpStore:                   opStore,
 			OperationProtocolProvider: op,
 		},
+		orbTxnProcessorOpts...,
 	)
 
 	return &vcommon.ProtocolVersion{

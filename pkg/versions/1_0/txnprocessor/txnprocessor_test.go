@@ -158,6 +158,42 @@ func TestProcessTxnOperations(t *testing.T) {
 		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
+
+	t.Run("success - with unpublished operation store option", func(t *testing.T) {
+		providers := &Providers{
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+			OpStore:                   &mockOperationStore{},
+		}
+
+		opt := WithUnpublishedOperationStore(&mockUnpublishedOpsStore{}, []operation.Type{operation.TypeUpdate})
+
+		p := New(providers, opt)
+		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
+		require.NoError(t, err)
+
+		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		require.NoError(t, err)
+	})
+
+	t.Run("error - unpublished operation store error", func(t *testing.T) {
+		providers := &Providers{
+			OperationProtocolProvider: &mockTxnOpsProvider{},
+			OpStore:                   &mockOperationStore{},
+		}
+
+		opt := WithUnpublishedOperationStore(
+			&mockUnpublishedOpsStore{DeleteAllErr: fmt.Errorf("delete all error")},
+			[]operation.Type{operation.TypeUpdate})
+
+		p := New(providers, opt)
+		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
+		require.NoError(t, err)
+
+		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to delete unpublished operations for anchor string[1.coreIndexURI]: delete all error")
+	})
 }
 
 type mockOperationStore struct {
@@ -193,7 +229,16 @@ func (m *mockTxnOpsProvider) GetTxnOperations(_ *txn.SidetreeTxn) ([]*operation.
 	op := &operation.AnchoredOperation{
 		UniqueSuffix:       suffix,
 		CanonicalReference: canonicalRef,
+		Type:               operation.TypeUpdate,
 	}
 
 	return []*operation.AnchoredOperation{op}, nil
+}
+
+type mockUnpublishedOpsStore struct {
+	DeleteAllErr error
+}
+
+func (m *mockUnpublishedOpsStore) DeleteAll(_ []string) error {
+	return m.DeleteAllErr
 }

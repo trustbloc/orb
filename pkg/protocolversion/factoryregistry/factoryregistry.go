@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -23,7 +24,7 @@ import (
 var logger = log.New("factory-registry")
 
 type factory interface {
-	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore, anchorGraph ctxcommon.AnchorGraph, sidetreeCfg config.Sidetree) (protocol.Version, error) //nolint: lll
+	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore, provider storage.Provider, sidetreeCfg *config.Sidetree) (protocol.Version, error) //nolint: lll
 }
 
 const (
@@ -51,8 +52,8 @@ func New() *Registry {
 
 // CreateProtocolVersion creates a new protocol version using the given version and providers.
 func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
-	opStore ctxcommon.OperationStore, anchorGraph ctxcommon.AnchorGraph,
-	sidetreeCfg config.Sidetree) (protocol.Version, error) {
+	opStore ctxcommon.OperationStore, provider storage.Provider,
+	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
 	v, err := r.resolveFactory(version)
 	if err != nil {
 		return nil, err
@@ -60,7 +61,7 @@ func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, c
 
 	logger.Infof("Creating protocol version [%s]", version)
 
-	return v.Create(version, casClient, casResolver, opStore, anchorGraph, sidetreeCfg)
+	return v.Create(version, casClient, casResolver, opStore, provider, sidetreeCfg)
 }
 
 // Register registers a protocol factory for a given version.

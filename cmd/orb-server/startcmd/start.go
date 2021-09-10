@@ -51,6 +51,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
@@ -108,7 +109,8 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
-	"github.com/trustbloc/orb/pkg/store/operation"
+	opstore "github.com/trustbloc/orb/pkg/store/operation"
+	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
@@ -121,16 +123,16 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	defaultMaxWitnessDelay                   = 600 * time.Second // 10 minutes
-	defaultSyncTimeout                       = 1
-	defaulthttpSignaturesEnabled             = true
-	defaultDidDiscoveryEnabled               = false
-	defaultAllowedOriginsOptimizationEnabled = false
-	defaultCreateDocumentStoreEnabled        = false
-	defaultLocalCASReplicateInIPFSEnabled    = false
-	defaultDevModeEnabled                    = false
-	defaultPolicyCacheExpiry                 = 30 * time.Second
-	defaultCasCacheSize                      = 1000
+	defaultMaxWitnessDelay                = 600 * time.Second // 10 minutes
+	defaultSyncTimeout                    = 1
+	defaulthttpSignaturesEnabled          = true
+	defaultDidDiscoveryEnabled            = false
+	defaultCreateDocumentStoreEnabled     = false
+	defaultUpdateDocumentStoreEnabled     = false
+	defaultLocalCASReplicateInIPFSEnabled = false
+	defaultDevModeEnabled                 = false
+	defaultPolicyCacheExpiry              = 30 * time.Second
+	defaultCasCacheSize                   = 1000
 
 	unpublishedDIDLabel = "uAAA"
 )
@@ -315,6 +317,9 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
+	// TODO: If we decide to offer deactivate and recover we should configure this
+	parameters.updateDocumentStoreTypes =  []operation.Type{operation.TypeUpdate}
+
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
 	var coreCASClient extendedcasclient.Client
@@ -356,7 +361,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	opStore, err := operation.New(storeProviders.provider)
+	opStore, err := opstore.New(storeProviders.provider)
 	if err != nil {
 		return err
 	}
@@ -440,7 +445,7 @@ func startOrbServices(parameters *orbParameters) error {
 	anchorGraph := graph.New(graphProviders)
 
 	// get protocol client provider
-	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, anchorGraph)
+	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
 	}
@@ -498,7 +503,20 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc status store: %s", err.Error())
 	}
 
-	opProcessor := processor.New(parameters.didNamespace, opStore, pc)
+	var updateDocumentStore *unpublishedopstore.Store
+	if parameters.updateDocumentStoreEnabled {
+		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider)
+		if err != nil {
+			return fmt.Errorf("failed to create unpublished document store: %w", err)
+		}
+	}
+
+	var processorOpts []processor.Option
+	if parameters.updateDocumentStoreEnabled {
+		processorOpts = append(processorOpts, processor.WithUnpublishedOperationStore(updateDocumentStore))
+	}
+
+	opProcessor := processor.New(parameters.didNamespace, opStore, pc, processorOpts...)
 
 	didAnchoringInfoProvider := didanchorinfo.New(parameters.didNamespace, didAnchors, opProcessor)
 
@@ -666,7 +684,13 @@ func startOrbServices(parameters *orbParameters) error {
 	batchWriter.Start()
 	logger.Infof("started batch writer")
 
-	logger.Infof("started observer")
+	var didDocHandlerOpts []dochandler.Option
+	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
+	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithLabel(unpublishedDIDLabel))
+
+	if parameters.updateDocumentStoreEnabled {
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.updateDocumentStoreTypes))
+	}
 
 	didDocHandler := dochandler.New(
 		parameters.didNamespace,
@@ -674,8 +698,7 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
-		dochandler.WithDomain("https:"+u.Host),
-		dochandler.WithLabel(unpublishedDIDLabel),
+		didDocHandlerOpts...,
 	)
 
 	authCfg := auth.Config{
@@ -828,20 +851,22 @@ func startOrbServices(parameters *orbParameters) error {
 	return nil
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, anchorGraph common.AnchorGraph) (*orbpcp.ClientProvider, error) {
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, provider storage.Provider) (*orbpcp.ClientProvider, error) {
 	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
-		MethodContext: parameters.methodContext,
-		EnableBase:    parameters.baseEnabled,
-		AnchorOrigins: parameters.allowedOrigins,
+		MethodContext:              parameters.methodContext,
+		EnableBase:                 parameters.baseEnabled,
+		AnchorOrigins:              parameters.allowedOrigins,
+		UpdateDocumentStoreEnabled: parameters.updateDocumentStoreEnabled,
+		UpdateDocumentStoreTypes:   parameters.updateDocumentStoreTypes,
 	}
 
 	registry := factoryregistry.New()
 
 	var protocolVersions []protocol.Version
 	for _, version := range versions {
-		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, anchorGraph, sidetreeCfg)
+		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg)
 		if err != nil {
 			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)
 		}

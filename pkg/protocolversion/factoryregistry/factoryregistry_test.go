@@ -14,7 +14,8 @@ import (
 
 	"github.com/trustbloc/orb/pkg/config"
 	frmocks "github.com/trustbloc/orb/pkg/protocolversion/factoryregistry/mocks"
-	mocks "github.com/trustbloc/orb/pkg/protocolversion/mocks"
+	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
+	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 //nolint:lll
@@ -37,14 +38,14 @@ func TestRegistry(t *testing.T) {
 
 	casClient := &mocks.CasClient{}
 	opStore := &mocks.OperationStore{}
-	anchorGraph := &mocks.AnchorGraph{}
 	casResolver := &mocks.CASResolver{}
+	storeProvider := &storemocks.Provider{}
 
-	pv, err := r.CreateProtocolVersion(version, casClient, casResolver, opStore, anchorGraph, config.Sidetree{})
+	pv, err := r.CreateProtocolVersion(version, casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
 	require.NoError(t, err)
 	require.NotNil(t, pv)
 
-	pv, err = r.CreateProtocolVersion("99", casClient, casResolver, opStore, anchorGraph, config.Sidetree{})
+	pv, err = r.CreateProtocolVersion("99", casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
 	require.EqualError(t, err, "protocol version factory for version [99] not found")
 	require.Nil(t, pv)
 }
