@@ -48,17 +48,7 @@ const sampleAnchorCredential = `{
   ],
   "issuer": "https://sally.example.com/services/orb",
   "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
-    "operationCount": 1,
-    "coreIndex": "bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "namespace": "did:orb",
-    "version": "1",
-    "previousAnchors": {
-      "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrmenuxhgaomod4m26ds5ztdujxzhjobgvpsyl2v2ndcskq2iay",
-      "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3whnisud76knkv7z7ucbf3k2rs6knhvajernrdabdbfaomakli"
-    },
-    "type": "Anchor"
-  },
+  "credentialSubject": {},
   "proof": [{
     "type": "JsonWebSignature2020",
     "proofPurpose": "assertionMethod",
@@ -159,7 +149,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		err = anchorCredentialHandler.HandleAnchorCredential(actor, nil, hl, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to resolve anchor credential: failed to get data stored at uEiCHEWFkVxHMYKiLFChC_rndCmoY1sMGIvMfpaYOJalZjA from the local CAS: content not found") //nolint:lll
+			"failed to resolve anchor credential: failed to get data stored at uEiCc295Rv9kvQ6eFUSJYBuiESfGPJF0NLkWaEPPmkO6myQ from the local CAS: content not found") //nolint:lll
 	})
 }
 

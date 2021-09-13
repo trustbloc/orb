@@ -1086,16 +1086,7 @@ const (
         "https://www.w3.org/2018/credentials/v1",
         "https://w3id.org/activityanchors/v1"
       ],
-      "credentialSubject": {
-	"operationCount": 2,
-	"coreIndex": "bafkreihwsn",
-        "namespace": "did:orb",
-        "previousAnchors": {
-          "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-          "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-        },
-        "version": "1"
-      },
+      "credentialSubject": {},
       "id": "http://sally.example.com/transactions/bafkreihwsn",
       "issuanceDate": "2021-01-27T09:30:10Z",
       "issuer": "https://sally.example.com/services/orb",
@@ -1215,16 +1206,7 @@ const (
           ],
           "issuer": "https://sally.example.com/services/orb",
           "issuanceDate": "2021-01-27T09:30:10Z",
-          "credentialSubject": {
-            "operationCount": 2,
-            "coreIndex": "bafkreihwsn",
-            "namespace": "did:orb",
-            "previousAnchors": {
-              "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-              "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-            },
-            "version": "1"
-          },
+          "credentialSubject": {},
           "proof": {}
         }
       }
@@ -1283,16 +1265,7 @@ const (
   ],
   "issuer": "https://sally.example.com/services/orb",
   "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
-	"operationCount": 2,
-	"coreIndex": "bafkreihwsn",
-	"namespace": "did:orb",
-	"version": "1",
-	"previousAnchors": {
-	  "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-	  "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-	}
-  },
+  "credentialSubject": {},
   "proofChain": [{}]
 }`
 
@@ -1333,16 +1306,7 @@ const (
       "https://www.w3.org/2018/credentials/v1",
       "https://w3id.org/activityanchors/v1"
     ],
-    "credentialSubject": {
-      "operationCount": 2,
-      "coreIndex": "bafkreihwsn",
-      "namespace": "did:orb",
-      "previousAnchors": {
-        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-      },
-      "version": "1"
-    },
+    "credentialSubject": {},
     "id": "http://sally.example.com/transactions/bafkreihwsn",
     "issuanceDate": "2021-01-27T09:30:10Z",
     "issuer": "https://sally.example.com/services/orb",
@@ -1459,16 +1423,7 @@ const (
     ],
     "issuer": "https://sally.example.com/services/orb",
     "issuanceDate": "2021-01-27T09:30:10Z",
-    "credentialSubject": {
-      "operationCount": 2,
-      "coreIndex": "bafkreihwsn",
-      "namespace": "did:orb",
-      "previousAnchors": {
-        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-      },
-      "version": "1"
-    },
+    "credentialSubject": {},
     "proof": {}
   }
 }`

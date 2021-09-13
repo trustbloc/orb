@@ -9,16 +9,7 @@
       "https://www.w3.org/2018/credentials/v1",
       "https://w3id.org/activityanchors/v1"
     ],
-    "credentialSubject": {
-      "operationCount": 2,
-      "coreIndex": "bafkreihwsn",
-      "namespace": "did:orb",
-      "previousAnchors": {
-        "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-        "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-      },
-      "version": "1"
-    },
+    "credentialSubject": {},
     "id": "http://orb.domain2.com/transactions/bafkreihwsn",
     "issuanceDate": "2021-03-31T09:30:10Z",
     "issuer": "https://orb.domain2.com/services/orb",
