@@ -230,15 +230,7 @@ var anchorCred = `
   "@context": [
     "https://www.w3.org/2018/credentials/v1"
   ],
-  "credentialSubject": {
-    "coreIndex": "QmZzPwGc3JEMQDiJu21YZcdpEPam7qCoXPLEUQXn34sMhB",
-    "namespace": "did:sidetree",
-    "operationCount": 1,
-    "previousAnchors": {
-      "EiBjG9z921eyj8wI4j-LAqsJBRC_GalIUWPJeXGekxFQ-w": ""
-    },
-    "version": 0
-  },
+  "credentialSubject": {},
   "id": "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
   "issuanceDate": "2021-03-17T20:01:10.4002903Z",
   "issuer": "http://peer1.com",

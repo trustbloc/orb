@@ -3224,16 +3224,7 @@ const anchorCredential1 = `{
   ],
   "issuer": "https://sally.example.com/services/orb",
   "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
-	"operationCount": 2,
-	"coreIndex": "bafkreihwsn",
-	"namespace": "did:orb",
-	"version": "1",
-	"previousAnchors": {
-	  "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-	  "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-	}
-  },
+  "credentialSubject": {},
   "proofChain": [{}]
 }`
 

@@ -56,17 +56,7 @@ const (
   ],
   "issuer": "https://sally.example.com/services/orb",
   "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {
-    "operationCount": 1,
-    "coreIndex": "bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
-    "namespace": "did:orb",
-    "version": "1",
-    "previousAnchors": {
-      "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrmenuxhgaomod4m26ds5ztdujxzhjobgvpsyl2v2ndcskq2iay",
-      "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3whnisud76knkv7z7ucbf3k2rs6knhvajernrdabdbfaomakli"
-    },
-    "type": "Anchor"
-  },
+  "credentialSubject": {},
   "proof": [{
     "type": "JsonWebSignature2020",
     "proofPurpose": "assertionMethod",
@@ -461,7 +451,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, localHL, err := resolver.Resolve(nil, cid, []byte(sampleData))
 		require.EqualError(t, err, "failed to store the data in the local CAS: "+
 			"successfully stored data into the local CAS, but the resource hash produced by the local CAS "+
-			"(uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ) does not match the resource hash from the original request "+
+			"(uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw) does not match the resource hash from the original request "+
 			"(bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy)")
 		require.Nil(t, data)
 		require.Empty(t, localHL)
@@ -494,7 +484,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote WebCAS endpoints")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ was found: content not found")
+			"no content at uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw was found: content not found")
 		require.Nil(t, data)
 		require.Empty(t, localHL)
 	})
@@ -589,9 +579,9 @@ func TestResolver_Resolve(t *testing.T) {
 				"failed to determine WebCAS URL via WebFinger: "+
 				"failed to get WebFinger resource: failed to get response "+
 				"(URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
-				`ExistentDomain/cas/uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ): Get "http://`+
+				`ExistentDomain/cas/uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw): Get "http://`+
 				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/"+
-				`uEiA1t3VICW2jRlU-m3o7-3f1lI5hbLTrPkefScZMEFwbEQ": dial tcp: lookup NonExistentDomain`)
+				`uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw": dial tcp: lookup NonExistentDomain`)
 			require.Nil(t, data)
 			require.Empty(t, localHL)
 		})

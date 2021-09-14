@@ -114,19 +114,10 @@ func TestObjectType_WithDocument(t *testing.T) {
 	t.Run("MarshalJSON", func(t *testing.T) {
 		obj, err := NewObjectWithDocument(
 			Document{
-				"credentialSubject": Document{
-					"operationCount": 2,
-					"coreIndex":      "bafkreihwsn",
-					"namespace":      "did:orb",
-					"previousAnchors": Document{
-						"EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-						"EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w",
-					},
-					"version": "1",
-				},
-				"issuanceDate": "2021-01-27T09:30:10Z",
-				"issuer":       "https://sally.example.com/services/orb",
-				"proofChain":   []interface{}{},
+				"credentialSubject": Document{},
+				"issuanceDate":      "2021-01-27T09:30:10Z",
+				"issuer":            "https://sally.example.com/services/orb",
+				"proofChain":        []interface{}{},
 			},
 			WithID(id),
 			WithContext(ContextCredentials, ContextActivityAnchors),
@@ -213,16 +204,7 @@ const (
     "https://to1",
     "https://to2"
   ],
-  "credentialSubject": {
-    "operationCount": 2,
-    "coreIndex": "bafkreihwsn",
-    "namespace": "did:orb",
-    "previousAnchors": {
-      "EiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA": "bafkreibmrm",
-      "EiABk7KK58BVLHMataxgYZjTNbsHgtD8BtjF0tOWFV29rw": "bafkreibh3w"
-    },
-    "version": "1"
-  },
+  "credentialSubject": {},
   "id": "http://sally.example.com/transactions/bafkreihwsn",
   "issuanceDate": "2021-01-27T09:30:10Z",
   "issuer": "https://sally.example.com/services/orb",
