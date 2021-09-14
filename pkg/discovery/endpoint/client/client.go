@@ -44,6 +44,9 @@ const (
 
 	namespace  = "did:orb"
 	ipfsGlobal = "https://ipfs.io"
+
+	defaultCacheLifetime = 300 * time.Second // five minutes
+	defaultCacheSize     = 100
 )
 
 type httpClient interface {
@@ -60,19 +63,17 @@ type orbClient interface {
 
 // Client fetches configs, caching results in-memory.
 type Client struct {
-	namespace                  string
-	endpointsCache             gcache.Cache
-	endpointsAnchorOriginCache gcache.Cache
-	httpClient                 httpClient
-	casReader                  casReader
-	authToken                  string
-	disableProofCheck          bool
-	docLoader                  ld.DocumentLoader
-	orbClient                  orbClient
-}
+	namespace         string
+	httpClient        httpClient
+	casReader         casReader
+	authToken         string
+	disableProofCheck bool
+	docLoader         ld.DocumentLoader
+	orbClient         orbClient
 
-type req struct {
-	did, domain string
+	endpointsCache gcache.Cache
+	cacheLifetime  time.Duration
+	cacheSize      int
 }
 
 type defaultHTTPClient struct{}
@@ -90,7 +91,9 @@ func (d *defaultHTTPClient) Get(context.Context, *transport.Request) (*http.Resp
 func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Client, error) {
 	configService := &Client{
 		namespace: namespace, docLoader: docLoader, casReader: casReader,
-		httpClient: &defaultHTTPClient{},
+		httpClient:    &defaultHTTPClient{},
+		cacheLifetime: defaultCacheLifetime,
+		cacheSize:     defaultCacheSize,
 	}
 
 	for _, opt := range opts {
@@ -119,83 +122,30 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 
 	configService.orbClient = orbClient
 
-	configService.endpointsCache = makeCache(
-		configService.getNewCacheable(func(did, domain string) (cacheable, error) {
-			return configService.getEndpoint(domain)
-		}))
-
-	configService.endpointsAnchorOriginCache = makeCache(
-		configService.getNewCacheable(func(did, domain string) (cacheable, error) {
-			return configService.getEndpointAnchorOrigin(did)
-		}))
+	configService.endpointsCache = gcache.New(configService.cacheSize).
+		Expiration(configService.cacheLifetime).
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			return configService.getEndpoint(key.(string))
+		}).Build()
 
 	return configService, nil
 }
 
-func makeCache(fetcher func(did, domain string) (interface{}, *time.Duration, error)) gcache.Cache {
-	return gcache.New(0).LoaderExpireFunc(func(key interface{}) (interface{}, *time.Duration, error) {
-		r, ok := key.(req)
-		if !ok {
-			return nil, nil, fmt.Errorf("key must be stringPair")
-		}
-
-		return fetcher(r.did, r.domain)
-	}).Build()
-}
-
-type cacheable interface {
-	CacheLifetime() (time.Duration, error)
-}
-
-func (cs *Client) getNewCacheable(
-	fetcher func(did, domain string) (cacheable, error),
-) func(did, domain string) (interface{}, *time.Duration, error) {
-	return func(did, domain string) (interface{}, *time.Duration, error) {
-		data, err := fetcher(did, domain)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fetching cacheable object: %w", err)
-		}
-
-		expiryTime, err := data.CacheLifetime()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get object expiry time: %w", err)
-		}
-
-		return data, &expiryTime, nil
-	}
-}
-
-func getEntryHelper(cache gcache.Cache, key interface{}, objectName string) (interface{}, error) {
-	data, err := cache.Get(key)
-	if err != nil {
-		return nil, fmt.Errorf("getting %s from cache: %w", objectName, err)
-	}
-
-	return data, nil
-}
-
 // GetEndpoint fetches endpoints from domain, caching the value.
 func (cs *Client) GetEndpoint(domain string) (*models.Endpoint, error) {
-	endpoint, err := getEntryHelper(cs.endpointsCache, req{
-		domain: domain,
-	}, "endpoint")
+	endpoint, err := cs.endpointsCache.Get(domain)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get key[%s] from endpoints cache: %w", domain, err)
 	}
+
+	logger.Debugf("got value for key[%v] from endpoints cache: %+v", domain, endpoint)
 
 	return endpoint.(*models.Endpoint), nil
 }
 
 // GetEndpointFromAnchorOrigin fetches endpoints from anchor origin, caching the value.
 func (cs *Client) GetEndpointFromAnchorOrigin(didURI string) (*models.Endpoint, error) {
-	endpoint, err := getEntryHelper(cs.endpointsAnchorOriginCache, req{
-		did: didURI,
-	}, "endpointAnchorOrigin")
-	if err != nil {
-		return nil, err
-	}
-
-	return endpoint.(*models.Endpoint), nil
+	return cs.getEndpointAnchorOrigin(didURI)
 }
 
 func (cs *Client) getEndpoint(domain string) (*models.Endpoint, error) {
@@ -550,6 +500,20 @@ func WithDisableProofCheck(disable bool) Option {
 func WithNamespace(namespace string) Option {
 	return func(opts *Client) {
 		opts.namespace = namespace
+	}
+}
+
+// WithCacheLifetime option defines the lifetime of an object in the cache.
+func WithCacheLifetime(lifetime time.Duration) Option {
+	return func(opts *Client) {
+		opts.cacheLifetime = lifetime
+	}
+}
+
+// WithCacheSize option defines the cache size.
+func WithCacheSize(size int) Option {
+	return func(opts *Client) {
+		opts.cacheSize = size
 	}
 }
 

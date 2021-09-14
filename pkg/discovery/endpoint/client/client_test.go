@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -25,6 +26,29 @@ import (
 const (
 	ipnsURL = "ipns://wwrrww"
 )
+
+func TestNew(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
+		require.NoError(t, err)
+		require.NotNil(t, cs)
+
+		require.Equal(t, defaultCacheLifetime, cs.cacheLifetime)
+		require.Equal(t, defaultCacheSize, cs.cacheSize)
+	})
+
+	t.Run("success - with cache options", func(t *testing.T) {
+		cs, err := New(nil, &referenceCASReaderImplementation{},
+			WithAuthToken("t1"),
+			WithCacheSize(500),
+			WithCacheLifetime(time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, cs)
+
+		require.Equal(t, time.Minute, cs.cacheLifetime)
+		require.Equal(t, 500, cs.cacheSize)
+	})
+}
 
 func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	t.Run("test wrong did - doesn't match default namespace (did:orb)", func(t *testing.T) {
