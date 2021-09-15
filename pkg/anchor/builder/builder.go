@@ -56,7 +56,7 @@ type Builder struct {
 func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
-	now := &util.TimeWithTrailingZeroMsec{Time: time.Now()}
+	now := &util.TimeWrapper{Time: time.Now()}
 	payload.Published = now
 
 	anchorActivity, err := activity.BuildActivityFromPayload(payload)

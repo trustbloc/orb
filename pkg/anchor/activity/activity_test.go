@@ -45,7 +45,7 @@ func TestBuildActivityFromPayload(t *testing.T) {
 			AnchorOrigin:    anchorOrigin,
 			Attachments:     []string{coreIndex, sampleAttachment},
 			PreviousAnchors: previousAnchors,
-			Published:       &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Published:       &util.TimeWrapper{Time: time.Now()},
 		}
 		activity, err := BuildActivityFromPayload(payload)
 		require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestBuildActivityFromPayload(t *testing.T) {
 			Version:         1,
 			AnchorOrigin:    anchorOrigin,
 			PreviousAnchors: previousAnchors,
-			Published:       &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Published:       &util.TimeWrapper{Time: time.Now()},
 			OperationCount:  uint64(len(previousAnchors)),
 		}
 
@@ -139,7 +139,7 @@ func TestBuildActivityFromPayload(t *testing.T) {
 			Version:         1,
 			AnchorOrigin:    anchorOrigin,
 			PreviousAnchors: previousAnchors,
-			Published:       &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Published:       &util.TimeWrapper{Time: time.Now()},
 			OperationCount:  uint64(len(previousAnchors)),
 		}
 
@@ -163,7 +163,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		Version:         1,
 		AnchorOrigin:    anchorOrigin,
 		PreviousAnchors: previousAnchors,
-		Published:       &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+		Published:       &util.TimeWrapper{Time: time.Now()},
 		OperationCount:  uint64(len(previousAnchors)),
 	}
 

@@ -32,12 +32,12 @@ const (
 
 // Activity defines anchor activity.
 type Activity struct {
-	Context      interface{}                    `json:"@context,omitempty"`
-	Type         string                         `json:"type,omitempty"`
-	AttributedTo string                         `json:"attributedTo,omitempty"`
-	Published    *util.TimeWithTrailingZeroMsec `json:"published,omitempty"`
-	Parent       []string                       `json:"parent,omitempty"`
-	Attachment   []Attachment                   `json:"attachment,omitempty"`
+	Context      interface{}       `json:"@context,omitempty"`
+	Type         string            `json:"type,omitempty"`
+	AttributedTo string            `json:"attributedTo,omitempty"`
+	Published    *util.TimeWrapper `json:"published,omitempty"`
+	Parent       []string          `json:"parent,omitempty"`
+	Attachment   []Attachment      `json:"attachment,omitempty"`
 }
 
 // Attachment defines anchor activity attachment.

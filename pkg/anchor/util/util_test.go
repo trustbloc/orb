@@ -44,7 +44,7 @@ func TestGetAnchorSubject(t *testing.T) {
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
-			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Issued: &util.TimeWrapper{Time: time.Now()},
 		}
 
 		vcBytes, err := vc.MarshalJSON()
@@ -72,7 +72,7 @@ func TestGetAnchorSubject(t *testing.T) {
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
-			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Issued: &util.TimeWrapper{Time: time.Now()},
 		}
 
 		anchorSubject, err := GetAnchorSubject(vc)
@@ -89,7 +89,7 @@ func TestGetAnchorSubject(t *testing.T) {
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
-			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Issued: &util.TimeWrapper{Time: time.Now()},
 		}
 
 		anchorSubject, err := GetAnchorSubject(vc)
@@ -106,7 +106,7 @@ func TestGetAnchorSubject(t *testing.T) {
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
-			Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+			Issued: &util.TimeWrapper{Time: time.Now()},
 		}
 
 		anchorSubject, err := GetAnchorSubject(vc)

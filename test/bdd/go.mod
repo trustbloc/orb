@@ -11,7 +11,7 @@ require (
 	github.com/cucumber/messages-go/v10 v10.0.3
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.7-0.20210816171017-5da380dba24e
+	github.com/hyperledger/aries-framework-go v0.1.7
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210908194819-812cc66d2834
@@ -25,7 +25,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
 	github.com/trustbloc/orb v0.1.3-0.20210826224204-8f7cf7841ff2
-	github.com/trustbloc/sidetree-core-go v0.6.1-0.20210910132742-a2e8795453c1
+	github.com/trustbloc/sidetree-core-go v0.7.0
 )
 
 replace github.com/trustbloc/orb => ../../

@@ -354,7 +354,7 @@ func (e *Steps) recoverDID() error {
 		"did", "recover",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
-		"--did-anchor-origin", "https://orb.domain2.com",
+		"--did-anchor-origin", "https://orb.domain1.com",
 		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
 		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "ADMIN_TOKEN",
@@ -395,7 +395,7 @@ func (e *Steps) deactivateDID() error {
 func (e *Steps) createDID() error {
 	var args []string
 
-	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain2.com",
+	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain1.com",
 		"--sidetree-url", "https://localhost:48326/sidetree/v1/operations", "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/create/publickeys.json",
 		"--sidetree-write-token", "ADMIN_TOKEN", "--service-file", "fixtures/did-services/create/services.json",
