@@ -287,7 +287,7 @@ func (c *Writer) buildCredential(anchor string, attachments []*protocol.AnchorDo
 		return nil, err
 	}
 
-	now := &docutil.TimeWithTrailingZeroMsec{Time: time.Now()}
+	now := &docutil.TimeWrapper{Time: time.Now()}
 
 	payload := &subject.Payload{
 		OperationCount:  ad.OperationCount,

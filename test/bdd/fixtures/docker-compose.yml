@@ -530,7 +530,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc-cicd/vct-log-server:v0.1.3-snapshot-3b57684
+    image: ghcr.io/trustbloc/vct-log-server:v0.1.3
     restart: always
     command:
       - --quota_system=noop
@@ -547,7 +547,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc-cicd/vct-log-signer:v0.1.3-snapshot-3b57684
+    image: ghcr.io/trustbloc/vct-log-signer:v0.1.3
     restart: always
     command:
       - --quota_system=noop
@@ -566,7 +566,7 @@ services:
   orb.kms:
     container_name: orb.kms
     restart: always
-    image: ghcr.io/trustbloc-cicd/kms:0.1.7-snapshot-1221880
+    image: ghcr.io/trustbloc/kms:0.1.7
     environment:
       - KMS_BASE_URL=http://orb.kms:7878
       - KMS_HOST_URL=0.0.0.0:7878
@@ -594,7 +594,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.3-snapshot-1e2cdf1
+    image: ghcr.io/trustbloc/vct:v0.1.3
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077

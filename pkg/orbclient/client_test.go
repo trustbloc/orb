@@ -280,7 +280,7 @@ func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
 		Issuer: verifiable.Issuer{
 			ID: "http://orb.domain.com",
 		},
-		Issued: &util.TimeWithTrailingZeroMsec{Time: time.Now()},
+		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
 	return vc, nil
