@@ -60,7 +60,9 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	dv := didvalidator.New()
 	dt := didtransformer.New(
 		didtransformer.WithMethodContext(sidetreeCfg.MethodContext),
-		didtransformer.WithBase(sidetreeCfg.EnableBase))
+		didtransformer.WithBase(sidetreeCfg.EnableBase),
+		didtransformer.WithIncludePublishedOperations(sidetreeCfg.IncludePublishedOperations),
+		didtransformer.WithIncludeUnpublishedOperations(sidetreeCfg.IncludeUnpublishedOperations))
 
 	var orbTxnProcessorOpts []txnprocessor.Option
 

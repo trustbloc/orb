@@ -272,6 +272,16 @@ const (
 		`Used for resolving unpublished updates for documents.` +
 		commonEnvVarUsageText + enableUpdateDocumentStoreEnvKey
 
+	includeUnpublishedOperationsFlagName = "include-unpublished-operations-in-metadata"
+	includeUnpublishedOperationsEnvKey   = "INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA"
+	includeUnpublishedOperationsUsage    = `Set to "true" to include unpublished operations in metadata. ` +
+		commonEnvVarUsageText + includeUnpublishedOperationsEnvKey
+
+	includePublishedOperationsFlagName = "include-published-operations-in-metadata"
+	includePublishedOperationsEnvKey   = "INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA"
+	includePublishedOperationsUsage    = `Set to "true" to include published operations in metadata. ` +
+		commonEnvVarUsageText + includePublishedOperationsEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -347,6 +357,8 @@ type orbParameters struct {
 	didDiscoveryEnabled            bool
 	createDocumentStoreEnabled     bool
 	updateDocumentStoreEnabled     bool
+	includeUnpublishedOperations   bool
+	includePublishedOperations     bool
 	updateDocumentStoreTypes       []operation.Type
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
@@ -606,6 +618,36 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		updateDocumentStoreEnabled = enable
 	}
 
+	includeUnpublishedOperationsStr, err := cmdutils.GetUserSetVarFromString(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	includeUnpublishedOperations := defaultIncludeUnpublishedOperations
+	if includeUnpublishedOperationsStr != "" {
+		enable, parseErr := strconv.ParseBool(includeUnpublishedOperationsStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", includeUnpublishedOperationsFlagName, parseErr)
+		}
+
+		includeUnpublishedOperations = enable
+	}
+
+	includePublishedOperationsStr, err := cmdutils.GetUserSetVarFromString(cmd, includePublishedOperationsFlagName, includePublishedOperationsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	includePublishedOperations := defaultIncludePublishedOperations
+	if includePublishedOperationsStr != "" {
+		enable, parseErr := strconv.ParseBool(includePublishedOperationsStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", includePublishedOperationsFlagName, parseErr)
+		}
+
+		includePublishedOperations = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -710,6 +752,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didDiscoveryEnabled:            didDiscoveryEnabled,
 		createDocumentStoreEnabled:     createDocumentStoreEnabled,
 		updateDocumentStoreEnabled:     updateDocumentStoreEnabled,
+		includePublishedOperations:     includePublishedOperations,
+		includeUnpublishedOperations:   includeUnpublishedOperations,
 		authTokenDefinitions:           authTokenDefs,
 		authTokens:                     authTokens,
 		activityPubPageSize:            activityPubPageSize,
@@ -992,6 +1036,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
 	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
 	startCmd.Flags().String(enableUpdateDocumentStoreFlagName, "", enableUpdateDocumentStoreUsage)
+	startCmd.Flags().String(includeUnpublishedOperationsFlagName, "", includeUnpublishedOperationsUsage)
+	startCmd.Flags().String(includePublishedOperationsFlagName, "", includePublishedOperationsUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)
