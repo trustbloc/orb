@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -265,20 +266,39 @@ func TestActivities_Handler(t *testing.T) {
 		h := NewInbox(cfg, activityStore, verifier)
 		require.NotNil(t, h)
 
-		errExpected := fmt.Errorf("injected error")
+		t.Run("Internal error", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected error")
 
-		h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
-			return nil, errExpected
-		}
+			h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
+				return nil, errExpected
+			}
 
-		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
 
-		h.handle(rw, req)
+			h.handle(rw, req)
 
-		result := rw.Result()
-		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
-		require.NoError(t, result.Body.Close())
+			result := rw.Result()
+			require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+			require.NoError(t, result.Body.Close())
+		})
+
+		t.Run("Bad request", func(t *testing.T) {
+			errExpected := fmt.Errorf("injected error")
+
+			h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
+				return nil, orberrors.NewBadRequest(errExpected)
+			}
+
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+
+			h.handle(rw, req)
+
+			result := rw.Result()
+			require.Equal(t, http.StatusBadRequest, result.StatusCode)
+			require.NoError(t, result.Body.Close())
+		})
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
