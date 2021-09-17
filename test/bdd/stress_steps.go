@@ -211,7 +211,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	resolvePool.Start()
 
 	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-	resolveMethodTime := tachymeter.New(&tachymeter.Config{Size: 1000000000})
 
 	resolveStart := time.Now()
 
@@ -230,7 +229,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 			kr:                    kr,
 			maxRetry:              maxRetry,
 			resolveCreatedDIDTime: resolveCreatedDIDTime,
-			resolveMethodTime:     resolveMethodTime,
 			intermID:              r.intermID,
 			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
 			updateKeyPrivateKey:   r.updateKeyPrivateKey,
@@ -343,10 +341,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, anchorOriginEn
 	fmt.Println("------")
 
 	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
-	fmt.Println("------")
-
-	fmt.Println("Resolve method times:")
-	fmt.Println(resolveMethodTime.Calc())
 	fmt.Println("------")
 
 	fmt.Println("Resolve anchor did times:")
@@ -612,7 +606,6 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 type resolveDIDReq struct {
 	vdr                   *orb.VDR
 	resolveCreatedDIDTime *tachymeter.Tachymeter
-	resolveMethodTime     *tachymeter.Tachymeter
 	kr                    *keyRetrieverMap
 	maxRetry              int
 	intermID              string
@@ -633,11 +626,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 
-		readStartTime := time.Now()
-
 		docResolution, err = r.vdr.Read(r.intermID)
-
-		r.resolveMethodTime.AddTime(time.Since(readStartTime))
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
