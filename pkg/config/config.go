@@ -16,4 +16,7 @@ type Sidetree struct {
 
 	UpdateDocumentStoreEnabled bool
 	UpdateDocumentStoreTypes   []operation.Type
+
+	IncludeUnpublishedOperations bool
+	IncludePublishedOperations   bool
 }

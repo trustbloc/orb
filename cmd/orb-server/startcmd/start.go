@@ -129,6 +129,8 @@ const (
 	defaultDidDiscoveryEnabled            = false
 	defaultCreateDocumentStoreEnabled     = false
 	defaultUpdateDocumentStoreEnabled     = false
+	defaultIncludeUnpublishedOperations   = false
+	defaultIncludePublishedOperations     = false
 	defaultLocalCASReplicateInIPFSEnabled = false
 	defaultDevModeEnabled                 = false
 	defaultPolicyCacheExpiry              = 30 * time.Second
@@ -318,7 +320,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// TODO: If we decide to offer deactivate and recover we should configure this
-	parameters.updateDocumentStoreTypes =  []operation.Type{operation.TypeUpdate}
+	parameters.updateDocumentStoreTypes = []operation.Type{operation.TypeUpdate}
 
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
@@ -858,11 +860,13 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
-		MethodContext:              parameters.methodContext,
-		EnableBase:                 parameters.baseEnabled,
-		AnchorOrigins:              parameters.allowedOrigins,
-		UpdateDocumentStoreEnabled: parameters.updateDocumentStoreEnabled,
-		UpdateDocumentStoreTypes:   parameters.updateDocumentStoreTypes,
+		MethodContext:                parameters.methodContext,
+		EnableBase:                   parameters.baseEnabled,
+		AnchorOrigins:                parameters.allowedOrigins,
+		UpdateDocumentStoreEnabled:   parameters.updateDocumentStoreEnabled,
+		UpdateDocumentStoreTypes:     parameters.updateDocumentStoreTypes,
+		IncludeUnpublishedOperations: parameters.includeUnpublishedOperations,
+		IncludePublishedOperations:   parameters.includePublishedOperations,
 	}
 
 	registry := factoryregistry.New()
