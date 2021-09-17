@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 // NewActivity returns a new 'activities/{id}' REST handler that retrieves a single activity by ID.
@@ -112,20 +113,15 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Activities) handleActivityRefsOfType(w http.ResponseWriter, req *http.Request, refType spi.ReferenceType) {
-	objectIRI, err := h.getObjectIRI(req)
+	objectIRI, id, err := h.getObjectIRIAndID(req)
 	if err != nil {
-		logger.Errorf("[%s] Error getting ObjectIRI: %s", h.endpoint, err)
+		logger.Debugf("[%s] Error getting object IRI and ID: %s", h.endpoint, err)
 
-		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
-
-		return
-	}
-
-	id, err := h.getID(objectIRI, req)
-	if err != nil {
-		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
-
-		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		if orberrors.IsBadRequest(err) {
+			h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		} else {
+			h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		}
 
 		return
 	}
@@ -297,6 +293,20 @@ func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
 	), nil
 }
 
+func (h *Activities) getObjectIRIAndID(req *http.Request) (*url.URL, *url.URL, error) {
+	objectIRI, err := h.getObjectIRI(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	id, err := h.getID(objectIRI, req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return objectIRI, id, nil
+}
+
 // Activity implements a REST handler that retrieves a single activity by ID.
 type Activity struct {
 	*handler
@@ -409,7 +419,7 @@ func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
 func getObjectIRIFromIDParam(req *http.Request) (*url.URL, error) {
 	id := getIDParam(req)
 	if id == "" {
-		return nil, fmt.Errorf("id not specified in URL")
+		return nil, orberrors.NewBadRequest(errors.New("id not specified in URL"))
 	}
 
 	return url.Parse(id)

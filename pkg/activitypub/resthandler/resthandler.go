@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -336,7 +338,7 @@ func getIDFromParam(objectIRI *url.URL, path string) getIDFunc {
 	return func(_ *url.URL, req *http.Request) (*url.URL, error) {
 		id := getIDParam(req)
 		if id == "" {
-			return nil, fmt.Errorf("id not specified in URL")
+			return nil, orberrors.NewBadRequest(errors.New("id not specified in URL"))
 		}
 
 		return url.Parse(fmt.Sprintf("%s%s?id=%s", objectIRI, path, url.QueryEscape(id)))
