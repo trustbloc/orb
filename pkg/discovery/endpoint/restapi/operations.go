@@ -7,6 +7,7 @@ package restapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,6 +17,9 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/multihash"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
 
@@ -31,10 +35,11 @@ const (
 	webDIDEndpoint       = "/.well-known/did.json"
 	nodeInfoEndpoint     = "/.well-known/nodeinfo"
 
-	selfRelation      = "self"
-	alternateRelation = "alternate"
-	viaRelation       = "via"
-	serviceRelation   = "service"
+	selfRelation        = "self"
+	alternateRelation   = "alternate"
+	viaRelation         = "via"
+	serviceRelation     = "service"
+	workingCopyRelation = "working-copy"
 
 	ldJSONType    = "application/ld+json"
 	jrdJSONType   = "application/jrd+json"
@@ -51,8 +56,16 @@ const (
 	context      = "https://w3id.org/did/v1"
 )
 
+type cas interface {
+	Read(address string) ([]byte, error)
+}
+
+type anchorLinkStore interface {
+	GetLinks(anchorHash string) ([]*url.URL, error)
+}
+
 // New returns discovery operations.
-func New(c *Config) (*Operation, error) {
+func New(c *Config, p *Providers) (*Operation, error) {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse base URL: %w", err)
@@ -76,7 +89,9 @@ func New(c *Config) (*Operation, error) {
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
 		discoveryVctDomains:       c.DiscoveryVctDomains,
-		resourceRegistry:          c.ResourceRegistry,
+		resourceRegistry:          p.ResourceRegistry,
+		cas:                       p.CAS,
+		anchorStore:               p.AnchorLinkStore,
 	}, nil
 }
 
@@ -95,6 +110,8 @@ type Operation struct {
 	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
 	resourceRegistry          *registry.Registry
+	cas                       cas
+	anchorStore               anchorLinkStore
 }
 
 // Config defines configuration for discovery operations.
@@ -110,7 +127,13 @@ type Config struct {
 	DiscoveryDomains          []string
 	DiscoveryVctDomains       []string
 	DiscoveryMinimumResolvers int
-	ResourceRegistry          *registry.Registry
+}
+
+// Providers defines the providers for discovery operations.
+type Providers struct {
+	ResourceRegistry *registry.Registry
+	CAS              cas
+	AnchorLinkStore  anchorLinkStore
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
@@ -205,7 +228,6 @@ func (o *Operation) nodeInfoHandler(rw http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-//nolint:funlen,gocyclo,cyclop
 func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) {
 	switch {
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
@@ -213,7 +235,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 			Subject:    resource,
 			Properties: map[string]interface{}{minResolvers: o.discoveryMinimumResolvers},
 			Links: []Link{
-				{Rel: "self", Href: resource},
+				{Rel: selfRelation, Href: resource},
 			},
 		}
 
@@ -229,7 +251,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		resp := &JRD{
 			Subject: resource,
 			Links: []Link{
-				{Rel: "self", Href: resource},
+				{Rel: selfRelation, Href: resource},
 			},
 		}
 
@@ -244,73 +266,80 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
 	case strings.HasPrefix(resource, "did:orb:"):
-		// TODO (#536): Support resources other than did:orb.
-		// TODO (#537): Show IPFS alternates if configured.
-		metadata, err := o.resourceRegistry.GetResourceInfo(resource)
-		if err != nil {
-			writeErrorResponse(rw, http.StatusInternalServerError,
-				fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
-
-			return
-		}
-
-		anchorOrigin, ok := metadata[registry.AnchorOriginProperty]
-		if !ok {
-			writeErrorResponse(rw, http.StatusBadRequest, "anchor origin property missing from metadata")
-
-			return
-		}
-
-		anchorURIRaw, ok := metadata[registry.AnchorURIProperty]
-		if !ok {
-			writeErrorResponse(rw, http.StatusBadRequest, "anchor URI property missing from metadata")
-
-			return
-		}
-
-		anchorURI, ok := anchorURIRaw.(string)
-		if !ok {
-			writeErrorResponse(rw, http.StatusBadRequest, "anchor URI could not be asserted as a string")
-
-			return
-		}
-
-		resp := &JRD{
-			Properties: map[string]interface{}{
-				"https://trustbloc.dev/ns/anchor-origin": anchorOrigin,
-				minResolvers:                             o.discoveryMinimumResolvers,
-			},
-			Links: []Link{
-				{
-					Rel:  selfRelation,
-					Type: didLDJSONType,
-					Href: fmt.Sprintf("%s%s%s", o.baseURL, "/sidetree/v1/identifiers/", resource),
-				},
-				{
-					Rel:  viaRelation,
-					Type: ldJSONType,
-					Href: anchorURI,
-				},
-				{
-					Rel:  serviceRelation,
-					Type: ActivityJSONType,
-					Href: constructActivityPubURL(o.baseURL),
-				},
-			},
-		}
-
-		for _, discoveryDomain := range o.discoveryDomains {
-			resp.Links = append(resp.Links, Link{
-				Rel:  alternateRelation,
-				Type: didLDJSONType,
-				Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", resource),
-			})
-		}
-
-		writeResponse(rw, resp, http.StatusOK)
+		o.handleDIDOrbQuery(rw, resource)
+	// TODO (#536): Support resources other than did:orb.
 	default:
 		writeErrorResponse(rw, http.StatusNotFound, fmt.Sprintf("resource %s not found,", resource))
 	}
+}
+
+func (o *Operation) getAnchorInfo(resource string) (interface{}, string, error) {
+	// TODO (#537): Show IPFS alternates if configured.
+	metadata, err := o.resourceRegistry.GetResourceInfo(resource)
+	if err != nil {
+		return "", "", fmt.Errorf("get info for resource [%s]: %w", resource, err)
+	}
+
+	anchorOrigin, ok := metadata[registry.AnchorOriginProperty]
+	if !ok {
+		return "", "", fmt.Errorf("anchor origin property missing from metadata for resource [%s]", resource)
+	}
+
+	anchorURIRaw, ok := metadata[registry.AnchorURIProperty]
+	if !ok {
+		return "", "", fmt.Errorf("anchor URI property missing from metadata for resource [%s]", resource)
+	}
+
+	anchorURI, ok := anchorURIRaw.(string)
+	if !ok {
+		return "", "", fmt.Errorf("anchor URI could not be asserted as a string for resource [%s]", resource)
+	}
+
+	return anchorOrigin, anchorURI, nil
+}
+
+func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
+	anchorOrigin, anchorURI, err := o.getAnchorInfo(resource)
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError,
+			fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
+
+		return
+	}
+
+	resp := &JRD{
+		Properties: map[string]interface{}{
+			"https://trustbloc.dev/ns/anchor-origin": anchorOrigin,
+			minResolvers:                             o.discoveryMinimumResolvers,
+		},
+		Links: []Link{
+			{
+				Rel:  selfRelation,
+				Type: didLDJSONType,
+				Href: fmt.Sprintf("%s%s%s", o.baseURL, "/sidetree/v1/identifiers/", resource),
+			},
+			{
+				Rel:  viaRelation,
+				Type: ldJSONType,
+				Href: anchorURI,
+			},
+			{
+				Rel:  serviceRelation,
+				Type: ActivityJSONType,
+				Href: constructActivityPubURL(o.baseURL),
+			},
+		},
+	}
+
+	for _, discoveryDomain := range o.appendAlternateDomains(o.discoveryDomains, anchorURI) {
+		resp.Links = append(resp.Links, Link{
+			Rel:  alternateRelation,
+			Type: didLDJSONType,
+			Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", resource),
+		})
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
 }
 
 func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
@@ -318,18 +347,42 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 
 	cid := resourceSplitBySlash[len(resourceSplitBySlash)-1]
 
+	// Ensure that the CID is resolvable.
+	_, err := o.cas.Read(cid)
+	if err != nil {
+		if errors.Is(err, orberrors.ErrContentNotFound) {
+			logger.Debugf("CAS resource not found [%s]", cid)
+
+			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
+		} else {
+			logger.Warnf("Error returning CAS resource [%s]: %s", cid, err)
+
+			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
+		}
+
+		return
+	}
+
 	resp := &JRD{
 		Subject: resource,
 		Links: []Link{
-			{Rel: "self", Type: "application/ld+json", Href: resource},
-			{Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", o.baseURL, cid)},
+			{Rel: selfRelation, Type: ldJSONType, Href: resource},
 		},
 	}
 
+	// Add the local reference.
+	refs := []string{fmt.Sprintf("%s/cas/%s", o.baseURL, cid)}
+
+	// Add the references from the configured discovery domains.
 	for _, v := range o.discoveryDomains {
+		refs = append(refs, fmt.Sprintf("%s/cas/%s", v, cid))
+	}
+
+	// Add references from the anchor link storage.
+	for _, ref := range o.appendAlternateAnchorRefs(refs, cid) {
 		resp.Links = append(resp.Links,
 			Link{
-				Rel: "working-copy", Type: "application/ld+json", Href: fmt.Sprintf("%s/cas/%s", v, cid),
+				Rel: workingCopyRelation, Type: ldJSONType, Href: ref,
 			})
 	}
 
@@ -385,6 +438,105 @@ func (o *Operation) respondWithHostMetaJSON(rw http.ResponseWriter) {
 	writeResponse(rw, resp, http.StatusOK)
 }
 
+func (o *Operation) appendAlternateDomains(domains []string, anchorURI string) []string {
+	parser := hashlink.New()
+
+	anchorInfo, err := parser.ParseHashLink(anchorURI)
+	if err != nil {
+		logger.Infof("Error parsing hashlink for anchor URI  [%s]: %w", anchorURI, err)
+
+		return domains
+	}
+
+	alternates, err := o.anchorStore.GetLinks(anchorInfo.ResourceHash)
+	if err != nil {
+		logger.Infof("Error getting alternate links for anchor URI  [%s]: %w", anchorURI, err)
+
+		return domains
+	}
+
+	for _, domain := range getDomainsFromHashLinks(alternates) {
+		if !contains(domains, domain) {
+			domains = append(domains, domain)
+		}
+	}
+
+	return domains
+}
+
+func (o *Operation) appendAlternateAnchorRefs(refs []string, cidOrHash string) []string {
+	hash, e := multihash.CIDToMultihash(cidOrHash)
+	if e != nil {
+		hash = cidOrHash
+	} else if hash != cidOrHash {
+		logger.Debugf("Converted CID [%s] to multihash [%s]", cidOrHash, hash)
+	}
+
+	alternates, err := o.anchorStore.GetLinks(hash)
+	if err != nil {
+		// Not fatal.
+		logger.Warnf("Error retrieving additional links for resource [%s]: %s", cidOrHash, err)
+
+		return refs
+	}
+
+	parser := hashlink.New()
+
+	for _, hl := range alternates {
+		hlInfo, err := parser.ParseHashLink(hl.String())
+		if err != nil {
+			logger.Warnf("Error parsing hashlink [%s]: %s", hl, err)
+
+			continue
+		}
+
+		for _, l := range hlInfo.Links {
+			if !contains(refs, l) {
+				refs = append(refs, l)
+			}
+		}
+	}
+
+	return refs
+}
+
+func getDomainsFromHashLinks(hashLinks []*url.URL) []string {
+	parser := hashlink.New()
+
+	var domains []string
+
+	for _, hl := range hashLinks {
+		hlInfo, err := parser.ParseHashLink(hl.String())
+		if err != nil {
+			logger.Warnf("Error parsing hashlink [%s]: %s", hl, err)
+
+			continue
+		}
+
+		for _, l := range hlInfo.Links {
+			link, err := url.Parse(l)
+			if err != nil {
+				logger.Warnf("Error parsing additional anchor link [%s] for hash [%s]: %s",
+					l, hlInfo.ResourceHash, err)
+
+				continue
+			}
+
+			if !strings.EqualFold(link.Scheme, "https") {
+				continue
+			}
+
+			domain := fmt.Sprintf("https://%s", link.Host)
+
+			if !contains(domains, domain) {
+				domains = append(domains, domain)
+			}
+		}
+	}
+
+	return domains
+}
+
 // writeErrorResponse write error resp.
 func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
 	rw.Header().Add("Content-Type", "application/json")
@@ -438,4 +590,14 @@ func (h *httpHandler) Handler() common.HTTPRequestHandler {
 
 func constructActivityPubURL(baseURL string) string {
 	return fmt.Sprintf("%s%s", baseURL, "/services/orb")
+}
+
+func contains(strs []string, str string) bool {
+	for _, s := range strs {
+		if s == str {
+			return true
+		}
+	}
+
+	return false
 }

@@ -75,8 +75,10 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/anchor/handler/acknowlegement"
 	"github.com/trustbloc/orb/pkg/anchor/handler/credential"
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
+	"github.com/trustbloc/orb/pkg/anchor/linkstore"
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	policyhandler "github.com/trustbloc/orb/pkg/anchor/policy/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
@@ -607,6 +609,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
+	anchorLinkStore, err := linkstore.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("open store: %w", err)
+	}
+
 	// create new observer and start it
 	providers := &observer.Providers{
 		ProtocolClientProvider: pcp,
@@ -618,12 +625,15 @@ func startOrbServices(parameters *orbParameters) error {
 		WebFingerResolver:      resourceResolver,
 		CASResolver:            casResolver,
 		DocLoader:              orbDocumentLoader,
+		AnchorLinkStore:        anchorLinkStore,
 	}
 
 	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}
+
+	anchorEventHandler := acknowlegement.New(anchorLinkStore)
 
 	activityPubService, err = apservice.New(apConfig,
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
@@ -636,7 +646,7 @@ func startOrbServices(parameters *orbParameters) error {
 		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
 		// apspi.WithFollowerAuth(followerAuth),
 		// apspi.WithUndeliverableHandler(undeliverableHandler),
-		// apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
+		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
@@ -755,20 +765,25 @@ func startOrbServices(parameters *orbParameters) error {
 	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics.Get(), updateHandlerOpts...)
 
 	// create discovery rest api
-	endpointDiscoveryOp, err := discoveryrest.New(&discoveryrest.Config{
-		PubKey:                    pubKey,
-		VerificationMethodType:    verificationMethodType,
-		KID:                       parameters.keyID,
-		ResolutionPath:            baseResolvePath,
-		OperationPath:             baseUpdatePath,
-		WebCASPath:                casPath,
-		BaseURL:                   parameters.externalEndpoint,
-		DiscoveryDomains:          parameters.discoveryDomains,
-		DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
-		VctURL:                    parameters.vctURL,
-		DiscoveryVctDomains:       parameters.discoveryVctDomains,
-		ResourceRegistry:          resourceRegistry,
-	})
+	endpointDiscoveryOp, err := discoveryrest.New(
+		&discoveryrest.Config{
+			PubKey:                    pubKey,
+			VerificationMethodType:    verificationMethodType,
+			KID:                       parameters.keyID,
+			ResolutionPath:            baseResolvePath,
+			OperationPath:             baseUpdatePath,
+			WebCASPath:                casPath,
+			BaseURL:                   parameters.externalEndpoint,
+			DiscoveryDomains:          parameters.discoveryDomains,
+			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
+			VctURL:                    parameters.vctURL,
+			DiscoveryVctDomains:       parameters.discoveryVctDomains,
+		},
+		&discoveryrest.Providers{
+			ResourceRegistry: resourceRegistry,
+			CAS:              coreCASClient,
+			AnchorLinkStore:  anchorLinkStore,
+		})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)
 	}

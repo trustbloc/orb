@@ -969,36 +969,7 @@ type noOpAnchorEventAcknowledgementHandler struct{}
 func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Infof("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
-		actor, newHashLinkInfo(anchorRef), newHashLinkInfo(additionalAnchorRefs...))
+		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
 
 	return nil
-}
-
-type hashLinkInfo struct {
-	hl []*url.URL
-}
-
-func newHashLinkInfo(hl ...*url.URL) *hashLinkInfo {
-	return &hashLinkInfo{hl: hl}
-}
-
-func (hlInfo *hashLinkInfo) String() string {
-	str := ""
-
-	parser := hashlink.New()
-
-	for i, hl := range hlInfo.hl {
-		if i > 0 {
-			str += ", "
-		}
-
-		info, err := parser.ParseHashLink(hl.String())
-		if err != nil {
-			str += fmt.Sprintf("{INVALID HASHLINK [%s]}", hl)
-		} else {
-			str += fmt.Sprintf("{Hash [%s], Links %s}", info.ResourceHash, info.Links)
-		}
-	}
-
-	return str
 }

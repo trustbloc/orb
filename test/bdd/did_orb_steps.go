@@ -130,6 +130,8 @@ const docTemplate = `{
 
 // DIDOrbSteps
 type DIDOrbSteps struct {
+	state *state
+
 	namespace          string
 	createRequest      *model.CreateRequest
 	recoveryKey        *ecdsa.PrivateKey
@@ -154,6 +156,7 @@ type DIDOrbSteps struct {
 func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOrbSteps {
 	return &DIDOrbSteps{
 		bddContext:      context,
+		state:           state,
 		namespace:       namespace,
 		httpClient:      newHTTPClient(state, context),
 		didPrintEnabled: true,
@@ -289,6 +292,16 @@ func extractCIDAndSuffix(canonicalID string) (string, string, error) {
 	}
 
 	return parts[2], parts[3], nil
+}
+
+func (d *DIDOrbSteps) createDIDDocumentSaveIDToVar(url, varName string) error {
+	if err := d.createDIDDocument(url); err != nil {
+		return err
+	}
+
+	d.state.setVar(varName, d.interimDID)
+
+	return nil
 }
 
 func (d *DIDOrbSteps) createDIDDocument(url string) error {
@@ -1195,6 +1208,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to create DID document and the ID is saved to variable "([^"]*)"$`, d.createDIDDocumentSaveIDToVar)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)

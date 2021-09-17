@@ -216,6 +216,8 @@ func TestResolver_Resolve(t *testing.T) {
 		casClient := &resolvermocks.CASClient{}
 		casClient.ReadReturns([]byte(sampleData), nil)
 
+		linkStore := &orbmocks.AnchorLinkStore{}
+
 		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
 		require.NotNil(t, webCAS)
 
@@ -227,7 +229,9 @@ func TestResolver_Resolve(t *testing.T) {
 		testServer := httptest.NewServer(router)
 		defer testServer.Close()
 
-		operations, err := restapi.New(&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		operations, err := restapi.New(
+			&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&restapi.Providers{CAS: casClient, AnchorLinkStore: linkStore})
 		require.NoError(t, err)
 
 		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())
@@ -274,11 +278,15 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
+		linkStore := &orbmocks.AnchorLinkStore{}
+
 		rh, err := hashlink.GetResourceHashFromHashLink(hl)
 		require.NoError(t, err)
 
 		// remote server doesn't have cid (clean CAS)
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
+		webCAS := webcas.New(
+			&resthandler.Config{},
+			memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -289,7 +297,10 @@ func TestResolver_Resolve(t *testing.T) {
 		testServer := httptest.NewServer(router)
 		defer testServer.Close()
 
-		operations, err := restapi.New(&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		operations, err := restapi.New(
+			&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&restapi.Providers{CAS: casClient, AnchorLinkStore: linkStore},
+		)
 		require.NoError(t, err)
 
 		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())

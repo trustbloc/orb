@@ -8,15 +8,21 @@ package restapi_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
 
@@ -27,12 +33,28 @@ const (
 	nodeInfoEndpoint = "/.well-known/nodeinfo"
 )
 
-type mockResourceInfoProvider struct{}
+type mockResourceInfoProvider struct {
+	anchorOrigin string
+	anchorURI    string
+}
+
+func newMockResourceInfoProvider() *mockResourceInfoProvider {
+	return &mockResourceInfoProvider{
+		anchorOrigin: "MockAnchorOrigin",
+		anchorURI:    "MockAnchorURI",
+	}
+}
+
+func (m *mockResourceInfoProvider) withAnchorURI(value string) *mockResourceInfoProvider {
+	m.anchorURI = value
+
+	return m
+}
 
 func (m *mockResourceInfoProvider) GetResourceInfo(string) (registry.Metadata, error) {
 	return map[string]interface{}{
-		registry.AnchorOriginProperty: "MockAnchorOrigin",
-		registry.AnchorURIProperty:    "MockAnchorURI",
+		registry.AnchorOriginProperty: m.anchorOrigin,
+		registry.AnchorURIProperty:    m.anchorURI,
 	}, nil
 }
 
@@ -42,19 +64,19 @@ func (m *mockResourceInfoProvider) Accept(string) bool {
 
 func TestGetRESTHandlers(t *testing.T) {
 	t.Run("Error - invalid base URL", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "://"})
+		c, err := restapi.New(&restapi.Config{BaseURL: "://"}, nil)
 		require.EqualError(t, err, "parse base URL: parse \"://\": missing protocol scheme")
 		require.Nil(t, c)
 	})
 
 	t.Run("Error - empty WebCAS path", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com"})
+		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com"}, &restapi.Providers{})
 		require.EqualError(t, err, "webCAS path cannot be empty")
 		require.Nil(t, c)
 	})
 
 	t.Run("Success", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com", WebCASPath: "/cas"})
+		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com", WebCASPath: "/cas"}, &restapi.Providers{})
 		require.NoError(t, err)
 		require.Equal(t, 6, len(c.GetRESTHandlers()))
 	})
@@ -67,7 +89,7 @@ func TestWebFinger(t *testing.T) {
 			ResolutionPath: "/resolve",
 			WebCASPath:     "/cas",
 			BaseURL:        "http://base",
-		})
+		}, &restapi.Providers{})
 
 		require.NoError(t, err)
 
@@ -85,7 +107,7 @@ func TestWebFinger(t *testing.T) {
 			ResolutionPath: "/resolve",
 			WebCASPath:     "/cas",
 			BaseURL:        "http://base",
-		})
+		}, &restapi.Providers{})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -104,7 +126,7 @@ func TestWebFinger(t *testing.T) {
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
-		})
+		}, &restapi.Providers{})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -130,7 +152,7 @@ func TestWebFinger(t *testing.T) {
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
-		})
+		}, &restapi.Providers{})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -149,6 +171,14 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test WebCAS resource", func(t *testing.T) {
+		casClient := &mocks.CASClient{}
+
+		linkStore := &orbmocks.AnchorLinkStore{}
+		linkStore.GetLinksReturns([]*url.URL{
+			testutil.MustParseURL(
+				"hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg"), //nolint:lll
+		}, nil)
+
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
@@ -156,30 +186,119 @@ func TestWebFinger(t *testing.T) {
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
+		}, &restapi.Providers{
+			CAS:             casClient,
+			AnchorLinkStore: linkStore,
 		})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
-			"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
+		t.Run("Success with CID", func(t *testing.T) {
+			casClient.ReadReturns(nil, nil)
 
-		require.Equal(t, http.StatusOK, rr.Code)
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
 
-		var w restapi.JRD
+			require.Equal(t, http.StatusOK, rr.Code)
 
-		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
-		require.Len(t, w.Links, 3)
-		require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-			w.Links[0].Href)
-		require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-			w.Links[1].Href)
-		require.Equal(t, "http://domain1/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-			w.Links[2].Href)
-		require.Empty(t, w.Properties)
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+			require.Len(t, w.Links, 4)
+			require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+				w.Links[0].Href)
+			require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+				w.Links[1].Href)
+			require.Equal(t, "http://domain1/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
+				w.Links[2].Href)
+			require.Equal(t, "ipfs://Qmcq6JWDUkyxehq7RVZkP3NviE4HqRunRjX39vuLvEHaQN",
+				w.Links[3].Href)
+			require.Empty(t, w.Properties)
+		})
+
+		t.Run("Success with multihash", func(t *testing.T) {
+			casClient.ReadReturns(nil, nil)
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g", nil, nil, false)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+			require.Len(t, w.Links, 4)
+			require.Equal(t, "http://base/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
+				w.Links[0].Href)
+			require.Equal(t, "http://base/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
+				w.Links[1].Href)
+			require.Equal(t, "http://domain1/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
+				w.Links[2].Href)
+			require.Equal(t, "ipfs://Qmcq6JWDUkyxehq7RVZkP3NviE4HqRunRjX39vuLvEHaQN",
+				w.Links[3].Href)
+			require.Empty(t, w.Properties)
+		})
+
+		t.Run("Resource not found", func(t *testing.T) {
+			casClient.ReadReturns(nil, orberrors.ErrContentNotFound)
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
+
+			require.Equal(t, http.StatusNotFound, rr.Code)
+		})
+
+		t.Run("CAS error", func(t *testing.T) {
+			casClient.ReadReturns(nil, errors.New("injected CAS client error"))
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
+
+			require.Equal(t, http.StatusInternalServerError, rr.Code)
+		})
+
+		t.Run("Anchor link storage error", func(t *testing.T) {
+			casClient.ReadReturns(nil, nil)
+			linkStore.GetLinksReturns(nil, errors.New("injected storage error"))
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+			// The alternate link won't be included due to a storage error, but it should still return results.
+			require.Len(t, w.Links, 3)
+		})
+
+		t.Run("Invalid alternate hashlink", func(t *testing.T) {
+			casClient.ReadReturns(nil, nil)
+			linkStore.GetLinksReturns([]*url.URL{testutil.MustParseURL("xl:xxx")}, nil)
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y", nil, nil, false)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+			// The alternate link won't be included due to a storage error, but it should still return results.
+			require.Len(t, w.Links, 3)
+		})
 	})
 
 	t.Run("test did:orb resource", func(t *testing.T) {
+		const anchorURI = "hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg" //nolint:lll
+
+		linkStore := &orbmocks.AnchorLinkStore{}
+		resourceInfoProvider := newMockResourceInfoProvider().withAnchorURI(anchorURI)
+
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
@@ -189,43 +308,102 @@ func TestWebFinger(t *testing.T) {
 			DiscoveryVctDomains:       []string{"http://vct.com/maple2019"},
 			DiscoveryMinimumResolvers: 2,
 			VctURL:                    "http://vct.com/maple2020",
-			ResourceRegistry:          registry.New(registry.WithResourceInfoProvider(&mockResourceInfoProvider{})),
+		}, &restapi.Providers{
+			ResourceRegistry: registry.New(registry.WithResourceInfoProvider(resourceInfoProvider)),
+			AnchorLinkStore:  linkStore,
 		})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
-			"?resource=did:orb:suffix", nil, nil, false)
+		t.Run("Success", func(t *testing.T) {
+			resourceInfoProvider.withAnchorURI(anchorURI)
 
-		require.Equal(t, http.StatusOK, rr.Code)
+			linkStore.GetLinksReturns([]*url.URL{
+				testutil.MustParseURL(
+					"hl:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQlVRRFJJNXR0SXpYYmUxTFpLVWFaV2I2eUZzbk1ucmdEa3NBdFEtd0NhS3c"), //nolint:lll
+			}, nil)
 
-		var w restapi.JRD
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=did:orb:suffix", nil, nil, false)
 
-		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+			require.Equal(t, http.StatusOK, rr.Code)
 
-		require.Len(t, w.Properties, 2)
+			var w restapi.JRD
 
-		require.Equal(t, "MockAnchorOrigin", w.Properties["https://trustbloc.dev/ns/anchor-origin"])
-		require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 
-		require.Len(t, w.Links, 4)
+			require.Len(t, w.Properties, 2)
 
-		require.Equal(t, "self", w.Links[0].Rel)
-		require.Equal(t, "application/did+ld+json", w.Links[0].Type)
-		require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:suffix", w.Links[0].Href)
+			require.Equal(t, "MockAnchorOrigin", w.Properties["https://trustbloc.dev/ns/anchor-origin"])
+			require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
 
-		require.Equal(t, "via", w.Links[1].Rel)
-		require.Equal(t, "application/ld+json", w.Links[1].Type)
-		require.Equal(t, "MockAnchorURI", w.Links[1].Href)
+			require.Len(t, w.Links, 5)
 
-		require.Equal(t, "service", w.Links[2].Rel)
-		require.Equal(t, "application/activity+json", w.Links[2].Type)
-		require.Equal(t, "http://base/services/orb", w.Links[2].Href)
+			require.Equal(t, "self", w.Links[0].Rel)
+			require.Equal(t, "application/did+ld+json", w.Links[0].Type)
+			require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:suffix", w.Links[0].Href)
 
-		require.Equal(t, "alternate", w.Links[3].Rel)
-		require.Equal(t, "application/did+ld+json", w.Links[3].Type)
-		require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:suffix", w.Links[3].Href)
+			require.Equal(t, "via", w.Links[1].Rel)
+			require.Equal(t, "application/ld+json", w.Links[1].Type)
+			require.Equal(t, anchorURI, w.Links[1].Href)
+
+			require.Equal(t, "service", w.Links[2].Rel)
+			require.Equal(t, "application/activity+json", w.Links[2].Type)
+			require.Equal(t, "http://base/services/orb", w.Links[2].Href)
+
+			require.Equal(t, "alternate", w.Links[3].Rel)
+			require.Equal(t, "application/did+ld+json", w.Links[3].Type)
+			require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:suffix", w.Links[3].Href)
+
+			require.Equal(t, "alternate", w.Links[4].Rel)
+			require.Equal(t, "application/did+ld+json", w.Links[4].Type)
+			require.Equal(t, "https://orb.domain2.com/sidetree/v1/identifiers/did:orb:suffix", w.Links[4].Href)
+		})
+
+		t.Run("Invalid hashlink for anchor URI", func(t *testing.T) {
+			resourceInfoProvider.withAnchorURI("https://xxx")
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=did:orb:suffix", nil, nil, false)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+			require.Len(t, w.Properties, 2)
+
+			require.Equal(t, "MockAnchorOrigin", w.Properties["https://trustbloc.dev/ns/anchor-origin"])
+			require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
+
+			// The alternate link won't be included due to a parse error, but it should still return results.
+			require.Len(t, w.Links, 4)
+		})
+
+		t.Run("Anchor link storage error", func(t *testing.T) {
+			resourceInfoProvider.withAnchorURI(anchorURI)
+
+			linkStore.GetLinksReturns(nil, errors.New("injected storage error"))
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=did:orb:suffix", nil, nil, false)
+
+			require.Equal(t, http.StatusOK, rr.Code)
+
+			var w restapi.JRD
+
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+			require.Len(t, w.Properties, 2)
+
+			require.Equal(t, "MockAnchorOrigin", w.Properties["https://trustbloc.dev/ns/anchor-origin"])
+			require.Equal(t, float64(2), w.Properties["https://trustbloc.dev/ns/min-resolvers"])
+
+			// The alternate link won't be included due to a storage error, but it should still return results.
+			require.Len(t, w.Links, 4)
+		})
 	})
 }
 
@@ -240,7 +418,7 @@ func TestHostMeta(t *testing.T) {
 				DiscoveryDomains:          []string{"http://domain1"},
 				VctURL:                    "http://vct",
 				DiscoveryMinimumResolvers: 2,
-			})
+			}, &restapi.Providers{})
 			require.NoError(t, err)
 
 			handler := getHandler(t, c, hostMetaEndpoint)
@@ -279,7 +457,7 @@ func TestHostMeta(t *testing.T) {
 				DiscoveryDomains:          []string{"http://domain1"},
 				VctURL:                    "http://vct",
 				DiscoveryMinimumResolvers: 2,
-			})
+			}, &restapi.Providers{})
 			require.NoError(t, err)
 
 			handler := getHandler(t, c, restapi.HostMetaJSONEndpoint)
@@ -319,7 +497,7 @@ func TestHostMeta(t *testing.T) {
 			DiscoveryDomains:          []string{"http://domain1"},
 			VctURL:                    "http://vct",
 			DiscoveryMinimumResolvers: 2,
-		})
+		}, &restapi.Providers{})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, hostMetaEndpoint)
@@ -343,7 +521,7 @@ func TestWellKnownDID(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
 		BaseURL:    "https://example.com",
 		WebCASPath: "/cas",
-	})
+	}, &restapi.Providers{})
 	require.NoError(t, err)
 
 	handler := getHandler(t, c, webDIDEndpoint)
@@ -365,7 +543,7 @@ func TestWellKnown(t *testing.T) {
 		ResolutionPath: "/resolve",
 		WebCASPath:     "/cas",
 		BaseURL:        "http://base",
-	})
+	}, &restapi.Providers{})
 	require.NoError(t, err)
 
 	handler := getHandler(t, c, didOrbEndpoint)
@@ -387,7 +565,7 @@ func TestWellKnownNodeInfo(t *testing.T) {
 		ResolutionPath: "/resolve",
 		WebCASPath:     "/cas",
 		BaseURL:        "http://base",
-	})
+	}, &restapi.Providers{})
 	require.NoError(t, err)
 
 	handler := getHandler(t, c, nodeInfoEndpoint)

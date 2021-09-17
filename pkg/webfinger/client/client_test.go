@@ -19,7 +19,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
 func TestNew(t *testing.T) {
@@ -244,7 +246,10 @@ func TestResolveWebFingerResource(t *testing.T) {
 		testServer := httptest.NewServer(router)
 		defer testServer.Close()
 
-		operations, err := discoveryrest.New(&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		operations, err := discoveryrest.New(
+			&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&discoveryrest.Providers{CAS: &mocks.CASClient{}, AnchorLinkStore: &orbmocks.AnchorLinkStore{}},
+		)
 		require.NoError(t, err)
 
 		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())
@@ -323,7 +328,10 @@ func TestGetWebCASURL(t *testing.T) {
 		testServer := httptest.NewServer(router)
 		defer testServer.Close()
 
-		operations, err := discoveryrest.New(&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"})
+		operations, err := discoveryrest.New(
+			&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&discoveryrest.Providers{CAS: &mocks.CASClient{}, AnchorLinkStore: &orbmocks.AnchorLinkStore{}},
+		)
 		require.NoError(t, err)
 
 		router.HandleFunc(operations.GetRESTHandlers()[1].Path(), operations.GetRESTHandlers()[1].Handler())

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -40,6 +41,12 @@ import (
 )
 
 //go:generate counterfeiter -o ../mocks/anchorgraph.gen.go --fake-name AnchorGraph . AnchorGraph
+//go:generate counterfeiter -o ../mocks/anchorlinkstore.gen.go --fake-name AnchorLinkStore . linkStore
+
+type linkStore interface { //nolint:deadcode,unused
+	PutLinks(links []*url.URL) error
+	GetLinks(anchorHash string) ([]*url.URL, error)
+}
 
 const casLink = "https://domain.com/cas"
 
@@ -163,6 +170,7 @@ func TestStartObserver(t *testing.T) {
 			WebFingerResolver:      &apmocks.WebFingerResolver{},
 			CASResolver:            casResolver,
 			DocLoader:              testutil.GetLoader(t),
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))
