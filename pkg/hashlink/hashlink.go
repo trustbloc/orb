@@ -9,6 +9,7 @@ package hashlink
 import (
 	"encoding/base64"
 	"fmt"
+	"net/url"
 	"strings"
 
 	cbor "github.com/fxamacker/cbor/v2"
@@ -279,4 +280,26 @@ func (hl *HashLink) isValidMultihash(encodedMultihash string) error {
 	}
 
 	return nil
+}
+
+// ToString parses the given hashlink(s) and returns a human-readable form.
+func ToString(hl ...*url.URL) string {
+	str := ""
+
+	parser := New()
+
+	for i, hl := range hl {
+		if i > 0 {
+			str += ", "
+		}
+
+		info, err := parser.ParseHashLink(hl.String())
+		if err != nil {
+			str += fmt.Sprintf("{INVALID HASHLINK [%s]}", hl)
+		} else {
+			str += fmt.Sprintf("{Hash [%s], Links %s}", info.ResourceHash, info.Links)
+		}
+	}
+
+	return str
 }

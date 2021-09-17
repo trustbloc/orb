@@ -86,6 +86,10 @@ type documentLoader interface {
 	LoadDocument(u string) (*ld.RemoteDocument, error)
 }
 
+type anchorLinkStore interface {
+	PutLinks(links []*url.URL) error
+}
+
 type outboxProvider func() Outbox
 
 // Option is an option for observer.
@@ -109,6 +113,7 @@ type Providers struct {
 	WebFingerResolver resourceResolver
 	CASResolver       casResolver
 	DocLoader         documentLoader
+	AnchorLinkStore   anchorLinkStore
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -297,7 +302,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		len(anchorPayload.PreviousAnchors), anchor.Hashlink, anchorPayload.CoreIndex)
 
 	// Post a 'Like' activity to the originator of the anchor credential.
-	err = o.postLikeActivity(anchor)
+	err = o.saveAnchorLinkAndPostLikeActivity(anchor)
 	if err != nil {
 		// This is not a critical error. We have already processed the anchor, so we don't want
 		// to trigger a retry by returning a transient error. Just log a warning.
@@ -307,7 +312,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	return nil
 }
 
-func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
+func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 	if anchor.AttributedTo == "" {
 		logger.Debugf("Not posting 'Like' activity since no attributedTo ID was specified for anchor [%s]",
 			anchor.Hashlink)
@@ -325,19 +330,15 @@ func (o *Observer) postLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 		return fmt.Errorf("parse origin [%s]: %w", anchor.AttributedTo, err)
 	}
 
-	var result *vocab.ObjectProperty
+	err = o.saveAnchorHashlink(refURL)
+	if err != nil {
+		// Not fatal.
+		logger.Warnf("Error saving anchor link [%s]: %s", refURL, err)
+	}
 
-	if anchor.LocalHashlink != "" {
-		u, e := url.Parse(anchor.LocalHashlink)
-		if e != nil {
-			return fmt.Errorf("parse local hashlink [%s]: %w", anchor.LocalHashlink, e)
-		}
-
-		result = vocab.NewObjectProperty(vocab.WithAnchorReference(
-			vocab.NewAnchorReferenceWithOpts(
-				vocab.WithURL(u),
-			)),
-		)
+	result, err := newLikeResult(anchor.LocalHashlink)
+	if err != nil {
+		return fmt.Errorf("new like result for local hashlink: %w", err)
 	}
 
 	err = o.doPostLikeActivity(attributedTo, refURL, result)
@@ -421,6 +422,19 @@ func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
 	return actor, nil
 }
 
+// saveAnchorHashlink saves the hashlink of an anchor credential so that it may be returned
+// in a WebFinger query as an alternate link.
+func (o *Observer) saveAnchorHashlink(ref *url.URL) error {
+	err := o.AnchorLinkStore.PutLinks([]*url.URL{ref})
+	if err != nil {
+		return fmt.Errorf("put anchor link [%s]: %w", ref, err)
+	}
+
+	logger.Debugf("Saved anchor link [%s]", ref)
+
+	return nil
+}
+
 func getKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -428,4 +442,21 @@ func getKeys(m map[string]string) []string {
 	}
 
 	return keys
+}
+
+func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {
+	if hashLink == "" {
+		return nil, nil
+	}
+
+	u, e := url.Parse(hashLink)
+	if e != nil {
+		return nil, fmt.Errorf("parse hashlink [%s]: %w", hashLink, e)
+	}
+
+	return vocab.NewObjectProperty(vocab.WithAnchorReference(
+		vocab.NewAnchorReferenceWithOpts(
+			vocab.WithURL(u),
+		)),
+	), nil
 }

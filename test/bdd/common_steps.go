@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -232,6 +233,31 @@ func (d *CommonSteps) jsonPathOfResponseContains(path, expected string) error {
 	}
 
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Array(), expected)
+}
+
+func (d *CommonSteps) jsonPathOfResponseContainsRegEx(path, pattern string) error {
+	resolvedRegEx, err := d.state.resolveVars(pattern)
+	if err != nil {
+		return err
+	}
+
+	regEx, err := regexp.Compile(resolvedRegEx.(string))
+	if err != nil {
+		return err
+	}
+
+	r := gjson.Get(d.state.getResponse(), path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, d.state.getResponse(), r.Raw)
+
+	for _, a := range r.Array() {
+		if regEx.MatchString(a.Str) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("JSON path resolves to [%s] which does not match the regular expression [%s]",
+		r.Array(), pattern)
 }
 
 func (d *CommonSteps) jsonPathOfResponseNotContains(path, notExpected string) error {
@@ -880,6 +906,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfResponseHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfResponseContains)
+	s.Step(`^the JSON path "([^"]*)" of the response contains expression "([^"]*)"$`, d.jsonPathOfResponseContainsRegEx)
 	s.Step(`^the JSON path "([^"]*)" of the response does not contain "([^"]*)"$`, d.jsonPathOfResponseNotContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)

@@ -171,9 +171,7 @@ func (p *CAS) Read(address string) ([]byte, error) {
 func (p *CAS) get(address string) ([]byte, error) {
 	startTime := time.Now()
 
-	defer func() {
-		p.metrics.CASReadTime(casType, time.Since(startTime))
-	}()
+	defer p.metrics.CASReadTime(casType, time.Since(startTime))
 
 	content, err := p.cas.Get(address)
 	if err != nil {

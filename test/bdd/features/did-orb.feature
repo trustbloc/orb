@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@all
 @did-orb
 Feature:
   Background: Setup
@@ -55,6 +54,7 @@ Feature:
 
     Then we wait 3 seconds
 
+    @all
     @discover_did_hashlink
     Scenario: discover did (hashlink)
       When client discover orb endpoints
@@ -91,6 +91,7 @@ Feature:
       Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
 
+    @all
     @discover_did_https
     Scenario: discover did (https)
       When client discover orb endpoints
@@ -127,6 +128,7 @@ Feature:
       Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
 
+    @all
     @follow_anchor_writer_domain1
     Scenario: domain2 server follows domain1 server (anchor writer)
 
@@ -143,6 +145,7 @@ Feature:
       When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "#canonicalDID"
 
+    @all
     @follow_anchor_writer_domain2
     Scenario: domain1 server follows domain2 server (anchor writer)
 
@@ -163,6 +166,7 @@ Feature:
       When client sends request to "https://orb2.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "#canonicalDID"
 
+    @all
     @concurrent_requests_scenario
     Scenario: concurrent requests plus server shutdown tests
 
@@ -235,6 +239,7 @@ Feature:
      Then the JSON path "orderedItems.#" of the response has 1 items
      And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
 
+    @all
     @enable_create_document_store_interim
     Scenario: domain4 has create document store enabled (interim DID)
 
@@ -250,6 +255,7 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
 
+    @all
     @enable_create_document_store_interim_with_hint
     Scenario: domain4 has create document store enabled (interim DID with hint)
 
@@ -259,6 +265,7 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain4.com"
       Then check success response does NOT contain "canonicalId"
 
+    @all
     @enable_update_document_store
     Scenario: domain4 has update document store enabled
 
@@ -297,3 +304,14 @@ Feature:
       # resolve second update right away
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "secondKey"
+
+  @local_cas
+  @alternate_links_scenario
+  Scenario: WebFinger query returns alternate links for "Liked" anchor credentials
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document and the ID is saved to variable "didID"
+    Then we wait 3 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=${didID}"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain2\.com.*"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"

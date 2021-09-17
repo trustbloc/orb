@@ -13,6 +13,8 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	cbor "github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const (
@@ -344,6 +346,16 @@ func TestGetResourceHashFromHashLink(t *testing.T) {
 		require.Contains(t, err.Error(), "hashlink[hl-resource] must start with 'hl:' prefix")
 		require.Empty(t, rh)
 	})
+}
+
+func TestToString(t *testing.T) {
+	const (
+		hl1 = "hl:uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzhlN1hodHlTSzFsWVZMVElpQWk2NkZBRW1teGRpdTJfRXdWa0pZVGxzTHd4QmlwZnM6Ly9iYWZrcmVpZjRwbzI2ZG56ZXJsbGZtZmpuZ2lyYWVsdjJjcWFzbmd5eG1rNXc3cmdibGVld2NvbG1mNA" //nolint:lll
+		hl2 = "xx:xxx"
+	)
+
+	str := ToString(testutil.MustParseURL(hl1), testutil.MustParseURL(hl2))
+	require.Equal(t, "{Hash [uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw], Links [https://orb.domain1.com/cas/uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw ipfs://bafkreif4po26dnzerllfmfjngiraelv2cqasngyxmk5w7rgbleewcolmf4]}, {INVALID HASHLINK [xx:xxx]}", str) //nolint:lll
 }
 
 var base58Encoder = func(data []byte) string {

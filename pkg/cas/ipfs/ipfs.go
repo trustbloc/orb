@@ -168,9 +168,7 @@ func (m *Client) Read(cidOrHash string) ([]byte, error) {
 func (m *Client) get(cid string) ([]byte, error) {
 	startTime := time.Now()
 
-	defer func() {
-		m.metrics.CASReadTime(casType, time.Since(startTime))
-	}()
+	defer m.metrics.CASReadTime(casType, time.Since(startTime))
 
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
