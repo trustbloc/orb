@@ -64,6 +64,10 @@ type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)
 }
 
+type anchorInfoRetriever interface {
+	GetAnchorInfo(resource string) (*AnchorInfo, error)
+}
+
 // New returns discovery operations.
 func New(c *Config, p *Providers) (*Operation, error) {
 	u, err := url.Parse(c.BaseURL)
@@ -89,7 +93,7 @@ func New(c *Config, p *Providers) (*Operation, error) {
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
 		discoveryVctDomains:       c.DiscoveryVctDomains,
-		resourceRegistry:          p.ResourceRegistry,
+		anchorInfoRetriever:       NewAnchorInfoRetriever(p.ResourceRegistry),
 		cas:                       p.CAS,
 		anchorStore:               p.AnchorLinkStore,
 	}, nil
@@ -97,6 +101,8 @@ func New(c *Config, p *Providers) (*Operation, error) {
 
 // Operation defines handlers for discovery operations.
 type Operation struct {
+	anchorInfoRetriever
+
 	pubKey                    []byte
 	kid                       string
 	host                      string
@@ -109,7 +115,6 @@ type Operation struct {
 	discoveryDomains          []string
 	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
-	resourceRegistry          *registry.Registry
 	cas                       cas
 	anchorStore               anchorLinkStore
 }
@@ -273,33 +278,8 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 	}
 }
 
-func (o *Operation) getAnchorInfo(resource string) (interface{}, string, error) {
-	// TODO (#537): Show IPFS alternates if configured.
-	metadata, err := o.resourceRegistry.GetResourceInfo(resource)
-	if err != nil {
-		return "", "", fmt.Errorf("get info for resource [%s]: %w", resource, err)
-	}
-
-	anchorOrigin, ok := metadata[registry.AnchorOriginProperty]
-	if !ok {
-		return "", "", fmt.Errorf("anchor origin property missing from metadata for resource [%s]", resource)
-	}
-
-	anchorURIRaw, ok := metadata[registry.AnchorURIProperty]
-	if !ok {
-		return "", "", fmt.Errorf("anchor URI property missing from metadata for resource [%s]", resource)
-	}
-
-	anchorURI, ok := anchorURIRaw.(string)
-	if !ok {
-		return "", "", fmt.Errorf("anchor URI could not be asserted as a string for resource [%s]", resource)
-	}
-
-	return anchorOrigin, anchorURI, nil
-}
-
 func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
-	anchorOrigin, anchorURI, err := o.getAnchorInfo(resource)
+	anchorInfo, err := o.GetAnchorInfo(resource)
 	if err != nil {
 		writeErrorResponse(rw, http.StatusInternalServerError,
 			fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
@@ -307,21 +287,23 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 		return
 	}
 
+	did := getCanonicalDID(resource, anchorInfo.CanonicalReference)
+
 	resp := &JRD{
 		Properties: map[string]interface{}{
-			"https://trustbloc.dev/ns/anchor-origin": anchorOrigin,
+			"https://trustbloc.dev/ns/anchor-origin": anchorInfo.AnchorOrigin,
 			minResolvers:                             o.discoveryMinimumResolvers,
 		},
 		Links: []Link{
 			{
 				Rel:  selfRelation,
 				Type: didLDJSONType,
-				Href: fmt.Sprintf("%s%s%s", o.baseURL, "/sidetree/v1/identifiers/", resource),
+				Href: fmt.Sprintf("%s%s%s", o.baseURL, "/sidetree/v1/identifiers/", did),
 			},
 			{
 				Rel:  viaRelation,
 				Type: ldJSONType,
-				Href: anchorURI,
+				Href: anchorInfo.AnchorURI,
 			},
 			{
 				Rel:  serviceRelation,
@@ -331,11 +313,11 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 		},
 	}
 
-	for _, discoveryDomain := range o.appendAlternateDomains(o.discoveryDomains, anchorURI) {
+	for _, discoveryDomain := range o.appendAlternateDomains(o.discoveryDomains, anchorInfo.AnchorURI) {
 		resp.Links = append(resp.Links, Link{
 			Rel:  alternateRelation,
 			Type: didLDJSONType,
-			Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", resource),
+			Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", did),
 		})
 	}
 
@@ -600,4 +582,15 @@ func contains(strs []string, str string) bool {
 	}
 
 	return false
+}
+
+func getCanonicalDID(resource, canonicalRef string) string {
+	if canonicalRef != "" {
+		i := strings.LastIndex(resource, ":")
+		if i > 0 {
+			return fmt.Sprintf("did:orb:%s:%s", canonicalRef, resource[i+1:])
+		}
+	}
+
+	return resource
 }

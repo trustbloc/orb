@@ -76,6 +76,7 @@ func (h *DidAnchorInfo) GetResourceInfo(did string) (registry.Metadata, error) {
 	info := make(registry.Metadata)
 	info[registry.AnchorURIProperty] = anchor
 	info[registry.AnchorOriginProperty] = resolutionResult.AnchorOrigin
+	info[registry.CanonicalReferenceProperty] = resolutionResult.CanonicalReference
 
 	logger.Debugf("latest anchor info for suffix[%s]: %+v", suffix, info)
 

@@ -34,8 +34,10 @@ const (
 )
 
 type mockResourceInfoProvider struct {
-	anchorOrigin string
-	anchorURI    string
+	anchorOrigin interface{}
+	anchorURI    interface{}
+	canonicalRef interface{}
+	err          error
 }
 
 func newMockResourceInfoProvider() *mockResourceInfoProvider {
@@ -45,17 +47,50 @@ func newMockResourceInfoProvider() *mockResourceInfoProvider {
 	}
 }
 
-func (m *mockResourceInfoProvider) withAnchorURI(value string) *mockResourceInfoProvider {
+func (m *mockResourceInfoProvider) withAnchorOrigin(value interface{}) *mockResourceInfoProvider {
+	m.anchorOrigin = value
+
+	return m
+}
+
+func (m *mockResourceInfoProvider) withAnchorURI(value interface{}) *mockResourceInfoProvider {
 	m.anchorURI = value
 
 	return m
 }
 
+func (m *mockResourceInfoProvider) withCanonicalRef(value interface{}) *mockResourceInfoProvider {
+	m.canonicalRef = value
+
+	return m
+}
+
+func (m *mockResourceInfoProvider) withError(err error) *mockResourceInfoProvider {
+	m.err = err
+
+	return m
+}
+
 func (m *mockResourceInfoProvider) GetResourceInfo(string) (registry.Metadata, error) {
-	return map[string]interface{}{
-		registry.AnchorOriginProperty: m.anchorOrigin,
-		registry.AnchorURIProperty:    m.anchorURI,
-	}, nil
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	metadata := make(map[string]interface{})
+
+	if m.anchorOrigin != nil {
+		metadata[registry.AnchorOriginProperty] = m.anchorOrigin
+	}
+
+	if m.anchorURI != nil {
+		metadata[registry.AnchorURIProperty] = m.anchorURI
+	}
+
+	if m.canonicalRef != nil {
+		metadata[registry.CanonicalReferenceProperty] = m.canonicalRef
+	}
+
+	return metadata, nil
 }
 
 func (m *mockResourceInfoProvider) Accept(string) bool {
@@ -317,7 +352,11 @@ func TestWebFinger(t *testing.T) {
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
 		t.Run("Success", func(t *testing.T) {
-			resourceInfoProvider.withAnchorURI(anchorURI)
+			const canonicalRef = "uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw"
+
+			resourceInfoProvider.
+				withAnchorURI(anchorURI).
+				withCanonicalRef(canonicalRef)
 
 			linkStore.GetLinksReturns([]*url.URL{
 				testutil.MustParseURL(
@@ -325,7 +364,7 @@ func TestWebFinger(t *testing.T) {
 			}, nil)
 
 			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
-				"?resource=did:orb:suffix", nil, nil, false)
+				"?resource=did:orb:uAAA:suffix", nil, nil, false)
 
 			require.Equal(t, http.StatusOK, rr.Code)
 
@@ -342,7 +381,8 @@ func TestWebFinger(t *testing.T) {
 
 			require.Equal(t, "self", w.Links[0].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[0].Type)
-			require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:suffix", w.Links[0].Href)
+			require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+				w.Links[0].Href)
 
 			require.Equal(t, "via", w.Links[1].Rel)
 			require.Equal(t, "application/ld+json", w.Links[1].Type)
@@ -354,11 +394,13 @@ func TestWebFinger(t *testing.T) {
 
 			require.Equal(t, "alternate", w.Links[3].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[3].Type)
-			require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:suffix", w.Links[3].Href)
+			require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+				w.Links[3].Href)
 
 			require.Equal(t, "alternate", w.Links[4].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[4].Type)
-			require.Equal(t, "https://orb.domain2.com/sidetree/v1/identifiers/did:orb:suffix", w.Links[4].Href)
+			require.Equal(t, "https://orb.domain2.com/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+				w.Links[4].Href)
 		})
 
 		t.Run("Invalid hashlink for anchor URI", func(t *testing.T) {
@@ -403,6 +445,15 @@ func TestWebFinger(t *testing.T) {
 
 			// The alternate link won't be included due to a storage error, but it should still return results.
 			require.Len(t, w.Links, 4)
+		})
+
+		t.Run("Anchor info retriever error", func(t *testing.T) {
+			resourceInfoProvider.withAnchorURI(1000)
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=did:orb:suffix", nil, nil, false)
+
+			require.Equal(t, http.StatusInternalServerError, rr.Code)
 		})
 	})
 }

@@ -77,4 +77,7 @@ const (
 
 	// AnchorURIProperty is anchor URI key.
 	AnchorURIProperty = "anchorURI"
+
+	// CanonicalReferenceProperty is the canonical reference key.
+	CanonicalReferenceProperty = "canonicalReference"
 )
