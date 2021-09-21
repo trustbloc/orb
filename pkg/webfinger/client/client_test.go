@@ -260,10 +260,9 @@ func TestResolveWebFingerResource(t *testing.T) {
 			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
 		require.NoError(t, err)
 
-		require.Len(t, webFingerResponse.Links, 2)
-		require.Equal(t,
-			fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webFingerResponse.Links[0].Href)
-		require.Equal(t, fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webFingerResponse.Links[1].Href)
+		require.Len(t, webFingerResponse.Links, 1)
+		require.Equal(t, "self", webFingerResponse.Links[0].Rel)
+		require.Equal(t, fmt.Sprintf("%s/cas/SomeCID", testServer.URL), webFingerResponse.Links[0].Href)
 		require.Empty(t, webFingerResponse.Properties)
 	})
 	t.Run("Fail to do GET call", func(t *testing.T) {
@@ -357,7 +356,7 @@ func TestGetWebCASURL(t *testing.T) {
 
 		router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
 			webFingerResponse := discoveryrest.JRD{Links: []discoveryrest.Link{
-				{Rel: "working-copy", Href: "%"},
+				{Rel: "self", Href: "%"},
 			}}
 			webFingerResponseBytes, errMarshal := json.Marshal(webFingerResponse)
 			require.NoError(t, errMarshal)
