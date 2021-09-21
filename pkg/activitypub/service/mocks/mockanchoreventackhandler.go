@@ -41,6 +41,21 @@ func (m *AnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, ancho
 	return m.err
 }
 
+// UndoAnchorEventAcknowledgement undoes the acknowledgement of an anchor event processed from an Orb server.
+func (m *AnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
+	additionalAnchorRefs []*url.URL) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	for i, anchor := range m.anchors {
+		if anchor.String() == anchorRef.String() {
+			m.anchors = append(m.anchors[0:i], m.anchors[i+1:]...)
+		}
+	}
+
+	return m.err
+}
+
 // Anchors returns the anchors that were added to this mock.
 func (m *AnchorEventAcknowledgementHandler) Anchors() []*url.URL {
 	m.mutex.Lock()

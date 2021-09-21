@@ -193,3 +193,49 @@ func TestStore_GetLinks(t *testing.T) {
 		require.False(t, orberrors.IsTransient(err))
 	})
 }
+
+func TestStore_DeleteLinks(t *testing.T) {
+	provider := storage.NewMockStoreProvider()
+
+	s, err := New(provider)
+	require.NoError(t, err)
+	require.NotNil(t, s)
+
+	t.Run("Success", func(t *testing.T) {
+		const hash1 = "uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ"
+		const hash2 = "uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw"
+
+		link1 := fmt.Sprintf("hl:%s:uoQ-BeEtodmdEa3NBdFEtd0NhS3c", hash1)
+		link2 := fmt.Sprintf("hl:%s:uoQ-BeEtodzZ4OVhtYkNTZjRfTWc", hash1)
+		link3 := fmt.Sprintf("hl:%s:uoQ-BeEtodmdEa3NBdFEtd0NhS3c", hash2)
+
+		require.NoError(t, s.DeleteLinks(
+			[]*url.URL{
+				testutil.MustParseURL(link1),
+				testutil.MustParseURL(link2),
+				testutil.MustParseURL(link3),
+			},
+		))
+	})
+
+	t.Run("Invalid hashlink", func(t *testing.T) {
+		require.Error(t, s.DeleteLinks([]*url.URL{testutil.MustParseURL("https://xxx")}))
+	})
+
+	t.Run("Marshal error", func(t *testing.T) {
+		s.marshal = func(i interface{}) ([]byte, error) { return nil, errors.New("injected marshal error") }
+		defer func() { s.marshal = json.Marshal }()
+
+		require.Error(t, s.DeleteLinks([]*url.URL{testutil.MustParseURL("hl:xxx")}))
+	})
+
+	t.Run("Store error", func(t *testing.T) {
+		errExpected := errors.New("injected batch error")
+
+		provider.Store.ErrBatch = errExpected
+
+		err := s.DeleteLinks([]*url.URL{testutil.MustParseURL("hl:xxx")})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}

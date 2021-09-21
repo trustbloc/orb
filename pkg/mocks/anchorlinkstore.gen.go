@@ -31,6 +31,17 @@ type AnchorLinkStore struct {
 		result1 []*url.URL
 		result2 error
 	}
+	DeleteLinksStub        func(links []*url.URL) error
+	deleteLinksMutex       sync.RWMutex
+	deleteLinksArgsForCall []struct {
+		links []*url.URL
+	}
+	deleteLinksReturns struct {
+		result1 error
+	}
+	deleteLinksReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -139,6 +150,59 @@ func (fake *AnchorLinkStore) GetLinksReturnsOnCall(i int, result1 []*url.URL, re
 	}{result1, result2}
 }
 
+func (fake *AnchorLinkStore) DeleteLinks(links []*url.URL) error {
+	var linksCopy []*url.URL
+	if links != nil {
+		linksCopy = make([]*url.URL, len(links))
+		copy(linksCopy, links)
+	}
+	fake.deleteLinksMutex.Lock()
+	ret, specificReturn := fake.deleteLinksReturnsOnCall[len(fake.deleteLinksArgsForCall)]
+	fake.deleteLinksArgsForCall = append(fake.deleteLinksArgsForCall, struct {
+		links []*url.URL
+	}{linksCopy})
+	fake.recordInvocation("DeleteLinks", []interface{}{linksCopy})
+	fake.deleteLinksMutex.Unlock()
+	if fake.DeleteLinksStub != nil {
+		return fake.DeleteLinksStub(links)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.deleteLinksReturns.result1
+}
+
+func (fake *AnchorLinkStore) DeleteLinksCallCount() int {
+	fake.deleteLinksMutex.RLock()
+	defer fake.deleteLinksMutex.RUnlock()
+	return len(fake.deleteLinksArgsForCall)
+}
+
+func (fake *AnchorLinkStore) DeleteLinksArgsForCall(i int) []*url.URL {
+	fake.deleteLinksMutex.RLock()
+	defer fake.deleteLinksMutex.RUnlock()
+	return fake.deleteLinksArgsForCall[i].links
+}
+
+func (fake *AnchorLinkStore) DeleteLinksReturns(result1 error) {
+	fake.DeleteLinksStub = nil
+	fake.deleteLinksReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *AnchorLinkStore) DeleteLinksReturnsOnCall(i int, result1 error) {
+	fake.DeleteLinksStub = nil
+	if fake.deleteLinksReturnsOnCall == nil {
+		fake.deleteLinksReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deleteLinksReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *AnchorLinkStore) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -146,6 +210,8 @@ func (fake *AnchorLinkStore) Invocations() map[string][][]interface{} {
 	defer fake.putLinksMutex.RUnlock()
 	fake.getLinksMutex.RLock()
 	defer fake.getLinksMutex.RUnlock()
+	fake.deleteLinksMutex.RLock()
+	defer fake.deleteLinksMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

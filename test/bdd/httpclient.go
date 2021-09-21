@@ -303,7 +303,7 @@ func (c *httpClient) resolveURL(url string) string {
 		if strings.Contains(url, "//"+domain) {
 			logger.Infof("Mapping %s to %s", domain, mapping)
 
-			return strings.ReplaceAll(url, "//"+domain, "//"+mapping)
+			return strings.Replace(url, "//"+domain, "//"+mapping, 1)
 		}
 	}
 

@@ -203,13 +203,13 @@ Feature:
      When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
      And the JSON path "orderedItems" of the array response is not empty
-     And the JSON path "orderedItems.0.object.url" of the response is saved to variable "anchorHash"
+     And the JSON path "orderedItems.0.object.url" of the response is saved to variable "anchorLink"
      And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity"
      And the JSON path "orderedItems.0.id" of the response is saved to variable "likeID"
      And the JSON path "orderedItems.0.actor" of the response is saved to variable "likeActor"
      And the JSON path "orderedItems.0.to" of the raw response is saved to variable "likeTo"
 
-     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
+     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorLink}&page=true"
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be two Like's:
      # 1 - From domain1 (which received the 'Create');
@@ -217,15 +217,15 @@ Feature:
      And the JSON path "orderedItems.#" of the response has 2 items
      And the JSON path "orderedItems.#.actor" of the response contains "${domain1IRI}"
      And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
-     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
+     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
 
-      When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorHash}&page=true"
-      Then the JSON path "type" of the response equals "OrderedCollectionPage"
+     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
+     Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be one Like:
      # 1 - From domain3 (which received the 'Announce')
-      And the JSON path "orderedItems.#" of the response has 1 items
-      And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
-      And the JSON path "orderedItems.0.object.url" of the response equals "${anchorHash}"
+     And the JSON path "orderedItems.#" of the response has 1 items
+     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
+     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
 
      Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor}","to":#{likeTo},"object":#{likeActivity}}'
      When an HTTP POST is sent to "${likeActor}/outbox" with content "${undoLikeActivity}" of type "application/json"
@@ -233,9 +233,9 @@ Feature:
      Then we wait 2 seconds
 
      When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
-     Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorHash}"
+     Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorLink}"
 
-     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorHash}&page=true"
+     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorLink}&page=true"
      Then the JSON path "orderedItems.#" of the response has 1 items
      And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
 
@@ -315,3 +315,34 @@ Feature:
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain2\.com.*"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
+    And the JSON path 'links.#(rel=="via").href' of the response is saved to variable "anchorLink"
+    And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=https://orb.domain1.com/cas/${anchorHash}"
+    And the JSON path 'links.#(rel=="self").href' of the response equals "https://orb.domain1.com/cas/${anchorHash}"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
+    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+    And the JSON path "orderedItems.#" of the response has 2 items
+    And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity_1"
+    And the JSON path "orderedItems.0.actor" of the response is saved to variable "likeActor_1"
+    And the JSON path "orderedItems.0.to" of the raw response is saved to variable "likeTo_1"
+    And the JSON path "orderedItems.1" of the raw response is saved to variable "likeActivity_2"
+    And the JSON path "orderedItems.1.actor" of the response is saved to variable "likeActor_2"
+    And the JSON path "orderedItems.1.to" of the raw response is saved to variable "likeTo_2"
+
+    # Undo the 'Like's from domain1 and domain2.
+    Given variable "undoLikeActivity_1" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor_1}","to":#{likeTo_1},"object":#{likeActivity_1}}'
+    And variable "undoLikeActivity_2" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor_2}","to":#{likeTo_2},"object":#{likeActivity_2}}'
+
+    When an HTTP POST is sent to "${likeActor_1}/outbox" with content "${undoLikeActivity_1}" of type "application/json"
+    And an HTTP POST is sent to "${likeActor_2}/outbox" with content "${undoLikeActivity_2}" of type "application/json"
+
+    Then we wait 2 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=${didID}"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"
+
+    # domain2 and domain 3 should no longer appear in the response of the WebFinger query.
+    And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain2\.com.*"
+    And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain3\.com.*"

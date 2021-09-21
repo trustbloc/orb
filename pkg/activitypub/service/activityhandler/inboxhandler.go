@@ -869,6 +869,19 @@ func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
 	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of 'Likes'",
 		h.ServiceIRI, like.ID(), u)
 
+	// TODO: Will there always be only one URL?
+	refURL := like.Object().AnchorReference().URL()[0]
+
+	var additionalRefs []*url.URL
+
+	if like.Result() != nil {
+		additionalRefs = like.Result().AnchorReference().URL()
+	}
+
+	if err := h.AnchorEventAckHandler.UndoAnchorEventAcknowledgement(like.Actor(), refURL, additionalRefs); err != nil {
+		return fmt.Errorf("error undoing 'Like' activity [%s]: %w", like.ID(), err)
+	}
+
 	return nil
 }
 
@@ -969,6 +982,14 @@ type noOpAnchorEventAcknowledgementHandler struct{}
 func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Infof("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
+		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
+
+	return nil
+}
+
+func (p *noOpAnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
+	additionalAnchorRefs []*url.URL) error {
+	logger.Infof("Anchor event was undone by [%s] for anchor %s. Additional anchors: %s",
 		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
 
 	return nil

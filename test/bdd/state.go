@@ -7,9 +7,17 @@ SPDX-License-Identifier: Apache-2.0
 package bdd
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/trustbloc/orb/pkg/hashlink"
+)
+
+const (
+	funcHashLinkPrefix   = "$hashlink(|"
+	resourceHashProperty = "ResourceHash"
 )
 
 type httpPath = string
@@ -110,7 +118,7 @@ func (s *state) resolveWithPrefix(prefix, arg string) (string, error) {
 		}
 		if str == arg {
 			// Done
-			return str, nil
+			return s.evaluateFunctions(str)
 		}
 		arg = str
 	}
@@ -268,4 +276,47 @@ func (s *state) resolveArray(arr []interface{}) ([]interface{}, error) {
 		resolved[i] = val
 	}
 	return resolved, nil
+}
+
+func (s *state) evaluateFunctions(expression string) (string, error) {
+	switch {
+	case strings.Contains(expression, funcHashLinkPrefix):
+		return s.evaluateHashlinkFunc(expression)
+	default:
+		return expression, nil
+	}
+}
+
+func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
+	i := strings.Index(expression, "|)")
+	if i < 0 {
+		return expression, nil
+	}
+
+	propertyExp := expression[i:]
+
+	j := strings.Index(propertyExp, ".")
+	if j < 0 {
+		return "", errors.New("no hashlink property specified")
+	}
+
+	property := propertyExp[j+1:]
+
+	hl := expression[len(funcHashLinkPrefix):i]
+
+	hlParser := hashlink.New()
+
+	hlInfo, err := hlParser.ParseHashLink(hl)
+	if err != nil {
+		return "", err
+	}
+
+	switch property {
+	case resourceHashProperty:
+		logger.Infof("Evaluated property [%s] of hashlink [%s]: [%s]", property, hl, hlInfo.ResourceHash)
+
+		return hlInfo.ResourceHash, nil
+	default:
+		return "", fmt.Errorf("invalid hashlink property [%s]", property)
+	}
 }

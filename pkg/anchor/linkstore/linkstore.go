@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package linkstore
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -69,8 +69,8 @@ func (s *Store) PutLinks(links []*url.URL) error {
 
 		logger.Debugf("Storing anchor link for hash [%s]: [%s]", anchorHash, linkBytes)
 
-		op := storage.Operation{
-			Key:   uuid.New().String(),
+		operations[i] = storage.Operation{
+			Key:   getID(link),
 			Value: linkBytes,
 			Tags: []storage.Tag{
 				{
@@ -79,13 +79,41 @@ func (s *Store) PutLinks(links []*url.URL) error {
 				},
 			},
 		}
-
-		operations[i] = op
 	}
 
 	err := s.store.Batch(operations)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("store anchor links: %w", err))
+	}
+
+	return nil
+}
+
+// DeleteLinks deletes the given hash links.
+func (s *Store) DeleteLinks(links []*url.URL) error {
+	operations := make([]storage.Operation, len(links))
+
+	for i, link := range links {
+		anchorHash, err := hashlink.GetResourceHashFromHashLink(link.String())
+		if err != nil {
+			return fmt.Errorf("get hash from hashlink [%s]: %w", link, err)
+		}
+
+		linkBytes, err := s.marshal(link.String())
+		if err != nil {
+			return fmt.Errorf("marshal anchor link [%s]: %w", link, err)
+		}
+
+		logger.Debugf("Deleting anchor link for hash [%s]: [%s]", anchorHash, linkBytes)
+
+		operations[i] = storage.Operation{
+			Key: getID(link),
+		}
+	}
+
+	err := s.store.Batch(operations)
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("delete anchor links: %w", err))
 	}
 
 	return nil
@@ -142,4 +170,8 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 	logger.Debugf("Returning anchor links for hash [%s]: %s", anchorHash, links)
 
 	return links, nil
+}
+
+func getID(link *url.URL) string {
+	return base64.RawStdEncoding.EncodeToString([]byte(link.String()))
 }
