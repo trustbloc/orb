@@ -17,11 +17,11 @@ import (
 	"github.com/trustbloc/orb/pkg/mocks"
 )
 
-func TestHandler(t *testing.T) {
-	actor := testutil.MustParseURL("https://domain1.com")
-	anchorRef := testutil.MustParseURL("hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg") //nolint:lll
+var (
+	actor     = testutil.MustParseURL("https://domain1.com")
+	anchorRef = testutil.MustParseURL("hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg") //nolint:lll
 
-	additionalRefs := []*url.URL{
+	additionalRefs = []*url.URL{
 		// Valid hashlink.
 		testutil.MustParseURL("hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQlVRRFJJNXR0SXpYYmUxTFpLVWFaV2I2eUZzbk1ucmdEa3NBdFEtd0NhS3c"), //nolint:lll
 		// Hash in hashlink doesn't match anchor hash.
@@ -29,7 +29,9 @@ func TestHandler(t *testing.T) {
 		// Invalid hashlink.
 		testutil.MustParseURL("xx:invalid"),
 	}
+)
 
+func TestHandler_AnchorEventAcknowledged(t *testing.T) {
 	linkStore := &mocks.AnchorLinkStore{}
 
 	h := New(linkStore)
@@ -53,5 +55,32 @@ func TestHandler(t *testing.T) {
 
 	t.Run("Invalid anchor link", func(t *testing.T) {
 		require.Error(t, h.AnchorEventAcknowledged(actor, testutil.MustParseURL("xx:invalid"), additionalRefs))
+	})
+}
+
+func TestHandler_UndoAnchorEventAcknowledged(t *testing.T) {
+	linkStore := &mocks.AnchorLinkStore{}
+
+	h := New(linkStore)
+
+	t.Run("Success", func(t *testing.T) {
+		linkStore.DeleteLinksReturns(nil)
+
+		require.NoError(t, h.UndoAnchorEventAcknowledgement(actor, anchorRef, additionalRefs))
+	})
+
+	t.Run("Anchor link storage error", func(t *testing.T) {
+		errExpected := errors.New("injected storage error")
+
+		linkStore.DeleteLinksReturns(errExpected)
+
+		err := h.UndoAnchorEventAcknowledgement(actor, anchorRef, additionalRefs)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("Invalid anchor link", func(t *testing.T) {
+		require.Error(t, h.UndoAnchorEventAcknowledgement(actor, testutil.MustParseURL("xx:invalid"), additionalRefs))
 	})
 }

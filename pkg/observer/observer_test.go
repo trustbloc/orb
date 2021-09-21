@@ -46,6 +46,7 @@ import (
 type linkStore interface { //nolint:deadcode,unused
 	PutLinks(links []*url.URL) error
 	GetLinks(anchorHash string) ([]*url.URL, error)
+	DeleteLinks(links []*url.URL) error
 }
 
 const casLink = "https://domain.com/cas"

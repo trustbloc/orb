@@ -281,6 +281,30 @@ func (d *CommonSteps) jsonPathOfResponseNotContains(path, notExpected string) er
 	return nil
 }
 
+func (d *CommonSteps) jsonPathOfResponseNotContainsRegEx(path, pattern string) error {
+	resolvedRegEx, err := d.state.resolveVars(pattern)
+	if err != nil {
+		return err
+	}
+
+	regEx, err := regexp.Compile(resolvedRegEx.(string))
+	if err != nil {
+		return err
+	}
+
+	r := gjson.Get(d.state.getResponse(), path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, d.state.getResponse(), r.Raw)
+
+	for _, a := range r.Array() {
+		if regEx.MatchString(a.Str) {
+			return fmt.Errorf("JSON path resolves to [%s] which contains pattern [%s]", r.Array(), pattern)
+		}
+	}
+
+	return nil
+}
+
 func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
 	r := gjson.Get(d.state.getResponse(), path)
 
@@ -902,13 +926,16 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
 	s.Step(`^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$`, d.setVariable)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfResponseEquals)
+	s.Step(`^the JSON path '([^']*)' of the response equals "([^"]*)"$`, d.jsonPathOfResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfResponseHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response contains expression "([^"]*)"$`, d.jsonPathOfResponseContainsRegEx)
 	s.Step(`^the JSON path "([^"]*)" of the response does not contain "([^"]*)"$`, d.jsonPathOfResponseNotContains)
+	s.Step(`^the JSON path "([^"]*)" of the response does not contain expression "([^"]*)"$`, d.jsonPathOfResponseNotContainsRegEx)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
+	s.Step(`^the JSON path '([^']*)' of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the boolean response is saved to variable "([^"]*)"$`, d.jsonPathOfBoolResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the raw response is saved to variable "([^"]*)"$`, d.jsonPathOfRawResponseSavedToVar)

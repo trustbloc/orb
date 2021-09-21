@@ -42,9 +42,11 @@ type AnchorCredentialHandler interface {
 	HandleAnchorCredential(actor, id *url.URL, cid string, anchorCred []byte) error
 }
 
-// AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server.
+// AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server,
+// as well as undoing a previously acknowledged anchor event.
 type AnchorEventAcknowledgementHandler interface {
 	AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
+	UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
 }
 
 // ActorAuth makes the decision of whether or not a request by the given
