@@ -240,15 +240,13 @@ func TestWebFinger(t *testing.T) {
 			var w restapi.JRD
 
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
-			require.Len(t, w.Links, 4)
+			require.Len(t, w.Links, 3)
 			require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
 				w.Links[0].Href)
-			require.Equal(t, "http://base/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-				w.Links[1].Href)
 			require.Equal(t, "http://domain1/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3y",
-				w.Links[2].Href)
+				w.Links[1].Href)
 			require.Equal(t, "ipfs://Qmcq6JWDUkyxehq7RVZkP3NviE4HqRunRjX39vuLvEHaQN",
-				w.Links[3].Href)
+				w.Links[2].Href)
 			require.Empty(t, w.Properties)
 		})
 
@@ -263,15 +261,13 @@ func TestWebFinger(t *testing.T) {
 			var w restapi.JRD
 
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
-			require.Len(t, w.Links, 4)
+			require.Len(t, w.Links, 3)
 			require.Equal(t, "http://base/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
 				w.Links[0].Href)
-			require.Equal(t, "http://base/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
-				w.Links[1].Href)
 			require.Equal(t, "http://domain1/cas/uEiATVQNQqGgchMhhqsLltEAWHCszo-TzAqxoDKW2ht5I3g",
-				w.Links[2].Href)
+				w.Links[1].Href)
 			require.Equal(t, "ipfs://Qmcq6JWDUkyxehq7RVZkP3NviE4HqRunRjX39vuLvEHaQN",
-				w.Links[3].Href)
+				w.Links[2].Href)
 			require.Empty(t, w.Properties)
 		})
 
@@ -307,7 +303,7 @@ func TestWebFinger(t *testing.T) {
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 
 			// The alternate link won't be included due to a storage error, but it should still return results.
-			require.Len(t, w.Links, 3)
+			require.Len(t, w.Links, 2)
 		})
 
 		t.Run("Invalid alternate hashlink", func(t *testing.T) {
@@ -324,7 +320,7 @@ func TestWebFinger(t *testing.T) {
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 
 			// The alternate link won't be included due to a storage error, but it should still return results.
-			require.Len(t, w.Links, 3)
+			require.Len(t, w.Links, 2)
 		})
 	})
 

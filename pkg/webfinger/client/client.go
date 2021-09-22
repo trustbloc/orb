@@ -167,11 +167,23 @@ func (c *Client) GetWebCASURL(domainWithScheme, cid string) (*url.URL, error) {
 
 	var webCASURLFromWebFinger string
 
+	// First try to resolve from self.
 	for _, link := range webFingerResponse.Links {
-		if link.Rel == "working-copy" {
+		if link.Rel == "self" {
 			webCASURLFromWebFinger = link.Href
 
 			break
+		}
+	}
+
+	if webCASURLFromWebFinger == "" {
+		// Try the alternates.
+		for _, link := range webFingerResponse.Links {
+			if link.Rel == "alternate" {
+				webCASURLFromWebFinger = link.Href
+
+				break
+			}
 		}
 	}
 

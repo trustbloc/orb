@@ -694,7 +694,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 			router.HandleFunc("/.well-known/webfinger", func(rw http.ResponseWriter, r *http.Request) {
 				webFingerResponse := restapi.JRD{Links: []restapi.Link{
-					{Rel: "working-copy", Href: "%"},
+					{Rel: "alternate", Href: "%"},
 				}}
 				webFingerResponseBytes, errMarshal := json.Marshal(webFingerResponse)
 				require.NoError(t, errMarshal)

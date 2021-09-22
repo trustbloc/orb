@@ -320,6 +320,8 @@ Feature:
 
     When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=https://orb.domain1.com/cas/${anchorHash}"
     And the JSON path 'links.#(rel=="self").href' of the response equals "https://orb.domain1.com/cas/${anchorHash}"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain2\.com.*"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
 
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
@@ -340,9 +342,14 @@ Feature:
 
     Then we wait 2 seconds
 
+    # domain2 and domain 3 should no longer appear in the response of the WebFinger DID query.
     When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=${didID}"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"
+    And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain2\.com.*"
+    And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain3\.com.*"
 
-    # domain2 and domain 3 should no longer appear in the response of the WebFinger query.
+    # domain2 and domain 3 should no longer appear in the response of the WebFinger CAS query.
+    When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=https://orb.domain1.com/cas/${anchorHash}"
+    And the JSON path 'links.#(rel=="self").href' of the response equals "https://orb.domain1.com/cas/${anchorHash}"
     And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain2\.com.*"
     And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain3\.com.*"

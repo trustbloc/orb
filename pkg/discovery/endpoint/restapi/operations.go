@@ -35,11 +35,10 @@ const (
 	webDIDEndpoint       = "/.well-known/did.json"
 	nodeInfoEndpoint     = "/.well-known/nodeinfo"
 
-	selfRelation        = "self"
-	alternateRelation   = "alternate"
-	viaRelation         = "via"
-	serviceRelation     = "service"
-	workingCopyRelation = "working-copy"
+	selfRelation      = "self"
+	alternateRelation = "alternate"
+	viaRelation       = "via"
+	serviceRelation   = "service"
 
 	ldJSONType    = "application/ld+json"
 	jrdJSONType   = "application/jrd+json"
@@ -352,8 +351,7 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 		},
 	}
 
-	// Add the local reference.
-	refs := []string{fmt.Sprintf("%s/cas/%s", o.baseURL, cid)}
+	var refs []string
 
 	// Add the references from the configured discovery domains.
 	for _, v := range o.discoveryDomains {
@@ -364,7 +362,7 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 	for _, ref := range o.appendAlternateAnchorRefs(refs, cid) {
 		resp.Links = append(resp.Links,
 			Link{
-				Rel: workingCopyRelation, Type: ldJSONType, Href: ref,
+				Rel: alternateRelation, Type: ldJSONType, Href: ref,
 			})
 	}
 
