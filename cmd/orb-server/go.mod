@@ -14,12 +14,12 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210910143505-343c246c837c
+	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/orb v0.0.0
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20210916200150-447dc5dc9dc3
-	github.com/trustbloc/vct v0.1.3
 	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
 )
 

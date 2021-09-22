@@ -31,16 +31,20 @@ import (
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	ariesrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest"
+	ldrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest/ld"
 	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/ldcontext/remote"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
+	ldsvc "github.com/hyperledger/aries-framework-go/pkg/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
@@ -48,6 +52,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	vdrweb "github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
@@ -58,7 +63,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
-	vctclient "github.com/trustbloc/vct/pkg/client/vct"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -98,7 +102,6 @@ import (
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
-	"github.com/trustbloc/orb/pkg/ldcontextrest"
 	"github.com/trustbloc/orb/pkg/metrics"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
 	"github.com/trustbloc/orb/pkg/observer"
@@ -370,16 +373,14 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	defaultContexts := ldcontext.MustGetAll()
+	ldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
 
-	jldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
-
-	contextStore, err := ldstore.NewContextStore(jldStorageProvider)
+	contextStore, err := ldstore.NewContextStore(ldStorageProvider)
 	if err != nil {
 		return fmt.Errorf("create JSON-LD context store: %w", err)
 	}
 
-	remoteProviderStore, err := ldstore.NewRemoteProviderStore(jldStorageProvider)
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(ldStorageProvider)
 	if err != nil {
 		return fmt.Errorf("create remote provider store: %w", err)
 	}
@@ -389,7 +390,7 @@ func startOrbServices(parameters *orbParameters) error {
 		RemoteProviderStore: remoteProviderStore,
 	}
 
-	orbDocumentLoader, err := ld.NewDocumentLoader(ldStore, ld.WithExtraContexts(defaultContexts...))
+	orbDocumentLoader, err := createJSONLDDocumentLoader(ldStore, httpClient, parameters.contextProviderURLs)
 	if err != nil {
 		return fmt.Errorf("failed to load Orb contexts: %s", err.Error())
 	}
@@ -597,14 +598,6 @@ func startOrbServices(parameters *orbParameters) error {
 		vct.WithDocumentLoader(orbDocumentLoader),
 	)
 
-	if parameters.vctURL != "" {
-		err = vctclient.New(parameters.vctURL, vctclient.WithHTTPClient(httpClient)).
-			AddJSONLDContexts(context.Background(), defaultContexts...)
-		if err != nil {
-			return fmt.Errorf("failed to add contexts: %w", err)
-		}
-	}
-
 	var activityPubService *apservice.Service
 
 	resourceResolver := resource.New(httpClient, ipfsReader)
@@ -788,11 +781,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("discovery rest: %w", err)
 	}
 
-	ctxRest, err := ldcontextrest.New(jldStorageProvider)
-	if err != nil {
-		return fmt.Errorf("ldcontext rest: %w", err)
-	}
-
 	nodeInfoService := nodeinfo.NewService(apStore, apServiceIRI, parameters.nodeInfoRefreshInterval)
 
 	handlers := make([]restcommon.HTTPHandler, 0)
@@ -816,13 +804,16 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCASClient),
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
-		ctxRest,
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService)),
 	)
 
 	handlers = append(handlers,
 		endpointDiscoveryOp.GetRESTHandlers()...)
+
+	for _, handler := range ldrest.New(ldsvc.New(ldStore)).GetRESTHandlers() {
+		handlers = append(handlers, auth.NewHandlerWrapper(authCfg, &httpHandler{handler}))
+	}
 
 	httpServer := httpserver.New(
 		parameters.hostURL,
@@ -1181,6 +1172,22 @@ func (v *noOpVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) 
 	return true, nil, nil
 }
 
+type httpHandler struct {
+	a ariesrest.Handler
+}
+
+func (h *httpHandler) Path() string {
+	return h.a.Path()
+}
+
+func (h *httpHandler) Method() string {
+	return h.a.Method()
+}
+
+func (h *httpHandler) Handler() restcommon.HTTPRequestHandler {
+	return restcommon.HTTPRequestHandler(h.a.Handle())
+}
+
 type ldStoreProvider struct {
 	ContextStore        ldstore.ContextStore
 	RemoteProviderStore ldstore.RemoteProviderStore
@@ -1192,4 +1199,24 @@ func (p *ldStoreProvider) JSONLDContextStore() ldstore.ContextStore {
 
 func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStore {
 	return p.RemoteProviderStore
+}
+
+func createJSONLDDocumentLoader(ldStore *ldStoreProvider, httpClient *http.Client,
+	providerURLs []string) (jsonld.DocumentLoader, error) {
+	loaderOpts := []ld.DocumentLoaderOpts{ld.WithExtraContexts(ldcontext.MustGetAll()...)}
+
+	for _, u := range providerURLs {
+		loaderOpts = append(loaderOpts,
+			ld.WithRemoteProvider(
+				remote.NewProvider(u, remote.WithHTTPClient(httpClient)),
+			),
+		)
+	}
+
+	loader, err := ld.NewDocumentLoader(ldStore, loaderOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("new document loader: %w", err)
+	}
+
+	return loader, nil
 }
