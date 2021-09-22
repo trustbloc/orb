@@ -25,13 +25,11 @@ Feature:
     And the authorization bearer token for "POST" requests to path "/policy" is set to "ADMIN_TOKEN"
 
     # domain2 server follows domain1 server
-    Given variable "followID" is assigned a unique ID
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 server follows domain2 server
-    Given variable "followID" is assigned a unique ID
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${followID}","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
 
     # domain3 server follows domain1 server. Domain3 needs to be a follower of domain1 so that HTTP signature validation succeeds when
@@ -40,13 +38,11 @@ Feature:
     When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 invites domain2 to be a witness
-    Given variable "inviteWitnessID" is assigned a unique ID
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain2 invites domain1 to be a witness
-    Given variable "inviteWitnessID" is assigned a unique ID
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # set witness policy for domain1
@@ -317,6 +313,11 @@ Feature:
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
     And the JSON path 'links.#(rel=="via").href' of the response is saved to variable "anchorLink"
     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
+
+    # domain3 is following domain1 so it should also have the DID.
+    When an HTTP GET is sent to "https://orb.domain3.com/.well-known/webfinger?resource=${didID}"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"
+    And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
 
     When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=https://orb.domain1.com/cas/${anchorHash}"
     And the JSON path 'links.#(rel=="self").href' of the response equals "https://orb.domain1.com/cas/${anchorHash}"
