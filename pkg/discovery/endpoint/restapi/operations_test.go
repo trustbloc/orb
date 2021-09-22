@@ -280,6 +280,15 @@ func TestWebFinger(t *testing.T) {
 			require.Equal(t, http.StatusNotFound, rr.Code)
 		})
 
+		t.Run("No resource ID in request", func(t *testing.T) {
+			casClient.ReadReturns(nil, orberrors.ErrContentNotFound)
+
+			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
+				"?resource=http://base/cas/", nil, nil, false)
+
+			require.Equal(t, http.StatusBadRequest, rr.Code)
+		})
+
 		t.Run("CAS error", func(t *testing.T) {
 			casClient.ReadReturns(nil, errors.New("injected CAS client error"))
 

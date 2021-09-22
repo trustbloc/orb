@@ -170,7 +170,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	var w restapi.WellKnownResponse
@@ -186,7 +186,7 @@ func (d *DIDOrbSteps) discoverEndpoints() error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	var webFingerResponse restapi.JRD

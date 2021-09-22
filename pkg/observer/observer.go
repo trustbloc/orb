@@ -341,10 +341,9 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return fmt.Errorf("new like result for local hashlink: %w", err)
 	}
 
-	err = o.doPostLikeActivity(attributedTo, refURL, result)
-	if err != nil {
-		return fmt.Errorf("post like: %w", err)
-	}
+	logger.Debugf("Posting a 'Like' to the actor attributed to this activity [%s]", attributedTo)
+
+	to := []*url.URL{attributedTo}
 
 	// Also post a 'Like' to the creator of the anchor credential (if it's not the same as the actor above).
 	originActor, err := o.resolveActorFromHashlink(refURL.String())
@@ -352,12 +351,13 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return fmt.Errorf("resolve origin actor for hashlink [%s]: %w", refURL, err)
 	}
 
-	if anchor.AttributedTo == originActor.String() {
-		// Already posted a 'Like' to this actor.
-		return nil
+	if anchor.AttributedTo != originActor.String() {
+		logger.Debugf("Also posting a 'Like' to the origin of this activity [%s]", originActor)
+
+		to = append(to, originActor)
 	}
 
-	err = o.doPostLikeActivity(originActor, refURL, result)
+	err = o.doPostLikeActivity(to, refURL, result)
 	if err != nil {
 		return fmt.Errorf("post 'Like' activity to outbox for hashlink [%s]: %w", refURL, err)
 	}
@@ -365,7 +365,7 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 	return nil
 }
 
-func (o *Observer) doPostLikeActivity(to, refURL *url.URL, result *vocab.ObjectProperty) error {
+func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vocab.ObjectProperty) error {
 	publishedTime := time.Now()
 
 	like := vocab.NewLikeActivity(
@@ -374,7 +374,7 @@ func (o *Observer) doPostLikeActivity(to, refURL *url.URL, result *vocab.ObjectP
 				vocab.WithURL(refURL),
 			)),
 		),
-		vocab.WithTo(to, vocab.PublicIRI),
+		vocab.WithTo(append(to, vocab.PublicIRI)...),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(result),
 	)

@@ -280,6 +280,8 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 	anchorInfo, err := o.GetAnchorInfo(resource)
 	if err != nil {
+		logger.Warnf("Error getting anchor info for [%s]: %s", resource, err)
+
 		writeErrorResponse(rw, http.StatusInternalServerError,
 			fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
 
@@ -327,6 +329,12 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 	resourceSplitBySlash := strings.Split(resource, "/")
 
 	cid := resourceSplitBySlash[len(resourceSplitBySlash)-1]
+
+	if cid == "" {
+		writeErrorResponse(rw, http.StatusBadRequest, "resource ID not provided in request")
+
+		return
+	}
 
 	// Ensure that the CID is resolvable.
 	_, err := o.cas.Read(cid)

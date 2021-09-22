@@ -417,7 +417,7 @@ func (d *CommonSteps) httpGet(url string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	d.state.setResponse(string(resp.Payload))
@@ -434,7 +434,7 @@ func (d *CommonSteps) httpGetWithSignature(url, pubKeyID string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	d.state.setResponse(string(resp.Payload))
@@ -464,7 +464,7 @@ func (d *CommonSteps) httpPostFile(url, path string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	return nil
@@ -492,7 +492,7 @@ func (d *CommonSteps) httpPostFileWithSignature(url, path, pubKeyID string) erro
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	return nil
@@ -529,7 +529,7 @@ func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	d.state.setResponse(string(resp.Payload))
@@ -551,7 +551,7 @@ func (d *CommonSteps) httpPostWithSignature(url, data, contentType, domain strin
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received status code %d", resp.StatusCode)
+		return fmt.Errorf("received status code %d: %s", resp.StatusCode, resp.ErrorMsg)
 	}
 
 	d.state.setResponse(string(resp.Payload))
