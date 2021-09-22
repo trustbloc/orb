@@ -596,7 +596,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc/vct:v0.1.3
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-f27ec3d
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
@@ -606,6 +606,7 @@ services:
       - VCT_DSN=mongodb://mongodb.shared.com:27017
       - VCT_DATABASE_PREFIX=vct-db_
       - VCT_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
+      - VCT_CONTEXT_PROVIDER_URL=https://orb.file-server.com:12096/ld-contexts.json
     volumes:
       - ./keys/tls:/etc/orb/tls
     ports:
@@ -709,6 +710,23 @@ services:
       - 9095:9090
     volumes:
       - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - orb_net
+
+  orb.file-server.com: # file server for hosting static resources (e.g. JSON-LD contexts)
+    container_name: orb.file-server.com
+    image: halverneus/static-file-server:latest
+    environment:
+      - PORT=12096
+      - FOLDER=/data
+      - TLS_CERT=/etc/tls/ec-pubCert.pem
+      - TLS_KEY=/etc/tls/ec-key.pem
+      - CORS=true
+    ports:
+      - 12096:12096
+    volumes:
+      - ./contexts:/data
+      - ./keys/tls:/etc/tls
     networks:
       - orb_net
 

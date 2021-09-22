@@ -315,6 +315,11 @@ const (
 	ipfsTimeoutFlagUsage     = "The timeout for IPFS requests. For example, '30s' for a 30 second timeout. " +
 		commonEnvVarUsageText + ipfsTimeoutEnvKey
 
+	contextProviderFlagName  = "context-provider-url"
+	contextProviderFlagUsage = "Comma-separated list of remote context provider URLs to get JSON-LD contexts from." +
+		commonEnvVarUsageText + contextProviderEnvKey
+	contextProviderEnvKey = "ORB_CONTEXT_PROVIDER_URL"
+
 	// TODO: Add verification method
 
 )
@@ -367,6 +372,7 @@ type orbParameters struct {
 	enableDevMode                  bool
 	nodeInfoRefreshInterval        time.Duration
 	ipfsTimeout                    time.Duration
+	contextProviderURLs            []string
 }
 
 type anchorCredentialParams struct {
@@ -715,6 +721,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
 	}
 
+	contextProviderURLs, err := cmdutils.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", contextProviderFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -760,6 +771,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		enableDevMode:                  enableDevMode,
 		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
 		ipfsTimeout:                    ipfsTimeout,
+		contextProviderURLs:            contextProviderURLs,
 	}, nil
 }
 
@@ -1070,4 +1082,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
 	startCmd.Flags().StringP(ipfsTimeoutFlagName, ipfsTimeoutFlagShorthand, "", ipfsTimeoutFlagUsage)
+	startCmd.Flags().StringArrayP(contextProviderFlagName, "", []string{}, contextProviderFlagUsage)
 }
