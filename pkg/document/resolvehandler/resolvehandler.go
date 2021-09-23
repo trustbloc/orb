@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
 
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
@@ -32,23 +33,37 @@ var ErrDocumentNotFound = fmt.Errorf("document not found")
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {
 	coreResolver dochandler.Resolver
-	discovery    discovery
 	store        storage.Store
 	anchorGraph  common.AnchorGraph
 	metrics      metricsProvider
 
-	namespace           string
-	unpublishedDIDLabel string
-	enableDidDiscovery  bool
+	discoveryService discoveryService
+	remoteResolver   remoteResolver
+	endpointClient   endpointClient
 
-	enableCreateDocumentStore bool
+	namespace string
+	domain    string
+
+	unpublishedDIDLabel string
+
+	enableDidDiscovery               bool
+	enableResolutionFromAnchorOrigin bool
+	enableCreateDocumentStore        bool
 
 	hl *hashlink.HashLink
 }
 
 // did discovery service.
-type discovery interface {
+type discoveryService interface {
 	RequestDiscovery(id string) error
+}
+
+type endpointClient interface {
+	GetEndpointFromAnchorOrigin(did string) (*models.Endpoint, error)
+}
+
+type remoteResolver interface {
+	ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error)
 }
 
 type metricsProvider interface {
@@ -62,6 +77,13 @@ type Option func(opts *ResolveHandler)
 func WithEnableDIDDiscovery(enable bool) Option {
 	return func(opts *ResolveHandler) {
 		opts.enableDidDiscovery = enable
+	}
+}
+
+// WithEnableResolutionFromAnchorOrigin sets optional resolution from anchor origin flag.
+func WithEnableResolutionFromAnchorOrigin(enable bool) Option {
+	return func(opts *ResolveHandler) {
+		opts.enableResolutionFromAnchorOrigin = enable
 	}
 }
 
@@ -82,15 +104,19 @@ func WithCreateDocumentStore(store storage.Store) Option {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discovery,
+func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discoveryService,
+	domain string, endpointClient endpointClient, remoteResolver remoteResolver,
 	anchorGraph common.AnchorGraph, metrics metricsProvider, opts ...Option) *ResolveHandler {
 	rh := &ResolveHandler{
-		namespace:    namespace,
-		coreResolver: resolver,
-		discovery:    discovery,
-		anchorGraph:  anchorGraph,
-		metrics:      metrics,
-		hl:           hashlink.New(),
+		namespace:        namespace,
+		coreResolver:     resolver,
+		discoveryService: discovery,
+		domain:           domain,
+		endpointClient:   endpointClient,
+		remoteResolver:   remoteResolver,
+		anchorGraph:      anchorGraph,
+		metrics:          metrics,
+		hl:               hashlink.New(),
 	}
 
 	// apply options
@@ -102,13 +128,59 @@ func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery
 }
 
 // ResolveDocument resolves a document.
-func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) { //nolint:gocyclo,cyclop
+func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) {
 	startTime := time.Now()
 
 	defer func() {
 		r.metrics.DocumentResolveTime(time.Since(startTime))
 	}()
 
+	if r.enableResolutionFromAnchorOrigin && !strings.Contains(id, r.unpublishedDIDLabel) {
+		anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id)
+		if err != nil {
+			logger.Debugf("resolving locally since resolve from anchor origin returned an error for id[%s]: %s", id, err.Error())
+
+			return r.resolveDocumentLocally(id)
+		}
+
+		logger.Debugf("resolution response from anchor origin for id[%s]: %+v", id, anchorOriginResponse)
+
+		// TODO: Parse anchor origin response and apply unpublished operations (if any) to local response
+		// and include unpublished operations in document metadata
+
+		localResponse, err := r.resolveDocumentLocally(id)
+		if err != nil {
+			return nil, err
+		}
+
+		return localResponse, nil
+	}
+
+	return r.resolveDocumentLocally(id)
+}
+
+func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id string) (*document.ResolutionResult, error) {
+	endpoint, err := r.endpointClient.GetEndpointFromAnchorOrigin(id)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get endpoint from anchor origin for id[%s]: %w", id, err)
+	}
+
+	logger.Debugf("retrieved anchor origin[%s] for id[%s], current domain[%s]", endpoint.AnchorOrigin, id, r.domain)
+
+	if endpoint.AnchorOrigin == r.domain {
+		return nil, fmt.Errorf(" anchor origin[%s] equals current domain[%s]", endpoint.AnchorOrigin, r.domain)
+	}
+
+	anchorOriginResponse, err := r.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve id[%s] from anchor origin endpoints%s: %w",
+			id, endpoint.ResolutionEndpoints, err)
+	}
+
+	return anchorOriginResponse, nil
+}
+
+func (r *ResolveHandler) resolveDocumentLocally(id string) (*document.ResolutionResult, error) { //nolint:gocyclo,cyclop
 	response, err := r.coreResolver.ResolveDocument(id)
 	if err != nil { //nolint:nestif
 		if strings.Contains(err.Error(), "not found") {
@@ -200,7 +272,7 @@ func (r *ResolveHandler) resolveDocumentFromCreateDocumentStore(id string) (*doc
 func (r *ResolveHandler) requestDiscovery(did string) {
 	logger.Infof("requesting discovery for did[%s]", did)
 
-	err := r.discovery.RequestDiscovery(did)
+	err := r.discoveryService.RequestDiscovery(did)
 	if err != nil {
 		logger.Warnf("error while requesting discovery for did[%s]: %s", did, err.Error())
 	}

@@ -65,7 +65,7 @@ func TestNew(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(),
-			"failed to unmarshal resolution result[invalid-json] for remote request[https://domain.com/identifiers/abc]")
+			"remote request[https://domain.com/identifiers/abc]: failed to unmarshal resolution result[invalid-json]")
 
 		require.NoError(t, result.Body.Close())
 	})

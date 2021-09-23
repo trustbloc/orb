@@ -490,6 +490,34 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for enable-update-document-store")
 	})
 
+	t.Run("test invalid resolve-from-anchor-origin", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + resolveFromAnchorOriginFlagName, "invalid bool",
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for resolve-from-anchor-origin")
+	})
+
 	t.Run("test invalid include-unpublished-operations-in-metadata", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -1177,6 +1205,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + enableCreateDocumentStoreFlagName, "true",
 		"--" + includePublishedOperationsFlagName, "true",
 		"--" + includeUnpublishedOperationsFlagName, "true",
+		"--" + resolveFromAnchorOriginFlagName, "true",
 	}
 
 	if databaseURL != "" {

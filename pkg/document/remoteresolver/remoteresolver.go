@@ -52,29 +52,36 @@ func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints 
 	var errMsgs []string
 
 	for _, endpoint := range endpoints {
-		reqURL := fmt.Sprintf("%s/%s", endpoint, id)
-
-		responseBytes, err := rr.send(reqURL)
+		rr, err := rr.resolveDocumentFromEndpoint(id, endpoint)
 		if err != nil {
-			errMsg := fmt.Sprintf("endpoint[%s]: %s", reqURL, err.Error())
-
-			errMsgs = append(errMsgs, errMsg)
+			errMsgs = append(errMsgs, err.Error())
 
 			continue
 		}
 
-		var respObj document.ResolutionResult
-
-		err = json.Unmarshal(responseBytes, &respObj)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal resolution result[%s] for remote request[%s]",
-				string(responseBytes), reqURL)
-		}
-
-		return &respObj, nil
+		return rr, nil
 	}
 
 	return nil, fmt.Errorf("%s", errMsgs)
+}
+
+func (rr *Resolver) resolveDocumentFromEndpoint(id, endpoint string) (*document.ResolutionResult, error) {
+	reqURL := fmt.Sprintf("%s/%s", endpoint, id)
+
+	responseBytes, err := rr.send(reqURL)
+	if err != nil {
+		return nil, fmt.Errorf("remote request[%s]: %w", reqURL, err)
+	}
+
+	var respObj document.ResolutionResult
+
+	err = json.Unmarshal(responseBytes, &respObj)
+	if err != nil {
+		return nil, fmt.Errorf("remote request[%s]: failed to unmarshal resolution result[%s]: %w",
+			reqURL, string(responseBytes), err)
+	}
+
+	return &respObj, nil
 }
 
 // resolveDID makes DID resolution via HTTP.
