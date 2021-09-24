@@ -282,6 +282,11 @@ const (
 	includePublishedOperationsUsage    = `Set to "true" to include published operations in metadata. ` +
 		commonEnvVarUsageText + includePublishedOperationsEnvKey
 
+	resolveFromAnchorOriginFlagName = "resolve-from-anchor-origin"
+	resolveFromAnchorOriginEnvKey   = "RESOLVE_FROM_ANCHOR_ORIGIN"
+	resolveFromAnchorOriginUsage    = `Set to "true" to resolve from anchor origin. ` +
+		commonEnvVarUsageText + resolveFromAnchorOriginEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -364,6 +369,7 @@ type orbParameters struct {
 	updateDocumentStoreEnabled     bool
 	includeUnpublishedOperations   bool
 	includePublishedOperations     bool
+	resolveFromAnchorOrigin        bool
 	updateDocumentStoreTypes       []operation.Type
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
@@ -654,6 +660,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		includePublishedOperations = enable
 	}
 
+	resolveFromAnchorOriginStr, err := cmdutils.GetUserSetVarFromString(cmd, resolveFromAnchorOriginFlagName, resolveFromAnchorOriginEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	resolveFromAnchorOrigin := defaultResolveFromAnchorOrigin
+	if resolveFromAnchorOriginStr != "" {
+		enable, parseErr := strconv.ParseBool(resolveFromAnchorOriginStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", resolveFromAnchorOriginFlagName, parseErr)
+		}
+
+		resolveFromAnchorOrigin = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -765,6 +786,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		updateDocumentStoreEnabled:     updateDocumentStoreEnabled,
 		includePublishedOperations:     includePublishedOperations,
 		includeUnpublishedOperations:   includeUnpublishedOperations,
+		resolveFromAnchorOrigin:        resolveFromAnchorOrigin,
 		authTokenDefinitions:           authTokenDefs,
 		authTokens:                     authTokens,
 		activityPubPageSize:            activityPubPageSize,
@@ -1050,6 +1072,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(enableUpdateDocumentStoreFlagName, "", enableUpdateDocumentStoreUsage)
 	startCmd.Flags().String(includeUnpublishedOperationsFlagName, "", includeUnpublishedOperationsUsage)
 	startCmd.Flags().String(includePublishedOperationsFlagName, "", includePublishedOperationsUsage)
+	startCmd.Flags().String(resolveFromAnchorOriginFlagName, "", resolveFromAnchorOriginUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)

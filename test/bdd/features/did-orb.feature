@@ -261,7 +261,7 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain4.com"
       Then check success response does NOT contain "canonicalId"
 
-    @all
+    @local_cas
     @enable_update_document_store
     Scenario: domain4 has update document store enabled
 

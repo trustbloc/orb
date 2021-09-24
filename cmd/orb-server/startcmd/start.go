@@ -98,10 +98,12 @@ import (
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryclient "github.com/trustbloc/orb/pkg/discovery/endpoint/client"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/document/remoteresolver"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
+	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
 	"github.com/trustbloc/orb/pkg/metrics"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
 	"github.com/trustbloc/orb/pkg/observer"
@@ -136,6 +138,7 @@ const (
 	defaultUpdateDocumentStoreEnabled     = false
 	defaultIncludeUnpublishedOperations   = false
 	defaultIncludePublishedOperations     = false
+	defaultResolveFromAnchorOrigin        = false
 	defaultLocalCASReplicateInIPFSEnabled = false
 	defaultDevModeEnabled                 = false
 	defaultPolicyCacheExpiry              = 30 * time.Second
@@ -725,6 +728,7 @@ func startOrbServices(parameters *orbParameters) error {
 	var resolveHandlerOpts []resolvehandler.Option
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel))
 	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled))
+	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableResolutionFromAnchorOrigin(parameters.resolveFromAnchorOrigin))
 
 	var updateHandlerOpts []updatehandler.Option
 
@@ -738,18 +742,21 @@ func startOrbServices(parameters *orbParameters) error {
 		updateHandlerOpts = append(updateHandlerOpts, updatehandler.WithCreateDocumentStore(store))
 	}
 
-	discoveryClient, err := discoveryclient.New(orbDocumentLoader,
+	endpointClient, err := discoveryclient.New(orbDocumentLoader,
 		&discoveryCAS{resolver: casResolver},
 		discoveryclient.WithNamespace(parameters.didNamespace),
 		discoveryclient.WithHTTPClient(httpClient),
 	)
 
-	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), discoveryClient)
+	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), endpointClient)
 
 	orbDocResolveHandler := resolvehandler.NewResolveHandler(
 		parameters.didNamespace,
 		didDocHandler,
 		didDiscovery,
+		parameters.externalEndpoint,
+		endpointClient,
+		remoteresolver.New(t),
 		anchorGraph,
 		metrics.Get(),
 		resolveHandlerOpts...,
@@ -787,7 +794,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	handlers = append(handlers,
 		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc)),
-		auth.NewHandlerWrapper(authCfg, diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler)),
+		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler), apEndpointCfg, apStore, apSigVerifier),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
 		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),

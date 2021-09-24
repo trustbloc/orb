@@ -311,7 +311,7 @@ func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, erro
 
 	currentAnchorOrigin := anchorOrigin
 
-	var currentWebFingerRespone *restapi.JRD
+	var currentWebFingerResponse *restapi.JRD
 
 	for {
 		jrdLatestAnchorOrigin, errGet := cs.getLatestAnchorOrigin(currentAnchorOrigin, didURI)
@@ -325,7 +325,7 @@ func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, erro
 		}
 
 		if latestAnchorOrigin == currentAnchorOrigin {
-			currentWebFingerRespone = jrdLatestAnchorOrigin
+			currentWebFingerResponse = jrdLatestAnchorOrigin
 
 			break
 		}
@@ -333,7 +333,7 @@ func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, erro
 		currentAnchorOrigin = latestAnchorOrigin
 	}
 
-	return cs.populateAnchorResolutionEndpoint(currentWebFingerRespone)
+	return cs.populateAnchorResolutionEndpoint(currentWebFingerResponse)
 }
 
 func (cs *Client) getCIDAndSuffix(didURI string) (string, string, error) {
