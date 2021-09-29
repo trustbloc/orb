@@ -4,15 +4,16 @@ package mocks
 import (
 	"sync"
 
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
 )
 
 type Resolver struct {
-	ResolveDocumentStub        func(string) (*document.ResolutionResult, error)
+	ResolveDocumentStub        func(string, ...*operation.AnchoredOperation) (*document.ResolutionResult, error)
 	resolveDocumentMutex       sync.RWMutex
 	resolveDocumentArgsForCall []struct {
 		arg1 string
+		arg2 []*operation.AnchoredOperation
 	}
 	resolveDocumentReturns struct {
 		result1 *document.ResolutionResult
@@ -26,16 +27,17 @@ type Resolver struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *Resolver) ResolveDocument(arg1 string) (*document.ResolutionResult, error) {
+func (fake *Resolver) ResolveDocument(arg1 string, arg2 ...*operation.AnchoredOperation) (*document.ResolutionResult, error) {
 	fake.resolveDocumentMutex.Lock()
 	ret, specificReturn := fake.resolveDocumentReturnsOnCall[len(fake.resolveDocumentArgsForCall)]
 	fake.resolveDocumentArgsForCall = append(fake.resolveDocumentArgsForCall, struct {
 		arg1 string
-	}{arg1})
-	fake.recordInvocation("ResolveDocument", []interface{}{arg1})
+		arg2 []*operation.AnchoredOperation
+	}{arg1, arg2})
+	fake.recordInvocation("ResolveDocument", []interface{}{arg1, arg2})
 	fake.resolveDocumentMutex.Unlock()
 	if fake.ResolveDocumentStub != nil {
-		return fake.ResolveDocumentStub(arg1)
+		return fake.ResolveDocumentStub(arg1, arg2...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -50,17 +52,17 @@ func (fake *Resolver) ResolveDocumentCallCount() int {
 	return len(fake.resolveDocumentArgsForCall)
 }
 
-func (fake *Resolver) ResolveDocumentCalls(stub func(string) (*document.ResolutionResult, error)) {
+func (fake *Resolver) ResolveDocumentCalls(stub func(string, ...*operation.AnchoredOperation) (*document.ResolutionResult, error)) {
 	fake.resolveDocumentMutex.Lock()
 	defer fake.resolveDocumentMutex.Unlock()
 	fake.ResolveDocumentStub = stub
 }
 
-func (fake *Resolver) ResolveDocumentArgsForCall(i int) string {
+func (fake *Resolver) ResolveDocumentArgsForCall(i int) (string, []*operation.AnchoredOperation) {
 	fake.resolveDocumentMutex.RLock()
 	defer fake.resolveDocumentMutex.RUnlock()
 	argsForCall := fake.resolveDocumentArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *Resolver) ResolveDocumentReturns(result1 *document.ResolutionResult, result2 error) {
@@ -112,5 +114,3 @@ func (fake *Resolver) recordInvocation(key string, args []interface{}) {
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
-
-var _ dochandler.Resolver = new(Resolver)

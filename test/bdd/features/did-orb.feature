@@ -45,6 +45,10 @@ Feature:
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
+    # domain3 invites domain1 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain3IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+
     # set witness policy for domain1
     When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
 
@@ -123,6 +127,39 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "#canonicalDID"
       Then check success response contains "recoveryKey"
+
+    @all
+    @resolve_from_anchor_origin
+    Scenario: discover did followed by resolve from anchor origin
+      When client discover orb endpoints
+
+      # create document in domain3
+      When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      Then we wait 2 seconds
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "canonicalId"
+
+      When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+
+      # resolve did in domain4 - it will trigger did discovery from domain3
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with hint "https:orb.domain3.com"
+      Then check error response contains "not found"
+
+      Then we wait 3 seconds
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+
+      # update domain3 document
+      When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
+      Then check for request success
+
+      # resolution from domain4 will contain unpublished update operation from domain3
+      # because domain4 has resolve from anchor origin property set to true
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
 
     @all
     @follow_anchor_writer_domain1

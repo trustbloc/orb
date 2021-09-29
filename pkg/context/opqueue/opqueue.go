@@ -91,7 +91,7 @@ func New(cfg Config, pubSub pubSub, metrics metricsProvider) (*Queue, error) {
 }
 
 // Add publishes the given operation.
-func (q *Queue) Add(op *operation.QueuedOperation, protocolGenesisTime uint64) (uint, error) {
+func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -104,8 +104,8 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolGenesisTime uint64) (
 
 	b, err := q.jsonMarshal(
 		&operation.QueuedOperationAtTime{
-			QueuedOperation:     *op,
-			ProtocolGenesisTime: protocolGenesisTime,
+			QueuedOperation: *op,
+			ProtocolVersion: protocolVersion,
 		},
 	)
 	if err != nil {

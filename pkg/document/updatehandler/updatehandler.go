@@ -65,14 +65,14 @@ func (r *UpdateHandler) Namespace() string {
 }
 
 // ProcessOperation validates operation and adds it to the batch.
-func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolGenesisTime uint64) (*document.ResolutionResult, error) { //nolint:lll
+func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolVersion uint64) (*document.ResolutionResult, error) { //nolint:lll
 	startTime := time.Now()
 
 	defer func() {
 		r.metrics.DocumentCreateUpdateTime(time.Since(startTime))
 	}()
 
-	doc, err := r.coreProcessor.ProcessOperation(operationBuffer, protocolGenesisTime)
+	doc, err := r.coreProcessor.ProcessOperation(operationBuffer, protocolVersion)
 	if err != nil {
 		return nil, err
 	}

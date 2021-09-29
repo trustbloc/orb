@@ -278,7 +278,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		TransactionTime:      uint64(info.Issued.Unix()),
 		AnchorString:         ad.GetAnchorString(),
 		Namespace:            anchorPayload.Namespace,
-		ProtocolGenesisTime:  anchorPayload.Version,
+		ProtocolVersion:      anchorPayload.Version,
 		CanonicalReference:   canonicalID,
 		EquivalentReferences: equivalentRefs,
 	}

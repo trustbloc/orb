@@ -137,7 +137,7 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		op.TransactionTime = sidetreeTxn.TransactionTime
-		op.ProtocolGenesisTime = sidetreeTxn.ProtocolGenesisTime
+		op.ProtocolVersion = sidetreeTxn.ProtocolVersion
 		op.CanonicalReference = sidetreeTxn.CanonicalReference
 		op.EquivalentReferences = sidetreeTxn.EquivalentReferences
 

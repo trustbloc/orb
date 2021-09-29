@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resolvehandler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,9 +16,10 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
 
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
@@ -32,7 +34,7 @@ var ErrDocumentNotFound = fmt.Errorf("document not found")
 
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {
-	coreResolver dochandler.Resolver
+	coreResolver coreResolver
 	store        storage.Store
 	anchorGraph  common.AnchorGraph
 	metrics      metricsProvider
@@ -51,6 +53,11 @@ type ResolveHandler struct {
 	enableCreateDocumentStore        bool
 
 	hl *hashlink.HashLink
+}
+
+// Resolver resolves documents.
+type coreResolver interface {
+	ResolveDocument(idOrDocument string, additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error)
 }
 
 // did discovery service.
@@ -104,7 +111,7 @@ func WithCreateDocumentStore(store storage.Store) Option {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(namespace string, resolver dochandler.Resolver, discovery discoveryService,
+func NewResolveHandler(namespace string, resolver coreResolver, discovery discoveryService,
 	domain string, endpointClient endpointClient, remoteResolver remoteResolver,
 	anchorGraph common.AnchorGraph, metrics metricsProvider, opts ...Option) *ResolveHandler {
 	rh := &ResolveHandler{
@@ -145,18 +152,110 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 
 		logger.Debugf("resolution response from anchor origin for id[%s]: %+v", id, anchorOriginResponse)
 
-		// TODO: Parse anchor origin response and apply unpublished operations (if any) to local response
-		// and include unpublished operations in document metadata
+		// parse anchor origin response to get unpublished operations
+		unpublishedOps, publishedOps := getOperations(id, anchorOriginResponse.DocumentMetadata)
 
-		localResponse, err := r.resolveDocumentLocally(id)
+		logger.Debugf("parsed %d unpublished and %d published operations from anchor origin for id[%s]",
+			len(unpublishedOps), len(publishedOps), id)
+
+		if len(unpublishedOps) == 0 {
+			return r.resolveDocumentLocally(id)
+		}
+
+		// TODO: Discuss if we should include published operations in resolution too; and if so may need configuration
+
+		// apply unpublished operations (if any) to local response
+		// unpublished operations will be included in document metadata
+		localResponse, err := r.resolveDocumentLocally(id, unpublishedOps...)
 		if err != nil {
-			return nil, err
+			logger.Debugf("resolving locally due to error in resolve doc locally with unpublished ops for id[%s]: %s",
+				id, err.Error())
+
+			return r.resolveDocumentLocally(id)
+		}
+
+		err = equalResponses(&anchorOriginResponse.Document, &localResponse.Document)
+		if err != nil {
+			logger.Debugf("resolving locally due to response document matching error for id[%s]: %s", id, err.Error())
+
+			return r.resolveDocumentLocally(id)
 		}
 
 		return localResponse, nil
 	}
 
 	return r.resolveDocumentLocally(id)
+}
+
+func equalResponses(anchorOrigin, local *document.Document) error {
+	anchorOriginBytes, err := canonicalizer.MarshalCanonical(anchorOrigin)
+	if err != nil {
+		return fmt.Errorf("failed to marshal canonical anchor origin document: %w", err)
+	}
+
+	localBytes, err := canonicalizer.MarshalCanonical(local)
+	if err != nil {
+		return fmt.Errorf("failed to marshal canonical local document: %w", err)
+	}
+
+	if !bytes.Equal(anchorOriginBytes, localBytes) {
+		return fmt.Errorf("anchor origin[%s] and local[%s] results don't match",
+			string(anchorOriginBytes), string(localBytes))
+	}
+
+	return nil
+}
+
+func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
+	if metadata == nil {
+		logger.Debugf("missing document metadata for id[%s]", id)
+
+		return nil, nil
+	}
+
+	methodMetadataObj, ok := metadata[document.MethodProperty]
+	if !ok {
+		logger.Debugf("missing method metadata for id[%s]", id)
+
+		return nil, nil
+	}
+
+	methodMetadata, ok := methodMetadataObj.(map[string]interface{})
+	if !ok {
+		logger.Debugf("method metadata is wrong type[%T] for id[%s]", methodMetadataObj, id)
+
+		return nil, nil
+	}
+
+	unpublishedOps := getOperationsByKey(methodMetadata, document.UnpublishedOperationsProperty, id)
+	publishedOps := getOperationsByKey(methodMetadata, document.PublishedOperationsProperty, id)
+
+	return unpublishedOps, publishedOps
+}
+
+func getOperationsByKey(methodMetadata map[string]interface{}, key, id string) []*operation.AnchoredOperation {
+	opsObj, ok := methodMetadata[key]
+	if !ok {
+		return nil
+	}
+
+	opsBytes, err := json.Marshal(opsObj)
+	if err != nil {
+		logger.Debugf("failed to marshal '%s' for id[%s]", key, id)
+
+		return nil
+	}
+
+	var ops []*operation.AnchoredOperation
+
+	err = json.Unmarshal(opsBytes, &ops)
+	if err != nil {
+		logger.Debugf("failed to unmarshal '%s' for id[%s]", key, id)
+
+		return nil
+	}
+
+	return ops
 }
 
 func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id string) (*document.ResolutionResult, error) {
@@ -180,8 +279,8 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id string) (*document.R
 	return anchorOriginResponse, nil
 }
 
-func (r *ResolveHandler) resolveDocumentLocally(id string) (*document.ResolutionResult, error) { //nolint:gocyclo,cyclop
-	response, err := r.coreResolver.ResolveDocument(id)
+func (r *ResolveHandler) resolveDocumentLocally(id string, additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error) { //nolint:lll,gocyclo,cyclop
+	response, err := r.coreResolver.ResolveDocument(id, additionalOps...)
 	if err != nil { //nolint:nestif
 		if strings.Contains(err.Error(), "not found") {
 			if strings.Contains(id, r.unpublishedDIDLabel) {

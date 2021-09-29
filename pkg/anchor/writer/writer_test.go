@@ -1548,7 +1548,7 @@ type mockOpProcessor struct {
 	Map map[string]*protocol.ResolutionModel
 }
 
-func (m *mockOpProcessor) Resolve(uniqueSuffix string) (*protocol.ResolutionModel, error) {
+func (m *mockOpProcessor) Resolve(uniqueSuffix string, _ ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error) { //nolint:lll
 	if m.Err != nil {
 		return nil, m.Err
 	}
