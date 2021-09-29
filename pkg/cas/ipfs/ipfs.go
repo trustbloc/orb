@@ -102,6 +102,8 @@ func (m *Client) Write(content []byte) (string, error) {
 		return "", fmt.Errorf("failed to create hashlink for ipfs: %w", err)
 	}
 
+	logger.Debugf("ipfs Add returned hl [%s] using cid[%s]. Content:%s", hl, cid, string(content))
+
 	return hl, nil
 }
 
@@ -133,7 +135,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debugf("ipfs Add returned cid [%s] using version %d", cid, options.CIDVersion)
+	logger.Debugf("ipfs Add returned cid [%s] using version %d. Content:%s", cid, options.CIDVersion, string(content))
 
 	return cid, nil
 }

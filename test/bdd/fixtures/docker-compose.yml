@@ -357,9 +357,9 @@ services:
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=1000
+      - BATCH_WRITER_TIMEOUT=2000
       - CAS_TYPE=${CAS_TYPE}
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=20s
@@ -377,6 +377,11 @@ services:
       - DATABASE_URL=mongodb://mongodb.shared.com:27017
       - DATABASE_PREFIX=domain3
       - HTTP_SIGNATURES_ENABLED=true
+      - CREATE_DOCUMENT_STORE_ENABLED=true
+      - UPDATE_DOCUMENT_STORE_ENABLED=true
+      - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
+      - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
+      - RESOLVE_FROM_ANCHOR_ORIGIN=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #
@@ -445,7 +450,7 @@ services:
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
       - MQ_OP_POOL=20
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
-      - CID_VERSION=${CID_VERSION_DOMAIN2}
+      - CID_VERSION=${CID_VERSION_DOMAIN4}
       - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain4.com
       - ANCHOR_CREDENTIAL_URL=http://orb.domain4.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018

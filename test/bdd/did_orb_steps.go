@@ -71,7 +71,7 @@ var anchorOriginURLs = map[string]string{
 	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com",
 	"https://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com",
-	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain1.com",
+	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain3.com",
 	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com",
 }
 
@@ -519,7 +519,7 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	var err error
 
-	const maxRetries = 10
+	const maxRetries = 5
 
 	for i := 1; i <= maxRetries; i++ {
 		err = d.checkSuccessRespHelper(msg, contains)

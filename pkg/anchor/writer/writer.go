@@ -118,7 +118,7 @@ type outbox interface {
 }
 
 type opProcessor interface {
-	Resolve(uniqueSuffix string) (*protocol.ResolutionModel, error)
+	Resolve(uniqueSuffix string, additionalOps ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
 }
 
 type anchorGraph interface {

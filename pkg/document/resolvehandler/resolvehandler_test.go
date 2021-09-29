@@ -6,9 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 
 package resolvehandler
 
-//nolint:lll
-//go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Resolver github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler.Resolver
-//go:generate counterfeiter -o ./mocks/discovery.gen.go --fake-name DiscoveryService . discoveryService
+//go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Resolver . coreResolver
+//go:generate counterfeiter -o ./mocks/discovery.gen.go --fake-name Discovery . discoveryService
 //go:generate counterfeiter -o ./mocks/endpointclient.gen.go --fake-name EndpointClient . endpointClient
 //go:generate counterfeiter -o ./mocks/remoteresolver.gen.go --fake-name RemoteResolver . remoteResolver
 
@@ -22,7 +21,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/metadata"
 
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
@@ -51,12 +52,15 @@ const (
 	firstCID  = "did:orb:first-cid:suffix"
 	secondCID = "did:orb:second-cid:suffix"
 
-	domain = "https://domain.com"
+	domain             = "https://domain.com"
+	anchorOriginDomain = "https://anchor-origin.domain.com"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
 	anchorGraph := &orbmocks.AnchorGraph{}
 	anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}}}, nil)
+
+	const localID = "local-id"
 
 	t.Run("success - without document create store(canonical did)", func(t *testing.T) {
 		coreHandler := &mocks.Resolver{}
@@ -73,9 +77,184 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.NotNil(t, response)
 	})
 
+	t.Run("success - unpublished operations provided from anchor origin (documents match)", func(t *testing.T) { //nolint:lll
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localResolutionResult := &document.ResolutionResult{Document: doc}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointFromAnchorOriginReturns(
+			&models.Endpoint{
+				AnchorOrigin:        anchorOriginDomain,
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         doc,
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - unpublished operations not provided from anchor origin (return local)", func(t *testing.T) { //nolint:lll
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localResolutionResult := &document.ResolutionResult{Document: doc}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointFromAnchorOriginReturns(
+			&models.Endpoint{
+				AnchorOrigin:        anchorOriginDomain,
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         doc,
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - unpublished operations provided from anchor origin(documents don't match)", func(t *testing.T) { //nolint:lll
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localResolutionResult := &document.ResolutionResult{Document: doc}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointFromAnchorOriginReturns(
+			&models.Endpoint{
+				AnchorOrigin:        anchorOriginDomain,
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         document.Document{},
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - unpublished operations provided from anchor origin(local resolve fails)", func(t *testing.T) { //nolint:lll
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localResolutionResult := &document.ResolutionResult{Document: doc}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, nil, fmt.Errorf("local resolve call with ops fails"))
+		coreHandler.ResolveDocumentReturnsOnCall(1, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointFromAnchorOriginReturns(
+			&models.Endpoint{
+				AnchorOrigin:        anchorOriginDomain,
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         document.Document{},
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
 	t.Run("success - remote resolution enabled(anchor origin and domain are the same, return local result)", func(t *testing.T) { //nolint:lll
 		doc := make(document.Document)
-		doc["id"] = "local-id"
+		doc["id"] = localID
 
 		localResolutionResult := &document.ResolutionResult{Document: doc}
 
@@ -120,8 +299,8 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		endpointClient := &mocks.EndpointClient{}
 		endpointClient.GetEndpointFromAnchorOriginReturns(
 			&models.Endpoint{
-				AnchorOrigin:        "domain.com",
-				ResolutionEndpoints: []string{"domain.com/identifiers"},
+				AnchorOrigin:        domain,
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", domain)},
 			}, nil)
 
 		remoteResolver := &mocks.RemoteResolver{}
@@ -446,11 +625,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 	})
 
 	t.Run("error - anchor graph error", func(t *testing.T) {
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = secondCID
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = secondCID
 
 		coreHandler := &mocks.Resolver{}
-		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{DocumentMetadata: metadata}, nil)
+		coreHandler.ResolveDocumentReturns(&document.ResolutionResult{DocumentMetadata: docMetadata}, nil)
 
 		discovery := &mocks.Discovery{}
 
@@ -676,10 +855,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
 
-		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.NoError(t, err)
 	})
 
@@ -692,10 +871,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = secondCID
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = secondCID
 
-		err := handler.verifyCID("did:orb:first-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID("did:orb:first-cid:suffix", &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.NoError(t, err)
 	})
 
@@ -715,10 +894,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = []string{"did:orb:cid:suffix"}
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = []string{"did:orb:cid:suffix"}
 
-		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unexpected interface '[]string' for canonicalId")
 	})
@@ -729,10 +908,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:suffix"
 
-		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID(testDID, &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "CID from resolved document: invalid number of parts[3] for Orb identifier")
 	})
@@ -743,10 +922,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:cid:suffix"
 
-		err := handler.verifyCID("suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID("suffix", &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "CID from ID: invalid number of parts[1] for Orb identifier")
 	})
@@ -757,10 +936,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:cid2:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:cid2:suffix"
 
-		err := handler.verifyCID("did:orb:cid1:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID("did:orb:cid1:suffix", &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Equal(t, ErrDocumentNotFound, err)
 	})
@@ -774,10 +953,10 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
 
-		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Equal(t, ErrDocumentNotFound, err)
 	})
@@ -788,11 +967,63 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
-		metadata := make(document.Metadata)
-		metadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
+		docMetadata := make(document.Metadata)
+		docMetadata[document.CanonicalIDProperty] = "did:orb:second-cid:suffix"
 
-		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: metadata})
+		err := handler.verifyCID("did:orb:third-cid:suffix", &document.ResolutionResult{DocumentMetadata: docMetadata})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor graph error")
+	})
+}
+
+func TestEqualResponses(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		err := equalResponses(&document.Document{}, &document.Document{})
+		require.NoError(t, err)
+	})
+
+	t.Run("error - marshal anchor origin document", func(t *testing.T) {
+		err := equalResponses(nil, &document.Document{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to marshal canonical anchor origin document")
+	})
+	t.Run("error - marshal local document", func(t *testing.T) {
+		err := equalResponses(&document.Document{}, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to marshal canonical local document")
+	})
+}
+
+func TestGetOperations(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		publishedOps := []metadata.PublishedOperation{{Type: operation.TypeUpdate, CanonicalReference: "abc"}}
+		methodMetadata[document.PublishedOperationsProperty] = publishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		unpubOps, pubOps := getOperations("did", docMetadata)
+		require.Equal(t, len(unpublishedOps), len(unpubOps))
+		require.Equal(t, len(publishedOps), len(pubOps))
+	})
+
+	t.Run("no operations - wrong metadata type", func(t *testing.T) {
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = "invalid-type"
+
+		unpubOps, pubOps := getOperations("did", docMetadata)
+		require.Empty(t, unpubOps)
+		require.Empty(t, pubOps)
+	})
+
+	t.Run("no operations - empty metadata", func(t *testing.T) {
+		unpublishedOps, publishedOps := getOperations("did", make(document.Metadata))
+		require.Empty(t, unpublishedOps)
+		require.Empty(t, publishedOps)
 	})
 }

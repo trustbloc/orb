@@ -158,11 +158,11 @@ func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, info *ver
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
 	sidetreeTxn := txnapi.SidetreeTxn{
-		TransactionTime:     uint64(info.Issued.Unix()),
-		AnchorString:        ad.GetAnchorString(),
-		Namespace:           anchorPayload.Namespace,
-		ProtocolGenesisTime: anchorPayload.Version,
-		CanonicalReference:  anchor.Hashlink,
+		TransactionTime:    uint64(info.Issued.Unix()),
+		AnchorString:       ad.GetAnchorString(),
+		Namespace:          anchorPayload.Namespace,
+		ProtocolVersion:    anchorPayload.Version,
+		CanonicalReference: anchor.Hashlink,
 	}
 
 	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)

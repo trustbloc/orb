@@ -4,14 +4,16 @@ package mocks
 import (
 	"sync"
 
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 
 type OperationProcessor struct {
-	ResolveStub        func(string) (*protocol.ResolutionModel, error)
+	ResolveStub        func(string, ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
 	resolveMutex       sync.RWMutex
 	resolveArgsForCall []struct {
 		arg1 string
+		arg2 []*operation.AnchoredOperation
 	}
 	resolveReturns struct {
 		result1 *protocol.ResolutionModel
@@ -25,16 +27,17 @@ type OperationProcessor struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *OperationProcessor) Resolve(arg1 string) (*protocol.ResolutionModel, error) {
+func (fake *OperationProcessor) Resolve(arg1 string, arg2 ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error) {
 	fake.resolveMutex.Lock()
 	ret, specificReturn := fake.resolveReturnsOnCall[len(fake.resolveArgsForCall)]
 	fake.resolveArgsForCall = append(fake.resolveArgsForCall, struct {
 		arg1 string
-	}{arg1})
-	fake.recordInvocation("Resolve", []interface{}{arg1})
+		arg2 []*operation.AnchoredOperation
+	}{arg1, arg2})
+	fake.recordInvocation("Resolve", []interface{}{arg1, arg2})
 	fake.resolveMutex.Unlock()
 	if fake.ResolveStub != nil {
-		return fake.ResolveStub(arg1)
+		return fake.ResolveStub(arg1, arg2...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -49,17 +52,17 @@ func (fake *OperationProcessor) ResolveCallCount() int {
 	return len(fake.resolveArgsForCall)
 }
 
-func (fake *OperationProcessor) ResolveCalls(stub func(string) (*protocol.ResolutionModel, error)) {
+func (fake *OperationProcessor) ResolveCalls(stub func(string, ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)) {
 	fake.resolveMutex.Lock()
 	defer fake.resolveMutex.Unlock()
 	fake.ResolveStub = stub
 }
 
-func (fake *OperationProcessor) ResolveArgsForCall(i int) string {
+func (fake *OperationProcessor) ResolveArgsForCall(i int) (string, []*operation.AnchoredOperation) {
 	fake.resolveMutex.RLock()
 	defer fake.resolveMutex.RUnlock()
 	argsForCall := fake.resolveArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *OperationProcessor) ResolveReturns(result1 *protocol.ResolutionModel, result2 error) {

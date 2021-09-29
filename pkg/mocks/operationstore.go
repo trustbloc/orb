@@ -47,7 +47,7 @@ func (m *MockOperationStore) Put(ops []*operation.AnchoredOperation) error {
 	defer m.Unlock()
 
 	for _, op := range ops {
-		fmt.Printf("Putting operation type[%s], suffix[%s], txtime[%d], txnum[%d], pg[%d], buffer: %s\n", op.Type, op.UniqueSuffix, op.TransactionTime, op.TransactionNumber, op.ProtocolGenesisTime, string(op.OperationBuffer)) //nolint:lll
+		fmt.Printf("Putting operation type[%s], suffix[%s], txtime[%d], txnum[%d], pg[%d], buffer: %s\n", op.Type, op.UniqueSuffix, op.TransactionTime, op.TransactionNumber, op.ProtocolVersion, string(op.OperationRequest)) //nolint:lll
 		m.operations[op.UniqueSuffix] = append(m.operations[op.UniqueSuffix], op)
 	}
 

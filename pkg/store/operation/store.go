@@ -58,7 +58,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 		}
 
 		logger.Debugf("adding operation to storage batch: type[%s], suffix[%s], txtime[%d], pg[%d], buffer: %s",
-			op.Type, op.UniqueSuffix, op.TransactionTime, op.ProtocolGenesisTime, string(op.OperationBuffer))
+			op.Type, op.UniqueSuffix, op.TransactionTime, op.ProtocolVersion, string(op.OperationRequest))
 
 		op := storage.Operation{
 			Key:   uuid.New().String(),
