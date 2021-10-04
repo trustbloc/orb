@@ -438,6 +438,7 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain4.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - DID_DISCOVERY_ENABLED=true
       - ALLOWED_ORIGINS=https://orb.domain4.com,https://orb.domain1.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
