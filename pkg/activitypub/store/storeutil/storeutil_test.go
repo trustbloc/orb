@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 //go:generate counterfeiter -o ../mocks/referenceiterator.gen.go --fake-name ReferenceIterator ../spi ReferenceIterator
@@ -29,6 +30,12 @@ func TestGetQueryOptions(t *testing.T) {
 	require.Equal(t, 1, options.PageNumber)
 	require.Equal(t, 10, options.PageSize)
 	require.Equal(t, spi.SortDescending, options.SortOrder)
+}
+
+func TestGetRefMetadata(t *testing.T) {
+	refMetadata := GetRefMetadata(spi.WithActivityType(vocab.TypeCreate))
+
+	require.Equal(t, vocab.TypeCreate, refMetadata.ActivityType)
 }
 
 func TestReadReferences(t *testing.T) {

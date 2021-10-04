@@ -788,7 +788,22 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("discovery rest: %w", err)
 	}
 
-	nodeInfoService := nodeinfo.NewService(apStore, apServiceIRI, parameters.nodeInfoRefreshInterval)
+	var usingMongoDB bool
+
+	if parameters.dbParameters.databaseType == databaseTypeMongoDBOption {
+		usingMongoDB = true
+	}
+
+	if !usingMongoDB {
+		logger.Warnf("The NodeInfo service is not optimized for storage providers other than MongoDB. " +
+			"With a large database, it may consume lots of memory. " +
+			"See https://github.com/trustbloc/orb/issues/797 for more information.")
+	}
+
+	nodeInfoLogger := log.New("nodeinfo")
+
+	nodeInfoService := nodeinfo.NewService(apServiceIRI, parameters.nodeInfoRefreshInterval, apStore, usingMongoDB,
+		nodeInfoLogger)
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 
@@ -811,8 +826,8 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier),
 		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCASClient),
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
-		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService)),
-		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService)),
+		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger)),
+		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger)),
 	)
 
 	handlers = append(handlers,
@@ -913,7 +928,7 @@ func createActivityPubStore(parameters *orbParameters, serviceEndpoint string) (
 
 		couchDBProviderWrapper := wrapper.NewProvider(couchDBProvider, "CouchDB")
 
-		apStore, err = apariesstore.New(couchDBProviderWrapper, serviceEndpoint)
+		apStore, err = apariesstore.New(serviceEndpoint, couchDBProviderWrapper, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Aries storage provider for ActivityPub: %w", err)
 		}
@@ -931,7 +946,7 @@ func createActivityPubStore(parameters *orbParameters, serviceEndpoint string) (
 
 		mongoDBProviderWrapper := wrapper.NewProvider(mongoDBProvider, "MongoDB")
 
-		apStore, err = apariesstore.New(mongoDBProviderWrapper, serviceEndpoint)
+		apStore, err = apariesstore.New(serviceEndpoint, mongoDBProviderWrapper, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Aries storage provider for ActivityPub: %w", err)
 		}

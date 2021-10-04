@@ -124,7 +124,8 @@ func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
 
 	logger.Debugf("[%s] Storing activity in the 'Liked' collection: %s", h.ServiceName, ref.URL())
 
-	err := h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL())
+	err := h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL(),
+		store.WithActivityType(like.Type().Types()[0]))
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("add activity to 'Liked' collection: %w", err))
 	}

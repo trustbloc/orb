@@ -21,7 +21,12 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-var logger = log.New("nodeinfo")
+type logger interface {
+	Infof(msg string, args ...interface{})
+	Debugf(msg string, args ...interface{})
+	Warnf(msg string, args ...interface{})
+	Errorf(msg string, args ...interface{})
+}
 
 type stats struct {
 	Posts    uint64
@@ -36,22 +41,34 @@ func (s *stats) String() string {
 type Service struct {
 	*lifecycle.Lifecycle
 
-	done       chan struct{}
-	interval   time.Duration
-	serviceIRI *url.URL
-	apStore    apstore.Store
-	stats      *stats
-	mutex      sync.RWMutex
+	done                    chan struct{}
+	interval                time.Duration
+	serviceIRI              *url.URL
+	apStore                 apstore.Store
+	stats                   *stats
+	mutex                   sync.RWMutex
+	multipleTagQueryCapable bool
+	logger                  logger
 }
 
 // NewService returns a new NodeInfo service.
-func NewService(apStore apstore.Store, serviceIRI *url.URL, refreshInterval time.Duration) *Service {
+// If this Orb server uses a storage provider that can do queries using 2 tags, then we can take advantage of a
+// feature in the underlying Aries storage provider to update the stats more efficiently.
+// If logger is nil, then a default will be used.
+func NewService(serviceIRI *url.URL, refreshInterval time.Duration, apStore apstore.Store,
+	multipleTagQueryCapable bool, logger logger) *Service {
+	if logger == nil {
+		logger = log.New("nodeinfo")
+	}
+
 	r := &Service{
-		apStore:    apStore,
-		serviceIRI: serviceIRI,
-		done:       make(chan struct{}),
-		interval:   refreshInterval,
-		stats:      &stats{},
+		apStore:                 apStore,
+		serviceIRI:              serviceIRI,
+		done:                    make(chan struct{}),
+		interval:                refreshInterval,
+		stats:                   &stats{},
+		multipleTagQueryCapable: multipleTagQueryCapable,
+		logger:                  logger,
 	}
 
 	r.Lifecycle = lifecycle.New("nodeinfo",
@@ -101,13 +118,13 @@ func (r *Service) GetNodeInfo(version Version) *NodeInfo {
 func (r *Service) start() {
 	go r.refresh()
 
-	logger.Infof("Started NodeInfo service")
+	r.logger.Infof("Started NodeInfo service")
 }
 
 func (r *Service) stop() {
 	close(r.done)
 
-	logger.Infof("Stopped NodeInfo service")
+	r.logger.Infof("Stopped NodeInfo service")
 }
 
 func (r *Service) refresh() {
@@ -116,16 +133,26 @@ func (r *Service) refresh() {
 		case <-time.After(r.interval):
 			r.retrieve()
 		case <-r.done:
-			logger.Debugf("Exiting stats retriever.")
+			r.logger.Debugf("Exiting stats retriever.")
 
 			return
 		}
 	}
 }
 
-// TODO: This function needs to be refactored to use a tag that contains the activity type so as not to load all of the
-// activities from the outbox and process them in memory (issue #577). Changes to Aries storage are required.
+// TODO (#979): Support updating stats using multi-tag queries for all storage types so we can avoid loading too much
+// in memory.
 func (r *Service) retrieve() {
+	if !r.multipleTagQueryCapable {
+		r.updateStatsUsingSingleTagQuery()
+
+		return
+	}
+
+	r.updateStatsUsingMultiTagQuery()
+}
+
+func (r *Service) updateStatsUsingSingleTagQuery() {
 	it, err := r.apStore.QueryActivities(
 		apstore.NewCriteria(
 			apstore.WithReferenceType(apstore.Outbox),
@@ -133,7 +160,7 @@ func (r *Service) retrieve() {
 		),
 	)
 	if err != nil {
-		logger.Errorf("query ActivityPub outbox: %w", err)
+		r.logger.Errorf("query ActivityPub outbox: %s", err.Error())
 
 		return
 	}
@@ -141,7 +168,7 @@ func (r *Service) retrieve() {
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			r.logger.Errorf("failed to close iterator: %s", err.Error())
 		}
 	}()
 
@@ -154,7 +181,7 @@ func (r *Service) retrieve() {
 				break
 			}
 
-			logger.Errorf("query ActivityPub outbox: %w", err)
+			r.logger.Errorf("query ActivityPub outbox: %s", err.Error())
 
 			return
 		}
@@ -167,11 +194,67 @@ func (r *Service) retrieve() {
 		}
 	}
 
-	logger.Debugf("Updated stats: %s", s)
+	r.logger.Debugf("Updated stats: %s", s)
 
 	r.mutex.Lock()
 
 	r.stats = s
+
+	r.mutex.Unlock()
+}
+
+func (r *Service) updateStatsUsingMultiTagQuery() {
+	totalCreateActivities, totalLikeActivities, err := r.getTotalActivityCounts()
+	if err != nil {
+		r.logger.Errorf(err.Error())
+
+		return
+	}
+
+	r.updateStatsStruct(totalCreateActivities, totalLikeActivities)
+}
+
+func (r *Service) getTotalActivityCounts() (int, int, error) {
+	totalCreateActivities, err := r.getTotalActivityCount(vocab.TypeCreate)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	totalLikeActivities, err := r.getTotalActivityCount(vocab.TypeLike)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	return totalCreateActivities, totalLikeActivities, nil
+}
+
+func (r *Service) getTotalActivityCount(activityType vocab.Type) (int, error) {
+	it, err := r.apStore.QueryReferences(apstore.Outbox,
+		apstore.NewCriteria(
+			apstore.WithObjectIRI(r.serviceIRI),
+			apstore.WithType(activityType),
+		),
+	)
+	if err != nil {
+		return -1, fmt.Errorf("query ActivityPub outbox for %s activities: %w", activityType, err)
+	}
+
+	totalCreateActivities, err := it.TotalItems()
+	if err != nil {
+		return -1, fmt.Errorf("get total items from reference iterator after querying"+
+			" ActivityPub outbox for %s activities: %w", activityType, err)
+	}
+
+	return totalCreateActivities, nil
+}
+
+func (r *Service) updateStatsStruct(totalCreateActivities, totalLikeActivities int) {
+	r.mutex.Lock()
+
+	r.stats = &stats{
+		Posts:    uint64(totalCreateActivities),
+		Comments: uint64(totalLikeActivities),
+	}
 
 	r.mutex.Unlock()
 }

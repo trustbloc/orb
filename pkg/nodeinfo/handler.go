@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 )
 
@@ -26,16 +27,23 @@ type Handler struct {
 	retriever   nodeInfoRetriever
 	contentType string
 	marshal     func(v interface{}) ([]byte, error)
+	logger      logger
 }
 
 // NewHandler returns the /nodeinfo REST handler.
-func NewHandler(version Version, retriever nodeInfoRetriever) *Handler {
+// If logger is nil, then a default will be used.
+func NewHandler(version Version, retriever nodeInfoRetriever, logger logger) *Handler {
+	if logger == nil {
+		logger = log.New("nodeinfo")
+	}
+
 	return &Handler{
 		version:   version,
 		retriever: retriever,
 		contentType: fmt.Sprintf(`application/json; profile="http://nodeinfo.diaspora.software/ns/schema/%s#"`,
 			version),
 		marshal: json.Marshal,
+		logger:  logger,
 	}
 }
 
@@ -59,7 +67,7 @@ func (h *Handler) handle(w http.ResponseWriter, _ *http.Request) {
 
 	nodeInfoBytes, err := h.marshal(h.retriever.GetNodeInfo(h.version))
 	if err != nil {
-		logger.Errorf("Error marshalling node info: %s", err)
+		h.logger.Errorf("Error marshalling node info: %s", err)
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -74,11 +82,11 @@ func (h *Handler) writeResponse(w http.ResponseWriter, status int, body []byte) 
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", h.Path(), err)
+			h.logger.Warnf("[%s] Unable to write response: %s", h.Path(), err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", h.Path(), body)
+		h.logger.Debugf("[%s] Wrote response: %s", h.Path(), body)
 	}
 }

@@ -231,7 +231,8 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 	// and we don't want to reprocess the same message.
 	if e := h.activityStore.AddActivity(activity); e != nil {
 		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
-	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL()); e != nil {
+	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL(),
+		store.WithActivityType(activity.Type().Types()[0])); e != nil {
 		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
 	}
 
