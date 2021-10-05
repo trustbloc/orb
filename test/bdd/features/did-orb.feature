@@ -161,6 +161,14 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
 
+      # wait for domain3 to publish operation
+      Then we wait 3 seconds
+
+      # re-request resolution from domain4 that doesn't have published operation since it doesn't follow any domain
+      # response will contain published operation from anchor origin
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+
     @all
     @follow_anchor_writer_domain1
     Scenario: domain2 server follows domain1 server (anchor writer)
