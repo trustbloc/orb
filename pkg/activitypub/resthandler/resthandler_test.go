@@ -346,20 +346,21 @@ func newMockCreateActivities(num int) []*vocab.ActivityType {
 	activities := make([]*vocab.ActivityType, num)
 
 	for i := 0; i < num; i++ {
-		activities[i] = newMockCreateActivity(fmt.Sprintf("https://activity_%d", i), fmt.Sprintf("https://obj_%d", i))
+		activities[i] = newMockCreateActivity(fmt.Sprintf("https://activity_%d", i))
 	}
 
 	return activities
 }
 
-func newMockCreateActivity(id, objID string) *vocab.ActivityType {
+func newMockCreateActivity(id string) *vocab.ActivityType {
 	return vocab.NewCreateActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReference(
-					testutil.MustParseURL(objID),
-					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
-					"bafkd34G7hD6gbj94fnKm5D"),
+			vocab.WithAnchorEvent(
+				vocab.NewAnchorEvent(
+					vocab.WithURL(testutil.MustParseURL(
+						"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
+					)),
+				),
 			),
 		),
 		vocab.WithID(testutil.MustParseURL(id)),

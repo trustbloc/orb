@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package orbclient
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
@@ -15,6 +16,8 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/context/common"
@@ -98,19 +101,26 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 // GetAnchorOrigin will retrieve anchor credential based on CID, parse Sidetree core index file referenced in anchor
 // credential and return anchor origin.
 func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
-	anchorBytes, err := c.casReader.Read(cid)
+	anchorEventBytes, err := c.casReader.Read(cid)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read CID[%s] from CAS: %w", cid, err)
 	}
 
-	logger.Debugf("read anchor[%s]: %s", cid, string(anchorBytes))
+	logger.Debugf("read anchor[%s]: %s", cid, string(anchorEventBytes))
 
-	info, err := verifiable.ParseCredential(anchorBytes, c.getParseCredentialOpts()...)
+	anchorEvent := &vocab.AnchorEventType{}
+
+	err = json.Unmarshal(anchorEventBytes, anchorEvent)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse verifiable credential from CID[%s] from CAS: %w", cid, err)
+		return nil, fmt.Errorf("unmarshal anchor event from CID[%s] from CAS: %w", cid, err)
 	}
 
-	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{Hashlink: cid}, info, suffix)
+	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent, c.getParseCredentialOpts()...)
+	if err != nil {
+		return nil, fmt.Errorf("get verifiable credential from anchor event for CID[%s]: %w", cid, err)
+	}
+
+	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{Hashlink: cid}, anchorEvent, vc, suffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get anchored operation for suffix[%s] in anchor[%s]: %w", suffix, cid, err)
 	}
@@ -139,8 +149,8 @@ func (c *OrbClient) getParseCredentialOpts() []verifiable.CredentialOpt {
 	return opts
 }
 
-func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, info *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
-	anchorPayload, err := util.GetAnchorSubject(info)
+func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorEvent *vocab.AnchorEventType, vc *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
+	anchorPayload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
@@ -158,7 +168,7 @@ func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, info *ver
 	ad := &util.AnchorData{OperationCount: anchorPayload.OperationCount, CoreIndexFileURI: anchorPayload.CoreIndex}
 
 	sidetreeTxn := txnapi.SidetreeTxn{
-		TransactionTime:    uint64(info.Issued.Unix()),
+		TransactionTime:    uint64(vc.Issued.Unix()),
 		AnchorString:       ad.GetAnchorString(),
 		Namespace:          anchorPayload.Namespace,
 		ProtocolVersion:    anchorPayload.Version,

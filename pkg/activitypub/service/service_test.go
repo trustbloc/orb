@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/stretchr/testify/require"
@@ -43,13 +42,6 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
-)
-
-const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
-
-var (
-	host1        = testutil.MustParseURL("https://sally.example.com")
-	anchorCredID = testutil.NewMockID(host1, "/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 )
 
 func TestNewService(t *testing.T) {
@@ -120,23 +112,10 @@ func TestService_Create(t *testing.T) {
 	defer service1.Stop()
 	defer service2.Stop()
 
-	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
-		vocab.NewObject(
-			vocab.WithID(anchorCredID),
-			vocab.WithCID(cid),
-			vocab.WithType(vocab.TypeContentAddressedStorage),
-		),
-	))
-
-	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-	if err != nil {
-		panic(err)
-	}
+	anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
 	create := vocab.NewCreateActivity(
-		vocab.NewObjectProperty(vocab.WithObject(obj)),
-		vocab.WithTarget(targetProperty),
-		vocab.WithContext(vocab.ContextActivityAnchors),
+		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
 		vocab.WithTo(service2IRI, unavailableServiceIRI),
 	)
 
@@ -172,7 +151,7 @@ func TestService_Create(t *testing.T) {
 
 	require.NotEmpty(t, subscriber2.Activities())
 
-	_, exists := mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+	_, exists := mockProviders2.anchorEventHandler.AnchorEvent(anchorEvent.URL()[0].String())
 	require.True(t, exists)
 
 	ua := mockProviders1.undeliverableHandler.Activities()
@@ -442,11 +421,11 @@ func TestService_Announce(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Announce - anchor credential ref (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorReference(newActivityID(service2IRI), anchorCredID, cid)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(ref),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 		}
 
@@ -494,19 +473,16 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		_, exists := mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		_, exists := mockProviders3.anchorEventHandler.AnchorEvent(anchorEvent.URL()[0].String())
 		require.True(t, exists)
 	})
 
 	t.Run("Announce - anchor credential ref (with embedded object)", func(t *testing.T) {
-		ref, err := vocab.NewAnchorReferenceWithDocument(newTransactionID(service2IRI), anchorCredID,
-			cid, vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
-		)
-		require.NoError(t, err)
+		anchorEvent := aptestutil.NewMockAnchorEventRef(t)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(ref),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 		}
 
@@ -554,7 +530,7 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber3.Activities())
 
-		_, exists := mockProviders3.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		_, exists := mockProviders3.anchorEventHandler.AnchorEvent(anchorEvent.URL()[0].String())
 		require.True(t, exists)
 	})
 
@@ -590,25 +566,11 @@ func TestService_Announce(t *testing.T) {
 		require.Truef(t, containsIRI(followers, service3IRI), "expecting %s to have %s as a follower",
 			service2IRI, service3IRI)
 
-		const cid = "bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6mbky2amuw3inxsi3z"
-
-		targetProperty := vocab.NewObjectProperty(vocab.WithObject(
-			vocab.NewObject(
-				vocab.WithID(anchorCredID),
-				vocab.WithCID(cid),
-				vocab.WithType(vocab.TypeContentAddressedStorage),
-			),
-		))
-
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
 		// Service1 posts a 'Create' to Service2
 		create := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithTarget(targetProperty),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
 			vocab.WithContext(vocab.ContextActivityAnchors),
 			vocab.WithTo(service2IRI),
 		)
@@ -645,7 +607,7 @@ func TestService_Announce(t *testing.T) {
 
 		require.NotEmpty(t, subscriber2.Activities())
 
-		_, exists := mockProviders2.anchorCredentialHandler.AnchorCred(anchorCredID.String())
+		_, exists := mockProviders2.anchorEventHandler.AnchorEvent(anchorEvent.URL()[0].String())
 		require.True(t, exists)
 
 		// Service3 should have received an 'Announce' activity from Service2
@@ -712,14 +674,13 @@ func TestService_Offer(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Offer", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
@@ -758,7 +719,7 @@ func TestService_Offer(t *testing.T) {
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, mockProviders2.witnessHandler.AnchorCreds())
-		require.NotNil(t, mockProviders1.proofHandler.Proof(obj.ID().String()))
+		require.NotNil(t, mockProviders1.proofHandler.Proof(anchorEvent.Anchors().String()))
 	})
 }
 
@@ -951,14 +912,14 @@ func TestService_InviteWitness(t *testing.T) {
 }
 
 type mockProviders struct {
-	actorRetriever          *mocks.ActorRetriever
-	anchorCredentialHandler *mocks.AnchorCredentialHandler
-	followerAuth            *mocks.ActorAuth
-	witnessInvitationAuth   *mocks.ActorAuth
-	undeliverableHandler    *mocks.UndeliverableHandler
-	proofHandler            *mocks.ProofHandler
-	witnessHandler          *mocks.WitnessHandler
-	anchorEventAckHandler   *mocks.AnchorEventAcknowledgementHandler
+	actorRetriever        *mocks.ActorRetriever
+	anchorEventHandler    *mocks.AnchorEventHandler
+	followerAuth          *mocks.ActorAuth
+	witnessInvitationAuth *mocks.ActorAuth
+	undeliverableHandler  *mocks.UndeliverableHandler
+	proofHandler          *mocks.ProofHandler
+	witnessHandler        *mocks.WitnessHandler
+	anchorEventAckHandler *mocks.AnchorEventAcknowledgementHandler
 }
 
 func newServiceWithMocks(t *testing.T, endpoint string,
@@ -980,14 +941,14 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	}
 
 	providers := &mockProviders{
-		actorRetriever:          mocks.NewActorRetriever(),
-		anchorCredentialHandler: mocks.NewAnchorCredentialHandler(),
-		followerAuth:            mocks.NewActorAuth(),
-		witnessInvitationAuth:   mocks.NewActorAuth(),
-		undeliverableHandler:    mocks.NewUndeliverableHandler(),
-		proofHandler:            mocks.NewProofHandler(),
-		witnessHandler:          mocks.NewWitnessHandler(),
-		anchorEventAckHandler:   mocks.NewAnchorEventAcknowledgementHandler(),
+		actorRetriever:        mocks.NewActorRetriever(),
+		anchorEventHandler:    mocks.NewAnchorEventHandler(),
+		followerAuth:          mocks.NewActorAuth(),
+		witnessInvitationAuth: mocks.NewActorAuth(),
+		undeliverableHandler:  mocks.NewUndeliverableHandler(),
+		proofHandler:          mocks.NewProofHandler(),
+		witnessHandler:        mocks.NewWitnessHandler(),
+		anchorEventAckHandler: mocks.NewAnchorEventAcknowledgementHandler(),
 	}
 
 	pubKeyBytes, privKey, err := ed25519.GenerateKey(rand.Reader)
@@ -1019,7 +980,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
 		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
-		service.WithAnchorCredentialHandler(providers.anchorCredentialHandler),
+		service.WithAnchorEventHandler(providers.anchorEventHandler),
 		service.WithFollowerAuth(providers.followerAuth),
 		service.WithWitnessInvitationAuth(providers.witnessInvitationAuth),
 		service.WithWitness(providers.witnessHandler),
@@ -1029,14 +990,6 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	require.NoError(t, err)
 
 	return s, activityStore, publicKey, providers
-}
-
-func newActivityID(serviceName fmt.Stringer) *url.URL {
-	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
-}
-
-func newTransactionID(serviceName fmt.Stringer) *url.URL {
-	return testutil.MustParseURL(fmt.Sprintf("%s/%s", serviceName, uuid.New()))
 }
 
 func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
@@ -1085,22 +1038,6 @@ func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
 
 	return pem.EncodeToMemory(&block), nil
 }
-
-const anchorCredential1 = `{
- "@context": [
-	"https://www.w3.org/2018/credentials/v1",
-	"https://w3id.org/activityanchors/v1"
- ],
- "id": "http://sally.example.com/transactions/bafkreihwsn",
- "type": [
-	"VerifiableCredential",
-	"AnchorCredential"
- ],
- "issuer": "https://sally.example.com/services/orb",
- "issuanceDate": "2021-01-27T09:30:10Z",
- "credentialSubject": {},
- "proofChain": [{}]
-}`
 
 const proof = `{
  "@context": [

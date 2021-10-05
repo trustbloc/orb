@@ -94,7 +94,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 	m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
-			ServiceName: cfg.ServiceEndpoint,
+			ServiceName: cfg.ServiceEndpoint + "/outbox",
 			BufferSize:  cfg.ActivityHandlerBufferSize,
 			ServiceIRI:  cfg.ServiceIRI,
 		},
@@ -116,7 +116,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 
 	inboxHandler := activityhandler.NewInbox(
 		&activityhandler.Config{
-			ServiceName:     cfg.ServiceEndpoint,
+			ServiceName:     cfg.ServiceEndpoint + "/inbox",
 			BufferSize:      cfg.ActivityHandlerBufferSize,
 			ServiceIRI:      cfg.ServiceIRI,
 			MaxWitnessDelay: cfg.MaxWitnessDelay,

@@ -7,15 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package proof
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/policy"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
@@ -45,7 +46,7 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 
 	providers := &Providers{
-		VCStore: store,
+		AnchorEventStore: store,
 	}
 
 	c := New(providers, ps)
@@ -68,19 +69,16 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEvent), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -88,21 +86,22 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(vcID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: &mockWitnessPolicy{eval: false},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    &mockWitnessPolicy{eval: false},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -119,19 +118,16 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -139,24 +135,25 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -165,33 +162,31 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusCompleted)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusCompleted)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{eval: true},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{eval: true},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -200,36 +195,34 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{{
 				Type:    proofapi.WitnessTypeSystem,
 				Witness: "witness",
 			}}},
 			WitnessPolicy: &mockWitnessPolicy{eval: true},
 			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -238,13 +231,10 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -252,7 +242,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -262,34 +252,32 @@ func TestWitnessProofHandler(t *testing.T) {
 		mockVCStatusStore.GetStatusReturns("", fmt.Errorf("get vc status error"))
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: mockVCStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      mockVCStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor credential[%s]: get vc status error", anchorVC.ID))
+			"failed to get status for anchor event [%s]: get vc status error", ae.Anchors().String()))
 	})
 
 	t.Run("error - second get vc status error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -297,7 +285,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -308,34 +296,32 @@ func TestWitnessProofHandler(t *testing.T) {
 		mockVCStatusStore.GetStatusReturnsOnCall(1, "", fmt.Errorf("second get vc status error"))
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: mockVCStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      mockVCStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor credential[%s]: second get vc status error", anchorVC.ID))
+			"failed to get status for anchor event [%s]: second get vc status error", ae.Anchors().String()))
 	})
 
 	t.Run("error - set vc status to complete error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -343,7 +329,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -353,34 +339,32 @@ func TestWitnessProofHandler(t *testing.T) {
 		mockVCStatusStore.AddStatusReturns(fmt.Errorf("add vc status error"))
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: mockVCStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      mockVCStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to change status to 'completed' for credential[%s]: add vc status error", anchorVC.ID))
+			"failed to change status to 'completed' for anchor event [%s]: add vc status error", ae.Anchors().String()))
 	})
 
 	t.Run("VC status already completed", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -388,7 +372,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(anchorVC.ID, emptyWitnessProofs)
+		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -399,17 +383,18 @@ func TestWitnessProofHandler(t *testing.T) {
 		mockVCStatusStore.GetStatusReturnsOnCall(1, proofapi.VCStatusCompleted, nil)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: mockVCStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  witnessStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      mockVCStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -418,62 +403,58 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(anchorVC.ID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorVC.ID,
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to evaluate witness policy for credential[%s]: witness policy error", anchorVC.ID))
+			"failed to evaluate witness policy for anchor event [%s]: witness policy error", ae.Anchors().String()))
 	})
 
 	t.Run("error - vc status not found store error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential(
-			[]byte(anchorCredTwoProofs),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-			verifiable.WithDisabledProofCheck())
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore, // error will be returned b/c we didn't set "in-process" status for vc
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore, // error will be returned b/c we didn't set "in-process" status for vc
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
@@ -481,7 +462,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = proofHandler.HandleProof(witnessIRI, "testVC",
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "status not found for vcID: testVC")
+		require.Contains(t, err.Error(), "status not found for anchor event[testVC]")
 	})
 
 	t.Run("error - store error", func(t *testing.T) {
@@ -501,91 +482,85 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get vc: get error")
+		require.Contains(t, err.Error(), "failed to get anchor event: get error")
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"failed to add witness[http://example.com/orb/services] proof for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
+		require.Contains(t, err.Error(), "witness store error")
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"failed to get witness proofs for credential[http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d]: witness store error") //nolint:lll
+		require.Contains(t, err.Error(), "witness store error")
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
@@ -599,32 +574,29 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: &mocks.MonitoringService{},
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps)
 
 		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(""))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor credential")
+		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor event")
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
 		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, err)
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEvent), ae))
 
-		err = vcStore.Put(anchorVC)
+		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
 		monitoringSvc := &mocks.MonitoringService{}
@@ -633,21 +605,22 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: monitoringSvc,
-			WitnessStore:  &mockWitnessStore{},
-			WitnessPolicy: &mockWitnessPolicy{},
-			Metrics:       &orbmocks.MetricsProvider{},
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    monitoringSvc,
+			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")
 	})
@@ -689,60 +662,111 @@ func (wp *mockWitnessPolicy) Evaluate(_ []*proofapi.WitnessProof) (bool, error) 
 }
 
 //nolint:lll
-const anchorCred = `
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1"
+const anchorEvent = `{
+  "@context": "https://w3id.org/activityanchors/v1",
+  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "attachment": [
+    {
+      "contentObject": {
+        "properties": {
+          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
+          "https://w3id.org/activityanchors#resources": [
+            {
+              "id": "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
+            }
+          ]
+        },
+        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
+      },
+      "type": "AnchorObject",
+      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+      "witness": {
+        "@context": "https://www.w3.org/2018/credentials/v1",
+        "credentialSubject": {
+          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+        },
+        "issuanceDate": "2021-01-27T09:30:10Z",
+        "issuer": "https://sally.example.com/services/anchor",
+        "proof": [
+          {
+            "created": "2021-01-27T09:30:05Z",
+            "domain": "https://witness1.example.com/ledgers/maple2021",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          }
+        ],
+        "type": "VerifiableCredential"
+      }
+    }
   ],
-  "credentialSubject": {},
-  "id": "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-  "issuanceDate": "2021-03-17T20:01:10.4002903Z",
-  "issuer": "http://peer1.com",
-  "proof": {
-    "created": "2021-03-17T20:01:10.4024292Z",
-    "domain": "domain.com",
-    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..pHA1rMSsHBJLbDwRpNY0FrgSgoLzBw4S7VP7d5bkYW-JwU8qc_4CmPfQctR8kycQHSa2Jh8LNBqNKMeVWsAwDA",
-    "proofPurpose": "assertionMethod",
-    "type": "Ed25519Signature2018",
-    "verificationMethod": "did:web:abc#CvSyX0VxMCbg-UiYpAVd9OmhaFBXBr5ISpv2RZ2c9DY"
-  },
-  "type": "VerifiableCredential"
+  "attributedTo": "https://orb.domain1.com/services/orb",
+  "parent": [
+    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
+    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "type": "AnchorEvent",
+  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
 }`
 
 //nolint:lll
-const anchorCredTwoProofs = `
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/jws/v1"
-  ],
-  "credentialSubject": {},
-  "id": "http://orb.domain1.com/vc/9ac66b40-bcc6-4ca8-a9c7-d1fd3eaebafd",
-  "issuanceDate": "2021-04-20T20:07:19.873389246Z",
-  "issuer": "http://orb.domain1.com",
-  "proof": [
+const anchorEventTwoProofs = `{
+  "@context": "https://w3id.org/activityanchors/v1",
+  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "attachment": [
     {
-      "created": "2021-04-20T20:07:19.875087637Z",
-      "domain": "domain1.com",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..kIg1Z2DpPwY-0njcMRtc8uEmZqewVSmsTqwFSy97ppU7eubGfwGmu_L5nErfn4OCRkPdlDxZRkXhqW1VY329AA",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:abc.com#2130bhDAK-2jKsOXJiEDG909Jux4rcYEpFsYzVlqdAY"
-    },
-    {
-      "created": "2021-04-20T20:07:20.956Z",
-      "domain": "http://orb.vct:8077",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..khSPSqvqDHhOFWzGe7UoyHhr6-RSEPNZwXjOFk31WOWByRwGZMDuaWpDbbe6QYo89lR0dqVQCxs2N7xprqwgAA",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:abc.com#3e2Fq05s-jEYa5BOW0uQKuNOU8nOTzR3-IIQqE5KmPo"
+      "contentObject": {
+        "properties": {
+          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
+          "https://w3id.org/activityanchors#resources": [
+            {
+              "id": "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
+            }
+          ]
+        },
+        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
+      },
+      "type": "AnchorObject",
+      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+      "witness": {
+        "@context": "https://www.w3.org/2018/credentials/v1",
+        "credentialSubject": {
+          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+        },
+        "issuanceDate": "2021-01-27T09:30:10Z",
+        "issuer": "https://sally.example.com/services/anchor",
+        "proof": [
+          {
+            "created": "2021-01-27T09:30:00Z",
+            "domain": "sally.example.com",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          },
+          {
+            "created": "2021-01-27T09:30:05Z",
+            "domain": "https://witness1.example.com/ledgers/maple2021",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          }
+        ],
+        "type": "VerifiableCredential"
+      }
     }
   ],
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
+  "attributedTo": "https://orb.domain1.com/services/orb",
+  "parent": [
+    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
+    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "type": "AnchorEvent",
+  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
 }`
 
 //nolint:lll

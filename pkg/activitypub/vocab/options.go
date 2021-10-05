@@ -13,23 +13,25 @@ import (
 
 // Options holds all of the options for building an ActivityPub object.
 type Options struct {
-	Context    []Context
-	ID         *url.URL
-	URL        []*url.URL
-	To         []*url.URL
-	Published  *time.Time
-	StartTime  *time.Time
-	EndTime    *time.Time
-	Types      []Type
-	CID        string
-	InReplyTo  *url.URL
-	Attachment []*ObjectType
+	Context      []Context
+	ID           *url.URL
+	URL          []*url.URL
+	To           []*url.URL
+	Published    *time.Time
+	StartTime    *time.Time
+	EndTime      *time.Time
+	Types        []Type
+	CID          string
+	InReplyTo    *url.URL
+	Attachment   []*ObjectProperty
+	AttributedTo *url.URL
 
 	ObjectPropertyOptions
 	CollectionOptions
 	ActivityOptions
 	ActorOptions
 	PublicKeyOptions
+	AnchorEventOptions
 }
 
 // Opt is an for an object, activity, etc.
@@ -117,9 +119,16 @@ func WithInReplyTo(id *url.URL) Opt {
 }
 
 // WithAttachment sets the 'attachment' property on the object.
-func WithAttachment(obj ...*ObjectType) Opt {
+func WithAttachment(obj ...*ObjectProperty) Opt {
 	return func(opts *Options) {
 		opts.Attachment = append(opts.Attachment, obj...)
+	}
+}
+
+// WithAttributedTo sets the 'attributedTo' property on the object.
+func WithAttributedTo(u *url.URL) Opt {
+	return func(opts *Options) {
+		opts.AttributedTo = u
 	}
 }
 
@@ -190,7 +199,6 @@ type ObjectPropertyOptions struct {
 	Collection        *CollectionType
 	OrderedCollection *OrderedCollectionType
 	Activity          *ActivityType
-	AnchorCredRef     *AnchorReferenceType
 }
 
 // WithIRI sets the 'object' property to an IRI.
@@ -225,13 +233,6 @@ func WithOrderedCollection(coll *OrderedCollectionType) Opt {
 func WithActivity(activity *ActivityType) Opt {
 	return func(opts *Options) {
 		opts.Activity = activity
-	}
-}
-
-// WithAnchorReference sets the 'object' property to an embedded anchored credential reference.
-func WithAnchorReference(ref *AnchorReferenceType) Opt {
-	return func(opts *Options) {
-		opts.AnchorCredRef = ref
 	}
 }
 
@@ -369,4 +370,40 @@ func WithPublicKeyPem(pem string) Opt {
 
 func getContexts(options *Options, contexts ...Context) []Context {
 	return append(contexts, options.Context...)
+}
+
+// AnchorEventOptions holds the options for an AnchorEvent.
+type AnchorEventOptions struct {
+	Anchors      *url.URL
+	Parent       []*url.URL
+	AnchorObject *AnchorObjectType
+	AnchorEvent  *AnchorEventType
+}
+
+// WithAnchors sets the 'anchors' property on the Info.
+func WithAnchors(anchors *url.URL) Opt {
+	return func(opts *Options) {
+		opts.Anchors = anchors
+	}
+}
+
+// WithParent sets the 'parent' property on the Info.
+func WithParent(parent ...*url.URL) Opt {
+	return func(opts *Options) {
+		opts.Parent = parent
+	}
+}
+
+// WithAnchorEvent sets the 'object' property to an Info.
+func WithAnchorEvent(anchorEvt *AnchorEventType) Opt {
+	return func(opts *Options) {
+		opts.AnchorEvent = anchorEvt
+	}
+}
+
+// WithAnchorObject sets the 'object' property to an AnchorObject.
+func WithAnchorObject(anchorObj *AnchorObjectType) Opt {
+	return func(opts *Options) {
+		opts.AnchorObject = anchorObj
+	}
 }

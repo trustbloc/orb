@@ -184,11 +184,11 @@ func (h *handler) notify(activity *vocab.ActivityType) {
 
 func defaultOptions() *service.Handlers {
 	return &service.Handlers{
-		AnchorCredentialHandler: &noOpAnchorCredentialPublisher{},
-		FollowerAuth:            &acceptAllActorsAuth{},
-		WitnessInvitationAuth:   &acceptAllActorsAuth{},
-		ProofHandler:            &noOpProofHandler{},
-		AnchorEventAckHandler:   &noOpAnchorEventAcknowledgementHandler{},
+		AnchorEventHandler:    &noOpAnchorCredentialPublisher{},
+		FollowerAuth:          &acceptAllActorsAuth{},
+		WitnessInvitationAuth: &acceptAllActorsAuth{},
+		ProofHandler:          &noOpProofHandler{},
+		AnchorEventAckHandler: &noOpAnchorEventAcknowledgementHandler{},
 	}
 }
 

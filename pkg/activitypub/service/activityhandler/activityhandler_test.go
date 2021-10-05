@@ -14,13 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
-	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	storemocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
@@ -28,11 +27,10 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
-
-const cid = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"
 
 func TestNewInbox(t *testing.T) {
 	cfg := &Config{
@@ -41,7 +39,7 @@ func TestNewInbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, mocks.NewActorRetriever())
+	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -61,7 +59,7 @@ func TestNewOutbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewOutbox(cfg, &mocks.ActivityStore{}, mocks.NewActorRetriever())
+	h := NewOutbox(cfg, &servicemocks.ActivityStore{}, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -85,7 +83,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
 	}
 
-	h := NewInbox(cfg, &mocks.ActivityStore{}, &mocks.Outbox{}, mocks.NewActorRetriever())
+	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -108,29 +106,20 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
-	target1ID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
-	target2ID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
-	target3ID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3tgdathcprnbvatyau6h6mu7ipjhhodcdbyhoy")
-	target4ID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihpsnuregfeqh2w3vgdathcprnbvatyaw6h6mo7ipjhhodcdbyhoy")
-
 	cfg := &Config{
 		ServiceName: "service2",
 		ServiceIRI:  service2IRI,
 	}
 
-	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+	anchorEventHandler := servicemocks.NewAnchorEventHandler()
 
 	activityStore := memstore.New(cfg.ServiceName)
-	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-	h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(), spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -139,15 +128,14 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
-	t.Run("Anchor credential", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
-
+	t.Run("With anchor event", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			create := newMockCreateActivity(service1IRI, service2IRI, target1ID,
-				vocab.NewObjectProperty(vocab.WithObject(obj)))
+			anchorEvent := aptestutil.NewMockAnchorEvent(t)
+
+			anchorEventURL := anchorEvent.URL()[0]
+
+			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
 
 			require.NoError(t, h.HandleActivity(create))
 
@@ -155,12 +143,12 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			_, exists := anchorCredHandler.AnchorCred(target1ID.String())
+			_, exists := anchorEventHandler.AnchorEvent(anchorEventURL.String())
 			require.True(t, exists)
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.AnchorCredential,
-				store.NewCriteria(store.WithObjectIRI(target1ID)))
+			it, err := activityStore.QueryReferences(store.AnchorEvent,
+				store.NewCriteria(store.WithObjectIRI(anchorEventURL)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -169,28 +157,28 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
-			create := newMockCreateActivity(service1IRI, service2IRI, target2ID,
-				vocab.NewObjectProperty(vocab.WithObject(obj)))
+			anchorEvent := aptestutil.NewMockAnchorEvent(t)
+
+			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
 
 			errExpected := fmt.Errorf("injected anchor cred handler error")
 
-			anchorCredHandler.WithError(errExpected)
-			defer func() { anchorCredHandler.WithError(nil) }()
+			anchorEventHandler.WithError(errExpected)
+			defer func() { anchorEventHandler.WithError(nil) }()
 
 			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
 		})
 	})
 
-	t.Run("Anchor credential reference", func(t *testing.T) {
-		refID := testutil.MustParseURL(
-			"https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
-
+	t.Run("With anchor event reference", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			create := newMockCreateActivity(service1IRI, service2IRI, target3ID, vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReference(refID, target3ID, cid),
-				),
-			))
+			anchorEvent := aptestutil.NewMockAnchorEventRef(t)
+
+			anchorEventURL := anchorEvent.URL()[0]
+
+			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
 
 			require.NoError(t, h.HandleActivity(create))
 
@@ -198,19 +186,19 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 			require.NotNil(t, subscriber.Activity(create.ID()))
 
-			_, exists := anchorCredHandler.AnchorCred(target1ID.String())
+			_, exists := anchorEventHandler.AnchorEvent(anchorEventURL.String())
 			require.True(t, exists)
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(target3ID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorEventURL)))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
 			require.NoError(t, err)
 			require.NotEmpty(t, refs)
 
-			it, err = activityStore.QueryReferences(store.AnchorCredential,
-				store.NewCriteria(store.WithObjectIRI(target3ID)))
+			it, err = activityStore.QueryReferences(store.AnchorEvent,
+				store.NewCriteria(store.WithObjectIRI(anchorEventURL)))
 			require.NoError(t, err)
 
 			refs, err = storeutil.ReadReferences(it, -1)
@@ -221,21 +209,18 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 		t.Run("Handler error", func(t *testing.T) {
 			errExpected := fmt.Errorf("injected anchor cred handler error")
 
-			anchorCredHandler.WithError(errExpected)
-			defer func() { anchorCredHandler.WithError(nil) }()
+			anchorEventHandler.WithError(errExpected)
+			defer func() { anchorEventHandler.WithError(nil) }()
 
-			create := newMockCreateActivity(service1IRI, service2IRI, target4ID, vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReference(refID, target4ID, cid),
-				),
-			))
+			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+				vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEventRef(t))))
 
 			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
 		})
 	})
 
 	t.Run("Unsupported object type", func(t *testing.T) {
-		create := newMockCreateActivity(service1IRI, service2IRI, target2ID,
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))))
 
 		err := h.HandleActivity(create)
@@ -250,9 +235,6 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
-	targetID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
-
 	cfg := &Config{
 		ServiceName: "service2",
 		ServiceIRI:  service2IRI,
@@ -260,25 +242,25 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 
 	activityStore := memstore.New(cfg.ServiceName)
 
-	h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
+	h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
 
 	h.Start()
 	defer h.Stop()
 
-	t.Run("Anchor credential", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
+	t.Run("Embedded anchor event", func(t *testing.T) {
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
-			vocab.NewObjectProperty(vocab.WithObject(obj)))
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+			vocab.NewObjectProperty(
+				vocab.WithAnchorEvent(anchorEvent),
+			),
+		)
 
 		t.Run("Success", func(t *testing.T) {
 			require.NoError(t, h.HandleActivity(create))
 
-			it, err := activityStore.QueryReferences(store.AnchorCredential,
-				store.NewCriteria(store.WithObjectIRI(targetID)))
+			it, err := activityStore.QueryReferences(store.AnchorEvent,
+				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -287,21 +269,20 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		})
 	})
 
-	t.Run("Anchor credential reference", func(t *testing.T) {
-		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
+	t.Run("Anchor event reference", func(t *testing.T) {
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReference(refID, targetID, cid),
-				),
-			))
+				vocab.WithAnchorEvent(anchorEvent),
+			),
+		)
 
 		t.Run("Success", func(t *testing.T) {
 			require.NoError(t, h.HandleActivity(create))
 
-			it, err := activityStore.QueryReferences(store.AnchorCredential,
-				store.NewCriteria(store.WithObjectIRI(targetID)))
+			it, err := activityStore.QueryReferences(store.AnchorEvent,
+				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -311,9 +292,8 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 	})
 
 	t.Run("Unsupported object type", func(t *testing.T) {
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
-			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))),
-		)
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))))
 
 		err := h.HandleActivity(create)
 		require.Error(t, err)
@@ -323,21 +303,20 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 	t.Run("Anchor credential storage error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected storage error")
 
-		s := &mocks.ActivityStore{}
+		s := &servicemocks.ActivityStore{}
 		s.AddReferenceReturns(errExpected)
 
-		obHandler := NewOutbox(cfg, s, mocks.NewActorRetriever())
+		obHandler := NewOutbox(cfg, s, servicemocks.NewActorRetriever())
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
-
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+			vocab.NewObjectProperty(
+				vocab.WithAnchorEvent(
+					aptestutil.NewMockAnchorEvent(t),
+				),
+			),
 		)
 
-		err = obHandler.HandleActivity(create)
+		err := obHandler.HandleActivity(create)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -354,14 +333,14 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		ServiceIRI:  service1IRI,
 	}
 
-	ob := mocks.NewOutbox()
+	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	apClient := mocks.NewActorRetriever().
+	apClient := servicemocks.NewActorRetriever().
 		WithActor(vocab.NewService(service2IRI)).
 		WithActor(vocab.NewService(service3IRI))
 
-	followerAuth := mocks.NewActorAuth()
+	followerAuth := servicemocks.NewActorAuth()
 
 	h := NewInbox(cfg, as, ob, apClient, spi.WithFollowerAuth(followerAuth))
 	require.NotNil(t, h)
@@ -377,7 +356,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -400,7 +379,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		// Post another follow. Should reply with accept since it's already a follower.
 		follow = vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -417,7 +396,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	t.Run("Reject", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -444,7 +423,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	t.Run("No actor in Follow activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -456,7 +435,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	t.Run("No object IRI in Follow activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -469,7 +448,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	t.Run("Object IRI does not match target service IRI in Follow activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -485,7 +464,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service4IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service4IRI)),
 			vocab.WithActor(service4IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -504,7 +483,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -528,14 +507,14 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 		ServiceIRI:  service1IRI,
 	}
 
-	ob := mocks.NewOutbox()
+	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	apClient := mocks.NewActorRetriever().
+	apClient := servicemocks.NewActorRetriever().
 		WithActor(vocab.NewService(service2IRI)).
 		WithActor(vocab.NewService(service3IRI))
 
-	witnessInvitationAuth := mocks.NewActorAuth()
+	witnessInvitationAuth := servicemocks.NewActorAuth()
 
 	h := NewInbox(cfg, as, ob, apClient, spi.WithWitnessInvitationAuth(witnessInvitationAuth))
 	require.NotNil(t, h)
@@ -551,7 +530,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -575,7 +554,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 		// Post another invitation. Should reply with accept since it's already a invite.
 		invite = vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -593,7 +572,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	t.Run("Reject", func(t *testing.T) {
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -621,7 +600,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	t.Run("No actor in Witness activity", func(t *testing.T) {
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
@@ -634,7 +613,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	t.Run("No object IRI in Invite witness activity", func(t *testing.T) {
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -648,7 +627,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	t.Run("Object IRI does not match target service IRI in Witness activity", func(t *testing.T) {
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service3IRI))),
@@ -665,7 +644,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service4IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service4IRI)),
 			vocab.WithActor(service4IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -685,7 +664,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service3IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -706,10 +685,10 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox()
+	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -721,7 +700,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("Accept Follow -> Success", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -732,7 +711,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -760,7 +739,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("Accept Witness -> Success", func(t *testing.T) {
 		invite := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -772,7 +751,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(invite)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -800,14 +779,14 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("No actor in Accept activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithTo(service2IRI),
 		)
 
@@ -817,7 +796,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("No activity specified in 'object' field", func(t *testing.T) {
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -829,14 +808,14 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("Unsupported activity type", func(t *testing.T) {
 		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -848,13 +827,13 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("No actor specified in the activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -866,14 +845,14 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	t.Run("Actor in object does not match target service IRI in Accept activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		accept := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -892,10 +871,10 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox()
-	as := &mocks.ActivityStore{}
+	ob := servicemocks.NewOutbox()
+	as := &servicemocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -903,14 +882,14 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 
 	follow := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	accept := vocab.NewAcceptActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
-		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTo(service2IRI),
 	)
@@ -978,10 +957,10 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox()
-	as := &mocks.ActivityStore{}
+	ob := servicemocks.NewOutbox()
+	as := &servicemocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -992,21 +971,21 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 
 	follow := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	acceptFollow := vocab.NewAcceptActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(follow)),
-		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTo(service2IRI),
 	)
 
 	invite := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -1014,7 +993,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 
 	acceptInvite := vocab.NewAcceptActivity(
 		vocab.NewObjectProperty(vocab.WithActivity(invite)),
-		vocab.WithID(newActivityID(service1IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTo(service2IRI),
 	)
@@ -1083,10 +1062,10 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox()
+	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, mocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1098,14 +1077,14 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("Reject Follow -> Success", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1127,7 +1106,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("Reject Witness -> Success", func(t *testing.T) {
 		follow := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -1135,7 +1114,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1157,14 +1136,14 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("No actor in Reject activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithTo(service2IRI),
 		)
 
@@ -1174,7 +1153,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1186,14 +1165,14 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("Unsupported activity type", func(t *testing.T) {
 		follow := vocab.NewAnnounceActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1205,13 +1184,13 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("No actor specified in the activity", func(t *testing.T) {
 		follow := vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1223,7 +1202,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	t.Run("Actor does not match target service IRI in Reject activity", func(t *testing.T) {
 		follow := vocab.NewInviteActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service1IRI),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -1231,7 +1210,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 
 		reject := vocab.NewRejectActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 		)
@@ -1255,13 +1234,13 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		ServiceIRI:  service1IRI,
 	}
 
-	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+	anchorEventHandler := servicemocks.NewAnchorEventHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, mocks.NewActorRetriever(),
-		spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
+		spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
-	require.NoError(t, h.store.AddReference(store.AnchorCredential, target2ID, h.ServiceIRI))
+	require.NoError(t, h.store.AddReference(store.AnchorEvent, target2ID, h.ServiceIRI))
 
 	h.Start()
 	defer h.Stop()
@@ -1270,15 +1249,14 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	go subscriber.Listen()
 
 	t.Run("Anchor credential ref - collection (no embedded object)", func(t *testing.T) {
-		ref := vocab.NewAnchorReference(newTransactionID(service1IRI), targetID, cid)
-		duplicateRef := vocab.NewAnchorReference(newTransactionID(service1IRI), target2ID, cid)
+		anchorEvent := aptestutil.NewMockAnchorEventRef(t)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(ref),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(duplicateRef),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 		}
 
@@ -1290,7 +1268,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 					vocab.NewCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1302,15 +1280,15 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(announce.ID()))
 
-		it, err := h.store.QueryReferences(store.AnchorCredential,
-			store.NewCriteria(store.WithObjectIRI(targetID)))
+		it, err := h.store.QueryReferences(store.AnchorEvent,
+			store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err := storeutil.ReadReferences(it, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, refs)
 
-		it, err = h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(ref.ID().URL())))
+		it, err = h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err = storeutil.ReadReferences(it, -1)
@@ -1319,14 +1297,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref - ordered collection (no embedded object)", func(t *testing.T) {
-		const cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoa"
-
-		ref := vocab.NewAnchorReference(newTransactionID(service1IRI),
-			testutil.MustParseURL(fmt.Sprintf("http://localhost:8301/cas/%s", cid1)), cid1)
+		anchorEvent := aptestutil.NewMockAnchorEventRef(t)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(ref),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 		}
 
@@ -1338,7 +1313,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 					vocab.NewOrderedCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1350,7 +1325,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(announce.ID()))
 
-		it, err := h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(ref.ID().URL())))
+		it, err := h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err := storeutil.ReadReferences(it, -1)
@@ -1359,17 +1334,11 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
-		const cid1 = "bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhob"
-
-		ref, err := vocab.NewAnchorReferenceWithDocument(newTransactionID(service1IRI),
-			testutil.MustParseURL(fmt.Sprintf("http://localhost:8301/cas/%s", cid1)), cid1,
-			vocab.MustUnmarshalToDoc([]byte(anchorCredential1)),
-		)
-		require.NoError(t, err)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(ref),
+				vocab.WithAnchorEvent(anchorEvent),
 			),
 		}
 
@@ -1381,7 +1350,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 					vocab.NewCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1393,7 +1362,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(announce.ID()))
 
-		it, err := h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(ref.ID().URL())))
+		it, err := h.store.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err := storeutil.ReadReferences(it, -1)
@@ -1416,7 +1385,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 					vocab.NewCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1424,7 +1393,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		err := h.HandleActivity(announce)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "expecting 'AnchorReference' type")
+		require.Contains(t, err.Error(), "expecting 'Info' type")
 	})
 
 	t.Run("Anchor credential ref - ordered collection - unsupported object type", func(t *testing.T) {
@@ -1442,7 +1411,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 					vocab.NewOrderedCollection(items),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1450,7 +1419,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		err := h.HandleActivity(announce)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "expecting 'AnchorReference' type")
+		require.Contains(t, err.Error(), "expecting 'Info' type")
 	})
 
 	t.Run("Anchor credential ref - unsupported object type", func(t *testing.T) {
@@ -1460,7 +1429,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.NewObjectProperty(
 				vocab.WithActor(service1IRI),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1472,8 +1441,6 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Add to shares error", func(t *testing.T) {
-		ref := vocab.NewAnchorReference(newTransactionID(service1IRI), targetID, cid)
-
 		published := time.Now()
 
 		announce := vocab.NewAnnounceActivity(
@@ -1481,12 +1448,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 				vocab.WithCollection(
 					vocab.NewCollection([]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorReference(ref),
+							vocab.WithAnchorEvent(aptestutil.NewMockAnchorEventRef(t)),
 						),
 					}),
 				),
 			),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithPublishedTime(&published),
@@ -1494,12 +1461,12 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		errExpected := errors.New("injected AddReference error")
 
-		apStore := &mocks.ActivityStore{}
+		apStore := &servicemocks.ActivityStore{}
 		apStore.QueryReferencesReturns(memstore.NewReferenceIterator(nil, 0), nil)
 		apStore.AddReferenceReturnsOnCall(1, errExpected)
 
-		ib := NewInbox(cfg, apStore, &mocks.Outbox{}, mocks.NewActorRetriever(),
-			spi.WithAnchorCredentialHandler(anchorCredHandler))
+		ib := NewInbox(cfg, apStore, &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
+			spi.WithAnchorEventHandler(anchorEventHandler))
 		require.NotNil(t, ib)
 
 		ib.Start()
@@ -1528,10 +1495,10 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
-	witness := mocks.NewWitnessHandler()
+	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+	witness := servicemocks.NewWitnessHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, mocks.NewActorRetriever(), spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, servicemocks.NewActorRetriever(), spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	require.NoError(t, h.store.AddReference(store.Witnessing, h.ServiceIRI, service1IRI))
@@ -1545,15 +1512,12 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1572,15 +1536,12 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	t.Run("No response from witness -> error", func(t *testing.T) {
 		witness.WithProof(nil)
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1588,7 +1549,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err = h.HandleActivity(offer)
+		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to unmarshal proof")
 	})
@@ -1599,14 +1560,11 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		witness.WithError(errExpected)
 		defer witness.WithError(nil)
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1618,40 +1576,34 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	})
 
 	t.Run("No start time", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		endTime := time.Now().Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithEndTime(&endTime),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err = h.HandleActivity(offer)
+		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "startTime is required")
 	})
 
 	t.Run("No end time", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err = h.HandleActivity(offer)
+		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "endTime is required")
 	})
@@ -1662,7 +1614,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeAnnounce)))),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1672,7 +1624,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		err := h.HandleActivity(offer)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "unsupported object type in Offer activity Announce")
+		require.Contains(t, err.Error(), "anchor event is required")
 	})
 
 	t.Run("No object", func(t *testing.T) {
@@ -1681,7 +1633,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		offer := vocab.NewOfferActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1691,21 +1643,18 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		err := h.HandleActivity(offer)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "object is required")
+		require.Contains(t, err.Error(), "anchor event is required")
 	})
 
 	t.Run("Not witnessing actor", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service3IRI)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1713,29 +1662,26 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err = h.HandleActivity(offer)
+		err := h.HandleActivity(offer)
 		require.NoError(t, err)
 	})
 
 	t.Run("Invalid target", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		require.NoError(t, err)
-
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
-			vocab.WithID(newActivityID(service1IRI)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
 		)
 
-		err = h.HandleActivity(offer)
+		err := h.HandleActivity(offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "object target IRI must be set to https://w3id.org/activityanchors#AnchorWitness")
 	})
@@ -1752,9 +1698,9 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		ServiceIRI:  service1IRI,
 	}
 
-	proofHandler := mocks.NewProofHandler()
+	proofHandler := servicemocks.NewProofHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &mocks.Outbox{}, mocks.NewActorRetriever(),
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
 		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 
@@ -1764,17 +1710,16 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
-	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-	require.NoError(t, err)
+	anchorEvent := aptestutil.NewMockAnchorEvent(t)
 
-	anchorCredID := obj.ID().URL()
+	anchorEventURL := anchorEvent.URL()[0]
 
 	startTime := time.Now()
 	endTime := startTime.Add(time.Hour)
 
 	offer := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithObject(obj)),
-		vocab.WithID(newActivityID(service1IRI)),
+		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
+		vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTo(service2IRI),
 		vocab.WithStartTime(&startTime),
@@ -1790,7 +1735,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	objProp := vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Anchors())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -1798,19 +1743,19 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	)))
 
 	acceptOffer := vocab.NewAcceptActivity(objProp,
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 		vocab.WithActor(service1IRI),
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(obj.ID().URL()),
+				vocab.WithInReplyTo(anchorEvent.Anchors()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
-				vocab.WithAttachment(result)),
+				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
 			),
-		)),
-	)
+			)),
+		))
 
 	bytes, err := canonicalizer.MarshalCanonical(acceptOffer)
 	require.NoError(t, err)
@@ -1823,7 +1768,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(acceptOffer.ID()))
 
-		require.NotEmpty(t, proofHandler.Proof(anchorCredID.String()))
+		require.NotEmpty(t, proofHandler.Proof(anchorEvent.Anchors().String()))
 	})
 
 	t.Run("HandleProof error", func(t *testing.T) {
@@ -1837,16 +1782,16 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 	t.Run("inReplyTo does not match object IRI in offer activity", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(objProp,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(newActivityID(service1IRI)),
+					vocab.WithInReplyTo(aptestutil.NewActivityID(service1IRI)),
 					vocab.WithStartTime(&startTime),
 					vocab.WithEndTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1854,21 +1799,21 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		e := h.handleAcceptActivity(a)
 		require.Error(t, e)
 		require.Contains(t, e.Error(),
-			"the anchor credential in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
+			"the anchors URL of the anchor event in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
 	})
 
 	t.Run("No object", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(nil,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1886,16 +1831,16 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 				vocab.WithActor(offer.Actor()),
 				vocab.WithTo(offer.To()...),
 			))),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1907,7 +1852,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 	t.Run("No result", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(objProp,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 		)
@@ -1919,15 +1864,15 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 	t.Run("No start time", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(objProp,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithEndTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1939,15 +1884,15 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 	t.Run("No end time", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(objProp,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1960,21 +1905,21 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Run("Invalid object type", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewFollowActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+				vocab.NewObjectProperty(vocab.WithIRI(anchorEventURL)),
 				vocab.WithID(offer.ID().URL()),
 				vocab.WithActor(offer.Actor()),
 				vocab.WithTo(offer.To()...),
 				vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 			))),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
-					vocab.WithAttachment(result)),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
 			)),
 		)
@@ -1987,13 +1932,13 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Run("No attachment", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(
 			objProp,
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
 				)),
@@ -2008,23 +1953,23 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Run("Invalid target", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(anchorCredID)),
+				vocab.NewObjectProperty(vocab.WithIRI(anchorEventURL)),
 				vocab.WithID(offer.ID().URL()),
 				vocab.WithActor(offer.Actor()),
 				vocab.WithTo(offer.To()...),
 			))),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(offer.Actor(), vocab.PublicIRI),
 			vocab.WithActor(service1IRI),
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(obj.ID().URL()),
+					vocab.WithInReplyTo(anchorEventURL),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
-					vocab.WithAttachment(result),
+					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				)),
-			)),
+			),
 		)
 
 		err = h.handleAcceptActivity(a)
@@ -2043,48 +1988,48 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	follow := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followNotStored := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followNoIRI := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followIRINotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followActorNotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service3IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followNoActor := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithTo(service1IRI),
 	)
 
 	unsupported := vocab.NewRejectActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(newActivityID(ibHandler.ServiceIRI)),
+		vocab.WithID(aptestutil.NewActivityID(ibHandler.ServiceIRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
@@ -2103,7 +2048,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	t.Run("No actor in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithTo(service1IRI),
 		)
 
@@ -2113,8 +2058,8 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	t.Run("No object in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(),
-			vocab.WithID(newActivityID(service2IRI)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2126,7 +2071,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	t.Run("Activity not found in storage", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(followNotStored)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2139,7 +2084,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	t.Run("No actor in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(followNoActor)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2163,7 +2108,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	t.Run("Unsupported activity type for 'Undo'", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(unsupported)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2181,17 +2126,17 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		errExpected := errors.New("injected storage error")
 
-		s := &mocks.ActivityStore{}
+		s := &servicemocks.ActivityStore{}
 		s.GetActivityReturns(nil, errExpected)
 
-		ob := mocks.NewOutbox().WithError(errExpected)
+		ob := servicemocks.NewOutbox().WithError(errExpected)
 
-		inboxHandler := NewInbox(inboxCfg, s, ob, mocks.NewActorRetriever())
+		inboxHandler := NewInbox(inboxCfg, s, ob, servicemocks.NewActorRetriever())
 		require.NotNil(t, inboxHandler)
 
 		undo := vocab.NewUndoActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(follow)),
-			vocab.WithID(newActivityID(service2IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
@@ -2199,21 +2144,14 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		err := inboxHandler.HandleActivity(undo)
 		require.True(t, orberrors.IsTransient(err))
 
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
-
-		create := newMockCreateActivity(service1IRI, service2IRI,
-			testutil.MustParseURL(
-				"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy"),
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
 		)
 
-		err = inboxHandler.announceAnchorCredential(create)
+		err = inboxHandler.announceAnchorEvent(create)
 		require.True(t, orberrors.IsTransient(err))
 
-		err = inboxHandler.announceAnchorRef(create)
+		err = inboxHandler.announceAnchorEventRef(create)
 		require.True(t, orberrors.IsTransient(err))
 	})
 
@@ -2232,7 +2170,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(follow)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2256,7 +2194,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(followNoIRI)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2269,7 +2207,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		t.Run("IRI not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(followIRINotLocalService)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2341,7 +2279,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(followNoIRI)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2375,7 +2313,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(follow)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2399,7 +2337,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 	invite := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -2407,14 +2345,14 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 	inviteWitnessNoTarget := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(newActivityID(vocab.AnchorWitnessTargetIRI)),
+		vocab.WithID(aptestutil.NewActivityID(vocab.AnchorWitnessTargetIRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	inviteWitnessIRINotLocalService := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service3IRI))),
@@ -2422,7 +2360,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 	inviteWitnessActorNotLocalService := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service3IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
@@ -2452,7 +2390,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(invite)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2476,7 +2414,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2489,7 +2427,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 		t.Run("IRI not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessIRINotLocalService)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2561,7 +2499,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2595,7 +2533,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(invite)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2624,17 +2562,17 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref))),
+			vocab.WithAnchorEvent(
+				vocab.NewAnchorEvent(vocab.WithURL(ref))),
 		),
-		vocab.WithID(newActivityID(service2IRI)),
+		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI, vocab.PublicIRI),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2))),
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2))),
 			),
 		),
 	)
@@ -2659,7 +2597,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(like)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2683,17 +2621,17 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 		t.Run("No URL in anchor reference", func(t *testing.T) {
 			likeNoURL := vocab.NewLikeActivity(
 				vocab.NewObjectProperty(
-					vocab.WithAnchorReference(
-						vocab.NewAnchorReferenceWithOpts()),
+					vocab.WithAnchorEvent(
+						vocab.NewAnchorEvent()),
 				),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI, vocab.PublicIRI),
 				vocab.WithPublishedTime(&publishedTime),
 				vocab.WithResult(
 					vocab.NewObjectProperty(
-						vocab.WithAnchorReference(
-							vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2))),
+						vocab.WithAnchorEvent(
+							vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2))),
 					),
 				),
 			)
@@ -2702,7 +2640,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(likeNoURL)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2728,7 +2666,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(like)),
-				vocab.WithID(newActivityID(service2IRI)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
 			)
@@ -2751,48 +2689,40 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 	})
 }
 
-func TestHandler_AnnounceAnchorCredential(t *testing.T) {
+func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
 	service1IRI := testutil.MustParseURL("http://localhost:8301/services/service1")
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
-	targetID := testutil.MustParseURL(
-		"http://localhost:8301/cas/bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
-
 	cfg := &Config{
 		ServiceName: "service2",
 		ServiceIRI:  service2IRI,
 	}
 
-	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+	anchorEventHandler := servicemocks.NewAnchorEventHandler()
 
 	t.Run("Anchor credential", func(t *testing.T) {
-		obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(anchorCredential1)))
-		if err != nil {
-			panic(err)
-		}
-
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
-			vocab.NewObjectProperty(vocab.WithObject(obj)),
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
 		)
 
 		t.Run("Success", func(t *testing.T) {
 			activityStore := memstore.New(cfg.ServiceName)
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorCredential(create))
+			require.NoError(t, h.announceAnchorEvent(create))
 
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 		})
@@ -2800,54 +2730,54 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 		t.Run("Add to 'shares' error -> ignore", func(t *testing.T) {
 			errExpected := errors.New("injected store error")
 
-			activityStore := &mocks.ActivityStore{}
+			activityStore := &servicemocks.ActivityStore{}
 			activityStore.AddReferenceReturns(errExpected)
 
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorCredential(create))
+			require.NoError(t, h.announceAnchorEvent(create))
 		})
 	})
 
-	t.Run("Anchor credential reference", func(t *testing.T) {
-		refID := testutil.MustParseURL("https://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvaty")
+	t.Run("Anchor event reference", func(t *testing.T) {
+		anchorEvent := aptestutil.NewMockAnchorEventRef(t)
 
-		create := newMockCreateActivity(service1IRI, service2IRI, targetID,
+		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReference(refID, targetID, cid),
+				vocab.WithAnchorEvent(
+					anchorEvent,
 				),
 			),
 		)
 
 		t.Run("Success", func(t *testing.T) {
 			activityStore := memstore.New(cfg.ServiceName)
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(),
-				spi.WithAnchorCredentialHandler(anchorCredHandler))
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorRef(create))
+			require.NoError(t, h.announceAnchorEventRef(create))
 
 			time.Sleep(50 * time.Millisecond)
 
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(targetID)))
+			it, err := activityStore.QueryReferences(store.Share, store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 			require.NoError(t, err)
 
 			refs, err := storeutil.ReadReferences(it, -1)
@@ -2858,18 +2788,19 @@ func TestHandler_AnnounceAnchorCredential(t *testing.T) {
 		t.Run("Add to 'shares' error -> ignore", func(t *testing.T) {
 			errExpected := errors.New("injected store error")
 
-			activityStore := &mocks.ActivityStore{}
+			activityStore := &servicemocks.ActivityStore{}
 			activityStore.AddReferenceReturns(errExpected)
 
-			ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
 			h.Start()
 			defer h.Stop()
 
-			require.NoError(t, h.announceAnchorRef(create))
+			require.NoError(t, h.announceAnchorEventRef(create))
 		})
 	})
 }
@@ -2881,9 +2812,10 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
-	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
-	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
-	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw") //nolint:lll
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw") //nolint:lll
+
+	anchorEvent := aptestutil.NewMockAnchorEventRef(t)
 
 	publishedTime := time.Now()
 
@@ -2892,12 +2824,12 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		ServiceIRI:  service2IRI,
 	}
 
-	anchorCredHandler := mocks.NewAnchorCredentialHandler()
+	anchorEventHandler := servicemocks.NewAnchorEventHandler()
 
 	activityStore := memstore.New(cfg.ServiceName)
-	ob := mocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
+	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-	h := NewInbox(cfg, activityStore, ob, mocks.NewActorRetriever(), spi.WithAnchorCredentialHandler(anchorCredHandler))
+	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(), spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -2908,16 +2840,16 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+			vocab.WithAnchorEvent(anchorEvent),
+		),
 		vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 		vocab.WithActor(actor),
 		vocab.WithTo(service1IRI, vocab.PublicIRI),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
 		),
 	)
 
@@ -2929,7 +2861,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		require.NotNil(t, subscriber.Activity(like.ID()))
 
 		it, err := activityStore.QueryReferences(store.Like,
-			store.NewCriteria(store.WithObjectIRI(ref)))
+			store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err := storeutil.ReadReferences(it, -1)
@@ -2940,8 +2872,8 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	t.Run("No result -> Success", func(t *testing.T) {
 		likeNoResult := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+				vocab.WithAnchorEvent(anchorEvent),
+			),
 			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 			vocab.WithActor(actor),
 			vocab.WithTo(service1IRI, vocab.PublicIRI),
@@ -2955,7 +2887,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		require.NotNil(t, subscriber.Activity(likeNoResult.ID()))
 
 		it, err := activityStore.QueryReferences(store.Like,
-			store.NewCriteria(store.WithObjectIRI(ref)))
+			store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
 		refs, err := storeutil.ReadReferences(it, -1)
@@ -2966,16 +2898,16 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	t.Run("Invalid like", func(t *testing.T) {
 		invalidLike := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts())),
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent())),
 			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 			vocab.WithActor(actor),
 			vocab.WithTo(service1IRI, vocab.PublicIRI),
 			vocab.WithPublishedTime(&publishedTime),
 			vocab.WithResult(
 				vocab.NewObjectProperty(
-					vocab.WithAnchorReference(
-						vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+					vocab.WithAnchorEvent(
+						vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
 			),
 		)
 
@@ -2987,12 +2919,13 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	t.Run("Handler error", func(t *testing.T) {
 		errExpected := errors.New("injected handler error")
 
-		anchorEventHandler := mocks.NewAnchorEventAcknowledgementHandler().WithError(errExpected)
-
 		h := NewInbox(cfg, activityStore, ob,
-			mocks.NewActorRetriever(),
-			spi.WithAnchorCredentialHandler(anchorCredHandler),
-			spi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
+			servicemocks.NewActorRetriever(),
+			spi.WithAnchorEventHandler(servicemocks.NewAnchorEventHandler()),
+			spi.WithAnchorEventAcknowledgementHandler(
+				servicemocks.NewAnchorEventAcknowledgementHandler().
+					WithError(errExpected),
+			),
 		)
 		require.NotNil(t, h)
 
@@ -3007,12 +2940,12 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	t.Run("Store error", func(t *testing.T) {
 		errExpected := errors.New("injected store error")
 
-		activityStore := &mocks.ActivityStore{}
+		activityStore := &servicemocks.ActivityStore{}
 		activityStore.AddReferenceReturns(errExpected)
 
 		h := NewInbox(cfg, activityStore, ob,
-			mocks.NewActorRetriever(),
-			spi.WithAnchorCredentialHandler(anchorCredHandler),
+			servicemocks.NewActorRetriever(),
+			spi.WithAnchorEventHandler(anchorEventHandler),
 		)
 		require.NotNil(t, h)
 
@@ -3032,9 +2965,8 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	actor := testutil.MustParseURL("https://witness1.example.com/services/orb")
-	ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
-	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
-	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw")                                                                                                            //nolint:lll
+	additionalRef1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhodHRwczovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw") //nolint:lll
+	additionalRef2 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-BeDhoxHRwxzovL2V4YW1wbGUuY29tL2NmMTQ5YTY4LTA4NTYtNDMwNC1hOWVjLTM0NzU2NzU1NDE2Yw") //nolint:lll
 
 	publishedTime := time.Now()
 
@@ -3045,23 +2977,25 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 
 	activityStore := memstore.New(cfg.ServiceName)
 
-	h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
+	h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
 
 	h.Start()
 	defer h.Stop()
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReferenceWithOpts(vocab.WithURL(ref)))),
+			vocab.WithAnchorEvent(
+				aptestutil.NewMockAnchorEventRef(t),
+			),
+		),
 		vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 		vocab.WithActor(actor),
 		vocab.WithTo(service1IRI, vocab.PublicIRI),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
 		),
 	)
 
@@ -3081,16 +3015,16 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 	t.Run("No anchor ref", func(t *testing.T) {
 		invalidLike := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
-				vocab.WithAnchorReference(
-					vocab.NewAnchorReferenceWithOpts())),
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent())),
 			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 			vocab.WithActor(actor),
 			vocab.WithTo(service1IRI, vocab.PublicIRI),
 			vocab.WithPublishedTime(&publishedTime),
 			vocab.WithResult(
 				vocab.NewObjectProperty(
-					vocab.WithAnchorReference(
-						vocab.NewAnchorReferenceWithOpts(vocab.WithURL(additionalRef1, additionalRef2)))),
+					vocab.WithAnchorEvent(
+						vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
 			),
 		)
 
@@ -3100,10 +3034,10 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 	t.Run("Store error", func(t *testing.T) {
 		errExpected := errors.New("injected store error")
 
-		activityStore := &mocks.ActivityStore{}
+		activityStore := &servicemocks.ActivityStore{}
 		activityStore.AddReferenceReturns(errExpected)
 
-		h := NewOutbox(cfg, activityStore, mocks.NewActorRetriever())
+		h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
 
 		h.Start()
 		defer h.Stop()
@@ -3158,9 +3092,9 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 		ServiceIRI:  outboxServiceIRI,
 	}
 
-	apClient := mocks.NewActorRetriever()
+	apClient := servicemocks.NewActorRetriever()
 
-	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), mocks.NewOutbox(), apClient)
+	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), servicemocks.NewOutbox(), apClient)
 	require.NotNil(t, inboxHandler)
 
 	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), apClient)
@@ -3183,50 +3117,6 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 			inboxHandler.Stop()
 		}
 }
-
-func newActivityID(id fmt.Stringer) *url.URL {
-	return testutil.NewMockID(id, uuid.New().String())
-}
-
-func newTransactionID(id fmt.Stringer) *url.URL {
-	return testutil.NewMockID(id, uuid.New().String())
-}
-
-func newMockCreateActivity(actorIRI, toIRI, targetIRI *url.URL, objProp *vocab.ObjectProperty) *vocab.ActivityType {
-	published := time.Now()
-
-	return vocab.NewCreateActivity(
-		objProp,
-		vocab.WithID(newActivityID(actorIRI)),
-		vocab.WithActor(actorIRI),
-		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithObject(
-			vocab.NewObject(
-				vocab.WithID(targetIRI),
-				vocab.WithCID(cid),
-				vocab.WithType(vocab.TypeContentAddressedStorage),
-			),
-		))),
-		vocab.WithContext(vocab.ContextActivityAnchors),
-		vocab.WithTo(toIRI),
-		vocab.WithPublishedTime(&published),
-	)
-}
-
-const anchorCredential1 = `{
-  "@context": [
-	"https://www.w3.org/2018/credentials/v1",
-	"https://w3id.org/activityanchors/v1"
-  ],
-  "id": "https://sally.example.com/transactions/bafkreihwsn",
-  "type": [
-	"VerifiableCredential",
-	"AnchorCredential"
-  ],
-  "issuer": "https://sally.example.com/services/orb",
-  "issuanceDate": "2021-01-27T09:30:10Z",
-  "credentialSubject": {},
-  "proofChain": [{}]
-}`
 
 const proof = `{
   "@context": [

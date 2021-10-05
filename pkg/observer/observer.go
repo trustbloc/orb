@@ -8,6 +8,7 @@ package observer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
@@ -34,7 +36,7 @@ var logger = log.New("orb-observer")
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
-	Read(cid string) (*verifiable.Credential, error)
+	Read(hl string) (*vocab.AnchorEventType, error)
 	GetDidAnchors(cid, suffix string) ([]graph.Anchor, error)
 }
 
@@ -120,14 +122,16 @@ type Providers struct {
 type Observer struct {
 	*Providers
 
+	serviceIRI      *url.URL
 	pubSub          *PubSub
 	discoveryDomain string
 }
 
 // New returns a new observer.
-func New(providers *Providers, opts ...Option) (*Observer, error) {
+func New(serviceIRI *url.URL, providers *Providers, opts ...Option) (*Observer, error) {
 	o := &Observer{
-		Providers: providers,
+		serviceIRI: serviceIRI,
+		Providers:  providers,
 	}
 
 	ps, err := NewPubSub(providers.PubSub, o.handleAnchor, o.processDID)
@@ -166,18 +170,20 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 
 	startTime := time.Now()
 
-	defer o.Metrics.ProcessAnchorTime(time.Since(startTime))
+	defer func() {
+		o.Metrics.ProcessAnchorTime(time.Since(startTime))
+	}()
 
-	anchorInfo, err := o.AnchorGraph.Read(anchor.Hashlink)
+	anchorEvent, err := o.AnchorGraph.Read(anchor.Hashlink)
 	if err != nil {
-		logger.Warnf("Failed to get anchor[%s] node from anchor graph: %s", anchor.Hashlink, err.Error())
+		logger.Warnf("Failed to get anchor event[%s] node from anchor graph: %s", anchor.Hashlink, err.Error())
 
 		return err
 	}
 
-	logger.Debugf("successfully read anchor[%s] from anchor graph", anchor.Hashlink)
+	logger.Debugf("successfully read anchor event[%s] from anchor graph", anchor.Hashlink)
 
-	if err := o.processAnchor(anchor, anchorInfo); err != nil {
+	if err := o.processAnchor(anchor, anchorEvent); err != nil {
 		logger.Warnf(err.Error())
 
 		return err
@@ -214,7 +220,8 @@ func (o *Observer) processDID(did string) error {
 	for _, anchor := range anchors {
 		logger.Debugf("processing anchor[%s] for out-of-system did[%s]", anchor.CID, did)
 
-		if err := o.processAnchor(&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
+		if err := o.processAnchor(
+			&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
 			anchor.Info, suffix); err != nil {
 			if errors.IsTransient(err) {
 				// Return an error so that the message is redelivered and retried.
@@ -242,10 +249,11 @@ func getDidParts(did string) (cid, suffix string, err error) {
 }
 
 //nolint:funlen
-func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable.Credential, suffixes ...string) error {
+func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
+	anchorEvent *vocab.AnchorEventType, suffixes ...string) error {
 	logger.Debugf("processing anchor[%s] from [%s], suffixes: %s", anchor.Hashlink, anchor.AttributedTo, suffixes)
 
-	anchorPayload, err := util.GetAnchorSubject(info)
+	anchorPayload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
 	if err != nil {
 		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
@@ -274,8 +282,16 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 		equivalentRefs = append(equivalentRefs, "https:"+o.discoveryDomain+":"+canonicalID)
 	}
 
+	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
+	)
+	if err != nil {
+		return fmt.Errorf("get verifiable credential from anchor event: %w", err)
+	}
+
 	sidetreeTxn := txnapi.SidetreeTxn{
-		TransactionTime:      uint64(info.Issued.Unix()),
+		TransactionTime:      uint64(vc.Issued.Unix()),
 		AnchorString:         ad.GetAnchorString(),
 		Namespace:            anchorPayload.Namespace,
 		ProtocolVersion:      anchorPayload.Version,
@@ -287,7 +303,8 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 
 	err = v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
 	if err != nil {
-		return fmt.Errorf("failed to processAnchors core index[%s]: %w", anchorPayload.CoreIndex, err)
+		return fmt.Errorf("failed to process anchor[%s] core index[%s]: %w",
+			anchor.Hashlink, anchorPayload.CoreIndex, err)
 	}
 
 	// update global did/anchor references
@@ -299,7 +316,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo, info *verifiable
 	}
 
 	logger.Infof("Successfully processed %d DIDs in anchor[%s], core index[%s]",
-		len(anchorPayload.PreviousAnchors), anchor.Hashlink, anchorPayload.CoreIndex)
+		anchorPayload.OperationCount, anchor.Hashlink, anchorPayload.CoreIndex)
 
 	// Post a 'Like' activity to the originator of the anchor credential.
 	err = o.saveAnchorLinkAndPostLikeActivity(anchor)
@@ -351,8 +368,9 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return fmt.Errorf("resolve origin actor for hashlink [%s]: %w", refURL, err)
 	}
 
-	if anchor.AttributedTo != originActor.String() {
-		logger.Debugf("Also posting a 'Like' to the origin of this activity [%s]", originActor)
+	if anchor.AttributedTo != originActor.String() && originActor.String() != o.serviceIRI.String() {
+		logger.Debugf("Also posting a 'Like' to the origin of this activity [%s] which was attributed to [%s]",
+			originActor, anchor.AttributedTo)
 
 		to = append(to, originActor)
 	}
@@ -369,11 +387,9 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 	publishedTime := time.Now()
 
 	like := vocab.NewLikeActivity(
-		vocab.NewObjectProperty(vocab.WithAnchorReference(
-			vocab.NewAnchorReferenceWithOpts(
-				vocab.WithURL(refURL),
-			)),
-		),
+		vocab.NewObjectProperty(vocab.WithAnchorEvent(
+			vocab.NewAnchorEvent(vocab.WithURL(refURL)),
+		)),
 		vocab.WithTo(append(to, vocab.PublicIRI)...),
 		vocab.WithPublishedTime(&publishedTime),
 		vocab.WithResult(result),
@@ -389,29 +405,24 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 }
 
 func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
-	vcBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
+	anchorEventBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
 	if err != nil {
-		return nil, fmt.Errorf("resolve anchor credential: %w", err)
+		return nil, fmt.Errorf("resolve anchor event: %w", err)
 	}
 
-	logger.Debugf("Retrieved anchor credential from [%s]: %s", hl, vcBytes)
+	logger.Debugf("Retrieved anchor event from [%s]: %s", hl, anchorEventBytes)
 
-	vc, err := verifiable.ParseCredential(vcBytes,
-		verifiable.WithDisabledProofCheck(),
-		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
-	)
+	anchorEvent := &vocab.AnchorEventType{}
+
+	err = json.Unmarshal(anchorEventBytes, anchorEvent)
 	if err != nil {
-		return nil, fmt.Errorf("parse anchor credential: %w", err)
+		return nil, fmt.Errorf("unmarshal anchor event for [%s]: %w", hl, err)
 	}
 
-	attributedTo, ok := vc.Subject.([]verifiable.Subject)[0].CustomFields["attributedTo"]
-	if !ok {
-		return nil, fmt.Errorf(`"attributedTo" field not found in anchor credential for [%s]`, hl)
-	}
-
-	hml, err := o.WebFingerResolver.ResolveHostMetaLink(attributedTo.(string), discoveryrest.ActivityJSONType)
+	hml, err := o.WebFingerResolver.ResolveHostMetaLink(anchorEvent.AttributedTo().String(),
+		discoveryrest.ActivityJSONType)
 	if err != nil {
-		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", attributedTo, err)
+		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", anchorEvent.AttributedTo(), err)
 	}
 
 	actor, err := url.Parse(hml)
@@ -454,9 +465,7 @@ func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {
 		return nil, fmt.Errorf("parse hashlink [%s]: %w", hashLink, e)
 	}
 
-	return vocab.NewObjectProperty(vocab.WithAnchorReference(
-		vocab.NewAnchorReferenceWithOpts(
-			vocab.WithURL(u),
-		)),
+	return vocab.NewObjectProperty(vocab.WithAnchorEvent(
+		vocab.NewAnchorEvent(vocab.WithURL(u))),
 	), nil
 }

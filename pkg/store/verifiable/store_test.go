@@ -7,92 +7,19 @@ SPDX-License-Identifier: Apache-2.0
 package verifiable
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-var udCredential = `
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1"
-  ],
-  "id": "http://example.edu/credentials/1872",
-  "type": [
-    "VerifiableCredential",
-    "UniversityDegreeCredential"
-  ],
-  "credentialSubject": {
-    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-    "degree": {
-      "type": "BachelorDegree"
-    },
-    "name": "Jayden Doe",
-    "spouse": "did:example:c276e12ec21ebfeb1f712ebc6f1"
-  },
-
-  "issuer": {
-    "id": "did:example:76e12ec712ebc6f1c221ebfeb1f",
-    "name": "Example University"
-  },
-
-  "issuanceDate": "2010-01-01T19:23:24Z"
-}
-`
-
-var udCredentialWithoutID = `
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1"
-  ],
-  "type": [
-    "VerifiableCredential",
-    "UniversityDegreeCredential"
-  ],
-  "credentialSubject": {
-    "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-    "degree": {
-      "type": "BachelorDegree"
-    },
-    "name": "Jayden Doe",
-    "spouse": "did:example:c276e12ec21ebfeb1f712ebc6f1"
-  },
-
-  "issuer": {
-    "id": "did:example:76e12ec712ebc6f1c221ebfeb1f",
-    "name": "Example University"
-  },
-
-  "issuanceDate": "2010-01-01T19:23:24Z"
-}
-`
-
-//nolint: lll
-var anchorCred = `
-{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1"
-  ],
-  "credentialSubject": {},
-  "id": "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d",
-  "issuanceDate": "2021-03-17T20:01:10.4002903Z",
-  "issuer": "http://peer1.com",
-  "proof": {
-    "created": "2021-03-17T20:01:10.4024292Z",
-    "domain": "domain.com",
-    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..pHA1rMSsHBJLbDwRpNY0FrgSgoLzBw4S7VP7d5bkYW-JwU8qc_4CmPfQctR8kycQHSa2Jh8LNBqNKMeVWsAwDA",
-    "proofPurpose": "assertionMethod",
-    "type": "Ed25519Signature2018",
-    "verificationMethod": "did:web:abc#CvSyX0VxMCbg-UiYpAVd9OmhaFBXBr5ISpv2RZ2c9DY"
-  },
-  "type": "VerifiableCredential"
-}`
+var anchorsURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
 
 func TestNew(t *testing.T) {
 	t.Run("test new store", func(t *testing.T) {
@@ -112,11 +39,11 @@ func TestNew(t *testing.T) {
 }
 
 func TestStore_Put(t *testing.T) {
-	t.Run("test save vc - success", func(t *testing.T) {
+	t.Run("test save anchor event - success", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(&verifiable.Credential{ID: "vc1"})
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
 		require.NoError(t, err)
 	})
 
@@ -128,7 +55,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(storeProvider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(&verifiable.Credential{ID: "vc1"})
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put")
 	})
@@ -139,49 +66,33 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		udVC, err := verifiable.ParseCredential([]byte(udCredential),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
 		require.NoError(t, err)
 
-		err = s.Put(udVC)
+		ae, err := s.Get(anchorsURL.String())
 		require.NoError(t, err)
-
-		vc, err := s.Get("http://example.edu/credentials/1872")
-		require.NoError(t, err)
-		require.Equal(t, vc.ID, "http://example.edu/credentials/1872")
+		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		anchorVC, err := verifiable.ParseCredential([]byte(anchorCred),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
 		require.NoError(t, err)
 
-		err = s.Put(anchorVC)
+		ae, err := s.Get(anchorsURL.String())
 		require.NoError(t, err)
-
-		vc, err := s.Get(anchorVC.ID)
-		require.NoError(t, err)
-		require.Equal(t, vc.ID, "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d")
+		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
 	})
 
-	t.Run("error - vc without ID", func(t *testing.T) {
+	t.Run("error - nil anchors URL", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		udVC, err := verifiable.ParseCredential([]byte(udCredentialWithoutID),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, err)
-
-		err = s.Put(udVC)
+		err = s.Put(vocab.NewAnchorEvent())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to save vc: ID is empty")
+		require.Contains(t, err.Error(), "failed to save anchor event: Anchors is empty")
 	})
 
 	t.Run("test error from store get", func(t *testing.T) {
@@ -198,16 +109,37 @@ func TestStore_Get(t *testing.T) {
 		require.Nil(t, vc)
 	})
 
-	t.Run("test error from new credential", func(t *testing.T) {
+	t.Run("test marshal error", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(&verifiable.Credential{ID: "vc1"})
+		errExpected := errors.New("injected marshal error")
+
+		s.marshal = func(v interface{}) ([]byte, error) {
+			return nil, errExpected
+		}
+
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
+	t.Run("test unmarshal error", func(t *testing.T) {
+		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vc, err := s.Get("vc1")
+		errExpected := errors.New("injected unmarshal error")
+
+		s.unmarshal = func(data []byte, v interface{}) error {
+			return errExpected
+		}
+
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		require.NoError(t, err)
+
+		ae, err := s.Get(anchorsURL.String())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "credential type of unknown structure")
-		require.Nil(t, vc)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, ae)
 	})
 }

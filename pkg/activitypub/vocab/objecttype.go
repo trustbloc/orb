@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 )
 
 // ObjectType defines an 'object'.
@@ -25,17 +27,18 @@ func NewObject(opts ...Opt) *ObjectType {
 
 	return &ObjectType{
 		object: &objectType{
-			Context:    NewContextProperty(options.Context...),
-			ID:         NewURLProperty(options.ID),
-			URL:        NewURLCollectionProperty(options.URL...),
-			CID:        options.CID,
-			Type:       NewTypeProperty(options.Types...),
-			To:         NewURLCollectionProperty(options.To...),
-			Published:  options.Published,
-			StartTime:  options.StartTime,
-			EndTime:    options.EndTime,
-			InReplyTo:  NewURLProperty(options.InReplyTo),
-			Attachment: options.Attachment,
+			Context:      NewContextProperty(options.Context...),
+			ID:           NewURLProperty(options.ID),
+			URL:          NewURLCollectionProperty(options.URL...),
+			CID:          options.CID,
+			Type:         NewTypeProperty(options.Types...),
+			To:           NewURLCollectionProperty(options.To...),
+			Published:    newTimeProperty(options.Published),
+			StartTime:    newTimeProperty(options.StartTime),
+			EndTime:      newTimeProperty(options.EndTime),
+			InReplyTo:    NewURLProperty(options.InReplyTo),
+			Attachment:   options.Attachment,
+			AttributedTo: NewURLProperty(options.AttributedTo),
 		},
 	}
 }
@@ -62,17 +65,18 @@ func NewObjectWithDocument(doc Document, opts ...Opt) (*ObjectType, error) {
 }
 
 type objectType struct {
-	Context    *ContextProperty       `json:"@context,omitempty"`
-	ID         *URLProperty           `json:"id,omitempty"`
-	URL        *URLCollectionProperty `json:"url,omitempty"`
-	Type       *TypeProperty          `json:"type,omitempty"`
-	To         *URLCollectionProperty `json:"to,omitempty"`
-	Published  *time.Time             `json:"published,omitempty"`
-	StartTime  *time.Time             `json:"startTime,omitempty"`
-	EndTime    *time.Time             `json:"endTime,omitempty"`
-	CID        string                 `json:"cid,omitempty"`
-	InReplyTo  *URLProperty           `json:"inReplyTo,omitempty"`
-	Attachment []*ObjectType          `json:"attachment,omitempty"`
+	Context      *ContextProperty       `json:"@context,omitempty"`
+	ID           *URLProperty           `json:"id,omitempty"`
+	URL          *URLCollectionProperty `json:"url,omitempty"`
+	Type         *TypeProperty          `json:"type,omitempty"`
+	To           *URLCollectionProperty `json:"to,omitempty"`
+	Published    *util.TimeWrapper      `json:"published,omitempty"`
+	StartTime    *util.TimeWrapper      `json:"startTime,omitempty"`
+	EndTime      *util.TimeWrapper      `json:"endTime,omitempty"`
+	CID          string                 `json:"cid,omitempty"`
+	InReplyTo    *URLProperty           `json:"inReplyTo,omitempty"`
+	Attachment   []*ObjectProperty      `json:"attachment,omitempty"`
+	AttributedTo *URLProperty           `json:"attributedTo,omitempty"`
 }
 
 // Context returns the context property.
@@ -124,29 +128,29 @@ func (t *ObjectType) Type() *TypeProperty {
 
 // Published returns the time when the object was published.
 func (t *ObjectType) Published() *time.Time {
-	if t == nil || t.object == nil {
+	if t == nil || t.object == nil || t.object.Published == nil {
 		return nil
 	}
 
-	return t.object.Published
+	return &t.object.Published.Time
 }
 
 // StartTime returns the start time.
 func (t *ObjectType) StartTime() *time.Time {
-	if t == nil || t.object == nil {
+	if t == nil || t.object == nil || t.object.StartTime == nil {
 		return nil
 	}
 
-	return t.object.StartTime
+	return &t.object.StartTime.Time
 }
 
 // EndTime returns the end time.
 func (t *ObjectType) EndTime() *time.Time {
-	if t == nil || t.object == nil {
+	if t == nil || t.object == nil || t.object.EndTime == nil {
 		return nil
 	}
 
-	return t.object.EndTime
+	return &t.object.EndTime.Time
 }
 
 // InReplyTo returns the 'inReplyTo' field.
@@ -159,12 +163,21 @@ func (t *ObjectType) InReplyTo() *URLProperty {
 }
 
 // Attachment returns the 'attachment' field.
-func (t *ObjectType) Attachment() []*ObjectType {
+func (t *ObjectType) Attachment() []*ObjectProperty {
 	if t == nil || t.object == nil {
 		return nil
 	}
 
 	return t.object.Attachment
+}
+
+// AttributedTo returns the 'attributedTo' field.
+func (t *ObjectType) AttributedTo() *URLProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
+	return t.object.AttributedTo
 }
 
 // Urls holds a collection of URLs.
@@ -246,4 +259,12 @@ func (t *ObjectType) UnmarshalJSON(bytes []byte) error {
 	t.additional = doc
 
 	return nil
+}
+
+func newTimeProperty(t *time.Time) *util.TimeWrapper {
+	if t == nil {
+		return nil
+	}
+
+	return util.NewTime(*t)
 }

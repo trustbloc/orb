@@ -147,7 +147,7 @@ Feature:
     # A 'Create' activity should have been posted to domain1's followers (domain2).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/433ccbe6-a5c1-4a71-903b-e0740ad4a5d3"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/e52b45b8-ef51-4d09-80a0-1c6e0d77ac2d"
 
     # An 'Announce' activity should have been posted to domain2's followers (domain3).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
@@ -171,12 +171,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=http%3A%2F%2Forb.domain1.com%2Fvc%2F6a4a8156-07c4-44ea-a6d5-aa87cbee8d78"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiDmaq_QDlJbNO9Wca8ujyRcFmM4DNjG-yC2KsjI2pCAQg%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG1hcV9RRGxKYk5POVdjYTh1anlSY0ZtTTRETmpHLXlDMktzakkycENBUWc"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.id" of the response equals "http://orb.domain1.com/vc/6a4a8156-07c4-44ea-a6d5-aa87cbee8d78"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDmaq_QDlJbNO9Wca8ujyRcFmM4DNjG-yC2KsjI2pCAQg:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG1hcV9RRGxKYk5POVdjYTh1anlSY0ZtTTRETmpHLXlDMktzakkycENBUWc"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

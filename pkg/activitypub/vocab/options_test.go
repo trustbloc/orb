@@ -62,10 +62,7 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(testutil.MustParseURL("https://property_result")),
 	}
 
-	anchorRef := NewAnchorReference(
-		testutil.MustParseURL("https://example.com/anchor_cred_ref_id"),
-		testutil.MustParseURL("https://example.com/anchor_cred_iri"),
-		"cid")
+	anchorEvent := NewAnchorEvent(WithURL(testutil.MustParseURL("https://example.com/anchor_cred_ref_id")))
 
 	opts := NewOptions(
 		WithID(id),
@@ -90,7 +87,7 @@ func TestNewOptions(t *testing.T) {
 		WithTarget(target),
 		WithActor(actor),
 		WithResult(result),
-		WithAnchorReference(anchorRef),
+		WithAnchorEvent(anchorEvent),
 		WithFollowers(followers),
 		WithFollowing(following),
 		WithInbox(inbox),
@@ -100,7 +97,8 @@ func TestNewOptions(t *testing.T) {
 		WithWitnesses(witnesses),
 		WithWitnessing(witnessing),
 		WithInReplyTo(id),
-		WithAttachment(NewObject()),
+		WithAttachment(NewObjectProperty(WithObject(NewObject()))),
+		WithAnchorObject(NewAnchorObject(nil, nil)),
 	)
 
 	require.NotNil(t, opts)
@@ -144,7 +142,7 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, actor, opts.Actor)
 	require.Equal(t, result, opts.Result)
 
-	require.Equal(t, anchorRef, opts.AnchorCredRef)
+	require.Equal(t, anchorEvent, opts.AnchorEvent)
 
 	require.Equal(t, followers.String(), opts.Followers.String())
 	require.Equal(t, following.String(), opts.Following.String())
@@ -155,4 +153,6 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, liked.String(), opts.Liked.String())
 	require.Equal(t, witnesses.String(), opts.Witnesses.String())
 	require.Equal(t, witnessing.String(), opts.Witnessing.String())
+
+	require.NotNil(t, opts.AnchorObject)
 }

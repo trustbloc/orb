@@ -102,7 +102,7 @@ func (m *Client) Write(content []byte) (string, error) {
 		return "", fmt.Errorf("failed to create hashlink for ipfs: %w", err)
 	}
 
-	logger.Debugf("ipfs Add returned hl [%s] using cid[%s]. Content:%s", hl, cid, string(content))
+	logger.Debugf("ipfs Add returned hl [%s] using cid[%s]", hl, cid)
 
 	return hl, nil
 }
@@ -135,7 +135,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debugf("ipfs Add returned cid [%s] using version %d. Content:%s", cid, options.CIDVersion, string(content))
+	logger.Debugf("ipfs Add returned cid [%s] using version %d.", cid, options.CIDVersion)
 
 	return cid, nil
 }
@@ -172,10 +172,14 @@ func (m *Client) get(cid string) ([]byte, error) {
 
 	defer m.metrics.CASReadTime(casType, time.Since(startTime))
 
+	logger.Debugf("Read CID from IPFS [%s]", cid)
+
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			return nil, orberrors.NewTransient(fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound))
+			logger.Debugf("CID not found in IPFS (due to context deadline exceeded) [%s]", cid)
+
+			return nil, fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound)
 		}
 
 		return nil, orberrors.NewTransient(fmt.Errorf("cat IPFS of CID [%s]: %w", cid, err))

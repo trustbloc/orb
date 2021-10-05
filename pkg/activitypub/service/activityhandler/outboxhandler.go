@@ -68,24 +68,24 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 
 	obj := create.Object()
 
-	var target *vocab.ObjectProperty
-
-	switch {
-	case obj.Type().Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
-		target = create.Target()
-
-	case obj.Type().Is(vocab.TypeAnchorRef):
-		target = obj.AnchorReference().Target()
-
-	default:
+	if !obj.Type().Is(vocab.TypeAnchorEvent) {
 		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", obj.Type(), create.ID())
 	}
 
-	logger.Debugf("[%s] Storing anchor credential reference [%s]", h.ServiceName, target.Object().ID())
+	anchorEvent := obj.AnchorEvent()
 
-	err := h.store.AddReference(store.AnchorCredential, target.Object().ID().URL(), h.ServiceIRI)
-	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("store anchor credential reference: %w", err))
+	if err := anchorEvent.Validate(); err != nil {
+		return fmt.Errorf("invalid anchor event: %w", err)
+	}
+
+	if len(anchorEvent.URL()) == 0 {
+		return errors.New("missing anchor event URL")
+	}
+
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.URL())
+
+	if err := h.store.AddReference(store.AnchorEvent, anchorEvent.URL()[0], h.ServiceIRI); err != nil {
+		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
 	}
 
 	return nil
@@ -116,7 +116,7 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
 
-	ref := like.Object().AnchorReference()
+	ref := like.Object().AnchorEvent()
 
 	if ref == nil || len(ref.URL()) == 0 {
 		return errors.New("no anchor reference URL in 'Like' activity")

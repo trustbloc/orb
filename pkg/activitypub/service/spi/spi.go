@@ -37,9 +37,9 @@ type Inbox interface {
 	ServiceLifecycle
 }
 
-// AnchorCredentialHandler handles a new, published anchor credential.
-type AnchorCredentialHandler interface {
-	HandleAnchorCredential(actor, id *url.URL, cid string, anchorCred []byte) error
+// AnchorEventHandler handles a new, published anchor event.
+type AnchorEventHandler interface {
+	HandleAnchorEvent(actor, anchorEventRef *url.URL, anchorEvent *vocab.AnchorEventType) error
 }
 
 // AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server,
@@ -62,7 +62,7 @@ type WitnessHandler interface {
 
 // ProofHandler handles the given proof for the anchor credential.
 type ProofHandler interface {
-	HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error
+	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
 }
 
 // ActivityHandler defines the functions of an Activity handler.
@@ -83,13 +83,13 @@ type UndeliverableActivityHandler interface {
 
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
-	UndeliverableHandler    UndeliverableActivityHandler
-	AnchorCredentialHandler AnchorCredentialHandler
-	FollowerAuth            ActorAuth
-	WitnessInvitationAuth   ActorAuth
-	Witness                 WitnessHandler
-	ProofHandler            ProofHandler
-	AnchorEventAckHandler   AnchorEventAcknowledgementHandler
+	UndeliverableHandler  UndeliverableActivityHandler
+	AnchorEventHandler    AnchorEventHandler
+	FollowerAuth          ActorAuth
+	WitnessInvitationAuth ActorAuth
+	Witness               WitnessHandler
+	ProofHandler          ProofHandler
+	AnchorEventAckHandler AnchorEventAcknowledgementHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -102,10 +102,10 @@ func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
 	}
 }
 
-// WithAnchorCredentialHandler sets the handler for the published anchor credentials.
-func WithAnchorCredentialHandler(handler AnchorCredentialHandler) HandlerOpt {
+// WithAnchorEventHandler sets the handler for the published anchor event.
+func WithAnchorEventHandler(handler AnchorEventHandler) HandlerOpt {
 	return func(options *Handlers) {
-		options.AnchorCredentialHandler = handler
+		options.AnchorEventHandler = handler
 	}
 }
 

@@ -8,10 +8,17 @@ SPDX-License-Identifier: Apache-2.0
 package aptestutil
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -131,24 +138,26 @@ func NewMockCreateActivities(num int) []*vocab.ActivityType {
 	activities := make([]*vocab.ActivityType, num)
 
 	for i := 0; i < num; i++ {
-		activities[i] = NewMockCreateActivity(fmt.Sprintf("https://create_%d", i), fmt.Sprintf("https://obj_%d", i))
+		activities[i] = NewMockCreateActivity(
+			testutil.MustParseURL(fmt.Sprintf("https://create_%d", i)),
+			testutil.MustParseURL(fmt.Sprintf("https://obj_%d", i)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(vocab.NewAnchorEvent())),
+		)
 	}
 
 	return activities
 }
 
-// NewMockCreateActivity returns a mock 'Create' activity.
-func NewMockCreateActivity(id, objID string) *vocab.ActivityType {
+// NewMockCreateActivity returns a new mock Create activity.
+func NewMockCreateActivity(actorIRI, toIRI *url.URL, obj *vocab.ObjectProperty) *vocab.ActivityType {
+	published := time.Now()
+
 	return vocab.NewCreateActivity(
-		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReference(
-					testutil.MustParseURL(objID),
-					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
-					"bafkd34G7hD6gbj94fnKm5D"),
-			),
-		),
-		vocab.WithID(testutil.MustParseURL(id)),
+		obj,
+		vocab.WithID(NewActivityID(actorIRI)),
+		vocab.WithActor(actorIRI),
+		vocab.WithTo(toIRI),
+		vocab.WithPublishedTime(&published),
 	)
 }
 
@@ -167,13 +176,112 @@ func NewMockLikeActivities(num int) []*vocab.ActivityType {
 func NewMockLikeActivity(id, objID string) *vocab.ActivityType {
 	return vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorReference(
-				vocab.NewAnchorReference(
-					testutil.MustParseURL(objID),
-					testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D"),
-					"bafkd34G7hD6gbj94fnKm5D"),
+			vocab.WithAnchorEvent(
+				vocab.NewAnchorEvent(
+					vocab.WithURL(testutil.MustParseURL(objID)),
+					vocab.WithURL(testutil.MustParseURL("https://example.com/cas/bafkd34G7hD6gbj94fnKm5D")),
+				),
 			),
 		),
 		vocab.WithID(testutil.MustParseURL(id)),
 	)
 }
+
+// NewMockAnchorEvent returns a new mock AnchorEvent.
+func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
+	t.Helper()
+
+	const (
+		generator  = "https://w3id.org/orb#v0"
+		resourceID = "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
+	)
+
+	var (
+		anchors    = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
+		subject    = testutil.MustParseURL("hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU")                                                                                                  //nolint:lll
+		parentURL1 = testutil.MustParseURL("hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5") //nolint:lll
+		parentURL2 = testutil.MustParseURL("hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp") //nolint:lll
+	)
+
+	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(verifiableCred)))
+	require.NoError(t, err)
+
+	published := time.Now()
+
+	anchorEvent := vocab.NewAnchorEvent(
+		vocab.WithURL(NewRandomHashlink(t)),
+		vocab.WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
+		vocab.WithAnchors(anchors),
+		vocab.WithPublishedTime(&published),
+		vocab.WithParent(parentURL1, parentURL2),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(
+			vocab.NewAnchorObject(
+				vocab.NewContentObject(generator,
+					subject,
+					vocab.NewResource(resourceID, ""),
+				),
+				witness,
+				vocab.WithURL(anchors),
+			),
+		))),
+	)
+
+	return anchorEvent
+}
+
+// NewMockAnchorEventRef returns a new mock AnchorEvent reference.
+func NewMockAnchorEventRef(t *testing.T) *vocab.AnchorEventType {
+	t.Helper()
+
+	return vocab.NewAnchorEvent(
+		vocab.WithURL(NewRandomHashlink(t)),
+	)
+}
+
+// NewRandomHashlink returns a randomly generated hashlink.
+func NewRandomHashlink(t *testing.T) *url.URL {
+	t.Helper()
+
+	tm := time.Now()
+
+	randomBytes, err := json.Marshal(tm)
+	require.NoError(t, err)
+
+	hl, err := hashlink.New().CreateHashLink(randomBytes, nil)
+	require.NoError(t, err)
+
+	return testutil.MustParseURL(hl)
+}
+
+// NewActivityID returns a generated activity ID.
+func NewActivityID(id fmt.Stringer) *url.URL {
+	return testutil.NewMockID(id, uuid.New().String())
+}
+
+const verifiableCred = `{
+  "@context": "https://www.w3.org/2018/credentials/v1",
+  "type": "VerifiableCredential",
+  "issuer": "https://sally.example.com/services/anchor",
+  "issuanceDate": "2021-01-27T09:30:10Z",
+  "credentialSubject": {
+    "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+  },
+  "proof": [
+    {
+      "type": "JsonWebSignature2020",
+      "proofPurpose": "assertionMethod",
+      "created": "2021-01-27T09:30:00Z",
+      "verificationMethod": "did:example:abcd#key",
+      "domain": "sally.example.com",
+      "jws": "eyJ..."
+    },
+    {
+      "type": "JsonWebSignature2020",
+      "proofPurpose": "assertionMethod",
+      "created": "2021-01-27T09:30:05Z",
+      "verificationMethod": "did:example:abcd#key",
+      "domain": "https://witness1.example.com/ledgers/maple2021",
+      "jws": "eyJ..."
+    }
+  ]
+}`

@@ -96,12 +96,17 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debugf("Publishing anchors to topic [%s]: %s", anchorTopic, anchorInfo)
+	logger.Debugf("Publishing anchors message [%s] to topic [%s]: %s", msg.UUID, anchorTopic, msg.Payload)
 
 	err = h.publisher.Publish(anchorTopic, msg)
 	if err != nil {
+		logger.Warnf("Error publishing anchors message [%s] to topic [%s]: %s", msg.UUID, anchorTopic, err)
+
 		return errors.NewTransient(err)
 	}
+
+	logger.Debugf("Successfully published anchors message [%s] to topic [%s]: %s",
+		msg.UUID, anchorTopic, msg.Payload)
 
 	return nil
 }
@@ -141,7 +146,7 @@ func (h *PubSub) listen() {
 				return
 			}
 
-			logger.Debugf("Got new anchor credential message: %s: %s", msg.UUID, msg.Payload)
+			logger.Debugf("Got new anchor credential message [%s]: %s", msg.UUID, msg.Payload)
 
 			h.handleAnchorCredentialMessage(msg)
 
@@ -152,7 +157,7 @@ func (h *PubSub) listen() {
 				return
 			}
 
-			logger.Debugf("Got new DID message: %s: %s", msg.UUID, msg.Payload)
+			logger.Debugf("Got new DID message [%s]: %s", msg.UUID, msg.Payload)
 
 			h.handleDIDMessage(msg)
 		}
@@ -217,14 +222,16 @@ func (h *PubSub) ackNackMessage(msg *message.Message, info fmt.Stringer, err err
 }
 
 type anchorInfo struct {
-	hashLink     string
-	attributedTo string
+	hashLink      string
+	attributedTo  string
+	localHashlink string
 }
 
 func newAnchorInfo(info *anchorinfo.AnchorInfo) *anchorInfo {
 	return &anchorInfo{
-		hashLink:     info.Hashlink,
-		attributedTo: info.AttributedTo,
+		hashLink:      info.Hashlink,
+		attributedTo:  info.AttributedTo,
+		localHashlink: info.LocalHashlink,
 	}
 }
 
@@ -234,7 +241,7 @@ func (info *anchorInfo) String() string {
 		return str
 	}
 
-	return fmt.Sprintf("%s, attributedTo [%s]", str, info.attributedTo)
+	return fmt.Sprintf("%s, LocalHL [%s], attributedTo [%s]", str, info.localHashlink, info.attributedTo)
 }
 
 type didInfo struct {

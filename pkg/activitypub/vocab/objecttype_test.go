@@ -30,7 +30,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 		obj := NewObject(
 			WithURL(u),
 			WithContext(ContextCredentials, ContextActivityAnchors),
-			WithType(TypeVerifiableCredential, TypeAnchorCredential),
+			WithType(TypeVerifiableCredential),
 			WithTo(to1, to2),
 			WithPublishedTime(&publishedTime),
 			WithStartTime(&startTime),
@@ -49,7 +49,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
+		require.True(t, typeProp.Is(TypeVerifiableCredential))
 
 		require.Equal(t, &publishedTime, obj.Published())
 		require.Equal(t, &startTime, obj.StartTime())
@@ -65,7 +65,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 		obj := NewObject(
 			WithID(id),
 			WithContext(ContextCredentials, ContextActivityAnchors),
-			WithType(TypeVerifiableCredential, TypeAnchorCredential),
+			WithType(TypeVerifiableCredential),
 			WithPublishedTime(&publishedTime),
 			WithStartTime(&startTime),
 			WithEndTime(&endTime),
@@ -92,7 +92,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
+		require.True(t, typeProp.Is(TypeVerifiableCredential))
 
 		require.Equal(t, &publishedTime, obj.Published())
 		require.Equal(t, &startTime, obj.StartTime())
@@ -121,7 +121,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 			},
 			WithID(id),
 			WithContext(ContextCredentials, ContextActivityAnchors),
-			WithType(TypeVerifiableCredential, TypeAnchorCredential),
+			WithType(TypeVerifiableCredential),
 			WithTo(to1, to2),
 			WithPublishedTime(&publishedTime),
 			WithStartTime(&startTime),
@@ -150,7 +150,7 @@ func TestObjectType_WithDocument(t *testing.T) {
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
-		require.True(t, typeProp.Is(TypeVerifiableCredential, TypeAnchorCredential))
+		require.True(t, typeProp.Is(TypeVerifiableCredential))
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -186,10 +186,7 @@ const (
   "id": "http://sally.example.com/transactions/bafkreihwsn",
   "published": "2021-01-27T09:30:10Z",
   "startTime": "2021-01-27T09:30:10Z",
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
+  "type": "VerifiableCredential"
 }`
 	jsonObjectWithDoc = `{
   "@context": [
@@ -209,9 +206,6 @@ const (
   "issuanceDate": "2021-01-27T09:30:10Z",
   "issuer": "https://sally.example.com/services/orb",
   "proofChain": [],
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
+  "type": "VerifiableCredential"
 }`
 )

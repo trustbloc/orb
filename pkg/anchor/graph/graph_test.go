@@ -17,9 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
-	"github.com/trustbloc/orb/pkg/anchor/activity"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
-	vcutil "github.com/trustbloc/orb/pkg/anchor/util"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -57,10 +58,7 @@ func TestGraph_Add(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(providers)
 
-		c, err := buildDefaultCredential()
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 	})
@@ -84,17 +82,14 @@ func TestGraph_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(providers)
 
-		c, err := buildDefaultCredential()
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
 		vc, err := graph.Read(hl)
 		require.NoError(t, err)
 
-		payloadFromVC, err := vcutil.GetAnchorSubject(vc)
+		payloadFromVC, err := anchorevent.GetPayloadFromAnchorEvent(vc)
 		require.NoError(t, err)
 
 		require.Equal(t, testNS, payloadFromVC.Namespace)
@@ -127,10 +122,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {
 		graph := New(providers)
 
-		c, err := buildDefaultCredential()
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -152,10 +144,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		c, err := buildCredential(payload)
-		require.NoError(t, err)
-
-		anchor1HL, err := graph.Add(c)
+		anchor1HL, err := graph.Add(newMockAnchorEvent(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, anchor1HL)
 
@@ -170,10 +159,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		c, err = buildCredential(payload)
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newMockAnchorEvent(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -197,10 +183,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		c, err := buildCredential(payload)
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newMockAnchorEvent(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -222,10 +205,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		c, err := buildCredential(payload)
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newMockAnchorEvent(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -248,10 +228,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		c, err := buildCredential(payload)
-		require.NoError(t, err)
-
-		hl, err := graph.Add(c)
+		hl, err := graph.Add(newMockAnchorEvent(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -272,7 +249,9 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	})
 }
 
-func buildDefaultCredential() (*verifiable.Credential, error) {
+func newDefaultMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
+	t.Helper()
+
 	previousAnchors := make(map[string]string)
 	previousAnchors["suffix"] = ""
 
@@ -284,28 +263,29 @@ func buildDefaultCredential() (*verifiable.Credential, error) {
 		PreviousAnchors: previousAnchors,
 	}
 
-	return buildCredential(payload)
+	return newMockAnchorEvent(t, payload)
 }
 
-func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
-	const defVCContext = "https://www.w3.org/2018/credentials/v1"
+func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEventType {
+	t.Helper()
 
-	act, err := activity.BuildActivityFromPayload(payload)
-	if err != nil {
-		return nil, err
-	}
+	contentObj, err := anchorevent.BuildContentObject(payload)
+	require.NoError(t, err)
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
-		Context: []string{defVCContext},
-		Subject: act,
+		Context: []string{"https://www.w3.org/2018/credentials/v1"},
+		Subject: &builder.CredentialSubject{},
 		Issuer: verifiable.Issuer{
 			ID: "http://orb.domain.com",
 		},
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	return vc, nil
+	act, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+	require.NoError(t, err)
+
+	return act
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {

@@ -40,6 +40,10 @@ type Store struct {
 
 // PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
 func (s *Store) PutBulk(suffixes []string, cid string) error {
+	if len(suffixes) == 0 {
+		return errors.New("no suffixes provided")
+	}
+
 	operations := make([]storage.Operation, len(suffixes))
 
 	for i, suffix := range suffixes {
