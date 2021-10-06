@@ -26,33 +26,39 @@ import (
 )
 
 const (
-	activityTag      = "Activity"
-	objectIRITagName = "ObjectIRI"
-	timeAddedTagName = "TimeAdded"
+	activityTag         = "Activity"
+	objectIRITagName    = "ObjectIRI"
+	timeAddedTagName    = "TimeAdded"
+	activityTypeTagName = "ActivityType"
 )
 
 var logger = log.New("activitypub_store")
 
 // Provider implements an ActivityPub store backed by an Aries storage provider.
 type Provider struct {
-	serviceName     string
-	activityStore   ariesstorage.Store
-	referenceStores map[spi.ReferenceType]ariesstorage.Store
-	actorStore      ariesstorage.Store
+	serviceName             string
+	activityStore           ariesstorage.Store
+	referenceStores         map[spi.ReferenceType]ariesstorage.Store
+	actorStore              ariesstorage.Store
+	multipleTagQueryCapable bool
 }
 
 // New returns a new ActivityPub storage provider.
-func New(provider ariesstorage.Provider, serviceName string) (*Provider, error) {
+// If multipleTagQueryCapable is set to true, then reference queries can be done using both the object IRI and activity
+// type tags at the same time. NodeInfo uses this to optimize memory usage. Right now only the MongoDB provider
+// supports this setting.
+func New(serviceName string, provider ariesstorage.Provider, multipleTagQueryCapable bool) (*Provider, error) {
 	stores, err := openStores(provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open stores: %w", err)
 	}
 
 	return &Provider{
-		serviceName:     serviceName,
-		activityStore:   stores.activities,
-		referenceStores: stores.reference,
-		actorStore:      stores.actor,
+		serviceName:             serviceName,
+		activityStore:           stores.activities,
+		referenceStores:         stores.reference,
+		actorStore:              stores.actor,
+		multipleTagQueryCapable: multipleTagQueryCapable,
 	}, nil
 }
 
@@ -176,7 +182,8 @@ func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (s
 }
 
 // AddReference adds the reference of the given type to the given object.
-func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
+func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
+	refMetaDataOpts ...spi.RefMetadataOpt) error {
 	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 
@@ -190,14 +197,9 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI, refe
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	err = referenceStore.Put(objectIRI.String()+referenceIRI.String(), valueBytes,
-		ariesstorage.Tag{
-			Name:  objectIRITagName,
-			Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
-		}, ariesstorage.Tag{
-			Name:  timeAddedTagName,
-			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
-		})
+	tags := determineTags(objectIRI, refMetaDataOpts)
+
+	err = referenceStore.Put(objectIRI.String()+referenceIRI.String(), valueBytes, tags...)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to store reference: %w", err))
 	}
@@ -241,17 +243,21 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 
 	// If no reference IRI is set, then grab all references associated with the object IRI.
 	if query.ReferenceIRI == nil {
-		iterator, err := referenceStore.Query(
-			fmt.Sprintf("%s:%s", objectIRITagName,
-				base64.RawStdEncoding.EncodeToString([]byte(query.ObjectIRI.String()))),
+		queryExpression, err := s.generateQueryExpression(query)
+		if err != nil {
+			return nil, err
+		}
+
+		iterator, errQuery := referenceStore.Query(
+			queryExpression,
 			ariesstorage.WithSortOrder(&ariesstorage.SortOptions{
 				Order:   ariesstorage.SortOrder(options.SortOrder),
 				TagName: timeAddedTagName,
 			}),
 			ariesstorage.WithPageSize(options.PageSize),
 			ariesstorage.WithInitialPageNum(options.PageNumber))
-		if err != nil {
-			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", err))
+		if errQuery != nil {
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", errQuery))
 		}
 
 		return &referenceIterator{ariesIterator: iterator}, nil
@@ -259,7 +265,6 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 
 	// Otherwise, if there is a reference IRI,
 	// then we should only grab the reference associated with the object IRI and reference IRI.
-
 	retrievedURLBytes, err := referenceStore.Get(query.ObjectIRI.String() + query.ReferenceIRI.String())
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {
@@ -462,7 +467,7 @@ func openReferenceStores(provider ariesstorage.Provider) (map[spi.ReferenceType]
 	}
 
 	storeConfig := ariesstorage.StoreConfiguration{
-		TagNames: []string{objectIRITagName, timeAddedTagName},
+		TagNames: []string{objectIRITagName, timeAddedTagName, activityTypeTagName},
 	}
 
 	referenceStores := make(map[spi.ReferenceType]ariesstorage.Store)
@@ -483,4 +488,38 @@ func openReferenceStores(provider ariesstorage.Provider) (map[spi.ReferenceType]
 	}
 
 	return referenceStores, nil
+}
+
+func determineTags(objectIRI *url.URL, refMetaDataOpts []spi.RefMetadataOpt) []ariesstorage.Tag {
+	refMetadata := storeutil.GetRefMetadata(refMetaDataOpts...)
+
+	tags := []ariesstorage.Tag{{
+		Name:  objectIRITagName,
+		Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
+	}, {
+		Name:  timeAddedTagName,
+		Value: strconv.FormatInt(time.Now().UnixNano(), 10),
+	}}
+
+	if refMetadata.ActivityType != "" {
+		tags = append(tags, ariesstorage.Tag{Name: activityTypeTagName, Value: string(refMetadata.ActivityType)})
+	}
+
+	return tags
+}
+
+func (s *Provider) generateQueryExpression(query *spi.Criteria) (string, error) {
+	queryExpression := fmt.Sprintf("%s:%s", objectIRITagName,
+		base64.RawStdEncoding.EncodeToString([]byte(query.ObjectIRI.String())))
+
+	if len(query.Types) > 0 {
+		if s.multipleTagQueryCapable {
+			queryExpression += fmt.Sprintf("&&%s:%s", activityTypeTagName, query.Types[0])
+		} else {
+			return "", errors.New("cannot run query since the underlying storage provider does not support " +
+				"querying with multiple tags")
+		}
+	}
+
+	return queryExpression, nil
 }

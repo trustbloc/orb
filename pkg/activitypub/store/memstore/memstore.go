@@ -108,7 +108,8 @@ func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.
 }
 
 // AddReference adds the reference of the given type to the given object.
-func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
+func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
+	refMetaDataOpts ...spi.RefMetadataOpt) error {
 	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 

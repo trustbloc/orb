@@ -474,11 +474,11 @@ func TestWitnessing_Handler(t *testing.T) {
 }
 
 func TestGetReference(t *testing.T) {
-	store, err := ariesstore.New(&mock.Provider{
+	store, err := ariesstore.New("", &mock.Provider{
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, "")
+	}, false)
 	require.NoError(t, err)
 
 	referenceHandler := Reference{
@@ -492,11 +492,11 @@ func TestGetReference(t *testing.T) {
 }
 
 func TestReferenceHandlerGetPage(t *testing.T) {
-	ariesStore, err := ariesstore.New(&mock.Provider{
+	ariesStore, err := ariesstore.New("", &mock.Provider{
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, "")
+	}, false)
 	require.NoError(t, err)
 
 	referenceHandler := Reference{

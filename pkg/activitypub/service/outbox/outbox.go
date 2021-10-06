@@ -266,12 +266,14 @@ func (h *Outbox) storeActivity(activity *vocab.ActivityType) error {
 		return fmt.Errorf("store activity: %w", err)
 	}
 
-	if err := h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+	if err := h.activityStore.AddReference(store.Outbox, h.ServiceIRI, activity.ID().URL(),
+		store.WithActivityType(activity.Type().Types()[0])); err != nil {
 		return fmt.Errorf("add reference to activity: %w", err)
 	}
 
 	if activity.To().Contains(vocab.PublicIRI) {
-		if err := h.activityStore.AddReference(store.PublicOutbox, h.ServiceIRI, activity.ID().URL()); err != nil {
+		if err := h.activityStore.AddReference(store.PublicOutbox, h.ServiceIRI, activity.ID().URL(),
+			store.WithActivityType(activity.Type().Types()[0])); err != nil {
 			return fmt.Errorf("add reference to activity: %w", err)
 		}
 	}

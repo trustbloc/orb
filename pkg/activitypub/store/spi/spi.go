@@ -65,7 +65,7 @@ type Store interface {
 	// and returns a results iterator.
 	QueryActivities(query *Criteria, opts ...QueryOpt) (ActivityIterator, error)
 	// AddReference adds the reference of the given type to the given object.
-	AddReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
+	AddReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL, metaDataOpts ...RefMetadataOpt) error
 	// DeleteReference deletes the reference of the given type from the given object.
 	DeleteReference(refType ReferenceType, objectIRI *url.URL, referenceIRI *url.URL) error
 	// QueryReferences returns the list of references of the given type according to the given query.
@@ -110,6 +110,21 @@ func WithPageNum(pageNum int) QueryOpt {
 func WithSortOrder(sortOrder SortOrder) QueryOpt {
 	return func(options *QueryOptions) {
 		options.SortOrder = sortOrder
+	}
+}
+
+// RefMetadata holds additional metadata to be stored in a reference entry.
+type RefMetadata struct {
+	ActivityType vocab.Type
+}
+
+// RefMetadataOpt sets additional metadata to be stored in a reference entry.
+type RefMetadataOpt func(refMetaData *RefMetadata)
+
+// WithActivityType is used to indicate that the reference points to an activity with the given type.
+func WithActivityType(activityType vocab.Type) RefMetadataOpt {
+	return func(refMetaData *RefMetadata) {
+		refMetaData.ActivityType = activityType
 	}
 }
 

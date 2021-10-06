@@ -21,12 +21,13 @@ type ActivityStore struct {
 	addActivityReturnsOnCall map[int]struct {
 		result1 error
 	}
-	AddReferenceStub        func(spi.ReferenceType, *url.URL, *url.URL) error
+	AddReferenceStub        func(spi.ReferenceType, *url.URL, *url.URL, ...spi.RefMetadataOpt) error
 	addReferenceMutex       sync.RWMutex
 	addReferenceArgsForCall []struct {
 		arg1 spi.ReferenceType
 		arg2 *url.URL
 		arg3 *url.URL
+		arg4 []spi.RefMetadataOpt
 	}
 	addReferenceReturns struct {
 		result1 error
@@ -178,20 +179,21 @@ func (fake *ActivityStore) AddActivityReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityStore) AddReference(arg1 spi.ReferenceType, arg2 *url.URL, arg3 *url.URL) error {
+func (fake *ActivityStore) AddReference(arg1 spi.ReferenceType, arg2 *url.URL, arg3 *url.URL, arg4 ...spi.RefMetadataOpt) error {
 	fake.addReferenceMutex.Lock()
 	ret, specificReturn := fake.addReferenceReturnsOnCall[len(fake.addReferenceArgsForCall)]
 	fake.addReferenceArgsForCall = append(fake.addReferenceArgsForCall, struct {
 		arg1 spi.ReferenceType
 		arg2 *url.URL
 		arg3 *url.URL
-	}{arg1, arg2, arg3})
+		arg4 []spi.RefMetadataOpt
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.AddReferenceStub
 	fakeReturns := fake.addReferenceReturns
-	fake.recordInvocation("AddReference", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("AddReference", []interface{}{arg1, arg2, arg3, arg4})
 	fake.addReferenceMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4...)
 	}
 	if specificReturn {
 		return ret.result1
@@ -205,17 +207,17 @@ func (fake *ActivityStore) AddReferenceCallCount() int {
 	return len(fake.addReferenceArgsForCall)
 }
 
-func (fake *ActivityStore) AddReferenceCalls(stub func(spi.ReferenceType, *url.URL, *url.URL) error) {
+func (fake *ActivityStore) AddReferenceCalls(stub func(spi.ReferenceType, *url.URL, *url.URL, ...spi.RefMetadataOpt) error) {
 	fake.addReferenceMutex.Lock()
 	defer fake.addReferenceMutex.Unlock()
 	fake.AddReferenceStub = stub
 }
 
-func (fake *ActivityStore) AddReferenceArgsForCall(i int) (spi.ReferenceType, *url.URL, *url.URL) {
+func (fake *ActivityStore) AddReferenceArgsForCall(i int) (spi.ReferenceType, *url.URL, *url.URL, []spi.RefMetadataOpt) {
 	fake.addReferenceMutex.RLock()
 	defer fake.addReferenceMutex.RUnlock()
 	argsForCall := fake.addReferenceArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *ActivityStore) AddReferenceReturns(result1 error) {

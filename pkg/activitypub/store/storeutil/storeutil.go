@@ -29,6 +29,17 @@ func GetQueryOptions(opts ...store.QueryOpt) *store.QueryOptions {
 	return options
 }
 
+// GetRefMetadata populates and returns the RefMetadata struct with the given metadata.
+func GetRefMetadata(refMetadataOpts ...store.RefMetadataOpt) *store.RefMetadata {
+	refMetadata := &store.RefMetadata{}
+
+	for _, refMetadataOpt := range refMetadataOpts {
+		refMetadataOpt(refMetadata)
+	}
+
+	return refMetadata
+}
+
 // ReadReferences returns all of the references resulting from iterating over the given iterator,
 // up to the given maximum number of references. If maxItems is <=0 then all items are read.
 func ReadReferences(it store.ReferenceIterator, maxItems int) ([]*url.URL, error) {

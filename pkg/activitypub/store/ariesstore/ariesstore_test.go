@@ -9,24 +9,21 @@ package ariesstore_test
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/cenkalti/backoff"
-	"github.com/go-kivik/kivik/v3"
 	"github.com/google/uuid"
-	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
+	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -34,12 +31,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-const (
-	couchDBURL          = "admin:password@localhost:5984"
-	dockerCouchdbImage  = "couchdb"
-	dockerCouchdbTag    = "3.1.0"
-	dockerCouchdbVolume = "%s/testdata/single-node.ini:/opt/couchdb/etc/local.d/single-node.ini"
-)
+const mongoDBConnString = "mongodb://localhost:27017"
 
 type mockStore struct {
 	openStoreNameToFailOn      string
@@ -62,7 +54,7 @@ func (m *mockStore) SetStoreConfig(name string, _ storage.StoreConfiguration) er
 	return nil
 }
 
-func (m *mockStore) GetStoreConfig(name string) (storage.StoreConfiguration, error) {
+func (m *mockStore) GetStoreConfig(string) (storage.StoreConfiguration, error) {
 	panic("implement me")
 }
 
@@ -74,133 +66,109 @@ func (m *mockStore) Close() error {
 	panic("implement me")
 }
 
-func TestMain(m *testing.M) {
-	code := 1
-
-	defer func() { os.Exit(code) }()
+func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
+	t.Helper()
 
 	pool, err := dctest.NewPool("")
-	if err != nil {
-		panic(fmt.Sprintf("pool: %v", err))
-	}
+	require.NoError(t, err)
 
-	path, err := filepath.Abs("./")
-	if err != nil {
-		panic(fmt.Sprintf("filepath: %v", err))
-	}
-
-	couchdbResource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: dockerCouchdbImage,
-		Tag:        dockerCouchdbTag,
-		Env:        []string{"COUCHDB_USER=admin", "COUCHDB_PASSWORD=password"},
-		Mounts:     []string{fmt.Sprintf(dockerCouchdbVolume, path)},
+	mongoDBResource, err := pool.RunWithOptions(&dctest.RunOptions{
+		Repository: "mongo",
+		Tag:        "4.0.0",
 		PortBindings: map[dc.Port][]dc.PortBinding{
-			"5984/tcp": {{HostIP: "", HostPort: "5984"}},
+			"27017/tcp": {{HostIP: "", HostPort: "27017"}},
 		},
 	})
-	if err != nil {
-		log.Println(`Failed to start CouchDB Docker image.` +
-			` This can happen if there is a CouchDB container still running from a previous unit test run.` +
-			` Try "docker ps" from the command line and kill the old container if it's still running.`)
-		panic(fmt.Sprintf("run with options: %v", err))
-	}
+	require.NoError(t, err)
 
-	defer func() {
-		if err := pool.Purge(couchdbResource); err != nil {
-			panic(fmt.Sprintf("purge: %v", err))
-		}
-	}()
+	require.NoError(t, waitForMongoDBToBeUp())
 
-	if err := checkCouchDB(); err != nil {
-		panic(fmt.Sprintf("check CouchDB: %v", err))
-	}
-
-	code = m.Run()
+	return pool, mongoDBResource
 }
 
-const retries = 30
-
-func checkCouchDB() error {
-	return backoff.Retry(func() error {
-		return pingCouchDB(couchDBURL)
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), retries))
+func waitForMongoDBToBeUp() error {
+	return backoff.Retry(pingMongoDB, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30))
 }
 
-// pingCouchDB performs a readiness check on the CouchDB instance located at hostURL.
-func pingCouchDB(hostURL string) error {
-	client, err := kivik.New("couch", hostURL)
+func pingMongoDB() error {
+	var err error
+
+	clientOpts := options.Client().ApplyURI(mongoDBConnString)
+
+	mongoClient, err := mongo.NewClient(clientOpts)
 	if err != nil {
 		return err
 	}
 
-	const couchDBUsersTable = "_users"
-
-	exists, err := client.DBExists(context.Background(), couchDBUsersTable)
+	err = mongoClient.Connect(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to probe couchdb for '%s' DB at %s: %w", couchDBUsersTable, hostURL, err)
+		return err
 	}
 
-	if !exists {
-		return fmt.Errorf(
-			`"%s" database does not yet exist - CouchDB might not be fully initialized`, couchDBUsersTable)
-	}
+	db := mongoClient.Database("test")
 
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return db.Client().Ping(ctx, nil)
 }
 
 func TestNew(t *testing.T) {
 	t.Run("Failed to open activities store", func(t *testing.T) {
-		provider, err := ariesstore.New(&mockStore{
+		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: "activity",
-		},
-			"ServiceName")
+		}, false)
 		require.EqualError(t, err, "failed to open stores: failed to open activity store: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on activities store", func(t *testing.T) {
-		provider, err := ariesstore.New(&mockStore{
+		provider, err := ariesstore.New("ServiceName", &mockStore{
 			setStoreConfigNameToFailOn: "activity",
-		},
-			"ServiceName")
+		}, false)
 		require.EqualError(t, err, "failed to open stores: failed to set store configuration on "+
 			"activity store: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open inbox store", func(t *testing.T) {
-		provider, err := ariesstore.New(&mockStore{
+		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: string(spi.Inbox),
-		},
-			"ServiceName")
+		}, false)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
 			"failed to open INBOX store: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on inbox store", func(t *testing.T) {
-		provider, err := ariesstore.New(&mockStore{
+		provider, err := ariesstore.New("ServiceName", &mockStore{
 			setStoreConfigNameToFailOn: string(spi.Inbox),
-		},
-			"ServiceName")
+		}, false)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
 			"failed to set store configuration on INBOX store: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open actor store", func(t *testing.T) {
-		provider, err := ariesstore.New(&mockStore{
+		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: "actor",
-		},
-			"ServiceName")
+		}, false)
 		require.EqualError(t, err, "failed to open stores: failed to open actor store: open store error")
 		require.Nil(t, provider)
 	})
 }
 
-func TestStore_Activity(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+func TestFunctionalityUsingMongoDB(t *testing.T) {
+	pool, mongoDBResource := startMongoDBContainer(t)
+
+	defer func() {
+		require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
+	}()
+
+	t.Run("Activity tests", func(t *testing.T) {
 		serviceName := generateRandomServiceName()
-		couchDBProvider, err := ariescouchdbstorage.NewProvider(couchDBURL, ariescouchdbstorage.WithDBPrefix(serviceName))
+
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(mongoDBConnString,
+			ariesmongodbstorage.WithDBPrefix(serviceName))
 		require.NoError(t, err)
 
-		s, err := ariesstore.New(couchDBProvider, serviceName)
+		s, err := ariesstore.New(serviceName, mongoDBProvider, true)
 		require.NoError(t, err)
 
 		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
@@ -255,10 +223,6 @@ func TestStore_Activity(t *testing.T) {
 				require.NotNil(t, it)
 
 				checkActivityQueryResultsInOrder(t, it, 3, activityID1, activityID2, activityID3)
-
-				// With CouchDB, closing the iterator isn't necessary. Instead of calling it.Close() for every test,
-				// We'll just check it once here in order to increase code coverage.
-				require.NoError(t, it.Close())
 			})
 			t.Run("Descending order", func(t *testing.T) {
 				it, err := s.QueryActivities(spi.NewCriteria(), spi.WithSortOrder(spi.SortDescending))
@@ -301,13 +265,13 @@ func TestStore_Activity(t *testing.T) {
 				checkActivityQueryResultsInOrder(t, it, 3, activityID3, activityID2, activityID1)
 			})
 			t.Run("Fail to get total items from reference iterator", func(t *testing.T) {
-				mockAriesStore, err := ariesstore.New(&mock.Provider{
+				mockAriesStore, err := ariesstore.New(serviceName, &mock.Provider{
 					OpenStoreReturn: &mock.Store{
 						QueryReturn: &mock.Iterator{
 							ErrTotalItems: errors.New("total items error"),
 						},
 					},
-				}, serviceName)
+				}, true)
 				require.NoError(t, err)
 
 				it, err := mockAriesStore.QueryActivities(
@@ -318,68 +282,14 @@ func TestStore_Activity(t *testing.T) {
 			})
 		})
 	})
-	t.Run("Fail to add activity", func(t *testing.T) {
-		provider, err := ariesstore.New(&mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrPut: errors.New("put error"),
-			},
-		},
-			"ServiceName")
-		require.NoError(t, err)
-
-		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
-
-		activityID1 := testutil.MustParseURL("https://example.com/activities/activity1")
-
-		err = provider.AddActivity(vocab.NewCreateActivity(vocab.NewObjectProperty(vocab.WithIRI(serviceID1)),
-			vocab.WithID(activityID1)))
-		require.EqualError(t, err, "failed to store activity: put error")
-	})
-	t.Run("Fail to get activity", func(t *testing.T) {
-		provider, err := ariesstore.New(&mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrGet: errors.New("get error"),
-			},
-		},
-			"ServiceName")
-		require.NoError(t, err)
-
-		_, err = provider.GetActivity(testutil.MustParseURL("https://example.com/activities/activity1"))
-		require.EqualError(t, err, "unexpected failure while getting activity from store: get error")
-	})
-	t.Run("Fail to query", func(t *testing.T) {
-		provider, err := ariesstore.New(&mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrQuery: errors.New("query error"),
-			},
-		},
-			"ServiceName")
-		require.NoError(t, err)
-
-		_, err = provider.QueryActivities(spi.NewCriteria())
-		require.EqualError(t, err, "failed to query store: query error")
-	})
-	t.Run("Unsupported query criteria", func(t *testing.T) {
-		provider, err := ariesstore.New(mem.NewProvider(),
-			"ServiceName")
-		require.NoError(t, err)
-
-		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
-
-		_, err = provider.QueryActivities(spi.NewCriteria(spi.WithObjectIRI(serviceID1),
-			spi.WithActivityIRIs(testutil.MustParseURL("https://example.com/activities/activity1"),
-				testutil.MustParseURL("https://example.com/activities/activity1"))))
-		require.EqualError(t, err, "unsupported query criteria")
-	})
-}
-
-func TestStore_Actors(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Actor tests", func(t *testing.T) {
 		serviceName := generateRandomServiceName()
-		couchDBProvider, err := ariescouchdbstorage.NewProvider(couchDBURL, ariescouchdbstorage.WithDBPrefix(serviceName))
+
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(mongoDBConnString,
+			ariesmongodbstorage.WithDBPrefix(serviceName))
 		require.NoError(t, err)
 
-		s, err := ariesstore.New(couchDBProvider, serviceName)
+		s, err := ariesstore.New(serviceName, mongoDBProvider, false)
 		require.NoError(t, err)
 
 		actor1IRI := testutil.MustParseURL("https://actor1")
@@ -417,44 +327,20 @@ func TestStore_Actors(t *testing.T) {
 
 		require.Equal(t, string(expectedActor2Bytes), string(receivedActor2Bytes))
 	})
-	t.Run("Fail to put actor", func(t *testing.T) {
-		provider, err := ariesstore.New(&mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrPut: errors.New("put error"),
-			},
-		},
-			"ServiceName")
-		require.NoError(t, err)
-
-		err = provider.PutActor(vocab.NewService(testutil.MustParseURL("https://actor1")))
-		require.EqualError(t, err, "failed to store actor: put error")
-	})
-	t.Run("Fail to get actor", func(t *testing.T) {
-		provider, err := ariesstore.New(&mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrGet: errors.New("get error"),
-			},
-		},
-			"ServiceName")
-		require.NoError(t, err)
-
-		_, err = provider.GetActor(testutil.MustParseURL("https://actor1"))
-		require.EqualError(t, err, "unexpected failure while getting actor from store: get error")
-	})
-}
-
-func TestStore_Reference(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Reference tests", func(t *testing.T) {
 		serviceName := generateRandomServiceName()
-		couchDBProvider, err := ariescouchdbstorage.NewProvider(couchDBURL, ariescouchdbstorage.WithDBPrefix(serviceName))
+
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(mongoDBConnString,
+			ariesmongodbstorage.WithDBPrefix(serviceName))
 		require.NoError(t, err)
 
-		s, err := ariesstore.New(couchDBProvider, serviceName)
+		s, err := ariesstore.New(serviceName, mongoDBProvider, true)
 		require.NoError(t, err)
 
 		actor1 := testutil.MustParseURL("https://actor1")
 		actor2 := testutil.MustParseURL("https://actor2")
 		actor3 := testutil.MustParseURL("https://actor3")
+		actor4 := testutil.MustParseURL("https://actor4")
 
 		it, err := s.QueryReferences(spi.Follower, spi.NewCriteria())
 		require.EqualError(t, err, "object IRI is required")
@@ -512,26 +398,116 @@ func TestStore_Reference(t *testing.T) {
 
 		checkReferenceQueryResultsInOrder(t, it, 1, actor3)
 
-		// With CouchDB, closing the iterator isn't necessary. Instead of calling it.Close() again and again above,
-		// We'll run it.Close() just once at the end in order to increase code coverage.
-		// Note that the query call below returns an in-memory iterator, which is already
-		// covered in the in-memory store tests, hence why we're doing it.Close() now.
-		require.NoError(t, it.Close())
-
 		it, err = s.QueryReferences(spi.Follower,
 			spi.NewCriteria(spi.WithObjectIRI(actor2), spi.WithReferenceIRI(actor3)))
 		require.NoError(t, err)
 
 		checkReferenceQueryResultsInOrder(t, it, 1, actor3)
+
+		// Now try doing a query using both object IRI and activity type. Since none of the data was added with an
+		// activity type, we should get no matches at this point.
+		it, err = s.QueryReferences(spi.Follower,
+			spi.NewCriteria(spi.WithObjectIRI(actor2), spi.WithType(vocab.TypeCreate)))
+		require.NoError(t, err)
+
+		checkReferenceQueryResultsInOrder(t, it, 0)
+
+		require.NoError(t, s.AddReference(spi.Follower, actor2, actor4, spi.WithActivityType(vocab.TypeCreate)))
+
+		// Now that we've added a reference with activity type metadata, we should get one match (the one added above)
+		it, err = s.QueryReferences(spi.Follower,
+			spi.NewCriteria(spi.WithObjectIRI(actor2), spi.WithType(vocab.TypeCreate)))
+		require.NoError(t, err)
+
+		checkReferenceQueryResultsInOrder(t, it, 1, actor4)
 	})
+}
+
+func TestStore_Activity_Failures(t *testing.T) {
+	t.Run("Fail to add activity", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", &mock.Provider{
+			OpenStoreReturn: &mock.Store{
+				ErrPut: errors.New("put error"),
+			},
+		}, false)
+		require.NoError(t, err)
+
+		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
+
+		activityID1 := testutil.MustParseURL("https://example.com/activities/activity1")
+
+		err = provider.AddActivity(vocab.NewCreateActivity(vocab.NewObjectProperty(vocab.WithIRI(serviceID1)),
+			vocab.WithID(activityID1)))
+		require.EqualError(t, err, "failed to store activity: put error")
+	})
+	t.Run("Fail to get activity", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", &mock.Provider{
+			OpenStoreReturn: &mock.Store{
+				ErrGet: errors.New("get error"),
+			},
+		}, false)
+		require.NoError(t, err)
+
+		_, err = provider.GetActivity(testutil.MustParseURL("https://example.com/activities/activity1"))
+		require.EqualError(t, err, "unexpected failure while getting activity from store: get error")
+	})
+	t.Run("Fail to query", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", &mock.Provider{
+			OpenStoreReturn: &mock.Store{
+				ErrQuery: errors.New("query error"),
+			},
+		}, false)
+		require.NoError(t, err)
+
+		_, err = provider.QueryActivities(spi.NewCriteria())
+		require.EqualError(t, err, "failed to query store: query error")
+	})
+	t.Run("Unsupported query criteria", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
+		require.NoError(t, err)
+
+		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
+
+		_, err = provider.QueryActivities(spi.NewCriteria(spi.WithObjectIRI(serviceID1),
+			spi.WithActivityIRIs(testutil.MustParseURL("https://example.com/activities/activity1"),
+				testutil.MustParseURL("https://example.com/activities/activity1"))))
+		require.EqualError(t, err, "unsupported query criteria")
+	})
+}
+
+func TestStore_Actor_Failures(t *testing.T) {
+	t.Run("Fail to put actor", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", &mock.Provider{
+			OpenStoreReturn: &mock.Store{
+				ErrPut: errors.New("put error"),
+			},
+		}, false)
+		require.NoError(t, err)
+
+		err = provider.PutActor(vocab.NewService(testutil.MustParseURL("https://actor1")))
+		require.EqualError(t, err, "failed to store actor: put error")
+	})
+	t.Run("Fail to get actor", func(t *testing.T) {
+		provider, err := ariesstore.New("ServiceName", &mock.Provider{
+			OpenStoreReturn: &mock.Store{
+				ErrGet: errors.New("get error"),
+			},
+		}, false)
+		require.NoError(t, err)
+
+		_, err = provider.GetActor(testutil.MustParseURL("https://actor1"))
+		require.EqualError(t, err, "unexpected failure while getting actor from store: get error")
+	})
+}
+
+func TestStore_Reference_Failures(t *testing.T) {
 	t.Run("Fail to add reference", func(t *testing.T) {
 		t.Run("Fail to store in underlying storage", func(t *testing.T) {
-			provider, err := ariesstore.New(&mock.Provider{
+			provider, err := ariesstore.New("ServiceName", &mock.Provider{
 				OpenStoreReturn: &mock.Store{
 					ErrPut: errors.New("put error"),
 				},
-			},
-				"ServiceName")
+			}, false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -541,7 +517,7 @@ func TestStore_Reference(t *testing.T) {
 			require.EqualError(t, err, "failed to store reference: put error")
 		})
 		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New(mem.NewProvider(), "ServiceName")
+			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -553,12 +529,11 @@ func TestStore_Reference(t *testing.T) {
 	})
 	t.Run("Fail to delete reference", func(t *testing.T) {
 		t.Run("Fail to delete in underlying storage", func(t *testing.T) {
-			provider, err := ariesstore.New(&mock.Provider{
+			provider, err := ariesstore.New("ServiceName", &mock.Provider{
 				OpenStoreReturn: &mock.Store{
 					ErrDelete: errors.New("delete error"),
 				},
-			},
-				"ServiceName")
+			}, false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -568,7 +543,7 @@ func TestStore_Reference(t *testing.T) {
 			require.EqualError(t, err, "failed to delete reference: delete error")
 		})
 		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New(mem.NewProvider(), "ServiceName")
+			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -580,12 +555,11 @@ func TestStore_Reference(t *testing.T) {
 	})
 	t.Run("Fail to query references", func(t *testing.T) {
 		t.Run("Fail to query in underlying storage", func(t *testing.T) {
-			provider, err := ariesstore.New(&mock.Provider{
+			provider, err := ariesstore.New("ServiceName", &mock.Provider{
 				OpenStoreReturn: &mock.Store{
 					ErrQuery: errors.New("query error"),
 				},
-			},
-				"ServiceName")
+			}, false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -594,7 +568,7 @@ func TestStore_Reference(t *testing.T) {
 			require.EqualError(t, err, "failed to query store: query error")
 		})
 		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New(mem.NewProvider(), "ServiceName")
+			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
@@ -602,6 +576,18 @@ func TestStore_Reference(t *testing.T) {
 			_, err = provider.QueryReferences("UnknownReferenceType",
 				spi.NewCriteria(spi.WithObjectIRI(actor1)))
 			require.EqualError(t, err, "no store found for UnknownReferenceType")
+		})
+		t.Run("Fail to query with both object IRI and activity type", func(t *testing.T) {
+			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
+			require.NoError(t, err)
+
+			actor1 := testutil.MustParseURL("https://actor1")
+
+			it, err := provider.QueryReferences(spi.Follower,
+				spi.NewCriteria(spi.WithObjectIRI(actor1), spi.WithType(vocab.TypeCreate)))
+			require.EqualError(t, err, "cannot run query since the underlying storage provider "+
+				"does not support querying with multiple tags")
+			require.Nil(t, it)
 		})
 	})
 }
@@ -656,10 +642,10 @@ func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, e
 	require.Error(t, err)
 	require.True(t, errors.Is(err, spi.ErrNotFound))
 	require.Nil(t, iri)
+
+	require.NoError(t, it.Close())
 }
 
-// The "service_" part is necessary to ensure the database doesn't start with a number, which is not allowed
-// by CouchDB.
 func generateRandomServiceName() string {
-	return "service_" + uuid.NewString()
+	return uuid.NewString() + "_"
 }

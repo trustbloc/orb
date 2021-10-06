@@ -932,11 +932,11 @@ func TestActivity_Handler(t *testing.T) {
 }
 
 func TestGetActivities(t *testing.T) {
-	store, err := ariesstore.New(&mock.Provider{
+	store, err := ariesstore.New("", &mock.Provider{
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, "")
+	}, false)
 	require.NoError(t, err)
 
 	activitiesHandler := Activities{handler: &handler{AuthHandler: &AuthHandler{activityStore: store}}}
@@ -947,11 +947,11 @@ func TestGetActivities(t *testing.T) {
 }
 
 func TestActivityHandlerGetPage(t *testing.T) {
-	ariesStore, err := ariesstore.New(&mock.Provider{
+	ariesStore, err := ariesstore.New("", &mock.Provider{
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, "")
+	}, false)
 	require.NoError(t, err)
 
 	mockActivityIterator, err := ariesStore.QueryActivities(&spi.Criteria{})

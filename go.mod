@@ -13,14 +13,12 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/fxamacker/cbor/v2 v2.3.0
-	github.com/go-kivik/couchdb/v3 v3.2.8 // indirect
-	github.com/go-kivik/kivik/v3 v3.2.3
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.7
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211001130226-2e3422b613aa
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210910143505-343c246c837c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20210929190945-a0a58f6c5013
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
@@ -36,6 +34,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211001153855-238da75965f8
 	github.com/trustbloc/vct v0.1.3
+	go.mongodb.org/mongo-driver v1.7.1
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
 )
 

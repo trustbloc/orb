@@ -229,7 +229,8 @@ func (h *Inbox) validateActivity(activity *vocab.ActivityType, getTargetIRI func
 }
 
 func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType, refType store.ReferenceType) error {
-	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL()); err != nil {
+	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL(),
+		store.WithActivityType(activity.Type().Types()[0])); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to store reference: %w", err))
 	}
 
@@ -290,7 +291,7 @@ func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.Reference
 		return fmt.Errorf("actor %s is already in the '%s' collection", accept.Actor(), refType)
 	}
 
-	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor())
+	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor(), store.WithActivityType(accept.Type().Types()[0]))
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("handle accept '%s' activity %s: %w", refType, accept.ID(), err))
 	}
@@ -604,7 +605,8 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor credential [%s]",
 			h.ServiceIRI, announce.ID(), anchorCredID)
 
-		err := h.store.AddReference(store.Share, anchorCredID, announce.ID().URL())
+		err := h.store.AddReference(store.Share, anchorCredID, announce.ID().URL(),
+			store.WithActivityType(announce.Type().Types()[0]))
 		if err != nil {
 			// This isn't a fatal error so just log a warning.
 			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor credential %s: %s",
@@ -637,7 +639,8 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 
 	logger.Debugf("[%s] Storing activity in the 'Likes' collection: %s", h.ServiceName, refURL)
 
-	if err := h.store.AddReference(store.Like, refURL, like.ID().URL()); err != nil {
+	if err := h.store.AddReference(store.Like, refURL, like.ID().URL(),
+		store.WithActivityType(like.Type().Types()[0])); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("add activity to 'Likes' collection: %w", err))
 	}
 
@@ -708,7 +711,8 @@ func (h *Inbox) announceAnchorRef(create *vocab.ActivityType) error {
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorCredID)
 
-	err = h.store.AddReference(store.Share, anchorCredID.URL(), activityID)
+	err = h.store.AddReference(store.Share, anchorCredID.URL(), activityID,
+		store.WithActivityType(create.Type().Types()[0]))
 	if err != nil {
 		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
 			h.ServiceIRI, announce.ID(), anchorCredID)
