@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package graph
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -15,7 +16,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -51,15 +53,10 @@ type casWriter interface {
 
 // Add adds an anchor to the anchor graph.
 // Returns hl that contains anchor information.
-func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interfacer
-	anchorBytes, err := vc.MarshalJSON()
+func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //nolint:interfacer
+	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorEvent)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal VC: %w", err)
-	}
-
-	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal canonical: %w", err)
+		return "", fmt.Errorf("failed to marshal anchor event: %w", err)
 	}
 
 	hl, err := g.CasWriter.Write(canonicalBytes)
@@ -67,28 +64,33 @@ func (g *Graph) Add(vc *verifiable.Credential) (string, error) { //nolint:interf
 		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debugf("added anchor[%s]: %s", hl, string(canonicalBytes))
+	logger.Debugf("added anchor event[%s]: %s", hl, string(canonicalBytes))
 
 	return hl, nil
 }
 
 // Read reads anchor.
-func (g *Graph) Read(hl string) (*verifiable.Credential, error) {
-	anchorBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
+func (g *Graph) Read(hl string) (*vocab.AnchorEventType, error) {
+	anchorEventBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("read anchor[%s]: %s", hl, string(anchorBytes))
+	logger.Debugf("read anchor event [%s]: %s", hl, string(anchorEventBytes))
 
-	return verifiable.ParseCredential(anchorBytes,
-		verifiable.WithPublicKeyFetcher(g.Pkf),
-		verifiable.WithJSONLDDocumentLoader(g.DocLoader))
+	anchorEvent := &vocab.AnchorEventType{}
+
+	err = json.Unmarshal(anchorEventBytes, anchorEvent)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal anchor event: %w", err)
+	}
+
+	return anchorEvent, nil
 }
 
 // Anchor contains anchor info plus corresponding hl.
 type Anchor struct {
-	Info *verifiable.Credential
+	Info *vocab.AnchorEventType
 	CID  string
 }
 
@@ -102,14 +104,17 @@ func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 	ok := true
 
 	for ok {
-		node, err := g.Read(cur)
+		anchorEvent, err := g.Read(cur)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s]: %w", cur, suffix, err)
+			return nil, fmt.Errorf("failed to read anchor event[%s] for did[%s]: %w", cur, suffix, err)
 		}
 
-		refs = append(refs, Anchor{Info: node, CID: cur})
+		refs = append(refs, Anchor{
+			CID:  cur,
+			Info: anchorEvent,
+		})
 
-		payload, err := util.GetAnchorSubject(node)
+		payload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
 		if err != nil {
 			return nil, err
 		}

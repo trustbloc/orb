@@ -13,20 +13,24 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/anchor/activity"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
-func TestGetAnchorSubject(t *testing.T) {
+func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		previousAnchors := make(map[string]string)
 		previousAnchors["suffix"] = ""
 
-		anchorSubject := &subject.Payload{
+		payload := &subject.Payload{
 			OperationCount:  1,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
@@ -34,84 +38,46 @@ func TestGetAnchorSubject(t *testing.T) {
 			PreviousAnchors: previousAnchors,
 		}
 
-		act, err := activity.BuildActivityFromPayload(anchorSubject)
+		contentObj, err := anchorevent.BuildContentObject(payload)
+		require.NoError(t, err)
+
+		contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
+		require.NoError(t, err)
+
+		hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
 		require.NoError(t, err)
 
 		vc := &verifiable.Credential{
 			Types:   []string{"VerifiableCredential"},
 			Context: []string{defVCContext},
-			Subject: act,
+			Subject: &builder.CredentialSubject{ID: hl},
 			Issuer: verifiable.Issuer{
 				ID: "http://peer1.com",
 			},
 			Issued: &util.TimeWrapper{Time: time.Now()},
 		}
+
+		act, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+		require.NoError(t, err)
 
 		vcBytes, err := vc.MarshalJSON()
 		require.NoError(t, err)
 
-		parsedVC, err := verifiable.ParseCredential(vcBytes, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		vc2, err := VerifiableCredentialFromAnchorEvent(act, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
-		anchorSubjectFromVC, err := GetAnchorSubject(parsedVC)
+		vc2Bytes, err := vc2.MarshalJSON()
 		require.NoError(t, err)
-		require.NotNil(t, anchorSubjectFromVC)
 
-		require.Equal(t, anchorSubject.Namespace, anchorSubjectFromVC.Namespace)
-		require.Equal(t, anchorSubject.OperationCount, anchorSubjectFromVC.OperationCount)
-		require.Equal(t, anchorSubject.CoreIndex, anchorSubjectFromVC.CoreIndex)
-		require.Equal(t, anchorSubject.Version, anchorSubjectFromVC.Version)
-		require.Equal(t, anchorSubject.PreviousAnchors, anchorSubjectFromVC.PreviousAnchors)
+		require.Equal(t, vcBytes, vc2Bytes)
 	})
 
-	t.Run("error - no credential subject", func(t *testing.T) {
-		vc := &verifiable.Credential{
-			Types:   []string{"VerifiableCredential"},
-			Context: []string{defVCContext},
-			Subject: nil,
-			Issuer: verifiable.Issuer{
-				ID: "http://peer1.com",
-			},
-			Issued: &util.TimeWrapper{Time: time.Now()},
-		}
+	t.Run("Invalid anchor event", func(t *testing.T) {
+		act := vocab.NewAnchorEvent()
 
-		anchorSubject, err := GetAnchorSubject(vc)
+		vc, err := VerifiableCredentialFromAnchorEvent(act, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.Error(t, err)
-		require.Nil(t, anchorSubject)
-		require.Contains(t, err.Error(), "missing credential subject")
-	})
-
-	t.Run("error - activity missing attachment", func(t *testing.T) {
-		vc := &verifiable.Credential{
-			Types:   []string{"VerifiableCredential"},
-			Context: []string{defVCContext},
-			Subject: []verifiable.Subject{{}},
-			Issuer: verifiable.Issuer{
-				ID: "http://peer1.com",
-			},
-			Issued: &util.TimeWrapper{Time: time.Now()},
-		}
-
-		anchorSubject, err := GetAnchorSubject(vc)
-		require.Error(t, err)
-		require.Nil(t, anchorSubject)
-		require.Contains(t, err.Error(), "failed to get payload from activity: activity is missing attachment")
-	})
-
-	t.Run("error - unexpected interface for credential subject", func(t *testing.T) {
-		vc := &verifiable.Credential{
-			Types:   []string{"VerifiableCredential"},
-			Context: []string{defVCContext},
-			Subject: verifiable.Subject{},
-			Issuer: verifiable.Issuer{
-				ID: "http://peer1.com",
-			},
-			Issued: &util.TimeWrapper{Time: time.Now()},
-		}
-
-		anchorSubject, err := GetAnchorSubject(vc)
-		require.Error(t, err)
-		require.Nil(t, anchorSubject)
-		require.Contains(t, err.Error(), "unexpected interface for credential subject")
+		require.Contains(t, err.Error(), "invalid anchor event")
+		require.Nil(t, vc)
 	})
 }

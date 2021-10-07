@@ -14,19 +14,19 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	docutil "github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -73,19 +73,19 @@ type Writer struct {
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	AnchorGraph   anchorGraph
-	DidAnchors    didAnchors
-	AnchorBuilder anchorBuilder
-	VCStore       vcStore
-	VCStatusStore vcStatusStore
-	OpProcessor   opProcessor
-	Outbox        outbox
-	Witness       witness
-	Signer        signer
-	MonitoringSvc monitoringSvc
-	WitnessStore  witnessStore
-	ActivityStore activityStore
-	WFClient      webfingerClient
+	AnchorGraph      anchorGraph
+	DidAnchors       didAnchors
+	AnchorBuilder    anchorBuilder
+	AnchorEventStore anchorEventStore
+	VCStatusStore    vcStatusStore
+	OpProcessor      opProcessor
+	Outbox           outbox
+	Witness          witness
+	Signer           signer
+	MonitoringSvc    monitoringSvc
+	WitnessStore     witnessStore
+	ActivityStore    activityStore
+	WFClient         webfingerClient
 }
 
 type webfingerClient interface {
@@ -97,8 +97,8 @@ type activityStore interface {
 }
 
 type witnessStore interface {
-	Put(vcID string, witnesses []*proof.WitnessProof) error
-	Delete(vcID string) error
+	Put(anchorEventID string, witnesses []*proof.WitnessProof) error
+	Delete(anchorEventID string) error
 }
 
 type witness interface {
@@ -122,20 +122,19 @@ type opProcessor interface {
 }
 
 type anchorGraph interface {
-	Add(anchor *verifiable.Credential) (string, error)
+	Add(anchorEvent *vocab.AnchorEventType) (string, error)
 }
 
 type anchorBuilder interface {
-	Build(subject *subject.Payload) (*verifiable.Credential, error)
+	Build(anchorHashlink string) (*verifiable.Credential, error)
 }
 
 type didAnchors interface {
 	GetBulk(did []string) ([]string, error)
 }
 
-type vcStore interface {
-	Put(vc *verifiable.Credential) error
-	Get(id string) (*verifiable.Credential, error)
+type anchorEventStore interface {
+	Put(anchorEvent *vocab.AnchorEventType) error
 }
 
 type vcStatusStore interface {
@@ -155,7 +154,7 @@ type pubSub interface {
 func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 	anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
-	documentLoader ld.DocumentLoader, resourceResolver *resourceresolver.Resolver,
+	resourceResolver *resourceresolver.Resolver,
 	metrics metricsProvider) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
@@ -169,7 +168,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 		metrics:              metrics,
 	}
 
-	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, documentLoader)
+	s, err := vcpubsub.NewSubscriber(pubSub, w.handle)
 	if err != nil {
 		return nil, fmt.Errorf("new subscriber: %w", err)
 	}
@@ -180,22 +179,35 @@ func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
 }
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
-func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) error { //nolint:lll
+func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocument,
+	refs []*operation.Reference, version uint64) error {
 	startTime := time.Now()
 
 	defer func() { c.metrics.WriteAnchorTime(time.Since(startTime)) }()
 
-	buildCredStartTime := time.Now()
-
-	// build anchor credential
-	vc, err := c.buildCredential(anchor, attachments, refs, version)
+	// get previous anchors for each did that is referenced in this anchor
+	previousAnchors, err := c.getPreviousAnchors(refs)
 	if err != nil {
-		return err
+		return fmt.Errorf("get previous anchors: %w", err)
 	}
 
-	c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
+	ad, err := util.ParseAnchorString(anchor)
+	if err != nil {
+		return fmt.Errorf("parse anchor string [%s]: %w", anchor, err)
+	}
 
-	getWitnessesStartTime := time.Now()
+	now := time.Now()
+
+	payload := &subject.Payload{
+		OperationCount:  ad.OperationCount,
+		CoreIndex:       ad.CoreIndexFileURI,
+		Namespace:       c.namespace,
+		Version:         version,
+		PreviousAnchors: previousAnchors,
+		Attachments:     getAttachmentURIs(attachments),
+		AnchorOrigin:    c.apServiceIRI.String(),
+		Published:       &now,
+	}
 
 	// figure out witness list for this anchor file
 	witnesses, err := c.getWitnesses(refs)
@@ -203,34 +215,62 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	c.metrics.WriteAnchorGetWitnessesTime(time.Since(getWitnessesStartTime))
-
-	signCredentialStartTime := time.Now()
-
-	// sign credential using local witness log or server public key
-	vc, err = c.signCredential(vc, witnesses)
+	anchorEvent, err := c.buildAnchorEvent(payload, witnesses)
 	if err != nil {
-		return err
+		return fmt.Errorf("build anchor event for anchor [%s]: %w", anchor, err)
 	}
 
-	c.metrics.WriteAnchorSignCredentialTime(time.Since(signCredentialStartTime))
+	storeStartTime := time.Now()
 
-	logger.Debugf("signed and stored anchor credential[%s] for anchor: %s", vc.ID, anchor)
+	err = c.AnchorEventStore.Put(anchorEvent)
+	if err != nil {
+		return fmt.Errorf("store anchor event: %w", err)
+	}
 
-	postOfferActivityStartTime := time.Now()
+	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
+
+	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Anchors().String(), anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(vc, witnesses)
+	err = c.postOfferActivity(anchorEvent, witnesses)
 	if err != nil {
-		return fmt.Errorf("failed to post new offer activity for vc[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to post new offer activity for anchor event %s: %w",
+			anchorEvent.URL(), err)
 	}
-
-	c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
 	return nil
 }
 
+func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) (*vocab.AnchorEventType, error) {
+	contentObj, err := anchorevent.BuildContentObject(payload)
+	if err != nil {
+		return nil, fmt.Errorf("build content object: %w", err)
+	}
+
+	vc, err := c.buildCredential(contentObj)
+	if err != nil {
+		return nil, fmt.Errorf("build credential: %w", err)
+	}
+
+	// sign credential using local witness log or server public key
+	vc, err = c.signCredential(vc, witnesses)
+	if err != nil {
+		return nil, fmt.Errorf("sign credential: %w", err)
+	}
+
+	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+	if err != nil {
+		return nil, fmt.Errorf("build anchor event: %w", err)
+	}
+
+	return anchorEvent, nil
+}
+
 func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]string, error) {
+	getPreviousAnchorsStartTime := time.Now()
+
+	defer c.metrics.WriteAnchorGetPreviousAnchorsTime(time.Since(getPreviousAnchorsStartTime))
+
 	// assemble map of latest did anchor references
 	previousAnchors := make(map[string]string)
 
@@ -271,38 +311,24 @@ func getSuffixes(refs []*operation.Reference) []string {
 }
 
 // buildCredential builds and signs anchor credential.
-func (c *Writer) buildCredential(anchor string, attachments []*protocol.AnchorDocument, refs []*operation.Reference, version uint64) (*verifiable.Credential, error) { //nolint: lll
-	// get previous anchors for each did that is referenced in this anchor
-	getPreviousAnchorsStartTime := time.Now()
+func (c *Writer) buildCredential(contentObj *vocab.ContentObjectType) (*verifiable.Credential, error) {
+	buildCredStartTime := time.Now()
 
-	previousAnchors, err := c.getPreviousAnchors(refs)
+	defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
+
+	contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal content object: %w", err)
 	}
 
-	c.metrics.WriteAnchorGetPreviousAnchorsTime(time.Since(getPreviousAnchorsStartTime))
-
-	ad, err := util.ParseAnchorString(anchor)
+	hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create hashlink for content object: %w", err)
 	}
 
-	now := &docutil.TimeWrapper{Time: time.Now()}
-
-	payload := &subject.Payload{
-		OperationCount:  ad.OperationCount,
-		CoreIndex:       ad.CoreIndexFileURI,
-		Attachments:     getAttachmentURIs(attachments),
-		Namespace:       c.namespace,
-		Version:         version,
-		PreviousAnchors: previousAnchors,
-		AnchorOrigin:    c.apServiceIRI.String(),
-		Published:       now,
-	}
-
-	vc, err := c.AnchorBuilder.Build(payload)
+	vc, err := c.AnchorBuilder.Build(hl)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build anchor credential: %w", err)
+		return nil, fmt.Errorf("build anchor credential: %w", err)
 	}
 
 	return vc, nil
@@ -319,6 +345,10 @@ func getAttachmentURIs(attachments []*protocol.AnchorDocument) []string {
 }
 
 func (c *Writer) signCredential(vc *verifiable.Credential, witnesses []string) (*verifiable.Credential, error) {
+	signCredentialStartTime := time.Now()
+
+	defer c.metrics.WriteAnchorSignCredentialTime(time.Since(signCredentialStartTime))
+
 	if c.Witness != nil && (contains(witnesses, c.apServiceIRI.String()) || c.signWithLocalWitness) {
 		return c.signCredentialWithLocalWitnessLog(vc)
 	}
@@ -345,16 +375,9 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 		return nil, fmt.Errorf("failed to sign anchor credential[%s]: %w", vc.ID, err)
 	}
 
-	// store anchor credential
-	err = c.VCStore.Put(signedVC)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store anchor credential: %w", err)
-	}
-
 	return signedVC, nil
 }
 
-//nolint: funlen
 func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*verifiable.Credential, error) {
 	startTime := time.Now()
 	defer func() { c.metrics.WriteAnchorSignWithLocalWitnessTime(time.Since(startTime)) }()
@@ -381,17 +404,6 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal local witness proof for anchor credential[%s]: %w", vc.ID, err)
 	}
-
-	storeStartTime := time.Now()
-
-	// TODO: need to review this logic, monitoring does not use it
-	// store anchor credential (required for monitoring)
-	err = c.VCStore.Put(vc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store localy witnessed anchor credential: %w", err)
-	}
-
-	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
 
 	vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 
@@ -423,8 +435,8 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) handle(vc *verifiable.Credential) error {
-	logger.Debugf("handling witnessed anchored credential: %s", vc.ID)
+func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
+	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Anchors())
 
 	startTime := time.Now()
 
@@ -433,87 +445,84 @@ func (c *Writer) handle(vc *verifiable.Credential) error {
 	}()
 
 	// store anchor credential with witness proofs
-	err := c.VCStore.Put(vc)
+	err := c.AnchorEventStore.Put(anchorEvent)
 	if err != nil {
-		logger.Warnf("failed to store witnessed anchor credential[%s]: %s", vc.ID, err.Error())
+		logger.Warnf("failed to store witnessed anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
 
-		return errors.NewTransient(fmt.Errorf("store witnessed anchor credential[%s]: %w", vc.ID, err))
+		return errors.NewTransient(fmt.Errorf("store witnessed anchor event[%s]: %w", anchorEvent.Anchors(), err))
 	}
 
-	hl, err := c.AnchorGraph.Add(vc)
+	anchorEventRef, err := c.AnchorGraph.Add(anchorEvent)
 	if err != nil {
-		logger.Errorf("failed to add witnessed anchor credential[%s] to anchor graph: %s", vc.ID, err.Error())
+		logger.Errorf("failed to add witnessed anchor event[%s] to anchor graph: %s", anchorEvent.Anchors(), err.Error())
 
-		return fmt.Errorf("add witnessed anchor credential[%s] to anchor graph: %w", vc.ID, err)
+		return fmt.Errorf("add witnessed anchor event[%s] to anchor graph: %w", anchorEvent.Anchors(), err)
 	}
 
-	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: hl})
-	if err != nil {
-		logger.Warnf("failed to publish anchors for hl[%s]: %s", hl, err.Error())
+	logger.Debugf("Publishing anchor event[%s] ref[%s]", anchorEvent.Anchors(), anchorEventRef)
 
-		return fmt.Errorf("publish anchors for hl[%s]: %w", vc.ID, err)
+	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorEventRef})
+	if err != nil {
+		logger.Warnf("failed to publish anchor event[%s] ref[%s]: %s",
+			anchorEvent.Anchors(), anchorEventRef, err.Error())
+
+		return fmt.Errorf("publish anchor event[%s] ref [%s]: %w", anchorEvent.Anchors(), anchorEventRef, err)
 	}
 
-	logger.Debugf("posted hl[%s] to anchor channel", hl)
+	logger.Debugf("posted anchor event[%s] ref[%s] to anchor channel",
+		anchorEvent.Anchors(), anchorEventRef)
 
 	// announce anchor credential activity to followers
-	err = c.postCreateActivity(vc, hl)
+	err = c.postCreateActivity(anchorEvent, anchorEventRef)
 	if err != nil {
-		logger.Warnf("failed to post new create activity for hl[%s]: %s", hl, err.Error())
+		logger.Warnf("failed to post new create activity for anchor event[%s] ref[%s]: %s",
+			anchorEvent.Anchors(), anchorEventRef, err.Error())
 
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
-		return fmt.Errorf("post create activity for hl[%s]: %w", hl, err)
+		return fmt.Errorf("post create activity for anchor event[%s] ref[%s]: %w",
+			anchorEvent.Anchors(), anchorEventRef, err)
 	}
 
-	err = c.WitnessStore.Delete(vc.ID)
+	err = c.WitnessStore.Delete(anchorEvent.Anchors().String())
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
-		logger.Warnf("failed to delete witnesses for vc[%s]: %s", vc.ID, err.Error())
+		logger.Warnf("failed to delete witnesses for anchor event[%s] ref[%s]: %s",
+			anchorEvent.Anchors(), anchorEventRef, err.Error())
 	}
 
 	return nil
 }
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).
-func (c *Writer) postCreateActivity(vc *verifiable.Credential, hl string) error { //nolint: interfacer
-	resourceHash, err := hashlink.GetResourceHashFromHashLink(hl)
-	if err != nil {
-		return err
-	}
-
-	cidURL, err := url.Parse(fmt.Sprintf("%s/%s", c.casIRI.String(), resourceHash))
-	if err != nil {
-		return fmt.Errorf("failed to parse cid URL: %w", err)
-	}
-
-	targetProperty := vocab.NewObjectProperty(vocab.WithObject(
-		vocab.NewObject(
-			vocab.WithID(cidURL),
-			vocab.WithCID(hl),
-			vocab.WithType(vocab.TypeContentAddressedStorage),
-		),
-	))
-
-	bytes, err := vc.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("failed to marshal anchor credential: %w", err)
-	}
-
-	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
-	if err != nil {
-		return fmt.Errorf("failed to create new object with document: %w", err)
-	}
-
+func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl string) error { //nolint: interfacer
 	systemFollowers, err := url.Parse(c.apServiceIRI.String() + resthandler.FollowersPath)
 	if err != nil {
 		return fmt.Errorf("failed to create new object with document: %w", err)
 	}
 
+	hlURL, err := url.Parse(hl)
+	if err != nil {
+		return fmt.Errorf("parse hashlink: %w", err)
+	}
+
+	// Create a new Info that includes the hashlink of where this activity is stored,
+	// so that a server that's processing this event may resolve the Info from the hashlink.
+	anchorEvent = vocab.NewAnchorEvent(
+		vocab.WithURL(hlURL),
+		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
+		vocab.WithAnchors(anchorEvent.Anchors()),
+		vocab.WithPublishedTime(anchorEvent.Published()),
+		vocab.WithParent(anchorEvent.Parent()...),
+		vocab.WithAttachment(anchorEvent.Attachment()...),
+	)
+
+	now := time.Now()
+
 	create := vocab.NewCreateActivity(
-		vocab.NewObjectProperty(vocab.WithObject(obj)),
-		vocab.WithTarget(targetProperty),
+		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
 		vocab.WithContext(vocab.ContextActivityAnchors),
 		vocab.WithTo(systemFollowers, vocab.PublicIRI),
+		vocab.WithPublishedTime(&now),
 	)
 
 	postID, err := c.Outbox.Post(create)
@@ -521,14 +530,18 @@ func (c *Writer) postCreateActivity(vc *verifiable.Credential, hl string) error 
 		return err
 	}
 
-	logger.Debugf("created activity for hl[%s], post id[%s]", hl, postID)
+	logger.Debugf("created activity id [%s]", postID)
 
 	return nil
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string) error {
-	logger.Debugf("sending anchor credential[%s] to system witnesses plus: %s", vc.ID, witnesses)
+func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses []string) error {
+	postOfferActivityStartTime := time.Now()
+
+	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
+
+	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Anchors(), witnesses)
 
 	batchWitnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 	if err != nil {
@@ -547,21 +560,13 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 	witnessesIRI = append(witnessesIRI, batchWitnessesIRI...)
 	witnessesIRI = append(witnessesIRI, vocab.PublicIRI, systemWitnessesIRI)
 
-	bytes, err := vc.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("failed to marshal anchor credential: %w", err)
-	}
-
-	obj, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
-	if err != nil {
-		return fmt.Errorf("failed to create new object with document: %w", err)
-	}
-
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
 
 	offer := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithObject(obj)),
+		vocab.NewObjectProperty(
+			vocab.WithAnchorEvent(anchorEvent),
+		),
 		vocab.WithTo(witnessesIRI...),
 		vocab.WithStartTime(&startTime),
 		vocab.WithEndTime(&endTime),
@@ -570,7 +575,7 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 
 	// store witnesses before posting offers because handlers sometimes get invoked before
 	// witnesses and vc status are stored
-	err = c.storeWitnesses(vc.ID, batchWitnessesIRI)
+	err = c.storeWitnesses(anchorEvent.Anchors().String(), batchWitnessesIRI)
 	if err != nil {
 		return fmt.Errorf("store witnesses: %w", err)
 	}
@@ -578,10 +583,10 @@ func (c *Writer) postOfferActivity(vc *verifiable.Credential, witnesses []string
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
 		// TODO: Offers were not sent - delete vc status and witness store entries (issue-452)
-		return fmt.Errorf("failed to post offer for vcID[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to post offer for anchor event[%s]: %w", anchorEvent.Anchors(), err)
 	}
 
-	logger.Debugf("created pre-announce activity for vc[%s], post id[%s]", vc.ID, postID)
+	logger.Debugf("created pre-announce activity for anchor event[%s], post id[%s]", anchorEvent.Anchors(), postID)
 
 	return nil
 }
@@ -610,58 +615,21 @@ func (c *Writer) getBatchWitnessesIRI(witnesses []string) ([]*url.URL, error) {
 // Create and recover operations contain anchor origin in operation references.
 // For update and deactivate operations we have to 'resolve' did in order to figure out anchor origin.
 func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
+	getWitnessesStartTime := time.Now()
+
+	defer c.metrics.WriteAnchorGetWitnessesTime(time.Since(getWitnessesStartTime))
+
 	var witnesses []string
 
 	uniqueWitnesses := make(map[string]bool)
 
 	for _, ref := range refs {
-		var anchorOriginObj interface{}
-
-		switch ref.Type {
-		case operation.TypeCreate, operation.TypeRecover:
-			anchorOriginObj = ref.AnchorOrigin
-
-		case operation.TypeUpdate, operation.TypeDeactivate:
-			anchorOriginObj = ref.AnchorOrigin
-
-			if anchorOriginObj == nil {
-				// currently anchor origin object should always be populated since we are checking that update, recover
-				// and deactivate operations have previous valid operations (e.g. create) - if we decide to allow
-				// those operations to go through during ingestion without checking for previous operations then anchor
-				// origin object will not be set and we have to resolve document in order to get it
-				result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
-				if err != nil {
-					return nil, err
-				}
-
-				logger.Debugf("resolved anchor origin[%s] for operation type[%s] : %s", result.AnchorOrigin, ref.Type)
-
-				anchorOriginObj = result.AnchorOrigin
-			}
-
-		default:
-			return nil, fmt.Errorf("operation type '%s' not supported for assembling witness list", ref.Type)
-		}
-
-		anchorOrigin, ok := anchorOriginObj.(string)
-		if !ok {
-			return nil, fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)
-		}
-
-		logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
-
-		resolveStartTime := time.Now()
-
-		resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
+		resolvedWitness, err := c.resolveWitness(ref)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve witness: %w", err)
+			return nil, fmt.Errorf("resolve witness: %w", err)
 		}
 
-		c.metrics.WriteAnchorResolveHostMetaLinkTime(time.Since(resolveStartTime))
-
-		logger.Debugf("Successfully resolved witness %s from %s", resolvedWitness, anchorOrigin)
-
-		_, ok = uniqueWitnesses[resolvedWitness]
+		_, ok := uniqueWitnesses[resolvedWitness]
 
 		if !ok {
 			witnesses = append(witnesses, resolvedWitness)
@@ -672,6 +640,56 @@ func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
 	return witnesses, nil
 }
 
+func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
+	var anchorOriginObj interface{}
+
+	switch ref.Type {
+	case operation.TypeCreate, operation.TypeRecover:
+		anchorOriginObj = ref.AnchorOrigin
+
+	case operation.TypeUpdate, operation.TypeDeactivate:
+		anchorOriginObj = ref.AnchorOrigin
+
+		if anchorOriginObj == nil {
+			// currently anchor origin object should always be populated since we are checking that update, recover
+			// and deactivate operations have previous valid operations (e.g. create) - if we decide to allow
+			// those operations to go through during ingestion without checking for previous operations then anchor
+			// origin object will not be set and we have to resolve document in order to get it
+			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
+			if err != nil {
+				return "", err
+			}
+
+			logger.Debugf("resolved anchor origin[%s] for operation type[%s] : %s", result.AnchorOrigin, ref.Type)
+
+			anchorOriginObj = result.AnchorOrigin
+		}
+
+	default:
+		return "", fmt.Errorf("operation type '%s' not supported for assembling witness list", ref.Type)
+	}
+
+	anchorOrigin, ok := anchorOriginObj.(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)
+	}
+
+	logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
+
+	resolveStartTime := time.Now()
+
+	resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve witness: %w", err)
+	}
+
+	c.metrics.WriteAnchorResolveHostMetaLinkTime(time.Since(resolveStartTime))
+
+	logger.Debugf("Successfully resolved witness %s from %s", resolvedWitness, anchorOrigin)
+
+	return resolvedWitness, nil
+}
+
 // Read reads transactions since transaction time.
 // TODO: This is not used and can be removed from interface if we change observer in sidetree-mock to point
 // to core observer (can be done easily) Concern: Reference app has this interface.
@@ -680,7 +698,7 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	return false, nil
 }
 
-func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
+func (c *Writer) storeWitnesses(anchorID string, batchWitnesses []*url.URL) error {
 	var witnesses []*proof.WitnessProof
 
 	for _, w := range batchWitnesses {
@@ -725,17 +743,17 @@ func (c *Writer) storeWitnesses(vcID string, batchWitnesses []*url.URL) error {
 		// Return a transient error since adding a witness should allow a retry to succeed.
 		return errors.NewTransient(
 			fmt.Errorf("unable to store witnesses for anchor credential [%s] since no witnesses are provided",
-				vcID))
+				anchorID))
 	}
 
-	err = c.WitnessStore.Put(vcID, witnesses)
+	err = c.WitnessStore.Put(anchorID, witnesses)
 	if err != nil {
-		return fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err)
+		return fmt.Errorf("failed to store witnesses for anchor event[%s]: %w", anchorID, err)
 	}
 
-	err = c.VCStatusStore.AddStatus(vcID, proof.VCStatusInProcess)
+	err = c.VCStatusStore.AddStatus(anchorID, proof.VCStatusInProcess)
 	if err != nil {
-		return fmt.Errorf("failed to set 'in-process' status for vcID[%s]: %w", vcID, err)
+		return fmt.Errorf("failed to set 'in-process' status for anchor event[%s]: %w", anchorID, err)
 	}
 
 	return nil

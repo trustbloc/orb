@@ -586,13 +586,13 @@ func startOrbServices(parameters *orbParameters) error {
 
 	proofHandler := proof.New(
 		&proof.Providers{
-			VCStore:       vcStore,
-			VCStatusStore: vcStatusStore,
-			MonitoringSvc: monitoringSvc,
-			DocLoader:     orbDocumentLoader,
-			WitnessStore:  witnessProofStore,
-			WitnessPolicy: witnessPolicy,
-			Metrics:       metrics.Get(),
+			AnchorEventStore: vcStore,
+			StatusStore:      vcStatusStore,
+			MonitoringSvc:    monitoringSvc,
+			DocLoader:        orbDocumentLoader,
+			WitnessStore:     witnessProofStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          metrics.Get(),
 		},
 		pubSub)
 
@@ -624,7 +624,7 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorLinkStore:        anchorLinkStore,
 	}
 
-	o, err := observer.New(providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
+	o, err := observer.New(apConfig.ServiceIRI, providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}
@@ -635,7 +635,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
-		apspi.WithAnchorCredentialHandler(credential.New(
+		apspi.WithAnchorEventHandler(credential.New(
 			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
 		)),
 		// TODO: Define the following ActivityPub handlers.
@@ -651,19 +651,19 @@ func startOrbServices(parameters *orbParameters) error {
 	o.Start()
 
 	anchorWriterProviders := &writer.Providers{
-		AnchorGraph:   anchorGraph,
-		DidAnchors:    didAnchors,
-		AnchorBuilder: vcBuilder,
-		VCStore:       vcStore,
-		VCStatusStore: vcStatusStore,
-		OpProcessor:   opProcessor,
-		Outbox:        activityPubService.Outbox(),
-		Witness:       witness,
-		Signer:        vcSigner,
-		MonitoringSvc: monitoringSvc,
-		ActivityStore: apStore,
-		WitnessStore:  witnessProofStore,
-		WFClient:      wfClient,
+		AnchorGraph:      anchorGraph,
+		DidAnchors:       didAnchors,
+		AnchorBuilder:    vcBuilder,
+		AnchorEventStore: vcStore,
+		VCStatusStore:    vcStatusStore,
+		OpProcessor:      opProcessor,
+		Outbox:           activityPubService.Outbox(),
+		Witness:          witness,
+		Signer:           vcSigner,
+		MonitoringSvc:    monitoringSvc,
+		ActivityStore:    apStore,
+		WitnessStore:     witnessProofStore,
+		WFClient:         wfClient,
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,
@@ -672,7 +672,7 @@ func startOrbServices(parameters *orbParameters) error {
 		o.Publisher(), pubSub,
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
-		orbDocumentLoader, resourceResolver,
+		resourceResolver,
 		metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())

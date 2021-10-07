@@ -16,7 +16,7 @@ import (
 func TestTypeProperty(t *testing.T) {
 	const (
 		jsonType      = `"Create"`
-		jsonMultiType = `["Create","AnchorCredential"]`
+		jsonMultiType = `["Create","AnchorEvent"]`
 	)
 
 	t.Run("Nil type", func(t *testing.T) {
@@ -43,18 +43,17 @@ func TestTypeProperty(t *testing.T) {
 		p2 := &TypeProperty{}
 		require.NoError(t, json.Unmarshal([]byte(jsonType), p2))
 		require.True(t, p2.Is(TypeCreate))
-		require.False(t, p2.IsAny(TypeAnchorCredential))
 		require.Equal(t, "Create", p2.String())
 	})
 
 	t.Run("Multiple types", func(t *testing.T) {
-		p := NewTypeProperty(TypeCreate, TypeAnchorCredential)
+		p := NewTypeProperty(TypeCreate, TypeAnchorEvent)
 		require.NotNil(t, p)
 
 		types := p.Types()
 		require.Len(t, types, 2)
 		require.Equal(t, TypeCreate, types[0])
-		require.Equal(t, TypeAnchorCredential, types[1])
+		require.Equal(t, TypeAnchorEvent, types[1])
 
 		bytes, err := json.Marshal(p)
 		require.NoError(t, err)
@@ -62,9 +61,8 @@ func TestTypeProperty(t *testing.T) {
 
 		p2 := &TypeProperty{}
 		require.NoError(t, json.Unmarshal([]byte(jsonMultiType), p2))
-		require.True(t, p2.Is(TypeCreate, TypeAnchorCredential))
+		require.True(t, p2.Is(TypeCreate))
 		require.False(t, p2.Is(TypeCreate, TypeFollow))
-		require.True(t, p2.IsAny(TypeAnchorCredential))
-		require.Equal(t, "[Create AnchorCredential]", p2.String())
+		require.Equal(t, "[Create AnchorEvent]", p2.String())
 	})
 }

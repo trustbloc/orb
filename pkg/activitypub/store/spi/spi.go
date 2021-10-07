@@ -46,8 +46,8 @@ const (
 	Liked ReferenceType = "LIKED"
 	// Share indicates that the reference is an 'Announce' activity that was shared.
 	Share ReferenceType = "SHARE"
-	// AnchorCredential indicates that the reference is an anchor credential.
-	AnchorCredential ReferenceType = "ANCHOR_CRED"
+	// AnchorEvent indicates that the reference is an anchor event.
+	AnchorEvent ReferenceType = "ANCHOR_EVENT"
 )
 
 // Store defines the functions of an ActivityPub store.

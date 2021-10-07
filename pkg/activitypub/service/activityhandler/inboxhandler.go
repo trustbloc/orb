@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var errDuplicateAnchorCredential = errors.New("anchor credential already handled")
+var errDuplicateAnchorEvent = errors.New("anchor event already handled")
 
 // Inbox handles activities posted to the inbox.
 type Inbox struct {
@@ -103,38 +103,58 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
 
-	obj := create.Object()
+	if !create.Object().Type().Is(vocab.TypeAnchorEvent) {
+		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", create.Object().Type(), create.ID())
+	}
 
-	t := obj.Type()
+	anchorEvent := create.Object().AnchorEvent()
 
-	switch {
-	case t.Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential):
-		if err := h.handleAnchorCredential(create.Actor(), create.Target(), obj.Object()); err != nil {
-			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
-		}
+	err := anchorEvent.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid anchor event: %w", err)
+	}
 
-		if err := h.announceAnchorCredential(create); err != nil {
-			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
-				h.ServiceIRI, create.ID(), err)
-		}
+	if anchorEvent.Anchors() != nil {
+		err = h.handleEmbeddedAnchorEvent(create, anchorEvent)
+	} else {
+		err = h.handleAnchorEventRef(create, anchorEvent.URL()[0])
+	}
 
-	case t.Is(vocab.TypeAnchorRef):
-		ref := obj.AnchorReference()
-
-		if err := h.handleAnchorCredential(create.Actor(), ref.Target(), ref.Object().Object()); err != nil {
-			return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
-		}
-
-		if err := h.announceAnchorRef(create); err != nil {
-			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
-				h.ServiceIRI, create.ID(), err)
-		}
-
-	default:
-		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", t, create.ID())
+	if err != nil {
+		return err
 	}
 
 	h.notify(create)
+
+	return nil
+}
+
+func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType, anchorEvent *vocab.AnchorEventType) error {
+	if len(anchorEvent.URL()) == 0 {
+		return errors.New("missing anchor event URL")
+	}
+
+	if err := h.handleAnchorEvent(create.Actor(), anchorEvent); err != nil {
+		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
+	}
+
+	if err := h.announceAnchorEvent(create); err != nil {
+		logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+			h.ServiceIRI, create.ID(), err)
+	}
+
+	return nil
+}
+
+func (h *Inbox) handleAnchorEventRef(create *vocab.ActivityType, anchorEventURL *url.URL) error {
+	if err := h.handleAnchorEventReference(create.Actor(), anchorEventURL); err != nil {
+		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
+	}
+
+	if err := h.announceAnchorEventRef(create); err != nil {
+		logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+			h.ServiceIRI, create.ID(), err)
+	}
 
 	return nil
 }
@@ -461,9 +481,9 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("offer [%s] has expired", offer.ID())
 	}
 
-	anchorCred := offer.Object().Object()
+	anchorEvent := offer.Object().AnchorEvent()
 
-	result, err := h.witnessAnchorCredential(anchorCred)
+	result, err := h.witnessAnchorCredential(anchorEvent.Witness())
 	if err != nil {
 		return fmt.Errorf("error creating result for 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
@@ -473,7 +493,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	// Create a new offer activity with only the bare essentials to return in the 'Accept'.
 	oa := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(offer.Object().Object().ID().URL())),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Anchors())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -486,10 +506,10 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(anchorCred.ID().URL()),
+				vocab.WithInReplyTo(anchorEvent.Anchors()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
-				vocab.WithAttachment(result),
+				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
 			),
 			),
 		)),
@@ -516,10 +536,18 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 
 	result := accept.Result().Object()
 
-	anchorCredID := result.InReplyTo()
+	inReplyTo := result.InReplyTo()
 
-	if offer.Object().Object().ID().String() != anchorCredID.String() {
-		return errors.New("the anchor credential in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
+	anchorEvent := offer.Object().AnchorEvent()
+
+	if anchorEvent.Anchors() == nil {
+		return errors.New("the anchor event in the original 'Offer' is empty")
+	}
+
+	if anchorEvent.Anchors().String() != inReplyTo.String() {
+		return errors.New(
+			"the anchors URL of the anchor event in the original 'Offer' does not match the IRI in the 'inReplyTo' field",
+		)
 	}
 
 	attachmentBytes, err := json.Marshal(result.Attachment()[0])
@@ -527,7 +555,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 		return fmt.Errorf("marshal error of attachment in 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(accept.Actor(), anchorCredID.String(), *result.EndTime(), attachmentBytes)
+	err = h.ProofHandler.HandleProof(accept.Actor(), anchorEvent.Anchors().String(), *result.EndTime(), attachmentBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
@@ -537,80 +565,124 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 	return nil
 }
 
-func (h *Inbox) handleAnchorCredential(actor *url.URL, target *vocab.ObjectProperty, obj *vocab.ObjectType) error {
-	if !target.Type().Is(vocab.TypeContentAddressedStorage) {
-		return fmt.Errorf("unsupported target type %s", target.Type().Types())
-	}
+func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEventType) error {
+	anchorEventRef := anchorEvent.URL()[0]
 
-	targetIRI := target.Object().ID().URL()
-
-	ok, err := h.hasReference(targetIRI, h.ServiceIRI, store.AnchorCredential)
+	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("has anchor credential [%s]: %w", targetIRI, err))
+		return orberrors.NewTransient(fmt.Errorf("has anchor event reference [%s]: %w",
+			anchorEventRef, err))
 	}
 
 	if ok {
-		return fmt.Errorf("handle anchor credential [%s]: %w", targetIRI, errDuplicateAnchorCredential)
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, errDuplicateAnchorEvent)
 	}
 
-	var bytes []byte
+	// Create a new anchor event without the URL property since this data is an add-on that's only used by
+	// ActivityPub in the 'Create" and "Announce" activities.
+	ae := vocab.NewAnchorEvent(
+		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
+		vocab.WithAnchors(anchorEvent.Anchors()),
+		vocab.WithPublishedTime(anchorEvent.Published()),
+		vocab.WithParent(anchorEvent.Parent()...),
+		vocab.WithAttachment(anchorEvent.Attachment()...),
+	)
 
-	if obj != nil {
-		bytes, err = json.Marshal(obj)
-		if err != nil {
-			return fmt.Errorf("marshal anchor credential: %w", err)
-		}
-	}
-
-	err = h.AnchorCredentialHandler.HandleAnchorCredential(actor, targetIRI, target.Object().CID(), bytes)
+	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, ae)
 	if err != nil {
-		return fmt.Errorf("handler anchor credential: %w", err)
+		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor credential reference [%s]", h.ServiceName, targetIRI)
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.Anchors())
 
-	err = h.store.AddReference(store.AnchorCredential, targetIRI, h.ServiceIRI)
+	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("store anchor credential reference: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
 	}
 
 	return nil
 }
 
-func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*vocab.ObjectProperty) error {
+func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error {
+	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("has anchor event reference [%s]: %w",
+			anchorEventRef, err))
+	}
+
+	if ok {
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, errDuplicateAnchorEvent)
+	}
+
+	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, nil)
+	if err != nil {
+		return fmt.Errorf("handle anchor event: %w", err)
+	}
+
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEventRef)
+
+	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
+	}
+
+	return nil
+}
+
+func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*vocab.ObjectProperty) error { //nolint:gocyclo,cyclop,lll
 	logger.Infof("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
 
-	var anchorCredIDs []*url.URL
+	var anchorEventIDs []*url.URL
 
 	for _, item := range items {
-		if !item.Type().Is(vocab.TypeAnchorRef) {
-			return fmt.Errorf("expecting 'AnchorReference' type")
+		if !item.Type().Is(vocab.TypeAnchorEvent) {
+			return fmt.Errorf("expecting 'Info' type")
 		}
 
-		ref := item.AnchorReference()
-		if err := h.handleAnchorCredential(announce.Actor(), ref.Target(), ref.Object().Object()); err != nil {
-			// Continue processing other anchor credentials on duplicate error.
-			if !errors.Is(err, errDuplicateAnchorCredential) {
-				return err
-			}
+		anchorEvent := item.AnchorEvent()
 
-			logger.Infof("[%s] Ignoring duplicate anchor credential [%s]",
-				h.ServiceIRI, ref.Target().Object().ID())
+		if err := anchorEvent.Validate(); err != nil {
+			// Continue processing other anchor events on invalid anchor event.
+			logger.Infof("[%s] Ignoring invalid anchor event %s", h.ServiceIRI, anchorEvent.URL())
+
+			continue
+		}
+
+		if anchorEvent.Anchors() != nil { //nolint:nestif
+			if err := h.handleAnchorEvent(announce.Actor(), anchorEvent); err != nil {
+				// Continue processing other anchor events on duplicate error.
+				if !errors.Is(err, errDuplicateAnchorEvent) {
+					return err
+				}
+
+				logger.Infof("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
+			} else {
+				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
+			}
 		} else {
-			anchorCredIDs = append(anchorCredIDs, ref.ID().URL())
+			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0]); err != nil {
+				// Continue processing other anchor events on duplicate error.
+				if !errors.Is(err, errDuplicateAnchorEvent) {
+					return err
+				}
+
+				logger.Infof("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
+			} else {
+				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
+			}
 		}
 	}
 
-	for _, anchorCredID := range anchorCredIDs {
-		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor credential [%s]",
-			h.ServiceIRI, announce.ID(), anchorCredID)
+	for _, anchorEventID := range anchorEventIDs {
+		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor event [%s]",
+			h.ServiceIRI, announce.ID(), anchorEventID)
 
-		err := h.store.AddReference(store.Share, anchorCredID, announce.ID().URL(),
+		err := h.store.AddReference(store.Share, anchorEventID, announce.ID().URL(),
 			store.WithActivityType(announce.Type().Types()[0]))
 		if err != nil {
 			// This isn't a fatal error so just log a warning.
-			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor credential %s: %s",
-				h.ServiceIRI, announce.ID(), anchorCredID, err)
+			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor event %s: %s",
+				h.ServiceIRI, announce.ID(), anchorEventID, err)
 		}
 	}
 
@@ -625,12 +697,12 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 	}
 
 	// TODO: Will there always be only one URL?
-	refURL := like.Object().AnchorReference().URL()[0]
+	refURL := like.Object().AnchorEvent().URL()[0]
 
 	var additionalRefs []*url.URL
 
 	if like.Result() != nil {
-		additionalRefs = like.Result().AnchorReference().URL()
+		additionalRefs = like.Result().AnchorEvent().URL()
 	}
 
 	if err := h.AnchorEventAckHandler.AnchorEventAcknowledged(like.Actor(), refURL, additionalRefs); err != nil {
@@ -649,11 +721,8 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
-	ref, err := newAnchorReferenceFromCreate(create)
-	if err != nil {
-		return err
-	}
+func (h *Inbox) announceAnchorEvent(create *vocab.ActivityType) error {
+	anchorEvent := create.Object().AnchorEvent()
 
 	published := time.Now()
 
@@ -663,7 +732,7 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 				vocab.NewCollection(
 					[]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorReference(ref),
+							vocab.WithAnchorEvent(anchorEvent),
 						),
 					},
 				),
@@ -673,16 +742,19 @@ func (h *Inbox) announceAnchorCredential(create *vocab.ActivityType) error {
 		vocab.WithPublishedTime(&published),
 	)
 
-	_, err = h.outbox.Post(announce)
-	if err != nil {
+	if _, err := h.outbox.Post(announce); err != nil {
 		return orberrors.NewTransient(err)
 	}
 
 	return nil
 }
 
-func (h *Inbox) announceAnchorRef(create *vocab.ActivityType) error {
-	ref := create.Object().AnchorReference()
+func (h *Inbox) announceAnchorEventRef(create *vocab.ActivityType) error {
+	if len(create.Object().AnchorEvent().URL()) == 0 {
+		return fmt.Errorf("missing URL in anchor reference for 'Create' activity [%s]", create.ID())
+	}
+
+	anchorEventURL := create.Object().AnchorEvent().URL()[0]
 
 	published := time.Now()
 
@@ -692,7 +764,7 @@ func (h *Inbox) announceAnchorRef(create *vocab.ActivityType) error {
 				vocab.NewCollection(
 					[]*vocab.ObjectProperty{
 						vocab.NewObjectProperty(
-							vocab.WithAnchorReference(ref),
+							vocab.WithURL(anchorEventURL),
 						),
 					},
 				),
@@ -707,15 +779,13 @@ func (h *Inbox) announceAnchorRef(create *vocab.ActivityType) error {
 		return orberrors.NewTransient(err)
 	}
 
-	anchorCredID := ref.Target().Object().ID()
+	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorEventURL)
 
-	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorCredID)
-
-	err = h.store.AddReference(store.Share, anchorCredID.URL(), activityID,
+	err = h.store.AddReference(store.Share, anchorEventURL, activityID,
 		store.WithActivityType(create.Type().Types()[0]))
 	if err != nil {
 		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
-			h.ServiceIRI, announce.ID(), anchorCredID)
+			h.ServiceIRI, announce.ID(), anchorEventURL)
 	}
 
 	return nil
@@ -734,18 +804,18 @@ func (h *Inbox) validateOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("object target IRI must be set to %s", vocab.AnchorWitnessTargetIRI)
 	}
 
-	obj := offer.Object().Object()
-
-	if obj == nil {
-		return fmt.Errorf("object is required")
+	anchorEvent := offer.Object().AnchorEvent()
+	if anchorEvent == nil {
+		return fmt.Errorf("anchor event is required")
 	}
 
-	if !obj.Type().Is(vocab.TypeAnchorCredential, vocab.TypeVerifiableCredential) {
-		return fmt.Errorf("unsupported object type in Offer activity %s", obj.Type())
+	err := anchorEvent.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid anchor event: %w", err)
 	}
 
-	if obj.ID() == nil {
-		return fmt.Errorf("object ID is required")
+	if anchorEvent.Anchors() == nil {
+		return fmt.Errorf("anchors URL is required in anchor event: %w", err)
 	}
 
 	return nil
@@ -796,7 +866,7 @@ func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("actor is required")
 	}
 
-	ref := like.Object().AnchorReference()
+	ref := like.Object().AnchorEvent()
 
 	if len(ref.URL()) == 0 {
 		return fmt.Errorf("anchor reference URL is required")
@@ -805,8 +875,8 @@ func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) witnessAnchorCredential(anchorCred *vocab.ObjectType) (*vocab.ObjectType, error) {
-	bytes, err := json.Marshal(anchorCred)
+func (h *Inbox) witnessAnchorCredential(vc *vocab.ObjectType) (*vocab.ObjectType, error) {
+	bytes, err := json.Marshal(vc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)
 	}
@@ -856,7 +926,7 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 }
 
 func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
-	ref := like.Object().AnchorReference()
+	ref := like.Object().AnchorEvent()
 
 	if ref == nil || len(ref.URL()) == 0 {
 		return fmt.Errorf("invalid anchor reference in the 'Like' activity")
@@ -874,12 +944,12 @@ func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
 		h.ServiceIRI, like.ID(), u)
 
 	// TODO: Will there always be only one URL?
-	refURL := like.Object().AnchorReference().URL()[0]
+	refURL := like.Object().AnchorEvent().URL()[0]
 
 	var additionalRefs []*url.URL
 
 	if like.Result() != nil {
-		additionalRefs = like.Result().AnchorReference().URL()
+		additionalRefs = like.Result().AnchorEvent().URL()
 	}
 
 	if err := h.AnchorEventAckHandler.UndoAnchorEventAcknowledgement(like.Actor(), refURL, additionalRefs); err != nil {
@@ -930,25 +1000,6 @@ func (h *Inbox) getActivityFromOutbox(activityIRI *url.URL) (*vocab.ActivityType
 	return activities[0], nil
 }
 
-func newAnchorReferenceFromCreate(create *vocab.ActivityType) (*vocab.AnchorReferenceType, error) {
-	anchorCredential := create.Object().Object()
-
-	anchorCredentialBytes, err := json.Marshal(anchorCredential)
-	if err != nil {
-		return nil, err
-	}
-
-	anchorCredDoc, err := vocab.UnmarshalToDoc(anchorCredentialBytes)
-	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal anchor credential: %w", err)
-	}
-
-	targetObj := create.Target().Object()
-
-	return vocab.NewAnchorReferenceWithDocument(anchorCredential.ID().URL(),
-		targetObj.ID().URL(), targetObj.CID(), anchorCredDoc)
-}
-
 func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 	if a1.Actor().String() != a2.Actor().String() {
 		return fmt.Errorf("actors do not match: [%s] and [%s]", a1.Actor(), a2.Actor())
@@ -963,8 +1014,7 @@ func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 
 type noOpAnchorCredentialPublisher struct{}
 
-func (p *noOpAnchorCredentialPublisher) HandleAnchorCredential(actor, id *url.URL, cid string,
-	anchorCred []byte) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_, _ *url.URL, _ *vocab.AnchorEventType) error {
 	return nil
 }
 

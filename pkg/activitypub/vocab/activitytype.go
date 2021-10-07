@@ -197,7 +197,7 @@ func NewLikeActivity(obj *ObjectProperty, opts ...Opt) *ActivityType {
 
 	return &ActivityType{
 		ObjectType: NewObject(
-			WithContext(getContexts(options, ContextActivityStreams, ContextActivityAnchors)...),
+			WithContext(getContexts(options, ContextActivityStreams)...),
 			WithID(options.ID),
 			WithType(TypeLike),
 			WithTo(options.To...),

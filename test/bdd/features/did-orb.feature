@@ -137,7 +137,7 @@ Feature:
       When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document
       Then check success response contains "#interimDID"
 
-      Then we wait 2 seconds
+      Then we wait 3 seconds
       When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
       Then check success response contains "canonicalId"
 
@@ -350,7 +350,7 @@ Feature:
   @alternate_links_scenario
   Scenario: WebFinger query returns alternate links for "Liked" anchor credentials
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document and the ID is saved to variable "didID"
-    Then we wait 3 seconds
+    Then we wait 5 seconds
 
     When an HTTP GET is sent to "https://orb.domain1.com/.well-known/webfinger?resource=${didID}"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain1\.com.*"

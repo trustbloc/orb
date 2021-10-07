@@ -24,7 +24,9 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/anchor/activity"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -51,6 +53,8 @@ type linkStore interface { //nolint:deadcode,unused
 
 const casLink = "https://domain.com/cas"
 
+var serviceIRI = testutil.MustParseURL("https://domain1.com/services/orb")
+
 func TestNew(t *testing.T) {
 	errExpected := errors.New("injected pub-sub error")
 
@@ -63,7 +67,7 @@ func TestNew(t *testing.T) {
 		Metrics:    &orbmocks.MetricsProvider{},
 	}
 
-	o, err := New(providers)
+	o, err := New(serviceIRI, providers)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errExpected.Error())
 	require.Nil(t, o)
@@ -82,7 +86,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:    &orbmocks.MetricsProvider{},
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 		require.NotNil(t, o.Publisher())
@@ -122,10 +126,7 @@ func TestStartObserver(t *testing.T) {
 		prevAnchors["did1"] = ""
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1", PreviousAnchors: prevAnchors}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 		anchor1 := &anchorinfo.AnchorInfo{
 			Hashlink:      cid,
@@ -137,19 +138,13 @@ func TestStartObserver(t *testing.T) {
 		prevAnchors["did2"] = ""
 		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2", PreviousAnchors: prevAnchors}
 
-		c, err = buildCredential(&payload2)
-		require.NoError(t, err)
-
-		cid, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload2))
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
 		payload3 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core3", PreviousAnchors: prevAnchors}
 
-		c, err = buildCredential(&payload3)
-		require.NoError(t, err)
-
-		cid, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload3))
 		require.NoError(t, err)
 
 		anchor3 := &anchorinfo.AnchorInfo{
@@ -159,7 +154,7 @@ func TestStartObserver(t *testing.T) {
 		}
 
 		casResolver := &protomocks.CASResolver{}
-		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+		casResolver.ResolveReturns([]byte(anchorEvent), "", nil)
 
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
@@ -174,7 +169,7 @@ func TestStartObserver(t *testing.T) {
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
-		o, err := New(providers, WithDiscoveryDomain("webcas:shared.domain.com"))
+		o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -224,10 +219,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -236,9 +228,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -285,20 +278,14 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		previousAnchors[did1] = cid
 
 		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		c, err = buildCredential(&payload2)
-		require.NoError(t, err)
-
-		cid, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload2))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -307,9 +294,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -357,10 +345,7 @@ func TestStartObserver(t *testing.T) {
 			PreviousAnchors: previousDIDAnchors,
 		}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		anchor := &anchorinfo.AnchorInfo{Hashlink: cid}
@@ -371,9 +356,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -421,10 +407,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -433,9 +416,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -485,10 +469,7 @@ func TestStartObserver(t *testing.T) {
 			PreviousAnchors: prevAnchors,
 		}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 		anchor1 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
@@ -499,10 +480,7 @@ func TestStartObserver(t *testing.T) {
 			PreviousAnchors: prevAnchors,
 		}
 
-		c, err = buildCredential(&payload2)
-		require.NoError(t, err)
-
-		cid, err = anchorGraph.Add(c)
+		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload2))
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
@@ -512,9 +490,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             &mockDidAnchor{Err: fmt.Errorf("did anchor error")},
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -559,9 +538,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -587,9 +567,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -611,7 +592,9 @@ func TestStartObserver(t *testing.T) {
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &verifiable.Credential{}}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{
+			Info: &vocab.AnchorEventType{},
+		}}, nil)
 
 		providers := &Providers{
 			ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
@@ -619,9 +602,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -666,10 +650,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
-		c, err := buildCredential(&payload1)
-		require.NoError(t, err)
-
-		cid, err := anchorGraph.Add(c)
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		pubSub := apmocks.NewPubSub()
@@ -684,9 +665,10 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 pubSub,
 			Metrics:                &orbmocks.MetricsProvider{},
+			DocLoader:              testutil.GetLoader(t),
 		}
 
-		o, err := New(providers)
+		o, err := New(serviceIRI, providers)
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -718,16 +700,16 @@ func TestResolveActorFromHashlink(t *testing.T) {
 		DocLoader:         testutil.GetLoader(t),
 	}
 
-	o, e := New(providers)
+	o, e := New(serviceIRI, providers)
 	require.NotNil(t, o)
 	require.NoError(t, e)
 
 	t.Run("Success", func(t *testing.T) {
-		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+		casResolver.ResolveReturns([]byte(anchorEvent), "", nil)
 
 		actor, err := o.resolveActorFromHashlink(hl)
 		require.NoError(t, err)
-		require.Equal(t, "https://orb.domain2.com/services/orb", actor.String())
+		require.Equal(t, "https://orb.domain1.com/services/orb", actor.String())
 	})
 
 	t.Run("CAS resolve error", func(t *testing.T) {
@@ -741,25 +723,17 @@ func TestResolveActorFromHashlink(t *testing.T) {
 	})
 
 	t.Run("Parse VC error", func(t *testing.T) {
-		casResolver.ResolveReturns([]byte(anchorCredentialInvalid), "", nil)
+		casResolver.ResolveReturns([]byte(anchorEventInvalid), "", nil)
 
 		_, err := o.resolveActorFromHashlink(hl)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unexpected end of JSON input")
 	})
 
-	t.Run("No subject in VC error", func(t *testing.T) {
-		casResolver.ResolveReturns([]byte(anchorCredentialNoSubject), "", nil)
-
-		_, err := o.resolveActorFromHashlink(hl)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "\"attributedTo\" field not found in anchor credential")
-	})
-
 	t.Run("WebFinger resolve error", func(t *testing.T) {
 		errExpected := errors.New("injected WebFinger resolve error")
 
-		casResolver.ResolveReturns([]byte(anchorCredential), "", nil)
+		casResolver.ResolveReturns([]byte(anchorEvent), "", nil)
 		wfResolver.Err = errExpected
 
 		defer func() {
@@ -772,25 +746,30 @@ func TestResolveActorFromHashlink(t *testing.T) {
 	})
 }
 
-func buildCredential(payload *subject.Payload) (*verifiable.Credential, error) {
+func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEventType {
+	t.Helper()
+
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
-	act, err := activity.BuildActivityFromPayload(payload)
-	if err != nil {
-		return nil, err
-	}
+	contentObj, err := anchorevent.BuildContentObject(payload)
+	require.NoError(t, err)
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
 		Context: []string{defVCContext},
-		Subject: act,
+		Subject: &builder.CredentialSubject{
+			ID: "hl:uEiBN4vd1lgKx_K93ltpdI32T6nIGlwXhJcSwbeVAg8NMxg:uoQ-BeEJpcGZzOi8vYmFma3JlaWNuNGwzeGxmcWN3aDZrNjU0dzNqb3NnN210NWp6YW5meWY0ZXM0am1kbjR2YWlocTJteXk", //nolint:lll
+		},
 		Issuer: verifiable.Issuer{
 			ID: "http://orb.domain.com",
 		},
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	return vc, nil
+	act, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+	require.NoError(t, err)
+
+	return act
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
@@ -810,99 +789,63 @@ func (m *mockDidAnchor) PutBulk(_ []string, _ string) error {
 }
 
 //nolint:lll
-const anchorCredential = `{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/jws/v1"
-  ],
-  "credentialSubject": {
-    "attachment": [
-      {
-        "generator": "https://w3id.org/orb#v0",
-        "resources": [
-          "did:orb:uAAA:EiCj5WmLy82AIT_GD5KaRC_eLcx5gBRnMSnGfi7iv7cGEw"
+const anchorEvent = `{
+  "@context": "https://w3id.org/activityanchors/v1",
+  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "attachment": [
+    {
+      "contentObject": {
+        "properties": {
+          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
+          "https://w3id.org/activityanchors#resources": [
+            {
+              "id": "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
+            }
+          ]
+        },
+        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
+      },
+      "type": "AnchorObject",
+      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+      "witness": {
+        "@context": "https://www.w3.org/2018/credentials/v1",
+        "credentialSubject": {
+          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+        },
+        "issuanceDate": "2021-01-27T09:30:10Z",
+        "issuer": "https://sally.example.com/services/anchor",
+        "proof": [
+          {
+            "created": "2021-01-27T09:30:00Z",
+            "domain": "sally.example.com",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          },
+          {
+            "created": "2021-01-27T09:30:05Z",
+            "domain": "https://witness1.example.com/ledgers/maple2021",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          }
         ],
-        "type": "AnchorIndex",
-        "url": "hl:uEiBAk1gK831wNVhPHCG92OSbIOSpsMCBrCYjjEySpbbwrg:uoQ-BeDVpcGZzOi8vUW1YNHlmSFpobWJxaGZFRWFhMzRjSG5EV2FTTEtETm5SRjRUbXdiNlBnenNISg"
-      },
-      {
-        "type": "AnchorObject",
-        "url": "hl:uEiBFMUG4hvCj7ffrVKYDksJNz-t5DEZCpV_qMFrPYVXz8g:uoQ-BeDVpcGZzOi8vUW1lTlJTQ2E3RVMyWWJKTFY5VW5NanNvdk5WM2cyRW1iV2dycHRza3NoRVhYUQ"
-      },
-      {
-        "type": "AnchorObject",
-        "url": "hl:uEiD0JfD_5SOENYh4E37BSbIzHiM7bOMIf3_mWdefRaUiwQ:uoQ-BeDVpcGZzOi8vUW1QWlhHdzI4QjRyU2M4bzJObXhlTExhbnRzUGRkRmt0bzhZWG5BR2lYZ3QyVg"
+        "type": "VerifiableCredential"
       }
-    ],
-    "attributedTo": "https://orb.domain2.com/services/orb",
-    "published": "2021-09-10T14:04:11.086419939Z",
-    "type": "AnchorEvent"
-  },
-  "id": "http://orb.domain2.com/vc/18d68624-3011-4365-a938-3703e9cac868",
-  "issuanceDate": "2021-09-10T14:04:11.086419939Z",
-  "issuer": "http://orb.domain2.com",
-  "proof": [
-    {
-      "created": "2021-09-10T14:04:11.399Z",
-      "domain": "http://orb.vct:8077/maple2020",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:orb.domain1.com#orb1key"
-    },
-    {
-      "created": "2021-09-10T14:04:11.399Z",
-      "domain": "http://orb.vct:8077/maple2020",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:orb.domain1.com#orb1key"
     }
   ],
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
+  "attributedTo": "https://orb.domain1.com/services/orb",
+  "parent": [
+    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
+    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "type": "Info",
+  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
 }`
 
-const anchorCredentialInvalid = `{
+const anchorEventInvalid = `{
   "@context": [
 `
-
-//nolint:lll
-const anchorCredentialNoSubject = `{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/jws/v1"
-  ],
-  "credentialSubject": {},
-  "id": "http://orb.domain2.com/vc/18d68624-3011-4365-a938-3703e9cac868",
-  "issuanceDate": "2021-09-10T14:04:11.086419939Z",
-  "issuer": "http://orb.domain2.com",
-  "proof": [
-    {
-      "created": "2021-09-10T14:04:11.399Z",
-      "domain": "http://orb.vct:8077/maple2020",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:orb.domain1.com#orb1key"
-    },
-    {
-      "created": "2021-09-10T14:04:11.399Z",
-      "domain": "http://orb.vct:8077/maple2020",
-      "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..sl4EKDREkRRnjiAbEXNc8onzlFPlXI-NgJgxlPcRXFZjTQ9W5ssnfdHLXnzJBZtAlY-icMc73MvKGxAE0tG0Cw",
-      "proofPurpose": "assertionMethod",
-      "type": "Ed25519Signature2018",
-      "verificationMethod": "did:web:orb.domain1.com#orb1key"
-    }
-  ],
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
-}`

@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -54,20 +52,9 @@ func TestBuilder_Build(t *testing.T) {
 		b, err := New(builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build(&subject.Payload{Namespace: "did:orb", PreviousAnchors: previousAnchors})
+		vc, err := b.Build("hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg")
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
-	})
-
-	t.Run("error - invalid namespace", func(t *testing.T) {
-		b, err := New(builderParams)
-		require.NoError(t, err)
-
-		vc, err := b.Build(&subject.Payload{Namespace: "doc:something", PreviousAnchors: previousAnchors})
-		require.Error(t, err)
-		require.Empty(t, vc)
-		require.Contains(t, err.Error(),
-			"failed to build anchor activity: failed to create generator: generator not defined for namespace: doc:something")
 	})
 }
 

@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	namespace = "witness"
-	vcIndex   = "vcID"
+	namespace   = "witness"
+	anchorIndex = "anchorID"
 )
 
 var logger = log.New("witness-store")
@@ -33,7 +33,7 @@ func New(provider storage.Provider) (*Store, error) {
 		return nil, fmt.Errorf("failed to open anchor credential witness store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{vcIndex}})
+	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
@@ -49,10 +49,10 @@ type Store struct {
 }
 
 // Put saves witnesses into anchor credential witness store.
-func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
+func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 	operations := make([]storage.Operation, len(witnesses))
 
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	for i, w := range witnesses {
 		value, err := json.Marshal(w)
@@ -67,8 +67,8 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 			Value: value,
 			Tags: []storage.Tag{
 				{
-					Name:  vcIndex,
-					Value: vcIDEncoded,
+					Name:  anchorIndex,
+					Value: anchorIDEncoded,
 				},
 			},
 		}
@@ -78,10 +78,10 @@ func (s *Store) Put(vcID string, witnesses []*proof.WitnessProof) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to store witnesses for vcID[%s]: %w", vcID, err))
+		return orberrors.NewTransient(fmt.Errorf("failed to store witnesses for anchorID[%s]: %w", anchorID, err))
 	}
 
-	logger.Debugf("stored %d witnesses for vcID[%s]", len(witnesses), vcID)
+	logger.Debugf("stored %d witnesses for anchorID[%s]", len(witnesses), anchorID)
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (s *Store) Delete(vcID string) error {
 	var err error
 
 	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
-	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -156,7 +156,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
 
-	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -215,7 +215,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen,gocyclo,cyclop
 	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
 
-	query := fmt.Sprintf("%s:%s", vcIndex, vcIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -268,7 +268,7 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 				return fmt.Errorf("failed to marshal witness[%s] proof for vcID[%s]: %w", w.Witness, vcID, marshalErr)
 			}
 
-			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: vcIndex, Value: vcIDEncoded})
+			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: anchorIndex, Value: vcIDEncoded})
 			if err != nil {
 				return orberrors.NewTransient(fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
 					vcID, witness, err))

@@ -15,12 +15,13 @@ import (
 // ObjectProperty defines an 'object' property. The property may be a simple IRI or
 // an embedded object such as 'Collection', 'OrderedCollection', 'Activity', etc.
 type ObjectProperty struct {
-	iri           *URLProperty
-	obj           *ObjectType
-	coll          *CollectionType
-	orderedColl   *OrderedCollectionType
-	activity      *ActivityType
-	anchorCredRef *AnchorReferenceType
+	iri          *URLProperty
+	obj          *ObjectType
+	coll         *CollectionType
+	orderedColl  *OrderedCollectionType
+	activity     *ActivityType
+	anchorObject *AnchorObjectType
+	anchorEvent  *AnchorEventType
 }
 
 // NewObjectProperty returns a new 'object' property with the given options.
@@ -28,12 +29,13 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 	options := NewOptions(opts...)
 
 	return &ObjectProperty{
-		iri:           NewURLProperty(options.Iri),
-		obj:           options.Object,
-		coll:          options.Collection,
-		orderedColl:   options.OrderedCollection,
-		activity:      options.Activity,
-		anchorCredRef: options.AnchorCredRef,
+		iri:          NewURLProperty(options.Iri),
+		obj:          options.Object,
+		coll:         options.Collection,
+		orderedColl:  options.OrderedCollection,
+		activity:     options.Activity,
+		anchorObject: options.AnchorObject,
+		anchorEvent:  options.AnchorEvent,
 	}
 }
 
@@ -60,8 +62,12 @@ func (p *ObjectProperty) Type() *TypeProperty {
 		return p.activity.Type()
 	}
 
-	if p.anchorCredRef != nil {
-		return p.anchorCredRef.Type()
+	if p.anchorObject != nil {
+		return p.anchorObject.Type()
+	}
+
+	if p.anchorEvent != nil {
+		return p.anchorEvent.Type()
 	}
 
 	return nil
@@ -112,14 +118,24 @@ func (p *ObjectProperty) Activity() *ActivityType {
 	return p.activity
 }
 
-// AnchorReference returns the anchored credential reference or nil if
-// the anchored credential reference is not set.
-func (p *ObjectProperty) AnchorReference() *AnchorReferenceType {
+// AnchorObject returns the anchor object or nil if
+// the anchor object is not set.
+func (p *ObjectProperty) AnchorObject() *AnchorObjectType {
 	if p == nil {
 		return nil
 	}
 
-	return p.anchorCredRef
+	return p.anchorObject
+}
+
+// AnchorEvent returns the anchor event or nil if
+// the anchor event is not set.
+func (p *ObjectProperty) AnchorEvent() *AnchorEventType {
+	if p == nil {
+		return nil
+	}
+
+	return p.anchorEvent
 }
 
 // MarshalJSON marshals the 'object' property.
@@ -144,8 +160,12 @@ func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 		return json.Marshal(p.activity)
 	}
 
-	if p.anchorCredRef != nil {
-		return json.Marshal(p.anchorCredRef)
+	if p.anchorObject != nil {
+		return json.Marshal(p.anchorObject)
+	}
+
+	if p.anchorEvent != nil {
+		return json.Marshal(p.anchorEvent)
 	}
 
 	return nil, fmt.Errorf("nil object property")
@@ -185,8 +205,11 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 	case obj.object.Type.IsAny(TypeFollow, TypeAccept, TypeReject, TypeOffer, TypeLike, TypeInvite):
 		err = p.unmarshalActivity(bytes)
 
-	case obj.object.Type.Is(TypeAnchorRef):
-		err = p.unmarshalAnchorReference(bytes)
+	case obj.object.Type.Is(TypeAnchorObject):
+		err = p.unmarshalAnchorObject(bytes)
+
+	case obj.object.Type.Is(TypeAnchorEvent):
+		err = p.unmarshalAnchorEvent(bytes)
 
 	default:
 		p.obj = obj
@@ -231,14 +254,26 @@ func (p *ObjectProperty) unmarshalActivity(bytes []byte) error {
 	return nil
 }
 
-func (p *ObjectProperty) unmarshalAnchorReference(bytes []byte) error {
-	ot := &AnchorReferenceType{}
+func (p *ObjectProperty) unmarshalAnchorObject(bytes []byte) error {
+	ao := &AnchorObjectType{}
 
-	if err := json.Unmarshal(bytes, &ot); err != nil {
+	if err := json.Unmarshal(bytes, &ao); err != nil {
 		return err
 	}
 
-	p.anchorCredRef = ot
+	p.anchorObject = ao
+
+	return nil
+}
+
+func (p *ObjectProperty) unmarshalAnchorEvent(bytes []byte) error {
+	ae := &AnchorEventType{}
+
+	if err := json.Unmarshal(bytes, &ae); err != nil {
+		return err
+	}
+
+	p.anchorEvent = ae
 
 	return nil
 }

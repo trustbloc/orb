@@ -1029,18 +1029,22 @@ func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityT
 		publishedTime := getStaticTime()
 
 		return vocab.NewLikeActivity(
-			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(
-				vocab.WithType(vocab.TypeAnchorRef),
-				vocab.WithURL(ref),
-			))),
+			vocab.NewObjectProperty(
+				vocab.WithAnchorEvent(
+					vocab.NewAnchorEvent(vocab.WithURL(ref)),
+				),
+			),
 			vocab.WithID(id),
 			vocab.WithActor(actor),
 			vocab.WithTo(to...),
 			vocab.WithPublishedTime(&publishedTime),
-			vocab.WithResult(vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(
-				vocab.WithType(vocab.TypeAnchorRef),
-				vocab.WithURL(additionalRef),
-			)))),
+			vocab.WithResult(
+				vocab.NewObjectProperty(
+					vocab.WithAnchorEvent(
+						vocab.NewAnchorEvent(vocab.WithURL(additionalRef)),
+					),
+				),
+			),
 		)
 	}
 
@@ -1088,6 +1092,7 @@ const (
   "last": "https://example1.com/services/orb/inbox?page=true&page-num=0"
 }`
 
+	//nolint:lll
 	inboxFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=4",
@@ -1097,17 +1102,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_18",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_18",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1115,17 +1112,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_17",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_17",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1133,17 +1122,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_16",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_16",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1151,17 +1132,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_15",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_15",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     }
@@ -1170,6 +1143,7 @@ const (
   "type": "OrderedCollectionPage"
 }`
 
+	//nolint:lll
 	inboxLastPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=0",
@@ -1178,17 +1152,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_2",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_2",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1196,17 +1162,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_1",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_1",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1214,17 +1172,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_0",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_0",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     }
@@ -1234,6 +1184,7 @@ const (
   "type": "OrderedCollectionPage"
 }`
 
+	//nolint:lll
 	inboxPage3JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=3",
@@ -1243,17 +1194,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_14",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_14",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1261,17 +1204,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_13",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_13",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1279,17 +1214,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_12",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_12",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     },
@@ -1297,17 +1224,9 @@ const (
       "@context": "https://www.w3.org/ns/activitystreams",
       "id": "https://activity_11",
       "object": {
-        "@context": [
-          "https://www.w3.org/ns/activitystreams",
-          "https://w3id.org/activityanchors/v1"
-        ],
-        "id": "https://obj_11",
-        "target": {
-          "id": "https://example.com/cas/bafkd34G7hD6gbj94fnKm5D",
-          "cid": "bafkd34G7hD6gbj94fnKm5D",
-          "type": "ContentAddressedStorage"
-        },
-        "type": "AnchorReference"
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
+        "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
       },
       "type": "Create"
     }
@@ -1420,37 +1339,35 @@ const (
   "next": "https://example1.com/services/orb/liked?page=true&page-num=8",
   "orderedItems": [
     {
-      "@context": [
-        "https://www.w3.org/ns/activitystreams",
-        "https://w3id.org/activityanchors/v1"
-      ],
+      "@context": "https://www.w3.org/ns/activitystreams",
       "actor": "https://example1.com/services/orb",
       "id": "https://example18.com/activities/like_activity_18",
       "object": {
-        "type": "AnchorReference",
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
         "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
       "published": "2021-01-27T09:30:10Z",
       "result": {
-        "type": "AnchorReference",
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
         "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
       "type": "Like"
     },
     {
-      "@context": [
-        "https://www.w3.org/ns/activitystreams",
-        "https://w3id.org/activityanchors/v1"
-      ],
+      "@context": "https://www.w3.org/ns/activitystreams",
       "actor": "https://example1.com/services/orb",
       "id": "https://example17.com/activities/like_activity_17",
       "object": {
-        "type": "AnchorReference",
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
         "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
       "published": "2021-01-27T09:30:10Z",
       "result": {
-        "type": "AnchorReference",
+        "@context": "https://w3id.org/activityanchors/v1",
+        "type": "AnchorEvent",
         "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
       },
       "type": "Like"

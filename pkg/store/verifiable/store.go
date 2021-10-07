@@ -7,13 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package verifiable
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -31,6 +32,8 @@ func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
 	return &Store{
 		documentLoader: loader,
 		store:          store,
+		marshal:        json.Marshal,
+		unmarshal:      json.Unmarshal,
 	}, nil
 }
 
@@ -38,42 +41,43 @@ func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
 type Store struct {
 	store          storage.Store
 	documentLoader ld.DocumentLoader
+	marshal        func(v interface{}) ([]byte, error)
+	unmarshal      func(data []byte, v interface{}) error
 }
 
-// Put saves a verifiable credential. If it it already exists it will be overwritten.
-func (s *Store) Put(vc *verifiable.Credential) error {
-	if vc.ID == "" {
-		return fmt.Errorf("failed to save vc: ID is empty")
+// Put saves an anchor event. If it already exists it will be overwritten.
+func (s *Store) Put(anchorEvent *vocab.AnchorEventType) error {
+	if anchorEvent.Anchors() == nil {
+		return fmt.Errorf("failed to save anchor event: Anchors is empty")
 	}
 
-	vcBytes, err := vc.MarshalJSON()
+	anchorEventBytes, err := s.marshal(anchorEvent)
 	if err != nil {
-		return fmt.Errorf("failed to marshal vc: %w", err)
+		return fmt.Errorf("failed to marshal anchor event: %w", err)
 	}
 
-	logger.Debugf("storing credential: %s", string(vcBytes))
+	logger.Debugf("storing anchor event: %s", string(anchorEventBytes))
 
-	if e := s.store.Put(vc.ID, vcBytes); e != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to put vc: %w", e))
+	if e := s.store.Put(anchorEvent.Anchors().String(), anchorEventBytes); e != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to put anchor event: %w", e))
 	}
 
 	return nil
 }
 
-// Get retrieves verifiable credential by id.
-func (s *Store) Get(id string) (*verifiable.Credential, error) {
-	vcBytes, err := s.store.Get(id)
+// Get retrieves anchor event by id.
+func (s *Store) Get(id string) (*vocab.AnchorEventType, error) {
+	anchorEventBytes, err := s.store.Get(id)
 	if err != nil {
-		return nil, orberrors.NewTransient(fmt.Errorf("failed to get vc: %w", err))
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get anchor event: %w", err))
 	}
 
-	vc, err := verifiable.ParseCredential(vcBytes,
-		verifiable.WithDisabledProofCheck(),
-		verifiable.WithJSONLDDocumentLoader(s.documentLoader),
-	)
+	anchorEvent := &vocab.AnchorEventType{}
+
+	err = s.unmarshal(anchorEventBytes, &anchorEvent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse credential: %w", err)
+		return nil, fmt.Errorf("unmarshal anchor event: %w", err)
 	}
 
-	return vc, nil
+	return anchorEvent, nil
 }

@@ -19,7 +19,9 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 )
 
@@ -30,8 +32,8 @@ type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 }
 
-type vcPublisher interface {
-	Publish(vc *verifiable.Credential) error
+type anchorEventPublisher interface {
+	Publish(anchorEvent *vocab.AnchorEventType) error
 }
 
 type metricsProvider interface {
@@ -48,33 +50,33 @@ func New(providers *Providers, pubSub pubSub) *WitnessProofHandler {
 
 // Providers contains all of the providers required by the handler.
 type Providers struct {
-	VCStore       vcStore
-	VCStatusStore vcStatusStore
-	WitnessStore  witnessStore
-	WitnessPolicy witnessPolicy
-	MonitoringSvc monitoringSvc
-	DocLoader     ld.DocumentLoader
-	Metrics       metricsProvider
+	AnchorEventStore anchorEventStore
+	StatusStore      statusStore
+	WitnessStore     witnessStore
+	WitnessPolicy    witnessPolicy
+	MonitoringSvc    monitoringSvc
+	DocLoader        ld.DocumentLoader
+	Metrics          metricsProvider
 }
 
 // WitnessProofHandler handles an anchor credential witness proof.
 type WitnessProofHandler struct {
 	*Providers
-	publisher vcPublisher
+	publisher anchorEventPublisher
 }
 
 type witnessStore interface {
-	AddProof(vcID, witness string, p []byte) error
-	Get(vcID string) ([]*proofapi.WitnessProof, error)
+	AddProof(anchorID, witness string, p []byte) error
+	Get(anchorID string) ([]*proofapi.WitnessProof, error)
 }
 
-type vcStore interface {
-	Get(id string) (*verifiable.Credential, error)
+type anchorEventStore interface {
+	Get(id string) (*vocab.AnchorEventType, error)
 }
 
-type vcStatusStore interface {
-	AddStatus(vcID string, status proofapi.VCStatus) error
-	GetStatus(vcID string) (proofapi.VCStatus, error)
+type statusStore interface {
+	AddStatus(anchorEventID string, status proofapi.VCStatus) error
+	GetStatus(anchorEventID string) (proofapi.VCStatus, error)
 }
 
 type monitoringSvc interface {
@@ -86,9 +88,9 @@ type witnessPolicy interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error { //nolint:lll
-	logger.Debugf("received request anchorCredID[%s] from witness[%s], proof: %s",
-		anchorCredID, witness.String(), string(proof))
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchors string, endTime time.Time, proof []byte) error { //nolint:lll
+	logger.Debugf("received request anchor event [%s] from witness[%s], proof: %s",
+		anchors, witness.String(), string(proof))
 
 	serverTime := time.Now().Unix()
 
@@ -99,14 +101,14 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 		return nil
 	}
 
-	status, err := h.VCStatusStore.GetStatus(anchorCredID)
+	status, err := h.StatusStore.GetStatus(anchors)
 	if err != nil {
-		return fmt.Errorf("failed to get status for anchor credential[%s]: %w", anchorCredID, err)
+		return fmt.Errorf("failed to get status for anchor event [%s]: %w", anchors, err)
 	}
 
 	if status == proofapi.VCStatusCompleted {
-		logger.Infof("Received proof from [%s] but witness policy has already been satisfied for anchorCredID[%s]",
-			witness, anchorCredID, string(proof))
+		logger.Infof("Received proof from [%s] but witness policy has already been satisfied for anchor event[%s]",
+			witness, anchors, string(proof))
 
 		// witness policy has been satisfied and witness proofs added to verifiable credential - nothing to do
 		return nil
@@ -116,25 +118,33 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 
 	err = json.Unmarshal(proof, &witnessProof)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal incoming witness proof for anchor credential[%s]: %w", anchorCredID, err)
+		return fmt.Errorf("failed to unmarshal incoming witness proof for anchor event [%s]: %w", anchors, err)
 	}
 
-	vc, err := h.VCStore.Get(anchorCredID)
+	anchorEvent, err := h.AnchorEventStore.Get(anchors)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve anchor credential[%s]: %w", anchorCredID, err)
+		return fmt.Errorf("failed to retrieve anchor anchor event [%s]: %w", anchors, err)
 	}
 
-	err = h.WitnessStore.AddProof(anchorCredID, witness.String(), proof)
+	err = h.WitnessStore.AddProof(anchors, witness.String(), proof)
 	if err != nil {
-		return fmt.Errorf("failed to add witness[%s] proof for credential[%s]: %w", witness.String(), anchorCredID, err)
+		return fmt.Errorf("failed to add witness[%s] proof for anchor event [%s]: %w", witness.String(), anchors, err)
+	}
+
+	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(h.DocLoader),
+	)
+	if err != nil {
+		return fmt.Errorf("failed get verifiable credential from anchor event: %w", err)
 	}
 
 	err = h.setupMonitoring(witnessProof, vc, endTime)
 	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", anchorCredID, err)
+		return fmt.Errorf("failed to setup monitoring for anchor event [%s]: %w", anchors, err)
 	}
 
-	return h.handleWitnessPolicy(vc)
+	return h.handleWitnessPolicy(anchorEvent, vc)
 }
 
 func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Credential, endTime time.Time) error {
@@ -156,44 +166,46 @@ func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Crede
 	return h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 }
 
-func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) error { //nolint:funlen
-	logger.Debugf("Handling witness policy for VC [%s]", vc.ID)
+func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEventType, vc *verifiable.Credential) error { //nolint:funlen,gocyclo,cyclop,lll
+	anchorID := anchorEvent.Anchors().String()
 
-	witnessProofs, err := h.WitnessStore.Get(vc.ID)
+	logger.Debugf("Handling witness policy for anchor event [%s]", anchorID)
+
+	witnessProofs, err := h.WitnessStore.Get(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to get witness proofs for credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to get witness proofs for anchor event [%s]: %w", anchorID, err)
 	}
 
 	ok, err := h.WitnessPolicy.Evaluate(witnessProofs)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate witness policy for credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to evaluate witness policy for anchor event [%s]: %w", anchorID, err)
 	}
 
 	if !ok {
 		// witness policy has not been satisfied - wait for other witness proofs to arrive ...
-		logger.Infof("Witness policy has not been satisfied for VC [%s]. Waiting for other proofs.", vc.ID)
+		logger.Infof("Witness policy has not been satisfied for anchor event [%s]. Waiting for other proofs.", anchorID)
 
 		return nil
 	}
 
-	// witness policy has been satisfied so add witness proofs to vc, set 'complete' status for vc
-	// publish witnessed vc to batch writer channel for further processing
-	logger.Infof("Witness policy has been satisfied for VC [%s]", vc.ID)
+	// witness policy has been satisfied so add witness proofs to anchor event, set 'complete' status for anchor event
+	// publish witnessed anchor event to batch writer channel for further processing
+	logger.Infof("Witness policy has been satisfied for anchor event [%s]", anchorID)
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
 		return fmt.Errorf("failed to add witness proofs: %w", err)
 	}
 
-	status, err := h.VCStatusStore.GetStatus(vc.ID)
+	status, err := h.StatusStore.GetStatus(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to get status for anchor credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("failed to get status for anchor event [%s]: %w", anchorID, err)
 	}
 
-	logger.Debugf("Current status for VC [%s] is [%s]", vc.ID, status)
+	logger.Debugf("Current status for VC [%s] is [%s]", anchorID)
 
 	if status == proofapi.VCStatusCompleted {
-		logger.Infof("VC status has already been marked as completed for [%s]", vc.ID)
+		logger.Infof("VC status has already been marked as completed for [%s]", anchorID)
 
 		return nil
 	}
@@ -202,18 +214,41 @@ func (h *WitnessProofHandler) handleWitnessPolicy(vc *verifiable.Credential) err
 	// then this handler would be invoked on another server instance. So, we want the status to remain in-process,
 	// otherwise the handler on the other instance would not publish the VC because it would think that is has
 	// already been processed.
-	logger.Debugf("Publishing VC [%s]", vc.ID)
+	logger.Debugf("Publishing anchor event [%s]", anchorID)
 
-	err = h.publisher.Publish(vc)
+	bytes, err := vc.MarshalJSON()
 	if err != nil {
-		return fmt.Errorf("publish credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("marshal anchor credential: %w", err)
 	}
 
-	logger.Debugf("Setting status to [%s] for [%s]", proofapi.VCStatusCompleted, vc.ID)
-
-	err = h.VCStatusStore.AddStatus(vc.ID, proofapi.VCStatusCompleted)
+	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
 	if err != nil {
-		return fmt.Errorf("failed to change status to 'completed' for credential[%s]: %w", vc.ID, err)
+		return fmt.Errorf("create new object with document: %w", err)
+	}
+
+	// Create a new anchor event with the updated verifiable credential (witness).
+	anchorEvent = vocab.NewAnchorEvent(
+		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
+		vocab.WithAnchors(anchorEvent.Anchors()),
+		vocab.WithPublishedTime(anchorEvent.Published()),
+		vocab.WithParent(anchorEvent.Parent()...),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(vocab.NewAnchorObject(
+			anchorEvent.Attachment()[0].AnchorObject().ContentObject(),
+			witness,
+			vocab.WithURL(anchorEvent.Anchors()),
+		)))),
+	)
+
+	err = h.publisher.Publish(anchorEvent)
+	if err != nil {
+		return fmt.Errorf("publish credential[%s]: %w", anchorID, err)
+	}
+
+	logger.Debugf("Setting status to [%s] for [%s]", proofapi.VCStatusCompleted, anchorID)
+
+	err = h.StatusStore.AddStatus(anchorID, proofapi.VCStatusCompleted)
+	if err != nil {
+		return fmt.Errorf("failed to change status to 'completed' for anchor event [%s]: %w", anchorID, err)
 	}
 
 	if vc.Issued != nil {

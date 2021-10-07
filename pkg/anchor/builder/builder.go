@@ -14,18 +14,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-
-	"github.com/trustbloc/orb/pkg/anchor/activity"
-	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
 const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
-	// anchorContextURIV1 is anchor credential context URI.
-	anchorContextURIV1 = "https://w3id.org/activityanchors/v1"
-	// activity streams context.
-	activityStreamsURI = "https://www.w3.org/ns/activitystreams"
 	// jwsContextURIV1 is jws context.
 	jwsContextURIV1 = "https://w3id.org/security/jws/v1"
 )
@@ -52,27 +45,24 @@ type Builder struct {
 	params Params
 }
 
+// CredentialSubject contains the verifiable credential subject.
+type CredentialSubject struct {
+	ID string `json:"id"`
+}
+
 // Build will create and sign anchor credential.
-func (b *Builder) Build(payload *subject.Payload) (*verifiable.Credential, error) {
+func (b *Builder) Build(anchorHashlink string) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	now := &util.TimeWrapper{Time: time.Now()}
-	payload.Published = now
-
-	anchorActivity, err := activity.BuildActivityFromPayload(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build anchor activity: %w", err)
-	}
 
 	vc := &verifiable.Credential{
-		Types: []string{"VerifiableCredential", "AnchorCredential"},
+		Types: []string{"VerifiableCredential"},
 		Context: []string{
 			vcContextURIV1,
-			activityStreamsURI,
-			anchorContextURIV1,
 			jwsContextURIV1,
 		},
-		Subject: anchorActivity,
+		Subject: &CredentialSubject{ID: anchorHashlink},
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,
 		},

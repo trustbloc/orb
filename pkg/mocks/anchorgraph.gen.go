@@ -4,22 +4,22 @@ package mocks
 import (
 	"sync"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 )
 
 type AnchorGraph struct {
-	ReadStub        func(cid string) (*verifiable.Credential, error)
+	ReadStub        func(hl string) (*vocab.AnchorEventType, error)
 	readMutex       sync.RWMutex
 	readArgsForCall []struct {
-		cid string
+		hl string
 	}
 	readReturns struct {
-		result1 *verifiable.Credential
+		result1 *vocab.AnchorEventType
 		result2 error
 	}
 	readReturnsOnCall map[int]struct {
-		result1 *verifiable.Credential
+		result1 *vocab.AnchorEventType
 		result2 error
 	}
 	GetDidAnchorsStub        func(cid, suffix string) ([]graph.Anchor, error)
@@ -40,16 +40,16 @@ type AnchorGraph struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *AnchorGraph) Read(cid string) (*verifiable.Credential, error) {
+func (fake *AnchorGraph) Read(hl string) (*vocab.AnchorEventType, error) {
 	fake.readMutex.Lock()
 	ret, specificReturn := fake.readReturnsOnCall[len(fake.readArgsForCall)]
 	fake.readArgsForCall = append(fake.readArgsForCall, struct {
-		cid string
-	}{cid})
-	fake.recordInvocation("Read", []interface{}{cid})
+		hl string
+	}{hl})
+	fake.recordInvocation("Read", []interface{}{hl})
 	fake.readMutex.Unlock()
 	if fake.ReadStub != nil {
-		return fake.ReadStub(cid)
+		return fake.ReadStub(hl)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -66,27 +66,27 @@ func (fake *AnchorGraph) ReadCallCount() int {
 func (fake *AnchorGraph) ReadArgsForCall(i int) string {
 	fake.readMutex.RLock()
 	defer fake.readMutex.RUnlock()
-	return fake.readArgsForCall[i].cid
+	return fake.readArgsForCall[i].hl
 }
 
-func (fake *AnchorGraph) ReadReturns(result1 *verifiable.Credential, result2 error) {
+func (fake *AnchorGraph) ReadReturns(result1 *vocab.AnchorEventType, result2 error) {
 	fake.ReadStub = nil
 	fake.readReturns = struct {
-		result1 *verifiable.Credential
+		result1 *vocab.AnchorEventType
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *AnchorGraph) ReadReturnsOnCall(i int, result1 *verifiable.Credential, result2 error) {
+func (fake *AnchorGraph) ReadReturnsOnCall(i int, result1 *vocab.AnchorEventType, result2 error) {
 	fake.ReadStub = nil
 	if fake.readReturnsOnCall == nil {
 		fake.readReturnsOnCall = make(map[int]struct {
-			result1 *verifiable.Credential
+			result1 *vocab.AnchorEventType
 			result2 error
 		})
 	}
 	fake.readReturnsOnCall[i] = struct {
-		result1 *verifiable.Credential
+		result1 *vocab.AnchorEventType
 		result2 error
 	}{result1, result2}
 }

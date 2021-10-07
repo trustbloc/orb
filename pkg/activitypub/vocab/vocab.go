@@ -64,10 +64,10 @@ const (
 
 	// TypeContentAddressedStorage specifies the "ContentAddressedStorage" object type.
 	TypeContentAddressedStorage Type = "ContentAddressedStorage"
-	// TypeAnchorCredential specifies the "AnchorCredential" object type.
-	TypeAnchorCredential Type = "AnchorCredential"
-	// TypeAnchorRef specifies the "AnchorReference" object type.
-	TypeAnchorRef Type = "AnchorReference"
+	// TypeAnchorEvent specifies the "AnchorEvent" object type.
+	TypeAnchorEvent Type = "AnchorEvent"
+	// TypeAnchorObject specifies the "AnchorObject" object type.
+	TypeAnchorObject Type = "AnchorObject"
 	// TypeAnchorReceipt specifies the "AnchorReceipt" object type.
 	TypeAnchorReceipt Type = "AnchorReceipt"
 	// TypeOffer specifies the "Offer" activity type.
@@ -77,22 +77,28 @@ const (
 )
 
 const (
-	propertyContext    = "@context"
-	propertyID         = "id"
-	propertyType       = "type"
-	propertyTo         = "to"
-	propertyPublished  = "published"
-	propertyActor      = "actor"
-	propertyCurrent    = "current"
-	propertyFirst      = "first"
-	propertyLast       = "last"
-	propertyItems      = "items"
-	propertyObject     = "object"
-	propertyResult     = "result"
-	propertyTarget     = "target"
-	propertyEndTime    = "endTime"
-	propertyStartTime  = "startTime"
-	propertyTotalItems = "totalItems"
+	propertyContext      = "@context"
+	propertyID           = "id"
+	propertyType         = "type"
+	propertyTo           = "to"
+	propertyPublished    = "published"
+	propertyActor        = "actor"
+	propertyCurrent      = "current"
+	propertyFirst        = "first"
+	propertyLast         = "last"
+	propertyItems        = "items"
+	propertyObject       = "object"
+	propertyResult       = "result"
+	propertyTarget       = "target"
+	propertyEndTime      = "endTime"
+	propertyStartTime    = "startTime"
+	propertyTotalItems   = "totalItems"
+	propertyURL          = "url"
+	propertyAttributedTo = "attributedTo"
+	propertyInReplyTo    = "inReplyTo"
+	propertyAttachment   = "attachment"
+	propertyAnchors      = "anchors"
+	propertyParent       = "parent"
 )
 
 func reservedProperties() []string {
@@ -113,6 +119,12 @@ func reservedProperties() []string {
 		propertyEndTime,
 		propertyStartTime,
 		propertyTotalItems,
+		propertyURL,
+		propertyAttributedTo,
+		propertyInReplyTo,
+		propertyAttachment,
+		propertyParent,
+		propertyAnchors,
 	}
 }
 

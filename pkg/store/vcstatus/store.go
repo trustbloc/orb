@@ -53,12 +53,12 @@ type Store struct {
 }
 
 // AddStatus adds verifiable credential proof collecting status.
-func (s *Store) AddStatus(vcID string, status proof.VCStatus) error {
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+func (s *Store) AddStatus(anchorID string, status proof.VCStatus) error {
+	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	tag := storage.Tag{
 		Name:  index,
-		Value: vcIDEncoded,
+		Value: anchorIDEncoded,
 	}
 
 	statusBytes, err := s.marshal(status)
@@ -68,36 +68,36 @@ func (s *Store) AddStatus(vcID string, status proof.VCStatus) error {
 
 	err = s.store.Put(uuid.New().String(), statusBytes, tag)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to store vcID[%s] status '%s': %w",
-			vcID, status, err))
+		return orberrors.NewTransient(fmt.Errorf("failed to store anchorID[%s] status '%s': %w",
+			anchorID, status, err))
 	}
 
-	logger.Debugf("stored vcID[%s] status '%s'", vcID, status)
+	logger.Debugf("stored anchorID[%s] status '%s'", anchorID, status)
 
 	return nil
 }
 
 // GetStatus retrieves proof collection status for the given verifiable credential.
-func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
+func (s *Store) GetStatus(anchorID string) (proof.VCStatus, error) {
 	var err error
 
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	query := fmt.Sprintf("%s:%s", index, vcIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return "", orberrors.NewTransient(fmt.Errorf("failed to get statuses for vcID[%s] query[%s]: %w",
-			vcID, query, err))
+		return "", orberrors.NewTransient(fmt.Errorf("failed to get statuses for anchor event[%s] query[%s]: %w",
+			anchorID, query, err))
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return "", orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] statuses: %w", vcID, err))
+		return "", orberrors.NewTransient(fmt.Errorf("iterator error for anchor event[%s] statuses: %w", anchorID, err))
 	}
 
 	if !ok {
-		return "", fmt.Errorf("status not found for vcID: %s", vcID)
+		return "", fmt.Errorf("status not found for anchor event[%s]", anchorID)
 	}
 
 	var status proof.VCStatus
@@ -105,8 +105,8 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 	for ok {
 		value, err := iter.Value()
 		if err != nil {
-			return "", orberrors.NewTransient(fmt.Errorf("failed to get iterator value for vcID[%s]: %w",
-				vcID, err))
+			return "", orberrors.NewTransient(fmt.Errorf("failed to get iterator value for anchor event[%s]: %w",
+				anchorID, err))
 		}
 
 		err = s.unmarshal(value, &status)
@@ -120,11 +120,11 @@ func (s *Store) GetStatus(vcID string) (proof.VCStatus, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return "", orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s]: %w", vcID, err))
+			return "", orberrors.NewTransient(fmt.Errorf("iterator error for anchor event[%s]: %w", anchorID, err))
 		}
 	}
 
-	logger.Debugf("status for vcID[%s]: %s", vcID, status)
+	logger.Debugf("status for anchor event[%s]: %s", anchorID, status)
 
 	return status, nil
 }
