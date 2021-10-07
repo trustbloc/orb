@@ -48,6 +48,7 @@ func TestPubSub(t *testing.T) {
 
 			return nil
 		},
+		5,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, ps)
@@ -79,11 +80,12 @@ func TestPubSub_Error(t *testing.T) {
 		errExpected := errors.New("injected pub/sub error")
 
 		p := &mocks.PubSub{}
-		p.SubscribeReturns(nil, errExpected)
+		p.SubscribeWithOptsReturns(nil, errExpected)
 
 		ps, err := NewPubSub(p,
 			func(anchor *anchorinfo.AnchorInfo) error { return nil },
 			func(did string) error { return nil },
+			5,
 		)
 		require.Error(t, err)
 		require.Nil(t, ps)
@@ -93,11 +95,12 @@ func TestPubSub_Error(t *testing.T) {
 		errExpected := errors.New("injected pub/sub error")
 
 		p := &mocks.PubSub{}
-		p.SubscribeReturnsOnCall(1, nil, errExpected)
+		p.SubscribeWithOptsReturnsOnCall(1, nil, errExpected)
 
 		ps, err := NewPubSub(p,
 			func(anchor *anchorinfo.AnchorInfo) error { return nil },
 			func(did string) error { return nil },
+			5,
 		)
 		require.Error(t, err)
 		require.Nil(t, ps)
@@ -110,6 +113,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps, err := NewPubSub(p,
 			func(anchor *anchorinfo.AnchorInfo) error { return nil },
 			func(did string) error { return nil },
+			5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -155,6 +159,7 @@ func TestPubSub_Error(t *testing.T) {
 
 				return nil
 			},
+			5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -186,6 +191,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps, err := NewPubSub(p,
 			func(anchor *anchorinfo.AnchorInfo) error { return orberrors.NewTransient(errExpected) },
 			func(did string) error { return orberrors.NewTransient(errExpected) },
+			5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -204,6 +210,7 @@ func TestPubSub_Error(t *testing.T) {
 		ps, err := NewPubSub(p,
 			func(anchor *anchorinfo.AnchorInfo) error { return nil },
 			func(did string) error { return nil },
+			5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, ps)

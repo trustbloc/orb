@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 type PubSub struct {
@@ -20,6 +21,21 @@ type PubSub struct {
 		result2 error
 	}
 	subscribeReturnsOnCall map[int]struct {
+		result1 <-chan *message.Message
+		result2 error
+	}
+	SubscribeWithOptsStub        func(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
+	subscribeWithOptsMutex       sync.RWMutex
+	subscribeWithOptsArgsForCall []struct {
+		ctx   context.Context
+		topic string
+		opts  []spi.Option
+	}
+	subscribeWithOptsReturns struct {
+		result1 <-chan *message.Message
+		result2 error
+	}
+	subscribeWithOptsReturnsOnCall map[int]struct {
 		result1 <-chan *message.Message
 		result2 error
 	}
@@ -95,6 +111,59 @@ func (fake *PubSub) SubscribeReturnsOnCall(i int, result1 <-chan *message.Messag
 		})
 	}
 	fake.subscribeReturnsOnCall[i] = struct {
+		result1 <-chan *message.Message
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *PubSub) SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error) {
+	fake.subscribeWithOptsMutex.Lock()
+	ret, specificReturn := fake.subscribeWithOptsReturnsOnCall[len(fake.subscribeWithOptsArgsForCall)]
+	fake.subscribeWithOptsArgsForCall = append(fake.subscribeWithOptsArgsForCall, struct {
+		ctx   context.Context
+		topic string
+		opts  []spi.Option
+	}{ctx, topic, opts})
+	fake.recordInvocation("SubscribeWithOpts", []interface{}{ctx, topic, opts})
+	fake.subscribeWithOptsMutex.Unlock()
+	if fake.SubscribeWithOptsStub != nil {
+		return fake.SubscribeWithOptsStub(ctx, topic, opts...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.subscribeWithOptsReturns.result1, fake.subscribeWithOptsReturns.result2
+}
+
+func (fake *PubSub) SubscribeWithOptsCallCount() int {
+	fake.subscribeWithOptsMutex.RLock()
+	defer fake.subscribeWithOptsMutex.RUnlock()
+	return len(fake.subscribeWithOptsArgsForCall)
+}
+
+func (fake *PubSub) SubscribeWithOptsArgsForCall(i int) (context.Context, string, []spi.Option) {
+	fake.subscribeWithOptsMutex.RLock()
+	defer fake.subscribeWithOptsMutex.RUnlock()
+	return fake.subscribeWithOptsArgsForCall[i].ctx, fake.subscribeWithOptsArgsForCall[i].topic, fake.subscribeWithOptsArgsForCall[i].opts
+}
+
+func (fake *PubSub) SubscribeWithOptsReturns(result1 <-chan *message.Message, result2 error) {
+	fake.SubscribeWithOptsStub = nil
+	fake.subscribeWithOptsReturns = struct {
+		result1 <-chan *message.Message
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *PubSub) SubscribeWithOptsReturnsOnCall(i int, result1 <-chan *message.Message, result2 error) {
+	fake.SubscribeWithOptsStub = nil
+	if fake.subscribeWithOptsReturnsOnCall == nil {
+		fake.subscribeWithOptsReturnsOnCall = make(map[int]struct {
+			result1 <-chan *message.Message
+			result2 error
+		})
+	}
+	fake.subscribeWithOptsReturnsOnCall[i] = struct {
 		result1 <-chan *message.Message
 		result2 error
 	}{result1, result2}
@@ -194,6 +263,8 @@ func (fake *PubSub) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.subscribeMutex.RLock()
 	defer fake.subscribeMutex.RUnlock()
+	fake.subscribeWithOptsMutex.RLock()
+	defer fake.subscribeWithOptsMutex.RUnlock()
 	fake.publishMutex.RLock()
 	defer fake.publishMutex.RUnlock()
 	fake.closeMutex.RLock()

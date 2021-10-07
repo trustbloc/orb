@@ -996,20 +996,23 @@ func TestGetMQParameters(t *testing.T) {
 	t.Run("Valid env values -> error", func(t *testing.T) {
 		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
 		restoreOpPoolEnv := setEnv(t, mqOpPoolEnvKey, "221")
+		restoreObserverPoolEnv := setEnv(t, mqObserverPoolEnvKey, "3")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
 
 		defer func() {
 			restoreURLEnv()
 			restoreOpPoolEnv()
+			restoreObserverPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 		}()
 
 		cmd := getTestCmd(t)
 
-		mqURL, poolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqURL)
-		require.Equal(t, 221, poolSize)
+		require.Equal(t, 221, mqOpPoolSize)
+		require.Equal(t, 3, mqObserverPoolSize)
 		require.Equal(t, 456, maxConnectionSubscriptions)
 	})
 
@@ -1022,10 +1025,11 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		mqURL, poolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqURL)
-		require.Equal(t, 0, poolSize)
+		require.Equal(t, 0, mqOpPoolSize)
+		require.Equal(t, 0, mqObserverPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, maxConnectionSubscriptions)
 	})
 
@@ -1038,7 +1042,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, err := getMQParameters(cmd)
+		_, _, _, _, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1052,7 +1056,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, err := getMQParameters(cmd)
+		_, _, _, _, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
