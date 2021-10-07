@@ -30,9 +30,12 @@ import (
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 var logger = log.New("orb-observer")
+
+const defaultSubscriberPoolSize = 5
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
@@ -62,6 +65,7 @@ type Publisher interface {
 
 type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
 }
@@ -94,13 +98,25 @@ type anchorLinkStore interface {
 
 type outboxProvider func() Outbox
 
+type options struct {
+	discoveryDomain    string
+	subscriberPoolSize uint
+}
+
 // Option is an option for observer.
-type Option func(opts *Observer)
+type Option func(opts *options)
 
 // WithDiscoveryDomain sets optional discovery domain hint (used for did equivalent ids).
 func WithDiscoveryDomain(domain string) Option {
-	return func(opts *Observer) {
+	return func(opts *options) {
 		opts.discoveryDomain = domain
+	}
+}
+
+// WithSubscriberPoolSize sets the size of the message queue subscriber pool.
+func WithSubscriberPoolSize(value uint) Option {
+	return func(opts *options) {
+		opts.subscriberPoolSize = value
 	}
 }
 
@@ -129,22 +145,29 @@ type Observer struct {
 
 // New returns a new observer.
 func New(serviceIRI *url.URL, providers *Providers, opts ...Option) (*Observer, error) {
-	o := &Observer{
-		serviceIRI: serviceIRI,
-		Providers:  providers,
+	optns := &options{}
+
+	for _, opt := range opts {
+		opt(optns)
 	}
 
-	ps, err := NewPubSub(providers.PubSub, o.handleAnchor, o.processDID)
+	o := &Observer{
+		serviceIRI:      serviceIRI,
+		Providers:       providers,
+		discoveryDomain: optns.discoveryDomain,
+	}
+
+	subscriberPoolSize := optns.subscriberPoolSize
+	if subscriberPoolSize == 0 {
+		subscriberPoolSize = defaultSubscriberPoolSize
+	}
+
+	ps, err := NewPubSub(providers.PubSub, o.handleAnchor, o.processDID, subscriberPoolSize)
 	if err != nil {
 		return nil, err
 	}
 
 	o.pubSub = ps
-
-	// apply options
-	for _, opt := range opts {
-		opt(o)
-	}
 
 	return o, nil
 }

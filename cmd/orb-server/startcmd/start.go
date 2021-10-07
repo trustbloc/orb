@@ -624,7 +624,10 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorLinkStore:        anchorLinkStore,
 	}
 
-	o, err := observer.New(apConfig.ServiceIRI, providers, observer.WithDiscoveryDomain(parameters.discoveryDomain))
+	o, err := observer.New(apConfig.ServiceIRI, providers,
+		observer.WithDiscoveryDomain(parameters.discoveryDomain),
+		observer.WithSubscriberPoolSize(parameters.observerQueuePoolSize),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %s", err.Error())
 	}

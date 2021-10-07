@@ -17,6 +17,7 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 const (
@@ -49,7 +50,8 @@ type PubSub struct {
 }
 
 // NewPubSub returns a new publisher/subscriber.
-func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didProcessor) (*PubSub, error) {
+func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didProcessor,
+	poolSize uint) (*PubSub, error) {
 	h := &PubSub{
 		publisher:      pubSub,
 		processAnchors: anchorProcessor,
@@ -64,7 +66,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 	logger.Infof("Subscribing to topic [%s]", anchorTopic)
 
-	anchorCredChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
+	anchorCredChan, err := pubSub.SubscribeWithOpts(context.Background(), anchorTopic, spi.WithPool(poolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", anchorTopic, err)
 	}
@@ -73,7 +75,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 	logger.Infof("Subscribing to topic [%s]", didTopic)
 
-	didChan, err := pubSub.Subscribe(context.Background(), didTopic)
+	didChan, err := pubSub.SubscribeWithOpts(context.Background(), didTopic, spi.WithPool(poolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", didTopic, err)
 	}

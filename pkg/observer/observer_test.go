@@ -59,7 +59,7 @@ func TestNew(t *testing.T) {
 	errExpected := errors.New("injected pub-sub error")
 
 	ps := &orbmocks.PubSub{}
-	ps.SubscribeReturns(nil, errExpected)
+	ps.SubscribeWithOptsReturns(nil, errExpected)
 
 	providers := &Providers{
 		DidAnchors: memdidanchor.New(),

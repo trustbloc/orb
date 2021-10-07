@@ -79,6 +79,12 @@ func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message
 	return msgChan, nil
 }
 
+// SubscribeWithOpts subscribes to the given topic.
+func (m *MockPubSub) SubscribeWithOpts(ctx context.Context,
+	topic string, _ ...spi.Option) (<-chan *message.Message, error) {
+	return m.Subscribe(ctx, topic)
+}
+
 // Publish publishes the messages to the subscribers.
 func (m *MockPubSub) Publish(topic string, messages ...*message.Message) error {
 	if m.Err != nil {

@@ -137,8 +137,14 @@ const (
 	mqOpPoolFlagName      = "mq-op-pool"
 	mqOpPoolFlagShorthand = "O"
 	mqOpPoolEnvKey        = "MQ_OP_POOL"
-	mqOpPoolFlagUsage     = "The size of the operation queue subscriber pool. If 0 then a pool will not be created. " +
+	mqOpPoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
 		commonEnvVarUsageText + mqOpPoolEnvKey
+
+	mqObserverPoolFlagName      = "mq-observer-pool"
+	mqObserverPoolFlagShorthand = "B"
+	mqObserverPoolEnvKey        = "MQ_OBSERVER_POOL"
+	mqObserverPoolFlagUsage     = "The size of the observer queue subscriber pool. If not specified then the default size will be used. " +
+		commonEnvVarUsageText + mqObserverPoolEnvKey
 
 	mqMaxConnectionSubscriptionsFlagName      = "mq-max-connection-subscription"
 	mqMaxConnectionSubscriptionsFlagShorthand = "C"
@@ -374,6 +380,7 @@ type orbParameters struct {
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
 	opQueuePoolSize                uint
+	observerQueuePoolSize          uint
 	activityPubPageSize            int
 	enableDevMode                  bool
 	nodeInfoRefreshInterval        time.Duration
@@ -479,7 +486,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		localCASReplicateInIPFSEnabled = enable
 	}
 
-	mqURL, mqOpPoolSize, mqMaxSubscriptionsPerConnection, err := getMQParameters(cmd)
+	mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxSubscriptionsPerConnection, err := getMQParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -770,6 +777,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		mqURL:                          mqURL,
 		mqMaxConnectionSubscriptions:   mqMaxSubscriptionsPerConnection,
 		opQueuePoolSize:                uint(mqOpPoolSize),
+		observerQueuePoolSize:          uint(mqObserverPoolSize),
 		batchWriterTimeout:             batchWriterTimeout,
 		anchorCredentialParams:         anchorCredentialParams,
 		logLevel:                       loggingLevel,
@@ -1011,42 +1019,53 @@ func getIPFSTimeout(cmd *cobra.Command) (time.Duration, error) {
 	return ipfsTimeout, nil
 }
 
-func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqMaxConnectionSubscriptions int, err error) {
+func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObserverPoolSize int,
+	mqMaxConnectionSubscriptions int, err error) {
 	mqURL, err = cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("%s: %w", mqURLFlagName, err)
+		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqURLFlagName, err)
 	}
 
 	mqOpPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, true)
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("%s: %w", mqOpPoolFlagName, err)
+		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqOpPoolFlagName, err)
 	}
 
 	if mqOpPoolStr != "" {
 		mqOpPoolSize, err = strconv.Atoi(mqOpPoolStr)
 		if err != nil {
-			return "", 0, 0,
-				fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
+			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
+		}
+	}
+
+	mqObserverPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, true)
+	if err != nil {
+		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqObserverPoolFlagName, err)
+	}
+
+	if mqObserverPoolStr != "" {
+		mqObserverPoolSize, err = strconv.Atoi(mqObserverPoolStr)
+		if err != nil {
+			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqObserverPoolFlagName, mqObserverPoolStr, err)
 		}
 	}
 
 	mqMaxConnectionSubscriptionsStr, err := cmdutils.GetUserSetVarFromString(cmd, mqMaxConnectionSubscriptionsFlagName,
 		mqMaxConnectionSubscriptionsEnvKey, true)
 	if err != nil {
-		return "", 0, 0, fmt.Errorf("%s: %w", mqMaxConnectionSubscriptionsFlagName, err)
+		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqMaxConnectionSubscriptionsFlagName, err)
 	}
 
 	if mqMaxConnectionSubscriptionsStr != "" {
 		mqMaxConnectionSubscriptions, err = strconv.Atoi(mqMaxConnectionSubscriptionsStr)
 		if err != nil {
-			return "", 0, 0,
-				fmt.Errorf("invalid value for %s [%s]: %w", mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsStr, err)
+			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsStr, err)
 		}
 	} else {
 		mqMaxConnectionSubscriptions = mqDefaultMaxConnectionSubscriptions
 	}
 
-	return mqURL, mqOpPoolSize, mqMaxConnectionSubscriptions, nil
+	return mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxConnectionSubscriptions, nil
 }
 
 func createFlags(startCmd *cobra.Command) {
@@ -1078,6 +1097,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
 	startCmd.Flags().StringP(mqOpPoolFlagName, mqOpPoolFlagShorthand, "", mqOpPoolFlagUsage)
+	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
