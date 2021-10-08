@@ -27,6 +27,7 @@ const (
 	defaultActivityPubPageSize          = 50
 	defaultNodeInfoRefreshInterval      = 15 * time.Second
 	defaultIPFSTimeout                  = 20 * time.Second
+	defaultDatabaseTimeout              = 10 * time.Second
 	mqDefaultMaxConnectionSubscriptions = 1000
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
@@ -198,6 +199,12 @@ const (
 	kmsSecretsDatabasePrefixEnvKey    = "KMSSECRETS_DATABASE_PREFIX"  //nolint: gosec
 	kmsSecretsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving " +
 		"the underlying KMS secrets database. " + commonEnvVarUsageText + kmsSecretsDatabasePrefixEnvKey
+
+	databaseTimeoutFlagName  = "database-timeout"
+	databaseTimeoutEnvKey    = "DATABASE_TIMEOUT"
+	databaseTimeoutFlagUsage = "The timeout for database requests. For example, '30s' for a 30 second timeout. " +
+		"Currently this setting only applies if you're using MongoDB. " +
+		commonEnvVarUsageText + databaseTimeoutEnvKey
 
 	databaseTypeMemOption     = "mem"
 	databaseTypeCouchDBOption = "couchdb"
@@ -385,6 +392,7 @@ type orbParameters struct {
 	enableDevMode                  bool
 	nodeInfoRefreshInterval        time.Duration
 	ipfsTimeout                    time.Duration
+	databaseTimeout                time.Duration
 	contextProviderURLs            []string
 }
 
@@ -739,14 +747,20 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", activityPubPageSizeFlagName, err)
 	}
 
-	nodeInfoRefreshInterval, err := getNodeInfoRefreshInterval(cmd)
+	nodeInfoRefreshInterval, err := getDuration(cmd, nodeInfoRefreshIntervalFlagName,
+		nodeInfoRefreshIntervalEnvKey, defaultNodeInfoRefreshInterval)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", nodeInfoRefreshIntervalFlagName, err)
 	}
 
-	ipfsTimeout, err := getIPFSTimeout(cmd)
+	ipfsTimeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
+	}
+
+	databaseTimeout, err := getDuration(cmd, databaseURLFlagName, databaseTimeoutEnvKey, defaultDatabaseTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", databaseTimeoutFlagName, err)
 	}
 
 	contextProviderURLs, err := cmdutils.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
@@ -801,6 +815,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		enableDevMode:                  enableDevMode,
 		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
 		ipfsTimeout:                    ipfsTimeout,
+		databaseTimeout:                databaseTimeout,
 		contextProviderURLs:            contextProviderURLs,
 	}, nil
 }
@@ -982,41 +997,23 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 	return activityPubPageSize, nil
 }
 
-func getNodeInfoRefreshInterval(cmd *cobra.Command) (time.Duration, error) {
-	nodeInfoRefreshIntervalStr, err := cmdutils.GetUserSetVarFromString(cmd, nodeInfoRefreshIntervalFlagName,
-		nodeInfoRefreshIntervalEnvKey, true)
+func getDuration(cmd *cobra.Command, flagName, envKey string,
+	defaultDuration time.Duration) (time.Duration, error) {
+	timeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
-	if nodeInfoRefreshIntervalStr == "" {
-		return defaultNodeInfoRefreshInterval, nil
+	if timeoutStr == "" {
+		return defaultDuration, nil
 	}
 
-	nodeInfoRefreshInterval, err := time.ParseDuration(nodeInfoRefreshIntervalStr)
+	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
-		return 0, fmt.Errorf("invalid value [%s]: %w", nodeInfoRefreshIntervalStr, err)
+		return -1, fmt.Errorf("invalid value [%s]: %w", timeoutStr, err)
 	}
 
-	return nodeInfoRefreshInterval, nil
-}
-
-func getIPFSTimeout(cmd *cobra.Command) (time.Duration, error) {
-	ipfsTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, true)
-	if err != nil {
-		return 0, err
-	}
-
-	if ipfsTimeoutStr == "" {
-		return defaultIPFSTimeout, nil
-	}
-
-	ipfsTimeout, err := time.ParseDuration(ipfsTimeoutStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid value [%s]: %w", ipfsTimeoutStr, err)
-	}
-
-	return ipfsTimeout, nil
+	return timeout, nil
 }
 
 func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObserverPoolSize int,

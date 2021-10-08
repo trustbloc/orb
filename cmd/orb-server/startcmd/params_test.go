@@ -613,6 +613,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "missing unit in duration")
 	})
 
+	t.Run("Invalid database timeout", func(t *testing.T) {
+		restoreEnv := setEnv(t, databaseTimeoutEnvKey, "5")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing unit in duration")
+	})
+
 	t.Run("Invalid max connection subscriptions", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
 		defer restoreEnv()
@@ -957,7 +970,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Not specified -> default value", func(t *testing.T) {
 		cmd := getTestCmd(t)
 
-		timeout, err := getIPFSTimeout(cmd)
+		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, defaultIPFSTimeout, timeout)
 	})
@@ -965,7 +978,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Invalid value -> error", func(t *testing.T) {
 		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "xxx")
 
-		_, err := getIPFSTimeout(cmd)
+		_, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -973,7 +986,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Valid value -> success", func(t *testing.T) {
 		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "30s")
 
-		timeout, err := getIPFSTimeout(cmd)
+		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, 30*time.Second, timeout)
 	})
@@ -984,7 +997,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		timeout, err := getIPFSTimeout(cmd)
+		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, 40*time.Second, timeout)
 	})
