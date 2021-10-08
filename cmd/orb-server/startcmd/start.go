@@ -942,7 +942,8 @@ func createActivityPubStore(parameters *orbParameters, serviceEndpoint string) (
 
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(databasePrefix),
-			ariesmongodbstorage.WithLogger(logger))
+			ariesmongodbstorage.WithLogger(logger),
+			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider for ActivityPub: %w", err)
 		}
@@ -1022,7 +1023,8 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
-			ariesmongodbstorage.WithLogger(logger))
+			ariesmongodbstorage.WithLogger(logger),
+			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
@@ -1053,7 +1055,8 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
-			ariesmongodbstorage.WithLogger(logger))
+			ariesmongodbstorage.WithLogger(logger),
+			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}

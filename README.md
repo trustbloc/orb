@@ -108,6 +108,7 @@ Flags:
       --database-prefix string                      An optional prefix to be used when creating and retrieving underlying databases. Alternatively, this can be set with the following environment variable: DATABASE_PREFIX
   -t, --database-type string                        The type of database to use for everything except key storage. Supported options: mem, couchdb, mongodb. Alternatively, this can be set with the following environment variable: DATABASE_TYPE
   -v, --database-url string                         The URL of the database. Not needed if using memstore. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: DATABASE_URL
+      --database-timeout string                     The timeout for database requests. For example, '30s' for a 30 second timeout. Currently this setting only applies if you're using MongoDB. Alternatively, this can be set with the following environment variable: DATABASE_TIMEOUT
   -a, --did-aliases stringArray                     Aliases for this did method. Alternatively, this can be set with the following environment variable: DID_ALIASES
   -n, --did-namespace string                        DID Namespace.Alternatively, this can be set with the following environment variable: DID_NAMESPACE
       --discovery-domain string                     Discovery domain for this domain. Format: HostName
@@ -154,16 +155,16 @@ Minimal configuration to run a service is:
 
 ## Databases
 
-ORB uses Aries generic storage interface for storing data.
-Backup should be done similarly to other trustbloc projects.
-In ORB we support the following databases:
+Orb uses the Aries generic storage interface for storing data.
+Backup should be done similarly to other TrustBloc projects.
+In Orb we support the following databases:
 * CouchDB
 * MongoDB
 * Memory (backup is not supported)
 
-Use the database-specific command to get all databases and filter them by `DATABASE_PREFIX` and `KMSSECRETS_DATABASE_PREFIX` env.
+Use the database-specific command to get all databases and filter them by the `DATABASE_PREFIX` and `KMSSECRETS_DATABASE_PREFIX` environment variables.
 
-NOTE: Service might use two different databases. In that case, do the procedure per-database and filter the output only by one prefix.
+NOTE: The service might use two different databases. In that case, do the procedure per-database and filter the output only by one prefix.
 `DATABASE_PREFIX` for `DATABASE_URL` and `KMSSECRETS_DATABASE_PREFIX` for `KMSSECRETS_DATABASE_URL`.
 
 For instance, to get all databases for CouchDB use the following command:
