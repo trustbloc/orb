@@ -24,7 +24,6 @@ import (
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/config"
-	"github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -66,14 +65,10 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 
 	var orbTxnProcessorOpts []txnprocessor.Option
 
-	if sidetreeCfg.UpdateDocumentStoreEnabled {
-		updateDocumentStore, err := unpublished.New(provider)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create unpublished document store: %w", err)
-		}
-
+	if sidetreeCfg.UnpublishedOpStore != nil {
 		orbTxnProcessorOpts = append(orbTxnProcessorOpts,
-			txnprocessor.WithUnpublishedOperationStore(updateDocumentStore, sidetreeCfg.UpdateDocumentStoreTypes))
+			txnprocessor.WithUnpublishedOperationStore(sidetreeCfg.UnpublishedOpStore,
+				sidetreeCfg.UpdateDocumentStoreTypes))
 	}
 
 	orbTxnProcessor := txnprocessor.New(

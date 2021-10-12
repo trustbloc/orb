@@ -25,6 +25,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/trustbloc/orb/pkg/store/expiry"
+
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
@@ -164,6 +166,9 @@ const (
 
 	webKeyStoreKey = "web-key-store"
 	kidKey         = "kid"
+
+	// Defines how frequently the expiry services checks for (and deletes) expired data.
+	defaultExpiryInterval = time.Minute
 )
 
 type pubSub interface {
@@ -452,8 +457,24 @@ func startOrbServices(parameters *orbParameters) error {
 
 	anchorGraph := graph.New(graphProviders)
 
+	var updateDocumentStore *unpublishedopstore.Store
+	var expiryService *expiry.Service
+	if parameters.updateDocumentStoreEnabled {
+		// TODO (#810): Make it possible to run the expiry service from only one instance within a cluster (or as
+		//              a separate server)
+		// TODO (#808): Allow expiry interval to be configurable.
+		expiryService = expiry.NewService(defaultExpiryInterval)
+
+		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider, expiryService)
+		if err != nil {
+			return fmt.Errorf("failed to create unpublished document store: %w", err)
+		}
+
+		expiryService.Start()
+	}
+
 	// get protocol client provider
-	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, storeProviders.provider)
+	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, storeProviders.provider, updateDocumentStore)
 	if err != nil {
 		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
 	}
@@ -509,14 +530,6 @@ func startOrbServices(parameters *orbParameters) error {
 	vcStatusStore, err := vcstatus.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to create vc status store: %s", err.Error())
-	}
-
-	var updateDocumentStore *unpublishedopstore.Store
-	if parameters.updateDocumentStoreEnabled {
-		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider)
-		if err != nil {
-			return fmt.Errorf("failed to create unpublished document store: %w", err)
-		}
 	}
 
 	var processorOpts []processor.Option
@@ -878,6 +891,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	activityPubService.Stop()
 
+	if expiryService != nil {
+		expiryService.Stop()
+	}
+
 	if err := pubSub.Close(); err != nil {
 		logger.Warnf("Error closing publisher/subscriber: %s", err)
 	}
@@ -887,14 +904,16 @@ func startOrbServices(parameters *orbParameters) error {
 	return nil
 }
 
-func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver, opStore common.OperationStore, provider storage.Provider) (*orbpcp.ClientProvider, error) {
+func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
+	opStore common.OperationStore, provider storage.Provider,
+	unpublishedOpStore *unpublishedopstore.Store) (*orbpcp.ClientProvider, error) {
 	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                parameters.methodContext,
 		EnableBase:                   parameters.baseEnabled,
 		AnchorOrigins:                parameters.allowedOrigins,
-		UpdateDocumentStoreEnabled:   parameters.updateDocumentStoreEnabled,
+		UnpublishedOpStore:           unpublishedOpStore,
 		UpdateDocumentStoreTypes:     parameters.updateDocumentStoreTypes,
 		IncludeUnpublishedOperations: parameters.includeUnpublishedOperations,
 		IncludePublishedOperations:   parameters.includePublishedOperations,
