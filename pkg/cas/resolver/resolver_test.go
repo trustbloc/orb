@@ -340,6 +340,26 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NotEmpty(t, localHL)
 	})
 
+	t.Run("Had to retrieve data from ipfs via ipfs hint", func(t *testing.T) {
+		ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, sampleData)
+		}))
+		defer ipfsServer.Close()
+
+		resourceHash, err := hashlink.New().CreateResourceHash([]byte(sampleData))
+		require.NoError(t, err)
+
+		ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		require.NotNil(t, ipfsClient)
+
+		resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
+
+		data, localHL, err := resolver.Resolve(nil, "ipfs:"+resourceHash, nil)
+		require.NoError(t, err)
+		require.Equal(t, string(data), sampleData)
+		require.NotEmpty(t, localHL)
+	})
+
 	t.Run("Retrieve from IPFS using links", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			data := []byte(sampleData)
@@ -595,6 +615,25 @@ func TestResolver_Resolve(t *testing.T) {
 				`uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw": dial tcp: lookup NonExistentDomain`)
 			require.Nil(t, data)
 			require.Empty(t, localHL)
+		})
+
+		t.Run("error - had to retrieve data from ipfs via invalid ipfs hint", func(t *testing.T) {
+			ipfsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, sampleData)
+			}))
+			defer ipfsServer.Close()
+
+			ipfsClient := ipfs.New(ipfsServer.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+			require.NotNil(t, ipfsClient)
+
+			resolver := createNewResolver(t, createInMemoryCAS(t), ipfsClient)
+
+			data, localHL, err := resolver.Resolve(nil, "ipfs:abc", nil)
+			require.Error(t, err)
+			require.Empty(t, localHL)
+			require.Empty(t, data)
+			require.Contains(t, err.Error(),
+				"failed to get resource hash from[ipfs:abc]: resource hash[abc] cannot be converted to V1 CID")
 		})
 
 		t.Run("unexpected status code", func(t *testing.T) {

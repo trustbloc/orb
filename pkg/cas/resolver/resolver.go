@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/multihash"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
@@ -175,6 +176,16 @@ func (h *Resolver) getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHin
 		}
 
 		links = hlInfo.Links
+
+	case "ipfs":
+		resourceHash = hashWithPossibleHintParts[1]
+
+		cid, err := multihash.ToV1CID(resourceHash)
+		if err != nil {
+			return "", "", nil, fmt.Errorf("resource hash[%s] cannot be converted to V1 CID: %w", resourceHash, err)
+		}
+
+		links = []string{ipfsPrefix + cid}
 
 	default:
 		return "", "", nil, fmt.Errorf("hint '%s' not supported", hashWithPossibleHintParts[0])
