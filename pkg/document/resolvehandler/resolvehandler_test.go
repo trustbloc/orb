@@ -27,7 +27,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
-	"github.com/trustbloc/orb/pkg/document/resolvehandler/mocks"
+	"github.com/trustbloc/orb/pkg/document/mocks"
 	"github.com/trustbloc/orb/pkg/document/util"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"

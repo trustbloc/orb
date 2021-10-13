@@ -392,6 +392,7 @@ services:
       - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - RESOLVE_FROM_ANCHOR_ORIGIN=true
+      - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #
@@ -478,6 +479,7 @@ services:
       - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - RESOLVE_FROM_ANCHOR_ORIGIN=true
+      - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

@@ -101,6 +101,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/remoteresolver"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
+	"github.com/trustbloc/orb/pkg/document/updatehandler/decorator"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
@@ -139,6 +140,7 @@ const (
 	defaultIncludeUnpublishedOperations   = false
 	defaultIncludePublishedOperations     = false
 	defaultResolveFromAnchorOrigin        = false
+	defaultVerifyLatestFromAnchorOrigin   = false
 	defaultLocalCASReplicateInIPFSEnabled = false
 	defaultDevModeEnabled                 = false
 	defaultPolicyCacheExpiry              = 30 * time.Second
@@ -706,6 +708,22 @@ func startOrbServices(parameters *orbParameters) error {
 		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.updateDocumentStoreTypes))
 	}
 
+	endpointClient, err := discoveryclient.New(orbDocumentLoader,
+		&discoveryCAS{resolver: casResolver},
+		discoveryclient.WithNamespace(parameters.didNamespace),
+		discoveryclient.WithHTTPClient(httpClient),
+	)
+
+	if parameters.verifyLatestFromAnchorOrigin {
+		operationDecorator := decorator.New(parameters.didNamespace,
+			parameters.externalEndpoint,
+			opProcessor,
+			endpointClient,
+			remoteresolver.New(t),
+		)
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))
+	}
+
 	didDocHandler := dochandler.New(
 		parameters.didNamespace,
 		parameters.didAliases,
@@ -744,12 +762,6 @@ func startOrbServices(parameters *orbParameters) error {
 		resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithCreateDocumentStore(store))
 		updateHandlerOpts = append(updateHandlerOpts, updatehandler.WithCreateDocumentStore(store))
 	}
-
-	endpointClient, err := discoveryclient.New(orbDocumentLoader,
-		&discoveryCAS{resolver: casResolver},
-		discoveryclient.WithNamespace(parameters.didNamespace),
-		discoveryclient.WithHTTPClient(httpClient),
-	)
 
 	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), endpointClient)
 
