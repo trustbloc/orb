@@ -10,6 +10,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/metadata"
 )
 
 func TestGetSuffix(t *testing.T) {
@@ -54,5 +57,77 @@ func TestBetweenStrings(t *testing.T) {
 		require.Empty(t, str)
 		require.Contains(t, err.Error(),
 			"second string 'did:orb' is before first string 'suffix' in string 'did:orb:cid:suffix'")
+	})
+}
+
+func TestGetOperations(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		publishedOps := []metadata.PublishedOperation{{Type: operation.TypeUpdate, CanonicalReference: "abc"}}
+		methodMetadata[document.PublishedOperationsProperty] = publishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		unpubOps, err := GetUnpublishedOperationsFromMetadata(docMetadata)
+		require.NoError(t, err)
+		require.Equal(t, len(unpublishedOps), len(unpubOps))
+
+		pubOps, err := GetPublishedOperationsFromMetadata(docMetadata)
+		require.NoError(t, err)
+		require.Equal(t, len(publishedOps), len(pubOps))
+	})
+
+	t.Run("error - key not found in method metadata", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		unpubOps, err := GetUnpublishedOperationsFromMetadata(docMetadata)
+		require.Error(t, err)
+		require.Nil(t, unpubOps)
+		require.Contains(t, err.Error(), "key[unpublishedOperations] not found in method metadata")
+	})
+
+	t.Run("error - wrong metadata type", func(t *testing.T) {
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = "invalid-type"
+
+		unpubOps, err := GetPublishedOperationsFromMetadata(docMetadata)
+		require.Error(t, err)
+		require.Nil(t, unpubOps)
+		require.Contains(t, err.Error(), "method metadata is wrong type[string]")
+	})
+
+	t.Run("error - missing metadata", func(t *testing.T) {
+		unpublishedOps, err := GetUnpublishedOperationsFromMetadata(nil)
+		require.Error(t, err)
+		require.Nil(t, unpublishedOps)
+		require.Contains(t, err.Error(), "missing document metadata")
+	})
+
+	t.Run("error - empty metadata", func(t *testing.T) {
+		unpublishedOps, err := GetUnpublishedOperationsFromMetadata(make(document.Metadata))
+		require.Error(t, err)
+		require.Nil(t, unpublishedOps)
+		require.Contains(t, err.Error(), "missing method metadata")
+	})
+}
+
+func TestGetOperationsAfterCanonicalReference(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		anchoredOps := []*operation.AnchoredOperation{
+			{Type: operation.TypeUpdate, CanonicalReference: "abc", TransactionTime: 1},
+			{Type: operation.TypeUpdate, CanonicalReference: "xyz", TransactionTime: 2},
+		}
+
+		ops := GetOperationsAfterCanonicalReference("abc", anchoredOps)
+		require.Equal(t, 1, len(ops))
+		require.Equal(t, "xyz", ops[0].CanonicalReference)
 	})
 }

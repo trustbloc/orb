@@ -300,6 +300,11 @@ const (
 	resolveFromAnchorOriginUsage    = `Set to "true" to resolve from anchor origin. ` +
 		commonEnvVarUsageText + resolveFromAnchorOriginEnvKey
 
+	verifyLatestFromAnchorOriginFlagName = "verify-latest-from-anchor-origin"
+	verifyLatestFromAnchorOriginEnvKey   = "VERIFY_LATEST_FROM_ANCHOR_ORIGIN"
+	verifyLatestFromAnchorOriginUsage    = `Set to "true" to verify latest operations against anchor origin. ` +
+		commonEnvVarUsageText + verifyLatestFromAnchorOriginEnvKey
+
 	authTokensDefFlagName      = "auth-tokens-def"
 	authTokensDefFlagShorthand = "D"
 	authTokensDefFlagUsage     = "Authorization token definitions."
@@ -383,6 +388,7 @@ type orbParameters struct {
 	includeUnpublishedOperations   bool
 	includePublishedOperations     bool
 	resolveFromAnchorOrigin        bool
+	verifyLatestFromAnchorOrigin   bool
 	updateDocumentStoreTypes       []operation.Type
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
@@ -690,6 +696,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		resolveFromAnchorOrigin = enable
 	}
 
+	verifyLatestFromAnchorOriginStr, err := cmdutils.GetUserSetVarFromString(cmd, verifyLatestFromAnchorOriginFlagName, verifyLatestFromAnchorOriginEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	verifyLatestFromAnchorOrigin := defaultVerifyLatestFromAnchorOrigin
+	if verifyLatestFromAnchorOriginStr != "" {
+		enable, parseErr := strconv.ParseBool(verifyLatestFromAnchorOriginStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", verifyLatestFromAnchorOriginFlagName, parseErr)
+		}
+
+		verifyLatestFromAnchorOrigin = enable
+	}
+
 	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -809,6 +830,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		includePublishedOperations:     includePublishedOperations,
 		includeUnpublishedOperations:   includeUnpublishedOperations,
 		resolveFromAnchorOrigin:        resolveFromAnchorOrigin,
+		verifyLatestFromAnchorOrigin:   verifyLatestFromAnchorOrigin,
 		authTokenDefinitions:           authTokenDefs,
 		authTokens:                     authTokens,
 		activityPubPageSize:            activityPubPageSize,
@@ -1089,6 +1111,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(includeUnpublishedOperationsFlagName, "", includeUnpublishedOperationsUsage)
 	startCmd.Flags().String(includePublishedOperationsFlagName, "", includePublishedOperationsUsage)
 	startCmd.Flags().String(resolveFromAnchorOriginFlagName, "", resolveFromAnchorOriginUsage)
+	startCmd.Flags().String(verifyLatestFromAnchorOriginFlagName, "", verifyLatestFromAnchorOriginUsage)
 	startCmd.Flags().StringP(casTypeFlagName, casTypeFlagShorthand, "", casTypeFlagUsage)
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)

@@ -7,9 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 )
 
@@ -48,4 +51,85 @@ func BetweenStrings(value, first, second string) (string, error) {
 	}
 
 	return value[posFirstAdjusted:posSecond], nil
+}
+
+// GetOperationsAfterCanonicalReference retrieves operations after canonical references.
+// assumption: operations are sorted by transaction time
+func GetOperationsAfterCanonicalReference(ref string, anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation { //nolint:lll
+	found := false
+
+	var additionalAnchorOps []*operation.AnchoredOperation
+
+	for _, anchorOp := range anchorOps {
+		if found {
+			additionalAnchorOps = append(additionalAnchorOps, anchorOp)
+		}
+
+		if anchorOp.CanonicalReference == ref {
+			found = true
+		}
+	}
+
+	return additionalAnchorOps
+}
+
+// GetPublishedOperationsFromMetadata will retrieve published operations from metadata.
+func GetPublishedOperationsFromMetadata(metadata document.Metadata) ([]*operation.AnchoredOperation, error) {
+	methodMetadata, err := getMethodMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return getOperationsByKey(methodMetadata, document.PublishedOperationsProperty)
+}
+
+// GetUnpublishedOperationsFromMetadata will retrieve unpublished operations from metadata.
+func GetUnpublishedOperationsFromMetadata(metadata document.Metadata) ([]*operation.AnchoredOperation, error) {
+	methodMetadata, err := getMethodMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return getOperationsByKey(methodMetadata, document.UnpublishedOperationsProperty)
+}
+
+func getMethodMetadata(metadata document.Metadata) (map[string]interface{}, error) {
+	if metadata == nil {
+		return nil, fmt.Errorf("missing document metadata")
+	}
+
+	methodMetadataObj, ok := metadata[document.MethodProperty]
+	if !ok {
+		return nil, fmt.Errorf("missing method metadata")
+	}
+
+	switch val := methodMetadataObj.(type) {
+	case document.Metadata:
+		return val, nil
+	case map[string]interface{}:
+		return val, nil
+	default:
+		return nil, fmt.Errorf("method metadata is wrong type[%T]", methodMetadataObj)
+	}
+}
+
+func getOperationsByKey(methodMetadata map[string]interface{}, key string) ([]*operation.AnchoredOperation, error) {
+	opsObj, ok := methodMetadata[key]
+	if !ok {
+		return nil, fmt.Errorf("key[%s] not found in method metadata", key)
+	}
+
+	opsBytes, err := json.Marshal(opsObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal '%s'", key)
+	}
+
+	var ops []*operation.AnchoredOperation
+
+	err = json.Unmarshal(opsBytes, &ops)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal '%s'", key)
+	}
+
+	return ops, nil
 }

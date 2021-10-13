@@ -32,7 +32,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211001153855-238da75965f8
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211012203148-2f1d13fca175
 	github.com/trustbloc/vct v0.1.3
 	go.mongodb.org/mongo-driver v1.7.1
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect

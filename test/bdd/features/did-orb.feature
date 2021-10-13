@@ -161,6 +161,10 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
 
+      # send an update operation to domain4 (anchor origin domain has unpublished operations)
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+      Then check error response contains "anchor origin has unpublished operations - please re-submit your request at later time"
+
       # wait for domain3 to publish operation
       Then we wait 3 seconds
 
@@ -168,6 +172,10 @@ Feature:
       # response will contain published operation from anchor origin
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
+
+      # send an update operation to domain4 (out of sync with anchor origin domain)
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+      Then check error response contains "anchor origin has additional published operations - please re-submit your request at later time"
 
     @all
     @follow_anchor_writer_domain1

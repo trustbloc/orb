@@ -198,6 +198,20 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 	return localResponse, nil
 }
 
+func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
+	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
+	if err != nil {
+		logger.Debugf("unable to get unpublished operations for id[%s]: %s", id, err.Error())
+	}
+
+	publishedOps, err := util.GetPublishedOperationsFromMetadata(metadata)
+	if err != nil {
+		logger.Debugf("unable to get published operations for id[%s]: %s", id, err.Error())
+	}
+
+	return unpublishedOps, publishedOps
+}
+
 func getAdditionalPublishedOps(localOps, anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation {
 	if len(anchorOps) == 0 {
 		// nothing to check since anchor origin published operations are not provided
@@ -213,25 +227,7 @@ func getAdditionalPublishedOps(localOps, anchorOps []*operation.AnchoredOperatio
 	// both local and anchor origin unpublished ops are provided - check if local head is in anchor origin history
 	localHead := localOps[len(localOps)-1]
 
-	found := false
-
-	var additionalAnchorOps []*operation.AnchoredOperation
-
-	for _, anchorOp := range anchorOps {
-		logger.Debugf("comparing published operation[%s] from anchor origin with local head[%s]",
-			anchorOp.CanonicalReference, localHead.CanonicalReference)
-
-		if found {
-			additionalAnchorOps = append(additionalAnchorOps, anchorOp)
-			logger.Debugf("adding operation[%s] after local head[%s]", anchorOp.CanonicalReference, localHead.CanonicalReference)
-		}
-
-		if anchorOp.CanonicalReference == localHead.CanonicalReference {
-			found = true
-		}
-	}
-
-	return additionalAnchorOps
+	return util.GetOperationsAfterCanonicalReference(localHead.CanonicalReference, anchorOps)
 }
 
 func equalResponses(anchorOrigin, local *document.ResolutionResult) error {
@@ -251,69 +247,6 @@ func equalResponses(anchorOrigin, local *document.ResolutionResult) error {
 	}
 
 	return nil
-}
-
-func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
-	methodMetadata := getMethodMetadata(id, metadata)
-	if methodMetadata == nil {
-		return nil, nil
-	}
-
-	unpublishedOps := getOperationsByKey(methodMetadata, document.UnpublishedOperationsProperty, id)
-	publishedOps := getOperationsByKey(methodMetadata, document.PublishedOperationsProperty, id)
-
-	return unpublishedOps, publishedOps
-}
-
-func getMethodMetadata(id string, metadata document.Metadata) map[string]interface{} {
-	if metadata == nil {
-		logger.Debugf("missing document metadata for id[%s]", id)
-
-		return nil
-	}
-
-	methodMetadataObj, ok := metadata[document.MethodProperty]
-	if !ok {
-		logger.Debugf("missing method metadata for id[%s]", id)
-
-		return nil
-	}
-
-	switch val := methodMetadataObj.(type) {
-	case document.Metadata:
-		return val
-	case map[string]interface{}:
-		return val
-	default:
-		logger.Debugf("method metadata is wrong type[%T] for id[%s]", methodMetadataObj, id)
-
-		return nil
-	}
-}
-
-func getOperationsByKey(methodMetadata map[string]interface{}, key, id string) []*operation.AnchoredOperation {
-	opsObj, ok := methodMetadata[key]
-	if !ok {
-		return nil
-	}
-
-	opsBytes, err := json.Marshal(opsObj)
-	if err != nil {
-		logger.Debugf("failed to marshal '%s' for id[%s]", key, id)
-
-		return nil
-	}
-
-	var ops []*operation.AnchoredOperation
-
-	err = json.Unmarshal(opsBytes, &ops)
-	if err != nil {
-		logger.Debugf("failed to unmarshal '%s' for id[%s]", key, id)
-
-		return nil
-	}
-
-	return ops
 }
 
 func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id string) (*document.ResolutionResult, error) {
