@@ -105,6 +105,7 @@ Flags:
   -b, --batch-writer-timeout string                 Maximum time (in millisecond) in-between cutting batches.Alternatively, this can be set with the following environment variable: BATCH_WRITER_TIMEOUT
   -c, --cas-type string                             The type of the Content Addressable Storage (CAS). Supported options: local, ipfs. For local, the storage provider specified by database-type will be used. For ipfs, the node specified by ipfs-url will be used. This is a required parameter. Alternatively, this can be set with the following environment variable: CAS_TYPE
       --cid-version string                          The version of the CID format to use for generating CIDs. Supported options: 0, 1. If not set, defaults to 1.Alternatively, this can be set with the following environment variable: CID_VERSION (default "1")
+      --data-expiry-check-interval string           How frequently to check for (and delete) any expired data. For example, a setting of '1m' will cause the expiry service to run a check every 1 minute. Defaults to 1 minute if not set. Alternatively, this can be set with the following environment variable: DATA_EXPIRY_CHECK_INTERVAL
       --database-prefix string                      An optional prefix to be used when creating and retrieving underlying databases. Alternatively, this can be set with the following environment variable: DATABASE_PREFIX
   -t, --database-type string                        The type of database to use for everything except key storage. Supported options: mem, couchdb, mongodb. Alternatively, this can be set with the following environment variable: DATABASE_TYPE
   -v, --database-url string                         The URL of the database. Not needed if using memstore. For CouchDB, include the username:password@ text if required. Alternatively, this can be set with the following environment variable: DATABASE_URL
@@ -143,6 +144,7 @@ Flags:
       --sync-timeout string                         Total time in seconds to resolve config values. Alternatively, this can be set with the following environment variable: ORB_SYNC_TIMEOUT (default "1")
   -y, --tls-certificate string                      TLS certificate for ORB server. Alternatively, this can be set with the following environment variable: ORB_TLS_CERTIFICATE
   -x, --tls-key string                              TLS key for ORB server. Alternatively, this can be set with the following environment variable: ORB_TLS_KEY
+      --unpublished-operation-lifetime              How long unpublished operations remain stored before expiring (and thus, being deleted some time later). For example, '1m' for a 1 minute lifespan. Defaults to 1 minute if not set. Alternatively, this can be set with the following environment variable: UNPUBLISHED_OPERATION_LIFETIME
       --vct-url string                              Verifiable credential transparency URL.
 
 ```
