@@ -9,6 +9,7 @@ package factory
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
@@ -22,7 +23,9 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
+	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
@@ -42,9 +45,12 @@ func TestFactory_Create(t *testing.T) {
 	})
 
 	t.Run("success - with update store config", func(t *testing.T) {
+		updateDocumentStore, err := unpublishedopstore.New(storeProvider, expiry.NewService(time.Millisecond))
+		require.NoError(t, err)
+
 		cfg := &config.Sidetree{
-			UpdateDocumentStoreEnabled: true,
-			UpdateDocumentStoreTypes:   []operation.Type{operation.TypeUpdate},
+			UnpublishedOpStore:       updateDocumentStore,
+			UpdateDocumentStoreTypes: []operation.Type{operation.TypeUpdate},
 		}
 
 		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, cfg)

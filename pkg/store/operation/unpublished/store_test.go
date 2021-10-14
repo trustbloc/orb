@@ -9,17 +9,20 @@ package unpublished
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -27,7 +30,7 @@ func TestNew(t *testing.T) {
 	t.Run("error - from open store", func(t *testing.T) {
 		s, err := New(&mockstore.Provider{
 			ErrOpenStore: fmt.Errorf("failed to open store"),
-		})
+		}, expiry.NewService(time.Millisecond))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
 		require.Nil(t, s)
@@ -36,7 +39,7 @@ func TestNew(t *testing.T) {
 
 func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -49,7 +52,7 @@ func TestStore_Put(t *testing.T) {
 			ErrGet: storage.ErrDataNotFound,
 		}}
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -62,7 +65,7 @@ func TestStore_Put(t *testing.T) {
 			ErrGet: fmt.Errorf("random get error"),
 		}}
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -72,7 +75,7 @@ func TestStore_Put(t *testing.T) {
 	})
 
 	t.Run("error - consecutive put", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -87,7 +90,7 @@ func TestStore_Put(t *testing.T) {
 
 func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -99,7 +102,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("error - operation without suffix", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{})
@@ -112,7 +115,7 @@ func TestStore_Get(t *testing.T) {
 			ErrGet: fmt.Errorf("error get"),
 		}}
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -130,7 +133,7 @@ func TestStore_Get(t *testing.T) {
 		err = store.Put("suffix", []byte("not-json"))
 		require.NoError(t, err)
 
-		s, err := New(provider)
+		s, err := New(provider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -142,7 +145,7 @@ func TestStore_Get(t *testing.T) {
 
 func TestStore_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -157,7 +160,7 @@ func TestStore_Delete(t *testing.T) {
 			ErrDelete: fmt.Errorf("delete error"),
 		}}
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Delete("suffix")
@@ -168,7 +171,7 @@ func TestStore_Delete(t *testing.T) {
 
 func TestStore_DeleteAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -179,7 +182,7 @@ func TestStore_DeleteAll(t *testing.T) {
 	})
 
 	t.Run("success - no suffixes provided", func(t *testing.T) {
-		s, err := New(mem.NewProvider())
+		s, err := New(mem.NewProvider(), expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.DeleteAll(nil)
@@ -191,7 +194,7 @@ func TestStore_DeleteAll(t *testing.T) {
 			ErrBatch: fmt.Errorf("batch error"),
 		}}
 
-		s, err := New(storeProvider)
+		s, err := New(storeProvider, expiry.NewService(time.Millisecond))
 		require.NoError(t, err)
 
 		err = s.DeleteAll([]string{"suffix"})

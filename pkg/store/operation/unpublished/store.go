@@ -10,24 +10,43 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
-const nameSpace = "unpublished-operation"
+// TODO (#812) Add BDD tests to test data expiry.
+
+const (
+	nameSpace = "unpublished-operation"
+	// Defines how long unpublished operations can stay in the store before being flagged for deletion.
+	defaultDataLifespan = time.Minute
+	expiryTagName       = "ExpiryTime"
+)
 
 var logger = log.New("unpublished-operation-store")
 
-// New returns new instance of unpublished operation store.
-func New(provider storage.Provider) (*Store, error) {
+// New returns a new instance of an unpublished operation store.
+// This method will also register the unpublished operation store with the given expiry service which will then take
+// care of deleting expired data automatically. Note that it's the caller's responsibility to start the expiry service.
+// TODO (#808): Allow data lifespan to be configurable.
+func New(provider storage.Provider, expiryService *expiry.Service) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open unpublished operation store: %w", err)
 	}
+
+	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{TagNames: []string{expiryTagName}})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set store configuration on unpublished operation store: %w", err)
+	}
+
+	expiryService.Register(store, expiryTagName, nameSpace)
 
 	return &Store{
 		store: store,
@@ -39,7 +58,7 @@ type Store struct {
 	store storage.Store
 }
 
-// Put saves an unpublished operation. If it it already exists an error will be returned.
+// Put saves an unpublished operation. If it already exists an error will be returned.
 func (s *Store) Put(op *operation.AnchoredOperation) error {
 	if op.UniqueSuffix == "" {
 		return fmt.Errorf("failed to save unpublished operation: suffix is empty")
@@ -61,7 +80,12 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 
 	logger.Debugf("storing unpublished '%s' operation for suffix[%s]: %s", op.Type, op.UniqueSuffix, string(opBytes))
 
-	if e := s.store.Put(op.UniqueSuffix, opBytes); e != nil {
+	tag := storage.Tag{
+		Name:  expiryTagName,
+		Value: fmt.Sprintf("%d", time.Now().Add(defaultDataLifespan).Unix()),
+	}
+
+	if e := s.store.Put(op.UniqueSuffix, opBytes, tag); e != nil {
 		return fmt.Errorf("failed to put unpublished operation for suffix[%s]: %w", op.UniqueSuffix, e)
 	}
 

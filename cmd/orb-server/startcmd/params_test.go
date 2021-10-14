@@ -1167,6 +1167,9 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 
 	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")
 	require.NoError(t, err)
+
+	err = os.Setenv(enableUpdateDocumentStoreEnvKey, "true")
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
