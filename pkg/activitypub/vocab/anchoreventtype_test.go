@@ -8,13 +8,20 @@ package vocab
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+)
+
+const (
+	sampleGenerator  = "https://sample.com#v0"
+	sampleGenerator2 = "https://sample2.com#v0"
 )
 
 func TestAnchorEventNil(t *testing.T) {
@@ -23,43 +30,38 @@ func TestAnchorEventNil(t *testing.T) {
 	require.Nil(t, anchorEvent.Anchors())
 	require.Empty(t, anchorEvent.Parent())
 	require.Nil(t, anchorEvent.Witness())
-	require.Nil(t, anchorEvent.ContentObject())
+
+	_, err := anchorEvent.AnchorObject(MustParseURL("hl:xxx"))
+	require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
 }
 
 func TestAnchorEvent(t *testing.T) {
-	const (
-		generator  = "https://w3id.org/orb#v0"
-		resourceID = "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
-	)
-
-	var (
-		anchors = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
-		subject = testutil.MustParseURL("hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU") //nolint:lll
-	)
+	contentObj := &sampleContentObj{Field1: "value1", Field2: "value2"}
+	contentObj2 := &sample2ContentObj{Field3: "value3"}
 
 	witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 	require.NoError(t, err)
 
 	published := getStaticTime()
 
+	anchorObj, err := NewAnchorObject(sampleGenerator, MustMarshalToDoc(contentObj), witness)
+	require.NoError(t, err)
+	require.Len(t, anchorObj.URL(), 1)
+
+	anchorObj2, err := NewAnchorObject(sampleGenerator2, MustMarshalToDoc(contentObj2), nil)
+	require.NoError(t, err)
+	require.Len(t, anchorObj.URL(), 1)
+
 	anchorEvent := NewAnchorEvent(
 		WithURL(testutil.MustParseURL(
 			"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"), //nolint:lll
 		),
 		WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-		WithAnchors(anchors),
+		WithAnchors(anchorObj.URL()[0]),
 		WithPublishedTime(&published),
 		WithParent(parentURL1, parentURL2),
-		WithAttachment(NewObjectProperty(WithAnchorObject(
-			NewAnchorObject(
-				NewContentObject(generator,
-					subject,
-					NewResource(resourceID, ""),
-				),
-				witness,
-				WithURL(anchors),
-			),
-		))),
+		WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
+		WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj2))),
 	)
 
 	bytes, err := canonicalizer.MarshalCanonical(anchorEvent)
@@ -71,17 +73,23 @@ func TestAnchorEvent(t *testing.T) {
 
 	ae := &AnchorEventType{}
 	require.NoError(t, json.Unmarshal(bytes, ae))
-	require.Equal(t, anchors.String(), ae.Anchors().String())
+	require.Equal(t, anchorEvent.Anchors().String(), ae.Anchors().String())
 
-	contentObj := ae.ContentObject()
-	require.NotNil(t, contentObj)
-
-	require.Equal(t, generator, contentObj.Generator())
-	require.Equal(t, subject.String(), contentObj.Subject.URL().String())
-	require.Len(t, contentObj.Resources(), 1)
-	require.Equal(t, resourceID, contentObj.Resources()[0].ID)
-	require.Empty(t, contentObj.Resources()[0].PreviousAnchor)
 	require.Equal(t, witness, anchorEvent.Witness())
+
+	ao, err := ae.AnchorObject(ae.Anchors())
+	require.NoError(t, err)
+	require.NotNil(t, ao)
+
+	_, err = ae.AnchorObject(MustParseURL("hl:xxxxx"))
+	require.Error(t, err)
+	require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
+
+	contentObjUnmarshalled := &sampleContentObj{}
+	MustUnmarshalFromDoc(ao.ContentObject(), contentObjUnmarshalled)
+
+	require.Equal(t, contentObj.Field1, contentObjUnmarshalled.Field1)
+	require.Equal(t, contentObj.Field2, contentObjUnmarshalled.Field2)
 
 	require.NoError(t, ae.Validate())
 }
@@ -93,25 +101,8 @@ func TestAnchorObjectNil(t *testing.T) {
 	require.Empty(t, anchorObj.Witness())
 }
 
-func TestContentObjectNil(t *testing.T) {
-	var contentObj *ContentObjectType
-
-	require.Equal(t, "", contentObj.Generator())
-	require.Empty(t, contentObj.Resources())
-}
-
 func TestAnchorEventType_Validate(t *testing.T) {
-	const (
-		generator  = "https://w3id.org/orb#v0"
-		resourceID = "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
-	)
-
-	var (
-		anchors = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
-		subject = testutil.MustParseURL(
-			"hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU", //nolint:lll
-		)
-	)
+	anchors := testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
 
 	witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 	require.NoError(t, err)
@@ -135,9 +126,9 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAnchors(anchors),
 		)
 
-		err := ae.Validate()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor event must have exactly one attachment")
+		e := ae.Validate()
+		require.Error(t, e)
+		require.Contains(t, e.Error(), "unable to find the attachment that matches the anchors URL in the anchor event")
 	})
 
 	t.Run("Unsupported attachment", func(t *testing.T) {
@@ -150,12 +141,15 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			))),
 		)
 
-		err := ae.Validate()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unsupported attachment type")
+		e := ae.Validate()
+		require.Error(t, e)
+		require.Contains(t, e.Error(), "unsupported attachment type")
 	})
 
 	t.Run("Missing anchor object URL", func(t *testing.T) {
+		anchorObj := &AnchorObjectType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorObjNoURL), anchorObj))
+
 		ae := NewAnchorEvent(
 			WithURL(testutil.MustParseURL(
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
@@ -164,23 +158,22 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAnchors(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(
-				NewAnchorObject(
-					NewContentObject(generator,
-						subject,
-						NewResource(resourceID, ""),
-					),
-					witness,
-				),
-			))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
-		err := ae.Validate()
+		err = ae.Validate()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor object must have exactly one URL")
 	})
 
 	t.Run("Anchor URL mismatch", func(t *testing.T) {
+		anchorObj, err := NewAnchorObject(sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			witness,
+		)
+		require.NoError(t, err)
+		require.Len(t, anchorObj.URL(), 1)
+
 		ae := NewAnchorEvent(
 			WithURL(testutil.MustParseURL(
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
@@ -189,24 +182,18 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAnchors(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(
-				NewAnchorObject(
-					NewContentObject(generator,
-						subject,
-						NewResource(resourceID, ""),
-					),
-					witness,
-					WithURL(subject),
-				),
-			))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
-		err := ae.Validate()
+		err = ae.Validate()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "must be the same as the anchors URL in the anchor event URL")
+		require.Contains(t, err.Error(), "unable to find the attachment that matches the anchors URL in the anchor event")
 	})
 
 	t.Run("No content object", func(t *testing.T) {
+		anchorObj := &AnchorObjectType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorObjNoContentObj), anchorObj))
+
 		ae := NewAnchorEvent(
 			WithURL(testutil.MustParseURL(
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
@@ -215,13 +202,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAnchors(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(
-				NewAnchorObject(
-					nil,
-					witness,
-					WithURL(anchors),
-				),
-			))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
 		err := ae.Validate()
@@ -229,7 +210,10 @@ func TestAnchorEventType_Validate(t *testing.T) {
 		require.Contains(t, err.Error(), "content object is required in anchor event")
 	})
 
-	t.Run("Invalid content object hash", func(t *testing.T) {
+	t.Run("No generator", func(t *testing.T) {
+		anchorObj := &AnchorObjectType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorObjNoGenerator), anchorObj))
+
 		ae := NewAnchorEvent(
 			WithURL(testutil.MustParseURL(
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
@@ -238,16 +222,27 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAnchors(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(
-				NewAnchorObject(
-					NewContentObject("https://w3id.org/orb#v1",
-						subject,
-						NewResource(resourceID, ""),
-					),
-					witness,
-					WithURL(anchors),
-				),
-			))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
+		)
+
+		err := ae.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "generator is required in anchor event")
+	})
+
+	t.Run("Invalid content object hash", func(t *testing.T) {
+		anchorObj := &AnchorObjectType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorObjInvalidURL), anchorObj))
+
+		ae := NewAnchorEvent(
+			WithURL(testutil.MustParseURL(
+				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
+			)),
+			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
+			WithAnchors(anchorObj.URL()[0]),
+			WithPublishedTime(&published),
+			WithParent(parentURL1, parentURL2),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
 		err := ae.Validate()
@@ -256,29 +251,27 @@ func TestAnchorEventType_Validate(t *testing.T) {
 	})
 
 	t.Run("No witness", func(t *testing.T) {
+		anchorObj, err := NewAnchorObject(sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			nil,
+		)
+		require.NoError(t, err)
+		require.Len(t, anchorObj.URL(), 1)
+
 		ae := NewAnchorEvent(
 			WithURL(testutil.MustParseURL(
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchors),
+			WithAnchors(anchorObj.URL()[0]),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(
-				NewAnchorObject(
-					NewContentObject(generator,
-						subject,
-						NewResource(resourceID, ""),
-					),
-					nil,
-					WithURL(anchors),
-				),
-			))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
-		err := ae.Validate()
+		err = ae.Validate()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness is required in anchor event")
+		require.Contains(t, err.Error(), "witness is required")
 	})
 }
 
@@ -299,26 +292,29 @@ func TestAnchorEventType_JustURL(t *testing.T) {
 	require.NoError(t, anchorEvent.Validate())
 }
 
+type sampleContentObj struct {
+	Field1 string `json:"field_1"`
+	Field2 string `json:"field_2"`
+}
+
+type sample2ContentObj struct {
+	Field3 string `json:"field_3"`
+}
+
 const (
 	//nolint:lll
 	jsonAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
   "attachment": [
     {
       "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "id": "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
-            }
-          ]
-        },
-        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
+        "field_1": "value1",
+        "field_2": "value2"
       },
+      "generator": "https://sample.com#v0",
       "type": "AnchorObject",
-      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
       "witness": {
         "@context": "https://www.w3.org/2018/credentials/v1",
         "credentialSubject": {
@@ -346,6 +342,14 @@ const (
         ],
         "type": "VerifiableCredential"
       }
+    },
+    {
+      "contentObject": {
+        "field_3": "value3"
+      },
+      "generator": "https://sample2.com#v0",
+      "type": "AnchorObject",
+      "url": "hl:uEiDyIrycKpCTdNYXESE4V_2HobZnBl7-fJVxJjYr2awQ_Q"
     }
   ],
   "attributedTo": "https://orb.domain1.com/services/orb",
@@ -363,5 +367,59 @@ const (
   "@context": "https://w3id.org/activityanchors/v1",
   "type": "AnchorEvent",
   "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
+}`
+	jsonAnchorObjInvalidURL = `{
+      "contentObject": {
+        "field_1": "value1",
+        "field_2": "value2"
+      },
+      "generator": "https://sample.com#v0",
+      "type": "AnchorObject",
+      "url": "hl:uEiAcDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+      "witness": {
+        "@context": "https://www.w3.org/2018/credentials/v1",
+        "credentialSubject": {
+          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+        },
+        "issuanceDate": "2021-01-27T09:30:10Z",
+        "issuer": "https://sally.example.com/services/anchor",
+        "proof": [
+          {
+            "created": "2021-01-27T09:30:00Z",
+            "domain": "sally.example.com",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          },
+          {
+            "created": "2021-01-27T09:30:05Z",
+            "domain": "https://witness1.example.com/ledgers/maple2021",
+            "jws": "eyJ...",
+            "proofPurpose": "assertionMethod",
+            "type": "JsonWebSignature2020",
+            "verificationMethod": "did:example:abcd#key"
+          }
+        ],
+        "type": "VerifiableCredential"
+      }
+    }`
+
+	jsonAnchorObjNoURL = `{
+      "contentObject": {
+        "field_1": "value1",
+        "field_2": "value2"
+      },
+      "generator": "https://sample.com#v0",
+      "type": "AnchorObject"
+}`
+	jsonAnchorObjNoContentObj = `{
+      "generator": "https://sample.com#v0",
+      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+      "type": "AnchorObject"
+}`
+	jsonAnchorObjNoGenerator = `{
+      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+      "type": "AnchorObject"
 }`
 )

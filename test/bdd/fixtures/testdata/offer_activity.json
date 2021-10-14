@@ -10,35 +10,38 @@
     "attachment": [
       {
         "contentObject": {
-          "generator": "https://w3id.org/orb#v0",
-          "metadata": {
-            "resources": [
+          "properties": {
+            "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
+            "https://w3id.org/activityanchors#resources": [
               {
-                "id": "did:orb:uAAA:EiAyfQo5zy3sVams3N_d01vkr3gfLAlsqXsSCiFQG98KGA"
+                "ID": "did:orb:uAAA:EiAqm7CXVPxriNZv_A6GVCrqlmCmrUSGJ1YaheTzFxa_Fw"
               }
             ]
           },
-          "url": "hl:uEiBhkziVNP8qClPQE_Y8LzrzpMnzRpoRM4llwTpawnFMkA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmhremlWTlA4cUNsUFFFX1k4THpyenBNbnpScG9STTRsbHdUcGF3bkZNa0F4QmlwZnM6Ly9iYWZrcmVpZGJzbTRqa25oN2ZpZmZodWF0Nnk2YzZveHR1dGU3Z3J1MmNlenlzem9iaGpubWU0a21zYQ"
+          "subject": "hl:uEiDYMTm9nJ5B0gwpNtflwrcZCT9uT6BFiEs5sYWB45piXg:uoQ-BeEJpcGZzOi8vYmFma3JlaWd5Z2U0MzNoZTZpaGpheWtqdzI3czRmbnl6YmU3dzR0NWFpd2Vld29ucnF3YTZoZ3RjbHk"
         },
+        "generator": "https://w3id.org/orb#v0",
         "type": "AnchorObject",
-        "url": "hl:uEiAxs7s3L9HnxQgEdOYAFzDsFpgBRzF6ZBKFUBPl6IwGIQ",
+        "url": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
         "witness": {
           "@context": [
             "https://www.w3.org/2018/credentials/v1",
             "https://w3id.org/security/jws/v1"
           ],
-          "credentialSubject": "hl:uEiAxs7s3L9HnxQgEdOYAFzDsFpgBRzF6ZBKFUBPl6IwGIQ",
-          "id": "http://orb.domain1.com/vc/39087ead-6626-4a05-9e2d-9f00b9c72ae6",
-          "issuanceDate": "2021-09-28T19:57:41.1490489Z",
-          "issuer": "http://orb.domain1.com",
-          "proof": {
-            "created": "2021-09-28T19:57:41.185Z",
-            "domain": "http://orb.vct:8077/maple2020",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..WnY7B_solD7VksCV3pffrb1Cm5SpJJpIwrLe3ITQJfLk2mfKd_oZqnREojh5z6db4LQe5pxyjs_3Gx5_lauKBg",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain1.com#orb1key"
-          },
+          "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+          "id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
+          "issuanceDate": "2021-10-14T18:32:17.894314751Z",
+          "issuer": "http://orb2.domain1.com",
+          "proof": [
+            {
+              "created": "2021-10-14T18:32:18.09110265Z",
+              "domain": "https://orb.domain2.com",
+              "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DSL3zsltnh9dbSn3VNPb1C-6pKt6VOy-H1WadO5ZV2QZd3xZq3uRRhaShi9K1SzX-VaGPxs3gfbazJ-fpHVxBg",
+              "proofPurpose": "assertionMethod",
+              "type": "Ed25519Signature2018",
+              "verificationMethod": "did:web:orb.domain2.com#orb2key"
+            }
+          ],
           "type": "VerifiableCredential"
         }
       }

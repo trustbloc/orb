@@ -247,7 +247,7 @@ func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) 
 		return nil, fmt.Errorf("build content object: %w", err)
 	}
 
-	vc, err := c.buildCredential(contentObj)
+	vc, err := c.buildCredential(contentObj.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("build credential: %w", err)
 	}
@@ -311,7 +311,7 @@ func getSuffixes(refs []*operation.Reference) []string {
 }
 
 // buildCredential builds and signs anchor credential.
-func (c *Writer) buildCredential(contentObj *vocab.ContentObjectType) (*verifiable.Credential, error) {
+func (c *Writer) buildCredential(contentObj vocab.Document) (*verifiable.Credential, error) {
 	buildCredStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))

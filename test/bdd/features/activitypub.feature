@@ -147,7 +147,7 @@ Feature:
     # A 'Create' activity should have been posted to domain1's followers (domain2).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/e52b45b8-ef51-4d09-80a0-1c6e0d77ac2d"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/7df49d38-d97a-4b1a-96f7-6e7a685fea9d"
 
     # An 'Announce' activity should have been posted to domain2's followers (domain3).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
@@ -171,12 +171,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiDmaq_QDlJbNO9Wca8ujyRcFmM4DNjG-yC2KsjI2pCAQg%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG1hcV9RRGxKYk5POVdjYTh1anlSY0ZtTTRETmpHLXlDMktzakkycENBUWc"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w%3AuoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDmaq_QDlJbNO9Wca8ujyRcFmM4DNjG-yC2KsjI2pCAQg:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG1hcV9RRGxKYk5POVdjYTh1anlSY0ZtTTRETmpHLXlDMktzakkycENBUWc"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

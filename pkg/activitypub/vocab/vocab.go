@@ -140,3 +140,8 @@ func (doc Document) MergeWith(other Document) {
 		}
 	}
 }
+
+// Unmarshal unmarshals the document to the given object.
+func (doc Document) Unmarshal(obj interface{}) error {
+	return UnmarshalFromDoc(doc, obj)
+}

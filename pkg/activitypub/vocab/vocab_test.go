@@ -38,6 +38,30 @@ func TestDocument_MergeWith(t *testing.T) {
 	require.Equal(t, 4, doc1[field4])
 }
 
+func TestDocument_Unmarshal(t *testing.T) {
+	const (
+		field1 = "Field1"
+		field2 = "Field2"
+		value1 = "Value1"
+		value2 = 3
+	)
+
+	type contentType struct {
+		Field1 string
+		Field2 int
+	}
+
+	doc := Document{
+		field1: value1,
+		field2: value2,
+	}
+
+	contentObj := &contentType{}
+	require.NoError(t, doc.Unmarshal(contentObj))
+	require.Equal(t, value1, contentObj.Field1)
+	require.Equal(t, value2, contentObj.Field2)
+}
+
 func TestMustParseURL(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		const iri = "https://example.com"

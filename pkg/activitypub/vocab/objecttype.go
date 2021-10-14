@@ -39,6 +39,7 @@ func NewObject(opts ...Opt) *ObjectType {
 			InReplyTo:    NewURLProperty(options.InReplyTo),
 			Attachment:   options.Attachment,
 			AttributedTo: NewURLProperty(options.AttributedTo),
+			Generator:    options.Generator,
 		},
 	}
 }
@@ -77,6 +78,7 @@ type objectType struct {
 	InReplyTo    *URLProperty           `json:"inReplyTo,omitempty"`
 	Attachment   []*ObjectProperty      `json:"attachment,omitempty"`
 	AttributedTo *URLProperty           `json:"attributedTo,omitempty"`
+	Generator    string                 `json:"generator,omitempty"`
 }
 
 // Context returns the context property.
@@ -178,6 +180,15 @@ func (t *ObjectType) AttributedTo() *URLProperty {
 	}
 
 	return t.object.AttributedTo
+}
+
+// Generator returns the 'generator' field.
+func (t *ObjectType) Generator() string {
+	if t == nil || t.object == nil {
+		return ""
+	}
+
+	return t.object.Generator
 }
 
 // Urls holds a collection of URLs.

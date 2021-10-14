@@ -101,7 +101,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -124,7 +123,7 @@ func TestStartObserver(t *testing.T) {
 
 		prevAnchors := make(map[string]string)
 		prevAnchors["did1"] = ""
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core1", PreviousAnchors: prevAnchors}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "core1", PreviousAnchors: prevAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
@@ -142,7 +141,7 @@ func TestStartObserver(t *testing.T) {
 		require.NoError(t, err)
 		anchor2 := &anchorinfo.AnchorInfo{Hashlink: cid}
 
-		payload3 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "core3", PreviousAnchors: prevAnchors}
+		payload3 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "core3", PreviousAnchors: prevAnchors}
 
 		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload3))
 		require.NoError(t, err)
@@ -189,7 +188,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -217,7 +215,7 @@ func TestStartObserver(t *testing.T) {
 		previousAnchors[did1] = ""
 		previousAnchors[did2] = ""
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
@@ -250,7 +248,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -276,14 +273,14 @@ func TestStartObserver(t *testing.T) {
 		previousAnchors := make(map[string]string)
 		previousAnchors[did1] = ""
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
 		previousAnchors[did1] = cid
 
-		payload2 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+		payload2 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload2))
 		require.NoError(t, err)
@@ -314,7 +311,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -341,7 +337,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{
 			Namespace: namespace1,
-			Version:   1, CoreIndex: "address",
+			Version:   0, CoreIndex: "address",
 			PreviousAnchors: previousDIDAnchors,
 		}
 
@@ -377,7 +373,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -405,7 +400,7 @@ func TestStartObserver(t *testing.T) {
 		previousAnchors[did1] = ""
 		previousAnchors[did2] = ""
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
@@ -438,7 +433,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -464,7 +458,7 @@ func TestStartObserver(t *testing.T) {
 
 		payload1 := subject.Payload{
 			Namespace:       namespace1,
-			Version:         1,
+			Version:         0,
 			CoreIndex:       "core1",
 			PreviousAnchors: prevAnchors,
 		}
@@ -512,7 +506,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -558,7 +551,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -587,7 +579,6 @@ func TestStartObserver(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -623,7 +614,6 @@ func TestStartObserver(t *testing.T) {
 		tp.ProcessReturns(orberrors.NewTransient(errors.New("injected processing error")))
 
 		pc := mocks.NewMockProtocolClient()
-		pc.Protocol.GenesisTime = 1
 		pc.Versions[0].TransactionProcessorReturns(tp)
 		pc.Versions[0].ProtocolReturns(pc.Protocol)
 
@@ -648,7 +638,7 @@ func TestStartObserver(t *testing.T) {
 		previousAnchors := make(map[string]string)
 		previousAnchors[did1] = ""
 
-		payload1 := subject.Payload{Namespace: namespace1, Version: 1, CoreIndex: "address", PreviousAnchors: previousAnchors}
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)

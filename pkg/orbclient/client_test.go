@@ -38,7 +38,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			OperationCount:  2,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -90,7 +90,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			OperationCount:  2,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -143,7 +143,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			OperationCount:  2,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -185,7 +185,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			OperationCount:  2,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 

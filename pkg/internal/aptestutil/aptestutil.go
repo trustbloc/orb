@@ -191,14 +191,9 @@ func NewMockLikeActivity(id, objID string) *vocab.ActivityType {
 func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 	t.Helper()
 
-	const (
-		generator  = "https://w3id.org/orb#v0"
-		resourceID = "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
-	)
+	const generator = "https://w3id.org/orb#v0"
 
 	var (
-		anchors    = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
-		subject    = testutil.MustParseURL("hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU")                                                                                                  //nolint:lll
 		parentURL1 = testutil.MustParseURL("hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5") //nolint:lll
 		parentURL2 = testutil.MustParseURL("hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp") //nolint:lll
 	)
@@ -208,22 +203,24 @@ func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 
 	published := time.Now()
 
+	anchorObj, err := vocab.NewAnchorObject(
+		generator,
+		vocab.MustMarshalToDoc(
+			&sampleContentObj{
+				Field1: "value1",
+				Field2: "value2",
+			},
+		), witness)
+	require.NoError(t, err)
+	require.Len(t, anchorObj.URL(), 1)
+
 	anchorEvent := vocab.NewAnchorEvent(
 		vocab.WithURL(NewRandomHashlink(t)),
 		vocab.WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-		vocab.WithAnchors(anchors),
+		vocab.WithAnchors(anchorObj.URL()[0]),
 		vocab.WithPublishedTime(&published),
 		vocab.WithParent(parentURL1, parentURL2),
-		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(
-			vocab.NewAnchorObject(
-				vocab.NewContentObject(generator,
-					subject,
-					vocab.NewResource(resourceID, ""),
-				),
-				witness,
-				vocab.WithURL(anchors),
-			),
-		))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
 	)
 
 	return anchorEvent
@@ -256,6 +253,11 @@ func NewRandomHashlink(t *testing.T) *url.URL {
 // NewActivityID returns a generated activity ID.
 func NewActivityID(id fmt.Stringer) *url.URL {
 	return testutil.NewMockID(id, uuid.New().String())
+}
+
+type sampleContentObj struct {
+	Field1 string `json:"field_1"`
+	Field2 string `json:"field_2"`
 }
 
 const verifiableCred = `{

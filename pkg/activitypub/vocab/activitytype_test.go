@@ -19,11 +19,6 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-const (
-	resourceID1 = "urn:multihash:uEiDahaOGH-liLLdDtTxEAdc8i-cfCz-WUcQdRJheMVNn3A"
-	resourceID2 = "urn:multihash:uEiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA"
-)
-
 var (
 	service1 = testutil.MustParseURL("https://sally.example.com/services/orb")
 	witness1 = testutil.MustParseURL("https://witness1.example.com/services/orb")
@@ -39,7 +34,6 @@ var (
 
 	public           = testutil.MustParseURL("https://www.w3.org/ns/activitystreams#Public")
 	anchorObjectURL1 = testutil.MustParseURL("hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg")
-	anchorObjectURL2 = testutil.MustParseURL("hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5") //nolint:lll
 
 	anchorEventURL1 = testutil.MustParseURL("hl:uEiD2k2kSGESB9e3UwwTOJ8WhqCeAT8fzKfQ9JzuGIYcHdg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY2") //nolint:lll
 
@@ -47,9 +41,6 @@ var (
 	parentURL2 = testutil.MustParseURL("hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp") //nolint:lll
 
 	attributedToURL = testutil.MustParseURL("ipns://k51qzi5uqu5dl3ua2aal8vdw82j4i8s112p495j1spfkd2blqygghwccsw1z0p")
-	generator       = "https://example.com/spec#v1"
-
-	prevAnchorURL2 = "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg"
 )
 
 func TestCreateTypeMarshal(t *testing.T) {
@@ -61,20 +52,21 @@ func TestCreateTypeMarshal(t *testing.T) {
 		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 		require.NoError(t, err)
 
+		anchorObj, err := NewAnchorObject(
+			sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			witness,
+		)
+		require.NoError(t, err)
+		require.Len(t, anchorObj.URL(), 1)
+
 		anchorEvent := NewAnchorEvent(
 			WithURL(anchorEventURL1),
 			WithAttributedTo(attributedToURL),
-			WithAnchors(anchorObjectURL1),
+			WithAnchors(anchorObj.URL()[0]),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(NewAnchorObject(
-				NewContentObject(generator, anchorObjectURL2,
-					NewResource(resourceID1, ""),
-					NewResource(resourceID2, prevAnchorURL2),
-				),
-				witness,
-				WithURL(anchorObjectURL1),
-			)))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
 		create := NewCreateActivity(
@@ -126,7 +118,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 		require.True(t, anchorEvent.Type().Is(TypeAnchorEvent))
 
 		require.NotNil(t, anchorEvent)
-		require.Equal(t, anchorObjectURL1.String(), anchorEvent.Anchors().String())
+		require.NotNil(t, anchorEvent.Anchors())
 		require.True(t, anchorEvent.URL().Contains(anchorEventURL1))
 		require.Equal(t, attributedToURL.String(), anchorEvent.AttributedTo().String())
 		require.NotNil(t, anchorEvent.Published())
@@ -136,26 +128,16 @@ func TestCreateTypeMarshal(t *testing.T) {
 
 		require.Len(t, anchorEvent.Attachment(), 1)
 
-		anchorObjectProperty := anchorEvent.Attachment()[0]
-		require.NotNil(t, anchorObjectProperty)
-
-		anchorObject := anchorObjectProperty.AnchorObject()
+		anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+		require.NoError(t, err)
+		require.NotNil(t, anchorObject)
 		require.True(t, anchorObject.Type().Is(TypeAnchorObject))
-		require.True(t, anchorObject.URL().Contains(anchorObjectURL1))
 
 		witnessProperty := anchorObject.Witness()
 		require.NotNil(t, witnessProperty)
 
 		contentObject := anchorObject.ContentObject()
 		require.NotNil(t, contentObject)
-		require.Equal(t, anchorObjectURL2.String(), contentObject.Subject.URL().String())
-		require.Equal(t, generator, contentObject.Generator())
-
-		resources := contentObject.Resources()
-		require.Len(t, resources, 2)
-		require.Equal(t, resourceID1, resources[0].ID)
-		require.Equal(t, resourceID2, resources[1].ID)
-		require.Equal(t, prevAnchorURL2, resources[1].PreviousAnchor)
 	})
 }
 
@@ -246,27 +228,28 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 		})
 	})
 
-	t.Run("With Info", func(t *testing.T) {
+	t.Run("With embedded content object", func(t *testing.T) {
 		published := getStaticTime()
 
 		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 		require.NoError(t, err)
 
+		anchorObj, err := NewAnchorObject(
+			sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			witness,
+		)
+		require.NoError(t, err)
+		require.Len(t, anchorObj.URL(), 1)
+
 		t.Run("Marshal", func(t *testing.T) {
 			anchorEvent := NewAnchorEvent(
 				WithURL(anchorEventURL1),
 				WithAttributedTo(attributedToURL),
-				WithAnchors(anchorObjectURL1),
+				WithAnchors(anchorObj.URL()[0]),
 				WithPublishedTime(&published),
 				WithParent(parentURL1, parentURL2),
-				WithAttachment(NewObjectProperty(WithAnchorObject(NewAnchorObject(
-					NewContentObject(generator, anchorObjectURL2,
-						NewResource(resourceID1, ""),
-						NewResource(resourceID2, prevAnchorURL2),
-					),
-					witness,
-					WithURL(anchorObjectURL1),
-				)))),
+				WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 			)
 
 			announce := NewAnnounceActivity(
@@ -328,7 +311,6 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			anchorEvent := item.AnchorEvent()
 			require.NotNil(t, anchorEvent)
-			require.Equal(t, anchorObjectURL1.String(), anchorEvent.Anchors().String())
 			require.Equal(t, attributedToURL.String(), anchorEvent.AttributedTo().String())
 			require.NotNil(t, anchorEvent.Published())
 			require.Equal(t, published, *anchorEvent.Published())
@@ -337,26 +319,16 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 
 			require.Len(t, anchorEvent.Attachment(), 1)
 
-			anchorObjectProperty := anchorEvent.Attachment()[0]
-			require.NotNil(t, anchorObjectProperty)
-
-			anchorObject := anchorObjectProperty.AnchorObject()
+			anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+			require.NoError(t, err)
+			require.NotNil(t, anchorObject)
 			require.True(t, anchorObject.Type().Is(TypeAnchorObject))
-			require.True(t, anchorObject.URL().Contains(anchorObjectURL1))
 
 			witnessProperty := anchorObject.Witness()
 			require.NotNil(t, witnessProperty)
 
 			contentObject := anchorObject.ContentObject()
 			require.NotNil(t, contentObject)
-			require.Equal(t, anchorObjectURL2.String(), contentObject.Subject.String())
-			require.Equal(t, generator, contentObject.Generator())
-
-			resources := contentObject.Resources()
-			require.Len(t, resources, 2)
-			require.Equal(t, resourceID1, resources[0].ID)
-			require.Equal(t, resourceID2, resources[1].ID)
-			require.Equal(t, prevAnchorURL2, resources[1].PreviousAnchor)
 		})
 	})
 }
@@ -707,20 +679,21 @@ func TestOfferTypeMarshal(t *testing.T) {
 		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 		require.NoError(t, err)
 
+		anchorObj, err := NewAnchorObject(
+			sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			witness,
+		)
+		require.NoError(t, err)
+		require.Len(t, anchorObj.URL(), 1)
+
 		anchorEvent := NewAnchorEvent(
 			WithURL(anchorEventURL1),
 			WithAttributedTo(attributedToURL),
 			WithAnchors(anchorObjectURL1),
 			WithPublishedTime(&startTime),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(NewAnchorObject(
-				NewContentObject(generator, anchorObjectURL2,
-					NewResource(resourceID1, ""),
-					NewResource(resourceID2, prevAnchorURL2),
-				),
-				witness,
-				WithURL(anchorObjectURL1),
-			)))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
 		offer := NewOfferActivity(
@@ -930,26 +903,16 @@ const (
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
-    "anchors": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+    "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
     "attachment": [
       {
         "contentObject": {
-          "properties": {
-            "https://w3id.org/activityanchors#generator": "https://example.com/spec#v1",
-            "https://w3id.org/activityanchors#resources": [
-              {
-                "id": "urn:multihash:uEiDahaOGH-liLLdDtTxEAdc8i-cfCz-WUcQdRJheMVNn3A"
-              },
-              {
-                "id": "urn:multihash:uEiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA",
-                "previousAnchor": "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg"
-              }
-            ]
-          },
-          "subject": "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5"
+          "field_1": "value1",
+          "field_2": "value2"
         },
+        "generator": "https://sample.com#v0",
         "type": "AnchorObject",
-        "url": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
         "witness": {
           "@context": "https://www.w3.org/2018/credentials/v1",
           "credentialSubject": {
@@ -1004,26 +967,16 @@ const (
     "items": [
       {
         "@context": "https://w3id.org/activityanchors/v1",
-        "anchors": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+        "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
         "attachment": [
           {
             "contentObject": {
-              "properties": {
-                "https://w3id.org/activityanchors#generator": "https://example.com/spec#v1",
-                "https://w3id.org/activityanchors#resources": [
-                  {
-                    "id": "urn:multihash:uEiDahaOGH-liLLdDtTxEAdc8i-cfCz-WUcQdRJheMVNn3A"
-                  },
-                  {
-                    "id": "urn:multihash:uEiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA",
-                    "previousAnchor": "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg"
-                  }
-                ]
-              },
-              "subject": "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5"
+              "field_1": "value1",
+              "field_2": "value2"
             },
+            "generator": "https://sample.com#v0",
             "type": "AnchorObject",
-            "url": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+            "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
             "witness": {
               "@context": "https://www.w3.org/2018/credentials/v1",
               "credentialSubject": {
@@ -1248,22 +1201,12 @@ const (
     "attachment": [
       {
         "contentObject": {
-          "properties": {
-            "https://w3id.org/activityanchors#generator": "https://example.com/spec#v1",
-            "https://w3id.org/activityanchors#resources": [
-              {
-                "id": "urn:multihash:uEiDahaOGH-liLLdDtTxEAdc8i-cfCz-WUcQdRJheMVNn3A"
-              },
-              {
-                "id": "urn:multihash:uEiA329wd6Aj36YRmp7NGkeB5ADnVt8ARdMZMPzfXsjwTJA",
-                "previousAnchor": "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg"
-              }
-            ]
-          },
-          "subject": "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5"
+          "field_1": "value1",
+          "field_2": "value2"
         },
+        "generator": "https://sample.com#v0",
         "type": "AnchorObject",
-        "url": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
         "witness": {
           "@context": "https://www.w3.org/2018/credentials/v1",
           "credentialSubject": {

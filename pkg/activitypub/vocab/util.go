@@ -23,6 +23,16 @@ func MarshalToDoc(obj interface{}) (Document, error) {
 	return UnmarshalToDoc(b)
 }
 
+// MustMarshalToDoc marshals the given object to a Document.
+func MustMarshalToDoc(obj interface{}) Document {
+	doc, err := MarshalToDoc(obj)
+	if err != nil {
+		panic(err)
+	}
+
+	return doc
+}
+
 // UnmarshalToDoc unmarshals the given bytes to a Document.
 func UnmarshalToDoc(raw []byte) (Document, error) {
 	var doc Document
@@ -44,6 +54,28 @@ func MustUnmarshalToDoc(raw []byte) Document {
 	}
 
 	return doc
+}
+
+// UnmarshalFromDoc unmarshals the given document to the given object.
+func UnmarshalFromDoc(doc Document, obj interface{}) error {
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(raw, obj)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustUnmarshalFromDoc unmarshals the given document to the given object.
+func MustUnmarshalFromDoc(doc Document, obj interface{}) {
+	if err := UnmarshalFromDoc(doc, obj); err != nil {
+		panic(err)
+	}
 }
 
 // MarshalJSON marshals the given objects (merging them into one document) and returns the marshalled JSON result.
@@ -73,8 +105,7 @@ func MarshalJSON(o interface{}, others ...interface{}) ([]byte, error) {
 // UnmarshalJSON unmarshals the given bytes to the set of provided objects.
 func UnmarshalJSON(b []byte, objects ...interface{}) error {
 	for _, obj := range objects {
-		err := json.Unmarshal(b, obj)
-		if err != nil {
+		if err := json.Unmarshal(b, obj); err != nil {
 			return err
 		}
 	}
