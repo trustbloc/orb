@@ -226,17 +226,27 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("create new object with document: %w", err)
 	}
 
+	anchorObj, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+	if err != nil {
+		return fmt.Errorf("get anchor object for [%s]: %w", anchorEvent.Anchors(), err)
+	}
+
+	witnessedAnchorObj, err := vocab.NewAnchorObject(
+		anchorObj.Generator(),
+		anchorObj.ContentObject(),
+		witness,
+	)
+	if err != nil {
+		return fmt.Errorf("create new anchor object: %w", err)
+	}
+
 	// Create a new anchor event with the updated verifiable credential (witness).
 	anchorEvent = vocab.NewAnchorEvent(
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
 		vocab.WithAnchors(anchorEvent.Anchors()),
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
-		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(vocab.NewAnchorObject(
-			anchorEvent.Attachment()[0].AnchorObject().ContentObject(),
-			witness,
-			vocab.WithURL(anchorEvent.Anchors()),
-		)))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessedAnchorObj))),
 	)
 
 	err = h.publisher.Publish(anchorEvent)

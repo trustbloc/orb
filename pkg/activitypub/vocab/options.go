@@ -25,6 +25,7 @@ type Options struct {
 	InReplyTo    *url.URL
 	Attachment   []*ObjectProperty
 	AttributedTo *url.URL
+	Generator    string
 
 	ObjectPropertyOptions
 	CollectionOptions
@@ -129,6 +130,13 @@ func WithAttachment(obj ...*ObjectProperty) Opt {
 func WithAttributedTo(u *url.URL) Opt {
 	return func(opts *Options) {
 		opts.AttributedTo = u
+	}
+}
+
+// WithGenerator sets the 'generator' property on the object.
+func WithGenerator(generator string) Opt {
+	return func(opts *Options) {
+		opts.Generator = generator
 	}
 }
 

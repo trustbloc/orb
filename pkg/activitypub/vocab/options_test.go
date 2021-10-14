@@ -64,6 +64,14 @@ func TestNewOptions(t *testing.T) {
 
 	anchorEvent := NewAnchorEvent(WithURL(testutil.MustParseURL("https://example.com/anchor_cred_ref_id")))
 
+	anchorObj, err := NewAnchorObject(
+		sampleGenerator,
+		MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+		nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, anchorObj.URL(), 1)
+
 	opts := NewOptions(
 		WithID(id),
 		WithURL(u1, u2),
@@ -98,7 +106,7 @@ func TestNewOptions(t *testing.T) {
 		WithWitnessing(witnessing),
 		WithInReplyTo(id),
 		WithAttachment(NewObjectProperty(WithObject(NewObject()))),
-		WithAnchorObject(NewAnchorObject(nil, nil)),
+		WithAnchorObject(anchorObj),
 	)
 
 	require.NotNil(t, opts)

@@ -7,11 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package vocab
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
@@ -65,7 +67,7 @@ func (t *AnchorEventType) Parent() Urls {
 }
 
 // Validate validates the anchor event.
-func (t *AnchorEventType) Validate() error { //nolint:gocyclo,cyclop
+func (t *AnchorEventType) Validate() error {
 	if t == nil {
 		return fmt.Errorf("nil anchor event")
 	}
@@ -79,46 +81,57 @@ func (t *AnchorEventType) Validate() error { //nolint:gocyclo,cyclop
 		return fmt.Errorf("either anchors or URL is required on anchor event")
 	}
 
-	if len(t.Attachment()) != 1 {
-		return fmt.Errorf("anchor event must have exactly one attachment but has %d",
-			len(t.Attachment()))
+	// Validate all attachments and find the attachment that matches the anchor URL.
+
+	var anchorObj *AnchorObjectType
+
+	for _, attachment := range t.Attachment() {
+		if !attachment.Type().Is(TypeAnchorObject) {
+			return fmt.Errorf("unsupported attachment type [%s] in anchor event", attachment.Type())
+		}
+
+		ao := attachment.AnchorObject()
+
+		err := validateAnchorObject(ao)
+		if err != nil {
+			return fmt.Errorf("invalid anchor object: %w", err)
+		}
+
+		if ao.URL()[0].String() == t.Anchors().String() {
+			anchorObj = ao
+
+			break
+		}
 	}
 
-	attachment := t.Attachment()[0]
-
-	if !attachment.Type().Is(TypeAnchorObject) {
-		return fmt.Errorf("unsupported attachment type [%s] in anchor event", attachment.Type())
+	if anchorObj == nil {
+		return fmt.Errorf("unable to find the attachment that matches the anchors URL in the anchor event [%s]",
+			t.Anchors())
 	}
 
-	anchorObj := attachment.AnchorObject()
+	if anchorObj.Witness() == nil {
+		return fmt.Errorf("witness is required")
+	}
 
+	return nil
+}
+
+func validateAnchorObject(anchorObj *AnchorObjectType) error {
 	if len(anchorObj.URL()) != 1 {
 		return fmt.Errorf("anchor object must have exactly one URL")
 	}
 
-	if !anchorObj.URL().Contains(t.Anchors()) {
-		return fmt.Errorf("anchor object URL %s must be the same as the anchors URL in the anchor event URL %s",
-			anchorObj.URL(), t.Anchors())
+	anchorObjURL := anchorObj.URL()[0]
+
+	if anchorObj.Generator() == "" {
+		return fmt.Errorf("generator is required in anchor event")
 	}
 
 	if anchorObj.ContentObject() == nil {
 		return fmt.Errorf("content object is required in anchor event")
 	}
 
-	err := validateAnchorsURL(t.Anchors(), anchorObj.ContentObject())
-	if err != nil {
-		return fmt.Errorf("invalid anchors URL: %w", err)
-	}
-
-	if anchorObj.Witness().Object() == nil {
-		return fmt.Errorf("witness is required in anchor event")
-	}
-
-	return nil
-}
-
-func validateAnchorsURL(anchorsURL *url.URL, contentObj *ContentObjectType) error {
-	contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
+	contentObjBytes, err := canonicalizer.MarshalCanonical(anchorObj.ContentObject())
 	if err != nil {
 		return fmt.Errorf("marshal content object: %w", err)
 	}
@@ -128,9 +141,9 @@ func validateAnchorsURL(anchorsURL *url.URL, contentObj *ContentObjectType) erro
 		return fmt.Errorf("create hashlink from content object: %w", err)
 	}
 
-	if hl != anchorsURL.String() {
+	if hl != anchorObjURL.String() {
 		return fmt.Errorf("hashlink of content object [%s] does not match the anchor object URL %s",
-			hl, anchorsURL)
+			hl, anchorObjURL)
 	}
 
 	return nil
@@ -145,13 +158,19 @@ func (t *AnchorEventType) Witness() *ObjectType {
 	return t.Attachment()[0].AnchorObject().Witness().Object()
 }
 
-// ContentObject returns the ContentObject.
-func (t *AnchorEventType) ContentObject() *ContentObjectType {
-	if t == nil || len(t.Attachment()) == 0 {
-		return nil
+// AnchorObject returns the AnchorObject for the given AnchorObject URL.
+func (t *AnchorEventType) AnchorObject(u *url.URL) (*AnchorObjectType, error) {
+	if t == nil || u == nil {
+		return nil, orberrors.ErrContentNotFound
 	}
 
-	return t.Attachment()[0].AnchorObject().ContentObject()
+	for _, attachment := range t.Attachment() {
+		if attachment.AnchorObject().URL().Contains(u) {
+			return attachment.AnchorObject(), nil
+		}
+	}
+
+	return nil, orberrors.ErrContentNotFound
 }
 
 // MarshalJSON marshals the object to JSON.
@@ -175,30 +194,52 @@ type AnchorObjectType struct {
 }
 
 type anchorObjectType struct {
-	ContentObject *ContentObjectType `json:"contentObject,omitempty"`
-	Witness       *ObjectProperty    `json:"witness,omitempty"`
+	ContentObject Document        `json:"contentObject,omitempty"`
+	Witness       *ObjectProperty `json:"witness,omitempty"`
 }
 
 // NewAnchorObject returns a new AnchorObject type.
-func NewAnchorObject(contentObject *ContentObjectType, witness *ObjectType, opts ...Opt) *AnchorObjectType {
+func NewAnchorObject(generator string, contentObject Document, witness *ObjectType,
+	opts ...Opt) (*AnchorObjectType, error) {
 	options := NewOptions(opts...)
+
+	contentObjBytes, err := json.Marshal(contentObject)
+	if err != nil {
+		return nil, fmt.Errorf("marshal content object: %w", err)
+	}
+
+	hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create hashlink to content object: %w", err)
+	}
+
+	hlURL, err := url.Parse(hl)
+	if err != nil {
+		return nil, fmt.Errorf("create hashlink URL to content object: %w", err)
+	}
+
+	var witnessProperty *ObjectProperty
+
+	if witness != nil {
+		witnessProperty = NewObjectProperty(WithObject(witness))
+	}
 
 	return &AnchorObjectType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options)...),
 			WithType(TypeAnchorObject),
-			WithPublishedTime(options.Published),
-			WithURL(options.URL...),
-			WithAttachment(options.Attachment...)),
+			WithGenerator(generator),
+			WithURL(hlURL),
+		),
 		anchorObject: &anchorObjectType{
 			ContentObject: contentObject,
-			Witness:       NewObjectProperty(WithObject(witness)),
+			Witness:       witnessProperty,
 		},
-	}
+	}, nil
 }
 
 // ContentObject returns the content object.
-func (t *AnchorObjectType) ContentObject() *ContentObjectType {
+func (t *AnchorObjectType) ContentObject() Document {
 	if t == nil || t.anchorObject == nil {
 		return nil
 	}
@@ -226,58 +267,4 @@ func (t *AnchorObjectType) UnmarshalJSON(bytes []byte) error {
 	t.anchorObject = &anchorObjectType{}
 
 	return UnmarshalJSON(bytes, t.ObjectType, t.anchorObject)
-}
-
-type propertiesType struct {
-	Generator string      `json:"https://w3id.org/activityanchors#generator,omitempty"`
-	Resources []*Resource `json:"https://w3id.org/activityanchors#resources,omitempty"`
-}
-
-// ContentObjectType defines an "AnchorReference" type.
-type ContentObjectType struct {
-	Subject    *URLProperty    `json:"subject,omitempty"`
-	Properties *propertiesType `json:"properties,omitempty"`
-}
-
-// NewContentObject returns a new ContentObject type.
-func NewContentObject(generator string, subject *url.URL, resources ...*Resource) *ContentObjectType {
-	return &ContentObjectType{
-		Subject: NewURLProperty(subject),
-		Properties: &propertiesType{
-			Generator: generator,
-			Resources: resources,
-		},
-	}
-}
-
-// Generator returns the ID of the generator.
-func (t *ContentObjectType) Generator() string {
-	if t == nil || t.Properties == nil {
-		return ""
-	}
-
-	return t.Properties.Generator
-}
-
-// Resources returns the resources of the content object.
-func (t *ContentObjectType) Resources() []*Resource {
-	if t == nil {
-		return nil
-	}
-
-	return t.Properties.Resources
-}
-
-// Resource defines a Resource.
-type Resource struct {
-	ID             string `json:"id"`
-	PreviousAnchor string `json:"previousAnchor,omitempty"`
-}
-
-// NewResource returns a new Resource type.
-func NewResource(id, previousAnchor string) *Resource {
-	return &Resource{
-		ID:             id,
-		PreviousAnchor: previousAnchor,
-	}
 }

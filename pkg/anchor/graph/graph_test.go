@@ -140,7 +140,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			OperationCount:  1,
 			CoreIndex:       "coreIndex-1",
 			Namespace:       testNS,
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -155,7 +155,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			OperationCount:  1,
 			CoreIndex:       "coreIndex-2",
 			Namespace:       testNS,
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -179,7 +179,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			OperationCount:  1,
 			CoreIndex:       "coreIndex",
 			Namespace:       testNS,
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -201,7 +201,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
 			Namespace:       testNS,
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -224,7 +224,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
 			Namespace:       testNS,
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
@@ -235,8 +235,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.Error(t, err)
 		require.Nil(t, didAnchors)
-		require.Contains(t, err.Error(),
-			"failed to parse hash link: resource hash[nonExistent] for hashlink[hl:nonExistent] is not a valid multihash")
+		require.Contains(t, err.Error(), "not a valid multihash")
 	})
 
 	t.Run("error - head cid not found", func(t *testing.T) {
@@ -259,7 +258,7 @@ func newDefaultMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 		OperationCount:  1,
 		CoreIndex:       "coreIndex",
 		Namespace:       testNS,
-		Version:         1,
+		Version:         0,
 		PreviousAnchors: previousAnchors,
 	}
 

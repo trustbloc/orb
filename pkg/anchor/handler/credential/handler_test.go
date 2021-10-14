@@ -55,6 +55,7 @@ const sampleAnchorEvent = `{
         "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
       },
       "type": "AnchorObject",
+      "generator": "https://w3id.org/orb#v0",
       "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
       "witness": {
         "@context": "https://www.w3.org/2018/credentials/v1",

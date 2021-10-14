@@ -34,7 +34,7 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 			OperationCount:  1,
 			CoreIndex:       "coreIndex",
 			Namespace:       "did:orb",
-			Version:         1,
+			Version:         0,
 			PreviousAnchors: previousAnchors,
 		}
 
