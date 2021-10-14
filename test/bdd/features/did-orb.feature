@@ -129,6 +129,43 @@ Feature:
       Then check success response contains "recoveryKey"
 
     @all
+    @discover_did_ipfs
+    Scenario: discover did (ipfs)
+      When client discover orb endpoints
+
+      # orb-domain1 keeps accepting requests
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+
+      Then we wait 2 seconds
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "canonicalId"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
+      Then check for request success
+      Then we wait 2 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+      Then check success response contains "#canonicalDID"
+
+      # resolve did in domain4 - it will trigger did discovery in different organisations
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with hint "ipfs"
+      Then check error response contains "not found"
+
+      Then we wait 3 seconds
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with hint "ipfs"
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "firstKey"
+
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "firstKey"
+
+    @all
     @resolve_from_anchor_origin
     Scenario: discover did followed by resolve from anchor origin
       When client discover orb endpoints
