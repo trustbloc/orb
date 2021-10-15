@@ -196,7 +196,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		graph := New(providers)
 
 		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = "hl:" + nonExistent
+		previousDIDTxns[testDID] = "hl:" + nonExistent + ":metadata"
 
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
@@ -212,14 +212,14 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.Error(t, err)
 		require.Nil(t, didAnchors)
-		require.Contains(t, err.Error(), "not found")
+		require.Contains(t, err.Error(), "failed to read anchor event")
 	})
 
 	t.Run("error - cid referenced in previous anchor is invalid", func(t *testing.T) {
 		graph := New(providers)
 
 		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = "hl:nonExistent"
+		previousDIDTxns[testDID] = "hl:nonExistent:metadata"
 
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",

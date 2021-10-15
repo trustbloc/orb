@@ -8,6 +8,7 @@ package didorbgenerator
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,9 +24,10 @@ import (
 const (
 	coreIndexHL1 = "hl:uEiBaZqszLIDqXbfh3WSVIEye9_vYCOl4KKMQ5Q9JU3NaoQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmFacXN6TElEcVhiZmgzV1NWSUV5ZTlfdllDT2w0S0tNUTVROUpVM05hb1E" //nolint:lll
 	coreIndexHL2 = "hl:uEiCdYGN8IGTeXgsNjzf8THO6SD9SAtc9ithYE59iqgfkWg:uoQ-BeEJpcGZzOi8vYmFma3JlaWU1bWJyeHlpZGUzenBhd2RtcGc3NmV5NDUyamE3dmVhd3hod2ZucXdhdHQ1cmt1YjdlbGk"             //nolint:lll
-	did1         = "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
-	did2         = "did:orb:uAAA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw"
+	suffix1      = "EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
+	suffix2      = "EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw"
 	parentHL1    = "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE" //nolint:lll
+	parentMH1    = "uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA"
 	service1     = "https://domain1.com/services/orb"
 )
 
@@ -63,8 +65,8 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex: coreIndexHL2,
 			PreviousAnchors: map[string]string{
-				did1: "",
-				did2: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE", //nolint:lll
+				suffix1: "",
+				suffix2: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE", //nolint:lll
 			},
 		}
 
@@ -80,7 +82,7 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 		require.Equal(t, testutil.GetCanonical(t, jsonContentObj), string(contentObjBytes))
 	})
 
-	t.Run("No previous anchors", func(t *testing.T) {
+	t.Run("No core index", func(t *testing.T) {
 		payload := &subject.Payload{}
 
 		contentObj, err := gen.CreateContentObject(payload)
@@ -104,13 +106,13 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex: coreIndexHL1,
 			PreviousAnchors: map[string]string{
-				did2: "uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA",
+				suffix2: "uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA",
 			},
 		}
 
 		contentObj, err := gen.CreateContentObject(payload)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "must contain separator ':'")
+		require.Contains(t, err.Error(), "invalid number of parts for previous anchor hashlink")
 		require.Nil(t, contentObj)
 	})
 }
@@ -125,10 +127,10 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 			Generator: ID,
 			Resources: []*resource{
 				{
-					ID: did1,
+					ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, suffix1),
 				},
 				{
-					ID:             did2,
+					ID:             fmt.Sprintf("%s:%s:%s", multihashPrefix, parentMH1, suffix2),
 					PreviousAnchor: parentHL1,
 				},
 			},
@@ -208,10 +210,10 @@ const (
     "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
     "https://w3id.org/activityanchors#resources": [
       {
-        "ID": "did:orb:uAAA:did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
+        "ID": "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
       },
       {
-        "ID": "did:orb:uAAA:did:orb:uAAA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw",
+        "ID": "did:orb:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw",
         "previousAnchor": "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA"
       }
     ]
