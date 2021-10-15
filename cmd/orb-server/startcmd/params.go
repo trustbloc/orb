@@ -28,6 +28,8 @@ const (
 	defaultNodeInfoRefreshInterval      = 15 * time.Second
 	defaultIPFSTimeout                  = 20 * time.Second
 	defaultDatabaseTimeout              = 10 * time.Second
+	defaultUnpublishedOperationLifespan = time.Minute * 5
+	defaultDataExpiryCheckInterval      = time.Minute
 	mqDefaultMaxConnectionSubscriptions = 1000
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
@@ -343,6 +345,18 @@ const (
 		commonEnvVarUsageText + contextProviderEnvKey
 	contextProviderEnvKey = "ORB_CONTEXT_PROVIDER_URL"
 
+	unpublishedOperationLifespanFlagName  = "unpublished-operation-lifetime"
+	unpublishedOperationLifespanEnvKey    = "UNPUBLISHED_OPERATION_LIFETIME"
+	unpublishedOperationLifespanFlagUsage = "How long unpublished operations remain stored before expiring " +
+		"(and thus, being deleted some time later). For example, '1m' for a 1 minute lifespan. " +
+		"Defaults to 1 minute if not set. " + commonEnvVarUsageText + unpublishedOperationLifespanEnvKey
+
+	dataExpiryCheckIntervalFlagName  = "data-expiry-check-interval"
+	dataExpiryCheckIntervalEnvKey    = "DATA_EXPIRY_CHECK_INTERVAL"
+	dataExpiryCheckIntervalFlagUsage = "How frequently to check for (and delete) any expired data. " +
+		"For example, a setting of '1m' will cause the expiry service to run a check every 1 minute. " +
+		"Defaults to 1 minute if not set. " + commonEnvVarUsageText + dataExpiryCheckIntervalEnvKey
+
 	// TODO: Add verification method
 
 )
@@ -400,6 +414,8 @@ type orbParameters struct {
 	ipfsTimeout                    time.Duration
 	databaseTimeout                time.Duration
 	contextProviderURLs            []string
+	unpublishedOperationLifespan   time.Duration
+	dataExpiryCheckInterval        time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -789,6 +805,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", contextProviderFlagName, err)
 	}
 
+	unpublishedOperationLifespan, err := getDuration(cmd, unpublishedOperationLifespanFlagName,
+		unpublishedOperationLifespanEnvKey, defaultUnpublishedOperationLifespan)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", unpublishedOperationLifespanFlagName, err)
+	}
+
+	dataExpiryCheckInterval, err := getDuration(cmd, dataExpiryCheckIntervalFlagName,
+		dataExpiryCheckIntervalEnvKey, defaultDataExpiryCheckInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -839,6 +867,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		ipfsTimeout:                    ipfsTimeout,
 		databaseTimeout:                databaseTimeout,
 		contextProviderURLs:            contextProviderURLs,
+		unpublishedOperationLifespan:   unpublishedOperationLifespan,
+		dataExpiryCheckInterval:        dataExpiryCheckInterval,
 	}, nil
 }
 
@@ -1146,4 +1176,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
 	startCmd.Flags().StringP(ipfsTimeoutFlagName, ipfsTimeoutFlagShorthand, "", ipfsTimeoutFlagUsage)
 	startCmd.Flags().StringArrayP(contextProviderFlagName, "", []string{}, contextProviderFlagUsage)
+	startCmd.Flags().StringP(databaseTimeoutFlagName, "", "", databaseTimeoutFlagUsage)
+	startCmd.Flags().StringP(unpublishedOperationLifespanFlagName, "", "", unpublishedOperationLifespanFlagUsage)
+	startCmd.Flags().StringP(dataExpiryCheckIntervalFlagName, "", "", dataExpiryCheckIntervalFlagUsage)
 }

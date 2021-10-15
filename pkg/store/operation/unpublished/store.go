@@ -23,10 +23,8 @@ import (
 // TODO (#812) Add BDD tests to test data expiry.
 
 const (
-	nameSpace = "unpublished-operation"
-	// Defines how long unpublished operations can stay in the store before being flagged for deletion.
-	defaultDataLifespan = time.Minute
-	expiryTagName       = "ExpiryTime"
+	nameSpace     = "unpublished-operation"
+	expiryTagName = "ExpiryTime"
 )
 
 var logger = log.New("unpublished-operation-store")
@@ -34,8 +32,10 @@ var logger = log.New("unpublished-operation-store")
 // New returns a new instance of an unpublished operation store.
 // This method will also register the unpublished operation store with the given expiry service which will then take
 // care of deleting expired data automatically. Note that it's the caller's responsibility to start the expiry service.
-// TODO (#808): Allow data lifespan to be configurable.
-func New(provider storage.Provider, expiryService *expiry.Service) (*Store, error) {
+// unpublishedOperationLifespan defines how long unpublished operations can stay in the store before being flagged
+// for deletion.
+func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
+	expiryService *expiry.Service) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open unpublished operation store: %w", err)
@@ -49,13 +49,15 @@ func New(provider storage.Provider, expiryService *expiry.Service) (*Store, erro
 	expiryService.Register(store, expiryTagName, nameSpace)
 
 	return &Store{
-		store: store,
+		store:                        store,
+		unpublishedOperationLifespan: unpublishedOperationLifespan,
 	}, nil
 }
 
 // Store implements storage for unpublished operation.
 type Store struct {
-	store storage.Store
+	store                        storage.Store
+	unpublishedOperationLifespan time.Duration
 }
 
 // Put saves an unpublished operation. If it already exists an error will be returned.
@@ -82,7 +84,7 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 
 	tag := storage.Tag{
 		Name:  expiryTagName,
-		Value: fmt.Sprintf("%d", time.Now().Add(defaultDataLifespan).Unix()),
+		Value: fmt.Sprintf("%d", time.Now().Add(s.unpublishedOperationLifespan).Unix()),
 	}
 
 	if e := s.store.Put(op.UniqueSuffix, opBytes, tag); e != nil {

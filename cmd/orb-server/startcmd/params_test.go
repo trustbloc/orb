@@ -654,6 +654,32 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "missing unit in duration")
 	})
 
+	t.Run("Invalid unpublished operation lifespan", func(t *testing.T) {
+		restoreEnv := setEnv(t, unpublishedOperationLifespanEnvKey, "5")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing unit in duration")
+	})
+
+	t.Run("Invalid expiry check interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, dataExpiryCheckIntervalEnvKey, "5")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing unit in duration")
+	})
+
 	t.Run("Invalid max connection subscriptions", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
 		defer restoreEnv()

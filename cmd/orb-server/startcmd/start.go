@@ -168,9 +168,6 @@ const (
 
 	webKeyStoreKey = "web-key-store"
 	kidKey         = "kid"
-
-	// Defines how frequently the expiry services checks for (and deletes) expired data.
-	defaultExpiryInterval = time.Minute
 )
 
 type pubSub interface {
@@ -464,10 +461,10 @@ func startOrbServices(parameters *orbParameters) error {
 	if parameters.updateDocumentStoreEnabled {
 		// TODO (#810): Make it possible to run the expiry service from only one instance within a cluster (or as
 		//              a separate server)
-		// TODO (#808): Allow expiry interval to be configurable.
-		expiryService = expiry.NewService(defaultExpiryInterval)
+		expiryService = expiry.NewService(parameters.dataExpiryCheckInterval)
 
-		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider, expiryService)
+		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
+			parameters.unpublishedOperationLifespan, expiryService)
 		if err != nil {
 			return fmt.Errorf("failed to create unpublished document store: %w", err)
 		}
