@@ -185,9 +185,9 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 			return localResponse, nil
 		}
 
-		err = equalResponses(anchorOriginResponse, localResponseWithAnchorOriginOps)
+		err = checkResponses(anchorOriginResponse, localResponseWithAnchorOriginOps)
 		if err != nil {
-			logger.Debugf("resolving locally due to response document matching error for id[%s]: %s", id, err.Error())
+			logger.Debugf("resolving locally due to matching error for id[%s]: %s", id, err.Error())
 
 			return localResponse, nil
 		}
@@ -230,7 +230,16 @@ func getAdditionalPublishedOps(localOps, anchorOps []*operation.AnchoredOperatio
 	return util.GetOperationsAfterCanonicalReference(localHead.CanonicalReference, anchorOps)
 }
 
-func equalResponses(anchorOrigin, local *document.ResolutionResult) error {
+func checkResponses(anchorOrigin, local *document.ResolutionResult) error {
+	err := equalDocuments(anchorOrigin.Document, local.Document)
+	if err != nil {
+		return err
+	}
+
+	return equalCommitments(anchorOrigin.DocumentMetadata, local.DocumentMetadata)
+}
+
+func equalDocuments(anchorOrigin, local document.Document) error {
 	anchorOriginBytes, err := canonicalizer.MarshalCanonical(anchorOrigin)
 	if err != nil {
 		return fmt.Errorf("failed to marshal canonical anchor origin document: %w", err)
@@ -242,8 +251,50 @@ func equalResponses(anchorOrigin, local *document.ResolutionResult) error {
 	}
 
 	if !bytes.Equal(anchorOriginBytes, localBytes) {
-		return fmt.Errorf("anchor origin[%s] and local[%s] results don't match",
+		return fmt.Errorf("anchor origin[%s] and local[%s] documents don't match",
 			string(anchorOriginBytes), string(localBytes))
+	}
+
+	return nil
+}
+
+func equalCommitments(anchorOrigin, local document.Metadata) error {
+	anchorOriginMethodMetadata, err := util.GetMethodMetadata(anchorOrigin)
+	if err != nil {
+		return fmt.Errorf("unable to get anchor origin metadata: %w", err)
+	}
+
+	localMethodMetadata, err := util.GetMethodMetadata(local)
+	if err != nil {
+		return fmt.Errorf("unable to get local metadata: %w", err)
+	}
+
+	err = checkCommitment(anchorOriginMethodMetadata, localMethodMetadata, document.UpdateCommitmentProperty)
+	if err != nil {
+		return fmt.Errorf("anchor origin and local update commitments don't match: %w", err)
+	}
+
+	err = checkCommitment(anchorOriginMethodMetadata, localMethodMetadata, document.RecoveryCommitmentProperty)
+	if err != nil {
+		return fmt.Errorf("anchor origin and local recovery commitments don't match: %w", err)
+	}
+
+	return nil
+}
+
+func checkCommitment(anchorOrigin, local map[string]interface{}, commitmentType string) error {
+	ao, ok := anchorOrigin[commitmentType]
+	if !ok {
+		return fmt.Errorf("missing '%s' in anchor origin method metadata", commitmentType)
+	}
+
+	l, ok := local[commitmentType]
+	if !ok {
+		return fmt.Errorf("missing '%s' in local method metadata", commitmentType)
+	}
+
+	if ao != l {
+		return fmt.Errorf("anchor origin value[%s] is different from local value[%s]", ao, l)
 	}
 
 	return nil

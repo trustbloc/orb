@@ -54,6 +54,9 @@ const (
 
 	domain             = "https://domain.com"
 	anchorOriginDomain = "https://anchor-origin.domain.com"
+
+	recoveryCommitment = "recovery-commitment"
+	updateCommitment   = "update-commitment"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
@@ -1093,21 +1096,119 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 	})
 }
 
-func TestEqualResponses(t *testing.T) {
+func TestCheckResponses(t *testing.T) {
+	doc := make(document.Document)
+
+	methodMetadata := make(map[string]interface{})
+	methodMetadata[document.RecoveryCommitmentProperty] = recoveryCommitment
+	methodMetadata[document.UpdateCommitmentProperty] = updateCommitment
+
+	docMetadata := make(document.Metadata)
+	docMetadata[document.MethodProperty] = methodMetadata
+
 	t.Run("success", func(t *testing.T) {
-		err := equalResponses(&document.ResolutionResult{}, &document.ResolutionResult{})
+		err := checkResponses(&document.ResolutionResult{Document: doc, DocumentMetadata: docMetadata},
+			&document.ResolutionResult{Document: doc, DocumentMetadata: docMetadata})
 		require.NoError(t, err)
 	})
 
+	t.Run("error - unable to check commitments", func(t *testing.T) {
+		err := checkResponses(&document.ResolutionResult{Document: doc}, &document.ResolutionResult{Document: doc})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing document metadata")
+	})
+}
+
+func TestEqualDocuments(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		err := equalDocuments(make(document.Document), make(document.Document))
+		require.NoError(t, err)
+	})
 	t.Run("error - marshal anchor origin document", func(t *testing.T) {
-		err := equalResponses(nil, &document.ResolutionResult{})
+		err := equalDocuments(nil, make(document.Document))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to marshal canonical anchor origin document")
 	})
 	t.Run("error - marshal local document", func(t *testing.T) {
-		err := equalResponses(&document.ResolutionResult{}, nil)
+		err := equalDocuments(make(document.Document), nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to marshal canonical local document")
+	})
+}
+
+func TestEqualCommitments(t *testing.T) {
+	methodMetadata := make(map[string]interface{})
+	methodMetadata[document.RecoveryCommitmentProperty] = recoveryCommitment
+	methodMetadata[document.UpdateCommitmentProperty] = updateCommitment
+
+	docMetadata := make(document.Metadata)
+	docMetadata[document.MethodProperty] = methodMetadata
+
+	t.Run("success", func(t *testing.T) {
+		err := equalCommitments(docMetadata, docMetadata)
+		require.NoError(t, err)
+	})
+
+	t.Run("error - anchor origin missing method metadata", func(t *testing.T) {
+		err := equalCommitments(make(document.Metadata), docMetadata)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to get anchor origin metadata: missing method metadata")
+	})
+
+	t.Run("error - local missing method metadata", func(t *testing.T) {
+		err := equalCommitments(docMetadata, make(document.Metadata))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unable to get local metadata: missing method metadata")
+	})
+
+	t.Run("error - missing update commitment", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalCommitments(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing 'updateCommitment' in local method metadata")
+	})
+
+	t.Run("error - missing recovery commitment", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.UpdateCommitmentProperty] = updateCommitment
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalCommitments(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing 'recoveryCommitment' in local method metadata")
+	})
+
+	t.Run("error - different commitments (update)", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+		md[document.UpdateCommitmentProperty] = "invalid-commitment"
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalCommitments(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor origin and local update commitments don't match")
+	})
+
+	t.Run("error - different commitments (recovery)", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = "invalid-commitment"
+		md[document.UpdateCommitmentProperty] = updateCommitment
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalCommitments(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor origin and local recovery commitments don't match")
 	})
 }
 

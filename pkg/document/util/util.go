@@ -75,7 +75,7 @@ func GetOperationsAfterCanonicalReference(ref string, anchorOps []*operation.Anc
 
 // GetPublishedOperationsFromMetadata will retrieve published operations from metadata.
 func GetPublishedOperationsFromMetadata(metadata document.Metadata) ([]*operation.AnchoredOperation, error) {
-	methodMetadata, err := getMethodMetadata(metadata)
+	methodMetadata, err := GetMethodMetadata(metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func GetPublishedOperationsFromMetadata(metadata document.Metadata) ([]*operatio
 
 // GetUnpublishedOperationsFromMetadata will retrieve unpublished operations from metadata.
 func GetUnpublishedOperationsFromMetadata(metadata document.Metadata) ([]*operation.AnchoredOperation, error) {
-	methodMetadata, err := getMethodMetadata(metadata)
+	methodMetadata, err := GetMethodMetadata(metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,8 @@ func GetUnpublishedOperationsFromMetadata(metadata document.Metadata) ([]*operat
 	return getOperationsByKey(methodMetadata, document.UnpublishedOperationsProperty)
 }
 
-func getMethodMetadata(metadata document.Metadata) (map[string]interface{}, error) {
+// GetMethodMetadata retrieves method metadata from document metadata.
+func GetMethodMetadata(metadata document.Metadata) (map[string]interface{}, error) {
 	if metadata == nil {
 		return nil, fmt.Errorf("missing document metadata")
 	}
