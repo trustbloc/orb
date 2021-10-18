@@ -465,7 +465,7 @@ func startOrbServices(parameters *orbParameters) error {
 	if parameters.updateDocumentStoreEnabled {
 		// TODO (#810): Make it possible to run the expiry service from only one instance within a cluster (or as
 		//              a separate server)
-		expiryService = expiry.NewService(parameters.dataExpiryCheckInterval)
+		expiryService = expiry.NewService(parameters.dataExpiryCheckInterval, configStore, parameters.instanceID)
 
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
 			parameters.unpublishedOperationLifespan, expiryService)

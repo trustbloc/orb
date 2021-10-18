@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -368,6 +369,12 @@ const (
 		"For example, a setting of '1m' will cause the expiry service to run a check every 1 minute. " +
 		"Defaults to 1 minute if not set. " + commonEnvVarUsageText + dataExpiryCheckIntervalEnvKey
 
+	instanceIDFlagName  = "orb-id"
+	instanceIDFlagUsage = "An ID that uniquely identifies an Orb instance within a cluster. " +
+		"If not set, then it will default to a random UUID. It's recommended to set this to ensure best performance " +
+		"for the automatic expired data cleanup service." + commonEnvVarUsageText + instanceIDEnvKey
+	instanceIDEnvKey = "ORB_ID"
+
 	// TODO: Add verification method
 
 )
@@ -433,6 +440,7 @@ type orbParameters struct {
 	contextProviderURLs            []string
 	unpublishedOperationLifespan   time.Duration
 	dataExpiryCheckInterval        time.Duration
+	instanceID                     string
 }
 
 type anchorCredentialParams struct {
@@ -829,6 +837,20 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
 	}
 
+	instanceID, err := cmdutils.GetUserSetVarFromString(cmd, instanceIDFlagName, instanceIDEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if instanceID == "" {
+		instanceID := uuid.New().String()
+
+		logger.Warnf("Orb ID not set. A randomly generated UUID (%s) was generated and will be used. "+
+			"It's recommended to set this value yourself. If this Orb instance restarts, a new UUID will be "+
+			"generated which won't break anything but is less efficient for the automatic expired data cleanup "+
+			"service. A custom ID will also make for better logging.", instanceID)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -880,6 +902,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		contextProviderURLs:            contextProviderURLs,
 		unpublishedOperationLifespan:   unpublishedOperationLifespan,
 		dataExpiryCheckInterval:        dataExpiryCheckInterval,
+		instanceID:                     instanceID,
 	}, nil
 }
 
@@ -1221,4 +1244,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(databaseTimeoutFlagName, "", "", databaseTimeoutFlagUsage)
 	startCmd.Flags().StringP(unpublishedOperationLifespanFlagName, "", "", unpublishedOperationLifespanFlagUsage)
 	startCmd.Flags().StringP(dataExpiryCheckIntervalFlagName, "", "", dataExpiryCheckIntervalFlagUsage)
+	startCmd.Flags().StringP(instanceIDFlagName, "", "", instanceIDFlagUsage)
 }
