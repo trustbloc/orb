@@ -167,79 +167,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"Neither cas-type (command line flag) nor CAS_TYPE (environment variable) have been set.",
 			err.Error())
 	})
-	t.Run("test missing anchor credential issuer arg", func(t *testing.T) {
-		startCmd := GetStartCmd()
 
-		args := []string{
-			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
-			"--" + casTypeFlagName, "ipfs",
-			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + vctURLFlagName, "localhost:8081",
-			"--" + didNamespaceFlagName, "namespace",
-			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-			"--" + anchorCredentialDomainFlagName, "domain.com",
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t,
-			"Neither anchor-credential-issuer (command line flag) nor ANCHOR_CREDENTIAL_ISSUER (environment variable) have been set.",
-			err.Error())
-	})
-	t.Run("test missing anchor credential domain arg", func(t *testing.T) {
-		startCmd := GetStartCmd()
-
-		args := []string{
-			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
-			"--" + casTypeFlagName, "ipfs",
-			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + vctURLFlagName, "localhost:8081",
-			"--" + didNamespaceFlagName, "namespace",
-			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t,
-			"Neither anchor-credential-domain (command line flag) nor ANCHOR_CREDENTIAL_DOMAIN (environment variable) have been set.",
-			err.Error())
-	})
-
-	t.Run("test missing anchor credential url", func(t *testing.T) {
-		startCmd := GetStartCmd()
-
-		args := []string{
-			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
-			"--" + casTypeFlagName, "ipfs",
-			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + vctURLFlagName, "localhost:8081",
-			"--" + didNamespaceFlagName, "namespace",
-			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t,
-			"Neither anchor-credential-url (command line flag) nor ANCHOR_CREDENTIAL_URL (environment variable) have been set.",
-			err.Error())
-	})
 	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
