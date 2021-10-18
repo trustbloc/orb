@@ -31,8 +31,9 @@ const testDID = "did"
 
 func TestGetAnchorOrigin(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: "suffix"},
+		}
 
 		payload := subject.Payload{
 			OperationCount:  2,
@@ -83,8 +84,9 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("error - anchored operation is an 'update' operation", func(t *testing.T) {
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
 
 		payload := subject.Payload{
 			OperationCount:  2,
@@ -136,8 +138,9 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("error - failed to get anchored operation for suffix", func(t *testing.T) {
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
 
 		payload := subject.Payload{
 			OperationCount:  2,
@@ -178,8 +181,9 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("error - failed to read core index file", func(t *testing.T) {
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
 
 		payload := subject.Payload{
 			OperationCount:  2,
@@ -209,8 +213,9 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("error - protocol client error", func(t *testing.T) {
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
 
 		payload := subject.Payload{
 			OperationCount:  2,

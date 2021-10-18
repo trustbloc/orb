@@ -19,5 +19,11 @@ type Payload struct {
 	Version         uint64
 	AnchorOrigin    string
 	Published       *time.Time
-	PreviousAnchors map[string]string
+	PreviousAnchors []*SuffixAnchor
+}
+
+// SuffixAnchor describes an anchor for suffix.
+type SuffixAnchor struct {
+	Suffix string
+	Anchor string
 }

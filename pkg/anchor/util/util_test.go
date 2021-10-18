@@ -27,8 +27,9 @@ const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
 func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		previousAnchors := make(map[string]string)
-		previousAnchors["suffix"] = ""
+		previousAnchors := []*subject.SuffixAnchor{
+			{Suffix: "suffix"},
+		}
 
 		payload := &subject.Payload{
 			OperationCount:  1,

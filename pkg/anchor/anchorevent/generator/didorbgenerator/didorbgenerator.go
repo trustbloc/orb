@@ -116,28 +116,28 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 
 	var resources []*resource
 
-	for key, value := range payload.PreviousAnchors {
-		logger.Debugf("RESOURCE - Key [%s] Value [%s]", key, value)
+	for _, value := range payload.PreviousAnchors {
+		logger.Debugf("RESOURCE - Key [%s] Value [%s]", value.Suffix, value.Anchor)
 
 		var res *resource
 
-		if value == "" {
-			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, key)}
+		if value.Anchor == "" {
+			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, value.Suffix)}
 		} else {
-			parts := strings.Split(value, separator)
+			parts := strings.Split(value.Anchor, separator)
 
 			if len(parts) != hashlinkParts {
-				return nil, fmt.Errorf("invalid number of parts for previous anchor hashlink[%s] for suffix[%s]: expected 3, got %d", value, key, len(parts)) //nolint:lll
+				return nil, fmt.Errorf("invalid number of parts for previous anchor hashlink[%s] for suffix[%s]: expected 3, got %d", value, value.Suffix, len(parts)) //nolint:lll
 			}
 
-			pos := strings.LastIndex(value, ":")
+			pos := strings.LastIndex(value.Anchor, ":")
 			if pos == -1 {
 				return nil, fmt.Errorf("invalid previous anchor hashlink[%s] - must contain separator ':'", value)
 			}
 
 			prevAnchor := parts[0] + separator + parts[1]
 
-			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, parts[1], key), PreviousAnchor: prevAnchor}
+			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, parts[1], value.Suffix), PreviousAnchor: prevAnchor}
 		}
 
 		resources = append(resources, res)
@@ -197,8 +197,8 @@ func (g *Generator) CreatePayload(anchorEvent *vocab.AnchorEventType) (*subject.
 	}, nil
 }
 
-func (g *Generator) getPreviousAnchors(resources []*resource, previous []*url.URL) (map[string]string, error) {
-	previousAnchors := make(map[string]string)
+func (g *Generator) getPreviousAnchors(resources []*resource, previous []*url.URL) ([]*subject.SuffixAnchor, error) {
+	var previousAnchors []*subject.SuffixAnchor
 
 	for _, res := range resources {
 		suffix, err := util.GetSuffix(res.ID)
@@ -206,16 +206,16 @@ func (g *Generator) getPreviousAnchors(resources []*resource, previous []*url.UR
 			return nil, err
 		}
 
-		var prevAnchor string
+		prevAnchor := &subject.SuffixAnchor{Suffix: suffix}
 
 		if res.PreviousAnchor != "" {
-			suffix, prevAnchor, err = getPreviousAnchorForResource(suffix, res.PreviousAnchor, previous)
+			prevAnchor, err = getPreviousAnchorForResource(suffix, res.PreviousAnchor, previous)
 			if err != nil {
 				return nil, fmt.Errorf("get previous anchor for resource: %w", err)
 			}
 		}
 
-		previousAnchors[suffix] = prevAnchor
+		previousAnchors = append(previousAnchors, prevAnchor)
 	}
 
 	return previousAnchors, nil
@@ -244,7 +244,7 @@ func (t *contentObject) Resources() []*resource {
 	return t.Properties.Resources
 }
 
-func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (string, string, error) {
+func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (*subject.SuffixAnchor, error) {
 	for _, prev := range previous {
 		if !strings.HasPrefix(prev.String(), res) {
 			continue
@@ -252,8 +252,8 @@ func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (stri
 
 		logger.Debugf("Found previous anchor [%s] for suffix [%s]", prev, suffix)
 
-		return suffix, prev.String(), nil
+		return &subject.SuffixAnchor{Suffix: suffix, Anchor: prev.String()}, nil
 	}
 
-	return "", "", fmt.Errorf("resource[%s] not found in previous anchor list", res)
+	return nil, fmt.Errorf("resource[%s] not found in previous anchor list", res)
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
@@ -331,7 +332,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	}
 
 	// update global did/anchor references
-	acSuffixes := getKeys(anchorPayload.PreviousAnchors)
+	acSuffixes := getSuffixes(anchorPayload.PreviousAnchors)
 
 	err = o.DidAnchors.PutBulk(acSuffixes, anchor.Hashlink)
 	if err != nil {
@@ -469,13 +470,13 @@ func (o *Observer) saveAnchorHashlink(ref *url.URL) error {
 	return nil
 }
 
-func getKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+func getSuffixes(m []*subject.SuffixAnchor) []string {
+	suffixes := make([]string, 0, len(m))
+	for _, k := range m {
+		suffixes = append(suffixes, k.Suffix)
 	}
 
-	return keys
+	return suffixes
 }
 
 func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {

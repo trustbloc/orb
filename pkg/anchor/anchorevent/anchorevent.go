@@ -65,9 +65,9 @@ func resolveParents(payload *subject.Payload) []*url.URL {
 	var previous []string
 
 	for _, value := range payload.PreviousAnchors {
-		if value != "" {
-			if !contains(previous, value) {
-				previous = append(previous, value)
+		if value.Anchor != "" {
+			if !contains(previous, value.Anchor) {
+				previous = append(previous, value.Anchor)
 			}
 		}
 	}

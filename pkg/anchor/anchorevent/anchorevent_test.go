@@ -35,9 +35,10 @@ const (
 )
 
 func TestBuildAnchorEvent(t *testing.T) {
-	previousAnchors := make(map[string]string)
-	previousAnchors[createSuffix] = ""
-	previousAnchors[updateSuffix] = updatePrevAnchor
+	previousAnchors := []*subject.SuffixAnchor{
+		{Suffix: createSuffix},
+		{Suffix: updateSuffix, Anchor: updatePrevAnchor},
+	}
 
 	publishedTime := time.Now()
 
@@ -141,9 +142,10 @@ func TestBuildAnchorEvent(t *testing.T) {
 }
 
 func TestGetPayloadFromActivity(t *testing.T) {
-	previousAnchors := make(map[string]string)
-	previousAnchors[createSuffix] = ""
-	previousAnchors[updateSuffix] = updatePrevAnchor
+	previousAnchors := []*subject.SuffixAnchor{
+		{Suffix: createSuffix},
+		{Suffix: updateSuffix, Anchor: updatePrevAnchor},
+	}
 
 	publishedTime := time.Now()
 

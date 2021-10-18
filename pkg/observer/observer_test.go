@@ -121,8 +121,10 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		prevAnchors := make(map[string]string)
-		prevAnchors["did1"] = ""
+		prevAnchors := []*subject.SuffixAnchor{
+			{Suffix: "did1"},
+		}
+
 		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "core1", PreviousAnchors: prevAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
@@ -133,8 +135,10 @@ func TestStartObserver(t *testing.T) {
 			AttributedTo:  "https://example.com/services/orb",
 		}
 
-		prevAnchors = make(map[string]string)
-		prevAnchors["did2"] = ""
+		prevAnchors = []*subject.SuffixAnchor{
+			{Suffix: "did2"},
+		}
+
 		payload2 := subject.Payload{Namespace: namespace2, Version: 1, CoreIndex: "core2", PreviousAnchors: prevAnchors}
 
 		cid, err = anchorGraph.Add(newMockAnchorEvent(t, &payload2))
@@ -211,9 +215,10 @@ func TestStartObserver(t *testing.T) {
 		did1 := "xyz"
 		did2 := "abc"
 
-		previousAnchors := make(map[string]string)
-		previousAnchors[did1] = ""
-		previousAnchors[did2] = ""
+		previousAnchors := []*subject.SuffixAnchor{
+			{Suffix: did1},
+			{Suffix: did2},
+		}
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
@@ -270,15 +275,16 @@ func TestStartObserver(t *testing.T) {
 
 		did1 := "jkh"
 
-		previousAnchors := make(map[string]string)
-		previousAnchors[did1] = ""
+		previousAnchors := []*subject.SuffixAnchor{
+			{Suffix: did1},
+		}
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
 		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
 		require.NoError(t, err)
 
-		previousAnchors[did1] = cid
+		previousAnchors[0].Anchor = cid
 
 		payload2 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
@@ -332,8 +338,9 @@ func TestStartObserver(t *testing.T) {
 
 		did := "123"
 
-		previousDIDAnchors := make(map[string]string)
-		previousDIDAnchors[did] = ""
+		previousDIDAnchors := []*subject.SuffixAnchor{
+			{Suffix: did},
+		}
 
 		payload1 := subject.Payload{
 			Namespace: namespace1,
@@ -396,9 +403,10 @@ func TestStartObserver(t *testing.T) {
 		did1 := "123"
 		did2 := "abc"
 
-		previousAnchors := make(map[string]string)
-		previousAnchors[did1] = ""
-		previousAnchors[did2] = ""
+		previousAnchors := []*subject.SuffixAnchor{
+			{Suffix: did1},
+			{Suffix: did2},
+		}
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
@@ -453,8 +461,9 @@ func TestStartObserver(t *testing.T) {
 
 		anchorGraph := graph.New(graphProviders)
 
-		prevAnchors := make(map[string]string)
-		prevAnchors["suffix"] = ""
+		prevAnchors := []*subject.SuffixAnchor{
+			{Suffix: "suffix"},
+		}
 
 		payload1 := subject.Payload{
 			Namespace:       namespace1,
@@ -635,8 +644,9 @@ func TestStartObserver(t *testing.T) {
 
 		did1 := "xyz"
 
-		previousAnchors := make(map[string]string)
-		previousAnchors[did1] = ""
+		previousAnchors := []*subject.SuffixAnchor{
+			{Suffix: did1},
+		}
 
 		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "address", PreviousAnchors: previousAnchors}
 
