@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/document/util"
 )
 
 var logger = log.New("anchorevent")
@@ -29,8 +30,11 @@ const (
 	// Version specifies the version of the generator.
 	Version = uint64(0)
 
-	multihashPrefix          = "did:orb:uAAA"
-	multihashPrefixDelimiter = ":"
+	multihashPrefix  = "did:orb"
+	unpublishedLabel = "uAAA"
+
+	separator     = ":"
+	hashlinkParts = 3
 )
 
 // Generator generates a content object for did:orb anchor events.
@@ -115,19 +119,25 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 	for key, value := range payload.PreviousAnchors {
 		logger.Debugf("RESOURCE - Key [%s] Value [%s]", key, value)
 
-		resourceID := fmt.Sprintf("%s:%s", multihashPrefix, key)
-
 		var res *resource
 
 		if value == "" {
-			res = &resource{ID: resourceID}
+			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, key)}
 		} else {
+			parts := strings.Split(value, separator)
+
+			if len(parts) != hashlinkParts {
+				return nil, fmt.Errorf("invalid number of parts for previous anchor hashlink[%s] for suffix[%s]: expected 3, got %d", value, key, len(parts)) //nolint:lll
+			}
+
 			pos := strings.LastIndex(value, ":")
 			if pos == -1 {
 				return nil, fmt.Errorf("invalid previous anchor hashlink[%s] - must contain separator ':'", value)
 			}
 
-			res = &resource{ID: resourceID, PreviousAnchor: value[:pos]}
+			prevAnchor := parts[0] + separator + parts[1]
+
+			res = &resource{ID: fmt.Sprintf("%s:%s:%s", multihashPrefix, parts[1], key), PreviousAnchor: prevAnchor}
 		}
 
 		resources = append(resources, res)
@@ -191,7 +201,7 @@ func (g *Generator) getPreviousAnchors(resources []*resource, previous []*url.UR
 	previousAnchors := make(map[string]string)
 
 	for _, res := range resources {
-		suffix, err := removeMultihashPrefix(res.ID)
+		suffix, err := util.GetSuffix(res.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -246,14 +256,4 @@ func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (stri
 	}
 
 	return "", "", fmt.Errorf("resource[%s] not found in previous anchor list", res)
-}
-
-func removeMultihashPrefix(id string) (string, error) {
-	prefix := multihashPrefix + multihashPrefixDelimiter
-
-	if !strings.HasPrefix(id, prefix) {
-		return "", fmt.Errorf("ID has to start with %s", prefix)
-	}
-
-	return id[len(prefix):], nil
 }
