@@ -744,7 +744,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	anchorCredentialParams, err := getAnchorCredentialParameters(cmd)
+	anchorCredentialParams, err := getAnchorCredentialParameters(cmd, externalEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -872,20 +872,20 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}, nil
 }
 
-func getAnchorCredentialParameters(cmd *cobra.Command) (*anchorCredentialParams, error) {
-	domain, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey, false)
-	if err != nil {
-		return nil, err
+func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint string) (*anchorCredentialParams, error) {
+	domain := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey)
+	if domain == "" {
+		domain = externalEndpoint
 	}
 
-	issuer, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialIssuerFlagName, anchorCredentialIssuerEnvKey, false)
-	if err != nil {
-		return nil, err
+	issuer := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialIssuerFlagName, anchorCredentialIssuerEnvKey)
+	if issuer == "" {
+		issuer = externalEndpoint
 	}
 
-	url, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialURLFlagName, anchorCredentialURLEnvKey, false)
-	if err != nil {
-		return nil, err
+	url := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialURLFlagName, anchorCredentialURLEnvKey)
+	if url == "" {
+		url = fmt.Sprintf("%s/vc", externalEndpoint)
 	}
 
 	signatureSuite, err := cmdutils.GetUserSetVarFromString(cmd, anchorCredentialSignatureSuiteFlagName, anchorCredentialSignatureSuiteEnvKey, false)
