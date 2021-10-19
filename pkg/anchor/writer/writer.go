@@ -266,13 +266,13 @@ func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) 
 	return anchorEvent, nil
 }
 
-func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]string, error) {
+func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.SuffixAnchor, error) {
 	getPreviousAnchorsStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorGetPreviousAnchorsTime(time.Since(getPreviousAnchorsStartTime))
 
 	// assemble map of latest did anchor references
-	previousAnchors := make(map[string]string)
+	var previousAnchors []*subject.SuffixAnchor
 
 	suffixes := getSuffixes(refs)
 
@@ -292,9 +292,9 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) (map[string]str
 			}
 
 			// create doesn't have previous anchor references
-			previousAnchors[ref.UniqueSuffix] = ""
+			previousAnchors = append(previousAnchors, &subject.SuffixAnchor{Suffix: ref.UniqueSuffix})
 		} else {
-			previousAnchors[ref.UniqueSuffix] = anchors[i]
+			previousAnchors = append(previousAnchors, &subject.SuffixAnchor{Suffix: ref.UniqueSuffix, Anchor: anchors[i]})
 		}
 	}
 

@@ -18,6 +18,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -121,13 +122,23 @@ func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 
 		previousAnchors := payload.PreviousAnchors
 
-		cur, ok = previousAnchors[suffix]
+		cur, ok = contains(suffix, previousAnchors)
 		if ok && cur == "" { // create
 			break
 		}
 	}
 
 	return reverseOrder(refs), nil
+}
+
+func contains(suffix string, previousAnchors []*subject.SuffixAnchor) (string, bool) {
+	for _, val := range previousAnchors {
+		if val.Suffix == suffix {
+			return val.Anchor, true
+		}
+	}
+
+	return "", false
 }
 
 func reverseOrder(original []Anchor) []Anchor {

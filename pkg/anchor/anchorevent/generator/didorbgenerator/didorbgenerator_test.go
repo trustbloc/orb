@@ -64,9 +64,14 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex: coreIndexHL2,
-			PreviousAnchors: map[string]string{
-				suffix1: "",
-				suffix2: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE", //nolint:lll
+			PreviousAnchors: []*subject.SuffixAnchor{
+				{
+					Suffix: suffix1,
+				},
+				{
+					Suffix: suffix2,
+					Anchor: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE", //nolint:lll
+				},
 			},
 		}
 
@@ -105,8 +110,11 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 	t.Run("Invalid hashlink in previous anchor", func(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex: coreIndexHL1,
-			PreviousAnchors: map[string]string{
-				suffix2: "uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA",
+			PreviousAnchors: []*subject.SuffixAnchor{
+				{
+					Suffix: suffix2,
+					Anchor: "uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA",
+				},
 			},
 		}
 
@@ -164,8 +172,10 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 		require.Equal(t, Version, payload.Version)
 		require.Equal(t, service1, payload.AnchorOrigin)
 		require.Equal(t, published, *payload.Published)
-		require.Equal(t, "", payload.PreviousAnchors["EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"])
-		require.Equal(t, parentHL1, payload.PreviousAnchors["EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw"])
+		require.Equal(t, "", payload.PreviousAnchors[0].Anchor)
+		require.Equal(t, "EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw", payload.PreviousAnchors[0].Suffix)
+		require.Equal(t, parentHL1, payload.PreviousAnchors[1].Anchor)
+		require.Equal(t, "EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw", payload.PreviousAnchors[1].Suffix)
 	})
 
 	t.Run("Core index anchor not found", func(t *testing.T) {

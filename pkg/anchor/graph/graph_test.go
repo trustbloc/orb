@@ -134,8 +134,10 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	t.Run("success - previous anchor for did exists", func(t *testing.T) {
 		graph := New(providers)
 
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
+
 		payload := &subject.Payload{
 			OperationCount:  1,
 			CoreIndex:       "coreIndex-1",
@@ -148,8 +150,9 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, anchor1HL)
 
-		previousDIDTxns = make(map[string]string)
-		previousDIDTxns[testDID] = anchor1HL
+		previousDIDTxns = []*subject.SuffixAnchor{
+			{Suffix: testDID, Anchor: anchor1HL},
+		}
 
 		payload = &subject.Payload{
 			OperationCount:  1,
@@ -172,8 +175,9 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	t.Run("success - cid referenced in previous anchor empty (create)", func(t *testing.T) {
 		graph := New(providers)
 
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = ""
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{Suffix: testDID},
+		}
 
 		payload := &subject.Payload{
 			OperationCount:  1,
@@ -195,8 +199,12 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	t.Run("error - cid referenced in previous anchor not found", func(t *testing.T) {
 		graph := New(providers)
 
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = "hl:" + nonExistent + ":metadata"
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{
+				Suffix: testDID,
+				Anchor: "hl:" + nonExistent + ":metadata",
+			},
+		}
 
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
@@ -218,8 +226,12 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	t.Run("error - cid referenced in previous anchor is invalid", func(t *testing.T) {
 		graph := New(providers)
 
-		previousDIDTxns := make(map[string]string)
-		previousDIDTxns[testDID] = "hl:nonExistent:metadata"
+		previousDIDTxns := []*subject.SuffixAnchor{
+			{
+				Suffix: testDID,
+				Anchor: "hl:nonExistent:metadata",
+			},
+		}
 
 		payload := &subject.Payload{
 			CoreIndex:       "coreIndex-2",
@@ -251,8 +263,9 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 func newDefaultMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 	t.Helper()
 
-	previousAnchors := make(map[string]string)
-	previousAnchors["suffix"] = ""
+	previousAnchors := []*subject.SuffixAnchor{
+		{Suffix: "suffix"},
+	}
 
 	payload := &subject.Payload{
 		OperationCount:  1,
