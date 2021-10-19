@@ -27,6 +27,8 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain1.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
@@ -112,6 +114,8 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain1.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
@@ -201,6 +205,8 @@ services:
       - ORB_HOST_METRICS_URL=0.0.0.0:48827
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb2key
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -278,6 +284,8 @@ services:
       - ORB_HOST_METRICS_URL=0.0.0.0:48927
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb2key
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -363,6 +371,8 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain3.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
@@ -449,6 +459,8 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain4.com
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
+      - ORB_TLS_SYSTEMCERTPOOL=true
+      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - DID_DISCOVERY_ENABLED=true

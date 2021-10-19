@@ -89,6 +89,17 @@ const (
 	discoveryDomainFlagUsage = "Discovery domain for this domain." + " Format: HostName"
 	discoveryDomainEnvKey    = "ORB_DISCOVERY_DOMAIN"
 
+	tlsSystemCertPoolFlagName  = "tls-systemcertpool"
+	tlsSystemCertPoolFlagUsage = "Use system certificate pool." +
+		" Possible values [true] [false]. Defaults to false if not set." +
+		" Alternatively, this can be set with the following environment variable: " + tlsSystemCertPoolEnvKey
+	tlsSystemCertPoolEnvKey = "ORB_TLS_SYSTEMCERTPOOL"
+
+	tlsCACertsFlagName  = "tls-cacerts"
+	tlsCACertsFlagUsage = "Comma-Separated list of ca certs path." +
+		" Alternatively, this can be set with the following environment variable: " + tlsCACertsEnvKey
+	tlsCACertsEnvKey = "ORB_TLS_CACERTS"
+
 	tlsCertificateFlagName      = "tls-certificate"
 	tlsCertificateFlagShorthand = "y"
 	tlsCertificateFlagUsage     = "TLS certificate for ORB server. " + commonEnvVarUsageText + tlsCertificateLEnvKey
@@ -361,6 +372,13 @@ const (
 
 )
 
+type tlsParameters struct {
+	systemCertPool bool
+	caCerts        []string
+	serveCertPath  string
+	serveKeyPath   string
+}
+
 type orbParameters struct {
 	hostURL                        string
 	hostMetricsURL                 string
@@ -386,8 +404,7 @@ type orbParameters struct {
 	methodContext                  []string
 	baseEnabled                    bool
 	allowedOrigins                 []string
-	tlsCertificate                 string
-	tlsKey                         string
+	tlsParams                      *tlsParameters
 	anchorCredentialParams         *anchorCredentialParams
 	discoveryDomains               []string
 	discoveryVctDomains            []string
@@ -469,12 +486,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	tlsCertificate, err := cmdutils.GetUserSetVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsKey, err := cmdutils.GetUserSetVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey, true)
+	tlsParams, err := getTLS(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -828,8 +840,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		kmsStoreEndpoint:               kmsStoreEndpoint,
 		discoveryDomain:                discoveryDomain,
 		externalEndpoint:               externalEndpoint,
-		tlsKey:                         tlsKey,
-		tlsCertificate:                 tlsCertificate,
+		tlsParams:                      tlsParams,
 		didNamespace:                   didNamespace,
 		didAliases:                     didAliases,
 		allowedOrigins:                 allowedOrigins,
@@ -1117,6 +1128,35 @@ func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObse
 	return mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxConnectionSubscriptions, nil
 }
 
+func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
+	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+		tlsSystemCertPoolEnvKey)
+
+	tlsSystemCertPool := false
+
+	if tlsSystemCertPoolString != "" {
+		var err error
+
+		tlsSystemCertPool, err = strconv.ParseBool(tlsSystemCertPoolString)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName, tlsCACertsEnvKey)
+
+	tlsServeCertPath := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey)
+
+	tlsServeKeyPath := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
+
+	return &tlsParameters{
+		systemCertPool: tlsSystemCertPool,
+		caCerts:        tlsCACerts,
+		serveCertPath:  tlsServeCertPath,
+		serveKeyPath:   tlsServeKeyPath,
+	}, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
@@ -1131,6 +1171,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)
+	startCmd.Flags().StringP(tlsSystemCertPoolFlagName, "", "", tlsSystemCertPoolFlagUsage)
+	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)

@@ -25,8 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/trustbloc/orb/pkg/store/expiry"
-
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
@@ -57,6 +55,8 @@ import (
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
+	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -316,13 +316,17 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 
-	// TODO: Configure the HTTP client with TLS
+	rootCAs, err := tlsutils.GetCertPool(parameters.tlsParams.systemCertPool, parameters.tlsParams.caCerts)
+	if err != nil {
+		return err
+	}
+
+	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+
 	httpClient := &http.Client{
 		Timeout: time.Minute,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint: gosec
-			},
+			TLSClientConfig: tlsConfig,
 		},
 	}
 
@@ -864,8 +868,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	httpServer := httpserver.New(
 		parameters.hostURL,
-		parameters.tlsCertificate,
-		parameters.tlsKey,
+		parameters.tlsParams.serveCertPath,
+		parameters.tlsParams.serveKeyPath,
 		handlers...,
 	)
 
