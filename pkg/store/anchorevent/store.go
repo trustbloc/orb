@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package verifiable
+package anchorevent
 
 import (
 	"encoding/json"
@@ -18,11 +18,11 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-const nameSpace = "verifiable"
+const nameSpace = "anchor-event"
 
-var logger = log.New("verifiable-store")
+var logger = log.New("anchor-event-store")
 
-// New returns new instance of verifiable credentials store.
+// New returns new instance of anchor event store.
 func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
@@ -37,7 +37,7 @@ func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
 	}, nil
 }
 
-// Store implements storage for verifiable credentials.
+// Store implements storage for anchor event.
 type Store struct {
 	store          storage.Store
 	documentLoader ld.DocumentLoader

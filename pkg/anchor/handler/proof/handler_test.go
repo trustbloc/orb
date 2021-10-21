@@ -23,9 +23,9 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
-	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/store/witness"
 )
 
@@ -42,7 +42,7 @@ const (
 func TestNew(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 
-	store, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	store, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -66,7 +66,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	expiryTime := time.Now().Add(60 * time.Second)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -115,7 +115,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - witness policy satisfied", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -159,7 +159,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - vc status is completed", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -192,7 +192,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied but some witness proofs are empty", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -228,7 +228,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - get vc status error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -271,7 +271,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - second get vc status error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -315,7 +315,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - set vc status to complete error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -358,7 +358,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("VC status already completed", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -400,7 +400,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness policy error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -435,7 +435,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - vc status not found store error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -472,7 +472,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		provider := &storemocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		vcStore, err := vcstore.New(provider, testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(provider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -498,7 +498,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -531,7 +531,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
@@ -564,7 +564,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -590,7 +590,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
