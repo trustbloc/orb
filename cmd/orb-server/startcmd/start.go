@@ -79,6 +79,7 @@ import (
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent/vcresthandler"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/anchor/handler/acknowlegement"
@@ -864,6 +865,7 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger)),
 		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger)),
+		auth.NewHandlerWrapper(authCfg, vcresthandler.New(vcStore)),
 	)
 
 	handlers = append(handlers,
