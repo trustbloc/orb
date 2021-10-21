@@ -45,8 +45,11 @@ func TestFactory_Create(t *testing.T) {
 	})
 
 	t.Run("success - with update store config", func(t *testing.T) {
+		coordinationStore, err := mem.NewProvider().OpenStore("coordination")
+		require.NoError(t, err)
+
 		updateDocumentStore, err := unpublishedopstore.New(storeProvider, time.Minute,
-			expiry.NewService(time.Millisecond))
+			expiry.NewService(time.Millisecond, coordinationStore, "InstanceID"))
 		require.NoError(t, err)
 
 		cfg := &config.Sidetree{
