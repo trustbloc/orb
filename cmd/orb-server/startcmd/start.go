@@ -117,12 +117,12 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
+	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
-	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/store/wrapper"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -520,7 +520,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
-	vcStore, err := vcstore.New(storeProviders.provider, orbDocumentLoader)
+	anchorEventStore, err := anchoreventstore.New(storeProviders.provider, orbDocumentLoader)
 	if err != nil {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
@@ -602,7 +602,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	proofHandler := proof.New(
 		&proof.Providers{
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			StatusStore:      vcStatusStore,
 			MonitoringSvc:    monitoringSvc,
 			DocLoader:        orbDocumentLoader,
@@ -669,11 +669,16 @@ func startOrbServices(parameters *orbParameters) error {
 
 	o.Start()
 
+	vcStore, err := storeProviders.provider.OpenStore("verifiable")
+	if err != nil {
+		return fmt.Errorf("open store: %w", err)
+	}
+
 	anchorWriterProviders := &writer.Providers{
 		AnchorGraph:      anchorGraph,
 		DidAnchors:       didAnchors,
 		AnchorBuilder:    vcBuilder,
-		AnchorEventStore: vcStore,
+		AnchorEventStore: anchorEventStore,
 		VCStatusStore:    vcStatusStore,
 		OpProcessor:      opProcessor,
 		Outbox:           activityPubService.Outbox(),
@@ -683,6 +688,8 @@ func startOrbServices(parameters *orbParameters) error {
 		ActivityStore:    apStore,
 		WitnessStore:     witnessProofStore,
 		WFClient:         wfClient,
+		DocumentLoader:   orbDocumentLoader,
+		VCStore:          vcStore,
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,

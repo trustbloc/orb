@@ -44,9 +44,10 @@ import (
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
+	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
 	"github.com/trustbloc/orb/pkg/store/cas"
+	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
-	vcstore "github.com/trustbloc/orb/pkg/store/verifiable"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
@@ -73,14 +74,14 @@ func TestNew(t *testing.T) {
 	casIRI, err := url.Parse(casURL)
 	require.NoError(t, err)
 
-	vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
 		AnchorGraph:      graph.New(&graph.Providers{}),
 		DidAnchors:       memdidanchor.New(),
 		AnchorBuilder:    &mockTxnBuilder{},
-		AnchorEventStore: vcStore,
+		AnchorEventStore: anchorEventStore,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -141,7 +142,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	t.Run("success - no local witness configured, "+
 		"witness needs to be resolved via HTTP", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -157,7 +158,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -191,7 +192,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - witness needs to be resolved via IPNS", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -207,7 +208,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -243,7 +244,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - local witness configured, sign with default witness is false", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -260,7 +261,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:          &mockWitness{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -294,7 +295,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("success - local witness", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
@@ -313,7 +314,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -347,7 +348,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - vc status store error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
@@ -363,7 +364,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    &mockVCStatusStore{Err: fmt.Errorf("vc status error")},
 			WFClient:         wfClient,
 		}
@@ -398,7 +399,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("Parse created time (error)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"created": "021-02-23T:07Z"}}`)}
@@ -414,7 +415,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			WFClient:         wfClient,
 		}
 
@@ -448,7 +449,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - failed to get witness list", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -460,7 +461,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			OpProcessor:      &mockOpProcessor{Err: errors.New("operation processor error")},
 			WFClient:         wfClient,
 		}
@@ -482,7 +483,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - build anchor event error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -499,7 +500,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:          &mockWitness{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -565,7 +566,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - local witness (monitoring error)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -582,7 +583,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
 			MonitoringSvc:    &mockMonitoring{Err: fmt.Errorf("monitoring error")},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
@@ -645,7 +646,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put")},
 		}
 
-		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
+		anchorEventStoreWithErr, err := anchoreventstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -654,7 +655,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStoreWithErr,
+			AnchorEventStore: anchorEventStoreWithErr,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
@@ -684,7 +685,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put (local witness)")},
 		}
 
-		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
+		anchorEventStoreWithErr, err := anchoreventstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -695,7 +696,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:           &mockSigner{},
 			Witness:          &mockWitness{},
 			MonitoringSvc:    &mockMonitoring{},
-			AnchorEventStore: vcStoreWithErr,
+			AnchorEventStore: anchorEventStoreWithErr,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
@@ -721,7 +722,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - previous did anchor reference not found for non-create operations", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -730,7 +731,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -743,7 +744,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - publish anchor", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -759,7 +760,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -796,7 +797,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - fail to resolve anchor origin via IPNS (IPFS node not reachable)", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -812,7 +813,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    &mockActivityStore{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 		}
 
@@ -839,7 +840,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 
 	t.Run("error - no witnesses configured", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
@@ -857,7 +858,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
 			ActivityStore:    activityStore,
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
 			WFClient:         wfClient,
 		}
@@ -930,7 +931,10 @@ func TestWriter_handle(t *testing.T) {
 	anchorGraph := graph.New(graphProviders)
 
 	t.Run("success", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -939,8 +943,10 @@ func TestWriter_handle(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			WitnessStore:     &mockWitnessStore{},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -958,7 +964,7 @@ func TestWriter_handle(t *testing.T) {
 			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put")},
 		}
 
-		vcStoreWithErr, err := vcstore.New(storeProviderWithErr, testutil.GetLoader(t))
+		anchorEventStoreWithErr, err := anchoreventstore.New(storeProviderWithErr, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -967,7 +973,7 @@ func TestWriter_handle(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStoreWithErr,
+			AnchorEventStore: anchorEventStoreWithErr,
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
@@ -984,7 +990,10 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - add anchor credential to txn graph error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -993,7 +1002,9 @@ func TestWriter_handle(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
@@ -1009,7 +1020,10 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - add anchor credential cid to did anchors error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
@@ -1018,8 +1032,10 @@ func TestWriter_handle(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			WitnessStore:     &mockWitnessStore{},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
 		}
 
 		errExpected := errors.New("anchor publisher error")
@@ -1040,7 +1056,10 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - outbox error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -1048,7 +1067,9 @@ func TestWriter_handle(t *testing.T) {
 			DidAnchors:       memdidanchor.New(),
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{Err: errors.New("outbox error")},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1065,7 +1086,10 @@ func TestWriter_handle(t *testing.T) {
 	})
 
 	t.Run("error - delete transient data from witness store error", func(t *testing.T) {
-		vcStore, err := vcstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -1074,8 +1098,10 @@ func TestWriter_handle(t *testing.T) {
 			AnchorBuilder:    &mockTxnBuilder{},
 			Outbox:           &mockOutbox{},
 			Signer:           &mockSigner{},
-			AnchorEventStore: vcStore,
+			AnchorEventStore: anchorEventStore,
 			WitnessStore:     &mockWitnessStore{DeleteErr: fmt.Errorf("delete error")},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1086,6 +1112,70 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
 
 		require.NoError(t, c.handle(anchorEvent))
+	})
+
+	t.Run("error - parse verifiable credential from anchor event error", func(t *testing.T) {
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorGraph:      anchorGraph,
+			DidAnchors:       memdidanchor.New(),
+			AnchorBuilder:    &mockTxnBuilder{},
+			Outbox:           &mockOutbox{},
+			Signer:           &mockSigner{},
+			AnchorEventStore: anchorEventStore,
+			WitnessStore:     &mockWitnessStore{},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		anchorEvent := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorEventInvalidWitness), anchorEvent))
+
+		err = c.handle(anchorEvent)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "issuer is required")
+		require.False(t, orberrors.IsTransient(err))
+	})
+
+	t.Run("error - store to verifiable credential store", func(t *testing.T) {
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore := &storemocks.Store{}
+		vcStore.PutReturns(fmt.Errorf("vc store error"))
+
+		providers := &Providers{
+			AnchorGraph:      anchorGraph,
+			DidAnchors:       memdidanchor.New(),
+			AnchorBuilder:    &mockTxnBuilder{},
+			Outbox:           &mockOutbox{},
+			Signer:           &mockSigner{},
+			AnchorEventStore: anchorEventStore,
+			WitnessStore:     &mockWitnessStore{},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		anchorEvent := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
+
+		err = c.handle(anchorEvent)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to store vc")
+		require.False(t, orberrors.IsTransient(err))
 	})
 }
 
@@ -1693,6 +1783,7 @@ const jsonAnchorEvent = `{
         "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
       },
       "type": "AnchorObject",
+      "generator": "https://w3id.org/orb#v0",
       "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
       "witness": {
         "@context": "https://www.w3.org/2018/credentials/v1",
@@ -1701,6 +1792,7 @@ const jsonAnchorEvent = `{
         },
         "issuanceDate": "2021-01-27T09:30:10Z",
         "issuer": "https://sally.example.com/services/anchor",
+		"id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
         "proof": [
           {
             "created": "2021-01-27T09:30:00Z",
@@ -1719,6 +1811,45 @@ const jsonAnchorEvent = `{
             "verificationMethod": "did:example:abcd#key"
           }
         ],
+        "type": "VerifiableCredential"
+      }
+    }
+  ],
+  "attributedTo": "https://orb.domain1.com/services/orb",
+  "parent": [
+    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
+    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+  ],
+  "published": "2021-01-27T09:30:10Z",
+  "type": "Info",
+  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
+}`
+
+//nolint: lll
+const jsonAnchorEventInvalidWitness = `{
+  "@context": "https://w3id.org/activityanchors/v1",
+  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "attachment": [
+    {
+      "contentObject": {
+        "properties": {
+          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
+          "https://w3id.org/activityanchors#resources": [
+            {
+              "id": "did:orb:uAAA:EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
+            }
+          ]
+        },
+        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
+      },
+      "type": "AnchorObject",
+      "generator": "https://w3id.org/orb#v0",
+      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+      "witness": {
+        "@context": "https://www.w3.org/2018/credentials/v1",
+        "credentialSubject": {
+          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
+        },
         "type": "VerifiableCredential"
       }
     }

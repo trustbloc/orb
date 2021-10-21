@@ -11,10 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -86,6 +89,8 @@ type Providers struct {
 	WitnessStore     witnessStore
 	ActivityStore    activityStore
 	WFClient         webfingerClient
+	DocumentLoader   ld.DocumentLoader
+	VCStore          storage.Store
 }
 
 type webfingerClient interface {
@@ -435,7 +440,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
+func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error { //nolint:funlen
 	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Anchors())
 
 	startTime := time.Now()
@@ -445,11 +450,19 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 	}()
 
 	// store anchor credential with witness proofs
+	// TODO: Change this to delete since we don't need anchor event in anchor event store(transient data, issue-827)
 	err := c.AnchorEventStore.Put(anchorEvent)
 	if err != nil {
 		logger.Warnf("failed to store witnessed anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
 
 		return errors.NewTransient(fmt.Errorf("store witnessed anchor event[%s]: %w", anchorEvent.Anchors(), err))
+	}
+
+	err = c.storeVC(anchorEvent)
+	if err != nil {
+		logger.Errorf("failed to store verifiable credential from anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
+
+		return fmt.Errorf("store verifiable credential from anchor event[%s]: %w", anchorEvent.Anchors(), err)
 	}
 
 	anchorEventRef, err := c.AnchorGraph.Add(anchorEvent)
@@ -488,6 +501,31 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 		// this is a clean-up task so no harm if there was an error
 		logger.Warnf("failed to delete witnesses for anchor event[%s] ref[%s]: %s",
 			anchorEvent.Anchors(), anchorEventRef, err.Error())
+	}
+
+	return nil
+}
+
+func (c *Writer) storeVC(anchorEvent *vocab.AnchorEventType) error {
+	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(c.DocumentLoader),
+	)
+	if err != nil {
+		return fmt.Errorf("failed get verifiable credential from anchor event: %w", err)
+	}
+
+	vcBytes, err := json.Marshal(vc)
+	if err != nil {
+		return fmt.Errorf("failed to marshal vc[%s]: %w", vc.ID, err)
+	}
+
+	parts := strings.Split(vc.ID, "/")
+	id := parts[len(parts)-1]
+
+	err = c.VCStore.Put(id, vcBytes)
+	if err != nil {
+		return fmt.Errorf("failed to store vc[%s]: %w", id, err)
 	}
 
 	return nil
