@@ -140,6 +140,7 @@ type didAnchors interface {
 
 type anchorEventStore interface {
 	Put(anchorEvent *vocab.AnchorEventType) error
+	Delete(id string) error
 }
 
 type vcStatusStore interface {
@@ -440,7 +441,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error { //nolint:funlen
+func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Anchors())
 
 	startTime := time.Now()
@@ -449,16 +450,7 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error { //nolint:fun
 		c.metrics.ProcessWitnessedAnchorCredentialTime(time.Since(startTime))
 	}()
 
-	// store anchor credential with witness proofs
-	// TODO: Change this to delete since we don't need anchor event in anchor event store(transient data, issue-827)
-	err := c.AnchorEventStore.Put(anchorEvent)
-	if err != nil {
-		logger.Warnf("failed to store witnessed anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
-
-		return errors.NewTransient(fmt.Errorf("store witnessed anchor event[%s]: %w", anchorEvent.Anchors(), err))
-	}
-
-	err = c.storeVC(anchorEvent)
+	err := c.storeVC(anchorEvent)
 	if err != nil {
 		logger.Errorf("failed to store verifiable credential from anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
 
@@ -501,6 +493,12 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error { //nolint:fun
 		// this is a clean-up task so no harm if there was an error
 		logger.Warnf("failed to delete witnesses for anchor event[%s] ref[%s]: %s",
 			anchorEvent.Anchors(), anchorEventRef, err.Error())
+	}
+
+	err = c.AnchorEventStore.Delete(anchorEvent.Anchors().String())
+	if err != nil {
+		// this is a clean-up task so no harm if there was an error
+		logger.Warnf("failed to delete anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
 	}
 
 	return nil
