@@ -81,3 +81,14 @@ func (s *Store) Get(id string) (*vocab.AnchorEventType, error) {
 
 	return anchorEvent, nil
 }
+
+// Delete deletes anchor event by id.
+func (s *Store) Delete(id string) error {
+	if err := s.store.Delete(id); err != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to delete anchor event id[%s]: %w", id, err))
+	}
+
+	logger.Debugf("deleted anchor event id[%s]", id)
+
+	return nil
+}

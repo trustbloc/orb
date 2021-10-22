@@ -956,36 +956,6 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, c.handle(anchorEvent))
 	})
 
-	t.Run("error - save anchor credential to store error", func(t *testing.T) {
-		storeProviderWithErr := &mockstore.Provider{
-			OpenStoreReturn: &mockstore.Store{ErrPut: fmt.Errorf("error put")},
-		}
-
-		anchorEventStoreWithErr, err := anchoreventstore.New(storeProviderWithErr, testutil.GetLoader(t))
-		require.NoError(t, err)
-
-		providersWithErr := &Providers{
-			AnchorGraph:      anchorGraph,
-			DidAnchors:       memdidanchor.New(),
-			AnchorBuilder:    &mockTxnBuilder{},
-			Outbox:           &mockOutbox{},
-			Signer:           &mockSigner{},
-			AnchorEventStore: anchorEventStoreWithErr,
-		}
-
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
-		require.NoError(t, err)
-
-		anchorEvent := &vocab.AnchorEventType{}
-		require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
-
-		err = c.handle(anchorEvent)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "store witnessed anchor event")
-		require.True(t, orberrors.IsTransient(err))
-	})
-
 	t.Run("error - add anchor credential to txn graph error", func(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -1102,6 +1072,39 @@ func TestWriter_handle(t *testing.T) {
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		anchorEvent := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
+
+		require.NoError(t, c.handle(anchorEvent))
+	})
+
+	t.Run("error - delete anchor event error (transient store - log only)", func(t *testing.T) {
+		storeProviderWithErr := &mockstore.Provider{
+			OpenStoreReturn: &mockstore.Store{ErrDelete: fmt.Errorf("error delete")},
+		}
+
+		anchorEventStoreWithErr, err := anchoreventstore.New(storeProviderWithErr, testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vcStore, err := mem.NewProvider().OpenStore("verifiable")
+		require.NoError(t, err)
+
+		providersWithErr := &Providers{
+			AnchorGraph:      anchorGraph,
+			DidAnchors:       memdidanchor.New(),
+			AnchorBuilder:    &mockTxnBuilder{},
+			Outbox:           &mockOutbox{},
+			Signer:           &mockSigner{},
+			AnchorEventStore: anchorEventStoreWithErr,
+			WitnessStore:     &mockWitnessStore{},
+			VCStore:          vcStore,
+			DocumentLoader:   testutil.GetLoader(t),
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 

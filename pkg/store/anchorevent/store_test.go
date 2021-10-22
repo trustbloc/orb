@@ -143,3 +143,34 @@ func TestStore_Get(t *testing.T) {
 		require.Nil(t, ae)
 	})
 }
+
+func TestStore_Delete(t *testing.T) {
+	t.Run("test success", func(t *testing.T) {
+		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		require.NoError(t, err)
+
+		ae, err := s.Get(anchorsURL.String())
+		require.NoError(t, err)
+		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+
+		err = s.Delete(anchorsURL.String())
+		require.NoError(t, err)
+		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+	})
+
+	t.Run("test error from store delete", func(t *testing.T) {
+		storeProvider := &mockstore.Provider{OpenStoreReturn: &mockstore.Store{
+			ErrDelete: fmt.Errorf("error delete"),
+		}}
+
+		s, err := New(storeProvider, testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		err = s.Delete("vc1")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "error delete")
+	})
+}
