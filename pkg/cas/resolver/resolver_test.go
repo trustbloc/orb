@@ -47,7 +47,7 @@ const (
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://trustbloc.github.io/did-method-orb/contexts/anchor/v1",
-    "https://w3id.org/security/jws/v1"
+    "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
   "type": [
@@ -482,7 +482,7 @@ func TestResolver_Resolve(t *testing.T) {
 		data, localHL, err := resolver.Resolve(nil, cid, []byte(sampleData))
 		require.EqualError(t, err, "failed to store the data in the local CAS: "+
 			"successfully stored data into the local CAS, but the resource hash produced by the local CAS "+
-			"(uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw) does not match the resource hash from the original request "+
+			"(uEiCIOcbw1KEQ7neFh6F4GqB-KyhsRhJAGhXpL3kqy4oYVA) does not match the resource hash from the original request "+
 			"(bafkrwihwsnuregfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy)")
 		require.Nil(t, data)
 		require.Empty(t, localHL)
@@ -515,7 +515,7 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failure while getting and storing data from the remote WebCAS endpoints")
 		require.Contains(t, err.Error(), "Response status code: 404. Response body: "+
-			"no content at uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw was found: content not found")
+			"no content at uEiCIOcbw1KEQ7neFh6F4GqB-KyhsRhJAGhXpL3kqy4oYVA was found: content not found")
 		require.Nil(t, data)
 		require.Empty(t, localHL)
 	})
@@ -610,9 +610,9 @@ func TestResolver_Resolve(t *testing.T) {
 				"failed to determine WebCAS URL via WebFinger: "+
 				"failed to get WebFinger resource: failed to get response "+
 				"(URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
-				`ExistentDomain/cas/uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw): Get "http://`+
+				`ExistentDomain/cas/uEiCIOcbw1KEQ7neFh6F4GqB-KyhsRhJAGhXpL3kqy4oYVA): Get "http://`+
 				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/"+
-				`uEiA2pvVebd3E9E8lc9DvOYAjklWMDwHYDJXGZJ-QJTlGzw": dial tcp: lookup NonExistentDomain`)
+				`uEiCIOcbw1KEQ7neFh6F4GqB-KyhsRhJAGhXpL3kqy4oYVA": dial tcp: lookup NonExistentDomain`)
 			require.Nil(t, data)
 			require.Empty(t, localHL)
 		})

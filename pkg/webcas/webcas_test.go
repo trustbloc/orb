@@ -34,7 +34,7 @@ const sampleAnchorCredential = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/jws/v1"
+    "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "id": "http://sally.example.com/transactions/bafkreihwsnuregceqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy",
   "type": [

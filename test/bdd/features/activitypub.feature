@@ -171,12 +171,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w%3AuoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiDX1dMubWFb55kQ-KWUo6GWChQ4oHRk5BT23ZL9UNSu7g%3AuoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDX1dMubWFb55kQ-KWUo6GWChQ4oHRk5BT23ZL9UNSu7g:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

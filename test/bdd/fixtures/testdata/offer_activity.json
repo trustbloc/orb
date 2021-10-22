@@ -26,7 +26,7 @@
         "witness": {
           "@context": [
             "https://www.w3.org/2018/credentials/v1",
-            "https://w3id.org/security/jws/v1"
+            "https://w3id.org/security/suites/jws-2020/v1"
           ],
           "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
           "id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
