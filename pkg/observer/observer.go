@@ -132,6 +132,7 @@ type Providers struct {
 	WebFingerResolver resourceResolver
 	CASResolver       casResolver
 	DocLoader         documentLoader
+	Pkf               verifiable.PublicKeyFetcher
 	AnchorLinkStore   anchorLinkStore
 }
 
@@ -307,7 +308,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	}
 
 	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
-		verifiable.WithDisabledProofCheck(),
+		verifiable.WithPublicKeyFetcher(o.Pkf),
 		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
 	)
 	if err != nil {

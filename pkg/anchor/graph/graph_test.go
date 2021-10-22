@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
@@ -51,7 +50,6 @@ func TestGraph_Add(t *testing.T) {
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
 			&metricsProvider{}),
-		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
 
@@ -75,7 +73,6 @@ func TestGraph_Read(t *testing.T) {
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
 			&metricsProvider{}),
-		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
 
@@ -115,7 +112,6 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
 			&metricsProvider{}),
-		Pkf:       pubKeyFetcherFnc,
 		DocLoader: testutil.GetLoader(t),
 	}
 
@@ -298,10 +294,6 @@ func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEve
 	require.NoError(t, err)
 
 	return act
-}
-
-var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
-	return nil, nil
 }
 
 type metricsProvider struct{}
