@@ -3121,7 +3121,7 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 const proof = `{
   "@context": [
     "https://w3id.org/security/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "proof": {
     "type": "JsonWebSignature2020",

@@ -27,7 +27,7 @@
         "witness": {
           "@context": [
             "https://www.w3.org/2018/credentials/v1",
-            "https://w3id.org/security/jws/v1"
+            "https://w3id.org/security/suites/jws-2020/v1"
           ],
           "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
           "id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
@@ -58,7 +58,7 @@
     "attributedTo": "https://orb.domain1.com/services/orb",
     "published": "2021-10-14T18:32:17.888176489Z",
     "type": "AnchorEvent",
-    "url": "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+    "url": "hl:uEiDX1dMubWFb55kQ-KWUo6GWChQ4oHRk5BT23ZL9UNSu7g:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
   },
   "published": "2021-10-14T18:32:18.333137249Z",
   "to": [

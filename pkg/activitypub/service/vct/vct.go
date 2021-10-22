@@ -26,7 +26,7 @@ import (
 
 const (
 	ctxSecurity = "https://w3id.org/security/v1"
-	ctxJWS      = "https://w3id.org/security/jws/v1"
+	ctxJWS      = "https://w3id.org/security/suites/jws-2020/v1"
 )
 
 type signer interface {

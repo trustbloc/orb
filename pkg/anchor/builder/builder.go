@@ -20,7 +20,7 @@ const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
 	// jwsContextURIV1 is jws context.
-	jwsContextURIV1 = "https://w3id.org/security/jws/v1"
+	jwsContextURIV1 = "https://w3id.org/security/suites/jws-2020/v1"
 )
 
 // Params holds required parameters for building anchor credential.
