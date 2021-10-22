@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
@@ -33,7 +32,6 @@ type Graph struct {
 type Providers struct {
 	CasWriter   casWriter
 	CasResolver casResolver
-	Pkf         verifiable.PublicKeyFetcher
 	DocLoader   ld.DocumentLoader
 }
 

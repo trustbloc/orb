@@ -20,7 +20,6 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
-	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -120,7 +119,6 @@ func TestWriter_WriteAnchor(t *testing.T) {
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
-		Pkf: pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -919,7 +917,6 @@ func TestWriter_handle(t *testing.T) {
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
-		Pkf: pubKeyFetcherFnc,
 	}
 
 	apServiceIRI, err := url.Parse(activityPubURL)
@@ -1547,7 +1544,6 @@ func TestWriter_Read(t *testing.T) {
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 					transport.DefaultSigner(), transport.DefaultSigner()),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
-		Pkf: pubKeyFetcherFnc,
 	}
 
 	providers := &Providers{
@@ -1582,10 +1578,6 @@ func (m *mockTxnBuilder) Build(anchorHashlink string) (*verifiable.Credential, e
 	}
 
 	return &verifiable.Credential{Subject: &builder.CredentialSubject{ID: anchorHashlink}}, nil
-}
-
-var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
-	return nil, nil
 }
 
 type mockAnchorGraph struct {

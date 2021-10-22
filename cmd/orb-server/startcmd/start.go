@@ -455,7 +455,6 @@ func startOrbServices(parameters *orbParameters) error {
 	graphProviders := &graph.Providers{
 		CasResolver: casResolver,
 		CasWriter:   coreCASClient,
-		Pkf:         verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
 		DocLoader:   orbDocumentLoader,
 	}
 
@@ -638,6 +637,7 @@ func startOrbServices(parameters *orbParameters) error {
 		WebFingerResolver:      resourceResolver,
 		CASResolver:            casResolver,
 		DocLoader:              orbDocumentLoader,
+		Pkf:                    verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
 		AnchorLinkStore:        anchorLinkStore,
 	}
 

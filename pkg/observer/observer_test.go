@@ -84,6 +84,7 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors: memdidanchor.New(),
 			PubSub:     mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:    &orbmocks.MetricsProvider{},
+			Pkf:        pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -115,7 +116,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -169,6 +169,7 @@ func TestStartObserver(t *testing.T) {
 			WebFingerResolver:      &apmocks.WebFingerResolver{},
 			CASResolver:            casResolver,
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
@@ -206,7 +207,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -231,6 +231,7 @@ func TestStartObserver(t *testing.T) {
 			DidAnchors:             memdidanchor.New(),
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
+			Pkf:                    pubKeyFetcherFnc,
 			DocLoader:              testutil.GetLoader(t),
 		}
 
@@ -267,7 +268,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -298,6 +298,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -331,7 +332,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 		anchorGraph := graph.New(graphProviders)
@@ -360,6 +360,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -394,7 +395,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -455,7 +455,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -494,6 +493,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -528,7 +528,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -541,6 +540,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -569,6 +569,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -603,6 +604,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -636,7 +638,6 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner()),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			Pkf:       pubKeyFetcherFnc,
 			DocLoader: testutil.GetLoader(t),
 		}
 
@@ -666,6 +667,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 pubSub,
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			Pkf:                    pubKeyFetcherFnc,
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -698,6 +700,7 @@ func TestResolveActorFromHashlink(t *testing.T) {
 		WebFingerResolver: wfResolver,
 		CASResolver:       casResolver,
 		DocLoader:         testutil.GetLoader(t),
+		Pkf:               pubKeyFetcherFnc,
 	}
 
 	o, e := New(serviceIRI, providers)
