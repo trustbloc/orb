@@ -23,6 +23,8 @@ Feature:
     And the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/policy" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/cas" is set to "READ_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/vc" is set to "READ_TOKEN"
 
     # domain2 server follows domain1 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
@@ -294,6 +296,14 @@ Feature:
      And the JSON path "orderedItems.0.id" of the response is saved to variable "likeID"
      And the JSON path "orderedItems.0.actor" of the response is saved to variable "likeActor"
      And the JSON path "orderedItems.0.to" of the raw response is saved to variable "likeTo"
+
+     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
+
+     When an HTTP GET is sent to "https://orb.domain1.com/cas/${anchorHash}"
+     Then the JSON path "attachment.0.witness.id" of the response is saved to variable "vcID"
+
+     When an HTTP GET is sent to "${vcID}"
+     Then the JSON path "id" of the response equals "${vcID}"
 
      When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorLink}&page=true"
      Then the JSON path "type" of the response equals "OrderedCollectionPage"
