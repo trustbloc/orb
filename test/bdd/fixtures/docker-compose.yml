@@ -498,6 +498,8 @@ services:
       - RESOLVE_FROM_ANCHOR_ORIGIN=true
       - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
       - ORB_ID=orb-domain4
+      - UNPUBLISHED_OPERATION_LIFETIME=30s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
+      - DATA_EXPIRY_CHECK_INTERVAL=15s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

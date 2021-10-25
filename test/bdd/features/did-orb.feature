@@ -391,6 +391,52 @@ Feature:
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "secondKey"
 
+      # wait for pending operation (secondKey) to clear
+      Then we wait 6 seconds
+
+      # stop anchor origin for domain4 operations requests - document operation(s) will fail after they have been added
+      # because anchor event will not get enough proofs
+      Then container "orb-domain1" is stopped
+      And we wait 2 seconds
+
+      # update document
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "thirdKey" to DID document
+      Then check for request success
+
+      # update request can be immediately resolved
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "thirdKey"
+
+      # request another update while first one is pending - error expected
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
+      Then check error response contains "pending operation found"
+      Then check error response contains "please re-submit your operation request at later time"
+
+      # batch writer fails to write operation since anchor origin is down
+      Then we wait 6 seconds
+
+      # request second update while first one is pending - error expected because domain1 is down
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
+      Then check error response contains "pending operation found"
+      Then check error response contains "please re-submit your operation request at later time"
+
+      Then container "orb-domain1" is started
+
+      # wait for operation to expire
+      Then we wait 45 seconds
+
+      # no more "pending operation found" error since the pending operation from above has since been deleted by the expiry service
+      When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
+      Then check for request success
+
+      # TODO: resolve for fourth key doesn't work because third commitment never made it so we have to submit
+      # operation request with third commitment (issue-835: change tests to support requests with previous commitments)
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      # never made it to anchor event - correct
+      Then check success response does NOT contain "thirdKey"
+      # made it to anchor event - however commitment was advanced with third key so this one is left 'hanging' (issue-835)
+      Then check success response does NOT contain "fourthKey"
+
   @local_cas
   @alternate_links_scenario
   Scenario: WebFinger query returns alternate links for "Liked" anchor credentials
