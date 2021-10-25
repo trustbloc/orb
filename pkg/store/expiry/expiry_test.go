@@ -461,7 +461,7 @@ func doFinalSetOfChecks(t *testing.T, testLogger *log.Log, storeToRunExpiryCheck
 
 	require.Contains(t, service2Logger.Read(), "The current permit holder (TestInstance1) has not performed "+
 		"an expired data cleanup in an unusually long time (4s ago, over 3 times longer than the configured "+
-		"interval of 1s). This indicates a problem with TestInstance1 - it may be down or not responding. "+
+		"interval of 1s). This indicates that TestInstance1 may be down or not responding. "+
 		"I will take over the expired data cleanup duty and grab the permit.")
 
 	require.Contains(t, service2Logger.Read(), "Successfully deleted 1 pieces of expired data.")
