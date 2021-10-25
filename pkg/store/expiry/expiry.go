@@ -194,9 +194,9 @@ func (s *Service) isMyDutyToCheckForExpiredData() bool {
 	timeLimit := s.interval * permitTimeLimitIntervalMultiplier
 
 	if timeSinceLastCleanup > timeLimit {
-		s.logger.Warnf("The current permit holder (%s) has not performed an expired data cleanup in an "+
-			"unusually long time (%s ago, over %d times longer than the configured interval of %s). This indicates a "+
-			"problem with %s - it may be down or not responding. I will take over the expired data "+
+		s.logger.Infof("The current permit holder (%s) has not performed an expired data cleanup in an "+
+			"unusually long time (%s ago, over %d times longer than the configured interval of %s). This indicates "+
+			"that %s may be down or not responding. I will take over the expired data "+
 			"cleanup duty and grab the permit.", currentPermit.CurrentHolder, timeSinceLastCleanup.String(),
 			permitTimeLimitIntervalMultiplier, s.interval.String(), currentPermit.CurrentHolder)
 
