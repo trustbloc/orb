@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -158,9 +159,7 @@ func TestService(t *testing.T) {
 		service.Start()
 		defer service.Stop()
 
-		time.Sleep(time.Millisecond * 2)
-
-		require.Contains(t, logger.Read(), "failed to query store for expired data: query error")
+		ensureLogContainsMessage(t, logger, "failed to query store for expired data: query error")
 	})
 	t.Run("Fail to get next value from iterator", func(t *testing.T) {
 		store := &mock.Store{
@@ -180,9 +179,7 @@ func TestService(t *testing.T) {
 		service.Start()
 		defer service.Stop()
 
-		time.Sleep(time.Millisecond * 2)
-
-		require.Contains(t, logger.Read(), "failed to get next value from iterator: next error")
+		ensureLogContainsMessage(t, logger, "failed to get next value from iterator: next error")
 	})
 	t.Run("Fail to get key from iterator", func(t *testing.T) {
 		store := &mock.Store{
@@ -202,9 +199,7 @@ func TestService(t *testing.T) {
 		service.Start()
 		defer service.Stop()
 
-		time.Sleep(time.Millisecond * 2)
-
-		require.Contains(t, logger.Read(), "failed to get key from iterator: key error")
+		ensureLogContainsMessage(t, logger, "failed to get key from iterator: key error")
 	})
 	t.Run("Unexpected failure while getting the permit from the coordination store", func(t *testing.T) {
 		coordinationStore := &mock.Store{
@@ -220,9 +215,7 @@ func TestService(t *testing.T) {
 		service.Start()
 		defer service.Stop()
 
-		time.Sleep(time.Millisecond * 2)
-
-		require.Contains(t, logger.Read(), "Unexpected failure while getting the permit: get error")
+		ensureLogContainsMessage(t, logger, "Unexpected failure while getting the permit: get error")
 	})
 	t.Run("Fail to unmarshal permit", func(t *testing.T) {
 		coordinationStore := &mock.Store{
@@ -238,9 +231,7 @@ func TestService(t *testing.T) {
 		service.Start()
 		defer service.Stop()
 
-		time.Sleep(time.Millisecond * 2)
-
-		require.Contains(t, logger.Read(), "Failed to unmarshal the current permit: invalid character "+
+		ensureLogContainsMessage(t, logger, "Failed to unmarshal the current permit: invalid character "+
 			"'o' in literal null (expecting 'u')")
 	})
 }
@@ -507,4 +498,30 @@ func pingMongoDB() error {
 	defer cancel()
 
 	return db.Client().Ping(ctx, nil)
+}
+
+func ensureLogContainsMessage(t *testing.T, logger *stringLogger, expectedMessage string) {
+	t.Helper()
+
+	var logContents string
+
+	var logContainsMessage bool
+
+	for i := 0; i < 20; i++ {
+		time.Sleep(time.Millisecond * 2)
+
+		logContents = logger.Read()
+
+		logContainsMessage = strings.Contains(logContents, expectedMessage)
+
+		if logContainsMessage {
+			break
+		}
+	}
+
+	if !logContainsMessage {
+		require.FailNow(t, "The log did not contain the expected message.",
+			`Actual log contents: %s
+Expected message: %s`, logContents, expectedMessage)
+	}
 }
