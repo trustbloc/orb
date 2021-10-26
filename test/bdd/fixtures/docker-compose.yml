@@ -122,6 +122,7 @@ services:
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
+      - REPLICATE_LOCAL_CAS_WRITES_IN_IPFS=true
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
