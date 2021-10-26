@@ -45,8 +45,8 @@ services:
       - MQ_OBSERVER_POOL=5
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain1.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain1.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain1.com
+      - ANCHOR_CREDENTIAL_URL=https://orb.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
@@ -131,8 +131,8 @@ services:
       - MQ_OBSERVER_POOL=5
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb2.domain1.com
-      - ANCHOR_CREDENTIAL_URL=http://orb2.domain1.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb2.domain1.com
+      - ANCHOR_CREDENTIAL_URL=https://orb2.domain1.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
@@ -227,8 +227,8 @@ services:
       - MQ_OBSERVER_POOL=5
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
+      - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
@@ -306,8 +306,8 @@ services:
       - MQ_OBSERVER_POOL=5
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain2.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain2.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
+      - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
@@ -388,8 +388,8 @@ services:
       - MQ_OBSERVER_POOL=5
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN3}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain3.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain3.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain3.com
+      - ANCHOR_CREDENTIAL_URL=https://orb.domain3.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain3.com
@@ -477,8 +477,8 @@ services:
       - MQ_OBSERVER_POOL=3
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN4}
-      - ANCHOR_CREDENTIAL_ISSUER=http://orb.domain4.com
-      - ANCHOR_CREDENTIAL_URL=http://orb.domain4.com/vc
+      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain4.com
+      - ANCHOR_CREDENTIAL_URL=https://orb.domain4.com/vc
       - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
