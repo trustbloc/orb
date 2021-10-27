@@ -102,9 +102,9 @@ func BuildContentObject(payload *subject.Payload) (*ContentObject, error) {
 
 // GetPayloadFromAnchorEvent populates a Payload from the given anchor event.
 func GetPayloadFromAnchorEvent(anchorEvent *vocab.AnchorEventType) (*subject.Payload, error) {
-	anchorObj, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+	anchorObj, err := anchorEvent.AnchorObject(anchorEvent.Index())
 	if err != nil {
-		return nil, fmt.Errorf("anchor object for [%s]: %w", anchorEvent.Anchors(), err)
+		return nil, fmt.Errorf("anchor object for [%s]: %w", anchorEvent.Index(), err)
 	}
 
 	gen, err := registry.Get(anchorObj.Generator())

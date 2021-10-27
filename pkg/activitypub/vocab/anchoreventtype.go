@@ -25,8 +25,8 @@ type AnchorEventType struct {
 }
 
 type anchorEventType struct {
-	Anchors *URLProperty           `json:"anchors,omitempty"`
-	Parent  *URLCollectionProperty `json:"parent,omitempty"`
+	Index  *URLProperty           `json:"index,omitempty"`
+	Parent *URLCollectionProperty `json:"parent,omitempty"`
 }
 
 // NewAnchorEvent returns a new Info type.
@@ -42,19 +42,19 @@ func NewAnchorEvent(opts ...Opt) *AnchorEventType {
 			WithAttributedTo(options.AttributedTo),
 			WithAttachment(options.Attachment...)),
 		anchorEvent: &anchorEventType{
-			Anchors: NewURLProperty(options.Anchors),
-			Parent:  NewURLCollectionProperty(options.Parent...),
+			Index:  NewURLProperty(options.Anchors),
+			Parent: NewURLCollectionProperty(options.Parent...),
 		},
 	}
 }
 
-// Anchors returns the anchor URL.
-func (t *AnchorEventType) Anchors() *url.URL {
+// Index returns the index URL.
+func (t *AnchorEventType) Index() *url.URL {
 	if t == nil || t.anchorEvent == nil {
 		return nil
 	}
 
-	return t.anchorEvent.Anchors.URL()
+	return t.anchorEvent.Index.URL()
 }
 
 // Parent returns the parent URLs.
@@ -72,7 +72,7 @@ func (t *AnchorEventType) Validate() error {
 		return fmt.Errorf("nil anchor event")
 	}
 
-	if t.Anchors() == nil {
+	if t.Index() == nil {
 		if len(t.URL()) > 0 {
 			// This is an anchor event reference.
 			return nil
@@ -97,7 +97,7 @@ func (t *AnchorEventType) Validate() error {
 			return fmt.Errorf("invalid anchor object: %w", err)
 		}
 
-		if ao.URL()[0].String() == t.Anchors().String() {
+		if ao.URL()[0].String() == t.Index().String() {
 			anchorObj = ao
 
 			break
@@ -106,7 +106,7 @@ func (t *AnchorEventType) Validate() error {
 
 	if anchorObj == nil {
 		return fmt.Errorf("unable to find the attachment that matches the anchors URL in the anchor event [%s]",
-			t.Anchors())
+			t.Index())
 	}
 
 	return nil

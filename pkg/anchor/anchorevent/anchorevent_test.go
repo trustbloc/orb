@@ -110,7 +110,7 @@ func TestBuildAnchorEvent(t *testing.T) {
 		// check previous (two items - no create)
 		require.Equal(t, 2, len(anchorEvent.Parent()))
 
-		anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+		anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Index())
 		require.NoError(t, err)
 		require.NotNil(t, anchorObject)
 
@@ -224,7 +224,7 @@ const (
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
   ],
-  "anchors": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
   "attachment": [
     {
       "contentObject": {
@@ -299,7 +299,7 @@ const (
 	//nolint:lll
 	invalidAnchorEventNoURN = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "index": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
   "attachment": [
     {
       "contentObject": {
@@ -340,7 +340,7 @@ const (
 	//nolint:lll
 	invalidAnchorEventGenerator = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "index": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
   "attachment": [
     {
       "contentObject": {

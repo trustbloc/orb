@@ -43,7 +43,7 @@ const sampleAnchorEvent = `{
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
   ],
-  "anchors": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
   "attachment": [
     {
       "contentObject": {

@@ -1735,7 +1735,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	objProp := vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Anchors())),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Index())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -1749,7 +1749,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(anchorEvent.Anchors()),
+				vocab.WithInReplyTo(anchorEvent.Index()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
 				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -1768,7 +1768,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(acceptOffer.ID()))
 
-		require.NotEmpty(t, proofHandler.Proof(anchorEvent.Anchors().String()))
+		require.NotEmpty(t, proofHandler.Proof(anchorEvent.Index().String()))
 	})
 
 	t.Run("HandleProof error", func(t *testing.T) {
