@@ -35,6 +35,7 @@ func TestNewOptions(t *testing.T) {
 	partOf := testutil.MustParseURL("https://activities")
 	next := testutil.MustParseURL("https://activities?page=3")
 	prev := testutil.MustParseURL("https://activities?page=1")
+	linkURL := testutil.MustParseURL("hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw")
 
 	publishedTime := time.Now()
 	startTime := time.Now()
@@ -67,7 +68,6 @@ func TestNewOptions(t *testing.T) {
 	anchorObj, err := NewAnchorObject(
 		sampleGenerator,
 		MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-		nil,
 	)
 	require.NoError(t, err)
 	require.Len(t, anchorObj.URL(), 1)
@@ -107,6 +107,7 @@ func TestNewOptions(t *testing.T) {
 		WithInReplyTo(id),
 		WithAttachment(NewObjectProperty(WithObject(NewObject()))),
 		WithAnchorObject(anchorObj),
+		WithTag(NewTagProperty(WithLink(NewLink(linkURL)))),
 	)
 
 	require.NotNil(t, opts)

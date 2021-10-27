@@ -145,20 +145,23 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 		},
 	}
 
-	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(verifiableCred)))
+	witnessAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustUnmarshalToDoc([]byte(verifiableCred)))
 	require.NoError(t, err)
+	require.Len(t, witnessAnchorObj.URL(), 1)
 
-	anchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(contentObj), witness)
+	indexAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(contentObj),
+		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)))
 	require.NoError(t, err)
-	require.Len(t, anchorObj.URL(), 1)
+	require.Len(t, indexAnchorObj.URL(), 1)
 
 	published := time.Now()
 
 	t.Run("Success", func(t *testing.T) {
 		anchorEvent := vocab.NewAnchorEvent(
-			vocab.WithAnchors(anchorObj.URL()[0]),
+			vocab.WithAnchors(indexAnchorObj.URL()[0]),
 			vocab.WithParent(testutil.MustParseURL(parentHL1)),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
+			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
+			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessAnchorObj))),
 			vocab.WithAttributedTo(testutil.MustParseURL(service1)),
 			vocab.WithPublishedTime(&published),
 		)
@@ -182,7 +185,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 		anchorEvent := vocab.NewAnchorEvent(
 			vocab.WithAnchors(testutil.MustParseURL("hl:adsfwsds")),
 			vocab.WithParent(testutil.MustParseURL(parentHL1)),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
+			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 			vocab.WithAttributedTo(testutil.MustParseURL(service1)),
 			vocab.WithPublishedTime(&published),
 		)
@@ -194,7 +197,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 	})
 
 	t.Run("No subject in content object", func(t *testing.T) {
-		anchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(&contentObject{}), witness)
+		anchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(&contentObject{}))
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
 
@@ -220,10 +223,10 @@ const (
     "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
     "https://w3id.org/activityanchors#resources": [
       {
-        "ID": "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
+        "id": "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
       },
       {
-        "ID": "did:orb:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw",
+        "id": "did:orb:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw",
         "previousAnchor": "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA"
       }
     ]

@@ -216,25 +216,25 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 	// already been processed.
 	logger.Debugf("Publishing anchor event [%s]", anchorID)
 
-	bytes, err := vc.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("marshal anchor credential: %w", err)
-	}
-
-	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
-	if err != nil {
-		return fmt.Errorf("create new object with document: %w", err)
-	}
-
 	anchorObj, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
 	if err != nil {
 		return fmt.Errorf("get anchor object for [%s]: %w", anchorEvent.Anchors(), err)
 	}
 
+	witness, err := vocab.MarshalToDoc(vc)
+	if err != nil {
+		return fmt.Errorf("create new object with document: %w", err)
+	}
+
+	witnessAnchorObj, err := vocab.NewAnchorObject(anchorObj.Generator(), witness)
+	if err != nil {
+		return fmt.Errorf("create new anchor object: %w", err)
+	}
+
 	witnessedAnchorObj, err := vocab.NewAnchorObject(
 		anchorObj.Generator(),
 		anchorObj.ContentObject(),
-		witness,
+		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)),
 	)
 	if err != nil {
 		return fmt.Errorf("create new anchor object: %w", err)
@@ -247,6 +247,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
 		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessedAnchorObj))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessAnchorObj))),
 	)
 
 	err = h.publisher.Publish(anchorEvent)

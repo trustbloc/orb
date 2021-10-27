@@ -40,6 +40,7 @@ func NewObject(opts ...Opt) *ObjectType {
 			Attachment:   options.Attachment,
 			AttributedTo: NewURLProperty(options.AttributedTo),
 			Generator:    options.Generator,
+			Tag:          options.Tag,
 		},
 	}
 }
@@ -79,6 +80,7 @@ type objectType struct {
 	Attachment   []*ObjectProperty      `json:"attachment,omitempty"`
 	AttributedTo *URLProperty           `json:"attributedTo,omitempty"`
 	Generator    string                 `json:"generator,omitempty"`
+	Tag          []*TagProperty         `json:"tag,omitempty"`
 }
 
 // Context returns the context property.
@@ -189,6 +191,15 @@ func (t *ObjectType) Generator() string {
 	}
 
 	return t.object.Generator
+}
+
+// Tag returns the 'tag' field.
+func (t *ObjectType) Tag() []*TagProperty {
+	if t == nil || t.object == nil {
+		return nil
+	}
+
+	return t.object.Tag
 }
 
 // Urls holds a collection of URLs.

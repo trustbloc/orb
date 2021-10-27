@@ -754,9 +754,6 @@ func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEve
 
 	const defVCContext = "https://www.w3.org/2018/credentials/v1"
 
-	contentObj, err := anchorevent.BuildContentObject(payload)
-	require.NoError(t, err)
-
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
 		Context: []string{defVCContext},
@@ -769,7 +766,11 @@ func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEve
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	act, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+	contentObj, err := anchorevent.BuildContentObject(payload)
+	require.NoError(t, err)
+
+	act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
+		vocab.MustMarshalToDoc(vc))
 	require.NoError(t, err)
 
 	return act

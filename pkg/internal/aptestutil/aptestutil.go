@@ -198,29 +198,36 @@ func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 		parentURL2 = testutil.MustParseURL("hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp") //nolint:lll
 	)
 
-	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc([]byte(verifiableCred)))
+	witnessAnchorObj, err := vocab.NewAnchorObject(
+		generator,
+		vocab.MustUnmarshalToDoc([]byte(verifiableCred)),
+	)
 	require.NoError(t, err)
+	require.Len(t, witnessAnchorObj.URL(), 1)
 
 	published := time.Now()
 
-	anchorObj, err := vocab.NewAnchorObject(
+	indexAnchorObj, err := vocab.NewAnchorObject(
 		generator,
 		vocab.MustMarshalToDoc(
 			&sampleContentObj{
 				Field1: "value1",
 				Field2: "value2",
 			},
-		), witness)
+		),
+		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)),
+	)
 	require.NoError(t, err)
-	require.Len(t, anchorObj.URL(), 1)
+	require.Len(t, indexAnchorObj.URL(), 1)
 
 	anchorEvent := vocab.NewAnchorEvent(
 		vocab.WithURL(NewRandomHashlink(t)),
 		vocab.WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-		vocab.WithAnchors(anchorObj.URL()[0]),
+		vocab.WithAnchors(indexAnchorObj.URL()[0]),
 		vocab.WithPublishedTime(&published),
 		vocab.WithParent(parentURL1, parentURL2),
-		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessAnchorObj))),
 	)
 
 	return anchorEvent

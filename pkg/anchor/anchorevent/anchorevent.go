@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -30,34 +29,31 @@ type ContentObject struct {
 }
 
 // BuildAnchorEvent builds an anchor event from the given payload, content object, and verifiable credential.
-func BuildAnchorEvent(payload *subject.Payload, contentObj *ContentObject,
-	vc *verifiable.Credential) (*vocab.AnchorEventType, error) {
+func BuildAnchorEvent(payload *subject.Payload, gen string,
+	indexContentObj, witnessContentObj vocab.Document) (*vocab.AnchorEventType, error) {
 	attributedTo, err := url.Parse(payload.AnchorOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("parse attributed to URL [%s]: %w", payload.AnchorOrigin, err)
 	}
 
-	bytes, err := vc.MarshalJSON()
+	witnessAnchorObj, err := vocab.NewAnchorObject(gen, witnessContentObj)
 	if err != nil {
-		return nil, fmt.Errorf("marshal anchor credential: %w", err)
+		return nil, fmt.Errorf("create new witness anchor object: %w", err)
 	}
 
-	witness, err := vocab.NewObjectWithDocument(vocab.MustUnmarshalToDoc(bytes))
+	indexAnchorObj, err := vocab.NewAnchorObject(gen, indexContentObj,
+		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)))
 	if err != nil {
-		return nil, fmt.Errorf("create new object with document: %w", err)
-	}
-
-	anchorObj, err := vocab.NewAnchorObject(contentObj.GeneratorID, contentObj.Payload, witness)
-	if err != nil {
-		return nil, fmt.Errorf("create new anchor object: %w", err)
+		return nil, fmt.Errorf("create new index anchor object: %w", err)
 	}
 
 	return vocab.NewAnchorEvent(
 		vocab.WithAttributedTo(attributedTo),
-		vocab.WithAnchors(anchorObj.URL()[0]),
+		vocab.WithAnchors(indexAnchorObj.URL()[0]),
 		vocab.WithPublishedTime(payload.Published),
 		vocab.WithParent(resolveParents(payload)...),
-		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
+		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessAnchorObj))),
 	), nil
 }
 

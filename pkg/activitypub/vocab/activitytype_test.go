@@ -49,24 +49,34 @@ func TestCreateTypeMarshal(t *testing.T) {
 	published := getStaticTime()
 
 	t.Run("Marshal", func(t *testing.T) {
-		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
+		vc, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
 		require.NoError(t, err)
 
-		anchorObj, err := NewAnchorObject(
+		// Verifiable credential
+		vcAnchorObj, err := NewAnchorObject(
 			sampleGenerator,
-			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-			witness,
+			MustMarshalToDoc(vc),
 		)
 		require.NoError(t, err)
-		require.Len(t, anchorObj.URL(), 1)
+		require.Len(t, vcAnchorObj.URL(), 1)
+
+		// Index
+		indexAnchorObj, err := NewAnchorObject(
+			sampleGenerator,
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			WithLink(NewLink(vcAnchorObj.URL()[0], RelationshipWitness)),
+		)
+		require.NoError(t, err)
+		require.Len(t, indexAnchorObj.URL(), 1)
 
 		anchorEvent := NewAnchorEvent(
 			WithURL(anchorEventURL1),
 			WithAttributedTo(attributedToURL),
-			WithAnchors(anchorObj.URL()[0]),
+			WithAnchors(indexAnchorObj.URL()[0]),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(indexAnchorObj))),
+			WithAttachment(NewObjectProperty(WithAnchorObject(vcAnchorObj))),
 		)
 
 		create := NewCreateActivity(
@@ -126,15 +136,12 @@ func TestCreateTypeMarshal(t *testing.T) {
 		require.True(t, anchorEvent.Parent().Contains(parentURL1))
 		require.True(t, anchorEvent.Parent().Contains(parentURL2))
 
-		require.Len(t, anchorEvent.Attachment(), 1)
+		require.Len(t, anchorEvent.Attachment(), 2)
 
 		anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
 		require.NoError(t, err)
 		require.NotNil(t, anchorObject)
 		require.True(t, anchorObject.Type().Is(TypeAnchorObject))
-
-		witnessProperty := anchorObject.Witness()
-		require.NotNil(t, witnessProperty)
 
 		contentObject := anchorObject.ContentObject()
 		require.NotNil(t, contentObject)
@@ -231,13 +238,9 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 	t.Run("With embedded content object", func(t *testing.T) {
 		published := getStaticTime()
 
-		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
-		require.NoError(t, err)
-
 		anchorObj, err := NewAnchorObject(
 			sampleGenerator,
 			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-			witness,
 		)
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
@@ -323,9 +326,6 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, anchorObject)
 			require.True(t, anchorObject.Type().Is(TypeAnchorObject))
-
-			witnessProperty := anchorObject.Witness()
-			require.NotNil(t, witnessProperty)
 
 			contentObject := anchorObject.ContentObject()
 			require.NotNil(t, contentObject)
@@ -676,13 +676,9 @@ func TestOfferTypeMarshal(t *testing.T) {
 	endTime := startTime.Add(1 * time.Minute)
 
 	t.Run("Marshal", func(t *testing.T) {
-		witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
-		require.NoError(t, err)
-
 		anchorObj, err := NewAnchorObject(
 			sampleGenerator,
 			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-			witness,
 		)
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
@@ -903,7 +899,6 @@ const (
   "id": "https://sally.example.com/services/orb/activities/97bcd005-abb6-423d-a889-18bc1ce84988",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
-    "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
     "attachment": [
       {
         "contentObject": {
@@ -911,9 +906,20 @@ const (
           "field_2": "value2"
         },
         "generator": "https://sample.com#v0",
+        "tag": [
+          {
+            "href": "hl:uEiB9Pl2njebAxujVKG9A65Jj1fDQiDRCiroOlnIjJzTEQw",
+            "rel": [
+              "witness"
+            ],
+            "type": "Link"
+          }
+        ],
         "type": "AnchorObject",
-        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
-        "witness": {
+        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
+      },
+      {
+        "contentObject": {
           "@context": "https://www.w3.org/2018/credentials/v1",
           "credentialSubject": {
             "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
@@ -939,10 +945,14 @@ const (
             }
           ],
           "type": "VerifiableCredential"
-        }
+        },
+        "generator": "https://sample.com#v0",
+        "type": "AnchorObject",
+        "url": "hl:uEiB9Pl2njebAxujVKG9A65Jj1fDQiDRCiroOlnIjJzTEQw"
       }
     ],
     "attributedTo": "ipns://k51qzi5uqu5dl3ua2aal8vdw82j4i8s112p495j1spfkd2blqygghwccsw1z0p",
+    "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
     "parent": [
       "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
       "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
@@ -967,7 +977,6 @@ const (
     "items": [
       {
         "@context": "https://w3id.org/activityanchors/v1",
-        "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
         "attachment": [
           {
             "contentObject": {
@@ -976,37 +985,11 @@ const (
             },
             "generator": "https://sample.com#v0",
             "type": "AnchorObject",
-            "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
-            "witness": {
-              "@context": "https://www.w3.org/2018/credentials/v1",
-              "credentialSubject": {
-                "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
-              },
-              "issuanceDate": "2021-01-27T09:30:10Z",
-              "issuer": "https://sally.example.com/services/anchor",
-              "proof": [
-                {
-                  "created": "2021-01-27T09:30:00Z",
-                  "domain": "sally.example.com",
-                  "jws": "eyJ...",
-                  "proofPurpose": "assertionMethod",
-                  "type": "JsonWebSignature2020",
-                  "verificationMethod": "did:example:abcd#key"
-                },
-                {
-                  "created": "2021-01-27T09:30:05Z",
-                  "domain": "https://witness1.example.com/ledgers/maple2021",
-                  "jws": "eyJ...",
-                  "proofPurpose": "assertionMethod",
-                  "type": "JsonWebSignature2020",
-                  "verificationMethod": "did:example:abcd#key"
-                }
-              ],
-              "type": "VerifiableCredential"
-            }
+            "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
           }
         ],
         "attributedTo": "ipns://k51qzi5uqu5dl3ua2aal8vdw82j4i8s112p495j1spfkd2blqygghwccsw1z0p",
+        "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
         "parent": [
           "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
           "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
@@ -1197,7 +1180,6 @@ const (
   "id": "https://sally.example.com/services/orb/activities/65b3d005-6bb6-673d-6879-18bc1ee84976",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
-    "anchors": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
     "attachment": [
       {
         "contentObject": {
@@ -1206,37 +1188,11 @@ const (
         },
         "generator": "https://sample.com#v0",
         "type": "AnchorObject",
-        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
-        "witness": {
-          "@context": "https://www.w3.org/2018/credentials/v1",
-          "credentialSubject": {
-            "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
-          },
-          "issuanceDate": "2021-01-27T09:30:10Z",
-          "issuer": "https://sally.example.com/services/anchor",
-          "proof": [
-            {
-              "created": "2021-01-27T09:30:00Z",
-              "domain": "sally.example.com",
-              "jws": "eyJ...",
-              "proofPurpose": "assertionMethod",
-              "type": "JsonWebSignature2020",
-              "verificationMethod": "did:example:abcd#key"
-            },
-            {
-              "created": "2021-01-27T09:30:05Z",
-              "domain": "https://witness1.example.com/ledgers/maple2021",
-              "jws": "eyJ...",
-              "proofPurpose": "assertionMethod",
-              "type": "JsonWebSignature2020",
-              "verificationMethod": "did:example:abcd#key"
-            }
-          ],
-          "type": "VerifiableCredential"
-        }
+        "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
       }
     ],
     "attributedTo": "ipns://k51qzi5uqu5dl3ua2aal8vdw82j4i8s112p495j1spfkd2blqygghwccsw1z0p",
+    "anchors": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
     "parent": [
       "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
       "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"

@@ -18,6 +18,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
@@ -483,7 +484,12 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	anchorEvent := offer.Object().AnchorEvent()
 
-	result, err := h.witnessAnchorCredential(anchorEvent.Witness())
+	witnessDoc, err := util.GetWitnessDoc(anchorEvent)
+	if err != nil {
+		return fmt.Errorf("get witness document for 'Offer' activity [%s]: %w", offer.ID(), err)
+	}
+
+	result, err := h.witnessAnchorCredential(witnessDoc)
 	if err != nil {
 		return fmt.Errorf("error creating result for 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
@@ -875,7 +881,7 @@ func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) witnessAnchorCredential(vc *vocab.ObjectType) (*vocab.ObjectType, error) {
+func (h *Inbox) witnessAnchorCredential(vc vocab.Document) (*vocab.ObjectType, error) {
 	bytes, err := json.Marshal(vc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)

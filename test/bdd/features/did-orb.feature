@@ -300,7 +300,7 @@ Feature:
      And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
 
      When an HTTP GET is sent to "https://orb.domain1.com/cas/${anchorHash}"
-     Then the JSON path "attachment.0.witness.id" of the response is saved to variable "vcID"
+     Then the JSON path 'attachment.#(contentObject.type="VerifiableCredential").contentObject.id' of the response is saved to variable "vcID"
 
      When an HTTP GET is sent to "${vcID}"
      Then the JSON path "id" of the response equals "${vcID}"

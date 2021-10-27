@@ -17,7 +17,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-// AnchorEventType defines an "AnchorReference" type.
+// AnchorEventType defines an "AnchorEvent" type.
 type AnchorEventType struct {
 	*ObjectType
 
@@ -109,10 +109,6 @@ func (t *AnchorEventType) Validate() error {
 			t.Anchors())
 	}
 
-	if anchorObj.Witness() == nil {
-		return fmt.Errorf("witness is required")
-	}
-
 	return nil
 }
 
@@ -147,15 +143,6 @@ func validateAnchorObject(anchorObj *AnchorObjectType) error {
 	}
 
 	return nil
-}
-
-// Witness returns the "Witness" verifiable credential.
-func (t *AnchorEventType) Witness() *ObjectType {
-	if t == nil || len(t.Attachment()) == 0 {
-		return nil
-	}
-
-	return t.Attachment()[0].AnchorObject().Witness().Object()
 }
 
 // AnchorObject returns the AnchorObject for the given AnchorObject URL.
@@ -194,13 +181,11 @@ type AnchorObjectType struct {
 }
 
 type anchorObjectType struct {
-	ContentObject Document        `json:"contentObject,omitempty"`
-	Witness       *ObjectProperty `json:"witness,omitempty"`
+	ContentObject Document `json:"contentObject,omitempty"`
 }
 
 // NewAnchorObject returns a new AnchorObject type.
-func NewAnchorObject(generator string, contentObject Document, witness *ObjectType,
-	opts ...Opt) (*AnchorObjectType, error) {
+func NewAnchorObject(generator string, contentObject Document, opts ...Opt) (*AnchorObjectType, error) {
 	options := NewOptions(opts...)
 
 	contentObjBytes, err := json.Marshal(contentObject)
@@ -218,10 +203,10 @@ func NewAnchorObject(generator string, contentObject Document, witness *ObjectTy
 		return nil, fmt.Errorf("create hashlink URL to content object: %w", err)
 	}
 
-	var witnessProperty *ObjectProperty
+	var tag *TagProperty
 
-	if witness != nil {
-		witnessProperty = NewObjectProperty(WithObject(witness))
+	if options.Link != nil {
+		tag = NewTagProperty(WithLink(options.Link))
 	}
 
 	return &AnchorObjectType{
@@ -230,10 +215,10 @@ func NewAnchorObject(generator string, contentObject Document, witness *ObjectTy
 			WithType(TypeAnchorObject),
 			WithGenerator(generator),
 			WithURL(hlURL),
+			WithTag(tag),
 		),
 		anchorObject: &anchorObjectType{
 			ContentObject: contentObject,
-			Witness:       witnessProperty,
 		},
 	}, nil
 }
@@ -245,15 +230,6 @@ func (t *AnchorObjectType) ContentObject() Document {
 	}
 
 	return t.anchorObject.ContentObject
-}
-
-// Witness returns the verifiable credential.
-func (t *AnchorObjectType) Witness() *ObjectProperty {
-	if t == nil || t.anchorObject == nil {
-		return nil
-	}
-
-	return t.anchorObject.Witness
 }
 
 // MarshalJSON marshals the object to JSON.
