@@ -134,8 +134,8 @@ type DIDOrbSteps struct {
 
 	namespace          string
 	createRequest      *model.CreateRequest
-	recoveryKey        *ecdsa.PrivateKey
-	updateKey          *ecdsa.PrivateKey
+	recoveryKeys       []*ecdsa.PrivateKey
+	updateKeys         []*ecdsa.PrivateKey
 	resp               *httpResponse
 	bddContext         *BDDContext
 	interimDID         string
@@ -304,8 +304,69 @@ func (d *DIDOrbSteps) createDIDDocumentSaveIDToVar(url, varName string) error {
 	return nil
 }
 
+func (d *DIDOrbSteps) resetKeysToLastSuccessful(url string) error {
+	err := d.resolveDIDDocumentWithID(url, d.canonicalDID)
+	if err != nil {
+		return err
+	}
+
+	var result document.ResolutionResult
+	err = json.Unmarshal(d.resp.Payload, &result)
+	if err != nil {
+		return err
+	}
+
+	metadataObj, ok := result.DocumentMetadata["method"]
+	if !ok {
+		return fmt.Errorf("missing method")
+	}
+
+	metadataMap, ok := metadataObj.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("method is wrong type")
+	}
+
+	updateCommitment := metadataMap[document.UpdateCommitmentProperty].(string)
+	recoveryCommitment := metadataMap[document.RecoveryCommitmentProperty].(string)
+
+	d.updateKeys, err = removeKeysAfterCommitment(d.updateKeys, updateCommitment)
+	if err != nil {
+		return err
+	}
+
+	d.recoveryKeys, err = removeKeysAfterCommitment(d.recoveryKeys, recoveryCommitment)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func removeKeysAfterCommitment(keys []*ecdsa.PrivateKey, cmt string) ([]*ecdsa.PrivateKey, error) {
+	for index, key := range keys {
+		pubKey, err := pubkey.GetPublicKeyJWK(&key.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+
+		c, err := commitment.GetCommitment(pubKey, sha2_256)
+		if err != nil {
+			return nil, err
+		}
+
+		if c == cmt {
+			return keys[:index+1], nil
+		}
+	}
+
+	return keys, nil
+}
+
 func (d *DIDOrbSteps) createDIDDocument(url string) error {
 	logger.Info("create did document")
+
+	d.recoveryKeys = nil
+	d.updateKeys = nil
 
 	err := d.setSidetreeURL(url)
 	if err != nil {
@@ -322,8 +383,8 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 		return err
 	}
 
-	d.recoveryKey = recoveryKey
-	d.updateKey = updateKey
+	d.recoveryKeys = append(d.recoveryKeys, recoveryKey)
+	d.updateKeys = append(d.updateKeys, updateKey)
 
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, reqBytes, "application/json")
 	if err == nil && d.resp.StatusCode == http.StatusOK {
@@ -404,7 +465,7 @@ func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
 	if err == nil && d.resp.StatusCode == http.StatusOK {
 		// update update key for subsequent update requests
-		d.updateKey = updateKey
+		d.updateKeys = append(d.updateKeys, updateKey)
 	}
 
 	return err
@@ -458,8 +519,8 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 	d.resp, err = d.httpClient.Post(d.sidetreeURL, req, "application/json")
 	if err == nil && d.resp.StatusCode == http.StatusOK {
 		// update recovery and update key for subsequent requests
-		d.recoveryKey = recoveryKey
-		d.updateKey = updateKey
+		d.recoveryKeys = append(d.recoveryKeys, recoveryKey)
+		d.updateKeys = append(d.updateKeys, updateKey)
 	}
 
 	return err
@@ -836,18 +897,20 @@ func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.Pri
 }
 
 func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqueSuffix string) ([]byte, *ecdsa.PrivateKey, *ecdsa.PrivateKey, error) {
-	recoveryKey, recoveryCommitment, err := generateKeyAndCommitment()
+	currentRecoveryKey := d.getLatestRecoveryKey()
+
+	nextRecoveryKey, nextRecoveryCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	updateKey, updateCommitment, err := generateKeyAndCommitment()
+	nextUpdateKey, nextUpdateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// recovery key and signer passed in are generated during previous operations
-	recoveryPubKey, err := pubkey.GetPublicKeyJWK(&d.recoveryKey.PublicKey)
+	recoveryPubKey, err := pubkey.GetPublicKeyJWK(&currentRecoveryKey.PublicKey)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -870,10 +933,10 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		OpaqueDocument:     string(doc),
 		Patches:            patches,
 		RecoveryKey:        recoveryPubKey,
-		RecoveryCommitment: recoveryCommitment,
-		UpdateCommitment:   updateCommitment,
+		RecoveryCommitment: nextRecoveryCommitment,
+		UpdateCommitment:   nextUpdateCommitment,
 		MultihashCode:      sha2_256,
-		Signer:             ecsigner.New(d.recoveryKey, "ES256", ""), // sign with old signer
+		Signer:             ecsigner.New(currentRecoveryKey, "ES256", ""), // sign with old signer
 		AnchorFrom:         now,
 		AnchorUntil:        now + anchorTimeDelta,
 		AnchorOrigin:       origin,
@@ -882,7 +945,7 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 		return nil, nil, nil, err
 	}
 
-	return recoverRequest, recoveryKey, updateKey, nil
+	return recoverRequest, nextRecoveryKey, nextUpdateKey, nil
 }
 
 func (d *DIDOrbSteps) getUniqueSuffix() (string, error) {
@@ -890,8 +953,10 @@ func (d *DIDOrbSteps) getUniqueSuffix() (string, error) {
 }
 
 func (d *DIDOrbSteps) getDeactivateRequest(did string) ([]byte, error) {
+	currentRecoveryKey := d.getLatestRecoveryKey()
+
 	// recovery key and signer passed in are generated during previous operations
-	recoveryPubKey, err := pubkey.GetPublicKeyJWK(&d.recoveryKey.PublicKey)
+	recoveryPubKey, err := pubkey.GetPublicKeyJWK(&currentRecoveryKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -905,19 +970,29 @@ func (d *DIDOrbSteps) getDeactivateRequest(did string) ([]byte, error) {
 		DidSuffix:   did,
 		RevealValue: revealValue,
 		RecoveryKey: recoveryPubKey,
-		Signer:      ecsigner.New(d.recoveryKey, "ES256", ""),
+		Signer:      ecsigner.New(currentRecoveryKey, "ES256", ""),
 		AnchorFrom:  time.Now().Unix(),
 	})
 }
 
+func (d *DIDOrbSteps) getLatestRecoveryKey() *ecdsa.PrivateKey {
+	return d.recoveryKeys[len(d.recoveryKeys)-1]
+}
+
+func (d *DIDOrbSteps) getLatestUpdateKey() *ecdsa.PrivateKey {
+	return d.updateKeys[len(d.updateKeys)-1]
+}
+
 func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byte, *ecdsa.PrivateKey, error) {
-	updateKey, updateCommitment, err := generateKeyAndCommitment()
+	currentUpdateKey := d.getLatestUpdateKey()
+
+	nextUpdateKey, nextUpdateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// update key and signer passed in are generated during previous operations
-	updatePubKey, err := pubkey.GetPublicKeyJWK(&d.updateKey.PublicKey)
+	updatePubKey, err := pubkey.GetPublicKeyJWK(&currentUpdateKey.PublicKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -932,11 +1007,11 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 	req, err := client.NewUpdateRequest(&client.UpdateRequestInfo{
 		DidSuffix:        did,
 		RevealValue:      revealValue,
-		UpdateCommitment: updateCommitment,
+		UpdateCommitment: nextUpdateCommitment,
 		UpdateKey:        updatePubKey,
 		Patches:          patches,
 		MultihashCode:    sha2_256,
-		Signer:           ecsigner.New(d.updateKey, "ES256", ""),
+		Signer:           ecsigner.New(currentUpdateKey, "ES256", ""),
 		AnchorFrom:       now,
 		AnchorUntil:      now + anchorTimeDelta,
 	})
@@ -944,7 +1019,7 @@ func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byt
 		return nil, nil, err
 	}
 
-	return req, updateKey, nil
+	return req, nextUpdateKey, nil
 }
 
 func generateKeyAndCommitment() (*ecdsa.PrivateKey, string, error) {
@@ -1213,6 +1288,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did$`, d.resolveDIDDocumentWithCanonicalDID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did and resets keys to last successful$`, d.resetKeysToLastSuccessful)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous canonical did$`, d.resolveDIDDocumentWithPreviousCanonicalDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with invalid CID in canonical did$`, d.resolveDIDDocumentWithInvalidCIDInDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with equivalent did$`, d.resolveDIDDocumentWithEquivalentDID)
