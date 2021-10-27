@@ -174,6 +174,9 @@ func TestObjectType_Accessors(t *testing.T) {
 	require.Empty(t, o.CID())
 	require.Nil(t, o.Published())
 	require.Empty(t, o.URL())
+	require.Nil(t, o.Tag())
+	require.Empty(t, o.Generator())
+	require.Nil(t, o.AttributedTo())
 }
 
 const (

@@ -26,6 +26,8 @@ type Options struct {
 	Attachment   []*ObjectProperty
 	AttributedTo *url.URL
 	Generator    string
+	Tag          []*TagProperty
+	Link         *LinkType
 
 	ObjectPropertyOptions
 	CollectionOptions
@@ -137,6 +139,22 @@ func WithAttributedTo(u *url.URL) Opt {
 func WithGenerator(generator string) Opt {
 	return func(opts *Options) {
 		opts.Generator = generator
+	}
+}
+
+// WithTag sets the 'tag' property on the object.
+func WithTag(tag *TagProperty) Opt {
+	return func(opts *Options) {
+		if tag != nil {
+			opts.Tag = append(opts.Tag, tag)
+		}
+	}
+}
+
+// WithLink sets the 'link' property on the object.
+func WithLink(link *LinkType) Opt {
+	return func(opts *Options) {
+		opts.Link = link
 	}
 }
 

@@ -29,28 +29,43 @@ func TestAnchorEventNil(t *testing.T) {
 
 	require.Nil(t, anchorEvent.Anchors())
 	require.Empty(t, anchorEvent.Parent())
-	require.Nil(t, anchorEvent.Witness())
 
 	_, err := anchorEvent.AnchorObject(MustParseURL("hl:xxx"))
 	require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
 }
 
 func TestAnchorEvent(t *testing.T) {
+	const (
+		relationship1 = "relationship1"
+		relationship2 = "relationship2"
+	)
+
 	contentObj := &sampleContentObj{Field1: "value1", Field2: "value2"}
 	contentObj2 := &sample2ContentObj{Field3: "value3"}
 
-	witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
-	require.NoError(t, err)
-
 	published := getStaticTime()
 
-	anchorObj, err := NewAnchorObject(sampleGenerator, MustMarshalToDoc(contentObj), witness)
+	anchorObj, err := NewAnchorObject(sampleGenerator, MustMarshalToDoc(contentObj))
 	require.NoError(t, err)
 	require.Len(t, anchorObj.URL(), 1)
 
-	anchorObj2, err := NewAnchorObject(sampleGenerator2, MustMarshalToDoc(contentObj2), nil)
+	anchorObj2, err := NewAnchorObject(sampleGenerator2,
+		MustMarshalToDoc(contentObj2),
+		WithLink(NewLink(anchorObj.URL()[0], relationship1, relationship2)),
+	)
 	require.NoError(t, err)
-	require.Len(t, anchorObj.URL(), 1)
+	require.Len(t, anchorObj2.URL(), 1)
+	require.Len(t, anchorObj2.Tag(), 1)
+
+	tag := anchorObj2.Tag()[0]
+	require.True(t, tag.Type().Is(TypeLink))
+
+	link := tag.Link()
+	require.NotNil(t, link)
+	require.True(t, link.Rel().Is(relationship1))
+	require.True(t, link.Rel().Is(relationship2))
+	require.NotNil(t, link.HRef())
+	require.Equal(t, anchorObj.URL()[0].String(), link.HRef().String())
 
 	anchorEvent := NewAnchorEvent(
 		WithURL(testutil.MustParseURL(
@@ -75,8 +90,6 @@ func TestAnchorEvent(t *testing.T) {
 	require.NoError(t, json.Unmarshal(bytes, ae))
 	require.Equal(t, anchorEvent.Anchors().String(), ae.Anchors().String())
 
-	require.Equal(t, witness, anchorEvent.Witness())
-
 	ao, err := ae.AnchorObject(ae.Anchors())
 	require.NoError(t, err)
 	require.NotNil(t, ao)
@@ -98,14 +111,10 @@ func TestAnchorObjectNil(t *testing.T) {
 	var anchorObj *AnchorObjectType
 
 	require.Nil(t, anchorObj.ContentObject())
-	require.Empty(t, anchorObj.Witness())
 }
 
 func TestAnchorEventType_Validate(t *testing.T) {
 	anchors := testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
-
-	witness, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(verifiableCred)))
-	require.NoError(t, err)
 
 	published := time.Now()
 
@@ -161,7 +170,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
 		)
 
-		err = ae.Validate()
+		err := ae.Validate()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor object must have exactly one URL")
 	})
@@ -169,7 +178,6 @@ func TestAnchorEventType_Validate(t *testing.T) {
 	t.Run("Anchor URL mismatch", func(t *testing.T) {
 		anchorObj, err := NewAnchorObject(sampleGenerator,
 			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-			witness,
 		)
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
@@ -249,30 +257,6 @@ func TestAnchorEventType_Validate(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not match the anchor object URL")
 	})
-
-	t.Run("No witness", func(t *testing.T) {
-		anchorObj, err := NewAnchorObject(sampleGenerator,
-			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
-			nil,
-		)
-		require.NoError(t, err)
-		require.Len(t, anchorObj.URL(), 1)
-
-		ae := NewAnchorEvent(
-			WithURL(testutil.MustParseURL(
-				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
-			)),
-			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchorObj.URL()[0]),
-			WithPublishedTime(&published),
-			WithParent(parentURL1, parentURL2),
-			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
-		)
-
-		err = ae.Validate()
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness is required")
-	})
 }
 
 func TestAnchorEventType_JustURL(t *testing.T) {
@@ -314,40 +298,23 @@ const (
       },
       "generator": "https://sample.com#v0",
       "type": "AnchorObject",
-      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
-      "witness": {
-        "@context": "https://www.w3.org/2018/credentials/v1",
-        "credentialSubject": {
-          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
-        },
-        "issuanceDate": "2021-01-27T09:30:10Z",
-        "issuer": "https://sally.example.com/services/anchor",
-        "proof": [
-          {
-            "created": "2021-01-27T09:30:00Z",
-            "domain": "sally.example.com",
-            "jws": "eyJ...",
-            "proofPurpose": "assertionMethod",
-            "type": "JsonWebSignature2020",
-            "verificationMethod": "did:example:abcd#key"
-          },
-          {
-            "created": "2021-01-27T09:30:05Z",
-            "domain": "https://witness1.example.com/ledgers/maple2021",
-            "jws": "eyJ...",
-            "proofPurpose": "assertionMethod",
-            "type": "JsonWebSignature2020",
-            "verificationMethod": "did:example:abcd#key"
-          }
-        ],
-        "type": "VerifiableCredential"
-      }
+      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
     },
     {
       "contentObject": {
         "field_3": "value3"
       },
       "generator": "https://sample2.com#v0",
+      "tag": [
+        {
+          "href": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+          "rel": [
+            "relationship1",
+            "relationship2"
+          ],
+          "type": "Link"
+        }
+      ],
       "type": "AnchorObject",
       "url": "hl:uEiDyIrycKpCTdNYXESE4V_2HobZnBl7-fJVxJjYr2awQ_Q"
     }

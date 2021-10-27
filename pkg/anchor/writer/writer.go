@@ -248,12 +248,12 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 }
 
 func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) (*vocab.AnchorEventType, error) {
-	contentObj, err := anchorevent.BuildContentObject(payload)
+	indexContentObj, err := anchorevent.BuildContentObject(payload)
 	if err != nil {
 		return nil, fmt.Errorf("build content object: %w", err)
 	}
 
-	vc, err := c.buildCredential(contentObj.Payload)
+	vc, err := c.buildCredential(indexContentObj.Payload)
 	if err != nil {
 		return nil, fmt.Errorf("build credential: %w", err)
 	}
@@ -264,7 +264,13 @@ func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) 
 		return nil, fmt.Errorf("sign credential: %w", err)
 	}
 
-	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, contentObj, vc)
+	witnessContentObj, err := vocab.MarshalToDoc(vc)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal verifiable credential to doc: %w", err)
+	}
+
+	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, indexContentObj.GeneratorID,
+		indexContentObj.Payload, witnessContentObj)
 	if err != nil {
 		return nil, fmt.Errorf("build anchor event: %w", err)
 	}

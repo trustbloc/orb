@@ -59,6 +59,9 @@ const (
 	// TypeInvite specifies the 'Invite' activity type.
 	TypeInvite Type = "Invite"
 
+	// TypeLink specifies the 'Link' object type.
+	TypeLink Type = "Link"
+
 	// TypeVerifiableCredential specifies the "VerifiableCredential" object type.
 	TypeVerifiableCredential Type = "VerifiableCredential"
 
@@ -74,6 +77,9 @@ const (
 	TypeOffer Type = "Offer"
 	// TypeUndo specifies the "Undo" activity type.
 	TypeUndo Type = "Undo"
+
+	// RelationshipWitness defines the 'witness' relationship of a Link.
+	RelationshipWitness = "witness"
 )
 
 const (

@@ -227,7 +227,7 @@ type propertiesType struct {
 }
 
 type resource struct {
-	ID             string `json:"ID"`
+	ID             string `json:"id"`
 	PreviousAnchor string `json:"previousAnchor,omitempty"`
 }
 
