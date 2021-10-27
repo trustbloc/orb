@@ -795,7 +795,7 @@ func (m *mockDidAnchor) PutBulk(_ []string, _ string) error {
 //nolint:lll
 const anchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "anchors": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
+  "index": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
   "attachment": [
     {
       "contentObject": {

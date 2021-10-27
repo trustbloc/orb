@@ -115,7 +115,7 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 		return fmt.Errorf("invalid anchor event: %w", err)
 	}
 
-	if anchorEvent.Anchors() != nil {
+	if anchorEvent.Index() != nil {
 		err = h.handleEmbeddedAnchorEvent(create, anchorEvent)
 	} else {
 		err = h.handleAnchorEventRef(create, anchorEvent.URL()[0])
@@ -499,7 +499,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	// Create a new offer activity with only the bare essentials to return in the 'Accept'.
 	oa := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Anchors())),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Index())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -512,7 +512,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(anchorEvent.Anchors()),
+				vocab.WithInReplyTo(anchorEvent.Index()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
 				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -546,11 +546,11 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 
 	anchorEvent := offer.Object().AnchorEvent()
 
-	if anchorEvent.Anchors() == nil {
+	if anchorEvent.Index() == nil {
 		return errors.New("the anchor event in the original 'Offer' is empty")
 	}
 
-	if anchorEvent.Anchors().String() != inReplyTo.String() {
+	if anchorEvent.Index().String() != inReplyTo.String() {
 		return errors.New(
 			"the anchors URL of the anchor event in the original 'Offer' does not match the IRI in the 'inReplyTo' field",
 		)
@@ -561,7 +561,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 		return fmt.Errorf("marshal error of attachment in 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(accept.Actor(), anchorEvent.Anchors().String(), *result.EndTime(), attachmentBytes)
+	err = h.ProofHandler.HandleProof(accept.Actor(), anchorEvent.Index().String(), *result.EndTime(), attachmentBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
@@ -588,7 +588,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 	// ActivityPub in the 'Create" and "Announce" activities.
 	ae := vocab.NewAnchorEvent(
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithAnchors(anchorEvent.Anchors()),
+		vocab.WithAnchors(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
 		vocab.WithAttachment(anchorEvent.Attachment()...),
@@ -599,7 +599,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.Anchors())
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.Index())
 
 	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
 	if err != nil {
@@ -654,7 +654,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 			continue
 		}
 
-		if anchorEvent.Anchors() != nil { //nolint:nestif
+		if anchorEvent.Index() != nil { //nolint:nestif
 			if err := h.handleAnchorEvent(announce.Actor(), anchorEvent); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, errDuplicateAnchorEvent) {
@@ -820,7 +820,7 @@ func (h *Inbox) validateOfferActivity(offer *vocab.ActivityType) error {
 		return fmt.Errorf("invalid anchor event: %w", err)
 	}
 
-	if anchorEvent.Anchors() == nil {
+	if anchorEvent.Index() == nil {
 		return fmt.Errorf("anchors URL is required in anchor event: %w", err)
 	}
 

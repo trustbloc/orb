@@ -78,7 +78,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -86,7 +86,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -101,7 +101,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(), expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -127,7 +127,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider())
@@ -135,7 +135,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -153,7 +153,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -171,7 +171,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusCompleted)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusCompleted)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -186,7 +186,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -204,7 +204,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -222,7 +222,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -242,7 +242,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -263,11 +263,11 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor event [%s]: get vc status error", ae.Anchors().String()))
+			"failed to get status for anchor event [%s]: get vc status error", ae.Index().String()))
 	})
 
 	t.Run("error - second get vc status error", func(t *testing.T) {
@@ -285,7 +285,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -307,11 +307,11 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor event [%s]: second get vc status error", ae.Anchors().String()))
+			"failed to get status for anchor event [%s]: second get vc status error", ae.Index().String()))
 	})
 
 	t.Run("error - set vc status to complete error", func(t *testing.T) {
@@ -329,7 +329,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -350,11 +350,11 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to change status to 'completed' for anchor event [%s]: add vc status error", ae.Anchors().String()))
+			"failed to change status to 'completed' for anchor event [%s]: add vc status error", ae.Index().String()))
 	})
 
 	t.Run("VC status already completed", func(t *testing.T) {
@@ -372,7 +372,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		// prepare witness store with 'empty' witness proofs
 		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Anchors().String(), emptyWitnessProofs)
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -394,7 +394,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
@@ -412,7 +412,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -427,11 +427,11 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(),
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to evaluate witness policy for anchor event [%s]: witness policy error", ae.Anchors().String()))
+			"failed to evaluate witness policy for anchor event [%s]: witness policy error", ae.Index().String()))
 	})
 
 	t.Run("error - vc status not found store error", func(t *testing.T) {
@@ -510,7 +510,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -525,7 +525,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -543,7 +543,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -558,7 +558,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -605,7 +605,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStatusStore, err := vcstatus.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
+		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -620,7 +620,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, ae.Anchors().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "monitoring error")
 	})
@@ -667,7 +667,7 @@ const anchorEvent = `{
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
   ],
-  "anchors": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
   "attachment": [
     {
       "contentObject": {
@@ -737,7 +737,7 @@ const anchorEventTwoProofs = `{
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/activityanchors/v1"
   ],
-  "anchors": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
   "attachment": [
     {
       "contentObject": {

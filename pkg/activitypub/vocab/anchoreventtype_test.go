@@ -27,7 +27,7 @@ const (
 func TestAnchorEventNil(t *testing.T) {
 	var anchorEvent *AnchorEventType
 
-	require.Nil(t, anchorEvent.Anchors())
+	require.Nil(t, anchorEvent.Index())
 	require.Empty(t, anchorEvent.Parent())
 
 	_, err := anchorEvent.AnchorObject(MustParseURL("hl:xxx"))
@@ -88,9 +88,9 @@ func TestAnchorEvent(t *testing.T) {
 
 	ae := &AnchorEventType{}
 	require.NoError(t, json.Unmarshal(bytes, ae))
-	require.Equal(t, anchorEvent.Anchors().String(), ae.Anchors().String())
+	require.Equal(t, anchorEvent.Index().String(), ae.Index().String())
 
-	ao, err := ae.AnchorObject(ae.Anchors())
+	ao, err := ae.AnchorObject(ae.Index())
 	require.NoError(t, err)
 	require.NotNil(t, ao)
 
@@ -289,7 +289,7 @@ const (
 	//nolint:lll
 	jsonAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "anchors": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+  "index": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
   "attachment": [
     {
       "contentObject": {

@@ -71,7 +71,7 @@ func TestStore_Get(t *testing.T) {
 
 		ae, err := s.Get(anchorsURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorsURL.String())
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestStore_Get(t *testing.T) {
 
 		ae, err := s.Get(anchorsURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorsURL.String())
 	})
 
 	t.Run("error - nil anchors URL", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestStore_Get(t *testing.T) {
 
 		err = s.Put(vocab.NewAnchorEvent())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to save anchor event: Anchors is empty")
+		require.Contains(t, err.Error(), "failed to save anchor event: Index is empty")
 	})
 
 	t.Run("test error from store get", func(t *testing.T) {
@@ -154,11 +154,11 @@ func TestStore_Delete(t *testing.T) {
 
 		ae, err := s.Get(anchorsURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorsURL.String())
 
 		err = s.Delete(anchorsURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Anchors().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorsURL.String())
 	})
 
 	t.Run("test error from store delete", func(t *testing.T) {

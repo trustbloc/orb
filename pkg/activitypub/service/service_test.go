@@ -719,7 +719,7 @@ func TestService_Offer(t *testing.T) {
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, mockProviders2.witnessHandler.AnchorCreds())
-		require.NotNil(t, mockProviders1.proofHandler.Proof(anchorEvent.Anchors().String()))
+		require.NotNil(t, mockProviders1.proofHandler.Proof(anchorEvent.Index().String()))
 	})
 }
 

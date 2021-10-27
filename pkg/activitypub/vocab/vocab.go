@@ -103,7 +103,7 @@ const (
 	propertyAttributedTo = "attributedTo"
 	propertyInReplyTo    = "inReplyTo"
 	propertyAttachment   = "attachment"
-	propertyAnchors      = "anchors"
+	propertyIndex        = "index"
 	propertyParent       = "parent"
 )
 
@@ -130,7 +130,7 @@ func reservedProperties() []string {
 		propertyInReplyTo,
 		propertyAttachment,
 		propertyParent,
-		propertyAnchors,
+		propertyIndex,
 	}
 }
 

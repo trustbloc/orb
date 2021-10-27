@@ -42,21 +42,21 @@ func VerifiableCredentialFromAnchorEvent(anchorEvent *vocab.AnchorEventType,
 
 // GetWitnessDoc returns the 'witness' content object in the given anchor event.
 func GetWitnessDoc(anchorEvent *vocab.AnchorEventType) (vocab.Document, error) {
-	indexAnchorObj, err := anchorEvent.AnchorObject(anchorEvent.Anchors())
+	indexAnchorObj, err := anchorEvent.AnchorObject(anchorEvent.Index())
 	if err != nil {
-		return nil, fmt.Errorf("get anchor object for index [%s]: %w", anchorEvent.Anchors(), err)
+		return nil, fmt.Errorf("get anchor object for index [%s]: %w", anchorEvent.Index(), err)
 	}
 
 	tags := indexAnchorObj.Tag()
 
 	if len(tags) == 0 {
-		return nil, fmt.Errorf("anchor object [%s] does not contain a 'tag' field", anchorEvent.Anchors())
+		return nil, fmt.Errorf("anchor object [%s] does not contain a 'tag' field", anchorEvent.Index())
 	}
 
 	link := indexAnchorObj.Tag()[0].Link()
 	if link == nil || !link.Rel().Is(vocab.RelationshipWitness) {
 		return nil, fmt.Errorf("anchor object [%s] does not contain a tag of type 'Link' and 'rel' 'witness'",
-			anchorEvent.Anchors())
+			anchorEvent.Index())
 	}
 
 	witnessAnchorObj, err := anchorEvent.AnchorObject(link.HRef())

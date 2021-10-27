@@ -235,7 +235,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 
 	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
 
-	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Anchors().String(), anchor)
+	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index().String(), anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(anchorEvent, witnesses)
@@ -448,7 +448,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 }
 
 func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
-	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Anchors())
+	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Index())
 
 	startTime := time.Now()
 
@@ -458,53 +458,53 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 
 	err := c.storeVC(anchorEvent)
 	if err != nil {
-		logger.Errorf("failed to store verifiable credential from anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
+		logger.Errorf("failed to store verifiable credential from anchor event[%s]: %s", anchorEvent.Index(), err.Error())
 
-		return fmt.Errorf("store verifiable credential from anchor event[%s]: %w", anchorEvent.Anchors(), err)
+		return fmt.Errorf("store verifiable credential from anchor event[%s]: %w", anchorEvent.Index(), err)
 	}
 
 	anchorEventRef, err := c.AnchorGraph.Add(anchorEvent)
 	if err != nil {
-		logger.Errorf("failed to add witnessed anchor event[%s] to anchor graph: %s", anchorEvent.Anchors(), err.Error())
+		logger.Errorf("failed to add witnessed anchor event[%s] to anchor graph: %s", anchorEvent.Index(), err.Error())
 
-		return fmt.Errorf("add witnessed anchor event[%s] to anchor graph: %w", anchorEvent.Anchors(), err)
+		return fmt.Errorf("add witnessed anchor event[%s] to anchor graph: %w", anchorEvent.Index(), err)
 	}
 
-	logger.Debugf("Publishing anchor event[%s] ref[%s]", anchorEvent.Anchors(), anchorEventRef)
+	logger.Debugf("Publishing anchor event[%s] ref[%s]", anchorEvent.Index(), anchorEventRef)
 
 	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorEventRef})
 	if err != nil {
 		logger.Warnf("failed to publish anchor event[%s] ref[%s]: %s",
-			anchorEvent.Anchors(), anchorEventRef, err.Error())
+			anchorEvent.Index(), anchorEventRef, err.Error())
 
-		return fmt.Errorf("publish anchor event[%s] ref [%s]: %w", anchorEvent.Anchors(), anchorEventRef, err)
+		return fmt.Errorf("publish anchor event[%s] ref [%s]: %w", anchorEvent.Index(), anchorEventRef, err)
 	}
 
 	logger.Debugf("posted anchor event[%s] ref[%s] to anchor channel",
-		anchorEvent.Anchors(), anchorEventRef)
+		anchorEvent.Index(), anchorEventRef)
 
 	// announce anchor credential activity to followers
 	err = c.postCreateActivity(anchorEvent, anchorEventRef)
 	if err != nil {
 		logger.Warnf("failed to post new create activity for anchor event[%s] ref[%s]: %s",
-			anchorEvent.Anchors(), anchorEventRef, err.Error())
+			anchorEvent.Index(), anchorEventRef, err.Error())
 
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
 		return fmt.Errorf("post create activity for anchor event[%s] ref[%s]: %w",
-			anchorEvent.Anchors(), anchorEventRef, err)
+			anchorEvent.Index(), anchorEventRef, err)
 	}
 
-	err = c.WitnessStore.Delete(anchorEvent.Anchors().String())
+	err = c.WitnessStore.Delete(anchorEvent.Index().String())
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
 		logger.Warnf("failed to delete witnesses for anchor event[%s] ref[%s]: %s",
-			anchorEvent.Anchors(), anchorEventRef, err.Error())
+			anchorEvent.Index(), anchorEventRef, err.Error())
 	}
 
-	err = c.AnchorEventStore.Delete(anchorEvent.Anchors().String())
+	err = c.AnchorEventStore.Delete(anchorEvent.Index().String())
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
-		logger.Warnf("failed to delete anchor event[%s]: %s", anchorEvent.Anchors(), err.Error())
+		logger.Warnf("failed to delete anchor event[%s]: %s", anchorEvent.Index(), err.Error())
 	}
 
 	return nil
@@ -552,7 +552,7 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 	anchorEvent = vocab.NewAnchorEvent(
 		vocab.WithURL(hlURL),
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithAnchors(anchorEvent.Anchors()),
+		vocab.WithAnchors(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
 		vocab.WithAttachment(anchorEvent.Attachment()...),
@@ -583,7 +583,7 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
-	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Anchors(), witnesses)
+	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Index(), witnesses)
 
 	batchWitnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
 	if err != nil {
@@ -617,7 +617,7 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses
 
 	// store witnesses before posting offers because handlers sometimes get invoked before
 	// witnesses and vc status are stored
-	err = c.storeWitnesses(anchorEvent.Anchors().String(), batchWitnessesIRI)
+	err = c.storeWitnesses(anchorEvent.Index().String(), batchWitnessesIRI)
 	if err != nil {
 		return fmt.Errorf("store witnesses: %w", err)
 	}
@@ -625,10 +625,10 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
 		// TODO: Offers were not sent - delete vc status and witness store entries (issue-452)
-		return fmt.Errorf("failed to post offer for anchor event[%s]: %w", anchorEvent.Anchors(), err)
+		return fmt.Errorf("failed to post offer for anchor event[%s]: %w", anchorEvent.Index(), err)
 	}
 
-	logger.Debugf("created pre-announce activity for anchor event[%s], post id[%s]", anchorEvent.Anchors(), postID)
+	logger.Debugf("created pre-announce activity for anchor event[%s], post id[%s]", anchorEvent.Index(), postID)
 
 	return nil
 }

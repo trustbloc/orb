@@ -47,8 +47,8 @@ type Store struct {
 
 // Put saves an anchor event. If it already exists it will be overwritten.
 func (s *Store) Put(anchorEvent *vocab.AnchorEventType) error {
-	if anchorEvent.Anchors() == nil {
-		return fmt.Errorf("failed to save anchor event: Anchors is empty")
+	if anchorEvent.Index() == nil {
+		return fmt.Errorf("failed to save anchor event: Index is empty")
 	}
 
 	anchorEventBytes, err := s.marshal(anchorEvent)
@@ -58,7 +58,7 @@ func (s *Store) Put(anchorEvent *vocab.AnchorEventType) error {
 
 	logger.Debugf("storing anchor event: %s", string(anchorEventBytes))
 
-	if e := s.store.Put(anchorEvent.Anchors().String(), anchorEventBytes); e != nil {
+	if e := s.store.Put(anchorEvent.Index().String(), anchorEventBytes); e != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to put anchor event: %w", e))
 	}
 

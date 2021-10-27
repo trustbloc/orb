@@ -76,7 +76,7 @@ func TestPubSub(t *testing.T) {
 
 	mutex.RLock()
 	require.Len(t, gotAnchorEvents, 1)
-	require.Equal(t, ae.Anchors().String(), gotAnchorEvents[0].Anchors().String())
+	require.Equal(t, ae.Index().String(), gotAnchorEvents[0].Index().String())
 	mutex.RUnlock()
 }
 
