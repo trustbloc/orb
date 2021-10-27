@@ -435,17 +435,20 @@ Feature:
       # wait for operation to expire
       Then we wait 45 seconds
 
+      When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response does NOT contain "thirdKey"
+
+      # third operation failed during batching - we need to send next operation request with last successful commitment
+      Then client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did and resets keys to last successful
+
       # no more "pending operation found" error since the pending operation from above has since been deleted by the expiry service
       When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
       Then check for request success
 
-      # TODO: resolve for fourth key doesn't work because third commitment never made it so we have to submit
-      # operation request with third commitment (issue-835: change tests to support requests with previous commitments)
+      Then we wait 2 seconds
+
       When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
-      # never made it to anchor event - correct
-      Then check success response does NOT contain "thirdKey"
-      # made it to anchor event - however commitment was advanced with third key so this one is left 'hanging' (issue-835)
-      Then check success response does NOT contain "fourthKey"
+      Then check success response contains "fourthKey"
 
   @local_cas
   @alternate_links_scenario
