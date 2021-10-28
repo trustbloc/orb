@@ -75,7 +75,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -124,7 +124,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -168,7 +168,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusCompleted)
@@ -201,7 +201,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -409,7 +409,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -444,7 +444,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -475,7 +475,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := anchoreventstore.New(provider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
@@ -507,7 +507,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -540,7 +540,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)
@@ -567,7 +567,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
@@ -602,7 +602,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		monitoringSvc := &mocks.MonitoringService{}
 		monitoringSvc.WatchReturns(fmt.Errorf("monitoring error"))
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = vcStatusStore.AddStatus(ae.Anchors().String(), proofapi.VCStatusInProcess)

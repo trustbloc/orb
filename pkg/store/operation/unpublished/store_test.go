@@ -17,12 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -30,7 +31,7 @@ func TestNew(t *testing.T) {
 	t.Run("error - from open store", func(t *testing.T) {
 		s, err := New(&mockstore.Provider{
 			ErrOpenStore: fmt.Errorf("failed to open store"),
-		}, time.Minute, getTestExpiryService(t))
+		}, time.Minute, testutil.GetExpiryService(t))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
 		require.Nil(t, s)
@@ -39,7 +40,7 @@ func TestNew(t *testing.T) {
 
 func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -69,7 +70,7 @@ func TestStore_Put(t *testing.T) {
 			ErrGet: fmt.Errorf("random get error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, getTestExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -79,7 +80,7 @@ func TestStore_Put(t *testing.T) {
 	})
 
 	t.Run("error - consecutive put", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -94,7 +95,7 @@ func TestStore_Put(t *testing.T) {
 
 func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -106,7 +107,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("error - operation without suffix", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{})
@@ -119,7 +120,7 @@ func TestStore_Get(t *testing.T) {
 			ErrGet: fmt.Errorf("error get"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, getTestExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -137,7 +138,7 @@ func TestStore_Get(t *testing.T) {
 		err = store.Put("suffix", []byte("not-json"))
 		require.NoError(t, err)
 
-		s, err := New(provider, time.Minute, getTestExpiryService(t))
+		s, err := New(provider, time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -149,7 +150,7 @@ func TestStore_Get(t *testing.T) {
 
 func TestStore_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -164,7 +165,7 @@ func TestStore_Delete(t *testing.T) {
 			ErrDelete: fmt.Errorf("delete error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, getTestExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Delete("suffix")
@@ -175,7 +176,7 @@ func TestStore_Delete(t *testing.T) {
 
 func TestStore_DeleteAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})
@@ -186,7 +187,7 @@ func TestStore_DeleteAll(t *testing.T) {
 	})
 
 	t.Run("success - no suffixes provided", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, getTestExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.DeleteAll(nil)
@@ -198,22 +199,11 @@ func TestStore_DeleteAll(t *testing.T) {
 			ErrBatch: fmt.Errorf("batch error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, getTestExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.DeleteAll([]string{"suffix"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
-}
-
-// Returns an example expiry service object. For these tests, the expiry service used doesn't really matter - this
-// object is just needed to ensure that no nil pointer errors happen when initializing the unpublished operation store.
-func getTestExpiryService(t *testing.T) *expiry.Service {
-	t.Helper()
-
-	coordinationStore, err := mem.NewProvider().OpenStore("coordination")
-	require.NoError(t, err)
-
-	return expiry.NewService(time.Second, coordinationStore, "TestInstanceID")
 }

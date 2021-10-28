@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
@@ -19,6 +20,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 // MustParseURL parses the given string and returns the URL.
@@ -95,4 +97,15 @@ func GetLoader(t *testing.T) *ld.DocumentLoader {
 	require.NoError(t, err)
 
 	return documentLoader
+}
+
+// GetExpiryService returns test expiry service object. For most tests, the expiry service used doesn't really matter
+// this object is just needed to ensure that no nil pointer errors happen when initializing the store.
+func GetExpiryService(t *testing.T) *expiry.Service {
+	t.Helper()
+
+	coordinationStore, err := mem.NewProvider().OpenStore("coordination")
+	require.NoError(t, err)
+
+	return expiry.NewService(time.Second, coordinationStore, "TestInstanceID")
 }
