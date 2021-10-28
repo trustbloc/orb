@@ -460,18 +460,15 @@ func startOrbServices(parameters *orbParameters) error {
 
 	anchorGraph := graph.New(graphProviders)
 
-	var updateDocumentStore *unpublishedopstore.Store
-	var expiryService *expiry.Service
-	if parameters.updateDocumentStoreEnabled {
-		expiryService = expiry.NewService(parameters.dataExpiryCheckInterval, configStore, uuid.New().String())
+	expiryService := expiry.NewService(parameters.dataExpiryCheckInterval, configStore, uuid.New().String())
 
+	var updateDocumentStore *unpublishedopstore.Store
+	if parameters.updateDocumentStoreEnabled {
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
 			parameters.unpublishedOperationLifespan, expiryService)
 		if err != nil {
 			return fmt.Errorf("failed to create unpublished document store: %w", err)
 		}
-
-		expiryService.Start()
 	}
 
 	// get protocol client provider
@@ -528,7 +525,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}
 
-	vcStatusStore, err := vcstatus.New(storeProviders.provider)
+	vcStatusStore, err := vcstatus.New(storeProviders.provider, expiryService, parameters.maxWitnessDelay)
 	if err != nil {
 		return fmt.Errorf("failed to create vc status store: %s", err.Error())
 	}
@@ -719,6 +716,9 @@ func startOrbServices(parameters *orbParameters) error {
 	// start routine for creating batches
 	batchWriter.Start()
 	logger.Infof("started batch writer")
+
+	// start expiry service
+	expiryService.Start()
 
 	var didDocHandlerOpts []dochandler.Option
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))

@@ -10,21 +10,27 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-const vcID = "vcID"
+const (
+	vcID = "vcID"
+
+	expiryTime = 10 * time.Second
+)
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -33,7 +39,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(nil, fmt.Errorf("open store error"))
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open vc-status store: open store error")
 		require.Nil(t, s)
@@ -43,7 +49,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
 		require.Nil(t, s)
@@ -54,7 +60,7 @@ func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.VCStatusInProcess)
@@ -64,7 +70,7 @@ func TestStore_Put(t *testing.T) {
 	t.Run("error - marshal error", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected marshal error")
@@ -85,7 +91,7 @@ func TestStore_Put(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.VCStatusInProcess)
@@ -98,7 +104,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success - in process", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.VCStatusInProcess)
@@ -112,7 +118,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.VCStatusInProcess)
@@ -129,7 +135,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("error - unmarshal error", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected unmarshal error")
@@ -149,7 +155,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -165,7 +171,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -184,7 +190,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -205,7 +211,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)

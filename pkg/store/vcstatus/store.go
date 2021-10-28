@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -17,29 +18,39 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 const (
 	namespace = "vcstatus"
-	index     = "vcID"
+
+	index         = "vcID"
+	expiryTagName = "ExpiryTime"
+
+	// adding time in order to avoid possible errors due to differences in server times.
+	delta = 5 * time.Minute
 )
 
 var logger = log.New("vc-status")
 
 // New creates new vc status store.
-func New(provider storage.Provider) (*Store, error) {
+func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vc-status store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index}})
+	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index, expiryTagName}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
+	expiryService.Register(store, expiryTagName, namespace)
+
 	return &Store{
-		store:     store,
+		store:          store,
+		statusLifespan: maxWitnessDelay + delta,
+
 		marshal:   json.Marshal,
 		unmarshal: json.Unmarshal,
 	}, nil
@@ -47,7 +58,9 @@ func New(provider storage.Provider) (*Store, error) {
 
 // Store is db implementation of vc status store.
 type Store struct {
-	store     storage.Store
+	store          storage.Store
+	statusLifespan time.Duration
+
 	marshal   func(v interface{}) ([]byte, error)
 	unmarshal func(data []byte, v interface{}) error
 }
@@ -56,9 +69,14 @@ type Store struct {
 func (s *Store) AddStatus(anchorID string, status proof.VCStatus) error {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	tag := storage.Tag{
+	indexTag := storage.Tag{
 		Name:  index,
 		Value: anchorIDEncoded,
+	}
+
+	expiryTag := storage.Tag{
+		Name:  expiryTagName,
+		Value: fmt.Sprintf("%d", time.Now().Add(s.statusLifespan).Unix()),
 	}
 
 	statusBytes, err := s.marshal(status)
@@ -66,7 +84,7 @@ func (s *Store) AddStatus(anchorID string, status proof.VCStatus) error {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	err = s.store.Put(uuid.New().String(), statusBytes, tag)
+	err = s.store.Put(uuid.New().String(), statusBytes, indexTag, expiryTag)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to store anchorID[%s] status '%s': %w",
 			anchorID, status, err))

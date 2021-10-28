@@ -143,7 +143,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -193,7 +193,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -245,7 +245,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -298,7 +298,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -484,7 +484,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -745,7 +745,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -798,7 +798,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -841,7 +841,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		activityStore := memstore.New("")
@@ -1202,7 +1202,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
 
 	t.Run("success", func(t *testing.T) {
-		vcStatusStore, err := vcstatus.New(mem.NewProvider())
+		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
