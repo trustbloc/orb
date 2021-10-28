@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	vcID    = "vcID"
-	witness = "witness"
+	anchorID = "id"
+	witness  = "witness"
 )
 
 func TestNew(t *testing.T) {
@@ -39,7 +39,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open anchor credential witness store: open store error")
+		require.Contains(t, err.Error(), "failed to open anchor witness store: open store error")
 		require.Nil(t, s)
 	})
 
@@ -61,7 +61,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put(vcID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
 		require.NoError(t, err)
 	})
 
@@ -75,7 +75,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put(vcID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
@@ -88,10 +88,10 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put(vcID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.NoError(t, err)
 		require.NotEmpty(t, ops)
 	})
@@ -102,7 +102,7 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.Error(t, err)
 		require.Empty(t, ops)
 		require.Contains(t, err.Error(), "not found")
@@ -118,7 +118,7 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.Error(t, err)
 		require.Nil(t, ops)
 		require.Contains(t, err.Error(), "batch error")
@@ -137,7 +137,7 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.Error(t, err)
 		require.Nil(t, ops)
 		require.Contains(t, err.Error(), "iterator next() error")
@@ -158,13 +158,13 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.Error(t, err)
 		require.Nil(t, ops)
 		require.Contains(t, err.Error(), "iterator value() error")
 	})
 
-	t.Run("error - unmarshal anchored credential witness error", func(t *testing.T) {
+	t.Run("error - unmarshal anchored  witness error", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		iterator.NextReturns(true, nil)
@@ -179,11 +179,11 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.Error(t, err)
 		require.Nil(t, ops)
 		require.Contains(t, err.Error(),
-			"failed to unmarshal anchor credential witness from store value for vcID[vcID]")
+			"failed to unmarshal anchor witness from store value for anchorID[id]")
 	})
 }
 
@@ -194,29 +194,29 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Put(vcID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
 		require.NoError(t, err)
 
-		ops, err := s.Get(vcID)
+		ops, err := s.Get(anchorID)
 		require.NoError(t, err)
 		require.NotEmpty(t, ops)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.NoError(t, err)
 
-		ops, err = s.Get(vcID)
+		ops, err = s.Get(anchorID)
 		require.Error(t, err)
 		require.Nil(t, ops)
-		require.Contains(t, err.Error(), "vcID[vcID] not found in the store")
+		require.Contains(t, err.Error(), "anchorID[id] not found in the store")
 	})
 
-	t.Run("success - no witnesses found for VC ID", func(t *testing.T) {
+	t.Run("success - no witnesses found for anchor ID", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.NoError(t, err)
 	})
 
@@ -230,7 +230,7 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "query error")
 	})
@@ -248,7 +248,7 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator next() error")
 	})
@@ -268,7 +268,7 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator key() error")
 	})
@@ -291,7 +291,7 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.Delete(vcID)
+		err = s.Delete(anchorID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
@@ -309,15 +309,15 @@ func TestStore_AddProof(t *testing.T) {
 			Witness: witness,
 		}
 
-		err = s.Put(vcID, []*proof.WitnessProof{testWitness})
+		err = s.Put(anchorID, []*proof.WitnessProof{testWitness})
 		require.NoError(t, err)
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(vcID, witness, wf)
+		err = s.AddProof(anchorID, witness, wf)
 		require.NoError(t, err)
 
-		witnesses, err := s.Get(vcID)
+		witnesses, err := s.Get(anchorID)
 		require.NoError(t, err)
 		require.Equal(t, len(witnesses), 1)
 		bytes.Equal(wf, witnesses[0].Proof)
@@ -340,18 +340,18 @@ func TestStore_AddProof(t *testing.T) {
 			},
 		}
 
-		err = s.Put(vcID, witnessProofs)
+		err = s.Put(anchorID, witnessProofs)
 		require.NoError(t, err)
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(vcID, "witness-1", wf)
+		err = s.AddProof(anchorID, "witness-1", wf)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, "witness-2", wf)
+		err = s.AddProof(anchorID, "witness-2", wf)
 		require.NoError(t, err)
 
-		witnesses, err := s.Get(vcID)
+		witnesses, err := s.Get(anchorID)
 		require.NoError(t, err)
 		require.Equal(t, len(witnesses), 2)
 		bytes.Equal(wf, witnesses[0].Proof)
@@ -375,23 +375,23 @@ func TestStore_AddProof(t *testing.T) {
 			},
 		}
 
-		err = s.Put(vcID, witnessProofs)
+		err = s.Put(anchorID, witnessProofs)
 		require.NoError(t, err)
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(vcID, "witness-3", wf)
+		err = s.AddProof(anchorID, "witness-3", wf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness[witness-3] not found for vcID[vcID]")
+		require.Contains(t, err.Error(), "witness[witness-3] not found for anchorID[id]")
 	})
 
-	t.Run("error - witness not found (no witnesses for VC)", func(t *testing.T) {
+	t.Run("error - witness not found (no witnesses for anchor)", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
 	})
@@ -406,7 +406,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
@@ -424,7 +424,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator next() error")
 	})
@@ -444,7 +444,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator value() error")
 	})
@@ -471,7 +471,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator key() error")
 	})
@@ -499,13 +499,13 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to add proof for anchor credential vcID[vcID] and witness[witness]: put error")
+			"failed to add proof for anchorID[id] and witness[witness]: put error")
 	})
 
-	t.Run("error - unmarshal anchored credential witness error ", func(t *testing.T) {
+	t.Run("error - unmarshal anchored  witness error ", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		iterator.NextReturns(true, nil)
@@ -520,10 +520,10 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.AddProof(vcID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, witness, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to unmarshal anchor credential witness from store value for vcID[vcID]")
+			"failed to unmarshal anchor witness from store value for anchorID[id]")
 	})
 }
 
