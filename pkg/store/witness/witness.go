@@ -26,11 +26,11 @@ const (
 
 var logger = log.New("witness-store")
 
-// New creates new anchor credential witness store.
+// New creates new anchor witness store.
 func New(provider storage.Provider) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open anchor credential witness store: %w", err)
+		return nil, fmt.Errorf("failed to open anchor witness store: %w", err)
 	}
 
 	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex}})
@@ -43,12 +43,12 @@ func New(provider storage.Provider) (*Store, error) {
 	}, nil
 }
 
-// Store is db implementation of anchor credential witness store.
+// Store is db implementation of anchor witness store.
 type Store struct {
 	store storage.Store
 }
 
-// Put saves witnesses into anchor credential witness store.
+// Put saves witnesses into anchor witness store.
 func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 	operations := make([]storage.Operation, len(witnesses))
 
@@ -57,7 +57,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 	for i, w := range witnesses {
 		value, err := json.Marshal(w)
 		if err != nil {
-			return fmt.Errorf("failed to marshal anchor credential witness: %w", err)
+			return fmt.Errorf("failed to marshal anchor witness: %w", err)
 		}
 
 		logger.Debugf("adding %s witness to storage batch: %s", w.Type, w.Witness)
@@ -86,12 +86,12 @@ func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 	return nil
 }
 
-// Delete deletes all witnesses associated with VC ID.
-func (s *Store) Delete(vcID string) error {
+// Delete deletes all witnesses associated with anchor ID.
+func (s *Store) Delete(anchorID string) error {
 	var err error
 
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
-	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
+	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
+	query := fmt.Sprintf("%s:%s", anchorIndex, anchorIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -107,11 +107,11 @@ func (s *Store) Delete(vcID string) error {
 
 	ok, err := iter.Next()
 	if err != nil {
-		return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+		return fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err)
 	}
 
 	if !ok {
-		logger.Debugf("no witnesses to delete for vcID[%s], nothing to do", vcID)
+		logger.Debugf("no witnesses to delete for anchorID[%s], nothing to do", anchorID)
 
 		return nil
 	}
@@ -123,14 +123,14 @@ func (s *Store) Delete(vcID string) error {
 
 		key, err = iter.Key()
 		if err != nil {
-			return fmt.Errorf("failed to get iterator value for vcID[%s]: %w", vcID, err)
+			return fmt.Errorf("failed to get iterator value for anchorID[%s]: %w", anchorID, err)
 		}
 
 		witnessKeys = append(witnessKeys, key)
 
 		ok, err = iter.Next()
 		if err != nil {
-			return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+			return fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err)
 		}
 	}
 
@@ -142,21 +142,21 @@ func (s *Store) Delete(vcID string) error {
 
 	err = s.store.Batch(operations)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to delete witnesses for vcID[%s]: %w", vcID, err))
+		return orberrors.NewTransient(fmt.Errorf("failed to delete witnesses for anchorID[%s]: %w", anchorID, err))
 	}
 
-	logger.Debugf("deleted %d witnesses for vcID[%s]", len(witnessKeys), vcID)
+	logger.Debugf("deleted %d witnesses for anchorID[%s]", len(witnessKeys), anchorID)
 
 	return nil
 }
 
-// Get retrieves witnesses for the given vc id.
-func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
+// Get retrieves witnesses for the given anchor id.
+func (s *Store) Get(anchorID string) ([]*proof.WitnessProof, error) {
 	var err error
 
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIndex, anchorIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -172,7 +172,7 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err))
+		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err))
 	}
 
 	var witnesses []*proof.WitnessProof
@@ -182,40 +182,40 @@ func (s *Store) Get(vcID string) ([]*proof.WitnessProof, error) {
 
 		value, err = iter.Value()
 		if err != nil {
-			return nil, orberrors.NewTransient(fmt.Errorf("failed to get iterator value for vcID[%s]: %w",
-				vcID, err))
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get iterator value for anchorID[%s]: %w",
+				anchorID, err))
 		}
 
 		var witness proof.WitnessProof
 
 		err = json.Unmarshal(value, &witness)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal anchor credential witness from store value for vcID[%s]: %w",
-				vcID, err)
+			return nil, fmt.Errorf("failed to unmarshal anchor witness from store value for anchorID[%s]: %w",
+				anchorID, err)
 		}
 
 		witnesses = append(witnesses, &witness)
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, orberrors.NewTransient(fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err))
+			return nil, orberrors.NewTransient(fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err))
 		}
 	}
 
-	logger.Debugf("retrieved %d witnesses for vcID[%s]", len(witnesses), vcID)
+	logger.Debugf("retrieved %d witnesses for anchorID[%s]", len(witnesses), anchorID)
 
 	if len(witnesses) == 0 {
-		return nil, fmt.Errorf("vcID[%s] not found in the store", vcID)
+		return nil, fmt.Errorf("anchorID[%s] not found in the store", anchorID)
 	}
 
 	return witnesses, nil
 }
 
-// AddProof adds proof for anchor credential id and witness.
-func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen,gocyclo,cyclop
-	vcIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(vcID))
+// AddProof adds proof for anchor id and witness.
+func (s *Store) AddProof(anchorID, witness string, p []byte) error { //nolint:funlen,gocyclo,cyclop
+	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf("%s:%s", anchorIndex, vcIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIndex, anchorIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 	ok, err := iter.Next()
 	if err != nil {
-		return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+		return fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err)
 	}
 
 	updatedNo := 0
@@ -241,15 +241,15 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 		value, err = iter.Value()
 		if err != nil {
-			return fmt.Errorf("failed to get iterator value for vcID[%s]: %w", vcID, err)
+			return fmt.Errorf("failed to get iterator value for anchorID[%s]: %w", anchorID, err)
 		}
 
 		var w proof.WitnessProof
 
 		err = json.Unmarshal(value, &w)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal anchor credential witness from store value for vcID[%s]: %w",
-				vcID, err)
+			return fmt.Errorf("failed to unmarshal anchor witness from store value for anchorID[%s]: %w",
+				anchorID, err)
 		}
 
 		if w.Witness == witness {
@@ -257,36 +257,36 @@ func (s *Store) AddProof(vcID, witness string, p []byte) error { //nolint:funlen
 
 			key, err = iter.Key()
 			if err != nil {
-				return fmt.Errorf("failed to get key for anchor credential vcID[%s] and witness[%s]: %w",
-					vcID, witness, err)
+				return fmt.Errorf("failed to get key for anchorID[%s] and witness[%s]: %w",
+					anchorID, witness, err)
 			}
 
 			w.Proof = p
 
 			witnessProofBytes, marshalErr := json.Marshal(w)
 			if marshalErr != nil {
-				return fmt.Errorf("failed to marshal witness[%s] proof for vcID[%s]: %w", w.Witness, vcID, marshalErr)
+				return fmt.Errorf("failed to marshal witness[%s] proof for anchorID[%s]: %w", w.Witness, anchorID, marshalErr)
 			}
 
-			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: anchorIndex, Value: vcIDEncoded})
+			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: anchorIndex, Value: anchorIDEncoded})
 			if err != nil {
-				return orberrors.NewTransient(fmt.Errorf("failed to add proof for anchor credential vcID[%s] and witness[%s]: %w",
-					vcID, witness, err))
+				return orberrors.NewTransient(fmt.Errorf("failed to add proof for anchorID[%s] and witness[%s]: %w",
+					anchorID, witness, err))
 			}
 
 			updatedNo++
 
-			logger.Debugf("added proof for anchor credential vcID[%s] and witness[%s]: %s", vcID, witness, string(p))
+			logger.Debugf("added proof for anchorID[%s] and witness[%s]: %s", anchorID, witness, string(p))
 		}
 
 		ok, err = iter.Next()
 		if err != nil {
-			return fmt.Errorf("iterator error for vcID[%s] : %w", vcID, err)
+			return fmt.Errorf("iterator error for anchorID[%s] : %w", anchorID, err)
 		}
 	}
 
 	if updatedNo == 0 {
-		return fmt.Errorf("witness[%s] not found for vcID[%s]", witness, vcID)
+		return fmt.Errorf("witness[%s] not found for anchorID[%s]", witness, anchorID)
 	}
 
 	return nil
