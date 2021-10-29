@@ -81,7 +81,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
@@ -130,7 +130,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
@@ -237,7 +237,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
@@ -280,7 +280,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
@@ -324,7 +324,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
@@ -367,7 +367,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = vcStore.Put(ae)
 		require.NoError(t, err)
 
-		witnessStore, err := witness.New(mem.NewProvider())
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		// prepare witness store with 'empty' witness proofs
