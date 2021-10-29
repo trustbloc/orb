@@ -5,8 +5,8 @@
 module github.com/trustbloc/orb
 
 require (
-	github.com/ThreeDotsLabs/watermill v1.2.0-rc.4
-	github.com/ThreeDotsLabs/watermill-amqp v1.1.1
+	github.com/ThreeDotsLabs/watermill v1.2.0-rc.6
+	github.com/ThreeDotsLabs/watermill-amqp v1.1.3
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
@@ -15,7 +15,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.7
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211006214906-8ddae60cdd21
@@ -32,6 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.7.0
+	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211012203148-2f1d13fca175

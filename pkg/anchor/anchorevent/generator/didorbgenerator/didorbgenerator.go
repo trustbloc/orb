@@ -117,7 +117,7 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 	var resources []*resource
 
 	for _, value := range payload.PreviousAnchors {
-		logger.Debugf("RESOURCE - Key [%s] Value [%s]", value.Suffix, value.Anchor)
+		logger.Debugf("Resource - Key [%s] Value [%s]", value.Suffix, value.Anchor)
 
 		var res *resource
 

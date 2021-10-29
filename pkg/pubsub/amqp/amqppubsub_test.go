@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -129,6 +130,45 @@ func TestAMQP(t *testing.T) {
 			return true
 		})
 	})
+
+	t.Run("Redelivery attempts reached", func(t *testing.T) {
+		const topic = "topic_redelivery"
+
+		p := New(Config{
+			URI:                        "amqp://guest:guest@localhost:5672/",
+			MaxConnectionSubscriptions: 5,
+			MaxRedeliveryAttempts:      5,
+			MaxRedeliveryInterval:      200 * time.Millisecond,
+		})
+		require.NotNil(t, p)
+		defer func() {
+			require.NoError(t, p.Close())
+		}()
+
+		msgChan2, err := p.SubscribeWithOpts(context.Background(), topic)
+		require.NoError(t, err)
+
+		var attempts uint32
+
+		go func(msgChan <-chan *message.Message) {
+			for m := range msgChan {
+				go func(msg *message.Message) {
+					// Always fail to test maximum redelivery attempts.
+					msg.Nack()
+
+					atomic.AddUint32(&attempts, 1)
+				}(m)
+			}
+		}(msgChan2)
+
+		go func() {
+			require.NoError(t, p.Publish(topic, message.NewMessage(watermill.NewUUID(), []byte("some payload"))))
+		}()
+
+		time.Sleep(5 * time.Second)
+
+		require.Equal(t, uint32(6), atomic.LoadUint32(&attempts))
+	})
 }
 
 func TestAMQP_Error(t *testing.T) {
@@ -139,10 +179,13 @@ func TestAMQP_Error(t *testing.T) {
 
 		p := &PubSub{
 			Lifecycle: lifecycle.New(""),
-			subscriberFactory: func() (subscriber, error) {
+			subscriberFactory: func() (initializingSubscriber, error) {
 				return nil, errExpected
 			},
 			createPublisher: func() (publisher, error) {
+				return &mockPublisher{}, nil
+			},
+			createWaitPublisher: func() (publisher, error) {
 				return &mockPublisher{}, nil
 			},
 		}
@@ -159,7 +202,7 @@ func TestAMQP_Error(t *testing.T) {
 		errExpected := errors.New("injected publisher subscriberFactory error")
 
 		p := &PubSub{
-			subscriberFactory: func() (subscriber, error) {
+			subscriberFactory: func() (initializingSubscriber, error) {
 				return &mockSubscriber{}, nil
 			},
 			createPublisher: func() (publisher, error) {
@@ -175,9 +218,12 @@ func TestAMQP_Error(t *testing.T) {
 		errClose := errors.New("injected close error")
 
 		p := &PubSub{
-			Lifecycle:  lifecycle.New("ampq"),
-			subscriber: &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
-			publisher:  &mockPublisher{mockClosable: &mockClosable{}},
+			Lifecycle:            lifecycle.New("ampq"),
+			subscriber:           &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
+			publisher:            &mockPublisher{mockClosable: &mockClosable{}},
+			waitSubscriber:       &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
+			waitPublisher:        &mockPublisher{mockClosable: &mockClosable{}},
+			redeliverySubscriber: &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
 		}
 
 		p.Start()
@@ -192,9 +238,12 @@ func TestAMQP_Error(t *testing.T) {
 		errClose := errors.New("injected close error")
 
 		p := &PubSub{
-			Lifecycle:  lifecycle.New("ampq"),
-			subscriber: &mockSubscriber{mockClosable: &mockClosable{}},
-			publisher:  &mockPublisher{err: errPublish, mockClosable: &mockClosable{err: errClose}},
+			Lifecycle:            lifecycle.New("ampq"),
+			subscriber:           &mockSubscriber{mockClosable: &mockClosable{}},
+			publisher:            &mockPublisher{err: errPublish, mockClosable: &mockClosable{err: errClose}},
+			waitSubscriber:       &mockSubscriber{mockClosable: &mockClosable{}},
+			waitPublisher:        &mockPublisher{err: errPublish, mockClosable: &mockClosable{err: errClose}},
+			redeliverySubscriber: &mockSubscriber{mockClosable: &mockClosable{}},
 		}
 
 		p.Start()
@@ -213,6 +262,21 @@ func TestExtractEndpoint(t *testing.T) {
 
 	require.Equal(t, "",
 		extractEndpoint("example.com:5671/mq"))
+}
+
+func TestPubSub_GetInterval(t *testing.T) {
+	p := &PubSub{
+		Config: Config{
+			RedeliveryMultiplier:      defaultRedeliveryMultiplier,
+			RedeliveryInitialInterval: defaultRedeliveryInitialInterval,
+			MaxRedeliveryInterval:     defaultMaxRedeliveryInterval,
+		},
+	}
+
+	require.Equal(t, time.Duration(0), p.getRedeliveryInterval(0))
+	require.Equal(t, defaultRedeliveryInitialInterval, p.getRedeliveryInterval(1))
+	require.Equal(t, 3*time.Second, p.getRedeliveryInterval(2))
+	require.Equal(t, 4500*time.Millisecond, p.getRedeliveryInterval(3))
 }
 
 func TestMain(m *testing.M) {
@@ -267,6 +331,10 @@ func (m *mockSubscriber) Subscribe(ctx context.Context, topic string) (<-chan *m
 	}
 
 	return nil, nil
+}
+
+func (m *mockSubscriber) SubscribeInitialize(string) error {
+	return m.err
 }
 
 type mockPublisher struct {
