@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -17,35 +18,45 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 const (
-	namespace   = "witness"
-	anchorIndex = "anchorID"
+	namespace = "witness"
+
+	anchorIndex   = "anchorID"
+	expiryTagName = "ExpiryTime"
+
+	// adding time in order to avoid possible errors due to differences in server times.
+	delta = 5 * time.Minute
 )
 
 var logger = log.New("witness-store")
 
 // New creates new anchor witness store.
-func New(provider storage.Provider) (*Store, error) {
+func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open anchor witness store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex}})
+	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex, expiryTagName}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
+	expiryService.Register(store, expiryTagName, namespace)
+
 	return &Store{
-		store: store,
+		store:           store,
+		witnessLifespan: maxWitnessDelay + delta,
 	}, nil
 }
 
 // Store is db implementation of anchor witness store.
 type Store struct {
-	store storage.Store
+	store           storage.Store
+	witnessLifespan time.Duration
 }
 
 // Put saves witnesses into anchor witness store.
@@ -69,6 +80,10 @@ func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 				{
 					Name:  anchorIndex,
 					Value: anchorIDEncoded,
+				},
+				{
+					Name:  expiryTagName,
+					Value: fmt.Sprintf("%d", time.Now().Add(s.witnessLifespan).Unix()),
 				},
 			},
 		}

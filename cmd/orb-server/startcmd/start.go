@@ -520,7 +520,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc store: %s", err.Error())
 	}
 
-	witnessProofStore, err := proofstore.New(storeProviders.provider)
+	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.maxWitnessDelay)
 	if err != nil {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}

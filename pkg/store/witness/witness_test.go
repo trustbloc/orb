@@ -11,24 +11,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 const (
 	anchorID = "id"
 	witness  = "witness"
+
+	expiryTime = 10 * time.Second
 )
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -37,7 +41,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(nil, fmt.Errorf("open store error"))
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open anchor witness store: open store error")
 		require.Nil(t, s)
@@ -47,7 +51,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
 		require.Nil(t, s)
@@ -58,7 +62,7 @@ func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
@@ -72,7 +76,7 @@ func TestStore_Put(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
@@ -85,7 +89,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
@@ -99,7 +103,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success - not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -115,7 +119,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -134,7 +138,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -155,7 +159,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -176,7 +180,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -191,7 +195,7 @@ func TestStore_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
@@ -213,7 +217,7 @@ func TestStore_Delete(t *testing.T) {
 	t.Run("success - no witnesses found for anchor ID", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Delete(anchorID)
@@ -227,7 +231,7 @@ func TestStore_Delete(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Delete(anchorID)
@@ -245,7 +249,7 @@ func TestStore_Delete(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Delete(anchorID)
@@ -265,7 +269,7 @@ func TestStore_Delete(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Delete(anchorID)
@@ -288,7 +292,7 @@ func TestStore_Delete(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.Delete(anchorID)
@@ -301,7 +305,7 @@ func TestStore_AddProof(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		testWitness := &proof.WitnessProof{
@@ -326,7 +330,7 @@ func TestStore_AddProof(t *testing.T) {
 	t.Run("success - multiple witnesses were recorded", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		witnessProofs := []*proof.WitnessProof{
@@ -361,7 +365,7 @@ func TestStore_AddProof(t *testing.T) {
 	t.Run("error - witness not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		witnessProofs := []*proof.WitnessProof{
@@ -388,7 +392,7 @@ func TestStore_AddProof(t *testing.T) {
 	t.Run("error - witness not found (no witnesses for anchor)", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -403,7 +407,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -421,7 +425,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -441,7 +445,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -468,7 +472,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -496,7 +500,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
@@ -517,7 +521,7 @@ func TestStore_AddProof(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
 		err = s.AddProof(anchorID, witness, []byte(witnessProof))
