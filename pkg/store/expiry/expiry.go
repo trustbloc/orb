@@ -35,9 +35,25 @@ type logger interface {
 }
 
 type registeredStore struct {
-	store         storage.Store
+	store storage.Store
+	name  string
+
 	expiryTagName string
-	name          string
+	expiryHandler expiryHandler
+}
+
+// Option is an option for registered store.
+type Option func(opts *registeredStore)
+
+// WithExpiryHandler sets optional expiry handler.
+func WithExpiryHandler(handler expiryHandler) Option {
+	return func(opts *registeredStore) {
+		opts.expiryHandler = handler
+	}
+}
+
+type expiryHandler interface {
+	HandleExpiredKeys(keys ...string) error
 }
 
 // expiredDataCleanupPermit is used as an entry within the coordination store to ensure that only one Orb instance
@@ -98,11 +114,17 @@ func NewService(interval time.Duration, coordinationStore storage.Store, instanc
 // store is the store on which to periodically cleanup expired data.
 // name is used to identify the purpose of this expiry service for logging purposes.
 // expiryTagName is the tag name used to store expiry values under. The expiry values must be standard Unix timestamps.
-func (s *Service) Register(store storage.Store, expiryTagName, storeName string) {
+func (s *Service) Register(store storage.Store, expiryTagName, storeName string, opts ...Option) {
 	newRegisteredStore := registeredStore{
 		store:         store,
-		expiryTagName: expiryTagName,
 		name:          storeName,
+		expiryTagName: expiryTagName,
+		expiryHandler: &noopExpiryHandler{},
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(&newRegisteredStore)
 	}
 
 	s.registeredStores = append(s.registeredStores, newRegisteredStore)
@@ -238,7 +260,7 @@ func (s *Service) updatePermit() error {
 	return nil
 }
 
-func (r *registeredStore) deleteExpiredData(logger logger) {
+func (r *registeredStore) deleteExpiredData(logger logger) { //nolint:funlen
 	logger.Debugf("Checking for expired data in %s.", r.name)
 
 	iterator, err := r.store.Query(fmt.Sprintf("%s<=%d", r.expiryTagName, time.Now().Unix()))
@@ -279,6 +301,13 @@ func (r *registeredStore) deleteExpiredData(logger logger) {
 
 	logger.Debugf("Found %d pieces of expired data to delete in %s.", len(keysToDelete), r.name)
 
+	err = r.expiryHandler.HandleExpiredKeys(keysToDelete...)
+	if err != nil {
+		logger.Errorf("failed to invoke expiry handler: %s", err.Error())
+
+		return
+	}
+
 	if len(keysToDelete) > 0 {
 		operations := make([]storage.Operation, len(keysToDelete))
 
@@ -295,4 +324,10 @@ func (r *registeredStore) deleteExpiredData(logger logger) {
 
 		logger.Debugf("Successfully deleted %d pieces of expired data.", len(operations))
 	}
+}
+
+type noopExpiryHandler struct{}
+
+func (h *noopExpiryHandler) HandleExpiredKeys(_ ...string) error {
+	return nil
 }
