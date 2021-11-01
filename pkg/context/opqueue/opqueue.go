@@ -24,7 +24,7 @@ import (
 
 var logger = log.New("sidetree_context")
 
-const topic = "opqueue"
+const topic = "orb.operation"
 
 type pubSub interface {
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)

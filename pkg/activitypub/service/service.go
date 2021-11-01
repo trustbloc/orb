@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	inboxActivitiesTopic  = "inbox_activities"
-	outboxActivitiesTopic = "outbox_activities"
+	inboxActivitiesTopic  = "orb.activity.inbox"
+	outboxActivitiesTopic = "orb.activity.outbox"
 )
 
 // PubSub defines the functions for a publisher/subscriber.

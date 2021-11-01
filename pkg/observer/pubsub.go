@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	anchorTopic = "anchor"
-	didTopic    = "did"
+	anchorTopic = "orb.anchor"
+	didTopic    = "orb.did"
 )
 
 type (
@@ -148,7 +148,8 @@ func (h *PubSub) listen() {
 				return
 			}
 
-			logger.Debugf("Got new anchor credential message [%s]: %s", msg.UUID, msg.Payload)
+			logger.Debugf("Got new anchor credential message [%s], Metadata: %s, Payload %s",
+				msg.UUID, msg.Metadata, msg.Payload)
 
 			h.handleAnchorCredentialMessage(msg)
 

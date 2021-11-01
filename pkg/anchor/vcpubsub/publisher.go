@@ -21,7 +21,7 @@ import (
 
 var logger = log.New("anchor")
 
-const anchorEventTopic = "anchor-event"
+const anchorEventTopic = "orb.anchor_event"
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error

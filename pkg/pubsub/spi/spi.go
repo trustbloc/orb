@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 // UndeliverableTopic is the topic to which to post undeliverable messages.
-const UndeliverableTopic = "undeliverable_activities"
+const UndeliverableTopic = "orb.undeliverable.activities"
 
 // Options contains publisher/subscriber options.
 type Options struct {
