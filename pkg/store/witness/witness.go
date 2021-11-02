@@ -28,7 +28,7 @@ const (
 	expiryTagName = "ExpiryTime"
 
 	// adding time in order to avoid possible errors due to differences in server times.
-	delta = 5 * time.Minute
+	defaultDelta = 5 * time.Minute
 )
 
 var logger = log.New("witness-store")
@@ -40,23 +40,27 @@ func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDel
 		return nil, fmt.Errorf("failed to open anchor witness store: %w", err)
 	}
 
+	s := &Store{
+		store:           store,
+		maxWitnessDelay: maxWitnessDelay,
+		delta:           defaultDelta,
+	}
+
 	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex, expiryTagName}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
-	expiryService.Register(store, expiryTagName, namespace)
+	expiryService.Register(store, expiryTagName, namespace, expiry.WithExpiryHandler(s))
 
-	return &Store{
-		store:           store,
-		witnessLifespan: maxWitnessDelay + delta,
-	}, nil
+	return s, nil
 }
 
 // Store is db implementation of anchor witness store.
 type Store struct {
 	store           storage.Store
-	witnessLifespan time.Duration
+	maxWitnessDelay time.Duration
+	delta           time.Duration
 }
 
 // Put saves witnesses into anchor witness store.
@@ -83,7 +87,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 				},
 				{
 					Name:  expiryTagName,
-					Value: fmt.Sprintf("%d", time.Now().Add(s.witnessLifespan).Unix()),
+					Value: fmt.Sprintf("%d", time.Now().Add(s.maxWitnessDelay+s.delta).Unix()),
 				},
 			},
 		}
@@ -303,6 +307,48 @@ func (s *Store) AddProof(anchorID, witness string, p []byte) error { //nolint:fu
 	if updatedNo == 0 {
 		return fmt.Errorf("witness[%s] not found for anchorID[%s]", witness, anchorID)
 	}
+
+	return nil
+}
+
+// HandleExpiredKeys is expired keys inspector/handler.
+func (s *Store) HandleExpiredKeys(keys ...string) error {
+	if len(keys) == 0 {
+		logger.Debugf("no expired keys found - all anchors have been processed")
+
+		return nil
+	}
+
+	uniqueAnchors := make(map[string]bool)
+
+	for _, key := range keys {
+		tags, err := s.store.GetTags(key)
+		if err != nil {
+			logger.Errorf("get tags for expired key[%s]: %s", key, err)
+
+			return nil
+		}
+
+		for _, tag := range tags {
+			if tag.Name == anchorIndex {
+				anchor, err := base64.RawURLEncoding.DecodeString(tag.Value)
+				if err != nil {
+					logger.Errorf("failed to decode encoded anchor[%s]: %s", tag.Value, err)
+
+					return nil
+				}
+
+				uniqueAnchors[string(anchor)] = true
+			}
+		}
+	}
+
+	anchors := make([]string, 0, len(uniqueAnchors))
+	for a := range uniqueAnchors {
+		anchors = append(anchors, a)
+	}
+
+	logger.Errorf("failed to process anchors: %s", anchors)
 
 	return nil
 }
