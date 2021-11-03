@@ -473,7 +473,7 @@ services:
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
       # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue.
-      - MQ_OP_POOL=20
+      - MQ_OP_POOL=2000
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=3
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500

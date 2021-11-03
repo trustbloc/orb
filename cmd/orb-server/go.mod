@@ -24,4 +24,6 @@ require (
 
 replace github.com/trustbloc/orb => ../..
 
+replace github.com/ThreeDotsLabs/watermill-amqp => github.com/bstasyszyn/watermill-amqp v1.1.4-0.20211104141444-34fc75ba7eb3
+
 go 1.16
