@@ -9,10 +9,12 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/errors"
 )
 
 // VerifiableCredentialFromAnchorEvent validates the AnchorEvent and returns the embedded verifiable credential.
@@ -34,6 +36,11 @@ func VerifiableCredentialFromAnchorEvent(anchorEvent *vocab.AnchorEventType,
 
 	vc, err := verifiable.ParseCredential(vcBytes, opts...)
 	if err != nil {
+		if strings.Contains(err.Error(), "http request unsuccessful") {
+			// The server is probably down. Return a transient error so that it may be retried.
+			return nil, errors.NewTransient(fmt.Errorf("http error during parse credential: %w", err))
+		}
+
 		return nil, fmt.Errorf("parse credential: %w", err)
 	}
 

@@ -564,7 +564,7 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(url, keyID string) e
 
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
 	if !strings.Contains(d.resp.ErrorMsg, errorMsg) {
-		return fmt.Errorf("error resp %s doesn't contain %s", d.resp.ErrorMsg, errorMsg)
+		return fmt.Errorf(`error resp "%s" doesn't contain "%s"`, d.resp.ErrorMsg, errorMsg)
 	}
 	return nil
 }

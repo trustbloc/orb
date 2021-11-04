@@ -6,7 +6,7 @@ module github.com/trustbloc/orb
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.6
-	github.com/ThreeDotsLabs/watermill-amqp v1.1.3
+	github.com/ThreeDotsLabs/watermill-amqp v1.1.4-0.20211104161030-4f337d77fb1f
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce

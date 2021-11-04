@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
 
@@ -113,6 +114,11 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 		verifiable.WithJSONLDDocumentLoader(c.documentLoader),
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "http request unsuccessful") {
+			// The server is probably down. Return a transient error so that it may be retried.
+			return nil, orberrors.NewTransient(fmt.Errorf("http error during parse credential: %w", err))
+		}
+
 		return nil, fmt.Errorf("parse credential: %w", err)
 	}
 

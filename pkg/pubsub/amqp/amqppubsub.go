@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill-amqp/pkg/amqp"
@@ -89,9 +90,14 @@ type publisher interface {
 	Publish(topic string, messages ...*message.Message) error
 }
 
-type subscriberFactory = func() (initializingSubscriber, error)
+type connMgr interface {
+	close() error
+	getConnection() (connection, error)
+}
 
-type publisherFactory = func() (publisher, error)
+type subscriberFactory = func(conn connection) (initializingSubscriber, error)
+
+type publisherFactory = func(conn connection) (publisher, error)
 
 // PubSub implements a publisher/subscriber that connects to an AMQP-compatible message queue.
 type PubSub struct {
@@ -114,6 +120,7 @@ type PubSub struct {
 	waitSubscriberFactory       subscriberFactory
 	createWaitPublisher         publisherFactory
 	redeliveryChan              <-chan *message.Message
+	connMgr                     connMgr
 }
 
 // New returns a new AMQP publisher/subscriber.
@@ -122,6 +129,7 @@ func New(cfg Config) *PubSub {
 
 	p := &PubSub{
 		Config:               cfg,
+		connMgr:              newConnectionMgr(amqp.ConnectionConfig{AmqpURI: cfg.URI}, cfg.MaxConnectionSubscriptions),
 		amqpConfig:           newQueueConfig(cfg.URI),
 		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg.URI),
 		amqpWaitConfig:       newWaitQueueConfig(cfg.URI),
@@ -131,24 +139,24 @@ func New(cfg Config) *PubSub {
 		lifecycle.WithStart(p.start),
 		lifecycle.WithStop(p.stop))
 
-	p.subscriberFactory = func() (initializingSubscriber, error) {
-		return amqp.NewSubscriber(p.amqpConfig, wmlogger.New())
+	p.subscriberFactory = func(conn connection) (initializingSubscriber, error) {
+		return amqp.NewSubscriberWithConnection(p.amqpConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
-	p.createPublisher = func() (publisher, error) {
-		return amqp.NewPublisher(p.amqpConfig, wmlogger.New())
+	p.createPublisher = func(conn connection) (publisher, error) {
+		return amqp.NewPublisherWithConnection(p.amqpConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
-	p.redeliverySubscriberFactory = func() (initializingSubscriber, error) {
-		return amqp.NewSubscriber(p.amqpRedeliveryConfig, wmlogger.New())
+	p.redeliverySubscriberFactory = func(conn connection) (initializingSubscriber, error) {
+		return amqp.NewSubscriberWithConnection(p.amqpRedeliveryConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
-	p.waitSubscriberFactory = func() (initializingSubscriber, error) {
-		return amqp.NewSubscriber(p.amqpWaitConfig, wmlogger.New())
+	p.waitSubscriberFactory = func(conn connection) (initializingSubscriber, error) {
+		return amqp.NewSubscriberWithConnection(p.amqpWaitConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
-	p.createWaitPublisher = func() (publisher, error) {
-		return amqp.NewPublisher(p.amqpWaitConfig, wmlogger.New())
+	p.createWaitPublisher = func(conn connection) (publisher, error) {
+		return amqp.NewPublisherWithConnection(p.amqpWaitConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
 	// Start the service immediately.
@@ -246,6 +254,10 @@ func (p *PubSub) stop() {
 		logger.Warnf("Error closing wait subscriber: %s", err)
 	}
 
+	if err := p.connMgr.close(); err != nil {
+		logger.Warnf("Error closing connection manager: %s", err)
+	}
+
 	logger.Debugf("Closing pools...")
 
 	p.mutex.RLock()
@@ -300,22 +312,29 @@ func (p *PubSub) start() {
 }
 
 func (p *PubSub) connect() error {
-	pub, err := p.createPublisher()
+	conn, err := p.connMgr.getConnection()
+	if err != nil {
+		return fmt.Errorf("get connection: %w", err)
+	}
+
+	logger.Debugf("Successfully created connection to [%s]", extractEndpoint(p.amqpConfig.Connection.AmqpURI))
+
+	pub, err := p.createPublisher(conn)
 	if err != nil {
 		return err
 	}
 
-	p.subscriber = newSubscriberMgr(p.MaxConnectionSubscriptions, p.subscriberFactory)
+	p.subscriber = newSubscriberMgr(p.connMgr, p.subscriberFactory)
 	p.publisher = pub
 
-	p.redeliverySubscriber = newSubscriberMgr(p.MaxConnectionSubscriptions, p.redeliverySubscriberFactory)
+	p.redeliverySubscriber = newSubscriberMgr(p.connMgr, p.redeliverySubscriberFactory)
 
-	pub, err = p.createWaitPublisher()
+	pub, err = p.createWaitPublisher(conn)
 	if err != nil {
 		return err
 	}
 
-	p.waitSubscriber = newSubscriberMgr(p.MaxConnectionSubscriptions, p.waitSubscriberFactory)
+	p.waitSubscriber = newSubscriberMgr(p.connMgr, p.waitSubscriberFactory)
 	p.waitPublisher = pub
 
 	return nil
@@ -448,27 +467,105 @@ func newConnectBackOff() backoff.BackOff {
 	return b
 }
 
-type subscriberInfo struct {
-	subscriber    initializingSubscriber
-	subscriptions int
+type connection interface {
+	amqpConnection() *amqp.ConnectionWrapper
+	incrementChannelCount() uint32
+	numChannels() uint32
 }
 
-type subscriberConnectionMgr struct {
-	createSubscriber  subscriberFactory
-	mutex             sync.RWMutex
-	subscribers       []*subscriberInfo
-	current           *subscriberInfo
-	subscriptionLimit int
+type connectionMgr struct {
+	channelLimit uint32
+	current      *connectionWrapper
+	connections  []*connectionWrapper
+	mutex        sync.RWMutex
+	config       amqp.ConnectionConfig
 }
 
-func newSubscriberMgr(limit int, factory subscriberFactory) *subscriberConnectionMgr {
-	return &subscriberConnectionMgr{
-		subscriptionLimit: limit,
-		createSubscriber:  factory,
+func newConnectionMgr(cfg amqp.ConnectionConfig, limit int) *connectionMgr {
+	return &connectionMgr{
+		config:       cfg,
+		channelLimit: uint32(limit),
 	}
 }
 
-func (m *subscriberConnectionMgr) Close() error {
+func (m *connectionMgr) getConnection() (connection, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.current == nil || m.current.numChannels() >= m.channelLimit {
+		conn, err := amqp.NewConnection(m.config, wmlogger.New())
+		if err != nil {
+			return nil, fmt.Errorf("create connection: %w", err)
+		}
+
+		newCurrent := &connectionWrapper{conn: conn}
+
+		m.connections = append(m.connections, newCurrent)
+		m.current = newCurrent
+
+		logger.Infof("Created new connection. Total connections: %d.", len(m.connections))
+	}
+
+	numChannels := m.current.incrementChannelCount()
+
+	logger.Infof("Current connection has %d channels.", numChannels)
+
+	return m.current, nil
+}
+
+func (m *connectionMgr) close() error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	logger.Infof("Closing %d connections", len(m.connections))
+
+	for _, c := range m.connections {
+		if err := c.amqpConnection().Close(); err != nil {
+			logger.Warnf("Error closing connection: %s", err)
+		}
+	}
+
+	return nil
+}
+
+type connectionWrapper struct {
+	conn     *amqp.ConnectionWrapper
+	channels uint32
+}
+
+func (c *connectionWrapper) amqpConnection() *amqp.ConnectionWrapper {
+	return c.conn
+}
+
+func (c *connectionWrapper) incrementChannelCount() uint32 {
+	return atomic.AddUint32(&c.channels, 1)
+}
+
+func (c *connectionWrapper) numChannels() uint32 {
+	return atomic.LoadUint32(&c.channels)
+}
+
+type subscriberInfo struct {
+	conn       connection
+	subscriber initializingSubscriber
+}
+
+type subscriberMgr struct {
+	connMgr          connMgr
+	createSubscriber subscriberFactory
+	mutex            sync.RWMutex
+	current          *subscriberInfo
+	subscribers      []*subscriberInfo
+}
+
+func newSubscriberMgr(connMgr connMgr, factory subscriberFactory) *subscriberMgr {
+	return &subscriberMgr{
+		connMgr:          connMgr,
+		createSubscriber: factory,
+	}
+}
+
+func (m *subscriberMgr) Close() error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -483,7 +580,7 @@ func (m *subscriberConnectionMgr) Close() error {
 	return nil
 }
 
-func (m *subscriberConnectionMgr) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
+func (m *subscriberMgr) Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error) {
 	s, err := m.get()
 	if err != nil {
 		return nil, err
@@ -492,7 +589,7 @@ func (m *subscriberConnectionMgr) Subscribe(ctx context.Context, topic string) (
 	return s.Subscribe(ctx, topic)
 }
 
-func (m *subscriberConnectionMgr) SubscribeInitialize(topic string) error {
+func (m *subscriberMgr) SubscribeInitialize(topic string) error {
 	s, err := m.get()
 	if err != nil {
 		return err
@@ -501,30 +598,32 @@ func (m *subscriberConnectionMgr) SubscribeInitialize(topic string) error {
 	return s.SubscribeInitialize(topic)
 }
 
-func (m *subscriberConnectionMgr) get() (initializingSubscriber, error) {
+func (m *subscriberMgr) get() (initializingSubscriber, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if m.current == nil || m.current.subscriptions >= m.subscriptionLimit {
-		logger.Infof("Creating new subscriber connection.")
+	conn, err := m.connMgr.getConnection()
+	if err != nil {
+		return nil, fmt.Errorf("get connection for subscriber: %w", err)
+	}
 
-		s, err := m.createSubscriber()
+	if m.current == nil || conn != m.current.conn {
+		s, err := m.createSubscriber(conn)
 		if err != nil {
 			return nil, err
 		}
 
-		newCurrent := &subscriberInfo{subscriber: s}
+		m.current = &subscriberInfo{
+			subscriber: s,
+			conn:       conn,
+		}
 
-		m.subscribers = append(m.subscribers, newCurrent)
-		m.current = newCurrent
+		m.subscribers = append(m.subscribers, m.current)
 
-		logger.Infof("Created new subscriber connection. Total subscriber connections: %d.", len(m.subscribers))
+		logger.Debugf("Created a subscriber with a new connection. Num subscribers: %d", len(m.subscribers))
 	}
 
-	m.current.subscriptions++
-
-	logger.Debugf("Subscriber connections: %d. Current connection has %d subscriptions.",
-		len(m.subscribers), m.current.subscriptions)
+	logger.Debugf("Current connection has %d channels.", conn.numChannels())
 
 	return m.current.subscriber, nil
 }
