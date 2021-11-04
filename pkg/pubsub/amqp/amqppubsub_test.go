@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill-amqp/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
@@ -179,13 +180,14 @@ func TestAMQP_Error(t *testing.T) {
 
 		p := &PubSub{
 			Lifecycle: lifecycle.New(""),
-			subscriberFactory: func() (initializingSubscriber, error) {
+			connMgr:   &mockConnectionMgr{},
+			subscriberFactory: func(connection) (initializingSubscriber, error) {
 				return nil, errExpected
 			},
-			createPublisher: func() (publisher, error) {
+			createPublisher: func(connection) (publisher, error) {
 				return &mockPublisher{}, nil
 			},
-			createWaitPublisher: func() (publisher, error) {
+			createWaitPublisher: func(connection) (publisher, error) {
 				return &mockPublisher{}, nil
 			},
 		}
@@ -202,10 +204,11 @@ func TestAMQP_Error(t *testing.T) {
 		errExpected := errors.New("injected publisher subscriberFactory error")
 
 		p := &PubSub{
-			subscriberFactory: func() (initializingSubscriber, error) {
+			connMgr: &mockConnectionMgr{},
+			subscriberFactory: func(connection) (initializingSubscriber, error) {
 				return &mockSubscriber{}, nil
 			},
-			createPublisher: func() (publisher, error) {
+			createPublisher: func(connection) (publisher, error) {
 				return nil, errExpected
 			},
 		}
@@ -219,6 +222,7 @@ func TestAMQP_Error(t *testing.T) {
 
 		p := &PubSub{
 			Lifecycle:            lifecycle.New("ampq"),
+			connMgr:              &mockConnectionMgr{},
 			subscriber:           &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
 			publisher:            &mockPublisher{mockClosable: &mockClosable{}},
 			waitSubscriber:       &mockSubscriber{err: errSubscribe, mockClosable: &mockClosable{err: errClose}},
@@ -239,6 +243,7 @@ func TestAMQP_Error(t *testing.T) {
 
 		p := &PubSub{
 			Lifecycle:            lifecycle.New("ampq"),
+			connMgr:              &mockConnectionMgr{},
 			subscriber:           &mockSubscriber{mockClosable: &mockClosable{}},
 			publisher:            &mockPublisher{err: errPublish, mockClosable: &mockClosable{err: errClose}},
 			waitSubscriber:       &mockSubscriber{mockClosable: &mockClosable{}},
@@ -349,4 +354,34 @@ func (m *mockPublisher) Publish(topic string, messages ...*message.Message) erro
 	}
 
 	return nil
+}
+
+type mockConnectionMgr struct {
+	err error
+}
+
+func (m *mockConnectionMgr) close() error {
+	return m.err
+}
+
+func (m *mockConnectionMgr) getConnection() (connection, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+
+	return &mockConnection{}, nil
+}
+
+type mockConnection struct{}
+
+func (m *mockConnection) amqpConnection() *amqp.ConnectionWrapper {
+	return nil
+}
+
+func (m *mockConnection) incrementChannelCount() uint32 {
+	return 0
+}
+
+func (m *mockConnection) numChannels() uint32 {
+	return 0
 }
