@@ -15,8 +15,8 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/pkg/anchor/policy"
-	"github.com/trustbloc/orb/pkg/anchor/policy/config"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 )
 
 const endpoint = "/policy"

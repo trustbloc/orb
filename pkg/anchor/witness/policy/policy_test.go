@@ -15,7 +15,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
 

@@ -25,7 +25,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
