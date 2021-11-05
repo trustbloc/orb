@@ -84,9 +84,9 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		// prepare witness store
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), witnesses)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -133,8 +133,8 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
+		// prepare witness store
+		emptyWitnessProofs := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
 		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
 		require.NoError(t, err)
 
@@ -212,8 +212,8 @@ func TestWitnessProofHandler(t *testing.T) {
 			StatusStore:      vcStatusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{{
-				Type:    proofapi.WitnessTypeSystem,
-				Witness: "witness",
+				Type: proofapi.WitnessTypeSystem,
+				URI:  witnessIRI,
 			}}},
 			WitnessPolicy: &mockWitnessPolicy{eval: true},
 			Metrics:       &orbmocks.MetricsProvider{},
@@ -240,9 +240,9 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		// prepare witness store
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), witnesses)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -283,9 +283,9 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		// prepare witness store
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), witnesses)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -327,9 +327,9 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		// prepare witness store
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), witnesses)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -370,9 +370,9 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		// prepare witness store with 'empty' witness proofs
-		emptyWitnessProofs := []*proofapi.WitnessProof{{Type: proofapi.WitnessTypeSystem, Witness: witnessIRI.String()}}
-		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		// prepare witness store
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), witnesses)
 		require.NoError(t, err)
 
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
@@ -632,7 +632,7 @@ type mockWitnessStore struct {
 	GetErr       error
 }
 
-func (w *mockWitnessStore) AddProof(vcID, witnessID string, proof []byte) error {
+func (w *mockWitnessStore) AddProof(_ string, _ *url.URL, _ []byte) error {
 	if w.AddProofErr != nil {
 		return w.AddProofErr
 	}
@@ -640,7 +640,7 @@ func (w *mockWitnessStore) AddProof(vcID, witnessID string, proof []byte) error 
 	return nil
 }
 
-func (w *mockWitnessStore) Get(vcID string) ([]*proofapi.WitnessProof, error) {
+func (w *mockWitnessStore) Get(_ string) ([]*proofapi.WitnessProof, error) {
 	if w.GetErr != nil {
 		return nil, w.GetErr
 	}

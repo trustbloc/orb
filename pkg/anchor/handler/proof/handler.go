@@ -66,7 +66,7 @@ type WitnessProofHandler struct {
 }
 
 type witnessStore interface {
-	AddProof(anchorID, witness string, p []byte) error
+	AddProof(anchorID string, witness *url.URL, p []byte) error
 	Get(anchorID string) ([]*proofapi.WitnessProof, error)
 }
 
@@ -126,7 +126,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchors string, endT
 		return fmt.Errorf("failed to retrieve anchor anchor event [%s]: %w", anchors, err)
 	}
 
-	err = h.WitnessStore.AddProof(anchors, witness.String(), proof)
+	err = h.WitnessStore.AddProof(anchors, witness, proof)
 	if err != nil {
 		return fmt.Errorf("failed to add witness[%s] proof for anchor event [%s]: %w", witness.String(), anchors, err)
 	}

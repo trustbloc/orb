@@ -102,7 +102,7 @@ type activityStore interface {
 }
 
 type witnessStore interface {
-	Put(anchorEventID string, witnesses []*proof.WitnessProof) error
+	Put(anchorEventID string, witnesses []*proof.Witness) error
 	Delete(anchorEventID string) error
 }
 
@@ -216,12 +216,12 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	}
 
 	// figure out witness list for this anchor file
-	witnesses, err := c.getWitnesses(refs)
+	batchWitnesses, err := c.getWitnessesFromBatchOperations(refs)
 	if err != nil {
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	anchorEvent, err := c.buildAnchorEvent(payload, witnesses)
+	anchorEvent, err := c.buildAnchorEvent(payload, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("build anchor event for anchor [%s]: %w", anchor, err)
 	}
@@ -238,7 +238,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index().String(), anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(anchorEvent, witnesses)
+	err = c.postOfferActivity(anchorEvent, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for anchor event %s: %w",
 			anchorEvent.URL(), err)
@@ -578,29 +578,19 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses []string) error {
+func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
-	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Index(), witnesses)
+	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Index(), batchWitnesses)
 
-	batchWitnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
+	witnessesIRI, err := c.getWitnesses(anchorEvent.Index().String(), batchWitnesses)
 	if err != nil {
 		return err
 	}
 
-	// get system witness IRI
-	systemWitnessesIRI, err := url.Parse(c.apServiceIRI.String() + resthandler.WitnessesPath)
-	if err != nil {
-		return fmt.Errorf("failed to parse system witness path: %w", err)
-	}
-
-	var witnessesIRI []*url.URL
-
-	// add batch witnesses and system witnesses (activity pub collection)
-	witnessesIRI = append(witnessesIRI, batchWitnessesIRI...)
-	witnessesIRI = append(witnessesIRI, vocab.PublicIRI, systemWitnessesIRI)
+	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
 
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
@@ -615,16 +605,8 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 	)
 
-	// store witnesses before posting offers because handlers sometimes get invoked before
-	// witnesses and vc status are stored
-	err = c.storeWitnesses(anchorEvent.Index().String(), batchWitnessesIRI)
-	if err != nil {
-		return fmt.Errorf("store witnesses: %w", err)
-	}
-
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
-		// TODO: Offers were not sent - delete vc status and witness store entries (issue-452)
 		return fmt.Errorf("failed to post offer for anchor event[%s]: %w", anchorEvent.Index(), err)
 	}
 
@@ -633,30 +615,10 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnesses
 	return nil
 }
 
-func (c *Writer) getBatchWitnessesIRI(witnesses []string) ([]*url.URL, error) {
-	var witnessesIRI []*url.URL
-
-	for _, w := range witnesses {
-		// do not add local domain as external witness
-		if w == c.apServiceIRI.String() {
-			continue
-		}
-
-		witnessIRI, err := url.Parse(w)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", w, err)
-		}
-
-		witnessesIRI = append(witnessesIRI, witnessIRI)
-	}
-
-	return witnessesIRI, nil
-}
-
-// getWitnesses returns the list of anchor origins for all dids in the Sidetree batch.
+// getWitnessesFromBatchOperations returns the list of anchor origins for all dids in the Sidetree batch.
 // Create and recover operations contain anchor origin in operation references.
 // For update and deactivate operations we have to 'resolve' did in order to figure out anchor origin.
-func (c *Writer) getWitnesses(refs []*operation.Reference) ([]string, error) {
+func (c *Writer) getWitnessesFromBatchOperations(refs []*operation.Reference) ([]string, error) {
 	getWitnessesStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorGetWitnessesTime(time.Since(getWitnessesStartTime))
@@ -740,55 +702,47 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	return false, nil
 }
 
-func (c *Writer) storeWitnesses(anchorID string, batchWitnesses []*url.URL) error {
-	var witnesses []*proof.WitnessProof
-
-	for _, w := range batchWitnesses {
-		hasLog, err := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", w.Scheme, w.Host))
-		if err != nil {
-			return err
-		}
-
-		witnesses = append(witnesses,
-			&proof.WitnessProof{
-				Type:    proof.WitnessTypeBatch,
-				Witness: w.String(),
-				HasLog:  hasLog,
-			})
+func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*url.URL, error) {
+	batchWitnesses, err := c.getBatchWitnesses(batchOpsWitnesses)
+	if err != nil {
+		return nil, err
 	}
 
 	systemWitnesses, err := c.getSystemWitnesses()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, systemWitnessURI := range systemWitnesses {
-		domain := fmt.Sprintf("%s://%s", systemWitnessURI.Scheme, systemWitnessURI.Host)
-
-		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(domain)
-		if innerErr != nil {
-			return innerErr
-		}
-
-		witnesses = append(witnesses,
-			&proof.WitnessProof{
-				Type:    proof.WitnessTypeSystem,
-				Witness: systemWitnessURI.String(),
-				HasLog:  hasLog,
-			})
-	}
+	var witnesses []*proof.Witness
+	witnesses = append(witnesses, batchWitnesses...)
+	witnesses = append(witnesses, systemWitnesses...)
 
 	if len(witnesses) == 0 {
 		logger.Errorf("No witnesses are configured for service [%s]. At least one system witness must be configured",
 			c.apServiceIRI)
 
 		// Return a transient error since adding a witness should allow a retry to succeed.
-		return errors.NewTransient(
+		return nil, errors.NewTransient(
 			fmt.Errorf("unable to store witnesses for anchor credential [%s] since no witnesses are provided",
 				anchorID))
 	}
 
-	err = c.WitnessStore.Put(anchorID, witnesses)
+	// store witnesses before posting offers
+	err = c.storeWitnesses(anchorID, witnesses)
+	if err != nil {
+		return nil, fmt.Errorf("store witnesses: %w", err)
+	}
+
+	var witnessesIRI []*url.URL
+	for _, w := range witnesses {
+		witnessesIRI = append(witnessesIRI, w.URI)
+	}
+
+	return witnessesIRI, nil
+}
+
+func (c *Writer) storeWitnesses(anchorID string, witnesses []*proof.Witness) error {
+	err := c.WitnessStore.Put(anchorID, witnesses)
 	if err != nil {
 		return fmt.Errorf("failed to store witnesses for anchor event[%s]: %w", anchorID, err)
 	}
@@ -801,7 +755,7 @@ func (c *Writer) storeWitnesses(anchorID string, batchWitnesses []*url.URL) erro
 	return nil
 }
 
-func (c *Writer) getSystemWitnesses() ([]*url.URL, error) {
+func (c *Writer) getSystemWitnessesIRI() ([]*url.URL, error) {
 	it, err := c.ActivityStore.QueryReferences(spi.Witness,
 		spi.NewCriteria(
 			spi.WithObjectIRI(c.apServiceIRI),
@@ -824,4 +778,61 @@ func (c *Writer) getSystemWitnesses() ([]*url.URL, error) {
 	}
 
 	return systemWitnessesIRI, nil
+}
+
+func (c *Writer) getSystemWitnesses() ([]*proof.Witness, error) {
+	systemWitnessesIRI, err := c.getSystemWitnessesIRI()
+	if err != nil {
+		return nil, err
+	}
+
+	var witnesses []*proof.Witness
+
+	for _, systemWitnessIRI := range systemWitnessesIRI {
+		domain := fmt.Sprintf("%s://%s", systemWitnessIRI.Scheme, systemWitnessIRI.Host)
+
+		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(domain)
+		if innerErr != nil {
+			return nil, innerErr
+		}
+
+		witnesses = append(witnesses,
+			&proof.Witness{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessIRI,
+				HasLog: hasLog,
+			})
+	}
+
+	return witnesses, nil
+}
+
+func (c *Writer) getBatchWitnesses(batchWitnesses []string) ([]*proof.Witness, error) {
+	var witnesses []*proof.Witness
+
+	for _, batchWitness := range batchWitnesses {
+		// do not add local domain as external witness
+		if batchWitness == c.apServiceIRI.String() {
+			continue
+		}
+
+		batchWitnessIRI, err := url.Parse(batchWitness)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", batchWitness, err)
+		}
+
+		hasLog, err := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", batchWitnessIRI.Scheme, batchWitnessIRI.Host))
+		if err != nil {
+			return nil, err
+		}
+
+		witnesses = append(witnesses,
+			&proof.Witness{
+				Type:   proof.WitnessTypeBatch,
+				HasLog: hasLog,
+				URI:    batchWitnessIRI,
+			})
+	}
+
+	return witnesses, nil
 }

@@ -1235,22 +1235,6 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		require.Contains(t, err.Error(), "missing protocol scheme")
 	})
 
-	t.Run("error - get system URI error", func(t *testing.T) {
-		providers := &Providers{
-			Outbox:        &mockOutbox{},
-			ActivityStore: &mockActivityStore{},
-			WitnessStore:  &mockWitnessStore{},
-		}
-
-		c, err := New(namespace, &url.URL{Host: "?!?"}, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
-		require.NoError(t, err)
-
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to parse system witness path")
-	})
-
 	t.Run("error - witness proof store error", func(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
@@ -1422,7 +1406,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			},
 		}
 
-		witnesses, err := c.getWitnesses(opRefs)
+		witnesses, err := c.getWitnessesFromBatchOperations(opRefs)
 		require.NoError(t, err)
 		require.Equal(t, 5, len(witnesses))
 
@@ -1458,7 +1442,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			},
 		}
 
-		witnesses, err := c.getWitnesses(opRefs)
+		witnesses, err := c.getWitnessesFromBatchOperations(opRefs)
 		require.Error(t, err)
 		require.Nil(t, witnesses)
 		require.Contains(t, err.Error(), "operation type 'invalid' not supported for assembling witness list")
@@ -1485,7 +1469,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			},
 		}
 
-		witnesses, err := c.getWitnesses(opRefs)
+		witnesses, err := c.getWitnessesFromBatchOperations(opRefs)
 		require.Error(t, err)
 		require.Nil(t, witnesses)
 		require.Contains(t, err.Error(), "unexpected interface 'int' for anchor origin")
@@ -1499,14 +1483,23 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 	apServiceIRI, err := url.Parse(activityPubURL)
 	require.NoError(t, err)
 
-	c, err := New(namespace, apServiceIRI, nil, &Providers{}, &anchormocks.AnchorPublisher{}, ps,
+	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			StatusCode: http.StatusOK,
+		}, nil
+	})
+
+	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
+	c, err := New(namespace, apServiceIRI, nil, &Providers{WFClient: wfClient}, &anchormocks.AnchorPublisher{}, ps,
 		testMaxWitnessDelay, true, nil, &mocks.MetricsProvider{})
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		witnesses := []string{"origin-1.com", "origin-2.com"}
+		witnesses := []string{"http://origin-1.com", "http://origin-2.com"}
 
-		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnesses(witnesses)
 		require.NoError(t, err)
 
 		// two from witness list
@@ -1516,7 +1509,7 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 	t.Run("success - exclude current domain from witness list", func(t *testing.T) {
 		witnesses := []string{activityPubURL}
 
-		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnesses(witnesses)
 		require.NoError(t, err)
 
 		require.Equal(t, 0, len(witnessesIRI))
@@ -1525,7 +1518,7 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 	t.Run("error - invalid url", func(t *testing.T) {
 		witnesses := []string{":xyz"}
 
-		witnessesIRI, err := c.getBatchWitnessesIRI(witnesses)
+		witnessesIRI, err := c.getBatchWitnesses(witnesses)
 		require.Error(t, err)
 		require.Nil(t, witnessesIRI)
 		require.Contains(t, err.Error(), "missing protocol scheme")
@@ -1696,7 +1689,7 @@ type mockWitnessStore struct {
 	DeleteErr error
 }
 
-func (w *mockWitnessStore) Put(vcID string, witnesses []*proof.WitnessProof) error {
+func (w *mockWitnessStore) Put(vcID string, witnesses []*proof.Witness) error {
 	if w.PutErr != nil {
 		return w.PutErr
 	}

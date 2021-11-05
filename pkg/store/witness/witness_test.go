@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 
 const (
 	anchorID = "id"
-	witness  = "witness"
 
 	expiryTime = 10 * time.Second
 
@@ -69,13 +69,16 @@ func TestNew(t *testing.T) {
 }
 
 func TestStore_Put(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.NoError(t, err)
 	})
 
@@ -89,20 +92,23 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
 }
 
 func TestStore_Get(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -202,13 +208,16 @@ func TestStore_Get(t *testing.T) {
 }
 
 func TestStore_Delete(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.NoError(t, err)
 
 		ops, err := s.Get(anchorID)
@@ -312,23 +321,32 @@ func TestStore_Delete(t *testing.T) {
 }
 
 func TestStore_AddProof(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
+	witness1URL, err := url.Parse("https://domain1.com/service")
+	require.NoError(t, err)
+
+	witness2URL, err := url.Parse("https://domain2.com/service")
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		testWitness := &proof.WitnessProof{
-			Type:    proof.WitnessTypeBatch,
-			Witness: witness,
+		testWitness := &proof.Witness{
+			Type: proof.WitnessTypeBatch,
+			URI:  testWitnessURL,
 		}
 
-		err = s.Put(anchorID, []*proof.WitnessProof{testWitness})
+		err = s.Put(anchorID, []*proof.Witness{testWitness})
 		require.NoError(t, err)
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(anchorID, witness, wf)
+		err = s.AddProof(anchorID, testWitnessURL, wf)
 		require.NoError(t, err)
 
 		witnesses, err := s.Get(anchorID)
@@ -343,14 +361,14 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		witnessProofs := []*proof.WitnessProof{
+		witnessProofs := []*proof.Witness{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-1",
+				Type: proof.WitnessTypeBatch,
+				URI:  witness1URL,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-2",
+				Type: proof.WitnessTypeBatch,
+				URI:  witness2URL,
 			},
 		}
 
@@ -359,10 +377,10 @@ func TestStore_AddProof(t *testing.T) {
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(anchorID, "witness-1", wf)
+		err = s.AddProof(anchorID, witness1URL, wf)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, "witness-2", wf)
+		err = s.AddProof(anchorID, witness2URL, wf)
 		require.NoError(t, err)
 
 		witnesses, err := s.Get(anchorID)
@@ -378,14 +396,14 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		witnessProofs := []*proof.WitnessProof{
+		witnessProofs := []*proof.Witness{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-1",
+				Type: proof.WitnessTypeBatch,
+				URI:  witness1URL,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-2",
+				Type: proof.WitnessTypeBatch,
+				URI:  witness2URL,
 			},
 		}
 
@@ -394,9 +412,12 @@ func TestStore_AddProof(t *testing.T) {
 
 		wf := []byte(witnessProof)
 
-		err = s.AddProof(anchorID, "witness-3", wf)
+		witness3URL, err := url.Parse("https://domain3.com/service")
+		require.NoError(t, err)
+
+		err = s.AddProof(anchorID, witness3URL, wf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness[witness-3] not found for anchorID[id]")
+		require.Contains(t, err.Error(), "witness[https://domain3.com/service] not found for anchorID[id]")
 	})
 
 	t.Run("error - witness not found (no witnesses for anchor)", func(t *testing.T) {
@@ -405,7 +426,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not found")
 	})
@@ -420,7 +441,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
@@ -438,7 +459,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator next() error")
 	})
@@ -458,7 +479,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator value() error")
 	})
@@ -467,8 +488,8 @@ func TestStore_AddProof(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		witnessBytes, err := json.Marshal(&proof.WitnessProof{
-			Type:    proof.WitnessTypeBatch,
-			Witness: witness,
+			Type: proof.WitnessTypeBatch,
+			URI:  testWitnessURL,
 		})
 		require.NoError(t, err)
 
@@ -485,7 +506,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "iterator key() error")
 	})
@@ -494,8 +515,8 @@ func TestStore_AddProof(t *testing.T) {
 		iterator := &mocks.Iterator{}
 
 		witnessBytes, err := json.Marshal(&proof.WitnessProof{
-			Type:    proof.WitnessTypeBatch,
-			Witness: witness,
+			Type: proof.WitnessTypeBatch,
+			URI:  testWitnessURL,
 		})
 		require.NoError(t, err)
 
@@ -513,10 +534,10 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to add proof for anchorID[id] and witness[witness]: put error")
+			"failed to add proof for anchorID[id] and witness[http://domain.com/service]: put error")
 	})
 
 	t.Run("error - unmarshal anchored witness error ", func(t *testing.T) {
@@ -534,7 +555,7 @@ func TestStore_AddProof(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.AddProof(anchorID, witness, []byte(witnessProof))
+		err = s.AddProof(anchorID, testWitnessURL, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to unmarshal anchor witness from store value for anchorID[id]")
@@ -542,6 +563,9 @@ func TestStore_AddProof(t *testing.T) {
 }
 
 func TestStore_HandleExpiryKeys(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
 	t.Run("success", func(t *testing.T) {
 		err := pingMongoDB()
 		if err != nil {
@@ -566,7 +590,7 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 
 		expiryService.Start()
 
-		err = s.Put(anchorID, []*proof.WitnessProof{getTestWitness()})
+		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.NoError(t, err)
 
 		time.Sleep(3 * time.Second)
@@ -648,10 +672,10 @@ func pingMongoDB() error {
 	return db.Client().Ping(ctx, nil)
 }
 
-func getTestWitness() *proof.WitnessProof {
-	return &proof.WitnessProof{
-		Type:    proof.WitnessTypeBatch,
-		Witness: "witness",
+func getTestWitness(witnessURI *url.URL) *proof.Witness {
+	return &proof.Witness{
+		Type: proof.WitnessTypeBatch,
+		URI:  witnessURI,
 	}
 }
 
