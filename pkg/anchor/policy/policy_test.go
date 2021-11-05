@@ -8,6 +8,7 @@ package policy
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -59,6 +60,21 @@ func TestNew(t *testing.T) {
 }
 
 func TestEvaluate(t *testing.T) {
+	witnessURL, err := url.Parse("https://domain.com/service")
+	require.NoError(t, err)
+
+	batchWitnessURL, err := url.Parse("https://batch.com/service")
+	require.NoError(t, err)
+
+	systemWitnessURL, err := url.Parse("https://system.com/service")
+	require.NoError(t, err)
+
+	batchWitness2URL, err := url.Parse("https://other.batch.com/service")
+	require.NoError(t, err)
+
+	systemWitness2URL, err := url.Parse("https://other.system.com/service")
+	require.NoError(t, err)
+
 	t.Run("success - default policy satisfied (100% batch and 100% system)", func(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
@@ -69,14 +85,14 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   witnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   witnessURL,
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -98,16 +114,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 		}
 
@@ -129,16 +145,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 		}
 
@@ -160,28 +176,28 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitness2URL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness2URL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 		}
 
@@ -203,10 +219,10 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 		}
 
@@ -228,16 +244,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 		}
 
@@ -259,16 +275,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 		}
 
@@ -290,16 +306,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness",
-				Proof:   []byte("proof"),
-				HasLog:  false,
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: false,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness",
-				Proof:   []byte("proof"),
-				HasLog:  true,
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				Proof:  []byte("proof"),
+				HasLog: true,
 			},
 		}
 
@@ -318,20 +334,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitnessURL,
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitness2URL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
 			},
 		}
 
@@ -353,22 +369,22 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitness2URL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
 			},
 		}
 
@@ -390,23 +406,23 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitness2URL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   systemWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
 			},
 		}
 
@@ -428,58 +444,22 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitness2URL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   systemWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
-			},
-		}
-
-		ok, err := wp.Evaluate(witnessProofs)
-		require.NoError(t, err)
-		require.Equal(t, true, ok)
-	})
-
-	t.Run("success - policy satisfied (50% batch witness proofs or 50% system witness proofs)", func(t *testing.T) {
-		configStore, err := mem.NewProvider().OpenStore(configStoreName)
-		require.NoError(t, err)
-
-		err = configStore.Put(WitnessPolicyKey, []byte(`"MinPercent(50,system) OR MinPercent(50,batch)"`))
-		require.NoError(t, err)
-
-		wp, err := New(configStore, defaultPolicyCacheExpiry)
-		require.NoError(t, err)
-		require.NotNil(t, wp)
-
-		witnessProofs := []*proof.WitnessProof{
-			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
-			},
-			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
-			},
-			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-			},
-			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
 			},
 		}
 
@@ -501,17 +481,53 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitness2URL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
+			},
+		}
+
+		ok, err := wp.Evaluate(witnessProofs)
+		require.NoError(t, err)
+		require.Equal(t, true, ok)
+	})
+
+	t.Run("success - policy satisfied (50% batch witness proofs or 50% system witness proofs)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"MinPercent(50,system) OR MinPercent(50,batch)"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnessProofs := []*proof.WitnessProof{
+			{
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
+			},
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitness2URL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
 			},
 		}
 
@@ -533,23 +549,23 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-2",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitness2URL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   systemWitnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-2",
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitness2URL,
 			},
 		}
 
@@ -571,9 +587,9 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   batchWitnessURL,
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -595,9 +611,9 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   systemWitnessURL,
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -619,13 +635,13 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "batch-witness-1",
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitnessURL,
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "system-witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   systemWitnessURL,
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -663,14 +679,14 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:    proof.WitnessTypeBatch,
-				Witness: "witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeBatch,
+				URI:   witnessURL,
+				Proof: []byte("proof"),
 			},
 			{
-				Type:    proof.WitnessTypeSystem,
-				Witness: "witness-1",
-				Proof:   []byte("proof"),
+				Type:  proof.WitnessTypeSystem,
+				URI:   witnessURL,
+				Proof: []byte("proof"),
 			},
 		}
 

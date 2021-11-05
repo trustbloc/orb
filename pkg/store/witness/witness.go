@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,7 +65,7 @@ type Store struct {
 }
 
 // Put saves witnesses into anchor witness store.
-func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
+func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 	operations := make([]storage.Operation, len(witnesses))
 
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
@@ -75,7 +76,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.WitnessProof) error {
 			return fmt.Errorf("failed to marshal anchor witness: %w", err)
 		}
 
-		logger.Debugf("adding %s witness to storage batch: %s", w.Type, w.Witness)
+		logger.Debugf("adding %s witness to storage batch: %s", w.Type, w.URI)
 
 		op := storage.Operation{
 			Key:   uuid.New().String(),
@@ -231,7 +232,7 @@ func (s *Store) Get(anchorID string) ([]*proof.WitnessProof, error) {
 }
 
 // AddProof adds proof for anchor id and witness.
-func (s *Store) AddProof(anchorID, witness string, p []byte) error { //nolint:funlen,gocyclo,cyclop
+func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //nolint:funlen,gocyclo,cyclop
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	query := fmt.Sprintf("%s:%s", anchorIndex, anchorIDEncoded)
@@ -271,7 +272,7 @@ func (s *Store) AddProof(anchorID, witness string, p []byte) error { //nolint:fu
 				anchorID, err)
 		}
 
-		if w.Witness == witness {
+		if w.URI.String() == witness.String() {
 			var key string
 
 			key, err = iter.Key()
@@ -284,7 +285,7 @@ func (s *Store) AddProof(anchorID, witness string, p []byte) error { //nolint:fu
 
 			witnessProofBytes, marshalErr := json.Marshal(w)
 			if marshalErr != nil {
-				return fmt.Errorf("failed to marshal witness[%s] proof for anchorID[%s]: %w", w.Witness, anchorID, marshalErr)
+				return fmt.Errorf("failed to marshal witness[%s] proof for anchorID[%s]: %w", w.URI, anchorID, marshalErr)
 			}
 
 			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: anchorIndex, Value: anchorIDEncoded})
