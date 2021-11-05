@@ -16,8 +16,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/anchor/policy/config"
-	"github.com/trustbloc/orb/pkg/anchor/proof"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
+	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 )
 
 // WitnessPolicy evaluates witness policy.

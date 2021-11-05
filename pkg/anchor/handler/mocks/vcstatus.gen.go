@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	proofa "github.com/trustbloc/orb/pkg/anchor/proof"
+	proofa "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 )
 
 type VCStatusStore struct {

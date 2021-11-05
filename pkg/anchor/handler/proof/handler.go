@@ -20,9 +20,9 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	proofapi "github.com/trustbloc/orb/pkg/anchor/proof"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
+	proofapi "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 )
 
 var logger = log.New("proof-handler")
