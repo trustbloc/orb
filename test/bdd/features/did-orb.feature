@@ -19,12 +19,27 @@ Feature:
     And domain "orb.domain4.com" is mapped to "localhost:48726"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/policy" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/cas" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/vc" is set to "READ_TOKEN"
+
+    # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
+    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+
+    # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
+
+    When an HTTP GET is sent to "${domain1IRI}/acceptlist"
+    Then the JSON path '#(type="follow").url' of the response contains "${domain2IRI}"
+    Then the JSON path '#(type="follow").url' of the response contains "${domain3IRI}"
+    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain2IRI}"
+    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain3IRI}"
 
     # domain2 server follows domain1 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'

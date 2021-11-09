@@ -56,7 +56,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
-	"github.com/trustbloc/orb/pkg/store/expiry"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -72,6 +71,8 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
+	"github.com/trustbloc/orb/pkg/activitypub/service/acceptlist"
+	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
@@ -121,6 +122,7 @@ import (
 	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
@@ -653,11 +655,11 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithAnchorEventHandler(credential.New(
 			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
 		)),
-		// TODO: Define the following ActivityPub handlers.
-		// apspi.WithWitnessInvitationAuth(inviteWitnessAuth),
-		// apspi.WithFollowerAuth(followerAuth),
-		// apspi.WithUndeliverableHandler(undeliverableHandler),
+		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
+		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
 		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
+		// TODO: Define the following ActivityPub handlers.
+		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
@@ -873,6 +875,18 @@ func startOrbServices(parameters *orbParameters) error {
 		handlers = append(handlers, auth.NewHandlerWrapper(authCfg, &httpHandler{handler}))
 	}
 
+	if parameters.followAuthPolicy == acceptListPolicy || parameters.inviteWitnessAuthPolicy == acceptListPolicy {
+		// Register endpoints to manage the 'accept list'.
+		handlers = append(handlers, auth.NewHandlerWrapper(
+			authCfg,
+			aphandler.NewAcceptListWriter(apEndpointCfg, acceptlist.NewManager(configStore)),
+		))
+		handlers = append(handlers, auth.NewHandlerWrapper(
+			authCfg,
+			aphandler.NewAcceptListReader(apEndpointCfg, acceptlist.NewManager(configStore))),
+		)
+	}
+
 	httpServer := httpserver.New(
 		parameters.hostURL,
 		parameters.tlsParams.serveCertPath,
@@ -911,9 +925,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	activityPubService.Stop()
 
-	if expiryService != nil {
-		expiryService.Stop()
-	}
+	expiryService.Stop()
 
 	if err := pubSub.Close(); err != nil {
 		logger.Warnf("Error closing publisher/subscriber: %s", err)
@@ -1286,4 +1298,13 @@ func createJSONLDDocumentLoader(ldStore *ldStoreProvider, httpClient *http.Clien
 	}
 
 	return loader, nil
+}
+
+func NewAcceptRejectHandler(targetType string, policy acceptRejectPolicy, configStore storage.Store) apspi.ActorAuth {
+	switch policy {
+	case acceptListPolicy:
+		return activityhandler.NewAcceptListAuthHandler(targetType, acceptlist.NewManager(configStore))
+	default:
+		return &activityhandler.AcceptAllActorsAuth{}
+	}
 }

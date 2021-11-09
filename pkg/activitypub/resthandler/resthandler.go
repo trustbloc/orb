@@ -49,12 +49,15 @@ const (
 	LikesPath = "/likes"
 	// ActivitiesPath specifies the object's 'activities' endpoint.
 	ActivitiesPath = "/activities/{id}"
+	// AcceptListPath specifies the endpoint to manage an "accept list" for a service.
+	AcceptListPath = "/acceptlist"
 )
 
 const (
 	pageParam    = "page"
 	pageNumParam = "page-num"
 	idParam      = "id"
+	typeParam    = "type"
 
 	authHeader  = "Authorization"
 	tokenPrefix = "Bearer "
@@ -347,12 +350,21 @@ func getIDFromParam(objectIRI *url.URL, path string) getIDFunc {
 
 //nolint:gochecknoglobals
 var getIDParam = func(req *http.Request) string {
-	id, ok := mux.Vars(req)[idParam]
+	return getParam(req, idParam)
+}
+
+//nolint:gochecknoglobals
+var getTypeParam = func(req *http.Request) string {
+	return getParam(req, typeParam)
+}
+
+func getParam(req *http.Request, name string) string {
+	id, ok := mux.Vars(req)[name]
 	if ok {
 		return id
 	}
 
-	values := req.URL.Query()[idParam]
+	values := req.URL.Query()[name]
 
 	if len(values) == 0 {
 		return ""

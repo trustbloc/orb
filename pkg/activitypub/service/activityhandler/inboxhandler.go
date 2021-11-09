@@ -1024,9 +1024,11 @@ func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_, _ *url.URL, _ *voca
 	return nil
 }
 
-type acceptAllActorsAuth struct{}
+// AcceptAllActorsAuth is an authorization handler that accepts any actor.
+type AcceptAllActorsAuth struct{}
 
-func (a *acceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
+// AuthorizeActor authorizes the actor. This implementation always returns true.
+func (a *AcceptAllActorsAuth) AuthorizeActor(*vocab.ActorType) (bool, error) {
 	return true, nil
 }
 

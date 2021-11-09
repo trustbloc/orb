@@ -315,8 +315,6 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //
 // HandleExpiredKeys is expired keys inspector/handler.
 func (s *Store) HandleExpiredKeys(keys ...string) error {
 	if len(keys) == 0 {
-		logger.Debugf("no expired keys found - all anchors have been processed")
-
 		return nil
 	}
 

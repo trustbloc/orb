@@ -16,7 +16,16 @@ Feature:
     And domain "orb.domain3.com" is mapped to "localhost:48626"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
+
+    # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
+    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+
+    # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     # domain2 server follows domain1 server
     Given variable "followID" is assigned a unique ID

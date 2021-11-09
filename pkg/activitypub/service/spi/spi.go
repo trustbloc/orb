@@ -109,15 +109,15 @@ func WithAnchorEventHandler(handler AnchorEventHandler) HandlerOpt {
 	}
 }
 
-// WithFollowerAuth sets the handler that decides whether or not to accept a 'Follow' request.
-func WithFollowerAuth(handler ActorAuth) HandlerOpt {
+// WithFollowAuth sets the handler that decides whether or not to accept a 'Follow' request.
+func WithFollowAuth(handler ActorAuth) HandlerOpt {
 	return func(options *Handlers) {
 		options.FollowerAuth = handler
 	}
 }
 
-// WithWitnessInvitationAuth sets the handler that decides whether or not to accept an 'InviteWitness' request.
-func WithWitnessInvitationAuth(handler ActorAuth) HandlerOpt {
+// WithInviteWitnessAuth sets the handler that decides whether or not to accept an 'InviteWitness' request.
+func WithInviteWitnessAuth(handler ActorAuth) HandlerOpt {
 	return func(options *Handlers) {
 		options.WitnessInvitationAuth = handler
 	}
@@ -143,4 +143,11 @@ func WithAnchorEventAcknowledgementHandler(handler AnchorEventAcknowledgementHan
 	return func(options *Handlers) {
 		options.AnchorEventAckHandler = handler
 	}
+}
+
+// AcceptList contains the URIs that are to be accepted by an authorization handler
+// for the given type. Known types are "follow" and "invite-witness".
+type AcceptList struct {
+	Type string
+	URL  []*url.URL
 }

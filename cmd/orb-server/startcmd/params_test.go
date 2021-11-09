@@ -620,6 +620,32 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value for mq-max-connection-subscription")
 	})
+
+	t.Run("Invalid follow auth policy", func(t *testing.T) {
+		restoreEnv := setEnv(t, followAuthPolicyEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported accept/reject authorization type")
+	})
+
+	t.Run("Invalid invite-witness auth policy", func(t *testing.T) {
+		restoreEnv := setEnv(t, inviteWitnessAuthPolicyEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported accept/reject authorization type")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -1077,6 +1103,70 @@ func TestCreateActivityPubStore(t *testing.T) {
 		require.EqualError(t, err, "create MongoDB storage provider for ActivityPub: failed to create "+
 			`a new MongoDB client: error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
 		require.Nil(t, activityPubStore)
+	})
+}
+
+func TestGetFollowAuthParameters(t *testing.T) {
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, followAuthPolicyEnvKey, string(acceptListPolicy))
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		policy, err := getFollowAuthPolicy(cmd)
+		require.NoError(t, err)
+		require.Equal(t, acceptListPolicy, policy)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		policy, err := getFollowAuthPolicy(cmd)
+		require.NoError(t, err)
+		require.Equal(t, acceptAllPolicy, policy)
+	})
+
+	t.Run("Invalid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, followAuthPolicyEnvKey, "invalid-policy")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		_, err := getFollowAuthPolicy(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported accept/reject authorization type")
+	})
+}
+
+func TestGetInviteWitnessAuthParameters(t *testing.T) {
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, inviteWitnessAuthPolicyEnvKey, string(acceptListPolicy))
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		policy, err := getInviteWitnessAuthPolicy(cmd)
+		require.NoError(t, err)
+		require.Equal(t, acceptListPolicy, policy)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		policy, err := getInviteWitnessAuthPolicy(cmd)
+		require.NoError(t, err)
+		require.Equal(t, acceptAllPolicy, policy)
+	})
+
+	t.Run("Invalid env value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, inviteWitnessAuthPolicyEnvKey, "invalid-policy")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		_, err := getInviteWitnessAuthPolicy(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported accept/reject authorization type")
 	})
 }
 

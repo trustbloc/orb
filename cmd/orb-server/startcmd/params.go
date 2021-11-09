@@ -32,6 +32,9 @@ const (
 	defaultDataExpiryCheckInterval      = time.Minute
 	mqDefaultMaxConnectionSubscriptions = 1000
 
+	defaultFollowAuthType        = acceptAllPolicy
+	defaultInviteWitnessAuthType = acceptAllPolicy
+
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
 	hostURLFlagName      = "host-url"
@@ -368,8 +371,32 @@ const (
 		"For example, a setting of '1m' will cause the expiry service to run a check every 1 minute. " +
 		"Defaults to 1 minute if not set. " + commonEnvVarUsageText + dataExpiryCheckIntervalEnvKey
 
-	// TODO: Add verification method
+	followAuthPolicyFlagName      = "follow-auth-policy"
+	followAuthPolicyFlagShorthand = "F"
+	followAuthPolicyEnvKey        = "FOLLOW_AUTH_POLICY"
+	followAuthPolicyFlagUsage     = "The type of authorization to use when a 'Follow' ActivityPub request is received. " +
+		"Possible values are: 'accept-all' and 'accept-list'. The value, 'accept-all', indicates that this " +
+		"server will accept any 'Follow' request. The value, 'accept-list', indicates that the service sending the " +
+		"'Follow' request must be included in an 'accept list'. " +
+		"Defaults to 'accept-all' if not set. " + commonEnvVarUsageText + followAuthPolicyEnvKey
 
+	inviteWitnessAuthPolicyFlagName      = "invite-witness-auth-policy"
+	inviteWitnessAuthPolicyFlagShorthand = "W"
+	inviteWitnessAuthPolicyEnvKey        = "INVITE_WITNESS_AUTH_POLICY"
+	inviteWitnessAuthPolicyFlagUsage     = "The type of authorization to use when a 'Invite' witness ActivityPub request is received. " +
+		"Possible values are: 'accept-all' and 'accept-list'. The value, 'accept-all', indicates that this " +
+		"server will accept any 'Invite' request for a witness. The value, 'accept-list', indicates that the service sending the " +
+		"'Invite' witness request must be included in an 'accept list'. " +
+		"Defaults to 'accept-all' if not set. " + commonEnvVarUsageText + inviteWitnessAuthPolicyEnvKey
+
+	// TODO: Update verification method
+)
+
+type acceptRejectPolicy string
+
+const (
+	acceptAllPolicy  acceptRejectPolicy = "accept-all"
+	acceptListPolicy acceptRejectPolicy = "accept-list"
 )
 
 type tlsParameters struct {
@@ -433,6 +460,8 @@ type orbParameters struct {
 	contextProviderURLs            []string
 	unpublishedOperationLifespan   time.Duration
 	dataExpiryCheckInterval        time.Duration
+	inviteWitnessAuthPolicy        acceptRejectPolicy
+	followAuthPolicy               acceptRejectPolicy
 }
 
 type anchorCredentialParams struct {
@@ -829,6 +858,16 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
 	}
 
+	followAuthPolicy, err := getFollowAuthPolicy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	inviteWitnessAuthPolicy, err := getInviteWitnessAuthPolicy(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -880,6 +919,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		contextProviderURLs:            contextProviderURLs,
 		unpublishedOperationLifespan:   unpublishedOperationLifespan,
 		dataExpiryCheckInterval:        dataExpiryCheckInterval,
+		followAuthPolicy:               followAuthPolicy,
+		inviteWitnessAuthPolicy:        inviteWitnessAuthPolicy,
 	}, nil
 }
 
@@ -1157,6 +1198,42 @@ func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
 	}, nil
 }
 
+func getFollowAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) {
+	authType, err := cmdutils.GetUserSetVarFromString(cmd, followAuthPolicyFlagName, followAuthPolicyEnvKey, true)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", followAuthPolicyFlagName, err)
+	}
+
+	followAuthType := acceptRejectPolicy(authType)
+
+	if followAuthType == "" {
+		followAuthType = defaultFollowAuthType
+	} else if followAuthType != acceptAllPolicy && followAuthType != acceptListPolicy {
+		return "", fmt.Errorf("unsupported accept/reject authorization type: %s",
+			followAuthType)
+	}
+
+	return followAuthType, nil
+}
+
+func getInviteWitnessAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) {
+	authType, err := cmdutils.GetUserSetVarFromString(cmd, inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyEnvKey, true)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", inviteWitnessAuthPolicyFlagName, err)
+	}
+
+	inviteWitnessAuthType := acceptRejectPolicy(authType)
+
+	if inviteWitnessAuthType == "" {
+		inviteWitnessAuthType = defaultInviteWitnessAuthType
+	} else if inviteWitnessAuthType != acceptAllPolicy && inviteWitnessAuthType != acceptListPolicy {
+		return "", fmt.Errorf("unsupported accept/reject authorization type: %s",
+			inviteWitnessAuthType)
+	}
+
+	return inviteWitnessAuthType, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
@@ -1221,4 +1298,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(databaseTimeoutFlagName, "", "", databaseTimeoutFlagUsage)
 	startCmd.Flags().StringP(unpublishedOperationLifespanFlagName, "", "", unpublishedOperationLifespanFlagUsage)
 	startCmd.Flags().StringP(dataExpiryCheckIntervalFlagName, "", "", dataExpiryCheckIntervalFlagUsage)
+	startCmd.Flags().StringP(followAuthPolicyFlagName, followAuthPolicyFlagShorthand, "", followAuthPolicyFlagUsage)
+	startCmd.Flags().StringP(inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyFlagShorthand, "", inviteWitnessAuthPolicyFlagUsage)
 }
