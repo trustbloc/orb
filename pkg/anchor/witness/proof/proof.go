@@ -18,6 +18,10 @@ type Witness struct {
 	HasLog bool
 }
 
+func (wf *Witness) String() string {
+	return fmt.Sprintf("{type:%s, witness:%s, log:%t}", wf.Type, wf.URI, wf.HasLog)
+}
+
 // WitnessProof contains anchor index witness proof.
 type WitnessProof struct {
 	Type   WitnessType

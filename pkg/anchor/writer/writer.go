@@ -87,6 +87,7 @@ type Providers struct {
 	Signer           signer
 	MonitoringSvc    monitoringSvc
 	WitnessStore     witnessStore
+	WitnessPolicy    witnessPolicy
 	ActivityStore    activityStore
 	WFClient         webfingerClient
 	DocumentLoader   ld.DocumentLoader
@@ -104,6 +105,10 @@ type activityStore interface {
 type witnessStore interface {
 	Put(anchorEventID string, witnesses []*proof.Witness) error
 	Delete(anchorEventID string) error
+}
+
+type witnessPolicy interface {
+	Select(witnesses []*proof.Witness) ([]*proof.Witness, error)
 }
 
 type witness interface {
@@ -587,7 +592,7 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, batchWitn
 
 	witnessesIRI, err := c.getWitnesses(anchorEvent.Index().String(), batchWitnesses)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get witnesses: %w", err)
 	}
 
 	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
@@ -733,12 +738,32 @@ func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*u
 		return nil, fmt.Errorf("store witnesses: %w", err)
 	}
 
-	var witnessesIRI []*url.URL
-	for _, w := range witnesses {
-		witnessesIRI = append(witnessesIRI, w.URI)
+	selectedWitnesses, err := c.WitnessPolicy.Select(witnesses)
+	if err != nil {
+		return nil, fmt.Errorf("select witnesses: %w", err)
 	}
 
+	witnessesIRI := getUniqueWitnesses(selectedWitnesses)
+
+	logger.Debugf("selected %d witnesses: %+v", len(witnessesIRI), witnessesIRI)
+
 	return witnessesIRI, nil
+}
+
+func getUniqueWitnesses(witnesses []*proof.Witness) []*url.URL {
+	uniqueWitnesses := make(map[string]bool)
+
+	var witnessesIRI []*url.URL
+
+	for _, w := range witnesses {
+		_, ok := uniqueWitnesses[w.URI.String()]
+		if !ok {
+			witnessesIRI = append(witnessesIRI, w.URI)
+			uniqueWitnesses[w.URI.String()] = true
+		}
+	}
+
+	return witnessesIRI
 }
 
 func (c *Writer) storeWitnesses(anchorID string, witnesses []*proof.Witness) error {

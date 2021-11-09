@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/bluele/gcache"
@@ -17,6 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy/selector/random"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 )
 
@@ -25,6 +27,8 @@ type WitnessPolicy struct {
 	configStore storage.Store
 	cache       gCache
 	cacheExpiry time.Duration
+
+	selector selector
 }
 
 const (
@@ -43,11 +47,16 @@ type gCache interface {
 	SetWithExpire(interface{}, interface{}, time.Duration) error
 }
 
+type selector interface {
+	Select(witnesses []*proof.Witness, n int) ([]*proof.Witness, error)
+}
+
 // New parses witness policy from policy string.
 func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPolicy, error) {
 	wp := &WitnessPolicy{
 		configStore: configStore,
 		cacheExpiry: policyCacheExpiry,
+		selector:    random.New(),
 	}
 
 	wp.cache = gcache.New(defaultCacheSize).ARC().LoaderExpireFunc(wp.loadWitnessPolicy).Build()
@@ -101,7 +110,7 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 	batchCondition := evaluate(collectedBatchWitnesses, totalBatchWitnesses, cfg.MinNumberBatch, cfg.MinPercentBatch)
 	systemCondition := evaluate(collectedSystemWitnesses, totalSystemWitnesses, cfg.MinNumberSystem, cfg.MinPercentSystem)
 
-	evaluated := cfg.Operator(batchCondition, systemCondition)
+	evaluated := cfg.OperatorFnc(batchCondition, systemCondition)
 
 	logger.Debugf("witness policy[%s] evaluated to[%t] with batch[%t] and system[%t] for witnesses: %s",
 		cfg, evaluated, batchCondition, systemCondition, witnesses)
@@ -168,4 +177,102 @@ func checkLog(logRequired, hasLog bool) bool {
 
 	// log is not required, witness without log is counted for policy
 	return true
+}
+
+// Select selects min number of witnesses required based on witness policy.
+func (wp *WitnessPolicy) Select(witnesses []*proof.Witness) ([]*proof.Witness, error) {
+	cfg, err := wp.getWitnessPolicyConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	selectedBatchWitnesses, selectedSystemWitnesses, err := wp.selectBatchAndSystemWitnesses(witnesses, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Operator == config.AND {
+		return append(selectedBatchWitnesses, selectedSystemWitnesses...), nil
+	}
+
+	if len(selectedBatchWitnesses) == 0 || len(selectedSystemWitnesses) < len(selectedBatchWitnesses) {
+		return selectedSystemWitnesses, nil
+	}
+
+	return selectedBatchWitnesses, nil
+}
+
+// selects min number of batch and system witnesses that are required to fulfill witness policy.
+func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness,
+	cfg *config.WitnessPolicyConfig) ([]*proof.Witness, []*proof.Witness, error) {
+	logger.Debugf("selecting minimum number of batch and system witnesses based on cfg[%s] and witnesses: %+v",
+		cfg, witnesses)
+
+	var eligibleBatchWitnesses []*proof.Witness
+
+	var eligibleSystemWitnesses []*proof.Witness
+
+	totalSystemWitnesses := 0
+	totalBatchWitnesses := 0
+
+	for _, w := range witnesses {
+		logOK := checkLog(cfg.LogRequired, w.HasLog)
+
+		switch w.Type {
+		case proof.WitnessTypeBatch:
+			totalBatchWitnesses++
+
+			if logOK {
+				eligibleBatchWitnesses = append(eligibleBatchWitnesses, w)
+			}
+
+		case proof.WitnessTypeSystem:
+			totalSystemWitnesses++
+
+			if logOK {
+				eligibleSystemWitnesses = append(eligibleSystemWitnesses, w)
+			}
+		}
+	}
+
+	logger.Debugf("selecting minimum number of witnesses based on cfg[%s] and eligible batch%s and system witnesses%s",
+		cfg, eligibleBatchWitnesses, eligibleSystemWitnesses)
+
+	var selectedBatchWitnesses []*proof.Witness
+
+	// it is possible to have 0 zero eligible batch witnesses
+	if len(eligibleBatchWitnesses) != 0 {
+		var err error
+
+		selectedBatchWitnesses, err = wp.selectMinWitnesses(eligibleBatchWitnesses, cfg.MinNumberBatch,
+			cfg.MinPercentBatch, totalBatchWitnesses)
+		if err != nil {
+			return nil, nil, fmt.Errorf("select batch witnesses as per policy: %w", err)
+		}
+	}
+
+	logger.Debugf("selected %d batch witnesses: %v", len(selectedBatchWitnesses), selectedBatchWitnesses)
+
+	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
+		cfg.MinPercentSystem, totalSystemWitnesses)
+	if err != nil {
+		return nil, nil, fmt.Errorf("select system witnesses as per policy: %w", err)
+	}
+
+	logger.Debugf("selected %d system witnesses: %v", len(selectedSystemWitnesses), selectedSystemWitnesses)
+
+	return selectedBatchWitnesses, selectedSystemWitnesses, nil
+}
+
+func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
+	minNumber, minPercent, totalWitnesses int) ([]*proof.Witness, error) {
+	minSelection := len(eligible)
+
+	if minNumber > 0 {
+		minSelection = minNumber
+	} else if minPercent >= 0 {
+		minSelection = int(math.Ceil(float64(minPercent) / maxPercent * float64(totalWitnesses)))
+	}
+
+	return wp.selector.Select(eligible, minSelection)
 }

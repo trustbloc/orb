@@ -155,6 +155,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:           &mockSigner{},
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
@@ -205,6 +206,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:           &mockSigner{},
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
@@ -258,6 +260,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			MonitoringSvc:    &mockMonitoring{},
 			Witness:          &mockWitness{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
@@ -311,6 +314,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:          wit,
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
@@ -757,6 +761,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:           &mockSigner{},
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    vcStatusStore,
@@ -1208,6 +1213,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
 			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
 			ActivityStore: &mockActivityStore{},
 			VCStatusStore: vcStatusStore,
 			WFClient:      wfClient,
@@ -1307,6 +1313,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{Err: fmt.Errorf("outbox error")},
 			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
 			ActivityStore: &mockActivityStore{},
 			VCStatusStore: &mockVCStatusStore{},
 			WFClient:      wfClient,
@@ -1319,6 +1326,25 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
+	})
+
+	t.Run("error - witness selection error", func(t *testing.T) {
+		providers := &Providers{
+			Outbox:        &mockOutbox{},
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness selection error")},
+			ActivityStore: &mockActivityStore{},
+			VCStatusStore: &mockVCStatusStore{},
+			WFClient:      wfClient,
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get witnesses: select witnesses: witness selection error")
 	})
 }
 
@@ -1751,6 +1777,23 @@ type httpMock func(req *http.Request) (*http.Response, error)
 
 func (m httpMock) Do(req *http.Request) (*http.Response, error) {
 	return m(req)
+}
+
+type mockWitnessPolicy struct {
+	Witnesses []*proof.Witness
+	Err       error
+}
+
+func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness) ([]*proof.Witness, error) {
+	if wp.Err != nil {
+		return nil, wp.Err
+	}
+
+	if wp.Witnesses != nil {
+		return wp.Witnesses, nil
+	}
+
+	return witnesses, nil
 }
 
 //nolint: lll
