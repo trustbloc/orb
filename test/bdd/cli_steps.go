@@ -20,6 +20,8 @@ import (
 // Steps is steps for cli BDD tests.
 type Steps struct {
 	bddContext *BDDContext
+	state      *state
+
 	cliValue   string
 	createdDID *ariesdid.Doc
 	httpClient *httpClient
@@ -29,6 +31,7 @@ type Steps struct {
 func NewCLISteps(ctx *BDDContext, state *state) *Steps {
 	return &Steps{
 		bddContext: ctx,
+		state:      state,
 		httpClient: newHTTPClient(state, ctx),
 	}
 }
@@ -45,6 +48,7 @@ func (e *Steps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check cli deactivated DID$`, e.checkDeactivatedDID)
 	s.Step(`^check cli updated DID$`, e.checkUpdatedDID)
 	s.Step(`^user create "([^"]*)" activity with outbox-url "([^"]*)" actor "([^"]*)" to "([^"]*)" action "([^"]*)"$`, e.createActivity)
+	s.Step(`^orb-cli is executed with args '([^']*)'$`, e.execute)
 }
 
 func (e *Steps) checkCreatedDID() error {
@@ -407,6 +411,25 @@ func (e *Steps) createDID() error {
 	}
 
 	e.cliValue = value
+
+	return nil
+}
+
+func (e *Steps) execute(argsStr string) error {
+	var args []string
+
+	for _, arg := range strings.Split(argsStr, " ") {
+		args = append(args, arg)
+	}
+
+	value, err := execCMD(args...)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Response from CLI: %s", value)
+
+	e.state.setResponse(value)
 
 	return nil
 }

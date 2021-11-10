@@ -308,6 +308,26 @@ func TestSendRequest(t *testing.T) {
 	})
 }
 
+func TestSendHTTPRequest(t *testing.T) {
+	t.Run("test error 500", func(t *testing.T) {
+		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+
+		cmd := newMockCmd(func(cmd *cobra.Command, args []string) error {
+			_, err := SendHTTPRequest(cmd, nil, http.MethodGet, serv.URL)
+
+			return err
+		})
+
+		cmd.SetArgs([]string{"--" + AuthTokenFlagName, "ADMIN_TOKEN"})
+
+		err := cmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "got unexpected response from")
+	})
+}
+
 func TestGetVDRPublicKeys(t *testing.T) {
 	t.Run("test public key invalid path", func(t *testing.T) {
 		_, err := GetVDRPublicKeysFromFile("./wrongfile")
@@ -406,4 +426,15 @@ func TestGetVDRPublicKeys(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, len(didDoc.Authentication), 2)
 	})
+}
+
+func newMockCmd(runFUnc func(cmd *cobra.Command, args []string) error) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  "mock",
+		RunE: runFUnc,
+	}
+
+	AddCommonFlags(cmd)
+
+	return cmd
 }

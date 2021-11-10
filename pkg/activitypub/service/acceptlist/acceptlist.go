@@ -146,8 +146,6 @@ func (m *Manager) queryByType(acceptType string) ([]*spi.AcceptList, error) {
 		acceptLists = append(acceptLists, list)
 	}
 
-	logger.Debugf("Loaded accept lists for type [%s]: %s", acceptType, acceptLists)
-
 	return acceptLists, nil
 }
 

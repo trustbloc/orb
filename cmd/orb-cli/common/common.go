@@ -11,6 +11,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -19,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
@@ -27,9 +29,37 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 )
 
 var logger = log.New("orb-cli")
+
+const (
+	// TLSSystemCertPoolFlagName defines the flag for the system certificate pool.
+	TLSSystemCertPoolFlagName = "tls-systemcertpool"
+	// TLSSystemCertPoolFlagUsage defines the usage of the system certificate pool flag.
+	TLSSystemCertPoolFlagUsage = "Use system certificate pool." +
+		" Possible values [true] [false]. Defaults to false if not set." +
+		" Alternatively, this can be set with the following environment variable: " + TLSSystemCertPoolEnvKey
+	// TLSSystemCertPoolEnvKey defines the environment variable for the system certificate pool flag.
+	TLSSystemCertPoolEnvKey = "ORB_CLI_TLS_SYSTEMCERTPOOL"
+
+	// TLSCACertsFlagName defines the flag for the CA certs flag.
+	TLSCACertsFlagName = "tls-cacerts"
+	// TLSCACertsFlagUsage defines the usage of the CA certs flag.
+	TLSCACertsFlagUsage = "Comma-separated list of ca certs path." +
+		" Alternatively, this can be set with the following environment variable: " + TLSCACertsEnvKey
+	// TLSCACertsEnvKey defines the environment variable for the CA certs flag.
+	TLSCACertsEnvKey = "ORB_CLI_TLS_CACERTS"
+
+	// AuthTokenFlagName defines the flag for the authorization bearer token.
+	AuthTokenFlagName = "auth-token"
+	// AuthTokenFlagUsage defines the usage of the authorization bearer token flag.
+	AuthTokenFlagUsage = "Auth token." +
+		" Alternatively, this can be set with the following environment variable: " + AuthTokenEnvKey
+	// AuthTokenEnvKey defines the environment variable for the authorization bearer token flag.
+	AuthTokenEnvKey = "ORB_CLI_AUTH_TOKEN" //nolint:gosec
+)
 
 // PublicKey struct.
 type PublicKey struct {
@@ -284,8 +314,73 @@ func SendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 	return responseBytes, nil
 }
 
+// SendHTTPRequest sends the given HTTP request using the options provided on the command-line.
+func SendHTTPRequest(cmd *cobra.Command, reqBytes []byte, method, endpointURL string) ([]byte, error) {
+	client, err := newHTTPClient(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	return SendRequest(client, reqBytes, newAuthTokenHeader(cmd), method, endpointURL)
+}
+
 func closeResponseBody(respBody io.Closer) {
 	if err := respBody.Close(); err != nil {
 		logger.Errorf("Failed to close response body: %v", err)
 	}
+}
+
+func newHTTPClient(cmd *cobra.Command) (*http.Client, error) {
+	rootCAs, err := getRootCAs(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}, nil
+}
+
+func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
+	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, TLSSystemCertPoolFlagName,
+		TLSSystemCertPoolEnvKey)
+
+	tlsSystemCertPool := false
+
+	if tlsSystemCertPoolString != "" {
+		var err error
+		tlsSystemCertPool, err = strconv.ParseBool(tlsSystemCertPoolString)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, TLSCACertsFlagName,
+		TLSCACertsEnvKey)
+
+	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
+}
+
+func newAuthTokenHeader(cmd *cobra.Command) map[string]string {
+	headers := make(map[string]string)
+
+	authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, AuthTokenFlagName, AuthTokenEnvKey)
+	if authToken != "" {
+		headers["Authorization"] = "Bearer " + authToken
+	}
+
+	return headers
+}
+
+// AddCommonFlags adds common flags to the given command.
+func AddCommonFlags(cmd *cobra.Command) {
+	cmd.Flags().StringP(TLSSystemCertPoolFlagName, "", "", TLSSystemCertPoolFlagUsage)
+	cmd.Flags().StringArrayP(TLSCACertsFlagName, "", nil, TLSCACertsFlagUsage)
+	cmd.Flags().StringP(AuthTokenFlagName, "", "", AuthTokenFlagUsage)
 }

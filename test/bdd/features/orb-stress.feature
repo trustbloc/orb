@@ -9,12 +9,8 @@
 @orb_stress
 Feature: Using Orb stress test
   Background: Setup
-    # TODO: Replace this configuration to use the Orb CLI to update the accept list - Issue #865.
-    Given the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["https://orb.domain2.com/services/orb"]}]'
-    Then an HTTP POST is sent to "https://localhost:48326/services/orb/acceptlist" with content "${domain1AcceptList}" of type "application/json"
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"invite-witness","add":["https://orb.domain1.com/services/orb"]}]'
-    Then an HTTP POST is sent to "https://localhost:48426/services/orb/acceptlist" with content "${domain2AcceptList}" of type "application/json"
+    Given orb-cli is executed with args 'acceptlist add --url https://localhost:48326/services/orb/acceptlist --actor https://orb.domain2.com/services/orb --type follow --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+    And orb-cli is executed with args 'acceptlist add --url https://localhost:48426/services/orb/acceptlist --actor https://orb.domain1.com/services/orb --type invite-witness --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
 
   @orb_did_stress_test_setup
   Scenario:
