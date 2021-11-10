@@ -11,10 +11,15 @@ Feature:
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"
+    And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
     Given domain "orb.domain1.com" is mapped to "localhost:48326"
     And domain "orb.domain2.com" is mapped to "localhost:48426"
     And domain "orb.domain3.com" is mapped to "localhost:48626"
+    And domain "orb.domain4.com" is mapped to "localhost:48726"
+
+    Given the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/services/orb/acceptlist" is set to "READ_TOKEN"
 
   @activitypub_service
   Scenario: Get ActivityPub service
@@ -63,12 +68,37 @@ Feature:
     Given variable "invalidActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","to":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${invalidActivity}" of type "application/json" and the returned status code is 400
 
+    # domain1 adds domain2 and domain3 to its 'follow' accept list.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]}]'
+    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+
+    When an HTTP GET is sent to "${domain1IRI}/acceptlist?type=follow"
+    Then the JSON path "url" of the response contains "${domain2IRI}"
+    Then the JSON path "url" of the response contains "${domain3IRI}"
+
+    # domain1 removes domain3 from its 'follow' accept list.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","remove":["${domain3IRI}"]}]'
+    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+
+    When an HTTP GET is sent to "${domain1IRI}/acceptlist?type=follow"
+    Then the JSON path "url" of the response contains "${domain2IRI}"
+    Then the JSON path "url" of the response does not contain "${domain3IRI}"
+
     # domain2 follows domain1
     Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
     Then the value of the JSON string response is saved to variable "followID"
 
+    # domain3 attempts to follow domain1 (should be rejected since domain3 is not in domain1's accept list)
+    Given variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "${domain3IRI}/outbox" with content "${followActivity}" of type "application/json"
+
     Then we wait 3 seconds
+
+    # domain3 should have received a "Reject" from domain1.
+    When an HTTP GET is sent to "${domain3IRI}/inbox?page=true"
+    Then the JSON path 'orderedItems.#(type="Reject").actor' of the response equals "https://orb.domain1.com/services/orb"
+    And the JSON path 'orderedItems.#(type="Reject").object.type' of the response equals "Follow"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "READ_TOKEN"
 
@@ -93,6 +123,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/followers?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain2IRI}"
+    And the JSON path "items" of the response does not contain "${domain3IRI}"
 
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/following"
     Then the JSON path "type" of the response equals "Collection"
@@ -122,6 +153,14 @@ Feature:
   Scenario: create/announce
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
+
+    # domain1 adds domain2 to its 'follow' accept list.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}"]}]'
+    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+
+    # domain2 adds domain3 to its 'follow' accept list.
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain3IRI}"]}]'
+    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     # domain2 follows domain1
     Given variable "followDomain1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
@@ -183,12 +222,26 @@ Feature:
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
 
+    # domain2 adds domain1 to its 'invite-witness' accept list.
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
+
     # domain1 invites domain2 to be a witness
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     Then the value of the JSON string response is saved to variable "inviteWitnessID"
 
+    # domain4 attempts to invite domain2 to be a witness (the request is rejected since domain4 is not in domain2's accept list)
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
+    When an HTTP POST is sent to "${domain4IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+
     Then we wait 3 seconds
+
+    # domain4 should have received a "Reject" from domain2.
+    When an HTTP GET is sent to "${domain4IRI}/inbox?page=true"
+    Then the JSON path 'orderedItems.#(type="Reject").actor' of the response equals "https://orb.domain2.com/services/orb"
+    And the JSON path 'orderedItems.#(type="Reject").object.type' of the response equals "Invite"
+    And the JSON path 'orderedItems.#(type="Reject").object.object' of the response equals "https://w3id.org/activityanchors#AnchorWitness"
 
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
@@ -211,6 +264,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/witnessing?page=true"
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response contains "${domain1IRI}"
+    And the JSON path "items" of the response does not contain "${domain3IRI}"
 
     And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":{"actor":"${domain1IRI}","id":"${inviteWitnessID}","object":"${domain2IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"

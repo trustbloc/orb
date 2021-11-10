@@ -393,3 +393,15 @@ func setIDParam(id string) func() {
 		getIDParam = restore
 	}
 }
+
+func setTypeParam(t string) func() {
+	restore := getTypeParam
+
+	getTypeParam = func(req *http.Request) string {
+		return t
+	}
+
+	return func() {
+		getTypeParam = restore
+	}
+}

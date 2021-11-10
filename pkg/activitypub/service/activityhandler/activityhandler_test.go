@@ -342,7 +342,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 
 	followerAuth := servicemocks.NewActorAuth()
 
-	h := NewInbox(cfg, as, ob, apClient, spi.WithFollowerAuth(followerAuth))
+	h := NewInbox(cfg, as, ob, apClient, spi.WithFollowAuth(followerAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -516,7 +516,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 
 	witnessInvitationAuth := servicemocks.NewActorAuth()
 
-	h := NewInbox(cfg, as, ob, apClient, spi.WithWitnessInvitationAuth(witnessInvitationAuth))
+	h := NewInbox(cfg, as, ob, apClient, spi.WithInviteWitnessAuth(witnessInvitationAuth))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -3148,4 +3148,13 @@ func TestNoOpAnchorEventAcknowledgementHandler(t *testing.T) {
 	h := &noOpAnchorEventAcknowledgementHandler{}
 
 	require.NoError(t, h.AnchorEventAcknowledged(actor, ref, additionalRefs))
+}
+
+func TestAcceptAllActorsAuth_AuthorizeActor(t *testing.T) {
+	h := &AcceptAllActorsAuth{}
+	require.NotNil(t, h)
+
+	ok, err := h.AuthorizeActor(nil)
+	require.NoError(t, err)
+	require.True(t, ok)
 }

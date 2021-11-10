@@ -14,7 +14,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48327
@@ -73,9 +73,15 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-list
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-list
     ports:
       - 48326:443
       - 48327:48327
@@ -99,7 +105,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48527
@@ -160,9 +166,15 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-list
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-list
     ports:
       - 48526:443
       - 48527:48527
@@ -201,7 +213,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_HOST_URL=0.0.0.0:80
       - ORB_HOST_METRICS_URL=0.0.0.0:48827
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
@@ -258,6 +270,12 @@ services:
       - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-list
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-list
     ports:
       - 48826:80
       - 48827:48827
@@ -280,7 +298,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_HOST_URL=0.0.0.0:80
       - ORB_HOST_METRICS_URL=0.0.0.0:48927
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
@@ -337,6 +355,12 @@ services:
       - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-list
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-list
     ports:
       - 48926:80
       - 48927:48927
@@ -359,7 +383,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
       - ORB_KEY_ID=orb3key
       - ORB_HOST_URL=0.0.0.0:443
@@ -425,6 +449,12 @@ services:
       - ORB_AUTH_TOKENS_DEF=/services/orb/outbox||admin,/services/orb/inbox||admin,/sidetree/.*/operations||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-all
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-all
     ports:
       - 48626:443
       - 48627:48627
@@ -448,7 +478,7 @@ services:
     environment:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:DEBUG
+      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=info:DEBUG
       - ORB_HOST_URL=0.0.0.0:443
       - ORB_HOST_METRICS_URL=0.0.0.0:48727
       - ORB_PRIVATE_KEY=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
@@ -516,6 +546,12 @@ services:
       - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - FOLLOW_AUTH_POLICY=accept-all
+      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
+      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
+      - INVITE_WITNESS_AUTH_POLICY=accept-all
     ports:
       - 48726:443
       - 48727:48727

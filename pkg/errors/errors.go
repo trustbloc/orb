@@ -8,6 +8,7 @@ package errors
 
 import (
 	"errors"
+	"fmt"
 )
 
 var (
@@ -23,6 +24,12 @@ var (
 // resolve the problem, whereas a non-transient (persistent) error will always fail with the same outcome if retried.
 func NewTransient(err error) error {
 	return &transient{err: err}
+}
+
+// NewTransientf returns a transient error in order to indicate to the caller that a retry may resolve the problem,
+// whereas a non-transient (persistent) error will always fail with the same outcome if retried.
+func NewTransientf(format string, a ...interface{}) error {
+	return &transient{err: fmt.Errorf(format, a...)}
 }
 
 // IsTransient returns true if the given error is a 'transient' error.
