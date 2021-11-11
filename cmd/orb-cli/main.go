@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/cmd/orb-cli/acceptlistcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/createdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
@@ -58,6 +59,7 @@ func main() {
 	rootCmd.AddCommand(ipfsCmd)
 	rootCmd.AddCommand(followcmd.GetCmd())
 	rootCmd.AddCommand(witnesscmd.GetCmd())
+	rootCmd.AddCommand(acceptlistcmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-cli: %s", err.Error())

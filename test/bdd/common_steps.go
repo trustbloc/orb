@@ -934,6 +934,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path '([^']*)' of the response contains "([^"]*)"$`, d.jsonPathOfResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response contains expression "([^"]*)"$`, d.jsonPathOfResponseContainsRegEx)
 	s.Step(`^the JSON path "([^"]*)" of the response does not contain "([^"]*)"$`, d.jsonPathOfResponseNotContains)
+	s.Step(`^the JSON path '([^']*)' of the response does not contain "([^"]*)"$`, d.jsonPathOfResponseNotContains)
 	s.Step(`^the JSON path "([^"]*)" of the response does not contain expression "([^"]*)"$`, d.jsonPathOfResponseNotContainsRegEx)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path '([^']*)' of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
