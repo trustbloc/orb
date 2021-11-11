@@ -685,6 +685,7 @@ func startOrbServices(parameters *orbParameters) error {
 		MonitoringSvc:    monitoringSvc,
 		ActivityStore:    apStore,
 		WitnessStore:     witnessProofStore,
+		WitnessPolicy:    witnessPolicy,
 		WFClient:         wfClient,
 		DocumentLoader:   orbDocumentLoader,
 		VCStore:          vcStore,

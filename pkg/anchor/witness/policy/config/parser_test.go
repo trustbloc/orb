@@ -23,7 +23,7 @@ func TestParse(t *testing.T) {
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
 		require.Equal(t, false, wp.LogRequired)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 
 		require.NotEmpty(t, wp.String())
 	})
@@ -46,7 +46,7 @@ func TestParse_OutOf(t *testing.T) {
 		require.Equal(t, 2, wp.MinNumberSystem)
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 	})
 
 	t.Run("success - OutOf policy for batch", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestParse_OutOf(t *testing.T) {
 		require.Equal(t, 0, wp.MinNumberSystem)
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 	})
 
 	t.Run("success - OutOf policy for batch", func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestParse_OutOf(t *testing.T) {
 		require.Equal(t, 3, wp.MinNumberSystem)
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 	})
 
 	t.Run("error - first argument for OutOf policy must be an integer", func(t *testing.T) {
@@ -105,7 +105,7 @@ func TestParse_MinPercent(t *testing.T) {
 		require.Equal(t, 0, wp.MinNumberSystem)
 		require.Equal(t, 70, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 	})
 
 	t.Run("success - MinPercent policy for batch and system", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestParse_MinPercent(t *testing.T) {
 		require.Equal(t, 0, wp.MinNumberSystem)
 		require.Equal(t, 70, wp.MinPercentBatch)
 		require.Equal(t, 30, wp.MinPercentSystem)
-		require.Equal(t, or(true, false), wp.Operator(true, false))
+		require.Equal(t, or(true, false), wp.OperatorFnc(true, false))
 	})
 
 	t.Run("error - role 'invalid' not supported for MinPercent policy", func(t *testing.T) {
@@ -160,6 +160,6 @@ func TestParse_LogRequired(t *testing.T) {
 		require.Equal(t, 100, wp.MinPercentBatch)
 		require.Equal(t, 100, wp.MinPercentSystem)
 		require.Equal(t, true, wp.LogRequired)
-		require.Equal(t, and(true, false), wp.Operator(true, false))
+		require.Equal(t, and(true, false), wp.OperatorFnc(true, false))
 	})
 }

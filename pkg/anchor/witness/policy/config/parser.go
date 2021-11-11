@@ -20,7 +20,8 @@ type WitnessPolicyConfig struct {
 	MinPercentSystem int
 	MinPercentBatch  int
 
-	Operator operatorFnc
+	OperatorFnc operatorFnc
+	Operator    string
 
 	LogRequired bool
 }
@@ -51,7 +52,8 @@ func Parse(policy string) (*WitnessPolicyConfig, error) {
 	wp := &WitnessPolicyConfig{
 		MinPercentBatch:  maxPercent,
 		MinPercentSystem: maxPercent,
-		Operator:         and,
+		OperatorFnc:      and,
+		Operator:         AND,
 	}
 
 	if policy == "" {
@@ -85,9 +87,11 @@ func (wp *WitnessPolicyConfig) processToken(token string) error {
 	case t == LogRequired:
 		wp.LogRequired = true
 	case t == AND:
-		wp.Operator = and
+		wp.OperatorFnc = and
+		wp.Operator = AND
 	case t == OR:
-		wp.Operator = or
+		wp.OperatorFnc = or
+		wp.Operator = OR
 	default:
 		return fmt.Errorf("rule not supported: %s", token)
 	}
@@ -169,8 +173,8 @@ func (wp *WitnessPolicyConfig) processMinPercent(token string) error {
 }
 
 func (wp *WitnessPolicyConfig) String() string {
-	return fmt.Sprintf("minBatch:%d, minSystem:%d, percentBatch:%d, percentSystem:%d, log:%t",
-		wp.MinNumberBatch, wp.MinNumberSystem, wp.MinPercentBatch, wp.MinPercentSystem, wp.LogRequired)
+	return fmt.Sprintf("minBatch:%d, minSystem:%d, percentBatch:%d, percentSystem:%d, operator: %s, log:%t",
+		wp.MinNumberBatch, wp.MinNumberSystem, wp.MinPercentBatch, wp.MinPercentSystem, wp.Operator, wp.LogRequired)
 }
 
 func and(a, b bool) bool {

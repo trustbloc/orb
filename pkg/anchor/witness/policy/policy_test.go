@@ -791,6 +791,315 @@ func TestGetWitnessPolicyConfig(t *testing.T) {
 	})
 }
 
+func TestSelect(t *testing.T) {
+	batchWitnessURL, err := url.Parse("https://batch.com/service")
+	require.NoError(t, err)
+
+	systemWitnessURL, err := url.Parse("https://system.com/service")
+	require.NoError(t, err)
+
+	batchWitness2URL, err := url.Parse("https://second.batch.com/service")
+	require.NoError(t, err)
+
+	systemWitness2URL, err := url.Parse("https://second.system.com/service")
+	require.NoError(t, err)
+
+	systemWitness3URL, err := url.Parse("https://third.system.com/service")
+	require.NoError(t, err)
+
+	t.Run("success - default policy (AND)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(selected))
+		require.Equal(t, "https://batch.com/service", selected[0].URI.String())
+		require.Equal(t, "https://system.com/service", selected[1].URI.String())
+	})
+
+	t.Run("success - zero eligible batch witnesses", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(selected))
+		require.Equal(t, "https://system.com/service", selected[0].URI.String())
+	})
+
+	t.Run("success - policy with AND and minimum percent", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"MinPercent(50,system) AND MinPercent(50,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness2URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness3URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitness2URL,
+				HasLog: false,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(selected))
+		require.Equal(t, "https://batch.com/service", selected[0].URI.String())
+	})
+
+	t.Run("success - policy with AND and OutOf", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"OutOf(2,system) AND OutOf(1,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness2URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness3URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitness2URL,
+				HasLog: false,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(selected))
+		require.Equal(t, "https://batch.com/service", selected[0].URI.String())
+	})
+
+	t.Run("success - policy with OR (batch witnesses selected)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"MinPercent(50,system) OR MinPercent(50,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness2URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitness3URL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitness2URL,
+				HasLog: false,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(selected))
+		require.Equal(t, "https://batch.com/service", selected[0].URI.String())
+	})
+
+	t.Run("success - policy with OR (system witnesses selected)", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"MinPercent(50,system) OR MinPercent(50,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(selected))
+		require.Equal(t, "https://system.com/service", selected[0].URI.String())
+	})
+
+	t.Run("error - number of eligible system witnesses doesn't meet policy requirements", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"OutOf(2,system) AND OutOf(1,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				HasLog: true,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.Error(t, err)
+		require.Nil(t, selected)
+		require.Contains(t, err.Error(),
+			"select system witnesses as per policy: unable to select 2 witnesses from witness array of length 1")
+	})
+
+	t.Run("error - number of eligible batch witnesses doesn't meet policy requirements", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		err = configStore.Put(WitnessPolicyKey, []byte(`"OutOf(1,system) AND OutOf(2,batch) LogRequired"`))
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type:   proof.WitnessTypeSystem,
+				URI:    systemWitnessURL,
+				HasLog: true,
+			},
+			{
+				Type:   proof.WitnessTypeBatch,
+				URI:    batchWitnessURL,
+				HasLog: true,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.Error(t, err)
+		require.Nil(t, selected)
+		require.Contains(t, err.Error(),
+			"select batch witnesses as per policy: unable to select 2 witnesses from witness array of length 1")
+	})
+
+	t.Run("error - get policy from cache error", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		wp.cache = &mockCache{GetErr: fmt.Errorf("get policy from cache error")}
+
+		witnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.Error(t, err)
+		require.Nil(t, selected)
+		require.Contains(t, err.Error(), "failed to retrieve policy from policy cache: get policy from cache error")
+	})
+}
+
 type mockCache struct {
 	GetErr   error
 	SetErr   error
