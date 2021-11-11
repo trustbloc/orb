@@ -833,6 +833,34 @@ func TestSelect(t *testing.T) {
 		require.Equal(t, "https://system.com/service", selected[1].URI.String())
 	})
 
+	t.Run("success - default policy (AND) plus common witnesses", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		witnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  batchWitnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  systemWitnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  batchWitnessURL,
+			},
+		}
+
+		selected, err := wp.Select(witnesses)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(selected))
+	})
+
 	t.Run("success - zero eligible batch witnesses", func(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
@@ -1097,6 +1125,126 @@ func TestSelect(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, selected)
 		require.Contains(t, err.Error(), "failed to retrieve policy from policy cache: get policy from cache error")
+	})
+}
+
+func TestIntersection(t *testing.T) {
+	witnessURL, err := url.Parse("https://witness.com/service")
+	require.NoError(t, err)
+
+	otherWitnessURL, err := url.Parse("https://other.witness.com/service")
+	require.NoError(t, err)
+
+	t.Run("success - no common elements", func(t *testing.T) {
+		batchWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witnessURL,
+			},
+		}
+		systemWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  otherWitnessURL,
+			},
+		}
+
+		intersect := intersection(batchWitnesses, systemWitnesses)
+		require.Equal(t, 0, len(intersect))
+	})
+
+	t.Run("success - common elements", func(t *testing.T) {
+		batchWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witnessURL,
+			},
+		}
+		systemWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  witnessURL,
+			},
+		}
+
+		intersect := intersection(batchWitnesses, systemWitnesses)
+		require.Equal(t, 1, len(intersect))
+	})
+
+	t.Run("success - common elements (no duplicates)", func(t *testing.T) {
+		batchWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witnessURL,
+			},
+		}
+		systemWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  witnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  witnessURL,
+			},
+		}
+
+		intersect := intersection(batchWitnesses, systemWitnesses)
+		require.Equal(t, 1, len(intersect))
+	})
+}
+
+func TestDifference(t *testing.T) {
+	witnessURL, err := url.Parse("https://witness.com/service")
+	require.NoError(t, err)
+
+	otherWitnessURL, err := url.Parse("https://other.witness.com/service")
+	require.NoError(t, err)
+
+	t.Run("success - additional element in eligible", func(t *testing.T) {
+		eligible := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  otherWitnessURL,
+			},
+		}
+
+		preferred := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  otherWitnessURL,
+			},
+		}
+
+		diff := difference(eligible, preferred)
+		require.Equal(t, 1, len(diff))
+		require.Equal(t, "https://witness.com/service", diff[0].URI.String())
+	})
+
+	t.Run("success - preferred not provided", func(t *testing.T) {
+		eligible := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witnessURL,
+			},
+			{
+				Type: proof.WitnessTypeSystem,
+				URI:  otherWitnessURL,
+			},
+		}
+
+		diff := difference(eligible, nil)
+		require.Equal(t, len(eligible), len(diff))
+		require.Equal(t, diff, eligible)
+	})
+
+	t.Run("success - eligible not provided either", func(t *testing.T) {
+		diff := difference(nil, nil)
+		require.Equal(t, 0, len(diff))
 	})
 }
 

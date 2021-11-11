@@ -203,7 +203,7 @@ func (wp *WitnessPolicy) Select(witnesses []*proof.Witness) ([]*proof.Witness, e
 }
 
 // selects min number of batch and system witnesses that are required to fulfill witness policy.
-func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness,
+func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, // nolint:funlen
 	cfg *config.WitnessPolicyConfig) ([]*proof.Witness, []*proof.Witness, error) {
 	logger.Debugf("selecting minimum number of batch and system witnesses based on cfg[%s] and witnesses: %+v",
 		cfg, witnesses)
@@ -240,12 +240,18 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 
 	var selectedBatchWitnesses []*proof.Witness
 
+	var commonWitnessses []*proof.Witness
+
+	if cfg.Operator == config.AND {
+		commonWitnessses = intersection(eligibleBatchWitnesses, eligibleSystemWitnesses)
+	}
+
 	// it is possible to have 0 zero eligible batch witnesses
 	if len(eligibleBatchWitnesses) != 0 {
 		var err error
 
 		selectedBatchWitnesses, err = wp.selectMinWitnesses(eligibleBatchWitnesses, cfg.MinNumberBatch,
-			cfg.MinPercentBatch, totalBatchWitnesses)
+			cfg.MinPercentBatch, totalBatchWitnesses, commonWitnessses...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("select batch witnesses as per policy: %w", err)
 		}
@@ -254,7 +260,7 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 	logger.Debugf("selected %d batch witnesses: %v", len(selectedBatchWitnesses), selectedBatchWitnesses)
 
 	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
-		cfg.MinPercentSystem, totalSystemWitnesses)
+		cfg.MinPercentSystem, totalSystemWitnesses, commonWitnessses...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("select system witnesses as per policy: %w", err)
 	}
@@ -265,14 +271,59 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 }
 
 func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
-	minNumber, minPercent, totalWitnesses int) ([]*proof.Witness, error) {
-	minSelection := len(eligible)
+	minNumber, minPercent, totalWitnesses int, preferred ...*proof.Witness) ([]*proof.Witness, error) {
+	var selected []*proof.Witness
+	selected = append(selected, preferred...)
+
+	minSelection := len(eligible) - len(preferred)
 
 	if minNumber > 0 {
-		minSelection = minNumber
+		minSelection = minNumber - len(preferred)
 	} else if minPercent >= 0 {
-		minSelection = int(math.Ceil(float64(minPercent) / maxPercent * float64(totalWitnesses)))
+		minSelection = int(math.Ceil(float64(minPercent)/maxPercent*float64(totalWitnesses))) - len(preferred)
 	}
 
-	return wp.selector.Select(eligible, minSelection)
+	selection, err := wp.selector.Select(difference(eligible, preferred), minSelection)
+	if err != nil {
+		return nil, err
+	}
+
+	selected = append(selected, selection...)
+
+	return selected, nil
+}
+
+func intersection(a, b []*proof.Witness) []*proof.Witness {
+	var result []*proof.Witness
+
+	hash := make(map[string]bool)
+	for _, e := range a {
+		hash[e.URI.String()] = false
+	}
+
+	for _, e := range b {
+		if v, ok := hash[e.URI.String()]; ok && !v {
+			result = append(result, e)
+			hash[e.URI.String()] = true
+		}
+	}
+
+	return result
+}
+
+func difference(a, b []*proof.Witness) []*proof.Witness {
+	var result []*proof.Witness
+
+	hash := make(map[string]bool)
+	for _, e := range b {
+		hash[e.URI.String()] = true
+	}
+
+	for _, e := range a {
+		if _, ok := hash[e.URI.String()]; !ok {
+			result = append(result, e)
+		}
+	}
+
+	return result
 }
