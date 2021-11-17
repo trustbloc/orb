@@ -612,10 +612,16 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 
+		startTime := time.Now()
 		docResolution, err = r.vdr.Read(r.intermID)
+		logger.Infof("time read %s", time.Since(startTime).String())
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
+		}
+
+		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
+			logger.Infof(err.Error())
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
