@@ -33,7 +33,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
-	"github.com/jamiealquiza/tachymeter"
 )
 
 const (
@@ -203,8 +202,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	resolvePool.Start()
 
-	resolveCreatedDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-
 	resolveStart := time.Now()
 
 	for _, resp := range createPool.responses {
@@ -221,7 +218,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 			vdr:                   r.vdr,
 			kr:                    kr,
 			maxRetry:              maxRetry,
-			resolveCreatedDIDTime: resolveCreatedDIDTime,
 			intermID:              r.intermID,
 			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
 			updateKeyPrivateKey:   r.updateKeyPrivateKey,
@@ -283,8 +279,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	resolveUpdatePool.Start()
 
-	resolveUpdateDIDTime := tachymeter.New(&tachymeter.Config{Size: didNums})
-
 	resolveUpdateStart := time.Now()
 
 	for _, resp := range updatePool.responses {
@@ -298,11 +292,10 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		}
 
 		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
-			vdr:                  r.vdr,
-			maxRetry:             maxRetry,
-			resolveUpdateDIDTime: resolveUpdateDIDTime,
-			canonicalID:          r.canonicalID,
-			svcEndpoint:          r.svcEndpoint,
+			vdr:         r.vdr,
+			maxRetry:    maxRetry,
+			canonicalID: r.canonicalID,
+			svcEndpoint: r.svcEndpoint,
 		})
 
 	}
@@ -333,16 +326,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	fmt.Println("------")
 
 	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
-	fmt.Println("------")
-
-	fmt.Println("Resolve anchor did times:")
-	resolveCreatedDIDTime.SetWallTime(time.Since(resolveStart))
-	fmt.Println(resolveCreatedDIDTime.Calc())
-	fmt.Println("------")
-
-	fmt.Println("Resolve updated did times:")
-	resolveUpdateDIDTime.SetWallTime(time.Since(resolveUpdateStart))
-	fmt.Println(resolveUpdateDIDTime.Calc())
 	fmt.Println("------")
 
 	return nil
@@ -532,6 +515,8 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
+		logger.Errorf("error create DID %s", err.Error())
+
 		if !strings.Contains(err.Error(), "cannot assign requested address") &&
 			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, fmt.Errorf("failed to create did: %w", err)
@@ -576,9 +561,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "DID does not exist") {
-			logger.Errorf("error DID %s: %s", r.canonicalID, err.Error())
-		}
+		logger.Errorf("error updated DID %s: %s", r.canonicalID, err.Error())
 
 		if !strings.Contains(err.Error(), "DID does not exist") &&
 			!strings.Contains(err.Error(), "cannot assign requested address") &&
@@ -596,7 +579,6 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 type resolveDIDReq struct {
 	vdr                   *orb.VDR
-	resolveCreatedDIDTime *tachymeter.Tachymeter
 	kr                    *keyRetrieverMap
 	maxRetry              int
 	intermID              string
@@ -610,8 +592,6 @@ type resolveDIDResp struct {
 }
 
 func (r *resolveDIDReq) Invoke() (interface{}, error) {
-	start := time.Now()
-
 	var docResolution *ariesdid.DocResolution
 
 	for i := 1; i <= r.maxRetry; i++ {
@@ -624,7 +604,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
-			logger.Errorf("error DID %s: %s", r.intermID, err.Error())
+			logger.Errorf("resolve created DID %s: %s", r.intermID, err.Error())
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
@@ -644,8 +624,6 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		time.Sleep(1 * time.Second)
 	}
 
-	r.resolveCreatedDIDTime.AddTime(time.Since(start))
-
 	canonicalID := docResolution.DocumentMetadata.CanonicalID
 
 	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
@@ -659,16 +637,13 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 }
 
 type resolveUpdatedDIDReq struct {
-	vdr                  *orb.VDR
-	resolveUpdateDIDTime *tachymeter.Tachymeter
-	maxRetry             int
-	canonicalID          string
-	svcEndpoint          string
+	vdr         *orb.VDR
+	maxRetry    int
+	canonicalID string
+	svcEndpoint string
 }
 
 func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
-	start := time.Now()
-
 	var docResolution *ariesdid.DocResolution
 
 	for i := 1; i <= r.maxRetry; i++ {
@@ -679,7 +654,12 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if err != nil && !strings.Contains(err.Error(), "cannot assign requested address") &&
+		if err != nil {
+			logger.Errorf("error resolve updated DID %s: %s", r.canonicalID, err.Error())
+		}
+
+		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
+			!strings.Contains(err.Error(), "cannot assign requested address") &&
 			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, err
 		}
@@ -694,8 +674,6 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		time.Sleep(1 * time.Second)
 	}
-
-	r.resolveUpdateDIDTime.AddTime(time.Since(start))
 
 	if atomic.AddInt64(&resolveUpdateLogCount, 1)%100 == 0 {
 		logger.Infof("resolved updated did successfully %d", resolveUpdateLogCount)
