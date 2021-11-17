@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/aries-framework-go v0.1.7
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211117121757-60db5bd42939
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211117223600-626fe1bae44d
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211115182008-a05b96ee7ab1
 	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c
@@ -19,7 +19,6 @@ require (
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/orb v0.0.0
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211012203148-2f1d13fca175
-	golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d // indirect
 )
 
 replace github.com/trustbloc/orb => ../..
