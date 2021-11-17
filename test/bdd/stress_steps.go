@@ -625,14 +625,11 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 	canonicalID := docResolution.DocumentMetadata.CanonicalID
 
-	startTime := time.Now()
-
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
 
 	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
 		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
-		logger.Infof("write keys time %s", time.Since(startTime).String())
 	}
 
 	return resolveDIDResp{vdr: r.vdr, canonicalID: canonicalID}, nil
