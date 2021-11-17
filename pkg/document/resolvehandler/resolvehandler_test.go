@@ -6,10 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package resolvehandler
 
-//go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Resolver . coreResolver
-//go:generate counterfeiter -o ./mocks/discovery.gen.go --fake-name Discovery . discoveryService
-//go:generate counterfeiter -o ./mocks/endpointclient.gen.go --fake-name EndpointClient . endpointClient
-//go:generate counterfeiter -o ./mocks/remoteresolver.gen.go --fake-name RemoteResolver . remoteResolver
+//go:generate counterfeiter -o ../mocks/dochandler.gen.go --fake-name Resolver . coreResolver
+//go:generate counterfeiter -o ../mocks/discovery.gen.go --fake-name Discovery . discoveryService
+//go:generate counterfeiter -o ../mocks/endpointclient.gen.go --fake-name EndpointClient . endpointClient
+//go:generate counterfeiter -o ../mocks/remoteresolver.gen.go --fake-name RemoteResolver . remoteResolver
 
 import (
 	"encoding/json"
@@ -80,11 +80,17 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.NotNil(t, response)
 	})
 
-	t.Run("success - unpublished operations provided from anchor origin (documents match)", func(t *testing.T) { //nolint:lll
+	t.Run("success - unpublished operations provided from anchor origin (documents match)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
@@ -92,13 +98,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
 		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
 
@@ -127,11 +134,213 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, localResolutionResult.Document, response.Document)
 	})
 
+	t.Run("success - anchor origin missing did anchor origin info", func(t *testing.T) {
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointReturns(
+			&models.Endpoint{
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		localResolutionResultWithOps := &document.ResolutionResult{Document: doc, DocumentMetadata: docMetadata}
+		coreHandler.ResolveDocumentReturnsOnCall(1, localResolutionResultWithOps, nil)
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         doc,
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - anchor origin provides different did anchor origin", func(t *testing.T) {
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointReturns(
+			&models.Endpoint{
+				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
+			}, nil)
+
+		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = "different.com"
+
+		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
+		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		localResolutionResultWithOps := &document.ResolutionResult{Document: doc, DocumentMetadata: docMetadata}
+		coreHandler.ResolveDocumentReturnsOnCall(1, localResolutionResultWithOps, nil)
+
+		remoteResolver := &mocks.RemoteResolver{}
+		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
+			&document.ResolutionResult{
+				Document:         doc,
+				DocumentMetadata: docMetadata,
+			}, nil)
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - return local due to endpoint error", func(t *testing.T) {
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		endpointClient.GetEndpointReturns(
+			nil, fmt.Errorf("endpoint error"))
+
+		remoteResolver := &mocks.RemoteResolver{}
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - return local due to metadata error", func(t *testing.T) {
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localResolutionResult := &document.ResolutionResult{Document: doc}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		remoteResolver := &mocks.RemoteResolver{}
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
+	t.Run("success - return local if anchor origin same as local", func(t *testing.T) {
+		doc := make(document.Document)
+		doc["id"] = localID
+
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = domain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
+
+		coreHandler := &mocks.Resolver{}
+		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
+
+		discovery := &mocks.Discovery{}
+
+		endpointClient := &mocks.EndpointClient{}
+		remoteResolver := &mocks.RemoteResolver{}
+
+		handler := NewResolveHandler(testNS, coreHandler, discovery,
+			domain, endpointClient, remoteResolver, anchorGraph,
+			&orbmocks.MetricsProvider{},
+			WithUnpublishedDIDLabel(testLabel),
+			WithEnableResolutionFromAnchorOrigin(true))
+
+		response, err := handler.ResolveDocument(testDID)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.Equal(t, localResolutionResult.Document, response.Document)
+	})
+
 	t.Run("success - published operations provided from anchor origin (documents match)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		localPublishedOps := []metadata.PublishedOperation{
 			{Type: operation.TypeCreate, CanonicalReference: "create-ref", TransactionTime: 0},
 		}
@@ -148,13 +357,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		anchorOriginMethodMetadata := make(map[string]interface{})
+		anchorOriginMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		anchorOriginPublishedOps := []metadata.PublishedOperation{
 			{Type: operation.TypeCreate, CanonicalReference: "create-ref", TransactionTime: 0},
 			{Type: operation.TypeUpdate, CanonicalReference: "update-ref", TransactionTime: 1},
@@ -191,6 +401,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc["id"] = localID
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
 
 		docMetadata := make(document.Metadata)
 		docMetadata[document.MethodProperty] = methodMetadata
@@ -203,13 +414,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		anchorOriginMethodMetadata := make(map[string]interface{})
+		anchorOriginMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		anchorOriginPublishedOps := []metadata.PublishedOperation{
 			{Type: operation.TypeCreate, CanonicalReference: "create-ref", TransactionTime: 0},
 			{Type: operation.TypeUpdate, CanonicalReference: "update-ref", TransactionTime: 1},
@@ -245,7 +457,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
@@ -253,13 +471,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
 
 		docMetadata := make(document.Metadata)
 		docMetadata[document.MethodProperty] = methodMetadata
@@ -287,7 +505,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
@@ -295,13 +519,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
 		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
 
@@ -331,7 +556,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturnsOnCall(0, localResolutionResult, nil)
@@ -340,13 +571,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        anchorOriginDomain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", anchorOriginDomain)},
 			}, nil)
 
 		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
 		unpublishedOps := []metadata.UnpublishedOperation{{Type: operation.TypeUpdate}}
 		methodMetadata[document.UnpublishedOperationsProperty] = unpublishedOps
 
@@ -376,7 +608,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = domain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
@@ -384,9 +622,8 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        domain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", domain)},
 			}, nil)
 
@@ -409,7 +646,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = "local"
 
-		localResolutionResult := &document.ResolutionResult{Document: doc}
+		localMethodMetadata := make(map[string]interface{})
+		localMethodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
+
+		localDocMetadata := make(document.Metadata)
+		localDocMetadata[document.MethodProperty] = localMethodMetadata
+
+		localResolutionResult := &document.ResolutionResult{Document: doc, DocumentMetadata: localDocMetadata}
 
 		coreHandler := &mocks.Resolver{}
 		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
@@ -417,46 +660,13 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        domain,
 				ResolutionEndpoints: []string{fmt.Sprintf("%s/identifiers", domain)},
 			}, nil)
 
 		remoteResolver := &mocks.RemoteResolver{}
 		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(nil, fmt.Errorf("remote resolver error"))
-
-		handler := NewResolveHandler(testNS, coreHandler, discovery,
-			domain, endpointClient, remoteResolver, anchorGraph,
-			&orbmocks.MetricsProvider{},
-			WithUnpublishedDIDLabel(testLabel),
-			WithEnableResolutionFromAnchorOrigin(true))
-
-		response, err := handler.ResolveDocument(testDID)
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		require.Equal(t, localResolutionResult.Document, response.Document)
-	})
-
-	t.Run("success - remote resolution enabled(error from endpoint, return local)", func(t *testing.T) {
-		doc := make(document.Document)
-		doc["id"] = "local"
-
-		localResolutionResult := &document.ResolutionResult{Document: doc}
-
-		coreHandler := &mocks.Resolver{}
-		coreHandler.ResolveDocumentReturns(localResolutionResult, nil)
-
-		discovery := &mocks.Discovery{}
-
-		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(nil, fmt.Errorf("endpoint error"))
-
-		remoteResolver := &mocks.RemoteResolver{}
-		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(
-			&document.ResolutionResult{
-				Document: make(document.Document),
-			}, nil)
 
 		handler := NewResolveHandler(testNS, coreHandler, discovery,
 			domain, endpointClient, remoteResolver, anchorGraph,
@@ -477,9 +687,8 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		discovery := &mocks.Discovery{}
 
 		endpointClient := &mocks.EndpointClient{}
-		endpointClient.GetEndpointFromAnchorOriginReturns(
+		endpointClient.GetEndpointReturns(
 			&models.Endpoint{
-				AnchorOrigin:        "domain.com",
 				ResolutionEndpoints: []string{"domain.com/identifiers"},
 			}, nil)
 

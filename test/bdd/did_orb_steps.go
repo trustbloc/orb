@@ -355,6 +355,7 @@ func removeKeysAfterCommitment(keys []*ecdsa.PrivateKey, cmt string) ([]*ecdsa.P
 		}
 
 		if c == cmt {
+			logger.Infof("found key index '%d' of %d keys that corresponds to last successful commitment '%s'", index, len(keys), cmt)
 			return keys[:index+1], nil
 		}
 	}
@@ -564,7 +565,7 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(url, keyID string) e
 
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
 	if !strings.Contains(d.resp.ErrorMsg, errorMsg) {
-		return fmt.Errorf(`error resp "%s" doesn't contain "%s"`, d.resp.ErrorMsg, errorMsg)
+		return fmt.Errorf(`error resp "%s" doesn't contain "%s" status: %d`, d.resp.ErrorMsg, errorMsg, d.resp.StatusCode)
 	}
 	return nil
 }
@@ -580,7 +581,7 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	var err error
 
-	const maxRetries = 10
+	const maxRetries = 5
 
 	for i := 1; i <= maxRetries; i++ {
 		err = d.checkSuccessRespHelper(msg, contains)
@@ -593,7 +594,7 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 			return err
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 		logger.Infof("retrying check success response - attempt %d", i)
 
 		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, d.retryDID)

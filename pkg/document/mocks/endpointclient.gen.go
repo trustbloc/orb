@@ -8,6 +8,19 @@ import (
 )
 
 type EndpointClient struct {
+	GetEndpointStub        func(string) (*models.Endpoint, error)
+	getEndpointMutex       sync.RWMutex
+	getEndpointArgsForCall []struct {
+		arg1 string
+	}
+	getEndpointReturns struct {
+		result1 *models.Endpoint
+		result2 error
+	}
+	getEndpointReturnsOnCall map[int]struct {
+		result1 *models.Endpoint
+		result2 error
+	}
 	GetEndpointFromAnchorOriginStub        func(string) (*models.Endpoint, error)
 	getEndpointFromAnchorOriginMutex       sync.RWMutex
 	getEndpointFromAnchorOriginArgsForCall []struct {
@@ -23,6 +36,69 @@ type EndpointClient struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *EndpointClient) GetEndpoint(arg1 string) (*models.Endpoint, error) {
+	fake.getEndpointMutex.Lock()
+	ret, specificReturn := fake.getEndpointReturnsOnCall[len(fake.getEndpointArgsForCall)]
+	fake.getEndpointArgsForCall = append(fake.getEndpointArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("GetEndpoint", []interface{}{arg1})
+	fake.getEndpointMutex.Unlock()
+	if fake.GetEndpointStub != nil {
+		return fake.GetEndpointStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getEndpointReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *EndpointClient) GetEndpointCallCount() int {
+	fake.getEndpointMutex.RLock()
+	defer fake.getEndpointMutex.RUnlock()
+	return len(fake.getEndpointArgsForCall)
+}
+
+func (fake *EndpointClient) GetEndpointCalls(stub func(string) (*models.Endpoint, error)) {
+	fake.getEndpointMutex.Lock()
+	defer fake.getEndpointMutex.Unlock()
+	fake.GetEndpointStub = stub
+}
+
+func (fake *EndpointClient) GetEndpointArgsForCall(i int) string {
+	fake.getEndpointMutex.RLock()
+	defer fake.getEndpointMutex.RUnlock()
+	argsForCall := fake.getEndpointArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *EndpointClient) GetEndpointReturns(result1 *models.Endpoint, result2 error) {
+	fake.getEndpointMutex.Lock()
+	defer fake.getEndpointMutex.Unlock()
+	fake.GetEndpointStub = nil
+	fake.getEndpointReturns = struct {
+		result1 *models.Endpoint
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *EndpointClient) GetEndpointReturnsOnCall(i int, result1 *models.Endpoint, result2 error) {
+	fake.getEndpointMutex.Lock()
+	defer fake.getEndpointMutex.Unlock()
+	fake.GetEndpointStub = nil
+	if fake.getEndpointReturnsOnCall == nil {
+		fake.getEndpointReturnsOnCall = make(map[int]struct {
+			result1 *models.Endpoint
+			result2 error
+		})
+	}
+	fake.getEndpointReturnsOnCall[i] = struct {
+		result1 *models.Endpoint
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *EndpointClient) GetEndpointFromAnchorOrigin(arg1 string) (*models.Endpoint, error) {
@@ -91,6 +167,8 @@ func (fake *EndpointClient) GetEndpointFromAnchorOriginReturnsOnCall(i int, resu
 func (fake *EndpointClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.getEndpointMutex.RLock()
+	defer fake.getEndpointMutex.RUnlock()
 	fake.getEndpointFromAnchorOriginMutex.RLock()
 	defer fake.getEndpointFromAnchorOriginMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

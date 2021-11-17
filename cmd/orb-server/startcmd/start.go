@@ -327,7 +327,8 @@ func startOrbServices(parameters *orbParameters) error {
 	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
 
 	httpClient := &http.Client{
-		Timeout: time.Minute,
+		// TODO: we should have different timeout for connecting/dialing
+		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 		},
@@ -738,12 +739,14 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	if parameters.verifyLatestFromAnchorOrigin {
+
 		operationDecorator := decorator.New(parameters.didNamespace,
 			parameters.externalEndpoint,
 			opProcessor,
 			endpointClient,
 			remoteresolver.New(t),
 		)
+
 		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))
 	}
 

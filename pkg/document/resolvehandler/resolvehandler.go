@@ -48,9 +48,11 @@ type ResolveHandler struct {
 
 	unpublishedDIDLabel string
 
-	enableDidDiscovery               bool
+	enableDidDiscovery bool
+
 	enableResolutionFromAnchorOrigin bool
-	enableCreateDocumentStore        bool
+
+	enableCreateDocumentStore bool
 
 	hl *hashlink.HashLink
 }
@@ -66,7 +68,7 @@ type discoveryService interface {
 }
 
 type endpointClient interface {
-	GetEndpointFromAnchorOrigin(did string) (*models.Endpoint, error)
+	GetEndpoint(domain string) (*models.Endpoint, error)
 }
 
 type remoteResolver interface {
@@ -148,54 +150,86 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 	}
 
 	if r.enableResolutionFromAnchorOrigin && !strings.Contains(id, r.unpublishedDIDLabel) {
-		anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id)
-		if err != nil {
-			logger.Debugf("resolving locally since resolve from anchor origin returned an error for id[%s]: %s", id, err.Error())
-
-			return localResponse, nil
-		}
-
-		logger.Debugf("resolution response from anchor origin for id[%s]: %+v", id, anchorOriginResponse)
-
-		// parse anchor origin response to get unpublished and published operations
-		anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(id, anchorOriginResponse.DocumentMetadata)
-
-		logger.Debugf("parsed %d unpublished and %d published operations from anchor origin for id[%s]",
-			len(anchorOriginUnpublishedOps), len(anchorOriginPublishedOps), id)
-
-		// parse local response to get unpublished and published operations
-		_, localPublishedOps := getOperations(id, localResponse.DocumentMetadata)
-
-		additionalPublishedOps := getAdditionalPublishedOps(localPublishedOps, anchorOriginPublishedOps)
-
-		anchorOriginOps := append(anchorOriginUnpublishedOps, additionalPublishedOps...)
-
-		if len(anchorOriginOps) == 0 {
-			logger.Debugf("resolving locally for id[%s] since anchor origin has no unpublished or additional published operations", id) //nolint:lll
-
-			return localResponse, nil
-		}
-
-		// apply unpublished and additional published operations to local response
-		// unpublished/additional published operations will be included in document metadata
-		localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, anchorOriginOps...)
-		if err != nil {
-			logger.Debugf("resolving locally due to error in resolve doc locally with unpublished/additional published ops for id[%s]: %s", id, err.Error()) //nolint:lll
-
-			return localResponse, nil
-		}
-
-		err = checkResponses(anchorOriginResponse, localResponseWithAnchorOriginOps)
-		if err != nil {
-			logger.Debugf("resolving locally due to matching error for id[%s]: %s", id, err.Error())
-
-			return localResponse, nil
-		}
-
-		return localResponseWithAnchorOriginOps, nil
+		return r.resolveDocumentFromAnchorOriginAndCombineWithLocal(id, localResponse)
 	}
 
 	return localResponse, nil
+}
+
+func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(id string, localResponse *document.ResolutionResult) (*document.ResolutionResult, error) { //nolint:lll,funlen
+	localAnchorOrigin, err := util.GetAnchorOrigin(localResponse.DocumentMetadata)
+	if err != nil {
+		logger.Debugf("resolving locally since there was an error while getting anchor origin from local response[%s]: %s", id, err.Error()) //nolint:lll
+
+		// this error should never happen - return local response
+		return localResponse, nil
+	}
+
+	if localAnchorOrigin == r.domain {
+		// nothing to do since DID's anchor origin equals current domain - return local response
+		return localResponse, nil
+	}
+
+	anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id, localAnchorOrigin)
+	if err != nil {
+		logger.Debugf("resolving locally since there was an error while getting local anchor origin for id[%s]: %s",
+			id, err.Error()) //
+
+		return localResponse, nil
+	}
+
+	logger.Debugf("resolution response from anchor origin for id[%s]: %+v", id, anchorOriginResponse)
+
+	latestAnchorOrigin, err := util.GetAnchorOrigin(anchorOriginResponse.DocumentMetadata)
+	if err != nil {
+		logger.Debugf("resolving locally since there was an error while getting remote anchor origin for id[%s]: %s",
+			id, err.Error())
+
+		return localResponse, nil
+	}
+
+	if localAnchorOrigin != latestAnchorOrigin {
+		logger.Debugf("resolving locally since local and remote anchor origins don't match for id[%s]", id)
+
+		return localResponse, nil
+	}
+
+	// parse anchor origin response to get unpublished and published operations
+	anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(id, anchorOriginResponse.DocumentMetadata)
+
+	logger.Debugf("parsed %d unpublished and %d published operations from anchor origin for id[%s]",
+		len(anchorOriginUnpublishedOps), len(anchorOriginPublishedOps), id)
+
+	// parse local response to get unpublished and published operations
+	_, localPublishedOps := getOperations(id, localResponse.DocumentMetadata)
+
+	additionalPublishedOps := getAdditionalPublishedOps(localPublishedOps, anchorOriginPublishedOps)
+
+	anchorOriginOps := append(anchorOriginUnpublishedOps, additionalPublishedOps...)
+
+	if len(anchorOriginOps) == 0 {
+		logger.Debugf("resolving locally for id[%s] since anchor origin has no unpublished or additional published operations", id) //nolint:lll
+
+		return localResponse, nil
+	}
+
+	// apply unpublished and additional published operations to local response
+	// unpublished/additional published operations will be included in document metadata
+	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, anchorOriginOps...)
+	if err != nil {
+		logger.Debugf("resolving locally due to error in resolve doc locally with unpublished/additional published ops for id[%s]: %s", id, err.Error()) //nolint:lll
+
+		return localResponse, nil
+	}
+
+	err = checkResponses(anchorOriginResponse, localResponseWithAnchorOriginOps)
+	if err != nil {
+		logger.Debugf("resolving locally due to matching error for id[%s]: %s", id, err.Error())
+
+		return localResponse, nil
+	}
+
+	return localResponseWithAnchorOriginOps, nil
 }
 
 func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
@@ -300,16 +334,10 @@ func checkCommitment(anchorOrigin, local map[string]interface{}, commitmentType 
 	return nil
 }
 
-func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id string) (*document.ResolutionResult, error) {
-	endpoint, err := r.endpointClient.GetEndpointFromAnchorOrigin(id)
+func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) { //nolint:lll
+	endpoint, err := r.endpointClient.GetEndpoint(anchorOrigin)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get endpoint from anchor origin for id[%s]: %w", id, err)
-	}
-
-	logger.Debugf("retrieved anchor origin[%s] for id[%s], current domain[%s]", endpoint.AnchorOrigin, id, r.domain)
-
-	if endpoint.AnchorOrigin == r.domain {
-		return nil, fmt.Errorf(" anchor origin[%s] equals current domain[%s]", endpoint.AnchorOrigin, r.domain)
+		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
 	}
 
 	anchorOriginResponse, err := r.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)

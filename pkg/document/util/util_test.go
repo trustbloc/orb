@@ -60,6 +60,53 @@ func TestBetweenStrings(t *testing.T) {
 	})
 }
 
+func TestGetAnchorOrigin(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = "domain.com"
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		anchorOrigin, err := GetAnchorOrigin(docMetadata)
+		require.NoError(t, err)
+		require.Equal(t, "domain.com", anchorOrigin)
+	})
+
+	t.Run("error - missing method metadata", func(t *testing.T) {
+		docMetadata := make(document.Metadata)
+
+		anchorOrigin, err := GetAnchorOrigin(docMetadata)
+		require.Error(t, err)
+		require.Empty(t, anchorOrigin)
+		require.Equal(t, "missing method metadata", err.Error())
+	})
+
+	t.Run("error - missing anchor origin", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		anchorOrigin, err := GetAnchorOrigin(docMetadata)
+		require.Error(t, err)
+		require.Empty(t, anchorOrigin)
+		require.Equal(t, "missing anchor origin property in method metadata", err.Error())
+	})
+
+	t.Run("error - wrong type for anchor origin", func(t *testing.T) {
+		methodMetadata := make(map[string]interface{})
+		methodMetadata[document.AnchorOriginProperty] = 123
+
+		docMetadata := make(document.Metadata)
+		docMetadata[document.MethodProperty] = methodMetadata
+
+		anchorOrigin, err := GetAnchorOrigin(docMetadata)
+		require.Error(t, err)
+		require.Empty(t, anchorOrigin)
+		require.Equal(t, "anchor origin property is not a string", err.Error())
+	})
+}
+
 func TestGetOperations(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		methodMetadata := make(map[string]interface{})
