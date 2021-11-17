@@ -576,7 +576,12 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
-		if !strings.Contains(err.Error(), "cannot assign requested address") &&
+		if !strings.Contains(err.Error(), "DID does not exist") {
+			logger.Errorf("error DID %s: %s", r.canonicalID, err.Error())
+		}
+
+		if !strings.Contains(err.Error(), "DID does not exist") &&
+			!strings.Contains(err.Error(), "cannot assign requested address") &&
 			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
@@ -612,16 +617,14 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 
-		startTime := time.Now()
 		docResolution, err = r.vdr.Read(r.intermID)
-		logger.Infof("time read %s", time.Since(startTime).String())
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
-			logger.Infof(err.Error())
+			logger.Errorf("error DID %s: %s", r.intermID, err.Error())
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
