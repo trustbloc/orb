@@ -43,15 +43,11 @@ func TestMain(m *testing.M) {
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
-				if err := os.Setenv("ORB_STRESS_DID_DOMAINS", "https://localhost:48326"); err != nil {
+				if err := os.Setenv("ORB_STRESS_DID_DOMAINS", "https://orb.domain1.com"); err != nil {
 					panic(err.Error())
 				}
 
 				if err := os.Setenv("ORB_STRESS_DID_NUMS", "5"); err != nil {
-					panic(err.Error())
-				}
-
-				if err := os.Setenv("ORB_STRESS_ANCHOR_ORIGIN", "https://orb.domain2.com"); err != nil {
 					panic(err.Error())
 				}
 
