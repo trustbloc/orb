@@ -563,8 +563,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 		logger.Errorf("error updated DID %s: %s", r.canonicalID, err.Error())
 
-		if !strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "cannot assign requested address") &&
+		if !strings.Contains(err.Error(), "cannot assign requested address") &&
 			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
@@ -626,12 +625,15 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 	canonicalID := docResolution.DocumentMetadata.CanonicalID
 
-	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
-		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
-	}
+	startTime := time.Now()
 
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
+
+	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
+		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
+		logger.Infof("write keys time %s", time.Since(startTime).String())
+	}
 
 	return resolveDIDResp{vdr: r.vdr, canonicalID: canonicalID}, nil
 }
@@ -658,7 +660,7 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 			logger.Errorf("error resolve updated DID %s: %s", r.canonicalID, err.Error())
 		}
 
-		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
+		if err != nil &&
 			!strings.Contains(err.Error(), "cannot assign requested address") &&
 			!strings.Contains(err.Error(), "connection timed out") {
 			return nil, err
