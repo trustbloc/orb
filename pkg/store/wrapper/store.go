@@ -28,6 +28,7 @@ type metricsProvider interface {
 	DBGetBulkTime(dbType string, duration time.Duration)
 	DBQueryTime(dbType string, duration time.Duration)
 	DBDeleteTime(dbType string, duration time.Duration)
+	DBBatchTime(dbType string, duration time.Duration)
 }
 
 // NewStore return new store wrapper.
@@ -85,6 +86,9 @@ func (store *StoreWrapper) Delete(key string) error {
 
 // Batch data.
 func (store *StoreWrapper) Batch(operations []storage.Operation) error {
+	start := time.Now()
+	defer func() { store.m.DBBatchTime(store.dbType, time.Since(start)) }()
+
 	return store.s.Batch(operations)
 }
 

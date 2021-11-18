@@ -59,6 +59,7 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.DBGetBulkTime("CouchDB", time.Second) })
 		require.NotPanics(t, func() { m.DBQueryTime("CouchDB", time.Second) })
 		require.NotPanics(t, func() { m.DBDeleteTime("CouchDB", time.Second) })
+		require.NotPanics(t, func() { m.DBBatchTime("CouchDB", time.Second) })
 		require.NotPanics(t, func() { m.WitnessAddProofVctNil(time.Second) })
 		require.NotPanics(t, func() { m.WitnessAddVC(time.Second) })
 		require.NotPanics(t, func() { m.WitnessAddProof(time.Second) })
