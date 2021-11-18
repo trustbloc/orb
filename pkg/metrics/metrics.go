@@ -76,6 +76,7 @@ const (
 	dbGetBulkTimeMetric = "get_bulk_seconds"
 	dbQueryTimeMetric   = "query_seconds"
 	dbDeleteTimeMetric  = "delete_seconds"
+	dbBatchTimeMetric   = "batch_seconds"
 
 	// VCT.
 	vct                                  = "vct"
@@ -148,6 +149,7 @@ type Metrics struct {
 	dbGetBulkTimes map[string]prometheus.Histogram
 	dbQueryTimes   map[string]prometheus.Histogram
 	dbDeleteTimes  map[string]prometheus.Histogram
+	dbBatchTimes   map[string]prometheus.Histogram
 
 	vctWitnessAddProofVCTNilTimes   prometheus.Histogram
 	vctWitnessAddVCTimes            prometheus.Histogram
@@ -214,6 +216,7 @@ func newMetrics() *Metrics { //nolint:funlen
 		dbGetBulkTimes:                           newDBGetBulkTime(dbTypes),
 		dbQueryTimes:                             newDBQueryTime(dbTypes),
 		dbDeleteTimes:                            newDBDeleteTime(dbTypes),
+		dbBatchTimes:                             newDBBatchTime(dbTypes),
 		vctWitnessAddProofVCTNilTimes:            newVCTWitnessAddProofVCTNilTime(),
 		vctWitnessAddVCTimes:                     newVCTWitnessAddVCTime(),
 		vctWitnessAddProofTimes:                  newVCTWitnessAddProofTime(),
@@ -550,6 +553,13 @@ func (m *Metrics) DBQueryTime(dbType string, value time.Duration) {
 // DBDeleteTime records the time it takes to delete in db.
 func (m *Metrics) DBDeleteTime(dbType string, value time.Duration) {
 	if c, ok := m.dbDeleteTimes[dbType]; ok {
+		c.Observe(value.Seconds())
+	}
+}
+
+// DBBatchTime records the time it takes to batch in db.
+func (m *Metrics) DBBatchTime(dbType string, value time.Duration) {
+	if c, ok := m.dbBatchTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
@@ -1016,6 +1026,20 @@ func newDBDeleteTime(dbTypes []string) map[string]prometheus.Histogram {
 		counters[dbType] = newHistogram(
 			db, dbDeleteTimeMetric,
 			"The time (in seconds) it takes the DB to delete.",
+			prometheus.Labels{"type": dbType},
+		)
+	}
+
+	return counters
+}
+
+func newDBBatchTime(dbTypes []string) map[string]prometheus.Histogram {
+	counters := make(map[string]prometheus.Histogram)
+
+	for _, dbType := range dbTypes {
+		counters[dbType] = newHistogram(
+			db, dbBatchTimeMetric,
+			"The time (in seconds) it takes the DB to batch.",
 			prometheus.Labels{"type": dbType},
 		)
 	}
