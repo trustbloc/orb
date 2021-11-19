@@ -114,6 +114,26 @@ func GetMethodMetadata(metadata document.Metadata) (map[string]interface{}, erro
 	}
 }
 
+// GetAnchorOrigin returns anchor origin from document metadata.
+func GetAnchorOrigin(metadata document.Metadata) (string, error) {
+	methodMeta, err := GetMethodMetadata(metadata)
+	if err != nil {
+		return "", err
+	}
+
+	anchorOriginObj, ok := methodMeta[document.AnchorOriginProperty]
+	if !ok {
+		return "", fmt.Errorf("missing anchor origin property in method metadata")
+	}
+
+	anchorOrigin, ok := anchorOriginObj.(string)
+	if !ok {
+		return "", fmt.Errorf("anchor origin property is not a string")
+	}
+
+	return anchorOrigin, nil
+}
+
 func getOperationsByKey(methodMetadata map[string]interface{}, key string) ([]*operation.AnchoredOperation, error) {
 	opsObj, ok := methodMetadata[key]
 	if !ok {

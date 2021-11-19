@@ -24,13 +24,15 @@ var logger = log.New("operation-decorator")
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
 func New(namespace, domain string, processor operationProcessor,
 	endpointClient endpointClient, remoteResolver remoteResolver) *OperationDecorator {
-	return &OperationDecorator{
+	od := &OperationDecorator{
 		namespace:      namespace,
 		domain:         domain,
 		processor:      processor,
 		endpointClient: endpointClient,
 		remoteResolver: remoteResolver,
 	}
+
+	return od
 }
 
 // OperationDecorator is operation decorator.
@@ -50,7 +52,7 @@ type operationProcessor interface {
 }
 
 type endpointClient interface {
-	GetEndpointFromAnchorOrigin(did string) (*models.Endpoint, error)
+	GetEndpoint(domain string) (*models.Endpoint, error)
 }
 
 type remoteResolver interface {
@@ -58,7 +60,7 @@ type remoteResolver interface {
 }
 
 // Decorate will validate local state against anchor origin for update/recover/deactivate.
-func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) {
+func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) { //nolint:lll,funlen,gocyclo,cyclop
 	if op.Type == operation.TypeCreate {
 		return op, nil
 	}
@@ -77,11 +79,32 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	canonicalID := d.namespace + docutil.NamespaceDelimiter +
 		internalResult.CanonicalReference + docutil.NamespaceDelimiter + op.UniqueSuffix
 
-	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID)
+	localAnchorOrigin, ok := internalResult.AnchorOrigin.(string)
+	if !ok {
+		// this should never happen locally
+		return nil, fmt.Errorf("anchor origin is not a string in local result for suffix[%s]", op.UniqueSuffix)
+	}
+
+	if localAnchorOrigin == d.domain {
+		// local domain is anchor origin - nothing else to check
+		return op, nil
+	}
+
+	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID, localAnchorOrigin)
 	if err != nil {
-		logger.Debugf("failed to check operations from anchor origin for id[%s]: %s", canonicalID, err.Error())
+		logger.Debugf("failed to resolve document from anchor origin for id[%s]: %s", canonicalID, err.Error())
 
 		return op, nil
+	}
+
+	latestAnchorOrigin, err := util.GetAnchorOrigin(anchorOriginResponse.DocumentMetadata)
+	if err != nil {
+		// this should never happen
+		return nil, fmt.Errorf("failed to retrieve DID's anchor origin from anchor origin domain: %w", err)
+	}
+
+	if localAnchorOrigin != latestAnchorOrigin {
+		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time") //nolint:lll
 	}
 
 	logger.Debugf("resolution response from anchor origin for id[%s]: %+v", canonicalID, anchorOriginResponse)
@@ -117,17 +140,13 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	return op, nil
 }
 
-func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id string) (*document.ResolutionResult, error) {
-	endpoint, err := d.endpointClient.GetEndpointFromAnchorOrigin(id)
+func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) { //nolint:lll
+	endpoint, err := d.endpointClient.GetEndpoint(anchorOrigin)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get endpoint from anchor origin for id[%s]: %w", id, err)
+		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
 	}
 
-	logger.Debugf("retrieved anchor origin[%s] for id[%s], current domain[%s]", endpoint.AnchorOrigin, id, d.domain)
-
-	if endpoint.AnchorOrigin == d.domain {
-		return nil, fmt.Errorf(" anchor origin[%s] equals current domain[%s]", endpoint.AnchorOrigin, d.domain)
-	}
+	logger.Debugf("anchor domain resolution endpoints%s for id[%s]", endpoint.ResolutionEndpoints, id)
 
 	anchorOriginResponse, err := d.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
 	if err != nil {
