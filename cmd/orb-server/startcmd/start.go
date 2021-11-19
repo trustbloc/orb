@@ -326,6 +326,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
 
+	if parameters.enableDevMode {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint: gosec
+		}
+	}
+
 	httpClient := &http.Client{
 		// TODO: we should have different timeout for connecting/dialing
 		Timeout: 5 * time.Second,
