@@ -240,10 +240,10 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 
 	var selectedBatchWitnesses []*proof.Witness
 
-	var commonWitnessses []*proof.Witness
+	var commonWitnesses []*proof.Witness
 
 	if cfg.Operator == config.AND {
-		commonWitnessses = intersection(eligibleBatchWitnesses, eligibleSystemWitnesses)
+		commonWitnesses = intersection(eligibleBatchWitnesses, eligibleSystemWitnesses)
 	}
 
 	// it is possible to have 0 zero eligible batch witnesses
@@ -251,18 +251,20 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		var err error
 
 		selectedBatchWitnesses, err = wp.selectMinWitnesses(eligibleBatchWitnesses, cfg.MinNumberBatch,
-			cfg.MinPercentBatch, totalBatchWitnesses, commonWitnessses...)
+			cfg.MinPercentBatch, totalBatchWitnesses, commonWitnesses...)
 		if err != nil {
-			return nil, nil, fmt.Errorf("select batch witnesses as per policy: %w", err)
+			return nil, nil, fmt.Errorf("select batch witnesses based on witnesses%s, eligible%s, common%s, total[%d], policy[%s]: %w", //nolint:lll
+				witnesses, eligibleBatchWitnesses, commonWitnesses, totalBatchWitnesses, cfg, err)
 		}
 	}
 
 	logger.Debugf("selected %d batch witnesses: %v", len(selectedBatchWitnesses), selectedBatchWitnesses)
 
 	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
-		cfg.MinPercentSystem, totalSystemWitnesses, commonWitnessses...)
+		cfg.MinPercentSystem, totalSystemWitnesses, commonWitnesses...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("select system witnesses as per policy: %w", err)
+		return nil, nil, fmt.Errorf("select system witnesses based on witnesses%s, eligible%s, common%s, total[%d], policy[%s]: %w", //nolint:lll
+			witnesses, eligibleSystemWitnesses, commonWitnesses, totalSystemWitnesses, cfg, err)
 	}
 
 	logger.Debugf("selected %d system witnesses: %v", len(selectedSystemWitnesses), selectedSystemWitnesses)

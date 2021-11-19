@@ -1069,8 +1069,7 @@ func TestSelect(t *testing.T) {
 		selected, err := wp.Select(witnesses)
 		require.Error(t, err)
 		require.Nil(t, selected)
-		require.Contains(t, err.Error(),
-			"select system witnesses as per policy: unable to select 2 witnesses from witness array of length 1")
+		require.Contains(t, err.Error(), "unable to select 2 witnesses from witness array of length 1")
 	})
 
 	t.Run("error - number of eligible batch witnesses doesn't meet policy requirements", func(t *testing.T) {
@@ -1100,8 +1099,7 @@ func TestSelect(t *testing.T) {
 		selected, err := wp.Select(witnesses)
 		require.Error(t, err)
 		require.Nil(t, selected)
-		require.Contains(t, err.Error(),
-			"select batch witnesses as per policy: unable to select 2 witnesses from witness array of length 1")
+		require.Contains(t, err.Error(), "unable to select 2 witnesses from witness array of length 1")
 	})
 
 	t.Run("error - get policy from cache error", func(t *testing.T) {
