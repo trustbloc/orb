@@ -11,21 +11,20 @@ import (
 	"sort"
 
 	"github.com/trustbloc/edge-core/pkg/log"
-
-	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 
 var logger = log.New("client-version-provider")
 
 // ClientVersionProvider implements client versions.
 type ClientVersionProvider struct {
-	versions []common.ClientVersion
+	versions []protocol.Version
 }
 
 // New creates new client version provider.
-func New(clientVersions []common.ClientVersion) *ClientVersionProvider {
+func New(clientVersions []protocol.Version) *ClientVersionProvider {
 	// Creating the list of the client versions
-	var versions []common.ClientVersion
+	var versions []protocol.Version
 
 	versions = append(versions, clientVersions...)
 
@@ -40,14 +39,14 @@ func New(clientVersions []common.ClientVersion) *ClientVersionProvider {
 }
 
 // Current returns the latest version of client.
-func (c *ClientVersionProvider) Current() (common.ClientVersion, error) {
+func (c *ClientVersionProvider) Current() (protocol.Version, error) {
 	latest := len(c.versions) - 1
 
 	return c.versions[latest], nil
 }
 
 // Get gets client version based on version time.
-func (c *ClientVersionProvider) Get(versionTime uint64) (common.ClientVersion, error) {
+func (c *ClientVersionProvider) Get(versionTime uint64) (protocol.Version, error) {
 	logger.Debugf("available client versions: %s", c.versions)
 
 	for i := len(c.versions) - 1; i >= 0; i-- {

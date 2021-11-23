@@ -4,41 +4,41 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 
 type ClientVersionProvider struct {
-	CurrentStub        func() (common.ClientVersion, error)
+	CurrentStub        func() (protocol.Version, error)
 	currentMutex       sync.RWMutex
 	currentArgsForCall []struct {
 	}
 	currentReturns struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
 	currentReturnsOnCall map[int]struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
-	GetStub        func(uint64) (common.ClientVersion, error)
+	GetStub        func(uint64) (protocol.Version, error)
 	getMutex       sync.RWMutex
 	getArgsForCall []struct {
 		arg1 uint64
 	}
 	getReturns struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
 	getReturnsOnCall map[int]struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ClientVersionProvider) Current() (common.ClientVersion, error) {
+func (fake *ClientVersionProvider) Current() (protocol.Version, error) {
 	fake.currentMutex.Lock()
 	ret, specificReturn := fake.currentReturnsOnCall[len(fake.currentArgsForCall)]
 	fake.currentArgsForCall = append(fake.currentArgsForCall, struct {
@@ -61,39 +61,39 @@ func (fake *ClientVersionProvider) CurrentCallCount() int {
 	return len(fake.currentArgsForCall)
 }
 
-func (fake *ClientVersionProvider) CurrentCalls(stub func() (common.ClientVersion, error)) {
+func (fake *ClientVersionProvider) CurrentCalls(stub func() (protocol.Version, error)) {
 	fake.currentMutex.Lock()
 	defer fake.currentMutex.Unlock()
 	fake.CurrentStub = stub
 }
 
-func (fake *ClientVersionProvider) CurrentReturns(result1 common.ClientVersion, result2 error) {
+func (fake *ClientVersionProvider) CurrentReturns(result1 protocol.Version, result2 error) {
 	fake.currentMutex.Lock()
 	defer fake.currentMutex.Unlock()
 	fake.CurrentStub = nil
 	fake.currentReturns = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ClientVersionProvider) CurrentReturnsOnCall(i int, result1 common.ClientVersion, result2 error) {
+func (fake *ClientVersionProvider) CurrentReturnsOnCall(i int, result1 protocol.Version, result2 error) {
 	fake.currentMutex.Lock()
 	defer fake.currentMutex.Unlock()
 	fake.CurrentStub = nil
 	if fake.currentReturnsOnCall == nil {
 		fake.currentReturnsOnCall = make(map[int]struct {
-			result1 common.ClientVersion
+			result1 protocol.Version
 			result2 error
 		})
 	}
 	fake.currentReturnsOnCall[i] = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ClientVersionProvider) Get(arg1 uint64) (common.ClientVersion, error) {
+func (fake *ClientVersionProvider) Get(arg1 uint64) (protocol.Version, error) {
 	fake.getMutex.Lock()
 	ret, specificReturn := fake.getReturnsOnCall[len(fake.getArgsForCall)]
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
@@ -117,7 +117,7 @@ func (fake *ClientVersionProvider) GetCallCount() int {
 	return len(fake.getArgsForCall)
 }
 
-func (fake *ClientVersionProvider) GetCalls(stub func(uint64) (common.ClientVersion, error)) {
+func (fake *ClientVersionProvider) GetCalls(stub func(uint64) (protocol.Version, error)) {
 	fake.getMutex.Lock()
 	defer fake.getMutex.Unlock()
 	fake.GetStub = stub
@@ -130,28 +130,28 @@ func (fake *ClientVersionProvider) GetArgsForCall(i int) uint64 {
 	return argsForCall.arg1
 }
 
-func (fake *ClientVersionProvider) GetReturns(result1 common.ClientVersion, result2 error) {
+func (fake *ClientVersionProvider) GetReturns(result1 protocol.Version, result2 error) {
 	fake.getMutex.Lock()
 	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	fake.getReturns = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ClientVersionProvider) GetReturnsOnCall(i int, result1 common.ClientVersion, result2 error) {
+func (fake *ClientVersionProvider) GetReturnsOnCall(i int, result1 protocol.Version, result2 error) {
 	fake.getMutex.Lock()
 	defer fake.getMutex.Unlock()
 	fake.GetStub = nil
 	if fake.getReturnsOnCall == nil {
 		fake.getReturnsOnCall = make(map[int]struct {
-			result1 common.ClientVersion
+			result1 protocol.Version
 			result2 error
 		})
 	}
 	fake.getReturnsOnCall[i] = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }

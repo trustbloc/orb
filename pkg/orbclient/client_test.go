@@ -22,7 +22,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
-	cvmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
 )
@@ -67,7 +66,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		opsProvider := &coremocks.OperationProvider{}
 		opsProvider.GetTxnOperationsReturns(ops, nil)
 
-		clientVer := &cvmocks.ClientVersion{}
+		clientVer := &coremocks.ProtocolVersion{}
 		clientVer.OperationProviderReturns(opsProvider)
 
 		clientVerProvider := &mocks.ClientVersionProvider{}
@@ -120,7 +119,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		opsProvider := &coremocks.OperationProvider{}
 		opsProvider.GetTxnOperationsReturns(ops, nil)
 
-		clientVer := &cvmocks.ClientVersion{}
+		clientVer := &coremocks.ProtocolVersion{}
 		clientVer.OperationProviderReturns(opsProvider)
 
 		clientVerProvider := &mocks.ClientVersionProvider{}
@@ -163,7 +162,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
-		clientVer := &cvmocks.ClientVersion{}
+		clientVer := &coremocks.ProtocolVersion{}
 		clientVer.OperationProviderReturns(&coremocks.OperationProvider{})
 
 		clientVerProvider := &mocks.ClientVersionProvider{}

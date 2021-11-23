@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 
 // New creates new client version provider per namespace.
@@ -21,10 +21,10 @@ func New() *Provider {
 // ClientVersionProvider defines interface for accessing protocol version information.
 type ClientVersionProvider interface {
 	// Current returns latest client version.
-	Current() (common.ClientVersion, error)
+	Current() (protocol.Version, error)
 
 	// Get returns the client version at the given transaction time.
-	Get(transactionTime uint64) (common.ClientVersion, error)
+	Get(transactionTime uint64) (protocol.Version, error)
 }
 
 // Provider implements client version provider per namespace.

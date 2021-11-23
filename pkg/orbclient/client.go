@@ -14,12 +14,14 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
 	"github.com/trustbloc/orb/pkg/orbclient/verprovider"
@@ -71,10 +73,10 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 
 	registry := clientregistry.New()
 
-	var clientVersions []common.ClientVersion
+	var clientVersions []protocol.Version
 
 	for _, version := range versions {
-		cv, err := registry.CreateClientVersion(version, cas)
+		cv, err := registry.CreateClientVersion(version, cas, &config.Sidetree{})
 		if err != nil {
 			return nil, fmt.Errorf("error creating client version [%s]: %w", version, err)
 		}

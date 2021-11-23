@@ -11,9 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/verprovider"
 )
 
@@ -28,13 +27,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestClientProvider_ForNamespace(t *testing.T) {
-	v1_0 := &mocks.ClientVersion{}
+	v1_0 := &coremocks.ProtocolVersion{}
 	v1_0.ProtocolReturns(protocol.Protocol{
 		GenesisTime:       0,
 		MaxOperationCount: 10,
 	})
 
-	versions := []common.ClientVersion{v1_0}
+	versions := []protocol.Version{v1_0}
 
 	p := New()
 	require.NotNil(t, p)

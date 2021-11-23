@@ -11,7 +11,9 @@ import (
 	"sync"
 
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
+	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
 	v1_0 "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/client"
@@ -20,7 +22,7 @@ import (
 var logger = log.New("client-factory-registry")
 
 type factory interface {
-	Create(version string, casClient common.CASReader) (common.ClientVersion, error)
+	Create(version string, casClient common.CASReader, sidetreeCfg *config.Sidetree) (protocol.Version, error)
 }
 
 const (
@@ -47,7 +49,8 @@ func New() *Registry {
 }
 
 // CreateClientVersion creates a new client version using the given version and providers.
-func (r *Registry) CreateClientVersion(version string, casClient common.CASReader) (common.ClientVersion, error) {
+func (r *Registry) CreateClientVersion(version string, casClient common.CASReader,
+	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
 	v, err := r.resolveFactory(version)
 	if err != nil {
 		return nil, err
@@ -55,7 +58,7 @@ func (r *Registry) CreateClientVersion(version string, casClient common.CASReade
 
 	logger.Debugf("Creating client version [%s]", version)
 
-	return v.Create(version, casClient)
+	return v.Create(version, casClient, sidetreeCfg)
 }
 
 // Register registers a client factory for a given version.
