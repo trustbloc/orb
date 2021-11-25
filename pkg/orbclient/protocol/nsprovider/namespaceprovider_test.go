@@ -13,7 +13,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/orbclient/verprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/verprovider"
 )
 
 const ns = "did:orb"

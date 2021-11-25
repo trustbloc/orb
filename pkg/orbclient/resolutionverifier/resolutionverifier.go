@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package resolveverifier
+package resolutionverifier
 
 import (
 	"bytes"
@@ -20,14 +20,14 @@ import (
 
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/document/util"
-	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
-	"github.com/trustbloc/orb/pkg/orbclient/verprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/verprovider"
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
 const unpublishedLabel = "uAAA"
 
-// ResolutionVerifier resolves generic documents.
+// ResolutionVerifier verifies resolved documents.
 type ResolutionVerifier struct {
 	processor operationProcessor
 	protocol  protocol.Client
@@ -45,7 +45,7 @@ type operationProcessor interface {
 	Resolve(suffix string, ops ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
 }
 
-// Option is an option for document handler.
+// Option is an option for document verifier.
 type Option func(opts *ResolutionVerifier)
 
 // New returns a new resolution verifier.
@@ -160,7 +160,7 @@ func (r *ResolutionVerifier) Verify(input *document.ResolutionResult) error {
 }
 
 func (r *ResolutionVerifier) resolveDocument(id string,
-	additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error) {
+	ops ...*operation.AnchoredOperation) (*document.ResolutionResult, error) {
 	pv, err := r.protocol.Current()
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func (r *ResolutionVerifier) resolveDocument(id string,
 		return nil, err
 	}
 
-	internalResult, err := r.processor.Resolve(suffix, additionalOps...)
+	internalResult, err := r.processor.Resolve(suffix, ops...)
 	if err != nil {
 		return nil, err
 	}

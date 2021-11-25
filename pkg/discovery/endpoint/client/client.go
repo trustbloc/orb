@@ -33,7 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/orbclient"
+	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
 )
 
 var logger = log.New("endpoint-client")
@@ -100,14 +100,14 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 		opt(configService)
 	}
 
-	var orbClientOpts []orbclient.Option
+	var orbClientOpts []aoprovider.Option
 
-	orbClientOpts = append(orbClientOpts, orbclient.WithJSONLDDocumentLoader(docLoader))
+	orbClientOpts = append(orbClientOpts, aoprovider.WithJSONLDDocumentLoader(docLoader))
 
 	if configService.disableProofCheck {
-		orbClientOpts = append(orbClientOpts, orbclient.WithDisableProofCheck(configService.disableProofCheck))
+		orbClientOpts = append(orbClientOpts, aoprovider.WithDisableProofCheck(configService.disableProofCheck))
 	} else {
-		orbClientOpts = append(orbClientOpts, orbclient.WithPublicKeyFetcher(
+		orbClientOpts = append(orbClientOpts, aoprovider.WithPublicKeyFetcher(
 			verifiable.NewVDRKeyResolver(vdr.New(vdr.WithVDR(&webVDR{
 				http: configService.httpClient,
 				VDR:  web.New(),
@@ -115,7 +115,7 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 			)).PublicKeyFetcher()))
 	}
 
-	orbClient, err := orbclient.New(configService.namespace, configService.casReader, orbClientOpts...)
+	orbClient, err := aoprovider.New(configService.namespace, configService.casReader, orbClientOpts...)
 	if err != nil {
 		return nil, err
 	}
