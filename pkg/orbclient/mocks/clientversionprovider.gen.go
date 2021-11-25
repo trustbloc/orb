@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 

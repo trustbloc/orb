@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package orbclient
+package aoprovider
 
 import (
 	"testing"
@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/orbclient/mocks"
-	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
 )
 
 const testDID = "did"

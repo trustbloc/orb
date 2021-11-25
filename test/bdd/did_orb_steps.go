@@ -42,8 +42,8 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/mocks"
-	"github.com/trustbloc/orb/pkg/orbclient"
-	"github.com/trustbloc/orb/pkg/orbclient/resolveverifier"
+	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/resolutionverifier"
 )
 
 var logger = logrus.New()
@@ -259,9 +259,9 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 
 	casClient := ipfs.New(url, 20*time.Second, 0, &mocks.MetricsProvider{})
 
-	orbClient, err := orbclient.New(didDocNamespace, casClient,
-		orbclient.WithJSONLDDocumentLoader(docLoader),
-		orbclient.WithDisableProofCheck(true))
+	orbClient, err := aoprovider.New(didDocNamespace, casClient,
+		aoprovider.WithJSONLDDocumentLoader(docLoader),
+		aoprovider.WithDisableProofCheck(true))
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 func (d *DIDOrbSteps) clientVerifiesResolvedDocument() error {
 	logger.Info("verify resolved document (client)")
 
-	verifier, err := resolveverifier.New("did:orb")
+	verifier, err := resolutionverifier.New("did:orb")
 	if err != nil {
 		return err
 	}

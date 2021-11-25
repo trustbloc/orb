@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package orbclient
+package aoprovider
 
 import (
 	"encoding/json"
@@ -23,8 +23,8 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/orb/pkg/orbclient/nsprovider"
-	"github.com/trustbloc/orb/pkg/orbclient/verprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/protocol/verprovider"
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
