@@ -128,6 +128,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/store/wrapper"
+	"github.com/trustbloc/orb/pkg/taskmgr"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/webcas"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -469,7 +470,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	anchorGraph := graph.New(graphProviders)
 
-	expiryService := expiry.NewService(parameters.dataExpiryCheckInterval, configStore, uuid.New().String())
+	taskMgr := taskmgr.New(configStore, parameters.taskMgrCheckInterval)
+
+	expiryService := expiry.NewService(taskMgr, parameters.dataExpiryCheckInterval)
 
 	var updateDocumentStore *unpublishedopstore.Store
 	if parameters.updateDocumentStoreEnabled {
@@ -526,7 +529,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	anchorEventStore, err := anchoreventstore.New(storeProviders.provider, orbDocumentLoader)
 	if err != nil {
-		return fmt.Errorf("failed to create vc store: %s", err.Error())
+		return fmt.Errorf("failed to create anchor event store: %s", err.Error())
 	}
 
 	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.maxWitnessDelay)
@@ -727,8 +730,8 @@ func startOrbServices(parameters *orbParameters) error {
 	batchWriter.Start()
 	logger.Infof("started batch writer")
 
-	// start expiry service
-	expiryService.Start()
+	// start the task manager
+	taskMgr.Start()
 
 	var didDocHandlerOpts []dochandler.Option
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
@@ -935,7 +938,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	activityPubService.Stop()
 
-	expiryService.Stop()
+	taskMgr.Stop()
 
 	if err := pubSub.Close(); err != nil {
 		logger.Warnf("Error closing publisher/subscriber: %s", err)
@@ -1238,10 +1241,6 @@ func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
 	}
 
 	return
-}
-
-type httpTransport interface {
-	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
 func getActivityPubVerifier(parameters *orbParameters, km kms.KeyManager,

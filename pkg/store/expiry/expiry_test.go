@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package expiry
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,20 +14,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	dctest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-)
 
-const mongoDBConnString = "mongodb://localhost:27017"
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
+	"github.com/trustbloc/orb/pkg/taskmgr"
+)
 
 // Logs to a string that can be read later and also (optionally) logs to another logger.
 type stringLogger struct {
@@ -105,16 +100,8 @@ func TestService(t *testing.T) {
 		//              that service1 is down first and then take over)
 		// t=18s  --->  check to make sure data 3 was deleted and that service2's logs confirm that it took over from
 		//              service1
-		err := pingMongoDB()
-		if err != nil {
-			pool, mongoDBResource := startMongoDBContainer(t)
-
-			defer func() {
-				if pool != nil && mongoDBResource != nil {
-					require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
-				}
-			}()
-		}
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
 
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
@@ -137,35 +124,26 @@ func TestService(t *testing.T) {
 		coordinationStore, err := mongoDBProvider.OpenStore("orb-config")
 		require.NoError(t, err)
 
-		service1, service2, service2Logger := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
+		serviceInfo1, serviceInfo2, service2Logger := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
 			expiryTagName, storeToRunExpiryChecksOnName)
 
-		service1.Start()
+		serviceInfo1.taskMgr.Start()
+		defer serviceInfo1.taskMgr.Stop()
 
 		// Wait half a second so that we can ensure that service1 gets the permit and assigns itself the responsibility
 		// of doing the expired data cleanup tasks. At the end of the test, we will be stopping service1 and checking to
 		// see that service2 is able to take over.
 		time.Sleep(time.Millisecond * 500)
 
-		service2.Start()
+		serviceInfo2.taskMgr.Start()
+		defer serviceInfo2.taskMgr.Stop()
 
-		defer service1.Stop()
-		defer service2.Stop()
-
-		runTimedChecks(t, testLogger, storeToRunExpiryChecksOn, service1, service2Logger)
+		runTimedChecks(t, testLogger, storeToRunExpiryChecksOn, serviceInfo1.taskMgr, service2Logger)
 	})
 
 	t.Run("Expiry handler error", func(t *testing.T) {
-		err := pingMongoDB()
-		if err != nil {
-			pool, mongoDBResource := startMongoDBContainer(t)
-
-			defer func() {
-				if pool != nil && mongoDBResource != nil {
-					require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
-				}
-			}()
-		}
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
 
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
@@ -188,19 +166,15 @@ func TestService(t *testing.T) {
 		coordinationStore, err := mongoDBProvider.OpenStore("orb-config")
 		require.NoError(t, err)
 
-		service1, service2, _ := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
+		serviceInfo1, _, _ := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
 			expiryTagName, storeToRunExpiryChecksOnName,
 			WithExpiryHandler(&mockExpiryHandler{Err: fmt.Errorf("expiry handler error")}))
 
 		service1Logger := &stringLogger{}
-		service1.logger = service1Logger
+		serviceInfo1.service.logger = service1Logger
 
-		service1.Start()
-		time.Sleep(time.Millisecond * 500)
-		service2.Start()
-
-		defer service1.Stop()
-		defer service2.Stop()
+		serviceInfo1.taskMgr.Start()
+		defer serviceInfo1.taskMgr.Stop()
 
 		// let service run couple of seconds in order to generate error message
 		time.Sleep(5 * time.Second)
@@ -216,15 +190,17 @@ func TestService(t *testing.T) {
 		coordinationStore, err := mem.NewProvider().OpenStore("orb-config")
 		require.NoError(t, err)
 
-		service := NewService(time.Millisecond, coordinationStore, "TestInstanceID")
+		taskMgr := taskmgr.New(coordinationStore, time.Millisecond)
+
+		service := NewService(taskMgr, time.Millisecond)
 		service.Register(store, "ExpiryTag", "TestStore")
 
 		logger := &stringLogger{}
 
 		service.logger = logger
 
-		service.Start()
-		defer service.Stop()
+		taskMgr.Start()
+		defer taskMgr.Stop()
 
 		ensureLogContainsMessage(t, logger, "failed to query store for expired data: query error")
 	})
@@ -236,15 +212,17 @@ func TestService(t *testing.T) {
 		coordinationStore, err := mem.NewProvider().OpenStore("orb-config")
 		require.NoError(t, err)
 
-		service := NewService(time.Millisecond, coordinationStore, "TestInstanceID")
+		taskMgr := taskmgr.New(coordinationStore, time.Millisecond)
+
+		service := NewService(taskMgr, time.Millisecond)
 		service.Register(store, "ExpiryTag", "TestStore")
 
 		logger := &stringLogger{}
 
 		service.logger = logger
 
-		service.Start()
-		defer service.Stop()
+		taskMgr.Start()
+		defer taskMgr.Stop()
 
 		ensureLogContainsMessage(t, logger, "failed to get next value from iterator: next error")
 	})
@@ -256,71 +234,20 @@ func TestService(t *testing.T) {
 		coordinationStore, err := mem.NewProvider().OpenStore("orb-config")
 		require.NoError(t, err)
 
-		service := NewService(time.Millisecond, coordinationStore, "TestInstanceID")
+		taskMgr := taskmgr.New(coordinationStore, time.Millisecond)
+
+		service := NewService(taskMgr, time.Millisecond)
 		service.Register(store, "ExpiryTag", "TestStore")
 
 		logger := &stringLogger{}
 
 		service.logger = logger
 
-		service.Start()
-		defer service.Stop()
+		taskMgr.Start()
+		defer taskMgr.Stop()
 
 		ensureLogContainsMessage(t, logger, "failed to get key from iterator: key error")
 	})
-	t.Run("Unexpected failure while getting the permit from the coordination store", func(t *testing.T) {
-		coordinationStore := &mock.Store{
-			ErrGet: errors.New("get error"),
-		}
-
-		service := NewService(time.Millisecond, coordinationStore, "TestInstanceID")
-
-		logger := &stringLogger{}
-
-		service.logger = logger
-
-		service.Start()
-		defer service.Stop()
-
-		ensureLogContainsMessage(t, logger, "Unexpected failure while getting the permit: get error")
-	})
-	t.Run("Fail to unmarshal permit", func(t *testing.T) {
-		coordinationStore := &mock.Store{
-			GetReturn: []byte("not a valid expiredDataCleanupPermit"),
-		}
-
-		service := NewService(time.Millisecond, coordinationStore, "TestInstanceID")
-
-		logger := &stringLogger{}
-
-		service.logger = logger
-
-		service.Start()
-		defer service.Stop()
-
-		ensureLogContainsMessage(t, logger, "Failed to unmarshal the current permit: invalid character "+
-			"'o' in literal null (expecting 'u')")
-	})
-}
-
-func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
-	t.Helper()
-
-	pool, err := dctest.NewPool("")
-	require.NoError(t, err)
-
-	mongoDBResource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: "mongo",
-		Tag:        "4.0.0",
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"27017/tcp": {{HostIP: "", HostPort: "27017"}},
-		},
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, waitForMongoDBToBeUp())
-
-	return pool, mongoDBResource
 }
 
 func storeTestData(t *testing.T, testLogger *log.Log, expiryTagName string, store storage.Store) {
@@ -384,11 +311,18 @@ func storeTestData(t *testing.T, testLogger *log.Log, expiryTagName string, stor
 	testLogger.Infof("Successfully stored test data.")
 }
 
+type serviceInfo struct {
+	service *Service
+	taskMgr *taskmgr.Manager
+}
+
 // We return the started services so that the caller can call service.Stop on them when the test is done.
 // service2's logger is returned, so it can be examined later on in the test.
 func getTestExpiryServices(coordinationStore storage.Store, storeToRunExpiryChecksOn storage.Store,
-	expiryTagName, storeName string, opts ...Option) (*Service, *Service, *stringLogger) {
-	service1 := NewService(time.Second, coordinationStore, "TestInstance1")
+	expiryTagName, storeName string, opts ...Option) (*serviceInfo, *serviceInfo, *stringLogger) {
+	taskMgr1 := taskmgr.New(coordinationStore, time.Second)
+
+	service1 := NewService(taskMgr1, time.Second)
 
 	service1LoggerModule := "expiry-service1"
 	service1Logger := log.New(service1LoggerModule)
@@ -399,7 +333,9 @@ func getTestExpiryServices(coordinationStore storage.Store, storeToRunExpiryChec
 
 	service1.Register(storeToRunExpiryChecksOn, expiryTagName, storeName, opts...)
 
-	service2 := NewService(time.Second, coordinationStore, "TestInstance2")
+	taskMgr2 := taskmgr.New(coordinationStore, time.Second)
+
+	service2 := NewService(taskMgr2, time.Second)
 
 	service2LoggerModule := "expiry-service2"
 
@@ -413,11 +349,19 @@ func getTestExpiryServices(coordinationStore storage.Store, storeToRunExpiryChec
 
 	service2.Register(storeToRunExpiryChecksOn, expiryTagName, storeName, opts...)
 
-	return service1, service2, service2Logger
+	return &serviceInfo{
+			service: service1,
+			taskMgr: taskMgr1,
+		},
+		&serviceInfo{
+			service: service2,
+			taskMgr: taskMgr2,
+		},
+		service2Logger
 }
 
 func runTimedChecks(t *testing.T, testLogger *log.Log,
-	storeToRunExpiryChecksOn storage.Store, service1 *Service, service2Logger *stringLogger) {
+	storeToRunExpiryChecksOn storage.Store, taskMgr *taskmgr.Manager, service2Logger *stringLogger) {
 	t.Helper()
 
 	waitTime := time.Second * 6
@@ -447,7 +391,7 @@ func runTimedChecks(t *testing.T, testLogger *log.Log,
 	testLogger.Infof("Stopping service1, simulating a server failure. service2 should take over before the " +
 		"next check and be the one who deletes Key3.")
 
-	service1.Stop()
+	taskMgr.Stop()
 
 	waitTime = time.Second * 6
 
@@ -508,11 +452,6 @@ func doFinalSetOfChecks(t *testing.T, testLogger *log.Log, storeToRunExpiryCheck
 	service2Logger *stringLogger) {
 	t.Helper()
 
-	require.Contains(t, service2Logger.Read(), "The current permit holder (TestInstance1) has not performed "+
-		"an expired data cleanup in an unusually long time (4s ago, over 3 times longer than the configured "+
-		"interval of 1s). This indicates that TestInstance1 may be down or not responding. "+
-		"I will take over the expired data cleanup duty and grab the permit.")
-
 	require.Contains(t, service2Logger.Read(), "Successfully deleted 1 pieces of expired data.")
 
 	testLogger.Infof("service2's logs confirm that it took over and deleted a piece of data (should be Key3).")
@@ -529,33 +468,6 @@ func doFinalSetOfChecks(t *testing.T, testLogger *log.Log, storeToRunExpiryCheck
 	require.NoError(t, err, "Expected Key4 to be found.")
 
 	testLogger.Infof("Key4 still remains as expected.")
-}
-
-func waitForMongoDBToBeUp() error {
-	return backoff.Retry(pingMongoDB, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30))
-}
-
-func pingMongoDB() error {
-	var err error
-
-	clientOpts := options.Client().ApplyURI(mongoDBConnString)
-
-	mongoClient, err := mongo.NewClient(clientOpts)
-	if err != nil {
-		return err
-	}
-
-	err = mongoClient.Connect(context.Background())
-	if err != nil {
-		return err
-	}
-
-	db := mongoClient.Database("test")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	return db.Client().Ping(ctx, nil)
 }
 
 func ensureLogContainsMessage(t *testing.T, logger *stringLogger, expectedMessage string) {

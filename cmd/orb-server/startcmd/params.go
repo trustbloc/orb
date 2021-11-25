@@ -29,6 +29,7 @@ const (
 	defaultIPFSTimeout                  = 20 * time.Second
 	defaultDatabaseTimeout              = 10 * time.Second
 	defaultUnpublishedOperationLifespan = time.Minute * 5
+	defaultTaskMgrCheckInterval         = 10 * time.Second
 	defaultDataExpiryCheckInterval      = time.Minute
 	mqDefaultMaxConnectionSubscriptions = 1000
 
@@ -365,6 +366,12 @@ const (
 		"(and thus, being deleted some time later). For example, '1m' for a 1 minute lifespan. " +
 		"Defaults to 1 minute if not set. " + commonEnvVarUsageText + unpublishedOperationLifespanEnvKey
 
+	taskMgrCheckIntervalFlagName  = "task-manager-check-interval"
+	taskMgrCheckIntervalEnvKey    = "TASK_MANAGER_CHECK_INTERVAL"
+	taskMgrCheckIntervalFlagUsage = "How frequently to check for scheduled tasks. " +
+		"For example, a setting of '10s' will cause the task manager to check for outstanding tasks every 10s. " +
+		"Defaults to 10 seconds if not set. " + commonEnvVarUsageText + taskMgrCheckIntervalEnvKey
+
 	dataExpiryCheckIntervalFlagName  = "data-expiry-check-interval"
 	dataExpiryCheckIntervalEnvKey    = "DATA_EXPIRY_CHECK_INTERVAL"
 	dataExpiryCheckIntervalFlagUsage = "How frequently to check for (and delete) any expired data. " +
@@ -462,6 +469,7 @@ type orbParameters struct {
 	dataExpiryCheckInterval        time.Duration
 	inviteWitnessAuthPolicy        acceptRejectPolicy
 	followAuthPolicy               acceptRejectPolicy
+	taskMgrCheckInterval           time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -858,6 +866,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
 	}
 
+	taskMgrCheckInterval, err := getDuration(cmd, taskMgrCheckIntervalFlagName,
+		taskMgrCheckIntervalEnvKey, defaultTaskMgrCheckInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", taskMgrCheckIntervalFlagName, err)
+	}
+
 	followAuthPolicy, err := getFollowAuthPolicy(cmd)
 	if err != nil {
 		return nil, err
@@ -921,6 +935,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		dataExpiryCheckInterval:        dataExpiryCheckInterval,
 		followAuthPolicy:               followAuthPolicy,
 		inviteWitnessAuthPolicy:        inviteWitnessAuthPolicy,
+		taskMgrCheckInterval:           taskMgrCheckInterval,
 	}, nil
 }
 
@@ -1297,6 +1312,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(contextProviderFlagName, "", []string{}, contextProviderFlagUsage)
 	startCmd.Flags().StringP(databaseTimeoutFlagName, "", "", databaseTimeoutFlagUsage)
 	startCmd.Flags().StringP(unpublishedOperationLifespanFlagName, "", "", unpublishedOperationLifespanFlagUsage)
+	startCmd.Flags().StringP(taskMgrCheckIntervalFlagName, "", "", taskMgrCheckIntervalFlagUsage)
 	startCmd.Flags().StringP(dataExpiryCheckIntervalFlagName, "", "", dataExpiryCheckIntervalFlagUsage)
 	startCmd.Flags().StringP(followAuthPolicyFlagName, followAuthPolicyFlagShorthand, "", followAuthPolicyFlagUsage)
 	startCmd.Flags().StringP(inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyFlagShorthand, "", inviteWitnessAuthPolicyFlagUsage)
