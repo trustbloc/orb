@@ -364,6 +364,8 @@ Feature:
 
     Then client verifies resolved document
 
+    Then mis-configured client fails to verify resolved document
+
     Then we wait 6 seconds
     When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
@@ -419,6 +421,8 @@ Feature:
     Then check success response contains "secondKey"
 
     Then client verifies resolved document
+
+    Then mis-configured client fails to verify resolved document
 
       # wait for pending operation (secondKey) to clear
     Then we wait 6 seconds
