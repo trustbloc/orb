@@ -362,6 +362,8 @@ Feature:
     Then check success response contains "#interimDID"
     Then check success response does NOT contain "canonicalId"
 
+    Then client verifies resolved document
+
     Then we wait 6 seconds
     When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
@@ -416,6 +418,8 @@ Feature:
     When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "secondKey"
 
+    Then client verifies resolved document
+
       # wait for pending operation (secondKey) to clear
     Then we wait 6 seconds
 
@@ -459,6 +463,8 @@ Feature:
 
     When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "fourthKey"
+
+    Then client verifies resolved document
 
   @local_cas
   @alternate_links_scenario

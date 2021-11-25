@@ -10,21 +10,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	cvmocks "github.com/trustbloc/orb/pkg/mocks"
+	"github.com/trustbloc/orb/pkg/config"
 	crmocks "github.com/trustbloc/orb/pkg/protocolversion/clientregistry/mocks"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ./mocks/clientfactory.gen.go --fake-name ClientFactory . factory
-//go:generate counterfeiter -o ./../../mocks/clientversion.gen.go --fake-name ClientVersion github.com/trustbloc/orb/pkg/context/common.ClientVersion
 
 func TestRegistry(t *testing.T) {
 	const version = "0.1"
 
 	f := &crmocks.ClientFactory{}
-	f.CreateReturns(&cvmocks.ClientVersion{}, nil)
+	f.CreateReturns(&coremocks.ProtocolVersion{}, nil)
 
 	r := New()
 
@@ -33,11 +32,11 @@ func TestRegistry(t *testing.T) {
 
 	casClient := &mocks.CasClient{}
 
-	pv, err := r.CreateClientVersion(version, casClient)
+	pv, err := r.CreateClientVersion(version, casClient, &config.Sidetree{})
 	require.NoError(t, err)
 	require.NotNil(t, pv)
 
-	pv, err = r.CreateClientVersion("99", casClient)
+	pv, err = r.CreateClientVersion("99", casClient, &config.Sidetree{})
 	require.EqualError(t, err, "client version factory for version [99] not found")
 	require.Nil(t, pv)
 }

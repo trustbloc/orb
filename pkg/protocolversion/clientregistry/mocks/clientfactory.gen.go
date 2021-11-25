@@ -4,39 +4,43 @@ package mocks
 import (
 	"sync"
 
+	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 )
 
 type ClientFactory struct {
-	CreateStub        func(string, common.CASReader) (common.ClientVersion, error)
+	CreateStub        func(string, common.CASReader, *config.Sidetree) (protocol.Version, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
 		arg1 string
 		arg2 common.CASReader
+		arg3 *config.Sidetree
 	}
 	createReturns struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
 	createReturnsOnCall map[int]struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ClientFactory) Create(arg1 string, arg2 common.CASReader) (common.ClientVersion, error) {
+func (fake *ClientFactory) Create(arg1 string, arg2 common.CASReader, arg3 *config.Sidetree) (protocol.Version, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
 		arg1 string
 		arg2 common.CASReader
-	}{arg1, arg2})
-	fake.recordInvocation("Create", []interface{}{arg1, arg2})
+		arg3 *config.Sidetree
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("Create", []interface{}{arg1, arg2, arg3})
 	fake.createMutex.Unlock()
 	if fake.CreateStub != nil {
-		return fake.CreateStub(arg1, arg2)
+		return fake.CreateStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -51,41 +55,41 @@ func (fake *ClientFactory) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *ClientFactory) CreateCalls(stub func(string, common.CASReader) (common.ClientVersion, error)) {
+func (fake *ClientFactory) CreateCalls(stub func(string, common.CASReader, *config.Sidetree) (protocol.Version, error)) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = stub
 }
 
-func (fake *ClientFactory) CreateArgsForCall(i int) (string, common.CASReader) {
+func (fake *ClientFactory) CreateArgsForCall(i int) (string, common.CASReader, *config.Sidetree) {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
 	argsForCall := fake.createArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
-func (fake *ClientFactory) CreateReturns(result1 common.ClientVersion, result2 error) {
+func (fake *ClientFactory) CreateReturns(result1 protocol.Version, result2 error) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	fake.createReturns = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *ClientFactory) CreateReturnsOnCall(i int, result1 common.ClientVersion, result2 error) {
+func (fake *ClientFactory) CreateReturnsOnCall(i int, result1 protocol.Version, result2 error) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = nil
 	if fake.createReturnsOnCall == nil {
 		fake.createReturnsOnCall = make(map[int]struct {
-			result1 common.ClientVersion
+			result1 protocol.Version
 			result2 error
 		})
 	}
 	fake.createReturnsOnCall[i] = struct {
-		result1 common.ClientVersion
+		result1 protocol.Version
 		result2 error
 	}{result1, result2}
 }

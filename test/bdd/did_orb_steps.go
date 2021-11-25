@@ -43,6 +43,7 @@ import (
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient"
+	"github.com/trustbloc/orb/pkg/orbclient/resolveverifier"
 )
 
 var logger = logrus.New()
@@ -137,6 +138,7 @@ type DIDOrbSteps struct {
 	recoveryKeys       []*ecdsa.PrivateKey
 	updateKeys         []*ecdsa.PrivateKey
 	resp               *httpResponse
+	resolutionResult   *document.ResolutionResult
 	bddContext         *BDDContext
 	interimDID         string
 	prevCanonicalDID   string
@@ -282,6 +284,17 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 	}
 
 	return err
+}
+
+func (d *DIDOrbSteps) clientVerifiesResolvedDocument() error {
+	logger.Info("verify resolved document (client)")
+
+	verifier, err := resolveverifier.New("did:orb")
+	if err != nil {
+		return err
+	}
+
+	return verifier.Verify(d.resolutionResult)
 }
 
 func extractCIDAndSuffix(canonicalID string) (string, string, error) {
@@ -700,6 +713,8 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithID(url, did string) error {
 		if err != nil {
 			return err
 		}
+
+		d.resolutionResult = &result
 
 		err = d.prettyPrint(&result)
 		if err != nil {
@@ -1282,6 +1297,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
+	s.Step(`^client verifies resolved document$`, d.clientVerifiesResolvedDocument)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to create DID document and the ID is saved to variable "([^"]*)"$`, d.createDIDDocumentSaveIDToVar)
