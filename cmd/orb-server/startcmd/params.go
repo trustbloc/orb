@@ -28,6 +28,8 @@ const (
 	defaultNodeInfoRefreshInterval      = 15 * time.Second
 	defaultIPFSTimeout                  = 20 * time.Second
 	defaultDatabaseTimeout              = 10 * time.Second
+	defaultHTTPDialTimeout              = 2 * time.Second
+	defaultHTTPTimeout                  = 20 * time.Second
 	defaultUnpublishedOperationLifespan = time.Minute * 5
 	defaultTaskMgrCheckInterval         = 10 * time.Second
 	defaultDataExpiryCheckInterval      = time.Minute
@@ -396,6 +398,18 @@ const (
 		"'Invite' witness request must be included in an 'accept list'. " +
 		"Defaults to 'accept-all' if not set. " + commonEnvVarUsageText + inviteWitnessAuthPolicyEnvKey
 
+	httpTimeoutFlagName  = "http-timeout"
+	httpTimeoutEnvKey    = "HTTP_TIMEOUT"
+	httpTimeoutFlagUsage = "The timeout for http requests. For example, '30s' for a 30 second timeout. " +
+		"Currently this setting only applies if you're using MongoDB. " +
+		commonEnvVarUsageText + httpTimeoutEnvKey
+
+	httpDialTimeoutFlagName  = "http-dial-timeout"
+	httpDialTimeoutEnvKey    = "HTTP_DIAL_TIMEOUT"
+	httpDialTimeoutFlagUsage = "The timeout for http dial. For example, '30s' for a 30 second timeout. " +
+		"Currently this setting only applies if you're using MongoDB. " +
+		commonEnvVarUsageText + httpDialTimeoutEnvKey
+
 	// TODO: Update verification method
 )
 
@@ -464,6 +478,8 @@ type orbParameters struct {
 	nodeInfoRefreshInterval        time.Duration
 	ipfsTimeout                    time.Duration
 	databaseTimeout                time.Duration
+	httpTimeout                    time.Duration
+	httpDialTimeout                time.Duration
 	contextProviderURLs            []string
 	unpublishedOperationLifespan   time.Duration
 	dataExpiryCheckInterval        time.Duration
@@ -844,9 +860,19 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
 	}
 
-	databaseTimeout, err := getDuration(cmd, databaseURLFlagName, databaseTimeoutEnvKey, defaultDatabaseTimeout)
+	databaseTimeout, err := getDuration(cmd, databaseTimeoutFlagName, databaseTimeoutEnvKey, defaultDatabaseTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", databaseTimeoutFlagName, err)
+	}
+
+	httpDialTimeout, err := getDuration(cmd, httpDialTimeoutFlagName, httpDialTimeoutEnvKey, defaultHTTPDialTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", httpDialTimeoutFlagName, err)
+	}
+
+	httpTimeout, err := getDuration(cmd, httpTimeoutFlagName, httpTimeoutEnvKey, defaultHTTPTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
 	}
 
 	contextProviderURLs, err := cmdutils.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
@@ -936,6 +962,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		followAuthPolicy:               followAuthPolicy,
 		inviteWitnessAuthPolicy:        inviteWitnessAuthPolicy,
 		taskMgrCheckInterval:           taskMgrCheckInterval,
+		httpDialTimeout:                httpDialTimeout,
+		httpTimeout:                    httpTimeout,
 	}, nil
 }
 
@@ -1316,4 +1344,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(dataExpiryCheckIntervalFlagName, "", "", dataExpiryCheckIntervalFlagUsage)
 	startCmd.Flags().StringP(followAuthPolicyFlagName, followAuthPolicyFlagShorthand, "", followAuthPolicyFlagUsage)
 	startCmd.Flags().StringP(inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyFlagShorthand, "", inviteWitnessAuthPolicyFlagUsage)
+	startCmd.Flags().StringP(httpTimeoutFlagName, "", "", httpTimeoutFlagUsage)
+	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 }
