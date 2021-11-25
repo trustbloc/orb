@@ -297,6 +297,27 @@ func (d *DIDOrbSteps) clientVerifiesResolvedDocument() error {
 	return verifier.Verify(d.resolutionResult)
 }
 
+func (d *DIDOrbSteps) clientFailsToVerifyResolvedDocument() error {
+	logger.Info("fail to verify resolved document (mis-configured client)")
+
+	verifier, err := resolutionverifier.New("did:orb", resolutionverifier.WithEnableBase(true))
+	if err != nil {
+		return err
+	}
+
+	err = verifier.Verify(d.resolutionResult)
+	if err == nil {
+		return fmt.Errorf("should have failed to verify document with mis-configured client")
+	}
+
+	if strings.Contains(err.Error(), "documents don't match") {
+		// expected error since document rendering is different with and without base
+		return nil
+	}
+
+	return fmt.Errorf("unexpected error for mis-configured client: %w", err)
+}
+
 func extractCIDAndSuffix(canonicalID string) (string, string, error) {
 	parts := strings.Split(canonicalID, ":")
 
@@ -1298,6 +1319,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
 	s.Step(`^client verifies resolved document$`, d.clientVerifiesResolvedDocument)
+	s.Step(`^mis-configured client fails to verify resolved document$`, d.clientFailsToVerifyResolvedDocument)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to create DID document and the ID is saved to variable "([^"]*)"$`, d.createDIDDocumentSaveIDToVar)
