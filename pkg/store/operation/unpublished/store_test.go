@@ -18,7 +18,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
-	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 func TestNew(t *testing.T) {
@@ -53,11 +52,8 @@ func TestStore_Put(t *testing.T) {
 			ErrGet: storage.ErrDataNotFound,
 		}}
 
-		coordinationStore, err := mem.NewProvider().OpenStore("coordination")
-		require.NoError(t, err)
-
 		s, err := New(storeProvider, time.Minute,
-			expiry.NewService(time.Millisecond, coordinationStore, "InstanceID"))
+			testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix"})

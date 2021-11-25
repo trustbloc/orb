@@ -23,7 +23,6 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
-	"github.com/trustbloc/orb/pkg/store/expiry"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -45,11 +44,8 @@ func TestFactory_Create(t *testing.T) {
 	})
 
 	t.Run("success - with update store config", func(t *testing.T) {
-		coordinationStore, err := mem.NewProvider().OpenStore("coordination")
-		require.NoError(t, err)
-
 		updateDocumentStore, err := unpublishedopstore.New(storeProvider, time.Minute,
-			expiry.NewService(time.Millisecond, coordinationStore, "InstanceID"))
+			testutil.GetExpiryService(t))
 		require.NoError(t, err)
 
 		cfg := &config.Sidetree{

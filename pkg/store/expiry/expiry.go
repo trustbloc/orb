@@ -7,24 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package expiry
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
-
-	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 const (
-	loggerModule          = "expiry-service"
-	coordinationPermitKey = "expired_data_cleanup_permit"
+	loggerModule = "expiry-service"
 	// When the Orb server with the expired data cleanup duty (permit holder) has not done it for an unusually
 	// long time (indicating it's down), another Orb server will take over the duty. This value multiplied by the
 	// configured interval time defines what an "unusually long time" is.
 	permitTimeLimitIntervalMultiplier = 3
+
+	taskName = "data-expiry"
 )
 
 type logger interface {
@@ -32,6 +29,10 @@ type logger interface {
 	Infof(msg string, args ...interface{})
 	Warnf(msg string, args ...interface{})
 	Errorf(msg string, args ...interface{})
+}
+
+type taskManager interface {
+	RegisterTask(taskType string, interval, maxRunTime time.Duration, handler func())
 }
 
 type registeredStore struct {
@@ -56,26 +57,11 @@ type expiryHandler interface {
 	HandleExpiredKeys(keys ...string) error
 }
 
-// expiredDataCleanupPermit is used as an entry within the coordination store to ensure that only one Orb instance
-// within a cluster has the duty of performing periodic expired data clean up.
-type expiredDataCleanupPermit struct {
-	// CurrentHolder indicates which Orb server currently has the responsibility.
-	CurrentHolder string `json:"currentHolder,omitempty"`
-	// TimeLastCleanupPerformed indicates when the last cleanup was successfully performed.
-	TimeLastCleanupPerformed int64 `json:"timeCleanupLastPerformed,omitempty"` // This is a Unix timestamp.
-}
-
 // Service is an expiry service that periodically polls registered stores and removes data past a specified
 // expiration time.
 type Service struct {
-	*lifecycle.Lifecycle
-
-	done              chan struct{}
-	logger            logger
-	registeredStores  []registeredStore
-	interval          time.Duration
-	coordinationStore storage.Store
-	instanceID        string
+	logger           logger
+	registeredStores []registeredStore
 }
 
 // NewService returns a new expiry Service.
@@ -93,19 +79,14 @@ type Service struct {
 // cleanup. It must be unique for every Orb instance within the cluster in order for this service to work efficiently.
 // You must register each store you want this service to run on using the Register method. Once all your stores are
 // registered, call the Start method to start the service.
-func NewService(interval time.Duration, coordinationStore storage.Store, instanceID string) *Service {
+func NewService(scheduler taskManager, interval time.Duration) *Service {
 	s := &Service{
-		done:              make(chan struct{}),
-		logger:            log.New(loggerModule),
-		registeredStores:  make([]registeredStore, 0),
-		interval:          interval,
-		coordinationStore: coordinationStore,
-		instanceID:        instanceID,
+		logger:           log.New(loggerModule),
+		registeredStores: make([]registeredStore, 0),
 	}
 
-	s.Lifecycle = lifecycle.New("expiry",
-		lifecycle.WithStart(s.start),
-		lifecycle.WithStop(s.stop))
+	scheduler.RegisterTask(taskName, interval,
+		interval*permitTimeLimitIntervalMultiplier, s.deleteExpiredData)
 
 	return s
 }
@@ -130,134 +111,10 @@ func (s *Service) Register(store storage.Store, expiryTagName, storeName string,
 	s.registeredStores = append(s.registeredStores, newRegisteredStore)
 }
 
-func (s *Service) start() {
-	go s.refresh()
-
-	s.logger.Infof("Started expiry service.")
-}
-
-func (s *Service) stop() {
-	close(s.done)
-
-	s.logger.Infof("Stopped expiry service.")
-}
-
-func (s *Service) refresh() {
-	for {
-		select {
-		case <-time.After(s.interval):
-			s.runExpiryCheck()
-		case <-s.done:
-			s.logger.Debugf("Stopping expiry service.")
-
-			return
-		}
-	}
-}
-
-func (s *Service) runExpiryCheck() {
-	s.logger.Debugf("Checking to see if it's my duty to clean up expired data.")
-
-	if s.isMyDutyToCheckForExpiredData() {
-		s.deleteExpiredData()
-
-		err := s.updatePermit()
-		if err != nil {
-			s.logger.Errorf("Failed to update permit: %s", err.Error())
-		}
-	}
-}
-
-func (s *Service) isMyDutyToCheckForExpiredData() bool {
-	currentExpiryCheckPermitBytes, err := s.coordinationStore.Get(coordinationPermitKey)
-	if err != nil {
-		if errors.Is(err, storage.ErrDataNotFound) {
-			s.logger.Infof("No existing permit found. " +
-				"I will take on the duty of periodically deleting expired data.")
-
-			return true
-		}
-
-		s.logger.Errorf("Unexpected failure while getting the permit: %s", err.Error())
-
-		return false
-	}
-
-	var currentPermit expiredDataCleanupPermit
-
-	err = json.Unmarshal(currentExpiryCheckPermitBytes, &currentPermit)
-	if err != nil {
-		s.logger.Errorf("Failed to unmarshal the current permit: %s", err.Error())
-
-		return false
-	}
-
-	timeOfLastCleanup := time.Unix(currentPermit.TimeLastCleanupPerformed, 0)
-
-	// Time.Since uses Time.Now() to determine the current time to a fine degree of precision. Here we are checking the
-	// time since a specific Unix timestamp, which is a value that is effectively truncated to the nearest second.
-	// Thus, the result of this calculation should also be truncated down to the nearest second since that's all the
-	// precision we have. This also makes the log statements look cleaner since it won't display an excessive amount
-	// of (meaningless) precision.
-	timeSinceLastCleanup := time.Since(timeOfLastCleanup).Truncate(time.Second)
-
-	if currentPermit.CurrentHolder == s.instanceID {
-		s.logger.Debugf("It's currently my duty to clean up expired data. I last did this %s ago. I will "+
-			"perform another cleanup and then update the permit timestamp.", timeSinceLastCleanup.String())
-
-		return true
-	}
-
-	// The idea here is to only take away the data cleanup responsibilities from the current permit holder if it's
-	// been an unusually long time since the current permit holder has performed a successful cleanup. If that happens
-	// then it indicates that the other Orb server with the permit is down, so someone else needs to grab the permit
-	// and take over the duty of doing expired data checks. Note that the assumption here is that all Orb servers
-	// within the cluster have the same interval setting (which they should).
-	timeLimit := s.interval * permitTimeLimitIntervalMultiplier
-
-	if timeSinceLastCleanup > timeLimit {
-		s.logger.Infof("The current permit holder (%s) has not performed an expired data cleanup in an "+
-			"unusually long time (%s ago, over %d times longer than the configured interval of %s). This indicates "+
-			"that %s may be down or not responding. I will take over the expired data "+
-			"cleanup duty and grab the permit.", currentPermit.CurrentHolder, timeSinceLastCleanup.String(),
-			permitTimeLimitIntervalMultiplier, s.interval.String(), currentPermit.CurrentHolder)
-
-		return true
-	}
-
-	s.logger.Debugf("I will not do an expired data cleanup since %s currently has the duty and did it recently "+
-		"(%s ago).", currentPermit.CurrentHolder, timeSinceLastCleanup.String())
-
-	return false
-}
-
 func (s *Service) deleteExpiredData() {
 	for _, registeredStore := range s.registeredStores {
 		registeredStore.deleteExpiredData(s.logger)
 	}
-}
-
-func (s *Service) updatePermit() error {
-	s.logger.Debugf("Updating the permit with the current time.")
-
-	permit := expiredDataCleanupPermit{
-		CurrentHolder:            s.instanceID,
-		TimeLastCleanupPerformed: time.Now().Unix(),
-	}
-
-	permitBytes, err := json.Marshal(permit)
-	if err != nil {
-		return fmt.Errorf("failed to marshal permit: %w", err)
-	}
-
-	err = s.coordinationStore.Put(coordinationPermitKey, permitBytes)
-	if err != nil {
-		return fmt.Errorf("failed to store permit: %w", err)
-	}
-
-	s.logger.Debugf("Permit successfully updated with the current time.")
-
-	return nil
 }
 
 func (r *registeredStore) deleteExpiredData(logger logger) { //nolint:funlen

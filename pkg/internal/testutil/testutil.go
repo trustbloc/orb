@@ -21,6 +21,7 @@ import (
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/store/expiry"
+	"github.com/trustbloc/orb/pkg/taskmgr"
 )
 
 // MustParseURL parses the given string and returns the URL.
@@ -104,8 +105,12 @@ func GetLoader(t *testing.T) *ld.DocumentLoader {
 func GetExpiryService(t *testing.T) *expiry.Service {
 	t.Helper()
 
+	const checkInterval = 500 * time.Millisecond
+
 	coordinationStore, err := mem.NewProvider().OpenStore("coordination")
 	require.NoError(t, err)
 
-	return expiry.NewService(time.Second, coordinationStore, "TestInstanceID")
+	taskMgr := taskmgr.New(coordinationStore, checkInterval)
+
+	return expiry.NewService(taskMgr, time.Second)
 }

@@ -8,34 +8,29 @@ package witness
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	dctest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 	"github.com/trustbloc/orb/pkg/store/mocks"
+	"github.com/trustbloc/orb/pkg/taskmgr"
 )
 
 const (
 	anchorID = "id"
 
 	expiryTime = 10 * time.Second
-
-	mongoDBConnString = "mongodb://localhost:27017"
 )
 
 func TestNew(t *testing.T) {
@@ -567,28 +562,25 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		err := pingMongoDB()
-		if err != nil {
-			pool, mongoDBResource := startMongoDBContainer(t)
-
-			defer func() {
-				if pool != nil && mongoDBResource != nil {
-					require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
-				}
-			}()
-		}
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
 
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		expiryService := testutil.GetExpiryService(t)
+		coordinationStore, err := mem.NewProvider().OpenStore("coordination")
+		require.NoError(t, err)
+
+		taskMgr := taskmgr.New(coordinationStore, 500*time.Millisecond)
+
+		expiryService := expiry.NewService(taskMgr, time.Second)
 
 		s, err := New(mongoDBProvider, expiryService, time.Second)
 		require.NoError(t, err)
 
 		s.delta = time.Second
 
-		expiryService.Start()
+		taskMgr.Start()
 
 		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
 		require.NoError(t, err)
@@ -623,53 +615,6 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 		err = s.HandleExpiredKeys("key")
 		require.NoError(t, err)
 	})
-}
-
-func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
-	t.Helper()
-
-	pool, err := dctest.NewPool("")
-	require.NoError(t, err)
-
-	mongoDBResource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: "mongo",
-		Tag:        "4.0.0",
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"27017/tcp": {{HostIP: "", HostPort: "27017"}},
-		},
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, waitForMongoDBToBeUp())
-
-	return pool, mongoDBResource
-}
-
-func waitForMongoDBToBeUp() error {
-	return backoff.Retry(pingMongoDB, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30))
-}
-
-func pingMongoDB() error {
-	var err error
-
-	clientOpts := options.Client().ApplyURI(mongoDBConnString)
-
-	mongoClient, err := mongo.NewClient(clientOpts)
-	if err != nil {
-		return err
-	}
-
-	err = mongoClient.Connect(context.Background())
-	if err != nil {
-		return err
-	}
-
-	db := mongoClient.Database("test")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	return db.Client().Ping(ctx, nil)
 }
 
 func getTestWitness(witnessURI *url.URL) *proof.Witness {

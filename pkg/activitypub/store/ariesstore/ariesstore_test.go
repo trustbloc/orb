@@ -7,31 +7,23 @@ SPDX-License-Identifier: Apache-2.0
 package ariesstore_test
 
 import (
-	"context"
 	"errors"
 	"net/url"
 	"testing"
-	"time"
 
-	"github.com/cenkalti/backoff"
 	"github.com/google/uuid"
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	dctest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 )
-
-const mongoDBConnString = "mongodb://localhost:27017"
 
 type mockStore struct {
 	openStoreNameToFailOn      string
@@ -64,53 +56,6 @@ func (m *mockStore) GetOpenStores() []storage.Store {
 
 func (m *mockStore) Close() error {
 	panic("implement me")
-}
-
-func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
-	t.Helper()
-
-	pool, err := dctest.NewPool("")
-	require.NoError(t, err)
-
-	mongoDBResource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: "mongo",
-		Tag:        "4.0.0",
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"27017/tcp": {{HostIP: "", HostPort: "27017"}},
-		},
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, waitForMongoDBToBeUp())
-
-	return pool, mongoDBResource
-}
-
-func waitForMongoDBToBeUp() error {
-	return backoff.Retry(pingMongoDB, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30))
-}
-
-func pingMongoDB() error {
-	var err error
-
-	clientOpts := options.Client().ApplyURI(mongoDBConnString)
-
-	mongoClient, err := mongo.NewClient(clientOpts)
-	if err != nil {
-		return err
-	}
-
-	err = mongoClient.Connect(context.Background())
-	if err != nil {
-		return err
-	}
-
-	db := mongoClient.Database("test")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	return db.Client().Ping(ctx, nil)
 }
 
 func TestNew(t *testing.T) {
@@ -155,11 +100,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestFunctionalityUsingMongoDB(t *testing.T) {
-	pool, mongoDBResource := startMongoDBContainer(t)
-
-	defer func() {
-		require.NoError(t, pool.Purge(mongoDBResource), "failed to purge MongoDB resource")
-	}()
+	mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+	defer stopMongo()
 
 	t.Run("Activity tests", func(t *testing.T) {
 		serviceName := generateRandomServiceName()
