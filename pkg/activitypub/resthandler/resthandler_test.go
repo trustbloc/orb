@@ -29,7 +29,7 @@ func TestNewHandler(t *testing.T) {
 	}
 
 	h := newHandler("", cfg, memstore.New(""),
-		func(writer http.ResponseWriter, request *http.Request) {}, &mocks.SignatureVerifier{},
+		func(writer http.ResponseWriter, request *http.Request) {}, &mocks.SignatureVerifier{}, spi.SortDescending,
 		pageNumParam, pageParam,
 	)
 
@@ -72,7 +72,8 @@ func TestGetCurrentPrevNext(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{},
+		spi.SortDescending)
 
 	t.Run("Sort ascending", func(t *testing.T) {
 		t.Run("No page-num", func(t *testing.T) {
@@ -164,7 +165,8 @@ func TestGetIDPrevNextURL(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{})
+	h := newHandler("", cfg, memstore.New(""), nil, &mocks.SignatureVerifier{},
+		spi.SortDescending)
 
 	id := testutil.MustParseURL(fmt.Sprintf("%s%s", cfg.ObjectIRI, ""))
 
@@ -277,7 +279,7 @@ func TestAuthorizeActor(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			activityStore := memstore.New("")
 
-			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{}, spi.SortDescending)
 
 			require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
 
@@ -292,7 +294,7 @@ func TestAuthorizeActor(t *testing.T) {
 			activityStore := &mocks.ActivityStore{}
 			activityStore.QueryReferencesReturnsOnCall(0, nil, errExpected)
 
-			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{}, spi.SortDescending)
 
 			ok, err := h.authorizeActor(service2IRI)
 			require.Error(t, err)
@@ -305,7 +307,7 @@ func TestAuthorizeActor(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			activityStore := memstore.New("")
 
-			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{}, spi.SortDescending)
 
 			require.NoError(t, activityStore.AddReference(spi.Witness, serviceIRI, service2IRI))
 
@@ -322,7 +324,7 @@ func TestAuthorizeActor(t *testing.T) {
 			activityStore.QueryReferencesReturnsOnCall(0, memstore.NewReferenceIterator(nil, 0), nil)
 			activityStore.QueryReferencesReturnsOnCall(1, nil, errExpected)
 
-			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+			h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{}, spi.SortDescending)
 
 			ok, err := h.authorizeActor(service2IRI)
 			require.Error(t, err)
@@ -334,7 +336,7 @@ func TestAuthorizeActor(t *testing.T) {
 	t.Run("Neither follower nor witness -> unauthorized", func(t *testing.T) {
 		activityStore := memstore.New("")
 
-		h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{})
+		h := newHandler("", cfg, activityStore, nil, &mocks.SignatureVerifier{}, spi.SortDescending)
 
 		ok, err := h.authorizeActor(service2IRI)
 		require.NoError(t, err)
