@@ -43,16 +43,28 @@ func NewCollectionPage(items []*ObjectProperty, opts ...Opt) *CollectionPageType
 
 // PartOf return the URL of the collection of which this page is a part.
 func (t *CollectionPageType) PartOf() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.PartOf == nil {
+		return nil
+	}
+
 	return t.collPage.PartOf.URL()
 }
 
 // Next return the URL that may be used to retrieve the next page.
 func (t *CollectionPageType) Next() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.Next == nil {
+		return nil
+	}
+
 	return t.collPage.Next.URL()
 }
 
 // Prev return the URL that may be used to retrieve the previous page.
 func (t *CollectionPageType) Prev() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.Prev == nil {
+		return nil
+	}
+
 	return t.collPage.Prev.URL()
 }
 
@@ -96,16 +108,28 @@ func NewOrderedCollectionPage(items []*ObjectProperty, opts ...Opt) *OrderedColl
 
 // PartOf return the URL of the collection of which this page is a part.
 func (t *OrderedCollectionPageType) PartOf() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.PartOf == nil {
+		return nil
+	}
+
 	return t.collPage.PartOf.URL()
 }
 
 // Next return the URL that may be used to retrieve the next page.
 func (t *OrderedCollectionPageType) Next() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.Next == nil {
+		return nil
+	}
+
 	return t.collPage.Next.URL()
 }
 
 // Prev return the URL that may be used to retrieve the previous page.
 func (t *OrderedCollectionPageType) Prev() *url.URL {
+	if t == nil || t.collPage == nil || t.collPage.Prev == nil {
+		return nil
+	}
+
 	return t.collPage.Prev.URL()
 }
 

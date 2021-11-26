@@ -16,6 +16,22 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
+func TestNilCollectionPage(t *testing.T) {
+	var coll *CollectionPageType
+
+	require.Nil(t, coll.PartOf())
+	require.Nil(t, coll.Next())
+	require.Nil(t, coll.Prev())
+}
+
+func TestNilOrderedCollectionPage(t *testing.T) {
+	var coll *OrderedCollectionPageType
+
+	require.Nil(t, coll.PartOf())
+	require.Nil(t, coll.Next())
+	require.Nil(t, coll.Prev())
+}
+
 func TestCollectionPageMarshal(t *testing.T) {
 	collPage1 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=1")
 	collPage2 := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=2")

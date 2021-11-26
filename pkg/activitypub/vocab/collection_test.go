@@ -18,6 +18,16 @@ import (
 
 var service1Inbox = testutil.MustParseURL("https://org1.com/services/service1/inbox")
 
+func TestNilCollection(t *testing.T) {
+	var coll *CollectionType
+
+	require.Nil(t, coll.Current())
+	require.Nil(t, coll.First())
+	require.Nil(t, coll.Last())
+	require.Empty(t, coll.Items())
+	require.Zero(t, coll.TotalItems())
+}
+
 func TestCollectionMarshal(t *testing.T) {
 	first := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=true")
 	last := testutil.MustParseURL("https://org1.com/services/service1/inbox?page=true&end=true")

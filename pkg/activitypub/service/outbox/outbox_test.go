@@ -696,6 +696,7 @@ func handleMockCollection(t *testing.T, collID *url.URL, uris []*url.URL, w http
 	respBytes, err := json.Marshal(aptestutil.NewMockCollection(
 		collID,
 		testutil.NewMockID(collID, "?page=true"),
+		testutil.NewMockID(collID, "?page=true&page-num=1"),
 		len(uris),
 	))
 	require.NoError(t, err)
@@ -733,8 +734,13 @@ func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
 		next = testutil.NewMockID(collID, fmt.Sprintf("?page=true&page-num=%d", pageNum+1))
 	}
 
-	respBytes, err := json.Marshal(aptestutil.NewMockCollectionPage(id, next, collID,
-		len(uris), uris[from:to]...,
+	var items []*vocab.ObjectProperty
+	for _, uri := range uris[from:to] {
+		items = append(items, vocab.NewObjectProperty(vocab.WithIRI(uri)))
+	}
+
+	respBytes, err := json.Marshal(aptestutil.NewMockCollectionPage(id, next, nil, collID,
+		len(uris), items...,
 	))
 	require.NoError(t, err)
 

@@ -27,11 +27,19 @@ type collectionType struct {
 
 // TotalItems returns the total number of items in the collection.
 func (t *CollectionType) TotalItems() int {
+	if t == nil || t.coll == nil {
+		return 0
+	}
+
 	return t.coll.TotalItems
 }
 
 // Items returns the items in the collection.
 func (t *CollectionType) Items() []*ObjectProperty {
+	if t == nil || t.coll == nil {
+		return nil
+	}
+
 	items := make([]*ObjectProperty, len(t.coll.Items))
 
 	for i, item := range t.coll.Items {
@@ -43,16 +51,28 @@ func (t *CollectionType) Items() []*ObjectProperty {
 
 // Current returns the current item.
 func (t *CollectionType) Current() *url.URL {
+	if t == nil || t.coll == nil || t.coll.Current == nil {
+		return nil
+	}
+
 	return t.coll.Current.u
 }
 
 // First returns a URL that may be used to retrieve the first item in the collection.
 func (t *CollectionType) First() *url.URL {
+	if t == nil || t.coll == nil || t.coll.First == nil {
+		return nil
+	}
+
 	return t.coll.First.u
 }
 
 // Last returns a URL that may be used to retrieve the last item in the collection.
 func (t *CollectionType) Last() *url.URL {
+	if t == nil || t.coll == nil || t.coll.Last == nil {
+		return nil
+	}
+
 	return t.coll.Last.u
 }
 

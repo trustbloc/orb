@@ -202,7 +202,7 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 	case obj.object.Type.Is(TypeOrderedCollection):
 		err = p.unmarshalOrderedCollection(bytes)
 
-	case obj.object.Type.IsAny(TypeFollow, TypeAccept, TypeReject, TypeOffer, TypeLike, TypeInvite):
+	case obj.object.Type.IsActivity():
 		err = p.unmarshalActivity(bytes)
 
 	case obj.object.Type.Is(TypeAnchorObject):
