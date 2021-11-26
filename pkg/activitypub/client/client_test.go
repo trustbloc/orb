@@ -189,6 +189,7 @@ func TestClient_GetReferences(t *testing.T) {
 	collIRI := testutil.NewMockID(serviceIRI, "/followers")
 
 	first := testutil.NewMockID(collIRI, "?page=true")
+	last := testutil.NewMockID(collIRI, "?page=true&page-num=1")
 
 	followers := []*url.URL{
 		testutil.MustParseURL("https://example2.com/services/service2"),
@@ -196,7 +197,7 @@ func TestClient_GetReferences(t *testing.T) {
 		testutil.MustParseURL("https://example4.com/services/service4"),
 	}
 
-	collBytes, err := json.Marshal(aptestutil.NewMockCollection(collIRI, first, len(followers)))
+	collBytes, err := json.Marshal(aptestutil.NewMockCollection(collIRI, first, last, len(followers)))
 	require.NoError(t, err)
 
 	t.Run("Service -> Success", func(t *testing.T) {
@@ -233,16 +234,19 @@ func TestClient_GetReferences(t *testing.T) {
 		collPage1Bytes, e := json.Marshal(aptestutil.NewMockCollectionPage(
 			testutil.NewMockID(collIRI, "?page=0"),
 			testutil.NewMockID(collIRI, "?page=1"),
+			nil,
 			collIRI, len(followers),
-			followers[0], followers[1],
+			vocab.NewObjectProperty(vocab.WithIRI(followers[0])),
+			vocab.NewObjectProperty(vocab.WithIRI(followers[1])),
 		))
 		require.NoError(t, e)
 
 		collPage2Bytes, e := json.Marshal(aptestutil.NewMockCollectionPage(
 			testutil.NewMockID(collIRI, "?page=1"),
 			nil,
+			testutil.NewMockID(collIRI, "?page=0"),
 			collIRI, len(followers),
-			followers[2],
+			vocab.NewObjectProperty(vocab.WithIRI(followers[2])),
 		))
 		require.NoError(t, e)
 
@@ -292,22 +296,25 @@ func TestClient_GetReferences(t *testing.T) {
 	})
 
 	t.Run("OrderedCollection -> Success", func(t *testing.T) {
-		orderedCollBytes, e := json.Marshal(aptestutil.NewMockOrderedCollection(collIRI, first, len(followers)))
+		orderedCollBytes, e := json.Marshal(aptestutil.NewMockOrderedCollection(collIRI, first, last, len(followers)))
 		require.NoError(t, e)
 
 		collPage1Bytes, e := json.Marshal(aptestutil.NewMockOrderedCollectionPage(
 			testutil.NewMockID(collIRI, "?page=0"),
 			testutil.NewMockID(collIRI, "?page=1"),
+			nil,
 			collIRI, len(followers),
-			followers[0], followers[1],
+			vocab.NewObjectProperty(vocab.WithIRI(followers[0])),
+			vocab.NewObjectProperty(vocab.WithIRI(followers[1])),
 		))
 		require.NoError(t, e)
 
 		collPage2Bytes, e := json.Marshal(aptestutil.NewMockOrderedCollectionPage(
 			testutil.NewMockID(collIRI, "?page=1"),
 			nil,
+			testutil.NewMockID(collIRI, "?page=0"),
 			collIRI, len(followers),
-			followers[2],
+			vocab.NewObjectProperty(vocab.WithIRI(followers[2])),
 		))
 		require.NoError(t, e)
 
@@ -414,7 +421,8 @@ func TestClient_GetReferences(t *testing.T) {
 
 		it, e := c.GetReferences(collIRI)
 		require.Error(t, e)
-		require.Contains(t, e.Error(), "expecting Service, Collection or OrderedCollection in response payload")
+		require.Contains(t, e.Error(),
+			"expecting Service, Collection, OrderedCollection, CollectionPage, or OrderedCollectionPage in response payload")
 		require.Nil(t, it)
 
 		require.NoError(t, result.Body.Close())
@@ -588,4 +596,554 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		require.NoError(t, result.Body.Close())
 	})
+}
+
+func TestClient_GetActivities(t *testing.T) {
+	log.SetLevel("activitypub_client", log.DEBUG)
+
+	service1IRI := testutil.MustParseURL("https://example.com/services/service1")
+	service2IRI := testutil.MustParseURL("https://example.com/services/service2")
+
+	collIRI := testutil.NewMockID(service1IRI, "/outbox")
+	toIRI := testutil.NewMockID(service2IRI, "/inbox")
+	first := testutil.NewMockID(collIRI, "?page=true")
+	page0 := testutil.NewMockID(collIRI, "?page=true&page-num=0")
+	page1 := testutil.NewMockID(collIRI, "?page=true&page-num=1")
+	last := page1
+
+	outboxActivities := []*vocab.ActivityType{
+		newMockActivity(service1IRI, toIRI, vocab.MustParseURL("https://obj_id_1")),
+		newMockActivity(service1IRI, toIRI, vocab.MustParseURL("https://obj_id_2")),
+		newMockActivity(service1IRI, toIRI, vocab.MustParseURL("https://obj_id_3")),
+		newMockActivity(service1IRI, toIRI, vocab.MustParseURL("https://obj_id_4")),
+		newMockActivity(service1IRI, toIRI, vocab.MustParseURL("https://obj_id_5")),
+	}
+
+	collPage1Bytes, err := json.Marshal(aptestutil.NewMockCollectionPage(
+		page0, page1, nil,
+		collIRI, len(outboxActivities),
+		vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[0])),
+		vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[1])),
+		vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[2])),
+	))
+	require.NoError(t, err)
+
+	collPage2Bytes, err := json.Marshal(aptestutil.NewMockCollectionPage(
+		page1, nil, page0,
+		collIRI, len(outboxActivities),
+		vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[3])),
+		vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[4])),
+	))
+	require.NoError(t, err)
+
+	t.Run("Collection -> Success", func(t *testing.T) {
+		t.Run("Forward order", func(t *testing.T) {
+			collBytes, e := json.Marshal(aptestutil.NewMockCollection(collIRI, first, last, len(outboxActivities)))
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			rw1 := httptest.NewRecorder()
+
+			_, e = rw1.Write(collBytes)
+			require.NoError(t, e)
+
+			rw2 := httptest.NewRecorder()
+
+			_, e = rw2.Write(collPage1Bytes)
+			require.NoError(t, e)
+
+			rw3 := httptest.NewRecorder()
+
+			_, e = rw3.Write(collPage2Bytes)
+			require.NoError(t, e)
+
+			result1 := rw1.Result()
+			result2 := rw2.Result()
+			result3 := rw3.Result()
+
+			httpClient.GetReturnsOnCall(0, result1, nil)
+			httpClient.GetReturnsOnCall(1, result2, nil)
+			httpClient.GetReturnsOnCall(2, result3, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, Forward)
+			require.NoError(t, e)
+			require.NotNil(t, it)
+			require.Equal(t, len(outboxActivities), it.TotalItems())
+
+			activities, e := ReadActivities(it, -1)
+			require.NoError(t, e)
+			require.Len(t, activities, len(outboxActivities))
+			require.Equal(t, outboxActivities[0].ID().String(), activities[0].ID().String())
+			require.Equal(t, outboxActivities[1].ID().String(), activities[1].ID().String())
+			require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+			require.Equal(t, outboxActivities[3].ID().String(), activities[3].ID().String())
+			require.Equal(t, outboxActivities[4].ID().String(), activities[4].ID().String())
+
+			require.Equal(t, page1.String(), it.CurrentPage().String())
+
+			require.NoError(t, result1.Body.Close())
+			require.NoError(t, result2.Body.Close())
+			require.NoError(t, result3.Body.Close())
+		})
+
+		t.Run("Reverse order", func(t *testing.T) {
+			collBytes, e := json.Marshal(aptestutil.NewMockCollection(collIRI, first, last, len(outboxActivities)))
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			rw1 := httptest.NewRecorder()
+
+			_, e = rw1.Write(collBytes)
+			require.NoError(t, e)
+
+			rw2 := httptest.NewRecorder()
+
+			_, e = rw2.Write(collPage1Bytes)
+			require.NoError(t, e)
+
+			rw3 := httptest.NewRecorder()
+
+			_, e = rw3.Write(collPage2Bytes)
+			require.NoError(t, e)
+
+			result1 := rw1.Result()
+			result2 := rw2.Result()
+			result3 := rw3.Result()
+
+			httpClient.GetReturnsOnCall(0, result1, nil)
+			httpClient.GetReturnsOnCall(1, result3, nil)
+			httpClient.GetReturnsOnCall(2, result2, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, Reverse)
+			require.NoError(t, e)
+			require.NotNil(t, it)
+			require.Equal(t, len(outboxActivities), it.TotalItems())
+
+			activities, e := ReadActivities(it, -1)
+			require.NoError(t, e)
+			require.Len(t, activities, len(outboxActivities))
+			require.Equal(t, outboxActivities[4].ID().String(), activities[0].ID().String())
+			require.Equal(t, outboxActivities[3].ID().String(), activities[1].ID().String())
+			require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+			require.Equal(t, outboxActivities[1].ID().String(), activities[3].ID().String())
+			require.Equal(t, outboxActivities[0].ID().String(), activities[4].ID().String())
+
+			require.NoError(t, result1.Body.Close())
+			require.NoError(t, result2.Body.Close())
+			require.NoError(t, result3.Body.Close())
+		})
+	})
+
+	t.Run("OrderedCollection -> Success", func(t *testing.T) {
+		t.Run("Forward order", func(t *testing.T) {
+			collBytes, e := json.Marshal(aptestutil.NewMockOrderedCollection(collIRI, first, last, len(outboxActivities)))
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			rw1 := httptest.NewRecorder()
+
+			_, e = rw1.Write(collBytes)
+			require.NoError(t, e)
+
+			rw2 := httptest.NewRecorder()
+
+			_, e = rw2.Write(collPage1Bytes)
+			require.NoError(t, e)
+
+			rw3 := httptest.NewRecorder()
+
+			_, e = rw3.Write(collPage2Bytes)
+			require.NoError(t, e)
+
+			result1 := rw1.Result()
+			result2 := rw2.Result()
+			result3 := rw3.Result()
+
+			httpClient.GetReturnsOnCall(0, result1, nil)
+			httpClient.GetReturnsOnCall(1, result2, nil)
+			httpClient.GetReturnsOnCall(2, result3, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, Forward)
+			require.NoError(t, e)
+			require.NotNil(t, it)
+			require.Equal(t, len(outboxActivities), it.TotalItems())
+
+			activities, e := ReadActivities(it, -1)
+			require.NoError(t, e)
+			require.Len(t, activities, len(outboxActivities))
+			require.Equal(t, outboxActivities[0].ID().String(), activities[0].ID().String())
+			require.Equal(t, outboxActivities[1].ID().String(), activities[1].ID().String())
+			require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+			require.Equal(t, outboxActivities[3].ID().String(), activities[3].ID().String())
+			require.Equal(t, outboxActivities[4].ID().String(), activities[4].ID().String())
+
+			require.NoError(t, result1.Body.Close())
+			require.NoError(t, result2.Body.Close())
+			require.NoError(t, result3.Body.Close())
+		})
+
+		t.Run("Reverse order", func(t *testing.T) {
+			collBytes, e := json.Marshal(aptestutil.NewMockCollection(collIRI, first, last, len(outboxActivities)))
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			rw1 := httptest.NewRecorder()
+
+			_, e = rw1.Write(collBytes)
+			require.NoError(t, e)
+
+			rw2 := httptest.NewRecorder()
+
+			_, e = rw2.Write(collPage1Bytes)
+			require.NoError(t, e)
+
+			rw3 := httptest.NewRecorder()
+
+			_, e = rw3.Write(collPage2Bytes)
+			require.NoError(t, e)
+
+			result1 := rw1.Result()
+			result2 := rw2.Result()
+			result3 := rw3.Result()
+
+			httpClient.GetReturnsOnCall(0, result1, nil)
+			httpClient.GetReturnsOnCall(1, result3, nil)
+			httpClient.GetReturnsOnCall(2, result2, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, Reverse)
+			require.NoError(t, e)
+			require.NotNil(t, it)
+			require.Equal(t, len(outboxActivities), it.TotalItems())
+
+			activities, e := ReadActivities(it, -1)
+			require.NoError(t, e)
+			require.Len(t, activities, len(outboxActivities))
+			require.Equal(t, outboxActivities[4].ID().String(), activities[0].ID().String())
+			require.Equal(t, outboxActivities[3].ID().String(), activities[1].ID().String())
+			require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+			require.Equal(t, outboxActivities[1].ID().String(), activities[3].ID().String())
+			require.Equal(t, outboxActivities[0].ID().String(), activities[4].ID().String())
+
+			require.NoError(t, result1.Body.Close())
+			require.NoError(t, result2.Body.Close())
+			require.NoError(t, result3.Body.Close())
+		})
+
+		t.Run("CollectionPage -> Success", func(t *testing.T) {
+			t.Run("Forward order", func(t *testing.T) {
+				httpClient := &mocks.HTTPTransport{}
+
+				rw2 := httptest.NewRecorder()
+
+				_, err = rw2.Write(collPage1Bytes)
+				require.NoError(t, err)
+
+				rw3 := httptest.NewRecorder()
+
+				_, err = rw3.Write(collPage2Bytes)
+				require.NoError(t, err)
+
+				result2 := rw2.Result()
+				result3 := rw3.Result()
+
+				httpClient.GetReturnsOnCall(0, result2, nil)
+				httpClient.GetReturnsOnCall(1, result3, nil)
+
+				c := New(Config{}, httpClient)
+				require.NotNil(t, t, c)
+
+				it, e := c.GetActivities(collIRI, Forward)
+				require.NoError(t, e)
+				require.NotNil(t, it)
+				require.Equal(t, len(outboxActivities), it.TotalItems())
+
+				activities, e := ReadActivities(it, -1)
+				require.NoError(t, e)
+				require.Len(t, activities, len(outboxActivities))
+				require.Equal(t, outboxActivities[0].ID().String(), activities[0].ID().String())
+				require.Equal(t, outboxActivities[1].ID().String(), activities[1].ID().String())
+				require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+				require.Equal(t, outboxActivities[3].ID().String(), activities[3].ID().String())
+				require.Equal(t, outboxActivities[4].ID().String(), activities[4].ID().String())
+
+				require.Equal(t, page1.String(), it.CurrentPage().String())
+
+				require.NoError(t, result2.Body.Close())
+				require.NoError(t, result3.Body.Close())
+			})
+
+			t.Run("Reverse order", func(t *testing.T) {
+				httpClient := &mocks.HTTPTransport{}
+
+				rw2 := httptest.NewRecorder()
+
+				_, err = rw2.Write(collPage1Bytes)
+				require.NoError(t, err)
+
+				rw3 := httptest.NewRecorder()
+
+				_, err = rw3.Write(collPage2Bytes)
+				require.NoError(t, err)
+
+				result2 := rw2.Result()
+				result3 := rw3.Result()
+
+				httpClient.GetReturnsOnCall(0, result3, nil)
+				httpClient.GetReturnsOnCall(1, result2, nil)
+
+				c := New(Config{}, httpClient)
+				require.NotNil(t, t, c)
+
+				it, e := c.GetActivities(collIRI, Reverse)
+				require.NoError(t, e)
+				require.NotNil(t, it)
+				require.Equal(t, len(outboxActivities), it.TotalItems())
+
+				activities, e := ReadActivities(it, -1)
+				require.NoError(t, e)
+				require.Len(t, activities, len(outboxActivities))
+				require.Equal(t, outboxActivities[4].ID().String(), activities[0].ID().String())
+				require.Equal(t, outboxActivities[3].ID().String(), activities[1].ID().String())
+				require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+				require.Equal(t, outboxActivities[1].ID().String(), activities[3].ID().String())
+				require.Equal(t, outboxActivities[0].ID().String(), activities[4].ID().String())
+
+				require.NoError(t, result2.Body.Close())
+				require.NoError(t, result3.Body.Close())
+			})
+		})
+
+		t.Run("OrderedCollectionPage -> Success", func(t *testing.T) {
+			t.Run("Forward order", func(t *testing.T) {
+				httpClient := &mocks.HTTPTransport{}
+
+				rw2 := httptest.NewRecorder()
+
+				_, err = rw2.Write(collPage1Bytes)
+				require.NoError(t, err)
+
+				rw3 := httptest.NewRecorder()
+
+				_, err = rw3.Write(collPage2Bytes)
+				require.NoError(t, err)
+
+				result2 := rw2.Result()
+				result3 := rw3.Result()
+
+				httpClient.GetReturnsOnCall(0, result2, nil)
+				httpClient.GetReturnsOnCall(1, result3, nil)
+
+				c := New(Config{}, httpClient)
+				require.NotNil(t, t, c)
+
+				it, e := c.GetActivities(collIRI, Forward)
+				require.NoError(t, e)
+				require.NotNil(t, it)
+				require.Equal(t, len(outboxActivities), it.TotalItems())
+
+				activities, e := ReadActivities(it, -1)
+				require.NoError(t, e)
+				require.Len(t, activities, len(outboxActivities))
+				require.Equal(t, outboxActivities[0].ID().String(), activities[0].ID().String())
+				require.Equal(t, outboxActivities[1].ID().String(), activities[1].ID().String())
+				require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+				require.Equal(t, outboxActivities[3].ID().String(), activities[3].ID().String())
+				require.Equal(t, outboxActivities[4].ID().String(), activities[4].ID().String())
+
+				require.Equal(t, page1.String(), it.CurrentPage().String())
+
+				require.NoError(t, result2.Body.Close())
+				require.NoError(t, result3.Body.Close())
+			})
+
+			t.Run("Reverse order", func(t *testing.T) {
+				httpClient := &mocks.HTTPTransport{}
+
+				rw2 := httptest.NewRecorder()
+
+				_, err = rw2.Write(collPage1Bytes)
+				require.NoError(t, err)
+
+				rw3 := httptest.NewRecorder()
+
+				_, err = rw3.Write(collPage2Bytes)
+				require.NoError(t, err)
+
+				result2 := rw2.Result()
+				result3 := rw3.Result()
+
+				httpClient.GetReturnsOnCall(0, result3, nil)
+				httpClient.GetReturnsOnCall(1, result2, nil)
+
+				c := New(Config{}, httpClient)
+				require.NotNil(t, t, c)
+
+				it, e := c.GetActivities(collIRI, Reverse)
+				require.NoError(t, e)
+				require.NotNil(t, it)
+				require.Equal(t, len(outboxActivities), it.TotalItems())
+
+				activities, e := ReadActivities(it, -1)
+				require.NoError(t, e)
+				require.Len(t, activities, len(outboxActivities))
+				require.Equal(t, outboxActivities[4].ID().String(), activities[0].ID().String())
+				require.Equal(t, outboxActivities[3].ID().String(), activities[1].ID().String())
+				require.Equal(t, outboxActivities[2].ID().String(), activities[2].ID().String())
+				require.Equal(t, outboxActivities[1].ID().String(), activities[3].ID().String())
+				require.Equal(t, outboxActivities[0].ID().String(), activities[4].ID().String())
+
+				require.NoError(t, result2.Body.Close())
+				require.NoError(t, result3.Body.Close())
+			})
+		})
+	})
+
+	t.Run("HTTP client error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected HTTP client error")
+
+		httpClient := &mocks.HTTPTransport{}
+
+		httpClient.GetReturns(nil, errExpected)
+
+		c := New(Config{}, httpClient)
+		require.NotNil(t, t, c)
+
+		activities, e := c.GetActivities(collIRI, Forward)
+		require.Error(t, e)
+		require.Contains(t, e.Error(), errExpected.Error())
+		require.Nil(t, activities)
+	})
+
+	t.Run("Unmarshal collection error", func(t *testing.T) {
+		rw := httptest.NewRecorder()
+
+		_, err := rw.Write([]byte("{"))
+		require.NoError(t, err)
+
+		httpClient := &mocks.HTTPTransport{}
+
+		result := rw.Result()
+
+		httpClient.GetReturns(result, nil)
+
+		c := New(Config{}, httpClient)
+		require.NotNil(t, t, c)
+
+		it, e := c.GetActivities(collIRI, Forward)
+		require.Error(t, e)
+		require.Contains(t, e.Error(), "unexpected end of JSON input")
+		require.Nil(t, it)
+
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Invalid collection error", func(t *testing.T) {
+		invalidCollBytes, e := json.Marshal(vocab.NewObject())
+		require.NoError(t, e)
+
+		rw := httptest.NewRecorder()
+
+		_, e = rw.Write(invalidCollBytes)
+		require.NoError(t, e)
+
+		httpClient := &mocks.HTTPTransport{}
+
+		result := rw.Result()
+
+		httpClient.GetReturns(result, nil)
+
+		c := New(Config{}, httpClient)
+		require.NotNil(t, t, c)
+
+		it, e := c.GetActivities(collIRI, Forward)
+		require.Error(t, e)
+		require.Contains(t, e.Error(), "invalid collection type")
+		require.Nil(t, it)
+
+		require.NoError(t, result.Body.Close())
+	})
+
+	t.Run("Invalid Order error", func(t *testing.T) {
+		t.Run("Collection", func(t *testing.T) {
+			collPageBytes, e := json.Marshal(aptestutil.NewMockCollection(page0, page0, page1, 5))
+			require.NoError(t, e)
+
+			rw := httptest.NewRecorder()
+
+			_, e = rw.Write(collPageBytes)
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			result := rw.Result()
+
+			httpClient.GetReturns(result, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, "invalid-order")
+			require.Error(t, e)
+			require.Contains(t, e.Error(), "invalid order [invalid-order]")
+			require.Nil(t, it)
+
+			require.NoError(t, result.Body.Close())
+		})
+
+		t.Run("CollectionPage", func(t *testing.T) {
+			collPageBytes, e := json.Marshal(aptestutil.NewMockCollectionPage(
+				page0, page1, nil,
+				collIRI, len(outboxActivities),
+				vocab.NewObjectProperty(vocab.WithActivity(outboxActivities[0])),
+			))
+			require.NoError(t, e)
+
+			rw := httptest.NewRecorder()
+
+			_, e = rw.Write(collPageBytes)
+			require.NoError(t, e)
+
+			httpClient := &mocks.HTTPTransport{}
+
+			result := rw.Result()
+
+			httpClient.GetReturns(result, nil)
+
+			c := New(Config{}, httpClient)
+			require.NotNil(t, t, c)
+
+			it, e := c.GetActivities(collIRI, "invalid-order")
+			require.Error(t, e)
+			require.Contains(t, e.Error(), "invalid order [invalid-order]")
+			require.Nil(t, it)
+
+			require.NoError(t, result.Body.Close())
+		})
+	})
+}
+
+func newMockActivity(service1IRI, toIRI, objID *url.URL) *vocab.ActivityType {
+	return aptestutil.NewMockCreateActivity(service1IRI, toIRI,
+		vocab.NewObjectProperty(
+			vocab.WithObject(
+				vocab.NewObject(vocab.WithID(objID)),
+			),
+		),
+	)
 }

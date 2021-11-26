@@ -79,56 +79,49 @@ func NewMockPublicKey(serviceIRI *url.URL) *vocab.PublicKeyType {
 }
 
 // NewMockCollection returns a mock 'Collection' with the given ID and items.
-func NewMockCollection(id, first *url.URL, totalItems int) *vocab.CollectionType {
+func NewMockCollection(id, first, last *url.URL, totalItems int) *vocab.CollectionType {
 	return vocab.NewCollection(nil,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
 		vocab.WithTotalItems(totalItems),
 		vocab.WithFirst(first),
+		vocab.WithLast(last),
 	)
 }
 
 // NewMockOrderedCollection returns a mock 'OrderedCollection' with the given ID and items.
-func NewMockOrderedCollection(id, first *url.URL, totalItems int) *vocab.OrderedCollectionType {
+func NewMockOrderedCollection(id, first, last *url.URL, totalItems int) *vocab.OrderedCollectionType {
 	return vocab.NewOrderedCollection(nil,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
 		vocab.WithTotalItems(totalItems),
 		vocab.WithFirst(first),
+		vocab.WithLast(last),
 	)
 }
 
 // NewMockCollectionPage returns a mock 'CollectionPage' with the given ID and items.
-func NewMockCollectionPage(id, next, collID *url.URL, totalItems int, iris ...*url.URL) *vocab.CollectionPageType {
-	var items []*vocab.ObjectProperty
-
-	for _, iri := range iris {
-		items = append(items, vocab.NewObjectProperty(vocab.WithIRI(iri)))
-	}
-
+func NewMockCollectionPage(id, next, prev, collID *url.URL, totalItems int,
+	items ...*vocab.ObjectProperty) *vocab.CollectionPageType {
 	return vocab.NewCollectionPage(items,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
 		vocab.WithPartOf(collID),
 		vocab.WithNext(next),
+		vocab.WithPrev(prev),
 		vocab.WithTotalItems(totalItems),
 	)
 }
 
 // NewMockOrderedCollectionPage returns a mock 'OrderedCollectionPage' with the given ID and items.
-func NewMockOrderedCollectionPage(id, next, collID *url.URL, totalItems int,
-	iris ...*url.URL) *vocab.OrderedCollectionPageType {
-	var items []*vocab.ObjectProperty
-
-	for _, iri := range iris {
-		items = append(items, vocab.NewObjectProperty(vocab.WithIRI(iri)))
-	}
-
+func NewMockOrderedCollectionPage(id, next, prev, collID *url.URL, totalItems int,
+	items ...*vocab.ObjectProperty) *vocab.OrderedCollectionPageType {
 	return vocab.NewOrderedCollectionPage(items,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
 		vocab.WithPartOf(collID),
 		vocab.WithNext(next),
+		vocab.WithPrev(prev),
 		vocab.WithTotalItems(totalItems),
 	)
 }

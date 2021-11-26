@@ -110,6 +110,12 @@ func (p *TypeProperty) IsAny(types ...Type) bool {
 	return false
 }
 
+// IsActivity returns true if the type is an ActivityPub Activity.
+func (p *TypeProperty) IsActivity() bool {
+	return p.IsAny(TypeFollow, TypeAccept, TypeReject, TypeOffer, TypeLike, TypeInvite,
+		TypeCreate, TypeAnnounce, TypeUndo)
+}
+
 func (p *TypeProperty) is(t Type) bool {
 	for _, pt := range p.types {
 		if pt == t {
