@@ -19,16 +19,16 @@ import (
 )
 
 // NewActivity returns a new 'activities/{id}' REST handler that retrieves a single activity by ID.
-func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activity {
+func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activity {
 	h := &Activity{}
 
-	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle, verifier)
+	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle, verifier, sortOrder)
 
 	return h
 }
 
 // NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
-func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *ReadOutbox {
+func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *ReadOutbox {
 	h := &ReadOutbox{
 		Activities: &Activities{
 			getID:        getID("outbox"),
@@ -36,34 +36,34 @@ func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier)
 		},
 	}
 
-	h.Activities.handler = newHandler(OutboxPath, cfg, activityStore, h.handleOutbox, verifier)
+	h.Activities.handler = newHandler(OutboxPath, cfg, activityStore, h.handleOutbox, verifier, sortOrder)
 
 	return h
 }
 
 // NewInbox returns a new 'inbox' REST handler that retrieves a service's inbox.
-func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
+func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
 	return NewActivities(InboxPath, spi.Inbox, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("inbox"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("inbox"), verifier, sortOrder)
 }
 
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
-func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
+func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
 	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
-		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, SharesPath), verifier)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, SharesPath), verifier, sortOrder)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
-func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
+func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
 	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
-		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier, sortOrder)
 }
 
 // NewLiked returns a new 'liked' REST handler that retrieves a service's 'Like' activities, i.e. the Like
 // activities that were posted by the given service.
-func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Activities {
+func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
 	return NewActivities(LikedPath, spi.Liked, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier, sortOrder)
 }
 
 type getIDFunc func(objectIRI *url.URL, req *http.Request) (*url.URL, error)
@@ -81,14 +81,14 @@ type Activities struct {
 
 // NewActivities returns a new activities REST handler.
 func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
-	getObjectIRI getObjectIRIFunc, getID getIDFunc, verifier signatureVerifier) *Activities {
+	getObjectIRI getObjectIRIFunc, getID getIDFunc, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
 	h := &Activities{
 		refType:      refType,
 		getID:        getID,
 		getObjectIRI: getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier, sortOrder)
 
 	return h
 }
@@ -169,12 +169,12 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 		page, err = h.getPage(objectIRI, id, refType,
 			spi.WithPageSize(h.PageSize),
 			spi.WithPageNum(pageNum),
-			spi.WithSortOrder(spi.SortDescending),
+			spi.WithSortOrder(h.sortOrder),
 		)
 	} else {
 		page, err = h.getPage(objectIRI, id, refType,
 			spi.WithPageSize(h.PageSize),
-			spi.WithSortOrder(spi.SortDescending),
+			spi.WithSortOrder(h.sortOrder),
 		)
 	}
 
@@ -228,7 +228,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 		return nil, fmt.Errorf("failed to get total items from reference query: %w", err)
 	}
 
-	lastURL, err := h.getPageURL(id, getLastPageNum(totalItems, h.PageSize, spi.SortDescending))
+	lastURL, err := h.getPageURL(id, getLastPageNum(totalItems, h.PageSize, h.sortOrder))
 	if err != nil {
 		return nil, err
 	}

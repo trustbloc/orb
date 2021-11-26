@@ -52,7 +52,6 @@ type Reference struct {
 	*handler
 
 	refType              spi.ReferenceType
-	sortOrder            spi.SortOrder
 	createCollection     createCollectionFunc
 	createCollectionPage createCollectionFunc
 	getID                getIDFunc
@@ -65,14 +64,13 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 	verifier signatureVerifier) *Reference {
 	h := &Reference{
 		refType:              refType,
-		sortOrder:            sortOrder,
 		createCollection:     createCollection(ordered),
 		createCollectionPage: createCollectionPage(ordered),
 		getID:                getID,
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier, sortOrder)
 
 	return h
 }

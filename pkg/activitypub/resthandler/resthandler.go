@@ -86,10 +86,11 @@ type handler struct {
 	handler   common.HTTPRequestHandler
 	marshal   func(v interface{}) ([]byte, error)
 	getParams func(req *http.Request) map[string][]string
+	sortOrder spi.SortOrder
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequestHandler,
-	verifier signatureVerifier, params ...string) *handler {
+	verifier signatureVerifier, sortOrder spi.SortOrder, params ...string) *handler {
 	h := &handler{
 		Config:  cfg,
 		params:  paramsBuilder(params).build(),
@@ -98,6 +99,7 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequest
 		getParams: func(req *http.Request) map[string][]string {
 			return req.URL.Query()
 		},
+		sortOrder: sortOrder,
 	}
 
 	h.AuthHandler = NewAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, nil)
