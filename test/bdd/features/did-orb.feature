@@ -429,46 +429,46 @@ Feature:
 
       # stop all servers of anchor origin for domain4 operations requests - document operation(s) will fail after they have
       # been added because anchor event will not get enough proofs
-    Then container "orb-domain1" is stopped
-    And container "orb2-domain1" is stopped
-    And we wait 2 seconds
-
-      # update document
-    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "thirdKey" to DID document
-    Then check for request success
-
-      # update request can be immediately resolved
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
-    Then check success response contains "thirdKey"
-
-      # request another update while first one is pending - error expected
-    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
-    Then check error response contains "pending operation found"
-    Then check error response contains "please re-submit your operation request at later time"
-
-      # wait for operation to expire
-    Then we wait 45 seconds
-
-    Then container "orb-domain1" is started
-    And container "orb2-domain1" is started
-    Then we wait 5 seconds
-
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
-    Then check success response does NOT contain "thirdKey"
-
-      # third operation failed during batching - we need to send next operation request with last successful commitment
-    Then client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did and resets keys to last successful
-
-      # no more "pending operation found" error since the pending operation from above has since been deleted by the expiry service
-    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
-    Then check for request success
-
-    Then we wait 2 seconds
-
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
-    Then check success response contains "fourthKey"
-
-    Then client verifies resolved document
+#    Then container "orb-domain1" is stopped
+#    And container "orb2-domain1" is stopped
+#    And we wait 2 seconds
+#
+#      # update document
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "thirdKey" to DID document
+#    Then check for request success
+#
+#      # update request can be immediately resolved
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+#    Then check success response contains "thirdKey"
+#
+#      # request another update while first one is pending - error expected
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
+#    Then check error response contains "pending operation found"
+#    Then check error response contains "please re-submit your operation request at later time"
+#
+#      # wait for operation to expire
+#    Then we wait 45 seconds
+#
+#    Then container "orb-domain1" is started
+#    And container "orb2-domain1" is started
+#    Then we wait 5 seconds
+#
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+#    Then check success response does NOT contain "thirdKey"
+#
+#      # third operation failed during batching - we need to send next operation request with last successful commitment
+#    Then client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did and resets keys to last successful
+#
+#      # no more "pending operation found" error since the pending operation from above has since been deleted by the expiry service
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to add public key with ID "fourthKey" to DID document
+#    Then check for request success
+#
+#    Then we wait 2 seconds
+#
+#    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+#    Then check success response contains "fourthKey"
+#
+#    Then client verifies resolved document
 
   @local_cas
   @alternate_links_scenario
