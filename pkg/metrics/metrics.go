@@ -172,7 +172,7 @@ func Get() *Metrics {
 	return instance
 }
 
-func newMetrics() *Metrics { //nolint:funlen
+func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
 
