@@ -1282,13 +1282,13 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to resolve WebFinger resource: received unexpected status code. URL [https://abc.com/.well-known/webfinger?resource=https://abc.com/vct], status code [500], response body [internal server error]") //nolint:lll
+			"failed to resolve WebFinger resource[https://abc.com/vct]: received unexpected status code. URL [https://abc.com/.well-known/webfinger?resource=https://abc.com/vct], status code [500], response body [internal server error]") //nolint:lll
 
 		// test error for system witness (no batch witnesses)
 		err = c.postOfferActivity(anchorEvent, []string{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
-			"failed to resolve WebFinger resource: received unexpected status code. URL [http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct], status code [500], response body [internal server error]") //nolint:lll
+			"failed to resolve WebFinger resource[http://orb.domain1.com/vct]: received unexpected status code. URL [http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct], status code [500], response body [internal server error]") //nolint:lll
 	})
 
 	t.Run("error - activity store error", func(t *testing.T) {

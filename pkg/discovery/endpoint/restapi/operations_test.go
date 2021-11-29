@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
@@ -24,6 +26,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
+	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
 const (
@@ -203,6 +206,107 @@ func TestWebFinger(t *testing.T) {
 		require.Equal(t, "http://base/op", w.Links[0].Href)
 		require.Equal(t, "http://domain1/op", w.Links[1].Href)
 		require.Empty(t, w.Properties)
+	})
+
+	t.Run("test vct resource", func(t *testing.T) {
+		const webfingerPayload = `{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`
+
+		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
+		c, err := restapi.New(&restapi.Config{
+			VctURL:              "http://vct.com",
+			WebCASPath:          "/cas",
+			BaseURL:             "http://base",
+			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+		},
+			&restapi.Providers{WebfingerClient: wfClient})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, restapi.WebFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+			nil, nil, false)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var w restapi.JRD
+
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+		require.Equal(t, "vct", w.Links[0].Rel)
+		require.Equal(t, "http://vct.com", w.Links[0].Href)
+		require.Equal(t, "vct-v1", w.Properties[command.LedgerType])
+	})
+
+	t.Run("error - vct resource error", func(t *testing.T) {
+		const webfingerPayload = `{}`
+
+		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
+		c, err := restapi.New(&restapi.Config{
+			VctURL:              "http://vct.com",
+			WebCASPath:          "/cas",
+			BaseURL:             "http://base",
+			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+		},
+			&restapi.Providers{WebfingerClient: wfClient})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, restapi.WebFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+			nil, nil, false)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+
+		var w restapi.JRD
+
+		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
+
+		require.Equal(t, "vct", w.Links[0].Rel)
+		require.Equal(t, "http://vct.com", w.Links[0].Href)
+		require.Empty(t, w.Properties[command.LedgerType])
+	})
+
+	t.Run("error - vct internal server error", func(t *testing.T) {
+		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(" internal server error")),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})
+
+		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
+
+		c, err := restapi.New(&restapi.Config{
+			VctURL:              "http://vct.com",
+			WebCASPath:          "/cas",
+			BaseURL:             "http://base",
+			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+		},
+			&restapi.Providers{WebfingerClient: wfClient})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, restapi.WebFingerEndpoint)
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+			nil, nil, false)
+
+		require.Equal(t, http.StatusInternalServerError, rr.Code)
 	})
 
 	t.Run("test WebCAS resource", func(t *testing.T) {
@@ -693,4 +797,10 @@ func handlerLookup(t *testing.T, op *restapi.Operation, lookup string) common.HT
 	require.Fail(t, "unable to find handler")
 
 	return nil
+}
+
+type httpMock func(req *http.Request) (*http.Response, error)
+
+func (m httpMock) Do(req *http.Request) (*http.Response, error) {
+	return m(req)
 }

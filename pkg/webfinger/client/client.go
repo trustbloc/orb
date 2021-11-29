@@ -60,13 +60,22 @@ func New(opts ...Option) *Client {
 	client.ledgerTypeCache = gcache.New(client.cacheSize).
 		Expiration(client.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			return client.getLedgerType(key.(string))
+			lt, err := client.getLedgerType(key.(string))
+			if err != nil {
+				logger.Debugf("failed to load ledger type for domain '%s' into cache: %s", key.(string), err.Error())
+
+				return nil, err
+			}
+
+			logger.Debugf("loaded ledger type for domain '%s' into cache: %s", key.(string), lt)
+
+			return lt, nil
 		}).Build()
 
 	return client
 }
 
-// GetLedgerType returns ledger type for domain.
+// GetLedgerType returns ledger type for VCT domain.
 func (c *Client) GetLedgerType(domain string) (string, error) {
 	ledgerTypeObj, err := c.ledgerTypeCache.Get(domain)
 	if err != nil {
@@ -76,11 +85,13 @@ func (c *Client) GetLedgerType(domain string) (string, error) {
 	return ledgerTypeObj.(string), nil
 }
 
-// GetLedgerType returns ledger type for domain.
+// GetLedgerType returns ledger type.
 func (c *Client) getLedgerType(domain string) (string, error) {
-	jrd, err := c.ResolveWebFingerResource(domain, fmt.Sprintf("%s/vct", domain))
+	resource := fmt.Sprintf("%s/vct", domain)
+
+	jrd, err := c.ResolveWebFingerResource(domain, resource)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve WebFinger resource: %w", err)
+		return "", fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", resource, err)
 	}
 
 	ltRaw, ok := jrd.Properties[command.LedgerType]
@@ -90,7 +101,7 @@ func (c *Client) getLedgerType(domain string) (string, error) {
 
 	lt, ok := ltRaw.(string)
 	if !ok {
-		return "", fmt.Errorf("ledger type '%T' is not a string", ltRaw)
+		return "", fmt.Errorf("ledger type '%T' is not a string for Webfinger resource[%s]", ltRaw, resource)
 	}
 
 	return lt, nil
