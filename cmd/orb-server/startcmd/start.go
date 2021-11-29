@@ -674,8 +674,9 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay,
-		)),
+			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc,
+			parameters.maxWitnessDelay, anchorLinkStore),
+		),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
 		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
