@@ -267,6 +267,18 @@ func newMetrics() *Metrics { //nolint:funlen
 		prometheus.MustRegister(c)
 	}
 
+	for _, c := range m.dbBatchTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbDeleteTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.dbQueryTimes {
+		prometheus.MustRegister(c)
+	}
+
 	for _, c := range m.apOutboxActivityCounts {
 		prometheus.MustRegister(c)
 	}
