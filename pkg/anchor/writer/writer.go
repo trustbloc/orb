@@ -240,13 +240,13 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 
 	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
 
-	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index().String(), anchor)
+	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index(), anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(anchorEvent, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for anchor event %s: %w",
-			anchorEvent.URL(), err)
+			anchorEvent.Index(), err)
 	}
 
 	return nil
