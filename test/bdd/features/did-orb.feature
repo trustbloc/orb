@@ -364,6 +364,9 @@ Feature:
 
     Then client verifies resolved document
 
+    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check success response does NOT contain "canonicalId"
+
     Then mis-configured client fails to verify resolved document
 
     Then we wait 6 seconds
