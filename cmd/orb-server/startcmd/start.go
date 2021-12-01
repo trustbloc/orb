@@ -845,6 +845,7 @@ func startOrbServices(parameters *orbParameters) error {
 			ResourceRegistry: resourceRegistry,
 			CAS:              coreCASClient,
 			AnchorLinkStore:  anchorLinkStore,
+			WebfingerClient:  wfClient,
 		})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)

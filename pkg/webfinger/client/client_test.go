@@ -208,7 +208,9 @@ func TestHasSupportedLedgerType(t *testing.T) {
 	t.Run("success - no ledger type not found", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{}`),
+				),
 				StatusCode: http.StatusOK,
 			}, nil
 		})

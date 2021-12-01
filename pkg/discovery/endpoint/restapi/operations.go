@@ -16,11 +16,13 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/vct/pkg/controller/command"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/multihash"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
+	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
 var logger = log.New("discovery-rest")
@@ -39,6 +41,7 @@ const (
 	alternateRelation = "alternate"
 	viaRelation       = "via"
 	serviceRelation   = "service"
+	vctRelation       = "vct"
 
 	ldJSONType    = "application/ld+json"
 	jrdJSONType   = "application/jrd+json"
@@ -65,6 +68,10 @@ type anchorLinkStore interface {
 
 type anchorInfoRetriever interface {
 	GetAnchorInfo(resource string) (*AnchorInfo, error)
+}
+
+type webfingerClient interface {
+	GetLedgerType(domain string) (string, error)
 }
 
 // New returns discovery operations.
@@ -95,6 +102,7 @@ func New(c *Config, p *Providers) (*Operation, error) {
 		anchorInfoRetriever:       NewAnchorInfoRetriever(p.ResourceRegistry),
 		cas:                       p.CAS,
 		anchorStore:               p.AnchorLinkStore,
+		wfClient:                  p.WebfingerClient,
 	}, nil
 }
 
@@ -116,6 +124,7 @@ type Operation struct {
 	discoveryMinimumResolvers int
 	cas                       cas
 	anchorStore               anchorLinkStore
+	wfClient                  webfingerClient
 }
 
 // Config defines configuration for discovery operations.
@@ -138,6 +147,7 @@ type Providers struct {
 	ResourceRegistry *registry.Registry
 	CAS              cas
 	AnchorLinkStore  anchorLinkStore
+	WebfingerClient  webfingerClient
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
@@ -269,6 +279,8 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		writeResponse(rw, resp, http.StatusOK)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
+	case strings.HasPrefix(resource, fmt.Sprintf("%s/vct", o.baseURL)):
+		o.handleVCTQuery(rw, resource)
 	case strings.HasPrefix(resource, "did:orb:"):
 		o.handleDIDOrbQuery(rw, resource)
 	// TODO (#536): Support resources other than did:orb.
@@ -320,6 +332,39 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 			Type: didLDJSONType,
 			Href: fmt.Sprintf("%s%s%s", discoveryDomain, "/sidetree/v1/identifiers/", did),
 		})
+	}
+
+	writeResponse(rw, resp, http.StatusOK)
+}
+
+func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
+	resp := &JRD{
+		Subject: resource,
+	}
+
+	if o.vctURL != "" {
+		resp.Links = append(resp.Links, Link{
+			Rel:  vctRelation,
+			Type: jrdJSONType,
+			Href: o.vctURL,
+		})
+
+		lt, err := o.wfClient.GetLedgerType(o.vctURL)
+		if err != nil {
+			if errors.Is(err, model.ErrResourceNotFound) {
+				writeResponse(rw, resp, http.StatusOK)
+			} else {
+				logger.Warnf("Error retrieving ledger type from VCT[%s]: %s", o.vctURL, err)
+
+				writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving ledger type from VCT")
+			}
+
+			return
+		}
+
+		resp.Properties = map[string]interface{}{
+			command.LedgerType: lt,
+		}
 	}
 
 	writeResponse(rw, resp, http.StatusOK)
