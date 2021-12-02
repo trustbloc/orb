@@ -435,7 +435,49 @@ func (r *ResolveHandler) resolveDocumentFromCreateDocumentStore(id string) (*doc
 		return nil, err
 	}
 
+	if rr.Document.ID() == id {
+		return &rr, nil
+	}
+
+	// document is requested with different ID than ID used in create response
+	// for created document equivalent ID (with https hint) is also valid ID
+
+	equivalentID := getEquivalentID(rr.DocumentMetadata)
+	if equivalentID != id {
+		logger.Debugf("requested id[%s] does not match create id[%s] or equivalent id[%s] for created document", id, rr.Document.ID(), equivalentID) //nolint:lll
+
+		return nil, fmt.Errorf("requested id[%s] does not match create id[%s] or equivalent id[%s] for created document", id, rr.Document.ID(), equivalentID) //nolint:lll
+	}
+
+	// id matches equivalent ID - replace all occurrences of ID with equivalent ID
+	docWithEquivalentID := strings.ReplaceAll(string(createDocBytes), rr.Document.ID(), equivalentID)
+
+	err = json.Unmarshal([]byte(docWithEquivalentID), &rr)
+	if err != nil {
+		logger.Warnf("failed to marshal document with equivalent id[%s] from create document store: %s", id, err.Error())
+
+		return nil, err
+	}
+
 	return &rr, nil
+}
+
+func getEquivalentID(metadata document.Metadata) string {
+	equivalentIdsObj, ok := metadata[document.EquivalentIDProperty]
+	if !ok {
+		return ""
+	}
+
+	equivalentIds, ok := equivalentIdsObj.([]interface{})
+	if !ok {
+		return ""
+	}
+
+	if len(equivalentIds) > 0 {
+		return equivalentIds[0].(string)
+	}
+
+	return ""
 }
 
 func (r *ResolveHandler) requestDiscovery(did string) {
