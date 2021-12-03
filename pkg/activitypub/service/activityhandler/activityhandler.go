@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/pkg/activitypub/client"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -48,6 +49,7 @@ type Config struct {
 
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
+	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
 }
 
 type undoFunc func(activity *vocab.ActivityType) error

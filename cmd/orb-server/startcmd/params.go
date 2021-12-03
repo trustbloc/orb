@@ -33,6 +33,7 @@ const (
 	defaultUnpublishedOperationLifespan = time.Minute * 5
 	defaultTaskMgrCheckInterval         = 10 * time.Second
 	defaultDataExpiryCheckInterval      = time.Minute
+	defaultAnchorSyncInterval           = time.Minute
 	mqDefaultMaxConnectionSubscriptions = 1000
 
 	defaultFollowAuthType        = acceptAllPolicy
@@ -410,6 +411,13 @@ const (
 		"Currently this setting only applies if you're using MongoDB. " +
 		commonEnvVarUsageText + httpDialTimeoutEnvKey
 
+	anchorSyncIntervalFlagName      = "sync-interval"
+	anchorSyncIntervalFlagShorthand = "S"
+	anchorSyncIntervalEnvKey        = "ANCHOR_EVENT_SYNC_INTERVAL"
+	anchorSyncIntervalFlagUsage     = "The interval in which anchor events are synchronized with other services that " +
+		"this service is following. Defaults to 1m if not set. " +
+		commonEnvVarUsageText + anchorSyncIntervalEnvKey
+
 	// TODO: Update verification method
 )
 
@@ -486,6 +494,7 @@ type orbParameters struct {
 	inviteWitnessAuthPolicy        acceptRejectPolicy
 	followAuthPolicy               acceptRejectPolicy
 	taskMgrCheckInterval           time.Duration
+	syncPeriod                     time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -908,6 +917,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	syncPeriod, err := getDuration(cmd, anchorSyncIntervalFlagName, anchorSyncIntervalEnvKey, defaultAnchorSyncInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorSyncIntervalFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -964,6 +978,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		taskMgrCheckInterval:           taskMgrCheckInterval,
 		httpDialTimeout:                httpDialTimeout,
 		httpTimeout:                    httpTimeout,
+		syncPeriod:                     syncPeriod,
 	}, nil
 }
 
@@ -1346,4 +1361,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyFlagShorthand, "", inviteWitnessAuthPolicyFlagUsage)
 	startCmd.Flags().StringP(httpTimeoutFlagName, "", "", httpTimeoutFlagUsage)
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
+	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
 }

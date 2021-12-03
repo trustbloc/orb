@@ -1042,6 +1042,7 @@ func TestWriter_handle(t *testing.T) {
 			AnchorEventStore: anchorEventStore,
 			VCStore:          vcStore,
 			DocumentLoader:   testutil.GetLoader(t),
+			WitnessStore:     &mockWitnessStore{},
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,

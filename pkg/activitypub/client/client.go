@@ -9,6 +9,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -55,11 +56,18 @@ type ReferenceIterator interface {
 type ActivityIterator interface {
 	// Next returns the next activity or the ErrNotFound error if no more items are available.
 	Next() (*vocab.ActivityType, error)
+	// NextPage advances to the next page. If there are no more pages then an ErrNotFound error is returned.
+	NextPage() (*url.URL, error)
+	// SetNextIndex sets the index of the next activity within the current page that Next will return.
+	SetNextIndex(int)
 	// TotalItems returns the total number of items available at the moment the iterator was created.
 	// This value remains constant throughout the lifetime of the iterator.
 	TotalItems() int
 	// CurrentPage returns the ID of the current page that the iterator is processing.
 	CurrentPage() *url.URL
+	// NextIndex returns the next index of the current page that will be processed. This function does not
+	// advance the iterator.
+	NextIndex() int
 }
 
 type httpTransport interface {
@@ -418,6 +426,31 @@ func newActivityIterator(items []*vocab.ActivityType, currentPage, nextPage *url
 
 func (it *activityIterator) CurrentPage() *url.URL {
 	return it.currentPage
+}
+
+func (it *activityIterator) SetNextIndex(index int) {
+	it.numProcessed += index - it.currentIndex
+	it.currentIndex = index
+}
+
+func (it *activityIterator) NextIndex() int {
+	return it.currentIndex
+}
+
+func (it *activityIterator) NextPage() (*url.URL, error) {
+	unprocessedCount := len(it.currentItems) - it.currentIndex
+
+	if err := it.getNextPage(); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			it.numProcessed += unprocessedCount
+		}
+
+		return nil, err
+	}
+
+	it.numProcessed += unprocessedCount
+
+	return it.CurrentPage(), nil
 }
 
 func (it *activityIterator) Next() (*vocab.ActivityType, error) {

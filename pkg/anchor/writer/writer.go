@@ -485,20 +485,6 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 		return fmt.Errorf("publish anchor event[%s] ref [%s]: %w", anchorEvent.Index(), anchorEventRef, err)
 	}
 
-	logger.Debugf("posted anchor event[%s] ref[%s] to anchor channel",
-		anchorEvent.Index(), anchorEventRef)
-
-	// announce anchor credential activity to followers
-	err = c.postCreateActivity(anchorEvent, anchorEventRef)
-	if err != nil {
-		logger.Warnf("failed to post new create activity for anchor event[%s] ref[%s]: %s",
-			anchorEvent.Index(), anchorEventRef, err.Error())
-
-		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
-		return fmt.Errorf("post create activity for anchor event[%s] ref[%s]: %w",
-			anchorEvent.Index(), anchorEventRef, err)
-	}
-
 	err = c.WitnessStore.Delete(anchorEvent.Index().String())
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
@@ -510,6 +496,19 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
 		logger.Warnf("failed to delete anchor event[%s]: %s", anchorEvent.Index(), err.Error())
+	}
+
+	logger.Debugf("Posting anchor event[%s] ref[%s] to my followers.", anchorEvent.Index(), anchorEventRef)
+
+	// announce anchor credential activity to followers
+	err = c.postCreateActivity(anchorEvent, anchorEventRef)
+	if err != nil {
+		logger.Warnf("failed to post new create activity for anchor event[%s] ref[%s]: %s",
+			anchorEvent.Index(), anchorEventRef, err.Error())
+
+		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
+		return fmt.Errorf("post create activity for anchor event[%s] ref[%s]: %w",
+			anchorEvent.Index(), anchorEventRef, err)
 	}
 
 	return nil
@@ -577,7 +576,7 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 		return err
 	}
 
-	logger.Debugf("created activity id [%s]", postID)
+	logger.Debugf("Successfully posted 'Create' activity to my followers [%s]", postID)
 
 	return nil
 }

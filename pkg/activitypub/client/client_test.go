@@ -1014,6 +1014,73 @@ func TestClient_GetActivities(t *testing.T) {
 		})
 	})
 
+	t.Run("NextPage and SetNextIndex -> Success", func(t *testing.T) {
+		collBytes, e := json.Marshal(aptestutil.NewMockCollection(collIRI, first, last, len(outboxActivities)))
+		require.NoError(t, e)
+
+		httpClient := &mocks.HTTPTransport{}
+
+		rw1 := httptest.NewRecorder()
+
+		_, e = rw1.Write(collBytes)
+		require.NoError(t, e)
+
+		rw2 := httptest.NewRecorder()
+
+		_, e = rw2.Write(collPage1Bytes)
+		require.NoError(t, e)
+
+		rw3 := httptest.NewRecorder()
+
+		_, e = rw3.Write(collPage2Bytes)
+		require.NoError(t, e)
+
+		result1 := rw1.Result()
+		result2 := rw2.Result()
+		result3 := rw3.Result()
+
+		httpClient.GetReturnsOnCall(0, result1, nil)
+		httpClient.GetReturnsOnCall(1, result2, nil)
+		httpClient.GetReturnsOnCall(2, result3, nil)
+
+		c := New(Config{}, httpClient)
+		require.NotNil(t, t, c)
+
+		it, e := c.GetActivities(collIRI, Forward)
+		require.NoError(t, e)
+		require.NotNil(t, it)
+		require.Equal(t, len(outboxActivities), it.TotalItems())
+
+		// Move to the next page (which should be the first page since we're starting with a collection).
+		nextPage, err := it.NextPage()
+		require.NoError(t, err)
+		require.NotNil(t, nextPage)
+		require.Equal(t, page0.String(), nextPage.String())
+		require.Equal(t, 0, it.(*activityIterator).numProcessed)
+
+		// Move to the next page.
+		nextPage, err = it.NextPage()
+		require.NoError(t, err)
+		require.NotNil(t, nextPage)
+		require.Equal(t, page1.String(), nextPage.String())
+		require.Equal(t, 3, it.(*activityIterator).numProcessed)
+
+		it.SetNextIndex(1)
+
+		require.Equal(t, 1, it.NextIndex())
+
+		activities, e := ReadActivities(it, -1)
+		require.NoError(t, e)
+		require.Len(t, activities, 1)
+		require.Equal(t, outboxActivities[4].ID().String(), activities[0].ID().String())
+
+		require.Equal(t, page1.String(), it.CurrentPage().String())
+
+		require.NoError(t, result1.Body.Close())
+		require.NoError(t, result2.Body.Close())
+		require.NoError(t, result3.Body.Close())
+	})
+
 	t.Run("HTTP client error", func(t *testing.T) {
 		errExpected := fmt.Errorf("injected HTTP client error")
 

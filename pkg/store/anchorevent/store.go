@@ -8,6 +8,7 @@ package anchorevent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -69,6 +70,10 @@ func (s *Store) Put(anchorEvent *vocab.AnchorEventType) error {
 func (s *Store) Get(id string) (*vocab.AnchorEventType, error) {
 	anchorEventBytes, err := s.store.Get(id)
 	if err != nil {
+		if errors.Is(err, storage.ErrDataNotFound) {
+			return nil, orberrors.ErrContentNotFound
+		}
+
 		return nil, orberrors.NewTransient(fmt.Errorf("failed to get anchor event: %w", err))
 	}
 

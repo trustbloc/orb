@@ -39,7 +39,7 @@ func TestNewInbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -59,7 +59,7 @@ func TestNewOutbox(t *testing.T) {
 		BufferSize:  100,
 	}
 
-	h := NewOutbox(cfg, &servicemocks.ActivityStore{}, servicemocks.NewActorRetriever())
+	h := NewOutbox(cfg, &servicemocks.ActivityStore{}, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	require.Equal(t, lifecycle.StateNotStarted, h.State())
@@ -83,7 +83,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
 	}
 
-	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -119,7 +119,8 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 	require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(), spi.WithAnchorEventHandler(anchorEventHandler))
+	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
+		spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -242,7 +243,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 
 	activityStore := memstore.New(cfg.ServiceName)
 
-	h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
+	h := NewOutbox(cfg, activityStore, servicemocks.NewActivitPubClient())
 
 	h.Start()
 	defer h.Stop()
@@ -306,7 +307,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		s := &servicemocks.ActivityStore{}
 		s.AddReferenceReturns(errExpected)
 
-		obHandler := NewOutbox(cfg, s, servicemocks.NewActorRetriever())
+		obHandler := NewOutbox(cfg, s, servicemocks.NewActivitPubClient())
 
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
@@ -336,7 +337,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	apClient := servicemocks.NewActorRetriever().
+	apClient := servicemocks.NewActivitPubClient().
 		WithActor(vocab.NewService(service2IRI)).
 		WithActor(vocab.NewService(service3IRI))
 
@@ -510,7 +511,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	apClient := servicemocks.NewActorRetriever().
+	apClient := servicemocks.NewActivitPubClient().
 		WithActor(vocab.NewService(service2IRI)).
 		WithActor(vocab.NewService(service3IRI))
 
@@ -688,7 +689,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -874,7 +875,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := &servicemocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -960,7 +961,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := &servicemocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1065,7 +1066,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActorRetriever())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
 	require.NotNil(t, h)
 
 	h.Start()
@@ -1236,7 +1237,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 	anchorEventHandler := servicemocks.NewAnchorEventHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActivitPubClient(),
 		spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
@@ -1465,7 +1466,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		apStore.QueryReferencesReturns(memstore.NewReferenceIterator(nil, 0), nil)
 		apStore.AddReferenceReturnsOnCall(1, errExpected)
 
-		ib := NewInbox(cfg, apStore, &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
+		ib := NewInbox(cfg, apStore, &servicemocks.Outbox{}, servicemocks.NewActivitPubClient(),
 			spi.WithAnchorEventHandler(anchorEventHandler))
 		require.NotNil(t, ib)
 
@@ -1498,7 +1499,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 	witness := servicemocks.NewWitnessHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, servicemocks.NewActorRetriever(), spi.WithWitness(witness))
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), ob, servicemocks.NewActivitPubClient(), spi.WithWitness(witness))
 	require.NotNil(t, h)
 
 	require.NoError(t, h.store.AddReference(store.Witnessing, h.ServiceIRI, service1IRI))
@@ -1700,7 +1701,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 	proofHandler := servicemocks.NewProofHandler()
 
-	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActorRetriever(),
+	h := NewInbox(cfg, memstore.New(cfg.ServiceName), &servicemocks.Outbox{}, servicemocks.NewActivitPubClient(),
 		spi.WithProofHandler(proofHandler))
 	require.NotNil(t, h)
 
@@ -2131,7 +2132,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 		ob := servicemocks.NewOutbox().WithError(errExpected)
 
-		inboxHandler := NewInbox(inboxCfg, s, ob, servicemocks.NewActorRetriever())
+		inboxHandler := NewInbox(inboxCfg, s, ob, servicemocks.NewActivitPubClient())
 		require.NotNil(t, inboxHandler)
 
 		undo := vocab.NewUndoActivity(
@@ -2715,7 +2716,7 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
 				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
@@ -2735,7 +2736,7 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 
 			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
 				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
@@ -2764,7 +2765,7 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service3IRI))
 			require.NoError(t, activityStore.AddReference(store.Follower, service2IRI, service1IRI))
 
-			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
 				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
@@ -2793,7 +2794,7 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 
 			ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(),
+			h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
 				spi.WithAnchorEventHandler(anchorEventHandler))
 			require.NotNil(t, h)
 
@@ -2829,7 +2830,8 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	activityStore := memstore.New(cfg.ServiceName)
 	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
 
-	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActorRetriever(), spi.WithAnchorEventHandler(anchorEventHandler))
+	h := NewInbox(cfg, activityStore, ob, servicemocks.NewActivitPubClient(),
+		spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -2920,7 +2922,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		errExpected := errors.New("injected handler error")
 
 		h := NewInbox(cfg, activityStore, ob,
-			servicemocks.NewActorRetriever(),
+			servicemocks.NewActivitPubClient(),
 			spi.WithAnchorEventHandler(servicemocks.NewAnchorEventHandler()),
 			spi.WithAnchorEventAcknowledgementHandler(
 				servicemocks.NewAnchorEventAcknowledgementHandler().
@@ -2944,7 +2946,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		activityStore.AddReferenceReturns(errExpected)
 
 		h := NewInbox(cfg, activityStore, ob,
-			servicemocks.NewActorRetriever(),
+			servicemocks.NewActivitPubClient(),
 			spi.WithAnchorEventHandler(anchorEventHandler),
 		)
 		require.NotNil(t, h)
@@ -2977,7 +2979,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 
 	activityStore := memstore.New(cfg.ServiceName)
 
-	h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
+	h := NewOutbox(cfg, activityStore, servicemocks.NewActivitPubClient())
 
 	h.Start()
 	defer h.Stop()
@@ -3037,7 +3039,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 		activityStore := &servicemocks.ActivityStore{}
 		activityStore.AddReferenceReturns(errExpected)
 
-		h := NewOutbox(cfg, activityStore, servicemocks.NewActorRetriever())
+		h := NewOutbox(cfg, activityStore, servicemocks.NewActivitPubClient())
 
 		h.Start()
 		defer h.Stop()
@@ -3092,7 +3094,7 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 		ServiceIRI:  outboxServiceIRI,
 	}
 
-	apClient := servicemocks.NewActorRetriever()
+	apClient := servicemocks.NewActivitPubClient()
 
 	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), servicemocks.NewOutbox(), apClient)
 	require.NotNil(t, inboxHandler)

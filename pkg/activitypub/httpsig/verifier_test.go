@@ -45,7 +45,7 @@ func TestNewVerifier(t *testing.T) {
 		vocab.WithPublicKeyPem(string(pubKeyPem)),
 	)
 
-	retriever := servicemocks.NewActorRetriever().
+	retriever := servicemocks.NewActivitPubClient().
 		WithPublicKey(publicKey).
 		WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(publicKey)))
 
@@ -76,7 +76,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		vocab.WithPublicKeyPem(string(pubKeyPem)),
 	)
 
-	retriever := servicemocks.NewActorRetriever().
+	retriever := servicemocks.NewActivitPubClient().
 		WithPublicKey(publicKey).
 		WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(publicKey)))
 
@@ -169,7 +169,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 
 	t.Run("Actor not found -> error", func(t *testing.T) {
 		v := &Verifier{
-			actorRetriever: servicemocks.NewActorRetriever().WithPublicKey(publicKey),
+			actorRetriever: servicemocks.NewActivitPubClient().WithPublicKey(publicKey),
 			verifier:       func() verifier { return &mocks.HTTPSignatureVerifier{} },
 		}
 
@@ -187,7 +187,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 
 	t.Run("Actor nil public key -> error", func(t *testing.T) {
 		v := &Verifier{
-			actorRetriever: servicemocks.NewActorRetriever().
+			actorRetriever: servicemocks.NewActivitPubClient().
 				WithPublicKey(publicKey).
 				WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(nil))),
 			verifier: func() verifier { return &mocks.HTTPSignatureVerifier{} },
@@ -212,7 +212,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		)
 
 		v := &Verifier{
-			actorRetriever: servicemocks.NewActorRetriever().
+			actorRetriever: servicemocks.NewActivitPubClient().
 				WithPublicKey(publicKey).
 				WithActor(aptestutil.NewMockService(actorIRI, aptestutil.WithPublicKey(actorPublicKey))),
 			verifier: func() verifier { return &mocks.HTTPSignatureVerifier{} },

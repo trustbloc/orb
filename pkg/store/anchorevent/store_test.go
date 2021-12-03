@@ -13,9 +13,11 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -106,6 +108,19 @@ func TestStore_Get(t *testing.T) {
 		vc, err := s.Get("vc1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error get")
+		require.Nil(t, vc)
+	})
+
+	t.Run("ErrDataNotFound from store get", func(t *testing.T) {
+		storeProvider := &mockstore.Provider{OpenStoreReturn: &mockstore.Store{
+			ErrGet: storage.ErrDataNotFound,
+		}}
+
+		s, err := New(storeProvider, testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		vc, err := s.Get("vc1")
+		require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
 		require.Nil(t, vc)
 	})
 
