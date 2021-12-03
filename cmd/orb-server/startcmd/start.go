@@ -74,6 +74,7 @@ import (
 	apservice "github.com/trustbloc/orb/pkg/activitypub/service"
 	"github.com/trustbloc/orb/pkg/activitypub/service/acceptlist"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
+	"github.com/trustbloc/orb/pkg/activitypub/service/anchorsynctask"
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
@@ -664,19 +665,32 @@ func startOrbServices(parameters *orbParameters) error {
 		observer.WithSubscriberPoolSize(parameters.observerQueuePoolSize),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create observer: %s", err.Error())
+		return fmt.Errorf("failed to create observer: %w", err)
 	}
 
 	anchorEventHandler := acknowlegement.New(anchorLinkStore)
+
+	err = anchorsynctask.Register(
+		anchorsynctask.Config{
+			ServiceIRI: apServiceIRI,
+			Interval:   parameters.syncPeriod,
+		},
+		taskMgr, apClient, apStore, storeProviders.provider,
+		func() apspi.InboxHandler {
+			return activityPubService.InboxHandler()
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to register anchor sync task: %w", err)
+	}
 
 	activityPubService, err = apservice.New(apConfig,
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc,
-			parameters.maxWitnessDelay, anchorLinkStore),
-		),
+			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
+		)),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
 		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),

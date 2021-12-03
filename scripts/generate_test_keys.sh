@@ -26,7 +26,8 @@ DNS.3 = orb2.domain1.com
 DNS.4 = orb.domain2.com
 DNS.5 = orb.domain3.com
 DNS.6 = orb.domain4.com
-DNS.7 = orb.file-server.com" >> "$tmp"
+DNS.7 = orb.domain5.com
+DNS.8 = orb.file-server.com" >> "$tmp"
 
 #create CA
 openssl ecparam -name prime256v1 -genkey -noout -out test/bdd/fixtures/keys/tls/ec-cakey.pem

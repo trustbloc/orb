@@ -23,8 +23,6 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var errDuplicateAnchorEvent = errors.New("anchor event already handled")
-
 // Inbox handles activities posted to the inbox.
 type Inbox struct {
 	*handler
@@ -79,7 +77,7 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
-		return h.handleCreateActivity(activity)
+		return h.HandleCreateActivity(activity, true)
 	case typeProp.Is(vocab.TypeFollow):
 		return h.handleFollowActivity(activity)
 	case typeProp.Is(vocab.TypeInvite):
@@ -89,7 +87,7 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 	case typeProp.Is(vocab.TypeReject):
 		return h.handleRejectActivity(activity)
 	case typeProp.Is(vocab.TypeAnnounce):
-		return h.handleAnnounceActivity(activity)
+		return h.HandleAnnounceActivity(activity)
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
 	case typeProp.Is(vocab.TypeLike):
@@ -101,7 +99,8 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 	}
 }
 
-func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
+// HandleCreateActivity handles a 'Create' ActivityPub activity.
+func (h *Inbox) HandleCreateActivity(create *vocab.ActivityType, announce bool) error {
 	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
 
 	if !create.Object().Type().Is(vocab.TypeAnchorEvent) {
@@ -116,9 +115,9 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 	}
 
 	if anchorEvent.Index() != nil {
-		err = h.handleEmbeddedAnchorEvent(create, anchorEvent)
+		err = h.handleEmbeddedAnchorEvent(create, anchorEvent, announce)
 	} else {
-		err = h.handleAnchorEventRef(create, anchorEvent.URL()[0])
+		err = h.handleAnchorEventRef(create, anchorEvent.URL()[0], announce)
 	}
 
 	if err != nil {
@@ -130,7 +129,8 @@ func (h *Inbox) handleCreateActivity(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType, anchorEvent *vocab.AnchorEventType) error {
+func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType,
+	anchorEvent *vocab.AnchorEventType, announce bool) error {
 	if len(anchorEvent.URL()) == 0 {
 		return errors.New("missing anchor event URL")
 	}
@@ -139,22 +139,26 @@ func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType, anchorEven
 		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 	}
 
-	if err := h.announceAnchorEvent(create); err != nil {
-		logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
-			h.ServiceIRI, create.ID(), err)
+	if announce {
+		if err := h.announceAnchorEvent(create); err != nil {
+			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+				h.ServiceIRI, create.ID(), err)
+		}
 	}
 
 	return nil
 }
 
-func (h *Inbox) handleAnchorEventRef(create *vocab.ActivityType, anchorEventURL *url.URL) error {
+func (h *Inbox) handleAnchorEventRef(create *vocab.ActivityType, anchorEventURL *url.URL, announce bool) error {
 	if err := h.handleAnchorEventReference(create.Actor(), anchorEventURL); err != nil {
 		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 	}
 
-	if err := h.announceAnchorEventRef(create); err != nil {
-		logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
-			h.ServiceIRI, create.ID(), err)
+	if announce {
+		if err := h.announceAnchorEventRef(create); err != nil {
+			logger.Warnf("[%s] Unable to announce 'Create' activity [%s] to our followers: %s",
+				h.ServiceIRI, create.ID(), err)
+		}
 	}
 
 	return nil
@@ -177,7 +181,7 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 	}
 
 	if hasRef {
-		logger.Infof("[%s] Actor %s already has %s in its %s collection. Replying with 'Accept' activity.",
+		logger.Debugf("[%s] Actor %s already has %s in its %s collection. Replying with 'Accept' activity.",
 			h.ServiceName, actorIRI, h.ServiceIRI, refType)
 
 		return h.postAccept(activity, actorIRI)
@@ -194,12 +198,12 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 	}
 
 	if accept {
-		logger.Infof("[%s] Request for %s to activity %s has been accepted", h.ServiceName, h.ServiceIRI, actor.ID())
+		logger.Debugf("[%s] Request for %s to activity %s has been accepted", h.ServiceName, h.ServiceIRI, actor.ID())
 
 		return h.acceptActor(activity, actor, refType)
 	}
 
-	logger.Infof("[%s] Request for %s to activity %s has been rejected. Replying with 'Reject' activity",
+	logger.Debugf("[%s] Request for %s to activity %s has been rejected. Replying with 'Reject' activity",
 		h.ServiceName, actorIRI, h.ServiceIRI)
 
 	return h.postReject(activity, actorIRI)
@@ -443,8 +447,9 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 	return true, nil
 }
 
-func (h *Inbox) handleAnnounceActivity(announce *vocab.ActivityType) error {
-	logger.Infof("[%s] Handling 'Announce' activity: %s", h.ServiceName, announce.ID())
+// HandleAnnounceActivity handles an 'Announce' ActivityPub activity.
+func (h *Inbox) HandleAnnounceActivity(announce *vocab.ActivityType) error {
+	logger.Debugf("[%s] Handling 'Announce' activity: %s", h.ServiceName, announce.ID())
 
 	obj := announce.Object()
 
@@ -471,7 +476,7 @@ func (h *Inbox) handleAnnounceActivity(announce *vocab.ActivityType) error {
 }
 
 func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
-	logger.Infof("[%s] Handling 'Offer' activity: %s", h.ServiceName, offer.ID())
+	logger.Debugf("[%s] Handling 'Offer' activity: %s", h.ServiceName, offer.ID())
 
 	err := h.validateOfferActivity(offer)
 	if err != nil {
@@ -533,7 +538,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 }
 
 func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) error {
-	logger.Infof("[%s] Handling 'Accept' offer activity: %s", h.ServiceName, accept.ID())
+	logger.Debugf("[%s] Handling 'Accept' offer activity: %s", h.ServiceName, accept.ID())
 
 	err := h.validateAcceptOfferActivity(accept)
 	if err != nil {
@@ -581,7 +586,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 	}
 
 	if ok {
-		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, errDuplicateAnchorEvent)
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, service.ErrDuplicateAnchorEvent)
 	}
 
 	// Create a new anchor event without the URL property since this data is an add-on that's only used by
@@ -599,7 +604,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.Index())
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEventRef)
 
 	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
 	if err != nil {
@@ -617,7 +622,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error
 	}
 
 	if ok {
-		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, errDuplicateAnchorEvent)
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, service.ErrDuplicateAnchorEvent)
 	}
 
 	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, nil)
@@ -636,7 +641,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error
 }
 
 func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*vocab.ObjectProperty) error { //nolint:gocyclo,cyclop,lll
-	logger.Infof("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
+	logger.Debugf("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
 
 	var anchorEventIDs []*url.URL
 
@@ -657,22 +662,22 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 		if anchorEvent.Index() != nil { //nolint:nestif
 			if err := h.handleAnchorEvent(announce.Actor(), anchorEvent); err != nil {
 				// Continue processing other anchor events on duplicate error.
-				if !errors.Is(err, errDuplicateAnchorEvent) {
+				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
 					return err
 				}
 
-				logger.Infof("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
+				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
 			} else {
 				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
 			}
 		} else {
 			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0]); err != nil {
 				// Continue processing other anchor events on duplicate error.
-				if !errors.Is(err, errDuplicateAnchorEvent) {
+				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
 					return err
 				}
 
-				logger.Infof("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
+				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
 			} else {
 				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
 			}
@@ -696,7 +701,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 }
 
 func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
-	logger.Infof("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+	logger.Debugf("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
 
 	if err := h.validateLikeActivity(like); err != nil {
 		return fmt.Errorf("invalid 'Like' activity [%s]: %w", like.ID(), err)
@@ -1043,7 +1048,7 @@ type noOpAnchorEventAcknowledgementHandler struct{}
 
 func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
-	logger.Infof("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
+	logger.Debugf("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
 		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
 
 	return nil
@@ -1051,7 +1056,7 @@ func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, a
 
 func (p *noOpAnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
-	logger.Infof("Anchor event was undone by [%s] for anchor %s. Additional anchors: %s",
+	logger.Debugf("Anchor event was undone by [%s] for anchor %s. Additional anchors: %s",
 		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
 
 	return nil

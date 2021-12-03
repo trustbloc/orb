@@ -138,7 +138,7 @@ func TestKeyResolver_Resolve(t *testing.T) {
 	pubKeyPem, err := getPublicKeyPem(pubKey)
 	require.NoError(t, err)
 
-	pubKeyRetriever := servicemocks.NewActorRetriever().
+	pubKeyRetriever := servicemocks.NewActivitPubClient().
 		WithPublicKey(vocab.NewPublicKey(
 			vocab.WithID(pubKeyIRI),
 			vocab.WithPublicKeyPem(string(pubKeyPem)),
@@ -163,7 +163,7 @@ func TestKeyResolver_Resolve(t *testing.T) {
 	})
 
 	t.Run("Key retriever error", func(t *testing.T) {
-		resolver := NewKeyResolver(servicemocks.NewActorRetriever())
+		resolver := NewKeyResolver(servicemocks.NewActivitPubClient())
 		require.NotNil(t, resolver)
 
 		pk, err := resolver.Resolve(pubKeyIRI.String())
@@ -173,7 +173,7 @@ func TestKeyResolver_Resolve(t *testing.T) {
 	})
 
 	t.Run("Invalid public key", func(t *testing.T) {
-		pubKeyRetriever := servicemocks.NewActorRetriever().
+		pubKeyRetriever := servicemocks.NewActivitPubClient().
 			WithPublicKey(vocab.NewPublicKey(
 				vocab.WithID(pubKeyIRI),
 				vocab.WithPublicKeyPem("invalid key"),

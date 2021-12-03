@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 import (
+	"errors"
 	"net/url"
 	"time"
 
@@ -74,6 +75,15 @@ type ActivityHandler interface {
 
 	// Subscribe allows a client to receive published activities.
 	Subscribe() <-chan *vocab.ActivityType
+}
+
+// ErrDuplicateAnchorEvent indicates that the anchor event was already processed by the InboxHandler.
+var ErrDuplicateAnchorEvent = errors.New("anchor event already handled")
+
+// InboxHandler defines functions for handling Create and Announce activities.
+type InboxHandler interface {
+	HandleCreateActivity(create *vocab.ActivityType, announce bool) error
+	HandleAnnounceActivity(create *vocab.ActivityType) error
 }
 
 // UndeliverableActivityHandler handles undeliverable activities.

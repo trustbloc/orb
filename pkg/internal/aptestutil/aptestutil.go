@@ -141,11 +141,39 @@ func NewMockCreateActivities(num int) []*vocab.ActivityType {
 	return activities
 }
 
+// NewMockAnnounceActivities returns the given number of mock 'Announce' activities.
+func NewMockAnnounceActivities(num int) []*vocab.ActivityType {
+	activities := make([]*vocab.ActivityType, num)
+
+	for i := 0; i < num; i++ {
+		activities[i] = NewMockAnnounceActivity(
+			testutil.MustParseURL(fmt.Sprintf("https://create_%d", i)),
+			testutil.MustParseURL(fmt.Sprintf("https://obj_%d", i)),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(vocab.NewAnchorEvent())),
+		)
+	}
+
+	return activities
+}
+
 // NewMockCreateActivity returns a new mock Create activity.
 func NewMockCreateActivity(actorIRI, toIRI *url.URL, obj *vocab.ObjectProperty) *vocab.ActivityType {
 	published := time.Now()
 
 	return vocab.NewCreateActivity(
+		obj,
+		vocab.WithID(NewActivityID(actorIRI)),
+		vocab.WithActor(actorIRI),
+		vocab.WithTo(toIRI),
+		vocab.WithPublishedTime(&published),
+	)
+}
+
+// NewMockAnnounceActivity returns a new mock Announce activity.
+func NewMockAnnounceActivity(actorIRI, toIRI *url.URL, obj *vocab.ObjectProperty) *vocab.ActivityType {
+	published := time.Now()
+
+	return vocab.NewAnnounceActivity(
 		obj,
 		vocab.WithID(NewActivityID(actorIRI)),
 		vocab.WithActor(actorIRI),

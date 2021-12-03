@@ -185,7 +185,7 @@ func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
 		opt(options)
 	}
 
-	if options.PoolSize == 0 {
+	if options.PoolSize <= 1 {
 		logger.Debugf("Subscribing to topic [%s]", topic)
 
 		return p.subscriber.Subscribe(ctx, topic)

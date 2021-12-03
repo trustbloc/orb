@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ var localURLs = map[string]string{
 	"https://orb.domain2.com":  "https://localhost:48426",
 	"https://orb.domain3.com":  "https://localhost:48626",
 	"https://orb.domain4.com":  "https://localhost:48726",
+	"https://orb.domain5.com":  "https://localhost:49026",
 }
 
 var anchorOriginURLs = map[string]string{
@@ -74,6 +76,7 @@ var anchorOriginURLs = map[string]string{
 	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com",
 	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain3.com",
 	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com",
+	"https://localhost:49026/sidetree/v1/operations": "https://orb.domain5.com",
 }
 
 const addPublicKeysTemplate = `[
@@ -149,7 +152,8 @@ type DIDOrbSteps struct {
 	resolutionEndpoint string
 	operationEndpoint  string
 	sidetreeURL        string
-	dids               []string
+	createResponses    []*createDIDResponse
+	updateResponses    []*updateDIDResponse
 	httpClient         *httpClient
 	didPrintEnabled    bool
 }
@@ -986,7 +990,11 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 }
 
 func (d *DIDOrbSteps) getUniqueSuffix() (string, error) {
-	return hashing.CalculateModelMultihash(d.createRequest.SuffixData, sha2_256)
+	return getUniqueSuffix(d.createRequest.SuffixData)
+}
+
+func getUniqueSuffix(suffixData *model.SuffixDataModel) (string, error) {
+	return hashing.CalculateModelMultihash(suffixData, sha2_256)
 }
 
 func (d *DIDOrbSteps) getDeactivateRequest(did string) ([]byte, error) {
@@ -1021,8 +1029,10 @@ func (d *DIDOrbSteps) getLatestUpdateKey() *ecdsa.PrivateKey {
 }
 
 func (d *DIDOrbSteps) getUpdateRequest(did string, patches []patch.Patch) ([]byte, *ecdsa.PrivateKey, error) {
-	currentUpdateKey := d.getLatestUpdateKey()
+	return getUpdateRequest(did, d.getLatestUpdateKey(), patches)
+}
 
+func getUpdateRequest(did string, currentUpdateKey *ecdsa.PrivateKey, patches []patch.Patch) ([]byte, *ecdsa.PrivateKey, error) {
 	nextUpdateKey, nextUpdateCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, err
@@ -1186,7 +1196,7 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 
 	urls := strings.Split(strURLs, ",")
 
-	d.dids = nil
+	d.createResponses = nil
 
 	p := NewWorkerPool(concurrency)
 
@@ -1221,20 +1231,35 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 			return resp.Err
 		}
 
-		did := resp.Resp.(string)
-		logger.Infof("got DID from [%s]: %s", req.url, did)
-		d.dids = append(d.dids, did)
+		createResp := resp.Resp.(*createDIDResponse)
+
+		logger.Infof("got DID from [%s]: %s", req.url, createResp.did)
+
+		d.createResponses = append(d.createResponses, createResp)
 	}
 
 	return nil
 }
 
-func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
-	logger.Infof("Verifying the %d DID document(s) that were created", len(d.dids))
+func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurrency int) error {
+	num := len(d.createResponses)
+
+	logger.Infof("updating %d DID document(s) at %s using a concurrency of %d", num, strURLs, concurrency)
 
 	urls := strings.Split(strURLs, ",")
 
-	for i, did := range d.dids {
+	ptch, err := getAddPublicKeysPatch(keyID)
+	if err != nil {
+		return err
+	}
+
+	d.updateResponses = nil
+
+	p := NewWorkerPool(concurrency)
+
+	p.Start()
+
+	for i := 0; i < num; i++ {
 		randomURL := urls[mrand.Intn(len(urls))]
 
 		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
@@ -1242,20 +1267,234 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 			return err
 		}
 
-		if err := d.verifyDID(localURL, did); err != nil {
+		createResp := d.createResponses[i]
+
+		createReq := &model.CreateRequest{}
+		if err := json.Unmarshal(createResp.reqBytes, createReq); err != nil {
 			return err
 		}
 
-		logger.Infof("... verified %d out of %d DIDs", i+1, len(d.dids))
+		suffix, err := getUniqueSuffix(createReq.SuffixData)
+		if err != nil {
+			return err
+		}
+
+		p.Submit(&updateDIDRequest{
+			url:        localURL,
+			did:        createResp.did,
+			suffix:     suffix,
+			httpClient: d.httpClient,
+			suffixData: createReq.SuffixData,
+			updateKey:  createResp.updateKey,
+			patches:    []patch.Patch{ptch},
+		})
+	}
+
+	p.Stop()
+
+	logger.Infof("got %d responses for %d requests", len(p.responses), num)
+
+	if len(p.responses) != num {
+		return fmt.Errorf("expecting %d responses but got %d", num, len(p.responses))
+	}
+
+	for _, resp := range p.responses {
+		req := resp.Request.(*updateDIDRequest)
+		if resp.Err != nil {
+			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			return resp.Err
+		}
+
+		d.updateResponses = append(d.updateResponses, resp.Resp.(*updateDIDResponse))
 	}
 
 	return nil
 }
 
-func (d *DIDOrbSteps) verifyDID(url, did string) error {
+func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, concurrency int) error {
+	updateResponses := d.updateResponses
+
+	num := len(updateResponses)
+
+	logger.Infof("updating %d DID document(s) again at %s using a concurrency of %d",
+		num, strURLs, concurrency)
+
+	urls := strings.Split(strURLs, ",")
+
+	ptch, err := getAddPublicKeysPatch(keyID)
+	if err != nil {
+		return err
+	}
+
+	d.updateResponses = nil
+
+	p := NewWorkerPool(concurrency)
+
+	p.Start()
+
+	for i := 0; i < num; i++ {
+		randomURL := urls[mrand.Intn(len(urls))]
+
+		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
+		if err != nil {
+			return err
+		}
+
+		updateResp := updateResponses[i]
+
+		suffix, err := getUniqueSuffix(updateResp.suffixData)
+		if err != nil {
+			return err
+		}
+
+		p.Submit(&updateDIDRequest{
+			url:        localURL,
+			did:        updateResp.did,
+			suffix:     suffix,
+			httpClient: d.httpClient,
+			suffixData: updateResp.suffixData,
+			updateKey:  updateResp.updateKey,
+			patches:    []patch.Patch{ptch},
+		})
+	}
+
+	p.Stop()
+
+	logger.Infof("got %d responses for %d requests", len(p.responses), num)
+
+	if len(p.responses) != num {
+		return fmt.Errorf("expecting %d responses but got %d", num, len(p.responses))
+	}
+
+	for _, resp := range p.responses {
+		req := resp.Request.(*updateDIDRequest)
+		if resp.Err != nil {
+			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			return resp.Err
+		}
+
+		d.updateResponses = append(d.updateResponses, resp.Resp.(*updateDIDResponse))
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
+	logger.Infof("Verifying the %d DID document(s) that were created", len(d.createResponses))
+
+	urls := strings.Split(strURLs, ",")
+
+	for i, resp := range d.createResponses {
+		randomURL := urls[mrand.Intn(len(urls))]
+
+		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
+		if err != nil {
+			return err
+		}
+
+		canonicalID, err := d.verifyDID(localURL, resp.did)
+		if err != nil {
+			return err
+		}
+
+		d.createResponses[i].did = canonicalID
+
+		logger.Infof("... verified %d out of %d DIDs", i+1, len(d.createResponses))
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) error {
+	logger.Infof("Verifying the %d DID document(s) that were updated with key ID [%s]",
+		len(d.updateResponses), keyID)
+
+	urls := strings.Split(strURLs, ",")
+
+	const maxAttempts = 30
+
+	for i, resp := range d.updateResponses {
+		verified := false
+
+		var err error
+
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			err = d.doVerifyUpdatedDIDContainsKeyID(urls, resp.did, keyID)
+			if err != nil {
+				logger.Infof("... updated DID %s not verified on attempt %d: %s", resp.did, attempt, err)
+
+				time.Sleep(5 * time.Second)
+
+				continue
+			}
+
+			logger.Infof("... verified %d out of %d updated DIDs", i+1, len(d.updateResponses))
+
+			verified = true
+
+			break
+		}
+
+		if !verified {
+			return fmt.Errorf("updated DID %s not verified after %d attempts: %s",
+				resp.did, maxAttempts, err)
+		}
+	}
+
+	logger.Infof("Successfully verified %d updated DIDs", len(d.updateResponses))
+
+	return nil
+}
+
+func (d *DIDOrbSteps) doVerifyUpdatedDIDContainsKeyID(urls []string, did, keyID string) error {
+	randomURL := urls[mrand.Intn(len(urls))]
+
+	localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
+	if err != nil {
+		return err
+	}
+
+	if err := d.verifyUpdatedDIDContainsKeyID(localURL, did, keyID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyDID(url, did string) (canonicalID string, err error) {
 	logger.Infof("verifying DID %s from %s", did, url)
 
 	resp, err := d.httpClient.GetWithRetry(url+"/"+did, 25, http.StatusNotFound)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to resolve DID [%s] - Status code %d: %s", did, resp.StatusCode, resp.ErrorMsg)
+	}
+
+	var rr document.ResolutionResult
+	err = json.Unmarshal(resp.Payload, &rr)
+	if err != nil {
+		return "", err
+	}
+
+	cID, ok := rr.DocumentMetadata["canonicalId"]
+	if !ok {
+		return "", fmt.Errorf("document metadata is missing field 'canonicalId': %s", resp.Payload)
+	}
+
+	canonicalID = cID.(string)
+
+	logger.Infof(".. successfully verified DID %s from %s", canonicalID, url)
+
+	return canonicalID, nil
+}
+
+func (d *DIDOrbSteps) verifyUpdatedDIDContainsKeyID(url, did, keyID string) error {
+	logger.Infof("verifying updated DID %s contains key ID [%s] from %s", did, keyID, url)
+
+	resp, err := d.httpClient.Get(url + "/" + did)
 	if err != nil {
 		return fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
 	}
@@ -1264,25 +1503,53 @@ func (d *DIDOrbSteps) verifyDID(url, did string) error {
 		return fmt.Errorf("failed to resolve DID [%s] - Status code %d: %s", did, resp.StatusCode, resp.ErrorMsg)
 	}
 
+	logger.Infof("Got updated DID document: %s", resp.Payload)
+
 	var rr document.ResolutionResult
 	err = json.Unmarshal(resp.Payload, &rr)
 	if err != nil {
 		return err
 	}
 
-	canonicalID, ok := rr.DocumentMetadata["canonicalId"]
+	authentication, ok := rr.Document["authentication"]
 	if !ok {
-		return fmt.Errorf("document metadata is missing field 'canonicalId': %s", resp.Payload)
+		return fmt.Errorf("document is missing field 'authentication': %s", resp.Payload)
 	}
 
-	logger.Infof(".. successfully verified DID %s from %s", canonicalID, url)
+	authArr, ok := authentication.([]interface{})
+	if !ok {
+		return fmt.Errorf("expecting 'authentication' field to be an array but got %s",
+			reflect.TypeOf(authentication))
+	}
 
-	return nil
+	for _, v := range authArr {
+		auth, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("expecting 'authentication' value to be a string but got %s",
+				reflect.TypeOf(auth))
+		}
+
+		if strings.Contains(auth, keyID) {
+			logger.Infof(".. successfully verified that updated DID %s contains key ID [%s]",
+				did, keyID)
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("DID %s does not contain key ID [%s]", did, keyID)
 }
 
 type createDIDRequest struct {
 	url        string
 	httpClient *httpClient
+}
+
+type createDIDResponse struct {
+	did         string
+	recoveryKey *ecdsa.PrivateKey
+	updateKey   *ecdsa.PrivateKey
+	reqBytes    []byte
 }
 
 func (r *createDIDRequest) Invoke() (interface{}, error) {
@@ -1293,7 +1560,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		return nil, err
 	}
 
-	_, _, reqBytes, err := getCreateRequest(r.url, opaqueDoc, nil)
+	recoveryKey, updateKey, reqBytes, err := getCreateRequest(r.url, opaqueDoc, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1311,7 +1578,55 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		return "", err
 	}
 
-	return rr.Document.ID(), nil
+	return &createDIDResponse{
+		did:         rr.Document.ID(),
+		recoveryKey: recoveryKey,
+		updateKey:   updateKey,
+		reqBytes:    reqBytes,
+	}, nil
+}
+
+type updateDIDRequest struct {
+	url        string
+	did        string
+	suffix     string
+	httpClient *httpClient
+	suffixData *model.SuffixDataModel
+	updateKey  *ecdsa.PrivateKey
+	patches    []patch.Patch
+}
+
+type updateDIDResponse struct {
+	did        string
+	updateKey  *ecdsa.PrivateKey
+	suffixData *model.SuffixDataModel
+}
+
+func (r *updateDIDRequest) Invoke() (interface{}, error) {
+	uniqueSuffix, err := getUniqueSuffix(r.suffixData)
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Infof("updating DID [%s] document at %s", uniqueSuffix, r.url)
+
+	reqBytes, newxtUpdate, err := getUpdateRequest(r.suffix, r.updateKey, r.patches)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.httpClient.Post(r.url, reqBytes, "application/json")
+	if err != nil {
+		return "", err
+	}
+
+	logger.Infof("... successfully updated DID document [%s]", uniqueSuffix)
+
+	return &updateDIDResponse{
+		did:        r.did,
+		updateKey:  newxtUpdate,
+		suffixData: r.suffixData,
+	}, nil
 }
 
 // RegisterSteps registers orb steps
@@ -1344,4 +1659,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
+	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
+	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were updated with key "([^"]*)"$`, d.verifyUpdatedDIDDocuments)
+	s.Step(`^client sends request to "([^"]*)" to update the DID documents again with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocumentsAgain)
 }

@@ -44,6 +44,8 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
+//go:generate counterfeiter -o ./mocks/activityiterator.gen.go --fake-name ActivityIterator ./../client ActivityIterator
+
 func TestNewService(t *testing.T) {
 	cfg1 := &Config{
 		ServiceEndpoint: "/services/service1",
@@ -54,9 +56,10 @@ func TestNewService(t *testing.T) {
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
-		mocks.NewActorRetriever(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
+		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
+	require.NotNil(t, service1.InboxHandler())
 
 	stop := startHTTPServer(t, ":8311", service1.InboxHTTPHandler())
 	defer stop()
@@ -912,7 +915,7 @@ func TestService_InviteWitness(t *testing.T) {
 }
 
 type mockProviders struct {
-	actorRetriever        *mocks.ActorRetriever
+	actorRetriever        *mocks.ActivityPubClient
 	anchorEventHandler    *mocks.AnchorEventHandler
 	followerAuth          *mocks.ActorAuth
 	witnessInvitationAuth *mocks.ActorAuth
@@ -941,7 +944,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	}
 
 	providers := &mockProviders{
-		actorRetriever:        mocks.NewActorRetriever(),
+		actorRetriever:        mocks.NewActivitPubClient(),
 		anchorEventHandler:    mocks.NewAnchorEventHandler(),
 		followerAuth:          mocks.NewActorAuth(),
 		witnessInvitationAuth: mocks.NewActorAuth(),

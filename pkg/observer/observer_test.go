@@ -233,6 +233,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			Pkf:                    pubKeyFetcherFnc,
 			DocLoader:              testutil.GetLoader(t),
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -299,6 +300,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -361,6 +363,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -420,6 +423,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -494,6 +498,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -541,6 +546,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -570,6 +576,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -605,6 +612,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -668,6 +676,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
+			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -701,6 +710,7 @@ func TestResolveActorFromHashlink(t *testing.T) {
 		CASResolver:       casResolver,
 		DocLoader:         testutil.GetLoader(t),
 		Pkf:               pubKeyFetcherFnc,
+		AnchorLinkStore:   &orbmocks.AnchorLinkStore{},
 	}
 
 	o, e := New(serviceIRI, providers)

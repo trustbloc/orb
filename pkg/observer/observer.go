@@ -355,6 +355,17 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 }
 
 func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
+	refURL, err := url.Parse(anchor.Hashlink)
+	if err != nil {
+		return fmt.Errorf("parse hash link [%s]: %w", anchor.Hashlink, err)
+	}
+
+	err = o.saveAnchorHashlink(refURL)
+	if err != nil {
+		// Not fatal.
+		logger.Warnf("Error saving anchor link [%s]: %s", refURL, err)
+	}
+
 	if anchor.AttributedTo == "" {
 		logger.Debugf("Not posting 'Like' activity since no attributedTo ID was specified for anchor [%s]",
 			anchor.Hashlink)
@@ -362,20 +373,9 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return nil
 	}
 
-	refURL, err := url.Parse(anchor.Hashlink)
-	if err != nil {
-		return fmt.Errorf("parse hash link [%s]: %w", anchor.Hashlink, err)
-	}
-
 	attributedTo, err := url.Parse(anchor.AttributedTo)
 	if err != nil {
 		return fmt.Errorf("parse origin [%s]: %w", anchor.AttributedTo, err)
-	}
-
-	err = o.saveAnchorHashlink(refURL)
-	if err != nil {
-		// Not fatal.
-		logger.Warnf("Error saving anchor link [%s]: %s", refURL, err)
 	}
 
 	result, err := newLikeResult(anchor.LocalHashlink)

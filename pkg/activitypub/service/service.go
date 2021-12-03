@@ -60,7 +60,7 @@ type Service struct {
 
 	inbox           *inbox.Inbox
 	outbox          *outbox.Outbox
-	activityHandler spi.ActivityHandler
+	activityHandler *activityhandler.Inbox
 }
 
 type httpTransport interface {
@@ -75,6 +75,7 @@ type signatureVerifier interface {
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
 	GetReferences(iri *url.URL) (client.ReferenceIterator, error)
+	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
 }
 
 type resourceResolver interface {
@@ -166,6 +167,11 @@ func (s *Service) stop() {
 // Outbox returns the outbox, which allows clients to post activities.
 func (s *Service) Outbox() spi.Outbox {
 	return s.outbox
+}
+
+// InboxHandler returns the handler for inbox activities.
+func (s *Service) InboxHandler() spi.InboxHandler {
+	return s.activityHandler
 }
 
 // InboxHTTPHandler returns the HTTP handler for the inbox which is invoked by the HTTP server.
