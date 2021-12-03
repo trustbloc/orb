@@ -174,6 +174,31 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newKey"
 
+      # three consecutive updates test: it will be handled in three batches
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
+      Then check for request success
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+      Then check for request success
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "thirdKey" to DID document
+      Then check for request success
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+      Then check success response does NOT contain "secondKey"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+      Then check success response contains "secondKey"
+      Then check success response does NOT contain "thirdKey"
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "firstKey"
+      Then check success response contains "secondKey"
+      Then check success response contains "thirdKey"
+
     @create_add_remove_services
     Scenario: add and remove service endpoints
       Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"

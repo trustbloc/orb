@@ -481,6 +481,7 @@ github.com/golang/mock v1.4.1/go.mod h1:UOMv5ysSaYNkG+OFQykRIcU/QvvxJf3p21QfJ2Bt
 github.com/golang/mock v1.4.3/go.mod h1:UOMv5ysSaYNkG+OFQykRIcU/QvvxJf3p21QfJ2Bt3cw=
 github.com/golang/mock v1.4.4/go.mod h1:l3mdAwkq5BuhzHwde/uurv3sEJeZMXNpwsxVWU71h+4=
 github.com/golang/mock v1.5.0/go.mod h1:CWnOUgYIOo4TcNZ0wHX3YZCqsaM1I1Jvs6v3mP3KVu8=
+github.com/golang/mock v1.6.0 h1:ErTB+efbowRARo13NNdxyJji2egdxLGQhRaY+DUumQc=
 github.com/golang/mock v1.6.0/go.mod h1:p6yTPP+5HYm5mzsMV8JkE6ZKdX+/wYM6Hr+LicevLPs=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
@@ -1280,8 +1281,8 @@ github.com/trustbloc/edge-core v0.1.7-0.20210816120552-ed93662ac716/go.mod h1:7j
 github.com/trustbloc/edge-core v0.1.7 h1:DzFoB3TsBqRWI7GSkrtPQJi/su84GOFFVsDR6V3O60k=
 github.com/trustbloc/edge-core v0.1.7/go.mod h1:nQnH3CcEHTRXsWZe/vgj+J0JxxjwFK9IvY3u0Sr/2XY=
 github.com/trustbloc/sidetree-core-go v0.6.1-0.20210817155948-c3cb7a03f63b/go.mod h1:uv89fJcqz21OrBqZUyXTPp0BBmyi2xh+Eigy5T/dIsc=
-github.com/trustbloc/sidetree-core-go v0.7.1-0.20211124193658-d5f6ccf1e554 h1:UjDfkuIws52zeyApANh4MaWNHwR5snQulG3iBfFX3Z0=
-github.com/trustbloc/sidetree-core-go v0.7.1-0.20211124193658-d5f6ccf1e554/go.mod h1:uv89fJcqz21OrBqZUyXTPp0BBmyi2xh+Eigy5T/dIsc=
+github.com/trustbloc/sidetree-core-go v0.7.1-0.20211203214327-2a9ceb1ce164 h1:8lCeZoNsHZuWWp+wBbDPHbD+C2917xZkOh/etmEzkGM=
+github.com/trustbloc/sidetree-core-go v0.7.1-0.20211203214327-2a9ceb1ce164/go.mod h1:uv89fJcqz21OrBqZUyXTPp0BBmyi2xh+Eigy5T/dIsc=
 github.com/trustbloc/vct v0.1.3 h1:5QYeF96cGLxq2jBuPlhDPKydaKwMF1vYSn/bssQNBOE=
 github.com/trustbloc/vct v0.1.3/go.mod h1:gbdyUr5zpoMLTUNgq9YKLciPaiYpvTtooqh7E3wa6pY=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
