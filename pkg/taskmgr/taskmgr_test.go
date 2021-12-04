@@ -134,7 +134,7 @@ func TestService(t *testing.T) {
 
 		taskMgr := New(coordinationStore, time.Millisecond)
 
-		taskMgr.RegisterTask("test-task", time.Millisecond, time.Millisecond, func() {
+		taskMgr.RegisterTask("test-task", time.Millisecond, func() {
 			t.Logf("Running test-task")
 		})
 
@@ -155,7 +155,7 @@ func TestService(t *testing.T) {
 
 		taskMgr := New(coordinationStore, time.Millisecond)
 
-		taskMgr.RegisterTask("test-task", time.Millisecond, time.Millisecond, func() {
+		taskMgr.RegisterTask("test-task", time.Millisecond, func() {
 			t.Logf("Running test-task")
 		})
 
@@ -186,7 +186,7 @@ func getTestExpiryServices(t *testing.T, coordinationStore storage.Store) (*Mana
 
 	log.SetLevel(service1LoggerModule, log.DEBUG)
 
-	taskMgr1.RegisterTask("test-task", time.Second, 2*time.Second, func() {
+	taskMgr1.RegisterTask("test-task", time.Second, func() {
 		taskMgr1.logger.Infof("Running test-task in task manager 1")
 
 		time.Sleep(time.Second)
@@ -204,7 +204,7 @@ func getTestExpiryServices(t *testing.T, coordinationStore storage.Store) (*Mana
 
 	log.SetLevel(service2LoggerModule, log.DEBUG)
 
-	taskMgr2.RegisterTask("test-task", time.Second, time.Second, func() {
+	taskMgr2.RegisterTask("test-task", time.Second, func() {
 		taskMgr2.logger.Infof("Running test-task in task manager 2")
 	})
 

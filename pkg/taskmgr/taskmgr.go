@@ -98,18 +98,15 @@ func New(coordinationStore storage.Store, interval time.Duration) *Manager {
 	return s
 }
 
-// RegisterTask registers a task to be periodically run at the given interval. A task is considered to have been
-// running too long if the run time exceeds the given maxRunTime, at which point another server instance may take
-// over the duty of running tasks.
-func (s *Manager) RegisterTask(id string, interval, maxRunTime time.Duration, task func()) {
+// RegisterTask registers a task to be periodically run at the given interval.
+func (s *Manager) RegisterTask(id string, interval time.Duration, task func()) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	s.tasks[id] = &registration{
-		handle:     task,
-		id:         id,
-		interval:   interval,
-		maxRunTime: maxRunTime,
+		handle:   task,
+		id:       id,
+		interval: interval,
 	}
 }
 
@@ -151,27 +148,33 @@ func (s *Manager) stop() {
 
 func (s *Manager) run(t *registration) {
 	if t.isRunning() {
-		s.logger.Debugf("Task is already running [%s]", t.id)
+		s.logger.Debugf("[%s] Task [%s] is still running. Updating timestamp in the permit to tell "+
+			"others that I'm still alive.", s.instanceID, t.id)
+
+		if err := s.updatePermit(t.id, statusRunning); err != nil {
+			s.logger.Warnf("Error updating status of task [%s]: %s", t.id, err)
+		}
 
 		return
 	}
 
 	ok, err := s.shouldRun(t)
 	if err != nil {
-		s.logger.Warnf("An error occurred while checking if task [%s] should run: %s", t.id, err)
+		s.logger.Warnf("[%s] An error occurred while checking if task [%s] should run: %s",
+			s.instanceID, t.id, err)
 
 		return
 	}
 
 	if !ok {
-		s.logger.Debugf("Not running task [%s]", t.id)
+		s.logger.Debugf("[%s] Not running task [%s]", s.instanceID, t.id)
 
 		return
 	}
 
 	err = s.updatePermit(t.id, statusRunning)
 	if err != nil {
-		s.logger.Errorf("Failed to update permit for task [%s]: %s", t.id, err.Error())
+		s.logger.Errorf("[%s] Failed to update permit for task [%s]: %s", s.instanceID, t.id, err.Error())
 
 		return
 	}
@@ -179,25 +182,26 @@ func (s *Manager) run(t *registration) {
 	// Run the task in a new Go routine.
 
 	go func(t *registration) {
-		s.logger.Debugf("Running task [%s]", t.id)
+		s.logger.Debugf("[%s] Running task [%s]", s.instanceID, t.id)
 
 		t.run()
 
 		err := s.updatePermit(t.id, statusIdle)
 		if err != nil {
-			s.logger.Errorf("Failed to update permit: %s", err.Error())
+			s.logger.Errorf("[%s] Failed to update permit: %s", s.instanceID, err.Error())
 		}
 
-		s.logger.Debugf("Finished running task [%s]", t.id)
+		s.logger.Debugf("[%s] Finished running task [%s]", s.instanceID, t.id)
 	}(t)
 }
 
+//nolint:funlen
 func (s *Manager) shouldRun(t *registration) (bool, error) {
 	currentPermitBytes, err := s.coordinationStore.Get(getPermitKey(t.id))
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			s.logger.Infof("[%s] No existing permit found for task [%s]. I will take on the duty of running the task.",
-				s.instanceID, t.id)
+			s.logger.Infof("[%s] No existing permit found for task [%s]. I will take on "+
+				"the duty of running the task.", s.instanceID, t.id)
 
 			return true, nil
 		}
@@ -212,25 +216,26 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 		return false, fmt.Errorf("unmarshal permit for task [%s]: %w", t.id, err)
 	}
 
-	timeOfLastCleanup := time.Unix(currentPermit.UpdatedTime, 0)
+	timeOfLastUpdate := time.Unix(currentPermit.UpdatedTime, 0)
 
 	// Time.Since uses Time.Now() to determine the current time to a fine degree of precision. Here we are checking the
 	// time since a specific Unix timestamp, which is a value that is effectively truncated to the nearest second.
 	// Thus, the result of this calculation should also be truncated down to the nearest second since that's all the
 	// precision we have. This also makes the log statements look cleaner since it won't display an excessive amount
 	// of (meaningless) precision.
-	timeSinceLastUpdate := time.Since(timeOfLastCleanup).Truncate(time.Second)
+	timeSinceLastUpdate := time.Since(timeOfLastUpdate).Truncate(time.Second)
 
 	if currentPermit.CurrentHolder == s.instanceID {
 		if timeSinceLastUpdate < t.interval {
-			s.logger.Debugf("It's currently my duty to run task [%s] but it's not time to run the task since "+
-				"I last did this %s ago and the interval for this task is %s.", t.id, timeSinceLastUpdate, t.interval)
+			s.logger.Debugf("[%s] It's currently my duty to run task [%s] but it's not time to run the task "+
+				"since I last did this %s ago and the interval for this task is %s.",
+				s.instanceID, t.id, timeSinceLastUpdate, t.interval)
 
 			return false, nil
 		}
 
-		s.logger.Debugf("It's currently my duty to run task [%s]. I last did this %s ago. I will "+
-			"run the task and then update the permit timestamp.", t.id, timeSinceLastUpdate)
+		s.logger.Debugf("[%s] It's currently my duty to run task [%s]. I last did this %s ago. I will "+
+			"run the task and then update the permit timestamp.", s.instanceID, t.id, timeSinceLastUpdate)
 
 		return true, nil
 	}
@@ -240,17 +245,21 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 	// then it indicates that the other Orb server with the permit is down, so someone else needs to grab the permit
 	// and take over the duty of running scheduled tasks. Note that the assumption here is that all Orb servers
 	// within the cluster have the same interval setting (which they should).
-	if timeSinceLastUpdate > t.maxRunTime {
-		s.logger.Infof("The current permit holder (%s) for task [%s] has not performed a run in an "+
-			"unusually long time (%s ago which is longer than the configured maximum run time of %s). This indicates "+
-			"that %s may be down or not responding. I will take over and grab the permit.",
-			currentPermit.CurrentHolder, t.id, timeSinceLastUpdate, t.maxRunTime, currentPermit.CurrentHolder)
+	// So, "unusually long time" means that the 'last update' time is greater than the Task Manager check interval plus
+	// the task's run interval, in which case we'll assume that the other instance is dead and will take over.
+	maxTime := s.interval + t.interval
+
+	if timeSinceLastUpdate > maxTime {
+		s.logger.Infof("[%s] The current permit holder [%s] for task [%s] has not updated the permit in an "+
+			"unusually long time (%s ago which is longer than the maximum time of %s). This indicates "+
+			"that [%s] may be down or not responding. I will take over and grab the permit.",
+			s.instanceID, currentPermit.CurrentHolder, t.id, timeSinceLastUpdate, maxTime, currentPermit.CurrentHolder)
 
 		return true, nil
 	}
 
-	s.logger.Debugf("I will not run task [%s] since %s currently has the duty and did it recently "+
-		"(%s ago).", t.id, currentPermit.CurrentHolder, timeSinceLastUpdate.String())
+	s.logger.Debugf("[%s] I will not run task [%s] since [%s] currently has the duty and did it "+
+		"recently (%s ago).", s.instanceID, t.id, currentPermit.CurrentHolder, timeSinceLastUpdate.String())
 
 	return false, nil
 }
@@ -276,7 +285,8 @@ func (s *Manager) updatePermit(taskID string, status status) error {
 		return fmt.Errorf("failed to store permit: %w", err)
 	}
 
-	s.logger.Debugf("Permit successfully updated for task [%s] with status [%s].", taskID, status)
+	s.logger.Debugf("[%s] Permit successfully updated for task [%s] with status [%s].",
+		s.instanceID, taskID, status)
 
 	return nil
 }
@@ -286,11 +296,10 @@ func getPermitKey(taskID string) string {
 }
 
 type registration struct {
-	handle     func()
-	running    uint32
-	id         string
-	interval   time.Duration
-	maxRunTime time.Duration
+	handle   func()
+	running  uint32
+	id       string
+	interval time.Duration
 }
 
 func (r *registration) run() {

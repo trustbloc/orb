@@ -16,12 +16,7 @@ import (
 
 const (
 	loggerModule = "expiry-service"
-	// When the Orb server with the expired data cleanup duty (permit holder) has not done it for an unusually
-	// long time (indicating it's down), another Orb server will take over the duty. This value multiplied by the
-	// configured interval time defines what an "unusually long time" is.
-	permitTimeLimitIntervalMultiplier = 3
-
-	taskName = "data-expiry"
+	taskName     = "data-expiry"
 )
 
 type logger interface {
@@ -32,7 +27,7 @@ type logger interface {
 }
 
 type taskManager interface {
-	RegisterTask(taskType string, interval, maxRunTime time.Duration, handler func())
+	RegisterTask(taskType string, interval time.Duration, handler func())
 }
 
 type registeredStore struct {
@@ -85,8 +80,7 @@ func NewService(scheduler taskManager, interval time.Duration) *Service {
 		registeredStores: make([]registeredStore, 0),
 	}
 
-	scheduler.RegisterTask(taskName, interval,
-		interval*permitTimeLimitIntervalMultiplier, s.deleteExpiredData)
+	scheduler.RegisterTask(taskName, interval, s.deleteExpiredData)
 
 	return s
 }

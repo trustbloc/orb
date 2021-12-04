@@ -27,9 +27,8 @@ const logModule = "anchor_sync"
 var logger = log.New(logModule)
 
 const (
-	defaultInterval   = time.Minute
-	defaultMaxRunTime = 90 * time.Second
-	taskName          = "activity-sync"
+	defaultInterval = time.Minute
+	taskName        = "activity-sync"
 )
 
 type activityPubClient interface {
@@ -38,14 +37,13 @@ type activityPubClient interface {
 }
 
 type taskManager interface {
-	RegisterTask(taskType string, interval, maxRunTime time.Duration, task func())
+	RegisterTask(taskType string, interval time.Duration, task func())
 }
 
 // Config contains configuration parameters for the anchor event synchronization task.
 type Config struct {
 	ServiceIRI *url.URL
 	Interval   time.Duration
-	MaxRunTime time.Duration
 }
 
 type task struct {
@@ -65,20 +63,15 @@ func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apSto
 		return fmt.Errorf("create task: %w", err)
 	}
 
-	interval, maxRunTime := cfg.Interval, cfg.MaxRunTime
+	interval := cfg.Interval
 
 	if interval == 0 {
 		interval = defaultInterval
 	}
 
-	if maxRunTime == 0 {
-		maxRunTime = defaultMaxRunTime
-	}
+	logger.Infof("Registering activity-sync task - ServiceIRI: %s, Interval: %s.", cfg.ServiceIRI, interval)
 
-	logger.Infof("Registering activity-sync task - ServiceIRI: %s, Interval: %s, MaxRunTime: %s.",
-		cfg.ServiceIRI, interval, maxRunTime)
-
-	taskMgr.RegisterTask(taskName, interval, maxRunTime, t.run)
+	taskMgr.RegisterTask(taskName, interval, t.run)
 
 	return nil
 }
