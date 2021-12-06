@@ -55,7 +55,9 @@ type OperationFilter interface {
 }
 
 type didAnchors interface {
-	PutBulk(dids []string, cid string) error
+	// areNew may be used by an implementation to speed up how long the storage call takes.
+	// The length of dids and areNew must match.
+	PutBulk(dids []string, areNew []bool, cid string) error
 }
 
 // Publisher publishes anchors and DIDs to a message queue for processing.
@@ -333,9 +335,9 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	}
 
 	// update global did/anchor references
-	acSuffixes := getSuffixes(anchorPayload.PreviousAnchors)
+	acSuffixes, areNewSuffixes := getSuffixes(anchorPayload.PreviousAnchors)
 
-	err = o.DidAnchors.PutBulk(acSuffixes, anchor.Hashlink)
+	err = o.DidAnchors.PutBulk(acSuffixes, areNewSuffixes, anchor.Hashlink)
 	if err != nil {
 		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.Hashlink, err)
 	}
@@ -471,13 +473,23 @@ func (o *Observer) saveAnchorHashlink(ref *url.URL) error {
 	return nil
 }
 
-func getSuffixes(m []*subject.SuffixAnchor) []string {
-	suffixes := make([]string, 0, len(m))
+func getSuffixes(m []*subject.SuffixAnchor) (suffixes []string, areNewSuffixes []bool) {
+	suffixes = make([]string, 0, len(m))
+	// areNewSuffixes indicates whether the given suffix is from a create operation or not.
+	// It's used to enable a faster BulkWrite call to the database.
+	areNewSuffixes = make([]bool, 0, len(m))
+
 	for _, k := range m {
+		if k.Anchor == "" {
+			areNewSuffixes = append(areNewSuffixes, true)
+		} else {
+			areNewSuffixes = append(areNewSuffixes, false)
+		}
+
 		suffixes = append(suffixes, k.Suffix)
 	}
 
-	return suffixes
+	return suffixes, areNewSuffixes
 }
 
 func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {

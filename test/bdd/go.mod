@@ -13,10 +13,10 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211115182008-a05b96ee7ab1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211117223600-626fe1bae44d
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211206201819-d0e0ac91edf1
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211116215934-986cb5330d12
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211115182008-a05b96ee7ab1
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/moby/sys/mount v0.2.0 // indirect

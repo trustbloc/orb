@@ -70,6 +70,8 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
+	putOptions := &storage.PutOptions{IsNewKey: true}
+
 	for i, w := range witnesses {
 		value, err := json.Marshal(w)
 		if err != nil {
@@ -91,6 +93,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 					Value: fmt.Sprintf("%d", time.Now().Add(s.maxWitnessDelay+s.delta).Unix()),
 				},
 			},
+			PutOptions: putOptions,
 		}
 
 		operations[i] = op

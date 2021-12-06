@@ -24,7 +24,7 @@ func New() *DidAnchor {
 }
 
 // PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
-func (ref *DidAnchor) PutBulk(suffixes []string, cid string) error {
+func (ref *DidAnchor) PutBulk(suffixes []string, _ []bool, cid string) error {
 	ref.Lock()
 	defer ref.Unlock()
 

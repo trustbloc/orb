@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/didanchor"
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -48,7 +50,25 @@ func TestStore_PutAll(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
+		require.NoError(t, err)
+	})
+
+	t.Run("success, but batch call gets executed a second time without the "+
+		"speed optimization due to a duplicate key error", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
+		require.NoError(t, err)
+
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
 		require.NoError(t, err)
 	})
 
@@ -62,7 +82,7 @@ func TestStore_PutAll(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
 	})
@@ -75,7 +95,7 @@ func TestStore_GetAll(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
 		require.NoError(t, err)
 
 		anchors, err := s.GetBulk([]string{"suffix-1", "suffix-2"})
@@ -90,7 +110,7 @@ func TestStore_GetAll(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.PutBulk([]string{"suffix-1"}, "cid")
+		err = s.PutBulk([]string{"suffix-1"}, []bool{true, true}, "cid")
 		require.NoError(t, err)
 
 		anchors, err := s.GetBulk([]string{"suffix-1", "suffix-2"})
@@ -123,7 +143,7 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(provider)
 		require.NoError(t, err)
 
-		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, "cid")
+		err = s.PutBulk([]string{"suffix-1", "suffix-2"}, []bool{true, true}, "cid")
 		require.NoError(t, err)
 
 		anchor, err := s.Get("suffix-1")
