@@ -619,7 +619,9 @@ func (d *DIDOrbSteps) checkSuccessRespDoesntContain(msg string) error {
 func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 	var err error
 
-	const maxRetries = 5
+	const maxRetries = 10
+
+	initialSleep := 350 // in milliseconds
 
 	for i := 1; i <= maxRetries; i++ {
 		err = d.checkSuccessRespHelper(msg, contains)
@@ -632,7 +634,12 @@ func (d *DIDOrbSteps) checkSuccessResp(msg string, contains bool) error {
 			return err
 		}
 
-		time.Sleep(2 * time.Second)
+		if i <= 5 {
+			time.Sleep(time.Duration(initialSleep) * time.Millisecond)
+		} else {
+			time.Sleep(time.Duration(i*initialSleep) * time.Millisecond)
+		}
+
 		logger.Infof("retrying check success response - attempt %d", i)
 
 		resolveErr := d.resolveDIDDocumentWithID(d.sidetreeURL, d.retryDID)
