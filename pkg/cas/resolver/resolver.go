@@ -85,7 +85,7 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolv
 func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:gocyclo,cyclop,lll
 	startTime := time.Now()
 
-	defer h.metrics.CASResolveTime(time.Since(startTime))
+	defer func() { h.metrics.CASResolveTime(time.Since(startTime)) }()
 
 	resourceHash, domain, links, err := h.getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHint)
 	if err != nil {
