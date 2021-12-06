@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package startcmd
 
 import (
+	"errors"
 	"net"
 	"os"
 	"syscall"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -1098,24 +1101,39 @@ func TestGetMQParameters(t *testing.T) {
 
 func TestCreateActivityPubStore(t *testing.T) {
 	t.Run("Fail to create CouchDB provider", func(t *testing.T) {
+		errExpected := errors.New("injected open store error")
+
+		p := storage.NewMockStoreProvider()
+		p.ErrOpenStoreHandle = errExpected
+
 		activityPubStore, err := createActivityPubStore(
-			&orbParameters{dbParameters: &dbParameters{
-				databaseType: databaseTypeCouchDBOption,
-			}},
+			&storageProvider{p, databaseTypeCouchDBOption},
 			"serviceEndpoint")
-		require.EqualError(t, err, "failed to create CouchDB storage provider for ActivityPub: "+
-			"failed to ping couchDB: url can't be blank")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, activityPubStore)
 	})
 	t.Run("Fail to create ActivityPub store using MongoDB", func(t *testing.T) {
+		errExpected := errors.New("injected open store error")
+
+		p := storage.NewMockStoreProvider()
+		p.ErrOpenStoreHandle = errExpected
+
 		activityPubStore, err := createActivityPubStore(
-			&orbParameters{dbParameters: &dbParameters{
-				databaseType: databaseTypeMongoDBOption,
-			}},
+			&storageProvider{p, databaseTypeMongoDBOption},
 			"serviceEndpoint")
-		require.EqualError(t, err, "create MongoDB storage provider for ActivityPub: failed to create "+
-			`a new MongoDB client: error parsing uri: scheme must be "mongodb" or "mongodb+srv"`)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, activityPubStore)
+	})
+	t.Run("MemDB -> success", func(t *testing.T) {
+		p := ariesmemstorage.NewProvider()
+
+		activityPubStore, err := createActivityPubStore(
+			&storageProvider{p, databaseTypeMemOption},
+			"serviceEndpoint")
+		require.NoError(t, err)
+		require.NotNil(t, activityPubStore)
 	})
 }
 

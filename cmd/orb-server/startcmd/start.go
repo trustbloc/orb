@@ -587,7 +587,7 @@ func startOrbServices(parameters *orbParameters) error {
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 	}
 
-	apStore, err := createActivityPubStore(parameters, apConfig.ServiceEndpoint)
+	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServiceEndpoint)
 	if err != nil {
 		return err
 	}
@@ -1009,47 +1009,28 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	return pcp, nil
 }
 
-func createActivityPubStore(parameters *orbParameters, serviceEndpoint string) (activitypubspi.Store, error) {
-	var apStore activitypubspi.Store
-
-	if strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeCouchDBOption) {
-		couchDBProvider, err := ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
-			ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix+"_"+serviceEndpoint),
-			ariescouchdbstorage.WithLogger(logger))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create CouchDB storage provider for ActivityPub: %w", err)
-		}
-
-		couchDBProviderWrapper := wrapper.NewProvider(couchDBProvider, "CouchDB")
-
-		apStore, err = apariesstore.New(serviceEndpoint, couchDBProviderWrapper, false)
+func createActivityPubStore(storageProvider *storageProvider,
+	serviceEndpoint string) (activitypubspi.Store, error) {
+	switch strings.ToLower(storageProvider.dbType) {
+	case databaseTypeMongoDBOption:
+		apStore, err := apariesstore.New(serviceEndpoint, storageProvider, true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Aries storage provider for ActivityPub: %w", err)
 		}
-	} else if strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption) {
-		// The "/" characters below are replaced with "-" since MongoDB database names can't contain those characters.
-		databasePrefix := fmt.Sprintf("%s%s_", parameters.dbParameters.databasePrefix,
-			strings.ReplaceAll(serviceEndpoint, "/", "-"))
 
-		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
-			ariesmongodbstorage.WithDBPrefix(databasePrefix),
-			ariesmongodbstorage.WithLogger(logger),
-			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
-		if err != nil {
-			return nil, fmt.Errorf("create MongoDB storage provider for ActivityPub: %w", err)
-		}
+		return apStore, nil
 
-		mongoDBProviderWrapper := wrapper.NewProvider(mongoDBProvider, "MongoDB")
-
-		apStore, err = apariesstore.New(serviceEndpoint, mongoDBProviderWrapper, true)
+	case databaseTypeCouchDBOption:
+		apStore, err := apariesstore.New(serviceEndpoint, storageProvider, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Aries storage provider for ActivityPub: %w", err)
 		}
-	} else {
-		apStore = apmemstore.New(serviceEndpoint)
+
+		return apStore, nil
+
+	default:
+		return apmemstore.New(serviceEndpoint), nil
 	}
-
-	return apStore, nil
 }
 
 type discoveryCAS struct {
@@ -1089,8 +1070,13 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLockService
 }
 
+type storageProvider struct {
+	storage.Provider
+	dbType string
+}
+
 type storageProviders struct {
-	provider           storage.Provider
+	provider           *storageProvider
 	kmsSecretsProvider storage.Provider
 }
 
@@ -1100,7 +1086,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 
 	switch { //nolint: dupl
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMemOption):
-		edgeServiceProvs.provider = ariesmemstorage.NewProvider()
+		edgeServiceProvs.provider = &storageProvider{ariesmemstorage.NewProvider(), databaseTypeMemOption}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeCouchDBOption):
 		couchDBProvider, err :=
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
@@ -1110,7 +1096,8 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return &storageProviders{}, err
 		}
 
-		edgeServiceProvs.provider = wrapper.NewProvider(couchDBProvider, "CouchDB")
+		edgeServiceProvs.provider = &storageProvider{wrapper.NewProvider(couchDBProvider, "CouchDB"),
+			databaseTypeCouchDBOption}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
@@ -1120,7 +1107,8 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
 
-		edgeServiceProvs.provider = wrapper.NewProvider(mongoDBProvider, "MongoDB")
+		edgeServiceProvs.provider = &storageProvider{wrapper.NewProvider(mongoDBProvider, "MongoDB"),
+			databaseTypeMongoDBOption}
 
 	default:
 		return &storageProviders{}, fmt.Errorf("database type not set to a valid type." +
@@ -1138,11 +1126,11 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 		couchDBProvider, err :=
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
-
-		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
 		if err != nil {
 			return &storageProviders{}, err
 		}
+
+		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
 	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
