@@ -23,7 +23,7 @@ func TestDidAnchor_PutBulk(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		refs := New()
 
-		err := refs.PutBulk([]string{testSuffix}, testCID)
+		err := refs.PutBulk([]string{testSuffix}, nil, testCID)
 		require.NoError(t, err)
 	})
 }
@@ -32,7 +32,7 @@ func TestDidAnchor_GetBulk(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		refs := New()
 
-		err := refs.PutBulk([]string{testSuffix}, testCID)
+		err := refs.PutBulk([]string{testSuffix}, nil, testCID)
 		require.NoError(t, err)
 
 		anchors, err := refs.GetBulk([]string{testSuffix})
@@ -53,7 +53,7 @@ func TestDidAnchor_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		refs := New()
 
-		err := refs.PutBulk([]string{testSuffix}, testCID)
+		err := refs.PutBulk([]string{testSuffix}, nil, testCID)
 		require.NoError(t, err)
 
 		anchor, err := refs.Get(testSuffix)

@@ -51,6 +51,8 @@ type Store struct {
 func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 	operations := make([]storage.Operation, len(ops))
 
+	putOptions := &storage.PutOptions{IsNewKey: true}
+
 	for i, op := range ops {
 		value, err := json.Marshal(op)
 		if err != nil {
@@ -69,6 +71,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 					Value: op.UniqueSuffix,
 				},
 			},
+			PutOptions: putOptions,
 		}
 
 		operations[i] = op

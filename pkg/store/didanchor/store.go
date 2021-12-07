@@ -39,7 +39,7 @@ type Store struct {
 }
 
 // PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
-func (s *Store) PutBulk(suffixes []string, cid string) error {
+func (s *Store) PutBulk(suffixes []string, areNew []bool, cid string) error {
 	if len(suffixes) == 0 {
 		return errors.New("no suffixes provided")
 	}
@@ -48,8 +48,9 @@ func (s *Store) PutBulk(suffixes []string, cid string) error {
 
 	for i, suffix := range suffixes {
 		op := storage.Operation{
-			Key:   suffix,
-			Value: []byte(cid),
+			Key:        suffix,
+			Value:      []byte(cid),
+			PutOptions: &storage.PutOptions{IsNewKey: areNew[i]},
 		}
 
 		operations[i] = op
@@ -57,7 +58,28 @@ func (s *Store) PutBulk(suffixes []string, cid string) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to add cid[%s] to suffixes%s: %w", cid, suffixes, err))
+		if errors.Is(err, storage.ErrDuplicateKey) {
+			logger.Warnf("Failed to add cid[%s] to suffixes%s using the batch speed optimization. "+
+				"This can happen if this Orb server is in a recovery flow. Will retry without the "+
+				"optimization now (will be slower). Underlying error message: %s", cid, suffixes, err.Error())
+
+			for i, suffix := range suffixes {
+				op := storage.Operation{
+					Key:   suffix,
+					Value: []byte(cid),
+				}
+
+				operations[i] = op
+			}
+
+			err = s.store.Batch(operations)
+			if err != nil {
+				return orberrors.NewTransient(fmt.Errorf("failed to add cid[%s] to suffixes%s: %w",
+					cid, suffixes, err))
+			}
+		} else {
+			return orberrors.NewTransient(fmt.Errorf("failed to add cid[%s] to suffixes%s: %w", cid, suffixes, err))
+		}
 	}
 
 	logger.Debugf("updated latest anchor[%s] for suffixes: %s", cid, suffixes)

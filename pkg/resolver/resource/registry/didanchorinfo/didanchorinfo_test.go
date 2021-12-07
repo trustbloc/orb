@@ -42,7 +42,7 @@ func TestDidAnchorInfo_GetResourceInfo(t *testing.T) {
 		store, err := didanchorstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = store.PutBulk([]string{testSuffix}, testCID)
+		err = store.PutBulk([]string{testSuffix}, []bool{true}, testCID)
 		require.NoError(t, err)
 
 		operationProcessor := &mocks.OperationProcessor{}
@@ -109,7 +109,7 @@ func TestDidAnchorInfo_GetResourceInfo(t *testing.T) {
 		store, err := didanchorstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		err = store.PutBulk([]string{testSuffix}, testCID)
+		err = store.PutBulk([]string{testSuffix}, []bool{true}, testCID)
 		require.NoError(t, err)
 
 		operationProcessor := &mocks.OperationProcessor{}
