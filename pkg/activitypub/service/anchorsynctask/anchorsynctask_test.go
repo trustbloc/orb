@@ -33,7 +33,7 @@ func TestRegister(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		require.NoError(t, Register(
 			Config{},
-			&mocks.TaskManager{}, &mocks.ActivityPubClient{},
+			mocks.NewTaskManager(), &mocks.ActivityPubClient{},
 			memstore.New("service1"), storage.NewMockStoreProvider(),
 			func() spi.InboxHandler {
 				return nil
@@ -50,7 +50,7 @@ func TestRegister(t *testing.T) {
 
 		err := Register(
 			Config{},
-			&mocks.TaskManager{}, &mocks.ActivityPubClient{},
+			mocks.NewTaskManager(), &mocks.ActivityPubClient{},
 			memstore.New("service1"), p,
 			func() spi.InboxHandler {
 				return nil
