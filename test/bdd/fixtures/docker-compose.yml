@@ -795,36 +795,30 @@ services:
   orb.kms:
     container_name: orb.kms
     restart: always
-    image: ghcr.io/trustbloc/kms:0.1.7
+    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-2dff373
     environment:
       - KMS_BASE_URL=http://orb.kms:7878
-      - KMS_HOST_URL=172.20.0.13:7878
+      - KMS_HOST=172.20.0.13:7878
       - KMS_DATABASE_TYPE=mongodb
       - KMS_DATABASE_URL=mongodb://mongodb.shared.com:27017
       - KMS_DATABASE_PREFIX=keystore_
-      - KMS_PRIMARY_KEY_DATABASE_TYPE=mongodb
-      - KMS_PRIMARY_KEY_DATABASE_URL=mongodb://mongodb.shared.com:27017
-      - KMS_PRIMARY_KEY_DATABASE_PREFIX=kmspk_
-      - KMS_LOCAL_KMS_DATABASE_TYPE=mongodb
-      - KMS_LOCAL_KMS_DATABASE_URL=mongodb://mongodb.shared.com:27017
-      - KMS_LOCAL_KMS_DATABASE_PREFIX=kmslocal_
-      - KMS_KEY_MANAGER_STORAGE_TYPE=mongodb
-      - KMS_KEY_MANAGER_STORAGE_URL=mongodb://mongodb.shared.com:27017
-      - KMS_KEY_MANAGER_STORAGE_PREFIX=kmskm_
+      - KMS_SECRET_LOCK_TYPE=local
+      - KMS_SECRET_LOCK_KEY_PATH=/etc/kms/secret-lock.key
       - KMS_LOG_LEVEL=debug
     ports:
       - 7878:7878
-    entrypoint: [""]
+    volumes:
+      - ./keys/kms:/etc/kms
     depends_on:
       - mongodb.shared.com
-    command: /bin/sh -c "kms-rest start"
+    command: start
     networks:
       orb_net:
         ipv4_address: 172.20.0.13
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-f27ec3d
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-d815fdb
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077

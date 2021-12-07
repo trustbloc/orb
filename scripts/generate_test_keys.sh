@@ -66,4 +66,8 @@ openssl ecparam -name prime256v1 -genkey -noout -out test/bdd/fixtures/keys/upda
 openssl ec -in test/bdd/fixtures/keys/update3/key.pem -passout pass:123 -out test/bdd/fixtures/keys/update3/key_encrypted.pem -aes256
 openssl ec -in test/bdd/fixtures/keys/update3/key.pem -pubout -out test/bdd/fixtures/keys/update3/public.pem
 
+#create primary key for kms secret lock
+mkdir -p test/bdd/fixtures/keys/kms
+openssl rand 32 | base64 | sed 's/+/-/g; s/\//_/g' > test/bdd/fixtures/keys/kms/secret-lock.key
+
 echo "done generating orb PKI"
