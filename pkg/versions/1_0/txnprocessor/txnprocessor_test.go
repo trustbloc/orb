@@ -239,6 +239,6 @@ type mockUnpublishedOpsStore struct {
 	DeleteAllErr error
 }
 
-func (m *mockUnpublishedOpsStore) DeleteAll(_ []string) error {
+func (m *mockUnpublishedOpsStore) DeleteAll(_ []*operation.AnchoredOperation) error {
 	return m.DeleteAllErr
 }

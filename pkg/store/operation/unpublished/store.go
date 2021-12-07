@@ -8,13 +8,13 @@ package unpublished
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/expiry"
@@ -25,6 +25,8 @@ import (
 const (
 	nameSpace     = "unpublished-operation"
 	expiryTagName = "ExpiryTime"
+	index         = "suffix"
+	sha2_256      = 18
 )
 
 var logger = log.New("unpublished-operation-store")
@@ -66,15 +68,6 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 		return fmt.Errorf("failed to save unpublished operation: suffix is empty")
 	}
 
-	_, err := s.Get(op.UniqueSuffix)
-	if err == nil {
-		return fmt.Errorf("pending operation found for suffix[%s], please re-submit your operation request at later time", op.UniqueSuffix) //nolint:lll
-	}
-
-	if !errors.Is(err, storage.ErrDataNotFound) {
-		return fmt.Errorf("unable to check for pending operations for suffix[%s], please re-submit your operation request at later time: %w", op.UniqueSuffix, err) //nolint:lll
-	}
-
 	opBytes, err := json.Marshal(op)
 	if err != nil {
 		return fmt.Errorf("failed to marshal unpublished operation: %w", err)
@@ -82,56 +75,110 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 
 	logger.Debugf("storing unpublished '%s' operation for suffix[%s]: %s", op.Type, op.UniqueSuffix, string(opBytes))
 
-	tag := storage.Tag{
-		Name:  expiryTagName,
-		Value: fmt.Sprintf("%d", time.Now().Add(s.unpublishedOperationLifespan).Unix()),
+	tags := []storage.Tag{
+		{
+			Name:  index,
+			Value: op.UniqueSuffix,
+		},
+		{
+			Name:  expiryTagName,
+			Value: fmt.Sprintf("%d", time.Now().Add(s.unpublishedOperationLifespan).Unix()),
+		},
 	}
 
-	if e := s.store.Put(op.UniqueSuffix, opBytes, tag); e != nil {
-		return fmt.Errorf("failed to put unpublished operation for suffix[%s]: %w", op.UniqueSuffix, e)
+	key, err := hashing.CalculateModelMultihash(op.OperationRequest, sha2_256)
+	if err != nil {
+		return fmt.Errorf("failed to generate key for unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
+	}
+
+	if err := s.store.Put(key, opBytes, tags...); err != nil {
+		return fmt.Errorf("failed to put unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
 	}
 
 	return nil
 }
 
-// Get retrieves unpublished operation by suffix.
-func (s *Store) Get(suffix string) (*operation.AnchoredOperation, error) {
-	opBytes, err := s.store.Get(suffix)
+// Get retrieves unpublished operations by suffix.
+func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
+	var err error
+
+	query := fmt.Sprintf("%s:%s", index, suffix)
+
+	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get unpublished operations for[%s]: %w", query, err)
 	}
 
-	var op operation.AnchoredOperation
-
-	err = json.Unmarshal(opBytes, &op)
+	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal unpublished operation for suffix[%s]: %w", suffix, err)
+		return nil, fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err)
 	}
 
-	logger.Debugf("retrieved unpublished '%s' operation for suffix[%s]: %s", op.Type, suffix, string(opBytes))
+	var ops []*operation.AnchoredOperation
 
-	return &op, nil
+	for ok {
+		var value []byte
+
+		value, err = iter.Value()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get iterator value for suffix[%s]: %w",
+				suffix, err)
+		}
+
+		var op operation.AnchoredOperation
+
+		err = json.Unmarshal(value, &op)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal unpublished operation from store value for suffix[%s]: %w",
+				suffix, err)
+		}
+
+		ops = append(ops, &op)
+
+		ok, err = iter.Next()
+		if err != nil {
+			return nil, orberrors.NewTransient(fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err))
+		}
+	}
+
+	logger.Debugf("retrieved %d unpublished operations for suffix[%s]", len(ops), suffix)
+
+	if len(ops) == 0 {
+		return nil, fmt.Errorf("suffix[%s] not found in the unpublished operation store", suffix)
+	}
+
+	return ops, nil
 }
 
 // Delete will delete unpublished operation for suffix.
-func (s *Store) Delete(suffix string) error {
-	if err := s.store.Delete(suffix); err != nil {
-		return fmt.Errorf("failed to delete unpublished operation for suffix[%s]: %w", suffix, err)
+func (s *Store) Delete(op *operation.AnchoredOperation) error {
+	key, err := hashing.CalculateModelMultihash(op.OperationRequest, sha2_256)
+	if err != nil {
+		return fmt.Errorf("failed to generate key for unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
+	}
+
+	if err := s.store.Delete(key); err != nil {
+		return fmt.Errorf("failed to delete unpublished operation with key[%s] for suffix[%s]: %w", key, op.UniqueSuffix, err)
 	}
 
 	return nil
 }
 
 // DeleteAll deletes all operations for suffixes.
-func (s *Store) DeleteAll(suffixes []string) error {
-	if len(suffixes) == 0 {
+func (s *Store) DeleteAll(ops []*operation.AnchoredOperation) error {
+	if len(ops) == 0 {
 		return nil
 	}
 
-	operations := make([]storage.Operation, len(suffixes))
+	operations := make([]storage.Operation, len(ops))
 
-	for i, k := range suffixes {
-		operations[i] = storage.Operation{Key: k}
+	for i, op := range ops {
+		key, err := hashing.CalculateModelMultihash(op.OperationRequest, sha2_256)
+		if err != nil {
+			return fmt.Errorf("failed to generate key for unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
+		}
+
+		operations[i] = storage.Operation{Key: key}
 	}
 
 	err := s.store.Batch(operations)
@@ -139,7 +186,7 @@ func (s *Store) DeleteAll(suffixes []string) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete unpublished operations: %w", err))
 	}
 
-	logger.Debugf("deleted unpublished operations for %d suffixes", len(suffixes))
+	logger.Debugf("deleted %d unpublished operations", len(ops))
 
 	return nil
 }
