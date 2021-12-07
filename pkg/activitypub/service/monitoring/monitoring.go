@@ -17,15 +17,16 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
-	"github.com/sirupsen/logrus"
+	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/client/vct"
 
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = logrus.New()
+var logger = log.New("vct_monitor")
 
 const (
+	taskID          = "vct-monitor"
 	storeName       = "monitoring"
 	keyPrefix       = "queue"
 	tagNotConfirmed = "not_confirmed"
@@ -45,22 +46,16 @@ type Client struct {
 	documentLoader ld.DocumentLoader
 	store          storage.Store
 	http           httpClient
-	ticker         *time.Ticker
 	wfClient       webfingerClient
 }
 
-// Opt represents client option func.
-type Opt func(*Client)
-
-// WithHTTPClient allows providing HTTP client.
-func WithHTTPClient(client httpClient) Opt {
-	return func(o *Client) {
-		o.http = client
-	}
+type taskManager interface {
+	RegisterTask(taskType string, interval time.Duration, task func())
 }
 
 // New returns monitoring client.
-func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient, opts ...Opt) (*Client, error) { //nolint:lll
+func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient,
+	httpClient httpClient, taskMgr taskManager, interval time.Duration) (*Client, error) {
 	store, err := provider.OpenStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -74,16 +69,13 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 	client := &Client{
 		documentLoader: documentLoader,
 		store:          store,
-		ticker:         time.NewTicker(time.Second),
-		http:           &http.Client{Timeout: time.Minute},
+		http:           httpClient,
 		wfClient:       wfClient,
 	}
 
-	for _, opt := range opts {
-		opt(client)
-	}
+	logger.Infof("Registering task [%s] to be run at intervals of %s", taskID, interval)
 
-	go client.worker()
+	taskMgr.RegisterTask(taskID, interval, client.worker)
 
 	return client, nil
 }
@@ -141,16 +133,9 @@ func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 }
 
 func (c *Client) worker() {
-	for range c.ticker.C {
-		if err := c.handleEntities(); err != nil {
-			logger.Errorf("handle entities: %v", err)
-		}
+	if err := c.handleEntities(); err != nil {
+		logger.Errorf("handle entities: %v", err)
 	}
-}
-
-// Close stops ticker.
-func (c *Client) Close() {
-	c.ticker.Stop()
 }
 
 // Next is helper function that simplifies the usage of the iterator.

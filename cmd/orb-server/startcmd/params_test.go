@@ -662,6 +662,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "sync-interval: invalid value [xxx]")
 	})
+
+	t.Run("VCT monitoring interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctMonitoringIntervalEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-monitoring-interval: invalid value [xxx]")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {

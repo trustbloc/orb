@@ -24,6 +24,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	. "github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -37,17 +38,17 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	client, err := New(mem.NewProvider(), nil, nil)
+	taskMgr := mocks.NewTaskManager()
+
+	client, err := New(mem.NewProvider(), nil, nil, nil, taskMgr, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
-	client.Close()
-
-	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil, nil)
+	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil, nil, nil, taskMgr, time.Second)
 	require.EqualError(t, err, "open store: error")
 	require.Nil(t, client)
 
-	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil, nil)
+	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil, nil, nil, taskMgr, time.Second)
 	require.EqualError(t, err, "failed to set store configuration: error")
 	require.Nil(t, client)
 }
@@ -67,8 +68,15 @@ func TestClient_Watch(t *testing.T) {
 
 	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
+	httpClient := &http.Client{Timeout: time.Second}
+
 	t.Run("Expired", func(t *testing.T) {
-		client, err := New(mem.NewProvider(), nil, wfClient)
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(mem.NewProvider(), nil, wfClient, httpClient, taskMgr, time.Second)
 		require.NoError(t, err)
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{},
@@ -80,7 +88,12 @@ func TestClient_Watch(t *testing.T) {
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
 
-		client, err := New(db, testutil.GetLoader(t), wfClient)
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, testutil.GetLoader(t), wfClient, httpClient, taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
@@ -119,7 +132,12 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-sth" {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
@@ -131,7 +149,7 @@ func TestClient_Watch(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -157,12 +175,17 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -204,12 +227,17 @@ func TestClient_Watch(t *testing.T) {
 
 		dl := testutil.GetLoader(t)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -273,12 +301,17 @@ func TestClient_Watch(t *testing.T) {
 
 		dl := testutil.GetLoader(t)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -309,7 +342,7 @@ func TestClient_Watch(t *testing.T) {
 			}
 
 			return nil
-		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3)))
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 4)))
 		checkQueue(t, db, 0)
 		require.Nil(t, db.mockStore.errDelete)
 	})
@@ -320,12 +353,14 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -351,12 +386,14 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		client, err := New(db, dl, wfClient, WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+		taskMgr := mocks.NewTaskManager()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		})))
+		}), taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -382,6 +419,8 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
+		taskMgr := mocks.NewTaskManager()
+
 		notFoundWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
@@ -390,7 +429,7 @@ func TestClient_Watch(t *testing.T) {
 				}, nil
 			})))
 
-		client, err := New(db, dl, notFoundWebfingerClient)
+		client, err := New(db, dl, notFoundWebfingerClient, httpClient, taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -416,6 +455,8 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
+		taskMgr := mocks.NewTaskManager()
+
 		noLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
@@ -424,7 +465,7 @@ func TestClient_Watch(t *testing.T) {
 				}, nil
 			})))
 
-		client, err := New(db, dl, noLegerTypeWebfingerClient)
+		client, err := New(db, dl, noLegerTypeWebfingerClient, httpClient, taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -450,6 +491,8 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
+		taskMgr := mocks.NewTaskManager()
+
 		wrongLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
@@ -460,7 +503,7 @@ func TestClient_Watch(t *testing.T) {
 				}, nil
 			})))
 
-		client, err := New(db, dl, wrongLegerTypeWebfingerClient)
+		client, err := New(db, dl, wrongLegerTypeWebfingerClient, httpClient, taskMgr, time.Second)
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()

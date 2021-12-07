@@ -607,12 +607,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
-	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient, monitoring.WithHTTPClient(httpClient))
+	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
+		httpClient, taskMgr, parameters.vctMonitoringInterval)
 	if err != nil {
-		return fmt.Errorf("monitoring: %w", err)
+		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
-
-	defer monitoringSvc.Close()
 
 	witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 	if err != nil {

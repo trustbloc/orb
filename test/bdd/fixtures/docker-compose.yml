@@ -89,6 +89,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # VCT_MONITORING_INTERVAL is the interval (period) in which proofs are monitored from various VCTs that promised
+      # to anchor a VC by a certain time.
+      # Default value: 10s.
+      - VCT_MONITORING_INTERVAL=15s
     ports:
       - 48326:443
       - 48327:48327
@@ -190,6 +194,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # VCT_MONITORING_INTERVAL is the interval (period) in which proofs are monitored from various VCTs that promised
+      # to anchor a VC by a certain time.
+      # Default value: 10s.
+      - VCT_MONITORING_INTERVAL=15s
     ports:
       - 48526:443
       - 48527:48527

@@ -34,6 +34,7 @@ const (
 	defaultTaskMgrCheckInterval         = 10 * time.Second
 	defaultDataExpiryCheckInterval      = time.Minute
 	defaultAnchorSyncInterval           = time.Minute
+	defaultVCTMonitoringInterval        = 10 * time.Second
 	mqDefaultMaxConnectionSubscriptions = 1000
 
 	defaultFollowAuthType        = acceptAllPolicy
@@ -59,6 +60,12 @@ const (
 	vctURLFlagName  = "vct-url"
 	vctURLFlagUsage = "Verifiable credential transparency URL."
 	vctURLEnvKey    = "ORB_VCT_URL"
+
+	vctMonitoringIntervalFlagName  = "vct-monitoring-interval"
+	vctMonitoringIntervalEnvKey    = "VCT_MONITORING_INTERVAL"
+	vctMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
+		"Defaults to 10s if not set. " +
+		commonEnvVarUsageText + vctMonitoringIntervalEnvKey
 
 	kmsStoreEndpointFlagName  = "kms-store-endpoint"
 	kmsStoreEndpointEnvKey    = "ORB_KMS_STORE_ENDPOINT"
@@ -495,6 +502,7 @@ type orbParameters struct {
 	followAuthPolicy               acceptRejectPolicy
 	taskMgrCheckInterval           time.Duration
 	syncPeriod                     time.Duration
+	vctMonitoringInterval          time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -922,6 +930,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", anchorSyncIntervalFlagName, err)
 	}
 
+	vctMonitoringInterval, err := getDuration(cmd, vctMonitoringIntervalFlagName, vctMonitoringIntervalEnvKey,
+		defaultVCTMonitoringInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", vctMonitoringIntervalFlagName, err)
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -979,6 +993,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpDialTimeout:                httpDialTimeout,
 		httpTimeout:                    httpTimeout,
 		syncPeriod:                     syncPeriod,
+		vctMonitoringInterval:          vctMonitoringInterval,
 	}, nil
 }
 
@@ -1362,4 +1377,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpTimeoutFlagName, "", "", httpTimeoutFlagUsage)
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
+	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
 }
