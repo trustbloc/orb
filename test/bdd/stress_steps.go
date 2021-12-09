@@ -47,9 +47,17 @@ const (
 )
 
 var createLogCount int64
+var createCount int64
+var createSlowCount int64
 var resolveCreateLogCount int64
+var resolveCreateCount int64
+var resolveCreateSlowCount int64
 var updateLogCount int64
+var updateCount int64
+var updateSlowCount int64
 var resolveUpdateLogCount int64
+var resolveUpdateCount int64
+var resolveUpdateSlowCount int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -317,15 +325,21 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
+	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
 	fmt.Println("------")
 
 	fmt.Printf("Resolved anchor did %d took: %s\n", didNums, resolveTimeStr)
+	fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
+		resolveCreateCount)
 	fmt.Println("------")
 
 	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
+	fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
 	fmt.Println("------")
 
 	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
+	fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
+		resolveUpdateCount)
 	fmt.Println("------")
 
 	return nil
@@ -514,9 +528,12 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID(r.verMethodsCreate,
 			uuid.New().URN(), r.vdr)
 
+		atomic.AddInt64(&createCount, 1)
+
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 100 {
-			logger.Errorf("request time for create DID taking more than 100ms %s:", endTime.String())
+		if endTime.Milliseconds() > 1000 {
+			atomic.AddInt64(&createSlowCount, 1)
+			logger.Errorf("request time for create DID taking more than 1000ms %s", endTime.String())
 		}
 
 		if err == nil {
@@ -568,9 +585,12 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 		err := r.steps.updateDID(r.canonicalID, svcEndpoint, r.vdr, r.verMethodsCreate, r.verMethodsUpdate)
 
+		atomic.AddInt64(&updateCount, 1)
+
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 100 {
-			logger.Errorf("request time for update DID taking more than 100ms %s:", endTime.String())
+		if endTime.Milliseconds() > 1000 {
+			atomic.AddInt64(&updateSlowCount, 1)
+			logger.Errorf("request time for update DID taking more than 1000ms %s", endTime.String())
 		}
 
 		if err == nil {
@@ -616,9 +636,12 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 		docResolution, err = r.vdr.Read(r.intermID)
 
+		atomic.AddInt64(&resolveCreateCount, 1)
+
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 100 {
-			logger.Errorf("request time for resolve created DID taking more than 100ms %s:", endTime.String())
+		if endTime.Milliseconds() > 1000 {
+			atomic.AddInt64(&resolveCreateSlowCount, 1)
+			logger.Errorf("request time for resolve created DID taking more than 1000ms %s", endTime.String())
 		}
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
@@ -675,9 +698,12 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		docResolution, err = r.vdr.Read(r.canonicalID)
 
+		atomic.AddInt64(&resolveUpdateCount, 1)
+
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 100 {
-			logger.Errorf("request time for resolve updated DID taking more than 100ms %s:", endTime.String())
+		if endTime.Milliseconds() > 1000 {
+			atomic.AddInt64(&resolveUpdateSlowCount, 1)
+			logger.Errorf("request time for resolve updated DID taking more than 1000ms %s", endTime.String())
 		}
 
 		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == r.svcEndpoint {
