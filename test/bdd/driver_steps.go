@@ -58,7 +58,7 @@ func (e *DriverSteps) resolveDIDUniversalResolver(did string) (*ariesdid.DocReso
 			return ariesdid.ParseDocumentResolution(resp.Payload)
 		}
 
-		if !strings.Contains(resp.ErrorMsg, "DID does not exist for request") {
+		if !strings.Contains(resp.ErrorMsg, "DID does not exist") {
 			return nil, fmt.Errorf("%d: %s", resp.StatusCode, resp.ErrorMsg)
 		}
 
