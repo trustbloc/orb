@@ -43,7 +43,7 @@ func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
 		return nil, fmt.Errorf("failed to open unpublished operation store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{TagNames: []string{expiryTagName}})
+	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{TagNames: []string{expiryTagName, index}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set store configuration on unpublished operation store: %w", err)
 	}
