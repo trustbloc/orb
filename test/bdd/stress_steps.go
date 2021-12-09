@@ -509,8 +509,16 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 	var err error
 
 	for i := 1; i <= 10; i++ {
+		startTime := time.Now()
+
 		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID(r.verMethodsCreate,
 			uuid.New().URN(), r.vdr)
+
+		endTime := time.Since(startTime)
+		if endTime.Milliseconds() > 100 {
+			logger.Errorf("request time for create DID taking more than 100ms %s:", endTime.String())
+		}
+
 		if err == nil {
 			break
 		}
@@ -556,7 +564,15 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 	svcEndpoint := uuid.New().URN()
 
 	for i := 1; i <= 10; i++ {
+		startTime := time.Now()
+
 		err := r.steps.updateDID(r.canonicalID, svcEndpoint, r.vdr, r.verMethodsCreate, r.verMethodsUpdate)
+
+		endTime := time.Since(startTime)
+		if endTime.Milliseconds() > 100 {
+			logger.Errorf("request time for update DID taking more than 100ms %s:", endTime.String())
+		}
+
 		if err == nil {
 			break
 		}
@@ -596,7 +612,14 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
 
+		startTime := time.Now()
+
 		docResolution, err = r.vdr.Read(r.intermID)
+
+		endTime := time.Since(startTime)
+		if endTime.Milliseconds() > 100 {
+			logger.Errorf("request time for resolve created DID taking more than 100ms %s:", endTime.String())
+		}
 
 		if err == nil && docResolution.DocumentMetadata.Method.Published {
 			break
@@ -647,7 +670,15 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 	for i := 1; i <= r.maxRetry; i++ {
 		var err error
+
+		startTime := time.Now()
+
 		docResolution, err = r.vdr.Read(r.canonicalID)
+
+		endTime := time.Since(startTime)
+		if endTime.Milliseconds() > 100 {
+			logger.Errorf("request time for resolve updated DID taking more than 100ms %s:", endTime.String())
+		}
 
 		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == r.svcEndpoint {
 			break
