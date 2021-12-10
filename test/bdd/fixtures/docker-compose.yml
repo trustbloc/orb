@@ -93,6 +93,18 @@ services:
       # to anchor a VC by a certain time.
       # Default value: 10s.
       - VCT_MONITORING_INTERVAL=15s
+      # ACTIVITYPUB_CLIENT_CACHE_SIZE sets the maximum size of an ActivityPub service and public key cache.
+      # Default value: 100
+      - ACTIVITYPUB_CLIENT_CACHE_SIZE=200
+      # ACTIVITYPUB_CLIENT_CACHE_EXPIRATION sets the expiration time of an ActivityPub service and public key cache.
+      # Default value: 1h (one hour)
+      - ACTIVITYPUB_CLIENT_CACHE_EXPIRATION=90s
+      # ACTIVITYPUB_IRI_CACHE_SIZE sets the maximum size of an ActivityPub actor IRI cache.
+      # Default value: 100
+      - ACTIVITYPUB_IRI_CACHE_SIZE=200
+      # ACTIVITYPUB_IRI_CACHE_EXPIRATION sets the expiration time of an ActivityPub actor IRI cache.
+      # Default value: 1h (one hour)
+      - ACTIVITYPUB_IRI_CACHE_EXPIRATION=90s
     ports:
       - 48326:443
       - 48327:48327
@@ -198,6 +210,18 @@ services:
       # to anchor a VC by a certain time.
       # Default value: 10s.
       - VCT_MONITORING_INTERVAL=15s
+      # ACTIVITYPUB_CLIENT_CACHE_SIZE sets the maximum size of an ActivityPub service and public key cache.
+      # Default value: 100
+      - ACTIVITYPUB_CLIENT_CACHE_SIZE=200
+      # ACTIVITYPUB_CLIENT_CACHE_EXPIRATION sets the expiration time of an ActivityPub service and public key cache.
+      # Default value: 1h (one hour)
+      - ACTIVITYPUB_CLIENT_CACHE_EXPIRATION=90s
+      # ACTIVITYPUB_IRI_CACHE_SIZE sets the maximum size of an ActivityPub actor IRI cache.
+      # Default value: 100
+      - ACTIVITYPUB_IRI_CACHE_SIZE=200
+      # ACTIVITYPUB_IRI_CACHE_EXPIRATION sets the expiration time of an ActivityPub actor IRI cache.
+      # Default value: 1h (one hour)
+      - ACTIVITYPUB_IRI_CACHE_EXPIRATION=90s
     ports:
       - 48526:443
       - 48527:48527

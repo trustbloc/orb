@@ -107,7 +107,7 @@ func New(cfg Config, t httpTransport) *Client {
 		cacheExpiration = defaultCacheExpiration
 	}
 
-	logger.Debugf("Creating IRI cache with size=%d, expiration=%s", cacheSize, cacheExpiration)
+	logger.Debugf("Creating actor cache with size=%d, expiration=%s", cacheSize, cacheExpiration)
 
 	c.actorCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).

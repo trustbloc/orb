@@ -22,20 +22,24 @@ import (
 )
 
 const (
-	defaultBatchWriterTimeout           = 60000 * time.Millisecond
-	defaultDiscoveryMinimumResolvers    = 1
-	defaultActivityPubPageSize          = 50
-	defaultNodeInfoRefreshInterval      = 15 * time.Second
-	defaultIPFSTimeout                  = 20 * time.Second
-	defaultDatabaseTimeout              = 10 * time.Second
-	defaultHTTPDialTimeout              = 2 * time.Second
-	defaultHTTPTimeout                  = 20 * time.Second
-	defaultUnpublishedOperationLifespan = time.Minute * 5
-	defaultTaskMgrCheckInterval         = 10 * time.Second
-	defaultDataExpiryCheckInterval      = time.Minute
-	defaultAnchorSyncInterval           = time.Minute
-	defaultVCTMonitoringInterval        = 10 * time.Second
-	mqDefaultMaxConnectionSubscriptions = 1000
+	defaultBatchWriterTimeout               = 60000 * time.Millisecond
+	defaultDiscoveryMinimumResolvers        = 1
+	defaultActivityPubPageSize              = 50
+	defaultNodeInfoRefreshInterval          = 15 * time.Second
+	defaultIPFSTimeout                      = 20 * time.Second
+	defaultDatabaseTimeout                  = 10 * time.Second
+	defaultHTTPDialTimeout                  = 2 * time.Second
+	defaultHTTPTimeout                      = 20 * time.Second
+	defaultUnpublishedOperationLifespan     = time.Minute * 5
+	defaultTaskMgrCheckInterval             = 10 * time.Second
+	defaultDataExpiryCheckInterval          = time.Minute
+	defaultAnchorSyncInterval               = time.Minute
+	defaultVCTMonitoringInterval            = 10 * time.Second
+	mqDefaultMaxConnectionSubscriptions     = 1000
+	defaultActivityPubClientCacheSize       = 100
+	defaultActivityPubClientCacheExpiration = time.Hour
+	defaultActivityPubIRICacheSize          = 100
+	defaultActivityPubIRICacheExpiration    = time.Hour
 
 	defaultFollowAuthType        = acceptAllPolicy
 	defaultInviteWitnessAuthType = acceptAllPolicy
@@ -425,6 +429,26 @@ const (
 		"this service is following. Defaults to 1m if not set. " +
 		commonEnvVarUsageText + anchorSyncIntervalEnvKey
 
+	activityPubClientCacheSizeFlagName  = "apclient-cache-size"
+	activityPubClientCacheSizeEnvKey    = "ACTIVITYPUB_CLIENT_CACHE_SIZE"
+	activityPubClientCacheSizeFlagUsage = "The maximum size of an ActivityPub service and public key cache. " +
+		commonEnvVarUsageText + activityPubClientCacheSizeEnvKey
+
+	activityPubClientCacheExpirationFlagName  = "apclient-cache-Expiration"
+	activityPubClientCacheExpirationEnvKey    = "ACTIVITYPUB_CLIENT_CACHE_EXPIRATION"
+	activityPubClientCacheExpirationFlagUsage = "The expiration time of an ActivityPub service and public key cache. " +
+		commonEnvVarUsageText + activityPubClientCacheExpirationEnvKey
+
+	activityPubIRICacheSizeFlagName  = "apiri-cache-size"
+	activityPubIRICacheSizeEnvKey    = "ACTIVITYPUB_IRI_CACHE_SIZE"
+	activityPubIRICacheSizeFlagUsage = "The maximum size of an ActivityPub actor IRI cache. " +
+		commonEnvVarUsageText + activityPubIRICacheSizeEnvKey
+
+	activityPubIRICacheExpirationFlagName  = "apiri-cache-Expiration"
+	activityPubIRICacheExpirationEnvKey    = "ACTIVITYPUB_IRI_CACHE_EXPIRATION"
+	activityPubIRICacheExpirationFlagUsage = "The expiration time of an ActivityPub actor IRI cache. " +
+		commonEnvVarUsageText + activityPubIRICacheExpirationEnvKey
+
 	// TODO: Update verification method
 )
 
@@ -503,6 +527,10 @@ type orbParameters struct {
 	taskMgrCheckInterval           time.Duration
 	syncPeriod                     time.Duration
 	vctMonitoringInterval          time.Duration
+	apClientCacheSize              int
+	apClientCacheExpiration        time.Duration
+	apIRICacheSize                 int
+	apIRICacheExpiration           time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -936,6 +964,16 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", vctMonitoringIntervalFlagName, err)
 	}
 
+	apClientCacheSize, apClientCacheExpiration, err := getActivityPubClientParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	apIRICacheSize, apIRICacheExpiration, err := getActivityPubIRICacheParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &orbParameters{
 		hostURL:                        hostURL,
 		hostMetricsURL:                 hostMetricsURL,
@@ -994,6 +1032,10 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpTimeout:                    httpTimeout,
 		syncPeriod:                     syncPeriod,
 		vctMonitoringInterval:          vctMonitoringInterval,
+		apClientCacheSize:              apClientCacheSize,
+		apClientCacheExpiration:        apClientCacheExpiration,
+		apIRICacheSize:                 apIRICacheSize,
+		apIRICacheExpiration:           apIRICacheExpiration,
 	}, nil
 }
 
@@ -1307,6 +1349,66 @@ func getInviteWitnessAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) 
 	return inviteWitnessAuthType, nil
 }
 
+func getActivityPubClientParameters(cmd *cobra.Command) (int, time.Duration, error) {
+	cacheSize := defaultActivityPubClientCacheSize
+
+	cacheSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubClientCacheSizeFlagName, activityPubClientCacheSizeEnvKey, true)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if cacheSizeStr != "" {
+		cacheSize, err = strconv.Atoi(cacheSizeStr)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid value [%s] for parameter [%s]: %w",
+				cacheSizeStr, activityPubClientCacheSizeFlagName, err)
+		}
+
+		if cacheSize <= 0 {
+			return 0, 0, fmt.Errorf("value for parameter [%s] must be grater than 0", activityPubClientCacheSizeFlagName)
+		}
+	}
+
+	cacheExpiration, err := getDuration(cmd, activityPubClientCacheExpirationFlagName,
+		activityPubClientCacheExpirationEnvKey, defaultActivityPubClientCacheExpiration)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid value for parameter [%s]: %w",
+			activityPubClientCacheExpirationFlagName, err)
+	}
+
+	return cacheSize, cacheExpiration, nil
+}
+
+func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, error) {
+	cacheSize := defaultActivityPubIRICacheSize
+
+	cacheSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubIRICacheSizeFlagName, activityPubIRICacheSizeEnvKey, true)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if cacheSizeStr != "" {
+		cacheSize, err = strconv.Atoi(cacheSizeStr)
+		if err != nil {
+			return 0, 0, fmt.Errorf("invalid value [%s] for parameter [%s]: %w",
+				cacheSizeStr, activityPubIRICacheSizeFlagName, err)
+		}
+
+		if cacheSize <= 0 {
+			return 0, 0, fmt.Errorf("value for parameter [%s] must be grater than 0", activityPubIRICacheSizeFlagName)
+		}
+	}
+
+	cacheExpiration, err := getDuration(cmd, activityPubIRICacheExpirationFlagName,
+		activityPubIRICacheExpirationEnvKey, defaultActivityPubIRICacheExpiration)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid value for parameter [%s]: %w",
+			activityPubIRICacheExpirationFlagName, err)
+	}
+
+	return cacheSize, cacheExpiration, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
@@ -1378,4 +1480,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
 	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(activityPubClientCacheSizeFlagName, "", "", activityPubClientCacheSizeFlagUsage)
+	startCmd.Flags().StringP(activityPubIRICacheSizeFlagName, "", "", activityPubIRICacheSizeFlagUsage)
 }

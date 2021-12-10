@@ -51,6 +51,9 @@ type Config struct {
 
 	// MaxWitnessDelay is the maximum delay that the witnessed transaction becomes included into the ledger.
 	MaxWitnessDelay time.Duration
+
+	IRICacheSize       int
+	IRICacheExpiration time.Duration
 }
 
 // Service implements an ActivityPub service which has an inbox, outbox, and
@@ -90,6 +93,7 @@ type metricsProvider interface {
 }
 
 // New returns a new ActivityPub service.
+//nolint:funlen
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
 	pubSub PubSub, activityPubClient activityPubClient, resourceResolver resourceResolver,
 	m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
@@ -107,6 +111,8 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			ServiceIRI:       cfg.ServiceIRI,
 			Topic:            outboxActivitiesTopic,
 			RedeliveryConfig: cfg.RetryOpts,
+			CacheSize:        cfg.IRICacheSize,
+			CacheExpiration:  cfg.IRICacheExpiration,
 		},
 		activityStore, pubSub,
 		t, outboxHandler, activityPubClient, resourceResolver, m, handlerOpts...,
