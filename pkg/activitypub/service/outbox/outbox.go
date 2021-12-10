@@ -151,7 +151,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		lifecycle.WithStop(h.stop),
 	)
 
-	logger.Debugf("Creating cache with size=%d, expiration=%s", cfg.CacheSize, cfg.CacheExpiration)
+	logger.Debugf("Creating IRI cache with size=%d, expiration=%s", cfg.CacheSize, cfg.CacheExpiration)
 
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).

@@ -583,8 +583,10 @@ func startOrbServices(parameters *orbParameters) error {
 	apConfig := &apservice.Config{
 		ServiceEndpoint:        activityPubServicesPath,
 		ServiceIRI:             apServiceIRI,
-		MaxWitnessDelay:        parameters.maxWitnessDelay,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
+		MaxWitnessDelay:        parameters.maxWitnessDelay,
+		IRICacheSize:           parameters.apIRICacheSize,
+		IRICacheExpiration:     parameters.apIRICacheExpiration,
 	}
 
 	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServiceEndpoint)
@@ -602,8 +604,10 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("get public key: %w", err)
 	}
 
-	// TODO: Pass config from startup params
-	apClient := client.New(client.Config{}, t)
+	apClient := client.New(client.Config{
+		CacheSize:       parameters.apClientCacheSize,
+		CacheExpiration: parameters.apClientCacheExpiration,
+	}, t)
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 

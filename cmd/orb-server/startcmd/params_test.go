@@ -675,6 +675,32 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "vct-monitoring-interval: invalid value [xxx]")
 	})
+
+	t.Run("ActivityPub client parameters", func(t *testing.T) {
+		restoreEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value [xxx] for parameter [apclient-cache-size]")
+	})
+
+	t.Run("ActivityPub IRI cache parameters", func(t *testing.T) {
+		restoreEnv := setEnv(t, activityPubIRICacheSizeEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value [xxx] for parameter [apiri-cache-size]")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
@@ -1211,6 +1237,132 @@ func TestGetInviteWitnessAuthParameters(t *testing.T) {
 		_, err := getInviteWitnessAuthPolicy(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported accept/reject authorization type")
+	})
+}
+
+func TestGetActivityPubClientParameters(t *testing.T) {
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreSizeEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "1000")
+		restoreExpiryEnv := setEnv(t, activityPubClientCacheExpirationEnvKey, "10m")
+
+		defer func() {
+			restoreSizeEnv()
+			restoreExpiryEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		size, expiry, err := getActivityPubClientParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 1000, size)
+		require.Equal(t, 10*time.Minute, expiry)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		size, expiry, err := getActivityPubClientParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, defaultActivityPubClientCacheSize, size)
+		require.Equal(t, defaultActivityPubClientCacheExpiration, expiry)
+	})
+
+	t.Run("Invalid env value -> error", func(t *testing.T) {
+		t.Run("Invalid number for cache size", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "invalid")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubClientParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value [invalid] for parameter [apclient-cache-size]")
+		})
+
+		t.Run("Cache size less than 0", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "-1")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubClientParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "value for parameter [apclient-cache-size] must be grater than 0")
+		})
+
+		t.Run("Invalid cache expiry", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubClientCacheExpirationEnvKey, "invalid")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubClientParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value for parameter [apclient-cache-Expiration]")
+		})
+	})
+}
+
+func TestGetActivityPubIRICacheParameters(t *testing.T) {
+	t.Run("Valid env value -> error", func(t *testing.T) {
+		restoreSizeEnv := setEnv(t, activityPubIRICacheSizeEnvKey, "1000")
+		restoreExpiryEnv := setEnv(t, activityPubIRICacheExpirationEnvKey, "10m")
+
+		defer func() {
+			restoreSizeEnv()
+			restoreExpiryEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		size, expiry, err := getActivityPubIRICacheParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, 1000, size)
+		require.Equal(t, 10*time.Minute, expiry)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		size, expiry, err := getActivityPubIRICacheParameters(cmd)
+		require.NoError(t, err)
+		require.Equal(t, defaultActivityPubIRICacheSize, size)
+		require.Equal(t, defaultActivityPubIRICacheExpiration, expiry)
+	})
+
+	t.Run("Invalid env value -> error", func(t *testing.T) {
+		t.Run("Invalid number for cache size", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubIRICacheSizeEnvKey, "invalid")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubIRICacheParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value [invalid] for parameter [apiri-cache-size]")
+		})
+
+		t.Run("Cache size less than 0", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubIRICacheSizeEnvKey, "-1")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubIRICacheParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "value for parameter [apiri-cache-size] must be grater than 0")
+		})
+
+		t.Run("Invalid cache expiry", func(t *testing.T) {
+			restoreEnv := setEnv(t, activityPubIRICacheExpirationEnvKey, "invalid")
+			defer restoreEnv()
+
+			cmd := getTestCmd(t)
+
+			_, _, err := getActivityPubIRICacheParameters(cmd)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid value for parameter [apiri-cache-Expiration]")
+		})
 	})
 }
 
