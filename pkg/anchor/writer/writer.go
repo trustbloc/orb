@@ -731,25 +731,35 @@ func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*u
 				anchorID))
 	}
 
-	// store witnesses before posting offers
-	err = c.storeWitnesses(anchorID, witnesses)
-	if err != nil {
-		return nil, fmt.Errorf("store witnesses: %w", err)
-	}
-
 	selectedWitnesses, err := c.WitnessPolicy.Select(witnesses)
 	if err != nil {
 		return nil, fmt.Errorf("select witnesses: %w", err)
 	}
 
-	witnessesIRI := getUniqueWitnesses(selectedWitnesses)
+	selectedWitnessesIRI, selectedWitnessesMap := getUniqueWitnesses(selectedWitnesses)
 
-	logger.Debugf("selected %d witnesses: %+v", len(witnessesIRI), witnessesIRI)
+	// store witnesses before posting offers
+	err = c.storeWitnesses(anchorID, updateWitnessSelectionFlag(witnesses, selectedWitnessesMap))
+	if err != nil {
+		return nil, fmt.Errorf("store witnesses: %w", err)
+	}
 
-	return witnessesIRI, nil
+	logger.Debugf("selected %d witnesses: %+v", len(selectedWitnessesIRI), selectedWitnessesIRI)
+
+	return selectedWitnessesIRI, nil
 }
 
-func getUniqueWitnesses(witnesses []*proof.Witness) []*url.URL {
+func updateWitnessSelectionFlag(witnesses []*proof.Witness, selectedWitnesses map[string]bool) []*proof.Witness {
+	for _, w := range witnesses {
+		if _, ok := selectedWitnesses[w.URI.String()]; ok {
+			w.Selected = true
+		}
+	}
+
+	return witnesses
+}
+
+func getUniqueWitnesses(witnesses []*proof.Witness) ([]*url.URL, map[string]bool) {
 	uniqueWitnesses := make(map[string]bool)
 
 	var witnessesIRI []*url.URL
@@ -762,7 +772,7 @@ func getUniqueWitnesses(witnesses []*proof.Witness) []*url.URL {
 		}
 	}
 
-	return witnessesIRI
+	return witnessesIRI, uniqueWitnesses
 }
 
 func (c *Writer) storeWitnesses(anchorID string, witnesses []*proof.Witness) error {

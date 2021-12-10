@@ -13,9 +13,10 @@ import (
 
 // Witness contains info about witness.
 type Witness struct {
-	Type   WitnessType
-	URI    *url.URL
-	HasLog bool
+	Type     WitnessType
+	URI      *url.URL
+	HasLog   bool
+	Selected bool
 }
 
 func (wf *Witness) String() string {
