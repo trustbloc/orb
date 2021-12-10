@@ -660,7 +660,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 		if i == r.maxRetry {
 			if err == nil {
-				return nil, fmt.Errorf("did is not published")
+				return nil, fmt.Errorf("did is not published %s", r.intermID)
 			}
 
 			return nil, fmt.Errorf("failed resolve created DID %s: %s", r.intermID, err.Error())
