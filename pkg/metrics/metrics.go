@@ -93,6 +93,17 @@ const (
 	signerGetKeyTimeMetric         = "get_key_seconds"
 	signerSignMetric               = "sign_seconds"
 	signerAddLinkedDataProofMetric = "add_linked_data_proof_seconds"
+
+	// Resolver.
+	resolver = "resolver"
+
+	resolverResolveDocumentLocallyTimeMetric          = "resolve_document_locally_seconds"
+	resolverGetAnchorOriginEndpointTimeMetric         = "get_anchor_origin_endpoint_seconds"
+	resolverResolveDocumentFromAnchorOriginTimeMetric = "resolve_document_from_anchor_origin_seconds"
+	resolverResolveDocumentFromCreateStoreTimeMetric  = "resolve_document_from_create_document_store_seconds"
+	resolverDeleteDocumentFromCreateStoreTimeMetric   = "delete_document_from_create_document_store_seconds"
+	resolverVerifyCIDTimeMetric                       = "verify_cid_seconds"
+	resolverRequestDiscoveryTimeMetric                = "request_discovery_seconds"
 )
 
 var logger = log.New("metrics")
@@ -161,6 +172,14 @@ type Metrics struct {
 	signerGetKeyTimes               prometheus.Histogram
 	signerSignTimes                 prometheus.Histogram
 	signerAddLinkedDataProofTimes   prometheus.Histogram
+
+	resolverResolveDocumentLocallyTimes          prometheus.Histogram
+	resolverGetAnchorOriginEndpointTimes         prometheus.Histogram
+	resolverResolveDocumentFromAnchorOriginTimes prometheus.Histogram
+	resolverDeleteDocumentFromCreateStoreTimes   prometheus.Histogram
+	resolverResolveDocumentFromCreateStoreTimes  prometheus.Histogram
+	resolverVerifyCIDTimes                       prometheus.Histogram
+	resolverRequestDiscoveryTimes                prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -177,56 +196,63 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 	dbTypes := []string{"CouchDB", "MongoDB"}
 
 	m := &Metrics{
-		apOutboxPostTime:                         newOutboxPostTime(),
-		apOutboxResolveInboxesTime:               newOutboxResolveInboxesTime(),
-		anchorWriteTime:                          newAnchorWriteTime(),
-		anchorWriteBuildCredTime:                 newAnchorWriteBuildCredTime(),
-		anchorWriteGetWitnessesTime:              newAnchorWriteGetWitnessesTime(),
-		anchorWriteSignCredTime:                  newAnchorWriteSignCredTime(),
-		anchorWritePostOfferActivityTime:         newAnchorWritePostOfferActivityTime(),
-		anchorWriteGetPreviousAnchorsGetBulkTime: newAnchorWriteGetPreviousAnchorsGetBulkTime(),
-		anchorWriteGetPreviousAnchorsTime:        newAnchorWriteGetPreviousAnchorsTime(),
-		anchorWitnessTime:                        newAnchorWitnessTime(),
-		anchorProcessWitnessedTime:               newAnchorProcessWitnessedTime(),
-		anchorWriteSignWithLocalWitnessTime:      newAnchorWriteSignWithLocalWitnessTime(),
-		anchorWriteSignWithServerKeyTime:         newAnchorWriteSignWithServerKeyTime(),
-		anchorWriteSignLocalWitnessLogTime:       newAnchorWriteSignLocalWitnessLogTime(),
-		anchorWriteSignLocalStoreTime:            newAnchorWriteSignLocalStoreTime(),
-		anchorWriteSignLocalWatchTime:            newAnchorWriteSignLocalWatchTime(),
-		anchorWriteResolveHostMetaLinkTime:       newAnchorWriteResolveHostMetaLinkTime(),
-		opqueueAddOperationTime:                  newOpQueueAddOperationTime(),
-		opqueueBatchCutTime:                      newOpQueueBatchCutTime(),
-		opqueueBatchRollbackTime:                 newOpQueueBatchRollbackTime(),
-		opqueueBatchAckTime:                      newOpQueueBatchAckTime(),
-		opqueueBatchNackTime:                     newOpQueueBatchNackTime(),
-		opqueueBatchSize:                         newOpQueueBatchSize(),
-		observerProcessAnchorTime:                newObserverProcessAnchorTime(),
-		observerProcessDIDTime:                   newObserverProcessDIDTime(),
-		casWriteTime:                             newCASWriteTime(),
-		casResolveTime:                           newCASResolveTime(),
-		casReadTimes:                             newCASReadTimes(),
-		casCacheHitCount:                         newCASCacheHitCount(),
-		docCreateUpdateTime:                      newDocCreateUpdateTime(),
-		docResolveTime:                           newDocResolveTime(),
-		apInboxHandlerTimes:                      newInboxHandlerTimes(activityTypes),
-		apOutboxActivityCounts:                   newOutboxActivityCounts(activityTypes),
-		dbPutTimes:                               newDBPutTime(dbTypes),
-		dbGetTimes:                               newDBGetTime(dbTypes),
-		dbGetTagsTimes:                           newDBGetTagsTime(dbTypes),
-		dbGetBulkTimes:                           newDBGetBulkTime(dbTypes),
-		dbQueryTimes:                             newDBQueryTime(dbTypes),
-		dbDeleteTimes:                            newDBDeleteTime(dbTypes),
-		dbBatchTimes:                             newDBBatchTime(dbTypes),
-		vctWitnessAddProofVCTNilTimes:            newVCTWitnessAddProofVCTNilTime(),
-		vctWitnessAddVCTimes:                     newVCTWitnessAddVCTime(),
-		vctWitnessAddProofTimes:                  newVCTWitnessAddProofTime(),
-		vctWitnessAddWebFingerTimes:              newVCTWitnessWebFingerTime(),
-		vctWitnessVerifyVCTimes:                  newVCTWitnessVerifyVCTTime(),
-		vctAddProofParseCredentialTimes:          newVCTAddProofParseCredentialTime(),
-		vctAddProofSignTimes:                     newVCTAddProofSignTime(),
-		signerGetKeyTimes:                        newSignerGetKeyTime(),
-		signerSignTimes:                          newSignerSignTime(),
-		signerAddLinkedDataProofTimes:            newSignerAddLinkedDataProofTime(),
+		apOutboxPostTime:                             newOutboxPostTime(),
+		apOutboxResolveInboxesTime:                   newOutboxResolveInboxesTime(),
+		anchorWriteTime:                              newAnchorWriteTime(),
+		anchorWriteBuildCredTime:                     newAnchorWriteBuildCredTime(),
+		anchorWriteGetWitnessesTime:                  newAnchorWriteGetWitnessesTime(),
+		anchorWriteSignCredTime:                      newAnchorWriteSignCredTime(),
+		anchorWritePostOfferActivityTime:             newAnchorWritePostOfferActivityTime(),
+		anchorWriteGetPreviousAnchorsGetBulkTime:     newAnchorWriteGetPreviousAnchorsGetBulkTime(),
+		anchorWriteGetPreviousAnchorsTime:            newAnchorWriteGetPreviousAnchorsTime(),
+		anchorWitnessTime:                            newAnchorWitnessTime(),
+		anchorProcessWitnessedTime:                   newAnchorProcessWitnessedTime(),
+		anchorWriteSignWithLocalWitnessTime:          newAnchorWriteSignWithLocalWitnessTime(),
+		anchorWriteSignWithServerKeyTime:             newAnchorWriteSignWithServerKeyTime(),
+		anchorWriteSignLocalWitnessLogTime:           newAnchorWriteSignLocalWitnessLogTime(),
+		anchorWriteSignLocalStoreTime:                newAnchorWriteSignLocalStoreTime(),
+		anchorWriteSignLocalWatchTime:                newAnchorWriteSignLocalWatchTime(),
+		anchorWriteResolveHostMetaLinkTime:           newAnchorWriteResolveHostMetaLinkTime(),
+		opqueueAddOperationTime:                      newOpQueueAddOperationTime(),
+		opqueueBatchCutTime:                          newOpQueueBatchCutTime(),
+		opqueueBatchRollbackTime:                     newOpQueueBatchRollbackTime(),
+		opqueueBatchAckTime:                          newOpQueueBatchAckTime(),
+		opqueueBatchNackTime:                         newOpQueueBatchNackTime(),
+		opqueueBatchSize:                             newOpQueueBatchSize(),
+		observerProcessAnchorTime:                    newObserverProcessAnchorTime(),
+		observerProcessDIDTime:                       newObserverProcessDIDTime(),
+		casWriteTime:                                 newCASWriteTime(),
+		casResolveTime:                               newCASResolveTime(),
+		casReadTimes:                                 newCASReadTimes(),
+		casCacheHitCount:                             newCASCacheHitCount(),
+		docCreateUpdateTime:                          newDocCreateUpdateTime(),
+		docResolveTime:                               newDocResolveTime(),
+		apInboxHandlerTimes:                          newInboxHandlerTimes(activityTypes),
+		apOutboxActivityCounts:                       newOutboxActivityCounts(activityTypes),
+		dbPutTimes:                                   newDBPutTime(dbTypes),
+		dbGetTimes:                                   newDBGetTime(dbTypes),
+		dbGetTagsTimes:                               newDBGetTagsTime(dbTypes),
+		dbGetBulkTimes:                               newDBGetBulkTime(dbTypes),
+		dbQueryTimes:                                 newDBQueryTime(dbTypes),
+		dbDeleteTimes:                                newDBDeleteTime(dbTypes),
+		dbBatchTimes:                                 newDBBatchTime(dbTypes),
+		vctWitnessAddProofVCTNilTimes:                newVCTWitnessAddProofVCTNilTime(),
+		vctWitnessAddVCTimes:                         newVCTWitnessAddVCTime(),
+		vctWitnessAddProofTimes:                      newVCTWitnessAddProofTime(),
+		vctWitnessAddWebFingerTimes:                  newVCTWitnessWebFingerTime(),
+		vctWitnessVerifyVCTimes:                      newVCTWitnessVerifyVCTTime(),
+		vctAddProofParseCredentialTimes:              newVCTAddProofParseCredentialTime(),
+		vctAddProofSignTimes:                         newVCTAddProofSignTime(),
+		signerGetKeyTimes:                            newSignerGetKeyTime(),
+		signerSignTimes:                              newSignerSignTime(),
+		signerAddLinkedDataProofTimes:                newSignerAddLinkedDataProofTime(),
+		resolverResolveDocumentLocallyTimes:          newResolverResolveDocumentLocallyTime(),
+		resolverGetAnchorOriginEndpointTimes:         newResolverGetAnchorOriginEndpointTime(),
+		resolverResolveDocumentFromAnchorOriginTimes: newResolverResolveDocumentFromAnchorOriginTime(),
+		resolverDeleteDocumentFromCreateStoreTimes:   newResolverDeleteDocumentFromCreateStoreTime(),
+		resolverResolveDocumentFromCreateStoreTimes:  newResolverResolveDocumentFromCreateStoreTime(),
+		resolverVerifyCIDTimes:                       newResolverVerifyCIDTime(),
+		resolverRequestDiscoveryTimes:                newResolverRequestDiscoveryTime(),
 	}
 
 	prometheus.MustRegister(
@@ -245,6 +271,10 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
 		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes, m.signerAddLinkedDataProofTimes,
 		m.anchorWriteResolveHostMetaLinkTime,
+		m.resolverResolveDocumentLocallyTimes, m.resolverGetAnchorOriginEndpointTimes,
+		m.resolverResolveDocumentFromAnchorOriginTimes,
+		m.resolverResolveDocumentFromCreateStoreTimes, m.resolverDeleteDocumentFromCreateStoreTimes,
+		m.resolverVerifyCIDTimes, m.resolverRequestDiscoveryTimes,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -637,6 +667,55 @@ func (m *Metrics) SignerAddLinkedDataProof(value time.Duration) {
 	m.signerAddLinkedDataProofTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer add linked data proof time: %s", value)
+}
+
+// ResolveDocumentLocallyTime records resolving document locally.
+func (m *Metrics) ResolveDocumentLocallyTime(value time.Duration) {
+	m.resolverResolveDocumentLocallyTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver resolve document locally time: %s", value)
+}
+
+// GetAnchorOriginEndpointTime records getting anchor origin endpoint information.
+func (m *Metrics) GetAnchorOriginEndpointTime(value time.Duration) {
+	m.resolverGetAnchorOriginEndpointTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver get anchor origin endpoint time: %s", value)
+}
+
+// ResolveDocumentFromAnchorOriginTime records resolving document from anchor origin.
+func (m *Metrics) ResolveDocumentFromAnchorOriginTime(value time.Duration) {
+	m.resolverResolveDocumentFromAnchorOriginTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver resolve document from anchor origin time: %s", value)
+}
+
+// DeleteDocumentFromCreateDocumentStoreTime records deleting document from create document store.
+func (m *Metrics) DeleteDocumentFromCreateDocumentStoreTime(value time.Duration) {
+	m.resolverDeleteDocumentFromCreateStoreTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver delete document from create store time: %s", value)
+}
+
+// ResolveDocumentFromCreateDocumentStoreTime records resolving document from create document store.
+func (m *Metrics) ResolveDocumentFromCreateDocumentStoreTime(value time.Duration) {
+	m.resolverResolveDocumentFromCreateStoreTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver resolve document from create store time: %s", value)
+}
+
+// VerifyCIDTime records verifying CID for document resolution.
+func (m *Metrics) VerifyCIDTime(value time.Duration) {
+	m.resolverVerifyCIDTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver verify CID time: %s", value)
+}
+
+// RequestDiscoveryTime records the time it takes to request discovery.
+func (m *Metrics) RequestDiscoveryTime(value time.Duration) {
+	m.resolverRequestDiscoveryTimes.Observe(value.Seconds())
+
+	logger.Debugf("resolver request discovery time: %s", value)
 }
 
 // SignerSign records sign.
@@ -1135,6 +1214,62 @@ func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 	return newHistogram(
 		signer, signerAddLinkedDataProofMetric,
 		"The time (in seconds) it takes the signer to add data linked prrof.",
+		nil,
+	)
+}
+
+func newResolverResolveDocumentLocallyTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverResolveDocumentLocallyTimeMetric,
+		"The time (in seconds) it takes the resolver to resolve document locally.",
+		nil,
+	)
+}
+
+func newResolverGetAnchorOriginEndpointTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverGetAnchorOriginEndpointTimeMetric,
+		"The time (in seconds) it takes the resolver to get endpoint information from anchor origin.",
+		nil,
+	)
+}
+
+func newResolverResolveDocumentFromAnchorOriginTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverResolveDocumentFromAnchorOriginTimeMetric,
+		"The time (in seconds) it takes the resolver to resolve document from anchor origin.",
+		nil,
+	)
+}
+
+func newResolverResolveDocumentFromCreateStoreTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverResolveDocumentFromCreateStoreTimeMetric,
+		"The time (in seconds) it takes the resolver to resolve document from create document store.",
+		nil,
+	)
+}
+
+func newResolverDeleteDocumentFromCreateStoreTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverDeleteDocumentFromCreateStoreTimeMetric,
+		"The time (in seconds) it takes the resolver to delete document from create document store.",
+		nil,
+	)
+}
+
+func newResolverVerifyCIDTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverVerifyCIDTimeMetric,
+		"The time (in seconds) it takes the resolver to verify CID in anchor graph.",
+		nil,
+	)
+}
+
+func newResolverRequestDiscoveryTime() prometheus.Histogram {
+	return newHistogram(
+		resolver, resolverRequestDiscoveryTimeMetric,
+		"The time (in seconds) it takes the resolver to request DID discovery.",
 		nil,
 	)
 }

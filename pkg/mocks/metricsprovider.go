@@ -185,3 +185,31 @@ func (m *MetricsProvider) SignerSign(value time.Duration) {
 // SignerAddLinkedDataProof records add data linked proof.
 func (m *MetricsProvider) SignerAddLinkedDataProof(value time.Duration) {
 }
+
+// ResolveDocumentLocallyTime records resolving document locally.
+func (m *MetricsProvider) ResolveDocumentLocallyTime(value time.Duration) {
+}
+
+// GetAnchorOriginEndpointTime records getting anchor origin endpoint information.
+func (m *MetricsProvider) GetAnchorOriginEndpointTime(value time.Duration) {
+}
+
+// ResolveDocumentFromAnchorOriginTime records resolving document from anchor origin.
+func (m *MetricsProvider) ResolveDocumentFromAnchorOriginTime(value time.Duration) {
+}
+
+// DeleteDocumentFromCreateDocumentStoreTime records deleting document from create document store.
+func (m *MetricsProvider) DeleteDocumentFromCreateDocumentStoreTime(value time.Duration) {
+}
+
+// ResolveDocumentFromCreateDocumentStoreTime records resolving document from create document store.
+func (m *MetricsProvider) ResolveDocumentFromCreateDocumentStoreTime(value time.Duration) {
+}
+
+// VerifyCIDTime records verifying CID for document resolution.
+func (m *MetricsProvider) VerifyCIDTime(value time.Duration) {
+}
+
+// RequestDiscoveryTime records the time it takes to request discovery.
+func (m *MetricsProvider) RequestDiscoveryTime(value time.Duration) {
+}
