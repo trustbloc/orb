@@ -416,7 +416,7 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 		return nil, nil, "", err
 	}
 
-	return recoveryKeyPrivateKey, updateKeyPrivateKey, createdDocResolution.DIDDocument.ID, nil
+	return recoveryKeyPrivateKey, updateKeyPrivateKey, createdDocResolution.DocumentMetadata.EquivalentID[0], nil
 }
 
 func (e *StressSteps) updateDID(didID string, svcEndpoint string, vdr *orb.VDR,
@@ -649,7 +649,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
-			logger.Errorf("resolve created DID %s: %s", r.intermID, err.Error())
+			logger.Errorf("failed resolve created DID %s: %s", r.intermID, err.Error())
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
@@ -663,7 +663,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 				return nil, fmt.Errorf("did is not published")
 			}
 
-			return nil, err
+			return nil, fmt.Errorf("failed resolve created DID %s: %s", r.intermID, err.Error())
 		}
 
 		time.Sleep(1 * time.Second)
