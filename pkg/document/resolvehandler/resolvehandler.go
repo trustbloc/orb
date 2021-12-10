@@ -77,6 +77,13 @@ type remoteResolver interface {
 
 type metricsProvider interface {
 	DocumentResolveTime(duration time.Duration)
+	ResolveDocumentLocallyTime(duration time.Duration)
+	GetAnchorOriginEndpointTime(duration time.Duration)
+	ResolveDocumentFromAnchorOriginTime(duration time.Duration)
+	DeleteDocumentFromCreateDocumentStoreTime(duration time.Duration)
+	ResolveDocumentFromCreateDocumentStoreTime(duration time.Duration)
+	VerifyCIDTime(duration time.Duration)
+	RequestDiscoveryTime(duration time.Duration)
 }
 
 // Option is an option for resolve handler.
@@ -335,10 +342,16 @@ func checkCommitment(anchorOrigin, local map[string]interface{}, commitmentType 
 }
 
 func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) { //nolint:lll
-	endpoint, err := r.endpointClient.GetEndpoint(anchorOrigin)
+	endpoint, err := r.getAnchorOriginEndpoint(anchorOrigin)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
+		return nil, err
 	}
+
+	resolveDocumentFromAnchorOriginStartTime := time.Now()
+
+	defer func() {
+		r.metrics.ResolveDocumentFromAnchorOriginTime(time.Since(resolveDocumentFromAnchorOriginStartTime))
+	}()
 
 	anchorOriginResponse, err := r.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
 	if err != nil {
@@ -349,7 +362,28 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string
 	return anchorOriginResponse, nil
 }
 
+func (r *ResolveHandler) getAnchorOriginEndpoint(anchorOrigin string) (*models.Endpoint, error) {
+	getAnchorOriginEndpointStartTime := time.Now()
+
+	defer func() {
+		r.metrics.GetAnchorOriginEndpointTime(time.Since(getAnchorOriginEndpointStartTime))
+	}()
+
+	endpoint, err := r.endpointClient.GetEndpoint(anchorOrigin)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", anchorOrigin, err)
+	}
+
+	return endpoint, nil
+}
+
 func (r *ResolveHandler) resolveDocumentLocally(id string, additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error) { //nolint:lll,gocyclo,cyclop
+	resolveDocumentLocallyStartTime := time.Now()
+
+	defer func() {
+		r.metrics.ResolveDocumentLocallyTime(time.Since(resolveDocumentLocallyStartTime))
+	}()
+
 	response, err := r.coreResolver.ResolveDocument(id, additionalOps...)
 	if err != nil { //nolint:nestif
 		if strings.Contains(err.Error(), "not found") {
@@ -394,6 +428,12 @@ func (r *ResolveHandler) resolveDocumentLocally(id string, additionalOps ...*ope
 }
 
 func (r *ResolveHandler) deleteDocumentFromCreateDocumentStore(id string) {
+	deleteDocumentFromCreateDocumentStoreStartTime := time.Now()
+
+	defer func() {
+		r.metrics.DeleteDocumentFromCreateDocumentStoreTime(time.Since(deleteDocumentFromCreateDocumentStoreStartTime))
+	}()
+
 	suffix, err := util.GetSuffix(id)
 	if err != nil {
 		logger.Warnf("failed to delete document id[%s] from create document store: %s", id, err.Error())
@@ -410,6 +450,12 @@ func (r *ResolveHandler) deleteDocumentFromCreateDocumentStore(id string) {
 }
 
 func (r *ResolveHandler) resolveDocumentFromCreateDocumentStore(id string) (*document.ResolutionResult, error) {
+	resolveDocumentFromCreateDocumentStoreStartTime := time.Now()
+
+	defer func() {
+		r.metrics.ResolveDocumentFromCreateDocumentStoreTime(time.Since(resolveDocumentFromCreateDocumentStoreStartTime))
+	}()
+
 	suffix, err := util.GetSuffix(id)
 	if err != nil {
 		logger.Warnf("failed to resolve document id[%s] from create document store: %s", id, err.Error())
@@ -483,6 +529,12 @@ func getEquivalentID(metadata document.Metadata) string {
 func (r *ResolveHandler) requestDiscovery(did string) {
 	logger.Infof("requesting discovery for did[%s]", did)
 
+	requestDiscoveryStartTime := time.Now()
+
+	defer func() {
+		r.metrics.RequestDiscoveryTime(time.Since(requestDiscoveryStartTime))
+	}()
+
 	err := r.discoveryService.RequestDiscovery(did)
 	if err != nil {
 		logger.Warnf("error while requesting discovery for did[%s]: %s", did, err.Error())
@@ -490,6 +542,12 @@ func (r *ResolveHandler) requestDiscovery(did string) {
 }
 
 func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) error {
+	verifyCIDStartTime := time.Now()
+
+	defer func() {
+		r.metrics.VerifyCIDTime(time.Since(verifyCIDStartTime))
+	}()
+
 	value, ok := rr.DocumentMetadata[document.CanonicalIDProperty]
 	if !ok {
 		// this document has not been published so nothing to verify
