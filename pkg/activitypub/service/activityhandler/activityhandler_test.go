@@ -3011,7 +3011,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 		refs, err := storeutil.ReadReferences(it, -1)
 		require.NoError(t, err)
 		require.NotEmpty(t, refs)
-		require.Equal(t, like.ID().String(), refs[0].String())
+		require.Equal(t, like.Object().AnchorEvent().URL()[0].String(), refs[0].String())
 	})
 
 	t.Run("No anchor ref", func(t *testing.T) {

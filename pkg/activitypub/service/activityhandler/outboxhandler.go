@@ -122,12 +122,11 @@ func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
 		return errors.New("no anchor reference URL in 'Like' activity")
 	}
 
-	logger.Debugf("[%s] Storing activity in the 'Liked' collection: %s", h.ServiceName, ref.URL())
+	logger.Debugf("[%s] Storing anchor reference in the 'Liked' collection: %s", h.ServiceName, ref.URL())
 
-	err := h.store.AddReference(store.Liked, h.ServiceIRI, like.ID().URL(),
-		store.WithActivityType(like.Type().Types()[0]))
+	err := h.store.AddReference(store.Liked, h.ServiceIRI, ref.URL()[0])
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("add activity to 'Liked' collection: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("add anchor reference to 'Liked' collection: %w", err))
 	}
 
 	return nil

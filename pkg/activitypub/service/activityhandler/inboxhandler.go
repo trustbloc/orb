@@ -722,8 +722,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 
 	logger.Debugf("[%s] Storing activity in the 'Likes' collection: %s", h.ServiceName, refURL)
 
-	if err := h.store.AddReference(store.Like, refURL, like.ID().URL(),
-		store.WithActivityType(like.Type().Types()[0])); err != nil {
+	if err := h.store.AddReference(store.Like, refURL, like.ID().URL()); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("add activity to 'Likes' collection: %w", err))
 	}
 

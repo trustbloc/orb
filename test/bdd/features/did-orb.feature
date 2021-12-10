@@ -306,11 +306,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems" of the array response is not empty
-    And the JSON path "orderedItems.0.object.url" of the response is saved to variable "anchorLink"
-    And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity"
-    And the JSON path "orderedItems.0.id" of the response is saved to variable "likeID"
-    And the JSON path "orderedItems.0.actor" of the response is saved to variable "likeActor"
-    And the JSON path "orderedItems.0.to" of the raw response is saved to variable "likeTo"
+    And the JSON path "orderedItems.0" of the response is saved to variable "anchorLink"
 
     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
 
@@ -329,6 +325,7 @@ Feature:
     And the JSON path "orderedItems.#.actor" of the response contains "${domain1IRI}"
     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
+    And the JSON path 'orderedItems.#(actor="https://orb.domain1.com/services/orb")' of the raw response is saved to variable "likeActivity"
 
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
@@ -338,8 +335,8 @@ Feature:
     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
 
-    Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor}","to":#{likeTo},"object":#{likeActivity}}'
-    When an HTTP POST is sent to "${likeActor}/outbox" with content "${undoLikeActivity}" of type "application/json"
+    Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":#{likeActivity}}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${undoLikeActivity}" of type "application/json"
 
     Then we wait 2 seconds
 
