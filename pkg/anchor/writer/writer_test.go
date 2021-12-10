@@ -365,6 +365,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:          wit,
 			MonitoringSvc:    &mockMonitoring{},
 			WitnessStore:     &mockWitnessStore{},
+			WitnessPolicy:    &mockWitnessPolicy{},
 			ActivityStore:    &mockActivityStore{},
 			AnchorEventStore: anchorEventStore,
 			VCStatusStore:    &mockVCStatusStore{Err: fmt.Errorf("vc status error")},
@@ -1246,6 +1247,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		providers := &Providers{
 			Outbox:        &mockOutbox{},
 			WitnessStore:  &mockWitnessStore{PutErr: fmt.Errorf("witness store error")},
+			WitnessPolicy: &mockWitnessPolicy{},
 			ActivityStore: &mockActivityStore{},
 			WFClient:      wfClient,
 		}
