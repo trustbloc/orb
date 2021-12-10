@@ -59,13 +59,6 @@ func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier, 
 		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier, sortOrder)
 }
 
-// NewLiked returns a new 'liked' REST handler that retrieves a service's 'Like' activities, i.e. the Like
-// activities that were posted by the given service.
-func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier, sortOrder spi.SortOrder) *Activities {
-	return NewActivities(LikedPath, spi.Liked, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier, sortOrder)
-}
-
 type getIDFunc func(objectIRI *url.URL, req *http.Request) (*url.URL, error)
 
 type getObjectIRIFunc func(req *http.Request) (*url.URL, error)

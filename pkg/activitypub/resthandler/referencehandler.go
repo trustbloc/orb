@@ -41,6 +41,13 @@ func NewWitnessing(cfg *Config, activityStore spi.Store, verifier signatureVerif
 		getObjectIRI(cfg.ObjectIRI), getID("witnessing"), verifier)
 }
 
+// NewLiked returns a new 'liked' REST handler that retrieves the references of all the anchor events that
+// this service liked.
+func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+	return NewReference(LikedPath, spi.Liked, spi.SortAscending, true, cfg, activityStore,
+		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier)
+}
+
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
 
 type signatureVerifier interface {

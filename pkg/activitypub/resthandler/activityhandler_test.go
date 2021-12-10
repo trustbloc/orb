@@ -698,19 +698,19 @@ func TestLiked_Handler(t *testing.T) {
 
 	for _, a := range liked {
 		require.NoError(t, activityStore.AddActivity(a))
-		require.NoError(t, activityStore.AddReference(spi.Liked, serviceIRI, a.ID().URL()))
+		require.NoError(t, activityStore.AddReference(spi.Liked, serviceIRI, a.Object().AnchorEvent().URL()[0]))
 	}
 
 	cfg := &Config{
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
-		PageSize:  2,
+		PageSize:  5,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewLiked(cfg, activityStore, verifier, spi.SortDescending)
+	h := NewLiked(cfg, activityStore, verifier)
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -1325,53 +1325,24 @@ const (
 
 	likedJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/liked",
-  "type": "OrderedCollection",
-  "totalItems": 19,
   "first": "https://example1.com/services/orb/liked?page=true",
-  "last": "https://example1.com/services/orb/liked?page=true&page-num=0"
+  "id": "https://example1.com/services/orb/liked",
+  "last": "https://example1.com/services/orb/liked?page=true&page-num=3",
+  "totalItems": 19,
+  "type": "OrderedCollection"
 }`
 
 	//nolint:lll
 	likedFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example1.com/services/orb/liked?page=true&page-num=9",
-  "next": "https://example1.com/services/orb/liked?page=true&page-num=8",
+  "id": "https://example1.com/services/orb/liked?page=true&page-num=0",
+  "next": "https://example1.com/services/orb/liked?page=true&page-num=1",
   "orderedItems": [
-    {
-      "@context": "https://www.w3.org/ns/activitystreams",
-      "actor": "https://example1.com/services/orb",
-      "id": "https://example18.com/activities/like_activity_18",
-      "object": {
-        "@context": "https://w3id.org/activityanchors/v1",
-        "type": "AnchorEvent",
-        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
-      },
-      "published": "2021-01-27T09:30:10Z",
-      "result": {
-        "@context": "https://w3id.org/activityanchors/v1",
-        "type": "AnchorEvent",
-        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
-      },
-      "type": "Like"
-    },
-    {
-      "@context": "https://www.w3.org/ns/activitystreams",
-      "actor": "https://example1.com/services/orb",
-      "id": "https://example17.com/activities/like_activity_17",
-      "object": {
-        "@context": "https://w3id.org/activityanchors/v1",
-        "type": "AnchorEvent",
-        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
-      },
-      "published": "2021-01-27T09:30:10Z",
-      "result": {
-        "@context": "https://w3id.org/activityanchors/v1",
-        "type": "AnchorEvent",
-        "url": "hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
-      },
-      "type": "Like"
-    }
+    "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1",
+    "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1",
+    "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1",
+    "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1",
+    "hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1"
   ],
   "totalItems": 19,
   "type": "OrderedCollectionPage"

@@ -899,7 +899,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewInbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
 		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
+		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier),
 		aphandler.NewLikes(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
 		aphandler.NewShares(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
 		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
