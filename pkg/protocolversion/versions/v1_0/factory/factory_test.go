@@ -45,7 +45,7 @@ func TestFactory_Create(t *testing.T) {
 
 	t.Run("success - with update store config", func(t *testing.T) {
 		updateDocumentStore, err := unpublishedopstore.New(storeProvider, time.Minute,
-			testutil.GetExpiryService(t))
+			testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		cfg := &config.Sidetree{

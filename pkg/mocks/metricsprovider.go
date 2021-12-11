@@ -213,3 +213,37 @@ func (m *MetricsProvider) VerifyCIDTime(value time.Duration) {
 // RequestDiscoveryTime records the time it takes to request discovery.
 func (m *MetricsProvider) RequestDiscoveryTime(value time.Duration) {
 }
+
+// DecorateTime records the time it takes to decorate operation (for update handler).
+func (m *MetricsProvider) DecorateTime(value time.Duration) {
+}
+
+// ProcessorResolveTime records the time it takes for processor to resolve document
+// when decorating operation (for update handler).
+func (m *MetricsProvider) ProcessorResolveTime(value time.Duration) {
+}
+
+// GetAOEndpointAndResolveDocumentFromAOTime records the time it takes to get anchor origin endpoint
+// and resolve document from anchor origin when decorating operation (for update handler).
+func (m *MetricsProvider) GetAOEndpointAndResolveDocumentFromAOTime(value time.Duration) {
+}
+
+// PutUnpublishedOperation records the time it takes to store unpublished operation.
+func (m *MetricsProvider) PutUnpublishedOperation(value time.Duration) {
+}
+
+// GetUnpublishedOperations records the time it takes to get unpublished operations for suffix.
+func (m *MetricsProvider) GetUnpublishedOperations(value time.Duration) {
+}
+
+// CalculateUnpublishedOperationKey records the time to create unpublished operation key.
+func (m *MetricsProvider) CalculateUnpublishedOperationKey(value time.Duration) {
+}
+
+// PutPublishedOperations records the time to store published operations.
+func (m *MetricsProvider) PutPublishedOperations(value time.Duration) {
+}
+
+// GetPublishedOperations records the time to get published operations for suffix.
+func (m *MetricsProvider) GetPublishedOperations(value time.Duration) {
+}

@@ -37,7 +37,7 @@ var logger = log.New("unpublished-operation-store")
 // unpublishedOperationLifespan defines how long unpublished operations can stay in the store before being flagged
 // for deletion.
 func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
-	expiryService *expiry.Service) (*Store, error) {
+	expiryService *expiry.Service, metrics metricsProvider) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open unpublished operation store: %w", err)
@@ -53,6 +53,8 @@ func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
 	return &Store{
 		store:                        store,
 		unpublishedOperationLifespan: unpublishedOperationLifespan,
+
+		metrics: metrics,
 	}, nil
 }
 
@@ -60,10 +62,24 @@ func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
 type Store struct {
 	store                        storage.Store
 	unpublishedOperationLifespan time.Duration
+
+	metrics metricsProvider
 }
 
-// Put saves an unpublished operation. If it already exists an error will be returned.
+type metricsProvider interface {
+	PutUnpublishedOperation(duration time.Duration)
+	GetUnpublishedOperations(duration time.Duration)
+	CalculateUnpublishedOperationKey(duration time.Duration)
+}
+
+// Put saves an unpublished operation. If it already exists it will be overwritten.
 func (s *Store) Put(op *operation.AnchoredOperation) error {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.PutUnpublishedOperation(time.Since(startTime))
+	}()
+
 	if op.UniqueSuffix == "" {
 		return fmt.Errorf("failed to save unpublished operation: suffix is empty")
 	}
@@ -86,10 +102,14 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 		},
 	}
 
+	calculateKeyStartTime := time.Now()
+
 	key, err := hashing.CalculateModelMultihash(op.OperationRequest, sha2_256)
 	if err != nil {
 		return fmt.Errorf("failed to generate key for unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
 	}
+
+	s.metrics.CalculateUnpublishedOperationKey(time.Since(calculateKeyStartTime))
 
 	if err := s.store.Put(key, opBytes, tags...); err != nil {
 		return fmt.Errorf("failed to put unpublished operation for suffix[%s]: %w", op.UniqueSuffix, err)
@@ -100,6 +120,12 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 
 // Get retrieves unpublished operations by suffix.
 func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.GetUnpublishedOperations(time.Since(startTime))
+	}()
+
 	var err error
 
 	query := fmt.Sprintf("%s:%s", index, suffix)
