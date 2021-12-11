@@ -104,6 +104,23 @@ const (
 	resolverDeleteDocumentFromCreateStoreTimeMetric   = "delete_document_from_create_document_store_seconds"
 	resolverVerifyCIDTimeMetric                       = "verify_cid_seconds"
 	resolverRequestDiscoveryTimeMetric                = "request_discovery_seconds"
+
+	// Decorator.
+	decorator = "decorator"
+
+	decoratorDecorateTimeMetric                      = "decorate_seconds"
+	decoratorProcessorResolveTimeMetric              = "processor_resolve_seconds"
+	decoratorGetAOEndpointAndResolveFromAOTimeMetric = "get_ao_endpoint_and_resolve_from_ao_seconds"
+
+	// Operations.
+	operations = "operations"
+
+	unpublishedPutOperationTimeMetric          = "put_unpublished_operation_seconds"
+	unpublishedGetOperationsTimeMetric         = "get_unpublished_operations_seconds"
+	unpublishedCalculateOperationKeyTimeMetric = "calculate_unpublished_operation_key_seconds"
+
+	publishedPutOperationsTimeMetric = "put_published_operations_seconds"
+	publishedGetOperationsTimeMetric = "get_published_operations_seconds"
 )
 
 var logger = log.New("metrics")
@@ -180,6 +197,16 @@ type Metrics struct {
 	resolverResolveDocumentFromCreateStoreTimes  prometheus.Histogram
 	resolverVerifyCIDTimes                       prometheus.Histogram
 	resolverRequestDiscoveryTimes                prometheus.Histogram
+
+	decoratorDecorateTime                      prometheus.Histogram
+	decoratorProcessorResolveTime              prometheus.Histogram
+	decoratorGetAOEndpointAndResolveFromAOTime prometheus.Histogram
+
+	unpublishedPutOperationTime          prometheus.Histogram
+	unpublishedGetOperationsTime         prometheus.Histogram
+	unpublishedCalculateOperationKeyTime prometheus.Histogram
+	publishedPutOperationsTime           prometheus.Histogram
+	publishedGetOperationsTime           prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -253,6 +280,14 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		resolverResolveDocumentFromCreateStoreTimes:  newResolverResolveDocumentFromCreateStoreTime(),
 		resolverVerifyCIDTimes:                       newResolverVerifyCIDTime(),
 		resolverRequestDiscoveryTimes:                newResolverRequestDiscoveryTime(),
+		decoratorDecorateTime:                        newDecoratorDecorateTime(),
+		decoratorProcessorResolveTime:                newDecoratorProcessorResolveTime(),
+		decoratorGetAOEndpointAndResolveFromAOTime:   newDecoratorGetAOEndpointAndResolveFromAOTime(),
+		unpublishedPutOperationTime:                  newUnpublishedPutOperationTime(),
+		unpublishedGetOperationsTime:                 newUnpublishedGetOperationsTime(),
+		unpublishedCalculateOperationKeyTime:         newUnpublishedCalculateKeyTime(),
+		publishedPutOperationsTime:                   newPublishedPutOperationsTime(),
+		publishedGetOperationsTime:                   newPublishedGetOperationsTime(),
 	}
 
 	prometheus.MustRegister(
@@ -275,6 +310,9 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.resolverResolveDocumentFromAnchorOriginTimes,
 		m.resolverResolveDocumentFromCreateStoreTimes, m.resolverDeleteDocumentFromCreateStoreTimes,
 		m.resolverVerifyCIDTimes, m.resolverRequestDiscoveryTimes,
+		m.decoratorDecorateTime, m.decoratorProcessorResolveTime, m.decoratorGetAOEndpointAndResolveFromAOTime,
+		m.unpublishedPutOperationTime, m.unpublishedGetOperationsTime, m.unpublishedCalculateOperationKeyTime,
+		m.publishedPutOperationsTime, m.publishedGetOperationsTime,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -716,6 +754,64 @@ func (m *Metrics) RequestDiscoveryTime(value time.Duration) {
 	m.resolverRequestDiscoveryTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver request discovery time: %s", value)
+}
+
+// DecorateTime records the time it takes to decorate operation (for update handler).
+func (m *Metrics) DecorateTime(value time.Duration) {
+	m.decoratorDecorateTime.Observe(value.Seconds())
+
+	logger.Debugf("decorator decorate time: %s", value)
+}
+
+// ProcessorResolveTime records the time it takes for processor to resolve document
+// when decorating operation (for update handler).
+func (m *Metrics) ProcessorResolveTime(value time.Duration) {
+	m.decoratorProcessorResolveTime.Observe(value.Seconds())
+
+	logger.Debugf("decorator processor resolve time: %s", value)
+}
+
+// GetAOEndpointAndResolveDocumentFromAOTime records the time it takes to get anchor origin endpoint
+// and resolve document from anchor origin when decorating operation (for update handler).
+func (m *Metrics) GetAOEndpointAndResolveDocumentFromAOTime(value time.Duration) {
+	m.decoratorGetAOEndpointAndResolveFromAOTime.Observe(value.Seconds())
+
+	logger.Debugf("decorator get anchor origin endpoint and resolve from anchor origin time: %s", value)
+}
+
+// PutUnpublishedOperation records the time it takes to store unpublished operation.
+func (m *Metrics) PutUnpublishedOperation(value time.Duration) {
+	m.unpublishedPutOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("unpublished put operation time: %s", value)
+}
+
+// GetUnpublishedOperations records the time it takes to get unpublished operations for suffix.
+func (m *Metrics) GetUnpublishedOperations(value time.Duration) {
+	m.unpublishedGetOperationsTime.Observe(value.Seconds())
+
+	logger.Debugf("unpublished get operations for suffix time: %s", value)
+}
+
+// CalculateUnpublishedOperationKey records the time to create unpublished operation key.
+func (m *Metrics) CalculateUnpublishedOperationKey(value time.Duration) {
+	m.unpublishedCalculateOperationKeyTime.Observe(value.Seconds())
+
+	logger.Debugf("unpublished calculate operation key time: %s", value)
+}
+
+// PutPublishedOperations records the time to store published operations.
+func (m *Metrics) PutPublishedOperations(value time.Duration) {
+	m.publishedPutOperationsTime.Observe(value.Seconds())
+
+	logger.Debugf("published put operations time: %s", value)
+}
+
+// GetPublishedOperations records the time to get published operations for suffix.
+func (m *Metrics) GetPublishedOperations(value time.Duration) {
+	m.publishedGetOperationsTime.Observe(value.Seconds())
+
+	logger.Debugf("published get operations for suffix time: %s", value)
 }
 
 // SignerSign records sign.
@@ -1270,6 +1366,70 @@ func newResolverRequestDiscoveryTime() prometheus.Histogram {
 	return newHistogram(
 		resolver, resolverRequestDiscoveryTimeMetric,
 		"The time (in seconds) it takes the resolver to request DID discovery.",
+		nil,
+	)
+}
+
+func newDecoratorDecorateTime() prometheus.Histogram {
+	return newHistogram(
+		decorator, decoratorDecorateTimeMetric,
+		"The time (in seconds) it takes the decorator to pre-process document operation.",
+		nil,
+	)
+}
+
+func newDecoratorProcessorResolveTime() prometheus.Histogram {
+	return newHistogram(
+		decorator, decoratorProcessorResolveTimeMetric,
+		"The time (in seconds) it takes the processor to resolve document before accepting document operation.",
+		nil,
+	)
+}
+
+func newDecoratorGetAOEndpointAndResolveFromAOTime() prometheus.Histogram {
+	return newHistogram(
+		decorator, decoratorGetAOEndpointAndResolveFromAOTimeMetric,
+		"The time (in seconds) it takes to resolve document from anchor origin before accepting document operation.",
+		nil,
+	)
+}
+
+func newUnpublishedPutOperationTime() prometheus.Histogram {
+	return newHistogram(
+		operations, unpublishedPutOperationTimeMetric,
+		"The time (in seconds) it takes to store unpublished operation.",
+		nil,
+	)
+}
+
+func newUnpublishedGetOperationsTime() prometheus.Histogram {
+	return newHistogram(
+		operations, unpublishedGetOperationsTimeMetric,
+		"The time (in seconds) it takes to get unpublished operations for suffix.",
+		nil,
+	)
+}
+
+func newUnpublishedCalculateKeyTime() prometheus.Histogram {
+	return newHistogram(
+		operations, unpublishedCalculateOperationKeyTimeMetric,
+		"The time (in seconds) it takes to calculate key for unpublished operation.",
+		nil,
+	)
+}
+
+func newPublishedPutOperationsTime() prometheus.Histogram {
+	return newHistogram(
+		operations, publishedPutOperationsTimeMetric,
+		"The time (in seconds) it takes to store published operations.",
+		nil,
+	)
+}
+
+func newPublishedGetOperationsTime() prometheus.Histogram {
+	return newHistogram(
+		operations, publishedGetOperationsTimeMetric,
+		"The time (in seconds) it takes to get published operations for suffix.",
 		nil,
 	)
 }

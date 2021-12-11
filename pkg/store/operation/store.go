@@ -9,6 +9,7 @@ package operation
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -25,8 +26,13 @@ const (
 
 var logger = log.New("operation-store")
 
+type metricsProvider interface {
+	PutPublishedOperations(duration time.Duration)
+	GetPublishedOperations(duration time.Duration)
+}
+
 // New creates new operation store.
-func New(provider storage.Provider) (*Store, error) {
+func New(provider storage.Provider, metrics metricsProvider) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open operation store: %w", err)
@@ -38,17 +44,25 @@ func New(provider storage.Provider) (*Store, error) {
 	}
 
 	return &Store{
-		store: store,
+		store:   store,
+		metrics: metrics,
 	}, nil
 }
 
 // Store is db implementation of operation store.
 type Store struct {
-	store storage.Store
+	store   storage.Store
+	metrics metricsProvider
 }
 
 // Put saves document operations into operation store.
 func (s *Store) Put(ops []*operation.AnchoredOperation) error {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.PutPublishedOperations(time.Since(startTime))
+	}()
+
 	operations := make([]storage.Operation, len(ops))
 
 	putOptions := &storage.PutOptions{IsNewKey: true}
@@ -89,6 +103,12 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 
 // Get retrieves document operations for the given suffix.
 func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
+	startTime := time.Now()
+
+	defer func() {
+		s.metrics.GetPublishedOperations(time.Since(startTime))
+	}()
+
 	var err error
 
 	query := fmt.Sprintf("%s:%s", index, suffix)

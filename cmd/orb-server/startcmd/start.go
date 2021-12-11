@@ -402,7 +402,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	opStore, err := opstore.New(storeProviders.provider)
+	opStore, err := opstore.New(storeProviders.provider, metrics.Get())
 	if err != nil {
 		return err
 	}
@@ -489,7 +489,7 @@ func startOrbServices(parameters *orbParameters) error {
 	var updateDocumentStore *unpublishedopstore.Store
 	if parameters.updateDocumentStoreEnabled {
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
-			parameters.unpublishedOperationLifespan, expiryService)
+			parameters.unpublishedOperationLifespan, expiryService, metrics.Get())
 		if err != nil {
 			return fmt.Errorf("failed to create unpublished document store: %w", err)
 		}
@@ -777,12 +777,12 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	if parameters.verifyLatestFromAnchorOrigin {
-
 		operationDecorator := decorator.New(parameters.didNamespace,
 			parameters.externalEndpoint,
 			opProcessor,
 			endpointClient,
 			remoteresolver.New(t),
+			metrics.Get(),
 		)
 
 		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))

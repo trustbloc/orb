@@ -8,6 +8,7 @@ package decorator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
@@ -23,13 +24,14 @@ var logger = log.New("operation-decorator")
 
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
 func New(namespace, domain string, processor operationProcessor,
-	endpointClient endpointClient, remoteResolver remoteResolver) *OperationDecorator {
+	endpointClient endpointClient, remoteResolver remoteResolver, metrics metricsProvider) *OperationDecorator {
 	od := &OperationDecorator{
 		namespace:      namespace,
 		domain:         domain,
 		processor:      processor,
 		endpointClient: endpointClient,
 		remoteResolver: remoteResolver,
+		metrics:        metrics,
 	}
 
 	return od
@@ -44,6 +46,8 @@ type OperationDecorator struct {
 
 	remoteResolver remoteResolver
 	endpointClient endpointClient
+
+	metrics metricsProvider
 }
 
 // operationProcessor is an interface which resolves the document based on the unique suffix.
@@ -59,11 +63,25 @@ type remoteResolver interface {
 	ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error)
 }
 
+type metricsProvider interface {
+	DecorateTime(duration time.Duration)
+	ProcessorResolveTime(duration time.Duration)
+	GetAOEndpointAndResolveDocumentFromAOTime(duration time.Duration)
+}
+
 // Decorate will validate local state against anchor origin for update/recover/deactivate.
 func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) { //nolint:lll,funlen,gocyclo,cyclop
+	startTime := time.Now()
+
+	defer func() {
+		d.metrics.DecorateTime(time.Since(startTime))
+	}()
+
 	if op.Type == operation.TypeCreate {
 		return op, nil
 	}
+
+	processorResolveStartTime := time.Now()
 
 	internalResult, err := d.processor.Resolve(op.UniqueSuffix)
 	if err != nil {
@@ -71,6 +89,8 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 		return nil, err
 	}
+
+	d.metrics.ProcessorResolveTime(time.Since(processorResolveStartTime))
 
 	if op.Type == operation.TypeUpdate || op.Type == operation.TypeDeactivate {
 		op.AnchorOrigin = internalResult.AnchorOrigin
@@ -90,12 +110,16 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return op, nil
 	}
 
+	resolveFromAnchorOriginTime := time.Now()
+
 	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID, localAnchorOrigin)
 	if err != nil {
 		logger.Debugf("failed to resolve document from anchor origin for id[%s]: %s", canonicalID, err.Error())
 
 		return op, nil
 	}
+
+	d.metrics.GetAOEndpointAndResolveDocumentFromAOTime(time.Since(resolveFromAnchorOriginTime))
 
 	latestAnchorOrigin, err := util.GetAnchorOrigin(anchorOriginResponse.DocumentMetadata)
 	if err != nil {

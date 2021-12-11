@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -28,7 +29,7 @@ func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -37,7 +38,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(nil, fmt.Errorf("open store error"))
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open operation store: open store error")
 		require.Nil(t, s)
@@ -47,7 +48,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
 		require.Nil(t, s)
@@ -58,7 +59,7 @@ func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put([]*operation.AnchoredOperation{getTestOperation()})
@@ -72,7 +73,7 @@ func TestStore_Put(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put([]*operation.AnchoredOperation{getTestOperation()})
@@ -85,7 +86,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put([]*operation.AnchoredOperation{getTestOperation()})
@@ -99,7 +100,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success - not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get(testSuffix)
@@ -115,7 +116,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get(testSuffix)
@@ -134,7 +135,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get(testSuffix)
@@ -155,7 +156,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get(testSuffix)
@@ -176,7 +177,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider)
+		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get(testSuffix)

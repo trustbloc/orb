@@ -18,12 +18,13 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -31,7 +32,7 @@ func TestNew(t *testing.T) {
 	t.Run("error - from open store", func(t *testing.T) {
 		s, err := New(&mockstore.Provider{
 			ErrOpenStore: fmt.Errorf("failed to open store"),
-		}, time.Minute, testutil.GetExpiryService(t))
+		}, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
 		require.Nil(t, s)
@@ -40,7 +41,7 @@ func TestNew(t *testing.T) {
 
 func TestStore_Put(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)})
@@ -48,7 +49,7 @@ func TestStore_Put(t *testing.T) {
 	})
 
 	t.Run("error - invalid operation", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte("invalid")})
@@ -63,7 +64,7 @@ func TestStore_Put(t *testing.T) {
 		}}
 
 		s, err := New(storeProvider, time.Minute,
-			testutil.GetExpiryService(t))
+			testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)})
@@ -72,7 +73,7 @@ func TestStore_Put(t *testing.T) {
 	})
 
 	t.Run("success - consecutive put(different operations)", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		first := &operation.AnchoredOperation{
@@ -97,7 +98,7 @@ func TestStore_Put(t *testing.T) {
 	})
 
 	t.Run("success - consecutive put(same operation, overridden)", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)}
@@ -116,7 +117,7 @@ func TestStore_Put(t *testing.T) {
 
 func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)})
@@ -128,7 +129,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("error - operation without suffix", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.Put(&operation.AnchoredOperation{})
@@ -141,7 +142,7 @@ func TestStore_Get(t *testing.T) {
 			ErrQuery: fmt.Errorf("query error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -153,7 +154,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("error - suffix not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(provider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op, err := s.Get("suffix")
@@ -172,7 +173,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(provider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get("suffix")
@@ -193,7 +194,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(provider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get("suffix")
@@ -214,7 +215,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(provider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		ops, err := s.Get("suffix")
@@ -227,7 +228,7 @@ func TestStore_Get(t *testing.T) {
 
 func TestStore_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)}
@@ -240,7 +241,7 @@ func TestStore_Delete(t *testing.T) {
 	})
 
 	t.Run("error - unexpected request format", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte("invalid")}
@@ -255,7 +256,7 @@ func TestStore_Delete(t *testing.T) {
 			ErrDelete: fmt.Errorf("delete error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)}
@@ -268,7 +269,7 @@ func TestStore_Delete(t *testing.T) {
 
 func TestStore_DeleteAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)}
@@ -281,7 +282,7 @@ func TestStore_DeleteAll(t *testing.T) {
 	})
 
 	t.Run("success - no suffixes provided", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = s.DeleteAll(nil)
@@ -289,7 +290,7 @@ func TestStore_DeleteAll(t *testing.T) {
 	})
 
 	t.Run("error - unexpected request format", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t))
+		s, err := New(mem.NewProvider(), time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte("invalid")}
@@ -304,7 +305,7 @@ func TestStore_DeleteAll(t *testing.T) {
 			ErrBatch: fmt.Errorf("batch error"),
 		}}
 
-		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t))
+		s, err := New(storeProvider, time.Minute, testutil.GetExpiryService(t), &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		op := &operation.AnchoredOperation{UniqueSuffix: "suffix", OperationRequest: []byte(operationRequest)}
