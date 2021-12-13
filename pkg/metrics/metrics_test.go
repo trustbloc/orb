@@ -85,6 +85,14 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.CalculateUnpublishedOperationKey(time.Second) })
 		require.NotPanics(t, func() { m.PutPublishedOperations(time.Second) })
 		require.NotPanics(t, func() { m.GetPublishedOperations(time.Second) })
+		require.NotPanics(t, func() { m.ProcessOperation(time.Second) })
+		require.NotPanics(t, func() { m.GetProtocolVersionTime(time.Second) })
+		require.NotPanics(t, func() { m.ParseOperationTime(time.Second) })
+		require.NotPanics(t, func() { m.ValidateOperationTime(time.Second) })
+		require.NotPanics(t, func() { m.DecorateOperationTime(time.Second) })
+		require.NotPanics(t, func() { m.AddOperationToBatchTime(time.Second) })
+		require.NotPanics(t, func() { m.AddUnpublishedOperationTime(time.Second) })
+		require.NotPanics(t, func() { m.GetCreateOperationResultTime(time.Second) })
 	})
 }
 
