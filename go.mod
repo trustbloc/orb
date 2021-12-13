@@ -34,7 +34,7 @@ require (
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211213183208-6c70ab53e04b
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20211213221646-4720139c68a9
 	github.com/trustbloc/vct v0.1.3
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.8.0
