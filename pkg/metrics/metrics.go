@@ -121,6 +121,18 @@ const (
 
 	publishedPutOperationsTimeMetric = "put_published_operations_seconds"
 	publishedGetOperationsTimeMetric = "get_published_operations_seconds"
+
+	// Core operations processor.
+	coreOperations = "core"
+
+	coreProcessOperationTimeMetrics       = "process_operation_seconds"
+	coreGetProtocolVersionTimeMetrics     = "get_protocol_version_seconds"
+	coreParseOperationTimeMetrics         = "parse_operation_seconds"
+	coreValidateOperationTimeMetrics      = "validate_operation_seconds"
+	coreDecorateOperationTimeMetrics      = "decorate_operation_seconds"
+	coreAddUnpublishedOperationTimeMatrix = "add_unpublished_operation_seconds"
+	coreAddOperationToBatchTimeMatrix     = "add_operation_to_batch_seconds"
+	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
 )
 
 var logger = log.New("metrics")
@@ -207,6 +219,15 @@ type Metrics struct {
 	unpublishedCalculateOperationKeyTime prometheus.Histogram
 	publishedPutOperationsTime           prometheus.Histogram
 	publishedGetOperationsTime           prometheus.Histogram
+
+	coreProcessOperationTime         prometheus.Histogram
+	coreGetProtocolVersionTime       prometheus.Histogram
+	coreParseOperationTime           prometheus.Histogram
+	coreValidateOperationTime        prometheus.Histogram
+	coreDecorateOperationTime        prometheus.Histogram
+	coreAddUnpublishedOperationTime  prometheus.Histogram
+	coreAddOperationToBatchTime      prometheus.Histogram
+	coreGetCreateOperationResultTime prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -288,6 +309,14 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		unpublishedCalculateOperationKeyTime:         newUnpublishedCalculateKeyTime(),
 		publishedPutOperationsTime:                   newPublishedPutOperationsTime(),
 		publishedGetOperationsTime:                   newPublishedGetOperationsTime(),
+		coreProcessOperationTime:                     newCoreProcessOperationTime(),
+		coreGetProtocolVersionTime:                   newCoreGetProtocolVersionTime(),
+		coreParseOperationTime:                       newCoreParseOperationTime(),
+		coreValidateOperationTime:                    newCoreValidateOperationTime(),
+		coreDecorateOperationTime:                    newCoreDecorateOperationTime(),
+		coreAddUnpublishedOperationTime:              newCoreAddUnpublishedOperationTime(),
+		coreAddOperationToBatchTime:                  newCoreAddOperationToBatchTime(),
+		coreGetCreateOperationResultTime:             newCoreGetCreateOperationResultTime(),
 	}
 
 	prometheus.MustRegister(
@@ -313,6 +342,9 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.decoratorDecorateTime, m.decoratorProcessorResolveTime, m.decoratorGetAOEndpointAndResolveFromAOTime,
 		m.unpublishedPutOperationTime, m.unpublishedGetOperationsTime, m.unpublishedCalculateOperationKeyTime,
 		m.publishedPutOperationsTime, m.publishedGetOperationsTime,
+		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
+		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
+		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -812,6 +844,62 @@ func (m *Metrics) GetPublishedOperations(value time.Duration) {
 	m.publishedGetOperationsTime.Observe(value.Seconds())
 
 	logger.Debugf("published get operations for suffix time: %s", value)
+}
+
+// ProcessOperation records the overall time to process operation.
+func (m *Metrics) ProcessOperation(value time.Duration) {
+	m.coreProcessOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("core process operation time: %s", value)
+}
+
+// GetProtocolVersionTime records the time to get protocol version.
+func (m *Metrics) GetProtocolVersionTime(value time.Duration) {
+	m.coreGetProtocolVersionTime.Observe(value.Seconds())
+
+	logger.Debugf("core get protocol version(process operation): %s", value)
+}
+
+// ParseOperationTime records the time to parse operation.
+func (m *Metrics) ParseOperationTime(value time.Duration) {
+	m.coreParseOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("core parse operation(process operation): %s", value)
+}
+
+// ValidateOperationTime records the time to validate operation.
+func (m *Metrics) ValidateOperationTime(value time.Duration) {
+	m.coreValidateOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("core validate operation(process operation): %s", value)
+}
+
+// DecorateOperationTime records the time to decorate operation.
+func (m *Metrics) DecorateOperationTime(value time.Duration) {
+	m.coreDecorateOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("core decorate operation(process operation): %s", value)
+}
+
+// AddUnpublishedOperationTime records the time to add unpublished operation.
+func (m *Metrics) AddUnpublishedOperationTime(value time.Duration) {
+	m.coreAddUnpublishedOperationTime.Observe(value.Seconds())
+
+	logger.Debugf("core add unpublished operation(process operation): %s", value)
+}
+
+// AddOperationToBatchTime records the time to add operation to batch.
+func (m *Metrics) AddOperationToBatchTime(value time.Duration) {
+	m.coreAddOperationToBatchTime.Observe(value.Seconds())
+
+	logger.Debugf("core add operation to batch(process operation): %s", value)
+}
+
+// GetCreateOperationResultTime records the time to create operation result response.
+func (m *Metrics) GetCreateOperationResultTime(value time.Duration) {
+	m.coreGetCreateOperationResultTime.Observe(value.Seconds())
+
+	logger.Debugf("core get create operation result(process operation): %s", value)
 }
 
 // SignerSign records sign.
@@ -1430,6 +1518,70 @@ func newPublishedGetOperationsTime() prometheus.Histogram {
 	return newHistogram(
 		operations, publishedGetOperationsTimeMetric,
 		"The time (in seconds) it takes to get published operations for suffix.",
+		nil,
+	)
+}
+
+func newCoreProcessOperationTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreProcessOperationTimeMetrics,
+		"The time (in seconds) it takes to process did operation(core).",
+		nil,
+	)
+}
+
+func newCoreGetProtocolVersionTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreGetProtocolVersionTimeMetrics,
+		"The time (in seconds) it takes to get protocol version in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreParseOperationTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreParseOperationTimeMetrics,
+		"The time (in seconds) it takes to parse operation in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreValidateOperationTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreValidateOperationTimeMetrics,
+		"The time (in seconds) it takes to validate operation in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreDecorateOperationTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreDecorateOperationTimeMetrics,
+		"The time (in seconds) it takes to decorate operation in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreAddUnpublishedOperationTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreAddUnpublishedOperationTimeMatrix,
+		"The time (in seconds) it takes to add unpublished operation to store in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreAddOperationToBatchTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreAddOperationToBatchTimeMatrix,
+		"The time (in seconds) it takes to add operation to batch in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreGetCreateOperationResultTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreGetCreateOperationResult,
+		"The time (in seconds) it takes to get create operation result in process operation(core).",
 		nil,
 	)
 }

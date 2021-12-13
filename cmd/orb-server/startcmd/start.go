@@ -794,6 +794,7 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
+		metrics.Get(),
 		didDocHandlerOpts...,
 	)
 
