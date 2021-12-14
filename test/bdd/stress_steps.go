@@ -22,6 +22,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
+	"github.com/greenpau/go-calculator"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/primitive/bbs12381g2pub"
@@ -46,15 +47,19 @@ const (
 	masterKeyURI   = "local-lock://custom/master/key/"
 )
 
+var createHTTPTime []int64
 var createLogCount int64
 var createCount int64
 var createSlowCount int64
+var resolveCreateHTTPTime []int64
 var resolveCreateLogCount int64
 var resolveCreateCount int64
 var resolveCreateSlowCount int64
+var updateHTTPTime []int64
 var updateLogCount int64
 var updateCount int64
 var updateSlowCount int64
+var resolveUpdateHTTPTime []int64
 var resolveUpdateLogCount int64
 var resolveUpdateCount int64
 var resolveUpdateSlowCount int64
@@ -326,20 +331,48 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
+	calc := calculator.NewInt64(createHTTPTime)
+	fmt.Printf("vdr create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr create DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
 	fmt.Println("------")
 
 	fmt.Printf("Resolved anchor did %d took: %s\n", didNums, resolveTimeStr)
 	fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
 		resolveCreateCount)
+	calc = calculator.NewInt64(resolveCreateHTTPTime)
+	fmt.Printf("vdr resolve create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve create DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
 	fmt.Println("------")
 
 	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
 	fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
+	calc = calculator.NewInt64(updateHTTPTime)
+	fmt.Printf("vdr update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
 	fmt.Println("------")
 
 	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
 	fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
 		resolveUpdateCount)
+	calc = calculator.NewInt64(resolveUpdateHTTPTime)
+	fmt.Printf("vdr resolve update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
 	fmt.Println("------")
 
 	return nil
@@ -531,7 +564,11 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		atomic.AddInt64(&createCount, 1)
 
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 1000 {
+		endTimeMS := endTime.Milliseconds()
+
+		createHTTPTime = append(createHTTPTime, endTimeMS)
+
+		if endTimeMS > 1000 {
 			atomic.AddInt64(&createSlowCount, 1)
 			logger.Errorf("request time for create DID taking more than 1000ms %s", endTime.String())
 		}
@@ -588,7 +625,11 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 		atomic.AddInt64(&updateCount, 1)
 
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 1000 {
+		endTimeMS := endTime.Milliseconds()
+
+		updateHTTPTime = append(updateHTTPTime, endTimeMS)
+
+		if endTimeMS > 1000 {
 			atomic.AddInt64(&updateSlowCount, 1)
 			logger.Errorf("request time for update DID taking more than 1000ms %s", endTime.String())
 		}
@@ -639,7 +680,11 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		atomic.AddInt64(&resolveCreateCount, 1)
 
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 1000 {
+		endTimeMS := endTime.Milliseconds()
+
+		resolveCreateHTTPTime = append(resolveCreateHTTPTime, endTimeMS)
+
+		if endTimeMS > 1000 {
 			atomic.AddInt64(&resolveCreateSlowCount, 1)
 			logger.Errorf("request time for resolve created DID taking more than 1000ms %s", endTime.String())
 		}
@@ -701,7 +746,11 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 		atomic.AddInt64(&resolveUpdateCount, 1)
 
 		endTime := time.Since(startTime)
-		if endTime.Milliseconds() > 1000 {
+		endTimeMS := endTime.Milliseconds()
+
+		resolveUpdateHTTPTime = append(resolveUpdateHTTPTime, endTimeMS)
+
+		if endTimeMS > 1000 {
 			atomic.AddInt64(&resolveUpdateSlowCount, 1)
 			logger.Errorf("request time for resolve updated DID taking more than 1000ms %s", endTime.String())
 		}
