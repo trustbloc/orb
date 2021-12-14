@@ -98,6 +98,11 @@ func New(coordinationStore storage.Store, interval time.Duration) *Manager {
 	return s
 }
 
+// InstanceID returns the unique ID of this server instance.
+func (s *Manager) InstanceID() string {
+	return s.instanceID
+}
+
 // RegisterTask registers a task to be periodically run at the given interval.
 func (s *Manager) RegisterTask(id string, interval time.Duration, task func()) {
 	s.mutex.Lock()

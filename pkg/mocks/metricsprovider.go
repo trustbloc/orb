@@ -108,14 +108,6 @@ func (m *MetricsProvider) CASWriteTime(value time.Duration) {
 func (m *MetricsProvider) CASResolveTime(value time.Duration) {
 }
 
-// BatchAckTime records the time to acknowledge all of the operations that are removed from the queue.
-func (m *MetricsProvider) BatchAckTime(value time.Duration) {
-}
-
-// BatchNackTime records the time to nack all of the operations that are to be placed back on the queue.
-func (m *MetricsProvider) BatchNackTime(value time.Duration) {
-}
-
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
 // required witnesses (according to witness policy). The start time is when the verifiable credential is issued
 // and the end time is the time that the witness policy is satisfied.

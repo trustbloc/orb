@@ -8,6 +8,7 @@ package expiry
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -57,6 +58,7 @@ type expiryHandler interface {
 type Service struct {
 	logger           logger
 	registeredStores []registeredStore
+	mutex            sync.RWMutex
 }
 
 // NewService returns a new expiry Service.
@@ -76,8 +78,7 @@ type Service struct {
 // registered, call the Start method to start the service.
 func NewService(scheduler taskManager, interval time.Duration) *Service {
 	s := &Service{
-		logger:           log.New(loggerModule),
-		registeredStores: make([]registeredStore, 0),
+		logger: log.New(loggerModule),
 	}
 
 	scheduler.RegisterTask(taskName, interval, s.deleteExpiredData)
@@ -102,10 +103,17 @@ func (s *Service) Register(store storage.Store, expiryTagName, storeName string,
 		opt(&newRegisteredStore)
 	}
 
+	s.mutex.Lock()
+
 	s.registeredStores = append(s.registeredStores, newRegisteredStore)
+
+	s.mutex.Unlock()
 }
 
 func (s *Service) deleteExpiredData() {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	for _, registeredStore := range s.registeredStores {
 		registeredStore.deleteExpiredData(s.logger)
 	}

@@ -38,7 +38,7 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	taskMgr := mocks.NewTaskManager()
+	taskMgr := mocks.NewTaskManager("vct-monitor")
 
 	client, err := New(mem.NewProvider(), nil, nil, nil, taskMgr, time.Second)
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestClient_Watch(t *testing.T) {
 	httpClient := &http.Client{Timeout: time.Second}
 
 	t.Run("Expired", func(t *testing.T) {
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -88,7 +88,7 @@ func TestClient_Watch(t *testing.T) {
 	t.Run("Escape to queue (two entities)", func(t *testing.T) {
 		db := mem.NewProvider()
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -132,7 +132,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -175,7 +175,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -227,7 +227,7 @@ func TestClient_Watch(t *testing.T) {
 
 		dl := testutil.GetLoader(t)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -301,7 +301,7 @@ func TestClient_Watch(t *testing.T) {
 
 		dl := testutil.GetLoader(t)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		taskMgr.Start()
 		defer taskMgr.Stop()
@@ -353,7 +353,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -386,7 +386,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -419,7 +419,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		notFoundWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
@@ -455,7 +455,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		noLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
@@ -491,7 +491,7 @@ func TestClient_Watch(t *testing.T) {
 			dl = testutil.GetLoader(t)
 		)
 
-		taskMgr := mocks.NewTaskManager()
+		taskMgr := mocks.NewTaskManager("vct-monitor")
 
 		wrongLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
