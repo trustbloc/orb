@@ -1104,7 +1104,7 @@ func TestGetMQParameters(t *testing.T) {
 		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqURL)
-		require.Equal(t, 0, mqOpPoolSize)
+		require.Equal(t, defaultMQOpPoolSize, mqOpPoolSize)
 		require.Equal(t, 0, mqObserverPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, maxConnectionSubscriptions)
 	})

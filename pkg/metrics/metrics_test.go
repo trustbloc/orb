@@ -41,8 +41,6 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.AddOperationTime(time.Second) })
 		require.NotPanics(t, func() { m.BatchCutTime(time.Second) })
 		require.NotPanics(t, func() { m.BatchRollbackTime(time.Second) })
-		require.NotPanics(t, func() { m.BatchAckTime(time.Second) })
-		require.NotPanics(t, func() { m.BatchNackTime(time.Second) })
 		require.NotPanics(t, func() { m.BatchSize(float64(500)) })
 		require.NotPanics(t, func() { m.ProcessAnchorTime(time.Second) })
 		require.NotPanics(t, func() { m.ProcessDIDTime(time.Second) })

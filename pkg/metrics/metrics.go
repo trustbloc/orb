@@ -47,8 +47,6 @@ const (
 	opQueueAddOperationTimeMetric  = "add_operation_seconds"
 	opQueueBatchCutTimeMetric      = "batch_cut_seconds"
 	opQueueBatchRollbackTimeMetric = "batch_rollback_seconds"
-	opQueueBatchAckTimeMetric      = "batch_ack_seconds"
-	opQueueBatchNackTimeMetric     = "batch_nack_seconds"
 	opQueueBatchSizeMetric         = "batch_size"
 
 	// Observer.
@@ -168,8 +166,6 @@ type Metrics struct {
 	opqueueAddOperationTime  prometheus.Histogram
 	opqueueBatchCutTime      prometheus.Histogram
 	opqueueBatchRollbackTime prometheus.Histogram
-	opqueueBatchAckTime      prometheus.Histogram
-	opqueueBatchNackTime     prometheus.Histogram
 	opqueueBatchSize         prometheus.Gauge
 
 	observerProcessAnchorTime prometheus.Histogram
@@ -264,8 +260,6 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		opqueueAddOperationTime:                      newOpQueueAddOperationTime(),
 		opqueueBatchCutTime:                          newOpQueueBatchCutTime(),
 		opqueueBatchRollbackTime:                     newOpQueueBatchRollbackTime(),
-		opqueueBatchAckTime:                          newOpQueueBatchAckTime(),
-		opqueueBatchNackTime:                         newOpQueueBatchNackTime(),
 		opqueueBatchSize:                             newOpQueueBatchSize(),
 		observerProcessAnchorTime:                    newObserverProcessAnchorTime(),
 		observerProcessDIDTime:                       newObserverProcessDIDTime(),
@@ -327,8 +321,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime, m.anchorWriteSignLocalWitnessLogTime,
 		m.anchorWriteSignLocalStoreTime, m.anchorWriteSignLocalWatchTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
-		m.opqueueBatchAckTime, m.opqueueBatchNackTime, m.opqueueBatchSize,
-		m.observerProcessAnchorTime, m.observerProcessDIDTime,
+		m.opqueueBatchSize, m.observerProcessAnchorTime, m.observerProcessDIDTime,
 		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
 		m.docCreateUpdateTime, m.docResolveTime,
 		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
@@ -550,20 +543,6 @@ func (m *Metrics) BatchRollbackTime(value time.Duration) {
 	m.opqueueBatchRollbackTime.Observe(value.Seconds())
 
 	logger.Debugf("BatchRollback time: %s", value)
-}
-
-// BatchAckTime records the time to acknowledge all of the operations that are removed from the queue.
-func (m *Metrics) BatchAckTime(value time.Duration) {
-	m.opqueueBatchAckTime.Observe(value.Seconds())
-
-	logger.Debugf("BatchAck time: %s", value)
-}
-
-// BatchNackTime records the time to nack all of the operations that are to be placed back on the queue.
-func (m *Metrics) BatchNackTime(value time.Duration) {
-	m.opqueueBatchNackTime.Observe(value.Seconds())
-
-	logger.Debugf("BatchNack time: %s", value)
 }
 
 // BatchSize records the size of an operation batch.
@@ -1127,22 +1106,6 @@ func newOpQueueBatchRollbackTime() prometheus.Histogram {
 		operationQueue, opQueueBatchRollbackTimeMetric,
 		"The time (in seconds) that it takes to roll back an operation batch (in case of a transient error). "+
 			"The duration is from the time that the first operation was added to the time that the batch was cut.",
-		nil,
-	)
-}
-
-func newOpQueueBatchAckTime() prometheus.Histogram {
-	return newHistogram(
-		operationQueue, opQueueBatchAckTimeMetric,
-		"The time (in seconds) that it takes to acknowledge all of the operations that are removed from the queue.",
-		nil,
-	)
-}
-
-func newOpQueueBatchNackTime() prometheus.Histogram {
-	return newHistogram(
-		operationQueue, opQueueBatchNackTimeMetric,
-		"The time (in seconds) that it takes to nack all of the operations that are to be placed back on the queue.",
 		nil,
 	)
 }

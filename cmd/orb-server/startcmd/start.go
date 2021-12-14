@@ -742,10 +742,17 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
 
-	opQueue, err := opqueue.New(opqueue.Config{PoolSize: parameters.opQueuePoolSize}, pubSub, metrics.Get())
+	opQueueCfg := opqueue.Config{
+		PoolSize:            parameters.opQueuePoolSize,
+		TaskMonitorInterval: parameters.taskMgrCheckInterval,
+	}
+
+	opQueue, err := opqueue.New(opQueueCfg, pubSub, storeProviders.provider, taskMgr, expiryService, metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
 	}
+
+	opQueue.Start()
 
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,
@@ -757,6 +764,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// start routine for creating batches
 	batchWriter.Start()
+
 	logger.Infof("started batch writer")
 
 	// start the task manager
@@ -962,6 +970,8 @@ func startOrbServices(parameters *orbParameters) error {
 	logger.Infof("Stopping Orb services ...")
 
 	nodeInfoService.Stop()
+
+	opQueue.Stop()
 
 	batchWriter.Stop()
 

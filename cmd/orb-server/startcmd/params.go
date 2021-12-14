@@ -40,9 +40,9 @@ const (
 	defaultActivityPubClientCacheExpiration = time.Hour
 	defaultActivityPubIRICacheSize          = 100
 	defaultActivityPubIRICacheExpiration    = time.Hour
-
-	defaultFollowAuthType        = acceptAllPolicy
-	defaultInviteWitnessAuthType = acceptAllPolicy
+	defaultFollowAuthType                   = acceptAllPolicy
+	defaultInviteWitnessAuthType            = acceptAllPolicy
+	defaultMQOpPoolSize                     = 5
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -1252,6 +1252,8 @@ func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObse
 		if err != nil {
 			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
 		}
+	} else {
+		mqOpPoolSize = defaultMQOpPoolSize
 	}
 
 	mqObserverPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, true)

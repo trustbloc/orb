@@ -13,17 +13,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	ctxmocks "github.com/trustbloc/orb/pkg/context/mocks"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 //go:generate counterfeiter -o ../mocks/pubsub.gen.go --fake-name PubSub . pubSub
@@ -38,6 +41,18 @@ func TestQueue(t *testing.T) {
 	log.SetLevel("sidetree_context", log.DEBUG)
 	log.SetLevel("pubsub", log.DEBUG)
 
+	storageProvider := storage.NewMockStoreProvider()
+
+	taskMgr1 := servicemocks.NewTaskManager("taskmgr1").WithInterval(500 * time.Millisecond)
+
+	taskMgr1.Start()
+	defer taskMgr1.Stop()
+
+	taskMgr2 := servicemocks.NewTaskManager("taskmgr2").WithInterval(500 * time.Millisecond)
+
+	taskMgr2.Start()
+	defer taskMgr2.Stop()
+
 	operations := newProcessedOperations(10)
 
 	ps1 := amqp.New(amqp.Config{URI: mqURI})
@@ -50,10 +65,15 @@ func TestQueue(t *testing.T) {
 
 	defer ps2.Stop()
 
-	q1, err := New(Config{PoolSize: 8}, ps1, &mocks.MetricsProvider{})
+	q1, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second},
+		ps1, storageProvider, taskMgr1,
+		expiry.NewService(taskMgr1, 750*time.Millisecond),
+		&mocks.MetricsProvider{},
+	)
 	require.NoError(t, err)
 	require.NotNil(t, q1)
 
+	q1.Start()
 	defer q1.Stop()
 
 	require.Zero(t, q1.Len())
@@ -62,10 +82,15 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, ops1)
 
-	q2, err := New(Config{PoolSize: 8}, ps2, &mocks.MetricsProvider{})
+	q2, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second},
+		ps2, storageProvider, taskMgr2,
+		expiry.NewService(taskMgr2, 750*time.Millisecond),
+		&mocks.MetricsProvider{},
+	)
 	require.NoError(t, err)
 	require.NotNil(t, q2)
 
+	q2.Start()
 	defer q2.Stop()
 
 	require.Zero(t, q2.Len())
@@ -125,8 +150,9 @@ func TestQueue(t *testing.T) {
 	// Stop the pub/sub for q1. All messages should be diverted to q2.
 	q1.Stop()
 	ps1.Stop()
+	taskMgr1.Stop()
 
-	time.Sleep(time.Second)
+	time.Sleep(5 * time.Second)
 
 	removedOps2, ack2, _, err := q2.Remove(10)
 	require.NoError(t, err)
@@ -160,8 +186,12 @@ func TestQueue_Error(t *testing.T) {
 	ps := mempubsub.New(mempubsub.DefaultConfig())
 	defer ps.Stop()
 
+	taskMgr := servicemocks.NewTaskManager("taskmgr1")
+	expirySvc := expiry.NewService(taskMgr, 750*time.Millisecond)
+
 	t.Run("Not started error", func(t *testing.T) {
-		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -188,9 +218,13 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.PublishReturns(errExpected)
 
-		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
+
+		q.Start()
+		defer q.Stop()
 
 		_, err = q.Add(op1, 100)
 		require.Error(t, err)
@@ -203,19 +237,24 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.SubscribeWithOptsReturns(nil, errExpected)
 
-		_, err := New(Config{}, ps, &mocks.MetricsProvider{})
+		_, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
+		q.Start()
+		defer q.Stop()
+
 		errExpected := errors.New("injected marshal error")
 
-		q.jsonMarshal = func(i interface{}) ([]byte, error) {
+		q.marshal = func(i interface{}) ([]byte, error) {
 			return nil, errExpected
 		}
 
@@ -225,13 +264,17 @@ func TestQueue_Error(t *testing.T) {
 	})
 
 	t.Run("Unmarshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps, &mocks.MetricsProvider{})
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
+		q.Start()
+		defer q.Stop()
+
 		errExpected := errors.New("injected unmarshal error")
 
-		q.jsonUnmarshal = func(data []byte, v interface{}) error {
+		q.unmarshal = func(data []byte, v interface{}) error {
 			return errExpected
 		}
 
@@ -243,6 +286,98 @@ func TestQueue_Error(t *testing.T) {
 		_, err = q.Peek(2)
 		require.NoError(t, err)
 		require.Empty(t, q.pending)
+	})
+
+	t.Run("UpdateTaskTime error", func(t *testing.T) {
+		p := storage.NewMockStoreProvider()
+
+		s, err := p.OpenStore(storeName)
+		require.NoError(t, err)
+
+		errExpected := errors.New("injected put error")
+
+		s.(*storage.MockStore).ErrPut = errExpected
+
+		q, err := New(Config{}, ps, p,
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, q)
+	})
+
+	t.Run("Query DB error", func(t *testing.T) {
+		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		p := storage.NewMockStoreProvider()
+
+		s, err := p.OpenStore(storeName)
+		require.NoError(t, err)
+
+		errExpected := errors.New("injected query error")
+
+		s.(*storage.MockStore).ErrQuery = errExpected
+
+		q, err := New(Config{}, ps, p,
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, q)
+
+		q.Start()
+		defer q.Stop()
+
+		time.Sleep(time.Second)
+	})
+
+	t.Run("NextTask iterator error", func(t *testing.T) {
+		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		p := storage.NewMockStoreProvider()
+
+		s, err := p.OpenStore(storeName)
+		require.NoError(t, err)
+
+		errExpected := errors.New("injected iterator next error")
+
+		s.(*storage.MockStore).ErrNext = errExpected
+
+		q, err := New(Config{}, ps, p,
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, q)
+
+		q.Start()
+		defer q.Stop()
+
+		time.Sleep(time.Second)
+	})
+
+	t.Run("NextTask unmarshal error", func(t *testing.T) {
+		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, q)
+
+		errExpected := errors.New("injected unmarshal next error")
+
+		q.unmarshal = func(data []byte, v interface{}) error {
+			return errExpected
+		}
+
+		q.Start()
+		defer q.Stop()
+
+		time.Sleep(time.Second)
 	})
 }
 
@@ -290,7 +425,10 @@ func (po processedOperations) setProcessed(t *testing.T, ops operation.QueuedOpe
 
 	for _, op := range ops {
 		pOp := po[op.UniqueSuffix]
-		require.False(t, pOp.processed)
+		require.Falsef(t, pOp.processed, "Operation is already processed [%s]", op.UniqueSuffix)
+
+		t.Logf("Setting operation to processed state [%s]", op.UniqueSuffix)
+
 		pOp.processed = true
 	}
 }

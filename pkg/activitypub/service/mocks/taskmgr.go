@@ -9,22 +9,35 @@ package mocks
 import (
 	"sync"
 	"time"
+
+	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 // TaskManager is a mock implementation of a task manager.
 type TaskManager struct {
-	tasks    []*task
-	mutex    sync.RWMutex
-	interval time.Duration
-	done     chan struct{}
+	*lifecycle.Lifecycle
+
+	instanceID string
+	tasks      []*task
+	mutex      sync.RWMutex
+	interval   time.Duration
+	done       chan struct{}
 }
 
 // NewTaskManager returns a new mock task manager.
-func NewTaskManager() *TaskManager {
-	return &TaskManager{
-		interval: time.Second,
-		done:     make(chan struct{}),
+func NewTaskManager(instanceID string) *TaskManager {
+	m := &TaskManager{
+		instanceID: instanceID,
+		interval:   time.Second,
+		done:       make(chan struct{}),
 	}
+
+	m.Lifecycle = lifecycle.New("task-manager",
+		lifecycle.WithStart(m.start),
+		lifecycle.WithStop(m.stop),
+	)
+
+	return m
 }
 
 // WithInterval sets the check interval.
@@ -35,7 +48,7 @@ func (m *TaskManager) WithInterval(interval time.Duration) *TaskManager {
 }
 
 // Start starts a Go routine to run the registered tasks.
-func (m *TaskManager) Start() {
+func (m *TaskManager) start() {
 	ticker := time.NewTicker(m.interval)
 
 	go func() {
@@ -58,7 +71,7 @@ func (m *TaskManager) Start() {
 }
 
 // Stop stops the running Go routine.
-func (m *TaskManager) Stop() {
+func (m *TaskManager) stop() {
 	close(m.done)
 }
 
@@ -74,6 +87,11 @@ func (t *task) start() {
 
 		t.lastRunTime = time.Now()
 	}
+}
+
+// InstanceID returns the server instance ID.
+func (m *TaskManager) InstanceID() string {
+	return m.instanceID
 }
 
 // RegisterTask registers the given task to be run at the given interval.
