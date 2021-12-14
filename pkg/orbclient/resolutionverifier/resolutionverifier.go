@@ -232,7 +232,7 @@ func checkResponses(input, resolved *document.ResolutionResult) error {
 		return err
 	}
 
-	return equalCommitments(input.DocumentMetadata, resolved.DocumentMetadata)
+	return equalMetadata(input.DocumentMetadata, resolved.DocumentMetadata)
 }
 
 func equalDocuments(input, resolved document.Document) error {
@@ -254,7 +254,7 @@ func equalDocuments(input, resolved document.Document) error {
 	return nil
 }
 
-func equalCommitments(input, resolved document.Metadata) error {
+func equalMetadata(input, resolved document.Metadata) error {
 	inputMethodMetadata, err := util.GetMethodMetadata(input)
 	if err != nil {
 		return fmt.Errorf("unable to get input metadata: %w", err)
@@ -273,6 +273,16 @@ func equalCommitments(input, resolved document.Metadata) error {
 	err = checkCommitment(inputMethodMetadata, resolvedMethodMetadata, document.RecoveryCommitmentProperty)
 	if err != nil {
 		return fmt.Errorf("input and resolved recovery commitments don't match: %w", err)
+	}
+
+	if inputMethodMetadata[document.AnchorOriginProperty] != resolvedMethodMetadata[document.AnchorOriginProperty] {
+		return fmt.Errorf("input[%s] and resolved[%s] anchor origins don't match",
+			inputMethodMetadata[document.AnchorOriginProperty], resolvedMethodMetadata[document.AnchorOriginProperty])
+	}
+
+	if input[document.CanonicalIDProperty] != resolved[document.CanonicalIDProperty] {
+		return fmt.Errorf("input[%s] and resolved[%s] canonical IDs don't match",
+			input[document.CanonicalIDProperty], resolved[document.CanonicalIDProperty])
 	}
 
 	return nil

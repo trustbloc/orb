@@ -1482,27 +1482,29 @@ func TestEqualDocuments(t *testing.T) {
 	})
 }
 
-func TestEqualCommitments(t *testing.T) {
+func TestEqualMetadata(t *testing.T) {
 	methodMetadata := make(map[string]interface{})
 	methodMetadata[document.RecoveryCommitmentProperty] = recoveryCommitment
 	methodMetadata[document.UpdateCommitmentProperty] = updateCommitment
+	methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
 
 	docMetadata := make(document.Metadata)
 	docMetadata[document.MethodProperty] = methodMetadata
+	docMetadata[document.CanonicalIDProperty] = "canonical-id"
 
 	t.Run("success", func(t *testing.T) {
-		err := equalCommitments(docMetadata, docMetadata)
+		err := equalMetadata(docMetadata, docMetadata)
 		require.NoError(t, err)
 	})
 
 	t.Run("error - anchor origin missing method metadata", func(t *testing.T) {
-		err := equalCommitments(make(document.Metadata), docMetadata)
+		err := equalMetadata(make(document.Metadata), docMetadata)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get anchor origin metadata: missing method metadata")
 	})
 
 	t.Run("error - local missing method metadata", func(t *testing.T) {
-		err := equalCommitments(docMetadata, make(document.Metadata))
+		err := equalMetadata(docMetadata, make(document.Metadata))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get local metadata: missing method metadata")
 	})
@@ -1514,7 +1516,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing 'updateCommitment' in local method metadata")
 	})
@@ -1526,7 +1528,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing 'recoveryCommitment' in local method metadata")
 	})
@@ -1539,7 +1541,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor origin and local update commitments don't match")
 	})
@@ -1552,9 +1554,40 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor origin and local recovery commitments don't match")
+	})
+
+	t.Run("error - different anchor origins", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+		md[document.UpdateCommitmentProperty] = updateCommitment
+		md[document.AnchorOriginProperty] = "https://other.domain.com"
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalMetadata(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"anchor origin[https://anchor-origin.domain.com] and local[https://other.domain.com] anchor origins don't match")
+	})
+
+	t.Run("error - different canonical ID", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+		md[document.UpdateCommitmentProperty] = updateCommitment
+		md[document.AnchorOriginProperty] = anchorOriginDomain
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+		docMD[document.CanonicalIDProperty] = "other-canonical-id"
+
+		err := equalMetadata(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"anchor origin[canonical-id] and local[other-canonical-id] canonical IDs don't match")
 	})
 }
 

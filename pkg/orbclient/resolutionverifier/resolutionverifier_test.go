@@ -22,6 +22,8 @@ import (
 const (
 	recoveryCommitment = "recovery-commitment"
 	updateCommitment   = "update-commitment"
+
+	anchorOriginDomain = "https://anchor-origin.domain.com"
 )
 
 func TestResolveVerifier_Verify(t *testing.T) {
@@ -206,27 +208,29 @@ func TestEqualDocuments(t *testing.T) {
 	})
 }
 
-func TestEqualCommitments(t *testing.T) {
+func TestEqualMetadata(t *testing.T) {
 	methodMetadata := make(map[string]interface{})
 	methodMetadata[document.RecoveryCommitmentProperty] = recoveryCommitment
 	methodMetadata[document.UpdateCommitmentProperty] = updateCommitment
+	methodMetadata[document.AnchorOriginProperty] = anchorOriginDomain
 
 	docMetadata := make(document.Metadata)
 	docMetadata[document.MethodProperty] = methodMetadata
+	docMetadata[document.CanonicalIDProperty] = "canonical-id"
 
 	t.Run("success", func(t *testing.T) {
-		err := equalCommitments(docMetadata, docMetadata)
+		err := equalMetadata(docMetadata, docMetadata)
 		require.NoError(t, err)
 	})
 
 	t.Run("error - input missing method metadata", func(t *testing.T) {
-		err := equalCommitments(make(document.Metadata), docMetadata)
+		err := equalMetadata(make(document.Metadata), docMetadata)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get input metadata: missing method metadata")
 	})
 
 	t.Run("error - resolved missing method metadata", func(t *testing.T) {
-		err := equalCommitments(docMetadata, make(document.Metadata))
+		err := equalMetadata(docMetadata, make(document.Metadata))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to get resolved metadata: missing method metadata")
 	})
@@ -238,7 +242,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing 'updateCommitment' in resolved method metadata")
 	})
@@ -250,7 +254,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing 'recoveryCommitment' in resolved method metadata")
 	})
@@ -263,7 +267,7 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "input and resolved update commitments don't match")
 	})
@@ -276,9 +280,40 @@ func TestEqualCommitments(t *testing.T) {
 		docMD := make(document.Metadata)
 		docMD[document.MethodProperty] = md
 
-		err := equalCommitments(docMetadata, docMD)
+		err := equalMetadata(docMetadata, docMD)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "input and resolved recovery commitments don't match")
+	})
+
+	t.Run("error - different anchor origins", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+		md[document.UpdateCommitmentProperty] = updateCommitment
+		md[document.AnchorOriginProperty] = "https://other.domain.com"
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+
+		err := equalMetadata(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"input[https://anchor-origin.domain.com] and resolved[https://other.domain.com] anchor origins don't match")
+	})
+
+	t.Run("error - different canonical ID", func(t *testing.T) {
+		md := make(map[string]interface{})
+		md[document.RecoveryCommitmentProperty] = recoveryCommitment
+		md[document.UpdateCommitmentProperty] = updateCommitment
+		md[document.AnchorOriginProperty] = anchorOriginDomain
+
+		docMD := make(document.Metadata)
+		docMD[document.MethodProperty] = md
+		docMD[document.CanonicalIDProperty] = "other-canonical-id"
+
+		err := equalMetadata(docMetadata, docMD)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"input[canonical-id] and resolved[other-canonical-id] canonical IDs don't match")
 	})
 }
 

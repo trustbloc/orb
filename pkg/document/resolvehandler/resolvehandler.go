@@ -277,7 +277,7 @@ func checkResponses(anchorOrigin, local *document.ResolutionResult) error {
 		return err
 	}
 
-	return equalCommitments(anchorOrigin.DocumentMetadata, local.DocumentMetadata)
+	return equalMetadata(anchorOrigin.DocumentMetadata, local.DocumentMetadata)
 }
 
 func equalDocuments(anchorOrigin, local document.Document) error {
@@ -299,7 +299,7 @@ func equalDocuments(anchorOrigin, local document.Document) error {
 	return nil
 }
 
-func equalCommitments(anchorOrigin, local document.Metadata) error {
+func equalMetadata(anchorOrigin, local document.Metadata) error {
 	anchorOriginMethodMetadata, err := util.GetMethodMetadata(anchorOrigin)
 	if err != nil {
 		return fmt.Errorf("unable to get anchor origin metadata: %w", err)
@@ -318,6 +318,16 @@ func equalCommitments(anchorOrigin, local document.Metadata) error {
 	err = checkCommitment(anchorOriginMethodMetadata, localMethodMetadata, document.RecoveryCommitmentProperty)
 	if err != nil {
 		return fmt.Errorf("anchor origin and local recovery commitments don't match: %w", err)
+	}
+
+	if anchorOriginMethodMetadata[document.AnchorOriginProperty] != localMethodMetadata[document.AnchorOriginProperty] {
+		return fmt.Errorf("anchor origin[%s] and local[%s] anchor origins don't match",
+			anchorOriginMethodMetadata[document.AnchorOriginProperty], localMethodMetadata[document.AnchorOriginProperty])
+	}
+
+	if anchorOrigin[document.CanonicalIDProperty] != local[document.CanonicalIDProperty] {
+		return fmt.Errorf("anchor origin[%s] and local[%s] canonical IDs don't match",
+			anchorOrigin[document.CanonicalIDProperty], local[document.CanonicalIDProperty])
 	}
 
 	return nil
