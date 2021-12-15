@@ -187,12 +187,10 @@ Feature:
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
-      Then check success response does NOT contain "secondKey"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
       Then check success response contains "secondKey"
-      Then check success response does NOT contain "thirdKey"
 
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response contains "firstKey"
