@@ -152,7 +152,11 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
 		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None),
-		orb.WithHTTPClient(&defaultHTTPClient{client: &http.Client{}}))
+		orb.WithHTTPClient(&defaultHTTPClient{client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		}}))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {
@@ -458,11 +462,23 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 
 	didDoc.Service = []ariesdid.Service{{ID: serviceID, Type: "type", ServiceEndpoint: svcEndpoint}}
 
+	startTime := time.Now()
+
 	createdDocResolution, err := vdr.Create(didDoc,
 		vdrapi.WithOption(orb.RecoveryPublicKeyOpt, recoveryKey),
 		vdrapi.WithOption(orb.UpdatePublicKeyOpt, updateKey))
 	if err != nil {
 		return nil, nil, "", err
+	}
+
+	endTime := time.Since(startTime)
+	endTimeMS := endTime.Milliseconds()
+
+	createHTTPTime = append(createHTTPTime, endTimeMS)
+
+	if endTimeMS > 1000 {
+		atomic.AddInt64(&createSlowCount, 1)
+		logger.Errorf("request time for create DID taking more than 1000ms %s", endTime.String())
 	}
 
 	return recoveryKeyPrivateKey, updateKeyPrivateKey, createdDocResolution.DocumentMetadata.EquivalentID[0], nil
@@ -572,22 +588,10 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 	var err error
 
 	for i := 1; i <= 10; i++ {
-		startTime := time.Now()
-
 		recoveryKeyPrivateKey, updateKeyPrivateKey, intermID, err = r.steps.createDID(r.verMethodsCreate,
 			uuid.New().URN(), r.vdr)
 
 		atomic.AddInt64(&createCount, 1)
-
-		endTime := time.Since(startTime)
-		endTimeMS := endTime.Milliseconds()
-
-		createHTTPTime = append(createHTTPTime, endTimeMS)
-
-		if endTimeMS > 1000 {
-			atomic.AddInt64(&createSlowCount, 1)
-			logger.Errorf("request time for create DID taking more than 1000ms %s", endTime.String())
-		}
 
 		if err == nil {
 			break
