@@ -149,11 +149,16 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-		orb.WithAuthToken("ADMIN_TOKEN"))
+		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {
 		return err
+	}
+
+	for range urls {
+		// call vdr before concurrent to populate cache
+		vdr.Read("did:orb:123")
 	}
 
 	verMethodsCreate := make([]*ariesdid.VerificationMethod, 0)
