@@ -13,6 +13,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -63,6 +64,7 @@ var resolveUpdateHTTPTime []int64
 var resolveUpdateLogCount int64
 var resolveUpdateCount int64
 var resolveUpdateSlowCount int64
+var httpClientTime []int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -149,7 +151,8 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None))
+		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None),
+		orb.WithHTTPClient(&defaultHTTPClient{client: &http.Client{}}))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {
@@ -215,6 +218,14 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	createTimeStr := time.Since(createStart).String()
+
+	calc := calculator.NewInt64(httpClientTime)
+	fmt.Printf("http call for create avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("http call for create max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("http call for create min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
 
 	resolvePool := NewWorkerPool(concurrencyReq)
 
@@ -336,7 +347,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
-	calc := calculator.NewInt64(createHTTPTime)
+	calc = calculator.NewInt64(createHTTPTime)
 	fmt.Printf("vdr create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
 	fmt.Printf("vdr create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
@@ -790,4 +801,24 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 	}
 
 	return nil, nil
+}
+
+type defaultHTTPClient struct {
+	client *http.Client
+}
+
+func (d *defaultHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	startTime := time.Now()
+	defer func() {
+		endTime := time.Since(startTime)
+		endTimeMS := endTime.Milliseconds()
+
+		httpClientTime = append(httpClientTime, endTimeMS)
+
+		if endTimeMS > 1000 {
+			atomic.AddInt64(&resolveUpdateSlowCount, 1)
+			logger.Errorf("http call taking more than 1000ms %s", endTime.String())
+		}
+	}()
+	return d.client.Do(req)
 }
