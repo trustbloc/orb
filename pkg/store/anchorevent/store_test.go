@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-var anchorsURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
+var anchorIndexURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
 
 func TestNew(t *testing.T) {
 	t.Run("test new store", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.NoError(t, err)
 	})
 
@@ -57,7 +57,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(storeProvider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put")
 	})
@@ -68,24 +68,24 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.NoError(t, err)
 
-		ae, err := s.Get(anchorsURL.String())
+		ae, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.NoError(t, err)
 
-		ae, err := s.Get(anchorsURL.String())
+		ae, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
 	})
 
 	t.Run("error - nil anchors URL", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestStore_Get(t *testing.T) {
 			return nil, errExpected
 		}
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -149,10 +149,10 @@ func TestStore_Get(t *testing.T) {
 			return errExpected
 		}
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.NoError(t, err)
 
-		ae, err := s.Get(anchorsURL.String())
+		ae, err := s.Get(anchorIndexURL.String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, ae)
@@ -164,16 +164,16 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL)))
+		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
 		require.NoError(t, err)
 
-		ae, err := s.Get(anchorsURL.String())
+		ae, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
 
-		err = s.Delete(anchorsURL.String())
+		err = s.Delete(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorsURL.String())
+		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
 	})
 
 	t.Run("test error from store delete", func(t *testing.T) {

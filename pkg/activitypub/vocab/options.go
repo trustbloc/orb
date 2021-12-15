@@ -400,27 +400,27 @@ func getContexts(options *Options, contexts ...Context) []Context {
 
 // AnchorEventOptions holds the options for an AnchorEvent.
 type AnchorEventOptions struct {
-	Anchors      *url.URL
+	Index        *url.URL
 	Parent       []*url.URL
 	AnchorObject *AnchorObjectType
 	AnchorEvent  *AnchorEventType
 }
 
-// WithAnchors sets the 'anchors' property on the Info.
-func WithAnchors(anchors *url.URL) Opt {
+// WithIndex sets the 'index' property.
+func WithIndex(anchors *url.URL) Opt {
 	return func(opts *Options) {
-		opts.Anchors = anchors
+		opts.Index = anchors
 	}
 }
 
-// WithParent sets the 'parent' property on the Info.
+// WithParent sets the 'parent' property.
 func WithParent(parent ...*url.URL) Opt {
 	return func(opts *Options) {
 		opts.Parent = parent
 	}
 }
 
-// WithAnchorEvent sets the 'object' property to an Info.
+// WithAnchorEvent sets the 'object' property.
 func WithAnchorEvent(anchorEvt *AnchorEventType) Opt {
 	return func(opts *Options) {
 		opts.AnchorEvent = anchorEvt

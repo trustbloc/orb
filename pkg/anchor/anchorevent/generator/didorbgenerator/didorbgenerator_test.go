@@ -158,7 +158,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		anchorEvent := vocab.NewAnchorEvent(
-			vocab.WithAnchors(indexAnchorObj.URL()[0]),
+			vocab.WithIndex(indexAnchorObj.URL()[0]),
 			vocab.WithParent(testutil.MustParseURL(parentHL1)),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(witnessAnchorObj))),
@@ -183,7 +183,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 
 	t.Run("Core index anchor not found", func(t *testing.T) {
 		anchorEvent := vocab.NewAnchorEvent(
-			vocab.WithAnchors(testutil.MustParseURL("hl:adsfwsds")),
+			vocab.WithIndex(testutil.MustParseURL("hl:adsfwsds")),
 			vocab.WithParent(testutil.MustParseURL(parentHL1)),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 			vocab.WithAttributedTo(testutil.MustParseURL(service1)),
@@ -202,7 +202,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 		require.Len(t, anchorObj.URL(), 1)
 
 		anchorEvent := vocab.NewAnchorEvent(
-			vocab.WithAnchors(anchorObj.URL()[0]),
+			vocab.WithIndex(anchorObj.URL()[0]),
 			vocab.WithParent(testutil.MustParseURL(parentHL1)),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(anchorObj))),
 			vocab.WithAttributedTo(testutil.MustParseURL(service1)),

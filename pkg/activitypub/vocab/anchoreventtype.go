@@ -42,7 +42,7 @@ func NewAnchorEvent(opts ...Opt) *AnchorEventType {
 			WithAttributedTo(options.AttributedTo),
 			WithAttachment(options.Attachment...)),
 		anchorEvent: &anchorEventType{
-			Index:  NewURLProperty(options.Anchors),
+			Index:  NewURLProperty(options.Index),
 			Parent: NewURLCollectionProperty(options.Parent...),
 		},
 	}

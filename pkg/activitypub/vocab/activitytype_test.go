@@ -72,7 +72,7 @@ func TestCreateTypeMarshal(t *testing.T) {
 		anchorEvent := NewAnchorEvent(
 			WithURL(anchorEventURL1),
 			WithAttributedTo(attributedToURL),
-			WithAnchors(indexAnchorObj.URL()[0]),
+			WithIndex(indexAnchorObj.URL()[0]),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(indexAnchorObj))),
@@ -249,7 +249,7 @@ func TestAnnounceTypeMarshal(t *testing.T) {
 			anchorEvent := NewAnchorEvent(
 				WithURL(anchorEventURL1),
 				WithAttributedTo(attributedToURL),
-				WithAnchors(anchorObj.URL()[0]),
+				WithIndex(anchorObj.URL()[0]),
 				WithPublishedTime(&published),
 				WithParent(parentURL1, parentURL2),
 				WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -686,7 +686,7 @@ func TestOfferTypeMarshal(t *testing.T) {
 		anchorEvent := NewAnchorEvent(
 			WithURL(anchorEventURL1),
 			WithAttributedTo(attributedToURL),
-			WithAnchors(anchorObjectURL1),
+			WithIndex(anchorObjectURL1),
 			WithPublishedTime(&startTime),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
