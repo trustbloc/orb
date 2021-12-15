@@ -131,6 +131,8 @@ const (
 	coreAddUnpublishedOperationTimeMatrix = "add_unpublished_operation_seconds"
 	coreAddOperationToBatchTimeMatrix     = "add_operation_to_batch_seconds"
 	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
+	coreHTTPCreateUpdateTimeMetrics       = "http_create_update_seconds"
+	coreHTTPResolveTimeMetrics            = "http_resolve_seconds"
 )
 
 var logger = log.New("metrics")
@@ -224,6 +226,8 @@ type Metrics struct {
 	coreAddUnpublishedOperationTime  prometheus.Histogram
 	coreAddOperationToBatchTime      prometheus.Histogram
 	coreGetCreateOperationResultTime prometheus.Histogram
+	coreHTTPCreateUpdateTime         prometheus.Histogram
+	coreHTTPResolveTime              prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -311,6 +315,8 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		coreAddUnpublishedOperationTime:              newCoreAddUnpublishedOperationTime(),
 		coreAddOperationToBatchTime:                  newCoreAddOperationToBatchTime(),
 		coreGetCreateOperationResultTime:             newCoreGetCreateOperationResultTime(),
+		coreHTTPCreateUpdateTime:                     newCoreHTTPCreateUpdateTime(),
+		coreHTTPResolveTime:                          newCoreHTTPResolveTime(),
 	}
 
 	prometheus.MustRegister(
@@ -338,6 +344,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
 		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
 		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
+		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -879,6 +886,20 @@ func (m *Metrics) GetCreateOperationResultTime(value time.Duration) {
 	m.coreGetCreateOperationResultTime.Observe(value.Seconds())
 
 	logger.Debugf("core get create operation result(process operation): %s", value)
+}
+
+// HTTPCreateUpdateTime records the time rest call for create or update.
+func (m *Metrics) HTTPCreateUpdateTime(value time.Duration) {
+	m.coreHTTPCreateUpdateTime.Observe(value.Seconds())
+
+	logger.Debugf("core http create update: %s", value)
+}
+
+// HTTPResolveTime records the time rest call for resolve.
+func (m *Metrics) HTTPResolveTime(value time.Duration) {
+	m.coreHTTPResolveTime.Observe(value.Seconds())
+
+	logger.Debugf("core http resolve: %s", value)
 }
 
 // SignerSign records sign.
@@ -1545,6 +1566,22 @@ func newCoreGetCreateOperationResultTime() prometheus.Histogram {
 	return newHistogram(
 		coreOperations, coreGetCreateOperationResult,
 		"The time (in seconds) it takes to get create operation result in process operation(core).",
+		nil,
+	)
+}
+
+func newCoreHTTPCreateUpdateTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreHTTPCreateUpdateTimeMetrics,
+		"The time (in seconds) it takes for create update http call.",
+		nil,
+	)
+}
+
+func newCoreHTTPResolveTime() prometheus.Histogram {
+	return newHistogram(
+		coreOperations, coreHTTPResolveTimeMetrics,
+		"The time (in seconds) it takes for resolve http call.",
 		nil,
 	)
 }

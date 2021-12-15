@@ -91,6 +91,8 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.AddOperationToBatchTime(time.Second) })
 		require.NotPanics(t, func() { m.AddUnpublishedOperationTime(time.Second) })
 		require.NotPanics(t, func() { m.GetCreateOperationResultTime(time.Second) })
+		require.NotPanics(t, func() { m.HTTPCreateUpdateTime(time.Second) })
+		require.NotPanics(t, func() { m.HTTPResolveTime(time.Second) })
 	})
 }
 

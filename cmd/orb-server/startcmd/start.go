@@ -897,8 +897,8 @@ func startOrbServices(parameters *orbParameters) error {
 	handlers := make([]restcommon.HTTPHandler, 0)
 
 	handlers = append(handlers,
-		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc)),
-		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler), apEndpointCfg, apStore, apSigVerifier),
+		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get())),
+		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler, metrics.Get()), apEndpointCfg, apStore, apSigVerifier),
 		activityPubService.InboxHTTPHandler(),
 		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
 		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),
