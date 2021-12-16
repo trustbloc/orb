@@ -18,7 +18,9 @@ import (
 
 func TestObjectType_WithoutDocument(t *testing.T) {
 	id := testutil.MustParseURL("http://sally.example.com/transactions/bafkreihwsn")
-	u := testutil.MustParseURL("http://sally.example.com/transactions/xyz")
+	u1 := testutil.MustParseURL("http://sally.example.com/transactions/abc")
+	u2 := testutil.MustParseURL("http://sally.example.com/transactions/def")
+	u3 := testutil.MustParseURL("http://sally.example.com/transactions/ghi")
 	to1 := testutil.MustParseURL("https://to1")
 	to2 := testutil.MustParseURL("https://to2")
 
@@ -28,7 +30,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 	t.Run("NewObject", func(t *testing.T) {
 		obj := NewObject(
-			WithURL(u),
+			WithURL(u1, u2),
 			WithContext(ContextCredentials, ContextActivityAnchors),
 			WithType(TypeVerifiableCredential),
 			WithTo(to1, to2),
@@ -45,7 +47,10 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		require.Equal(t, id.String(), obj.ID().String())
 
-		require.True(t, obj.URL().Contains(u))
+		require.True(t, obj.URL().Contains(u1))
+		require.True(t, obj.URL().Equals(Urls{u1, u2}))
+		require.False(t, obj.URL().Equals(Urls{u1, u3}))
+		require.False(t, obj.URL().Equals(Urls{u1}))
 
 		typeProp := obj.Type()
 		require.NotNil(t, typeProp)
@@ -57,8 +62,7 @@ func TestObjectType_WithoutDocument(t *testing.T) {
 
 		to := obj.To()
 		require.Len(t, to, 2)
-		require.True(t, to.Contains(to1))
-		require.True(t, to.Contains(to2))
+		require.True(t, to.Contains(to1, to2))
 	})
 
 	t.Run("MarshalJSON", func(t *testing.T) {

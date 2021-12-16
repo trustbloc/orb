@@ -2003,26 +2003,26 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	followNoIRI := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(),
-		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+		vocab.WithID(follow.ID().URL()),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followIRINotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service3IRI)),
-		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+		vocab.WithID(follow.ID().URL()),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
 	followActorNotLocalService := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
-		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+		vocab.WithID(follow.ID().URL()),
 		vocab.WithActor(service3IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	followNoActor := vocab.NewFollowActivity(
+	followNoActorInStoredActivity := vocab.NewFollowActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
 		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithTo(service1IRI),
@@ -2036,14 +2036,9 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	)
 
 	require.NoError(t, obHandler.store.AddActivity(follow))
-	require.NoError(t, obHandler.store.AddActivity(followNoIRI))
-	require.NoError(t, obHandler.store.AddActivity(followActorNotLocalService))
-
 	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, ibHandler.store.AddActivity(follow))
-	require.NoError(t, ibHandler.store.AddActivity(followNoIRI))
-	require.NoError(t, ibHandler.store.AddActivity(followIRINotLocalService))
-	require.NoError(t, ibHandler.store.AddActivity(followNoActor))
+	require.NoError(t, ibHandler.store.AddActivity(followNoActorInStoredActivity))
 	require.NoError(t, ibHandler.store.AddActivity(unsupported))
 
 	t.Run("No actor in activity", func(t *testing.T) {
@@ -2084,14 +2079,15 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	t.Run("No actor in activity", func(t *testing.T) {
 		undo := vocab.NewUndoActivity(
-			vocab.NewObjectProperty(vocab.WithActivity(followNoActor)),
+			vocab.NewObjectProperty(vocab.WithActivity(followNoActorInStoredActivity)),
 			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 			vocab.WithActor(service2IRI),
 			vocab.WithTo(service1IRI),
 		)
 
 		err := ibHandler.HandleActivity(undo)
-		require.EqualError(t, err, "no actor specified in 'Follow' activity")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no actor in stored 'Follow' activity")
 	})
 
 	t.Run("Actor of Undo does not match the actor in Follow activity", func(t *testing.T) {
@@ -2202,7 +2198,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			err := ibHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "no IRI specified in the 'Follow' activity")
+			require.Contains(t, err.Error(), "nil object IRI")
 		})
 
 		t.Run("IRI not local service -> error", func(t *testing.T) {
@@ -2215,7 +2211,8 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			err := ibHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "this service is not the target for the 'Undo'")
+			require.Contains(t, err.Error(), fmt.Sprintf("object IRI mismatch - expecting %s but got %s",
+				service1IRI, service3IRI))
 		})
 
 		t.Run("Not a follower", func(t *testing.T) {
@@ -2287,10 +2284,10 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			err := obHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "no IRI specified in 'object' field")
+			require.Contains(t, err.Error(), "nil object IRI")
 		})
 
-		t.Run("Actor not local service -> error", func(t *testing.T) {
+		t.Run("Actor of Undo not same as actor of original activity -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(followActorNotLocalService)),
 				vocab.WithActor(service3IRI),
@@ -2299,7 +2296,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 			err := obHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "this service is not the actor for the 'Undo'")
+			require.Contains(t, err.Error(), "not the same as the actor of the original activity")
 		})
 
 		t.Run("Not following", func(t *testing.T) {
@@ -2344,16 +2341,23 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 	)
 
-	inviteWitnessNoTarget := vocab.NewInviteActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(aptestutil.NewActivityID(vocab.AnchorWitnessTargetIRI)),
+	inviteWitnessInvalidObject := vocab.NewInviteActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+		vocab.WithID(invite.ID().URL()),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 	)
 
-	inviteWitnessIRINotLocalService := vocab.NewInviteActivity(
+	inviteWitnessNoTarget := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+		vocab.WithID(invite.ID().URL()),
+		vocab.WithActor(service2IRI),
+		vocab.WithTo(service1IRI),
+	)
+
+	inviteWitnessInvalidTarget := vocab.NewInviteActivity(
+		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
+		vocab.WithID(invite.ID().URL()),
 		vocab.WithActor(service2IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service3IRI))),
@@ -2361,20 +2365,16 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 	inviteWitnessActorNotLocalService := vocab.NewInviteActivity(
 		vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI)),
-		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+		vocab.WithID(invite.ID().URL()),
 		vocab.WithActor(service3IRI),
 		vocab.WithTo(service1IRI),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 	)
 
 	require.NoError(t, obHandler.store.AddActivity(invite))
-	require.NoError(t, obHandler.store.AddActivity(inviteWitnessNoTarget))
-	require.NoError(t, obHandler.store.AddActivity(inviteWitnessActorNotLocalService))
 
 	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, ibHandler.store.AddActivity(invite))
-	require.NoError(t, ibHandler.store.AddActivity(inviteWitnessNoTarget))
-	require.NoError(t, ibHandler.store.AddActivity(inviteWitnessIRINotLocalService))
 
 	t.Run("Inbox Undo Invite", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
@@ -2412,7 +2412,20 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service2IRI))
 		})
 
-		t.Run("No IRI -> error", func(t *testing.T) {
+		t.Run("Invalid object IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessInvalidObject)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := ibHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "object IRI mismatch")
+		})
+
+		t.Run("No target -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
 				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
@@ -2422,12 +2435,12 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			err := ibHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "no IRI specified in the 'Invite' activity")
+			require.Contains(t, err.Error(), "nil target IRI")
 		})
 
-		t.Run("IRI not local service -> error", func(t *testing.T) {
+		t.Run("Target not local service -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
-				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessIRINotLocalService)),
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessInvalidTarget)),
 				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI),
@@ -2435,7 +2448,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			err := ibHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "this service is not the target for the 'Undo'")
+			require.Contains(t, err.Error(), "target IRI mismatch")
 		})
 
 		t.Run("Not witnessing", func(t *testing.T) {
@@ -2497,7 +2510,20 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 			require.False(t, containsIRI(winesses, service1IRI))
 		})
 
-		t.Run("No IRI -> error", func(t *testing.T) {
+		t.Run("Invalid object IRI -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessInvalidObject)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "object IRI mismatch")
+		})
+
+		t.Run("No target -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessNoTarget)),
 				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
@@ -2507,7 +2533,20 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			err := obHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "no IRI specified in 'object' field")
+			require.Contains(t, err.Error(), "nil target IRI")
+		})
+
+		t.Run("Invalid target -> error", func(t *testing.T) {
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(inviteWitnessInvalidTarget)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			err := obHandler.HandleActivity(undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "target IRI mismatch")
 		})
 
 		t.Run("Actor not local service -> error", func(t *testing.T) {
@@ -2519,7 +2558,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 			err := obHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "this service is not the actor for the 'Undo'")
+			require.Contains(t, err.Error(), "is not the same as the actor of the original activity")
 		})
 
 		t.Run("Not a witness", func(t *testing.T) {
@@ -2581,10 +2620,10 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 	require.NoError(t, obHandler.store.AddActivity(like))
 
 	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
-	require.NoError(t, ibHandler.store.AddActivity(like))
 
 	t.Run("Inbox Undo Like", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
+			require.NoError(t, ibHandler.store.AddActivity(like))
 			require.NoError(t, ibHandler.store.AddReference(store.Like, ref, like.ID().URL()))
 
 			it, err := ibHandler.store.QueryReferences(store.Like,
@@ -2619,13 +2658,15 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 			require.False(t, containsIRI(likes, like.ID().URL()))
 		})
 
-		t.Run("No URL in anchor reference", func(t *testing.T) {
+		t.Run("No URL in anchor event", func(t *testing.T) {
+			require.NoError(t, ibHandler.store.AddActivity(like))
+
 			likeNoURL := vocab.NewLikeActivity(
 				vocab.NewObjectProperty(
 					vocab.WithAnchorEvent(
 						vocab.NewAnchorEvent()),
 				),
-				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+				vocab.WithID(like.ID().URL()),
 				vocab.WithActor(service2IRI),
 				vocab.WithTo(service1IRI, vocab.PublicIRI),
 				vocab.WithPublishedTime(&publishedTime),
@@ -2637,8 +2678,6 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 				),
 			)
 
-			require.NoError(t, ibHandler.store.AddActivity(likeNoURL))
-
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(likeNoURL)),
 				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
@@ -2648,7 +2687,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 
 			err := ibHandler.HandleActivity(undo)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "invalid anchor reference in the 'Like' activity")
+			require.Contains(t, err.Error(), "invalid anchor event URL")
 		})
 	})
 

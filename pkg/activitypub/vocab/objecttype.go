@@ -205,8 +205,33 @@ func (t *ObjectType) Tag() []*TagProperty {
 // Urls holds a collection of URLs.
 type Urls []*url.URL
 
-// Contains returns true if the collection of URLs contains the given URL.
-func (u Urls) Contains(v fmt.Stringer) bool {
+// Contains returns true if the collection of URLs contains the given URLs.
+func (u Urls) Contains(values ...fmt.Stringer) bool {
+	for _, v := range values {
+		if !u.contains(v) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Equals returns true if the given collection of URLs is the same as this one. (Order does not matter.)
+func (u Urls) Equals(urls Urls) bool {
+	if len(urls) != len(u) {
+		return false
+	}
+
+	for _, v := range urls {
+		if !u.contains(v) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (u Urls) contains(v fmt.Stringer) bool {
 	for _, iri := range u {
 		if iri.String() == v.String() {
 			return true

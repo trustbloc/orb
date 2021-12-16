@@ -107,7 +107,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 		if orberrors.IsBadRequest(err) {
 			logger.Debugf("[%s] Error posting activity: %s", h.endpoint, err)
 
-			h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+			h.writeResponse(w, http.StatusBadRequest, []byte(err.Error()))
 		} else {
 			logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
 
