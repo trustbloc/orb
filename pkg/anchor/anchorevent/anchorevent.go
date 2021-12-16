@@ -49,7 +49,7 @@ func BuildAnchorEvent(payload *subject.Payload, gen string,
 
 	return vocab.NewAnchorEvent(
 		vocab.WithAttributedTo(attributedTo),
-		vocab.WithAnchors(indexAnchorObj.URL()[0]),
+		vocab.WithIndex(indexAnchorObj.URL()[0]),
 		vocab.WithPublishedTime(payload.Published),
 		vocab.WithParent(resolveParents(payload)...),
 		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),

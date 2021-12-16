@@ -244,7 +244,7 @@ func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 	anchorEvent := vocab.NewAnchorEvent(
 		vocab.WithURL(NewRandomHashlink(t)),
 		vocab.WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-		vocab.WithAnchors(indexAnchorObj.URL()[0]),
+		vocab.WithIndex(indexAnchorObj.URL()[0]),
 		vocab.WithPublishedTime(&published),
 		vocab.WithParent(parentURL1, parentURL2),
 		vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),

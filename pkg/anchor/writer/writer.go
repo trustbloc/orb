@@ -556,7 +556,7 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 	anchorEvent = vocab.NewAnchorEvent(
 		vocab.WithURL(hlURL),
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithAnchors(anchorEvent.Index()),
+		vocab.WithIndex(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
 		vocab.WithAttachment(anchorEvent.Attachment()...),

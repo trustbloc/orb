@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 )
 
-var anchorsURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
+var anchorIndexURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
 
 func TestNewSubscriber(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestPubSub(t *testing.T) {
 
 	s.Start()
 
-	ae := vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL))
+	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
 
 	require.NoError(t, p.Publish(ae))
 
@@ -81,7 +81,7 @@ func TestPubSub(t *testing.T) {
 }
 
 func TestPublisherError(t *testing.T) {
-	ae := vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL))
+	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
 
 	t.Run("Marshal error", func(t *testing.T) {
 		p := NewPublisher(&mocks.PubSub{})
@@ -115,7 +115,7 @@ func TestPublisherError(t *testing.T) {
 }
 
 func TestSubscriberError(t *testing.T) {
-	ae := vocab.NewAnchorEvent(vocab.WithAnchors(anchorsURL))
+	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
 
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()

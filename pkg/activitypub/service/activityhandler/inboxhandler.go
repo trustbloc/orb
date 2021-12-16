@@ -593,7 +593,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 	// ActivityPub in the 'Create" and "Announce" activities.
 	ae := vocab.NewAnchorEvent(
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithAnchors(anchorEvent.Index()),
+		vocab.WithIndex(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),
 		vocab.WithParent(anchorEvent.Parent()...),
 		vocab.WithAttachment(anchorEvent.Attachment()...),

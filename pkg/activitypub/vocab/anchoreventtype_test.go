@@ -72,7 +72,7 @@ func TestAnchorEvent(t *testing.T) {
 			"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"), //nolint:lll
 		),
 		WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-		WithAnchors(anchorObj.URL()[0]),
+		WithIndex(anchorObj.URL()[0]),
 		WithPublishedTime(&published),
 		WithParent(parentURL1, parentURL2),
 		WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -132,7 +132,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 
 	t.Run("No attachment", func(t *testing.T) {
 		ae := NewAnchorEvent(
-			WithAnchors(anchors),
+			WithIndex(anchors),
 		)
 
 		e := ae.Validate()
@@ -142,7 +142,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 
 	t.Run("Unsupported attachment", func(t *testing.T) {
 		ae := NewAnchorEvent(
-			WithAnchors(anchors),
+			WithIndex(anchors),
 			WithAttachment(NewObjectProperty(WithObject(
 				NewObject(
 					WithType(TypeVerifiableCredential),
@@ -164,7 +164,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchors),
+			WithIndex(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -187,7 +187,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchors),
+			WithIndex(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -207,7 +207,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchors),
+			WithIndex(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -227,7 +227,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchors),
+			WithIndex(anchors),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),
@@ -247,7 +247,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 				"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 			)),
 			WithAttributedTo(testutil.MustParseURL("https://orb.domain1.com/services/orb")),
-			WithAnchors(anchorObj.URL()[0]),
+			WithIndex(anchorObj.URL()[0]),
 			WithPublishedTime(&published),
 			WithParent(parentURL1, parentURL2),
 			WithAttachment(NewObjectProperty(WithAnchorObject(anchorObj))),

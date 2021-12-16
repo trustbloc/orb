@@ -94,7 +94,7 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 		require.NoError(t, err)
 
 		act := vocab.NewAnchorEvent(
-			vocab.WithAnchors(indexAnchorObj.URL()[0]),
+			vocab.WithIndex(indexAnchorObj.URL()[0]),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 		)
 
@@ -163,7 +163,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		require.NoError(t, err)
 
 		ae := vocab.NewAnchorEvent(
-			vocab.WithAnchors(indexAnchorObj.URL()[0]),
+			vocab.WithIndex(indexAnchorObj.URL()[0]),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 		)
 
@@ -182,7 +182,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		require.NoError(t, err)
 
 		ae := vocab.NewAnchorEvent(
-			vocab.WithAnchors(indexAnchorObj.URL()[0]),
+			vocab.WithIndex(indexAnchorObj.URL()[0]),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 		)
 
@@ -201,7 +201,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		require.NoError(t, err)
 
 		ae := vocab.NewAnchorEvent(
-			vocab.WithAnchors(testutil.MustParseURL("hl:uEiB7dnp4KR_LmSO_IqXMUquZzXuOEov9UzML-YoRWTZrrw")),
+			vocab.WithIndex(testutil.MustParseURL("hl:uEiB7dnp4KR_LmSO_IqXMUquZzXuOEov9UzML-YoRWTZrrw")),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 		)
 
@@ -220,7 +220,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		require.NoError(t, err)
 
 		ae := vocab.NewAnchorEvent(
-			vocab.WithAnchors(indexAnchorObj.URL()[0]),
+			vocab.WithIndex(indexAnchorObj.URL()[0]),
 			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
 		)
 
