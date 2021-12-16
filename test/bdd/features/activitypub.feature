@@ -266,7 +266,10 @@ Feature:
     And the JSON path "items" of the response contains "${domain1IRI}"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":{"actor":"${domain1IRI}","id":"${inviteWitnessID}","object":"${domain2IRI}","type":"Invite"}}'
+    When variable "invalidUndoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":{"actor":"${domain1IRI}","id":"${inviteWitnessID}","object":"${domain2IRI}","type":"Invite"}}'
+    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${invalidUndoInviteWitnessActivity}" of type "application/json" and the returned status code is 400
+
+    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":{"actor":"${domain1IRI}","id":"${inviteWitnessID}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
 
     Then we wait 3 seconds
@@ -304,7 +307,7 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/a9e66de1-2f9c-4822-b321-07d8c36d31a4"
 
-    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"${domain1IRI}","type":"Invite"}}'
+    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
 
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/witnessing?page=true"

@@ -139,13 +139,19 @@ func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
 	}
 
 	if activity.Actor() == nil {
-		return orberrors.NewBadRequest(fmt.Errorf("no actor specified in '%s' activity", activity.Type()))
+		// This shouldn't happen since the activity was validated before it was stored.
+		return fmt.Errorf("no actor in stored '%s' activity: %s", activity.Type(), activity.ID())
 	}
 
 	if activity.Actor().String() != undo.Actor().String() {
 		return orberrors.NewBadRequest(
 			fmt.Errorf("not handling 'Undo' activity %s since the actor of the 'Undo' [%s] is not"+
 				" the same as the actor of the original activity [%s]", undo.ID(), undo.Actor(), activity.Actor()))
+	}
+
+	err = validateActivityInUndo(activityInUndo, activity)
+	if err != nil {
+		return fmt.Errorf("invalid activity in Undo [%s]: %w", undo.ID(), err)
 	}
 
 	err = h.undoActivity(activity)
@@ -202,4 +208,63 @@ func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
 	}
 
 	return false
+}
+
+func validateActivityInUndo(activityInUndo, activity *vocab.ActivityType) error {
+	if !activityInUndo.Type().Is(activity.Type().Types()...) {
+		return orberrors.NewBadRequestf("invalid type - expecting %s but got %s", activity.Type(), activityInUndo.Type())
+	}
+
+	if activity.Object().IRI() != nil {
+		if err := validateObjectIRIInUndo(activityInUndo, activity); err != nil {
+			return err
+		}
+	} else if anchorEvent := activity.Object().AnchorEvent(); anchorEvent != nil {
+		if err := validateAnchorEventInUndo(activityInUndo.Object().AnchorEvent(), anchorEvent); err != nil {
+			return err
+		}
+	}
+
+	if activity.Target().IRI() != nil {
+		if err := validateTargetInUndo(activityInUndo.Target(), activity.Target()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateObjectIRIInUndo(activityInUndo, activity *vocab.ActivityType) error {
+	if activityInUndo.Object().IRI() == nil {
+		return orberrors.NewBadRequestf("nil object IRI - expecting %s", activity.Object().IRI())
+	}
+
+	if activityInUndo.Object().IRI().String() != activity.Object().IRI().String() {
+		return orberrors.NewBadRequestf("object IRI mismatch - expecting %s but got %s",
+			activity.Object().IRI(), activityInUndo.Object().IRI())
+	}
+
+	return nil
+}
+
+func validateAnchorEventInUndo(anchorEventInUndo, anchorEvent *vocab.AnchorEventType) error {
+	if anchorEventInUndo == nil || len(anchorEvent.URL()) > 0 && !anchorEventInUndo.URL().Equals(anchorEvent.URL()) {
+		return orberrors.NewBadRequestf("invalid anchor event URL %s - expecting %s",
+			anchorEventInUndo.URL(), anchorEvent.URL())
+	}
+
+	return nil
+}
+
+func validateTargetInUndo(targetInUndo, target *vocab.ObjectProperty) error {
+	if targetInUndo.IRI() == nil {
+		return orberrors.NewBadRequestf("nil target IRI - expecting %s", target.IRI())
+	}
+
+	if targetInUndo.IRI().String() != target.IRI().String() {
+		return orberrors.NewBadRequestf("target IRI mismatch - expecting %s but got %s",
+			target.IRI(), targetInUndo.IRI())
+	}
+
+	return nil
 }

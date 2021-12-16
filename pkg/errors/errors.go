@@ -43,6 +43,11 @@ func NewBadRequest(err error) error {
 	return &badRequest{err: err}
 }
 
+// NewBadRequestf returns a 'bad request' error in order to indicate to the caller that the request was invalid.
+func NewBadRequestf(format string, a ...interface{}) error {
+	return &badRequest{err: fmt.Errorf(format, a...)}
+}
+
 // IsBadRequest returns true if the given error is a 'bad request' error.
 func IsBadRequest(err error) bool {
 	return errors.As(err, &invalidRequestType)

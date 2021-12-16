@@ -24,6 +24,9 @@ func TestTransientError(t *testing.T) {
 	require.True(t, errors.Is(err, et))
 	require.False(t, IsTransient(ep))
 	require.EqualError(t, err, "got error: some transient error")
+
+	err = NewTransientf("some transient error")
+	require.True(t, IsTransient(err))
 }
 
 func TestBadRequestError(t *testing.T) {
@@ -36,4 +39,7 @@ func TestBadRequestError(t *testing.T) {
 	require.True(t, errors.Is(err, eir))
 	require.False(t, IsBadRequest(e))
 	require.EqualError(t, err, "got error: some bad request error")
+
+	err = NewBadRequestf("some bad request")
+	require.True(t, IsBadRequest(err))
 }
