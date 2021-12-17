@@ -607,6 +607,8 @@ services:
       - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
       - UNPUBLISHED_OPERATION_LIFETIME=30s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
       - DATA_EXPIRY_CHECK_INTERVAL=15s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
+      - ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD=3s
+      - ANCHOR_STATUS_MONITORING_INTERVAL=2s
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

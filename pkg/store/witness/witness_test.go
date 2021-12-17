@@ -557,6 +557,107 @@ func TestStore_AddProof(t *testing.T) {
 	})
 }
 
+func TestStore_UpdateWitnessProof(t *testing.T) {
+	testWitnessURL, err := url.Parse("http://domain.com/service")
+	require.NoError(t, err)
+
+	witness1URL, err := url.Parse("https://domain1.com/service")
+	require.NoError(t, err)
+
+	witness2URL, err := url.Parse("https://domain2.com/service")
+	require.NoError(t, err)
+
+	t.Run("success", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
+		require.NoError(t, err)
+
+		testWitness := &proof.Witness{
+			Type: proof.WitnessTypeBatch,
+			URI:  testWitnessURL,
+		}
+
+		err = s.Put(anchorID, []*proof.Witness{testWitness})
+		require.NoError(t, err)
+
+		err = s.UpdateWitnessSelection(anchorID, []*url.URL{testWitnessURL}, true)
+		require.NoError(t, err)
+
+		witnesses, err := s.Get(anchorID)
+		require.NoError(t, err)
+		require.Equal(t, len(witnesses), 1)
+		require.True(t, witnesses[0].Selected)
+	})
+
+	t.Run("success - multiple witnesses were recorded", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
+		require.NoError(t, err)
+
+		testWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witness1URL,
+			},
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witness2URL,
+			},
+		}
+
+		err = s.Put(anchorID, testWitnesses)
+		require.NoError(t, err)
+
+		err = s.UpdateWitnessSelection(anchorID, []*url.URL{witness1URL, witness2URL}, true)
+		require.NoError(t, err)
+
+		witnesses, err := s.Get(anchorID)
+		require.NoError(t, err)
+		require.Equal(t, len(witnesses), 2)
+		require.True(t, witnesses[0].Selected)
+		require.True(t, witnesses[1].Selected)
+
+		err = s.UpdateWitnessSelection(anchorID, []*url.URL{witness1URL, witness2URL}, false)
+		require.NoError(t, err)
+
+		witnesses, err = s.Get(anchorID)
+		require.NoError(t, err)
+		require.Equal(t, len(witnesses), 2)
+		require.False(t, witnesses[0].Selected)
+		require.False(t, witnesses[1].Selected)
+	})
+
+	t.Run("error - witness not found", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
+		require.NoError(t, err)
+
+		testWitnesses := []*proof.Witness{
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witness1URL,
+			},
+			{
+				Type: proof.WitnessTypeBatch,
+				URI:  witness2URL,
+			},
+		}
+
+		err = s.Put(anchorID, testWitnesses)
+		require.NoError(t, err)
+
+		witness3URL, err := url.Parse("https://domain3.com/service")
+		require.NoError(t, err)
+
+		err = s.UpdateWitnessSelection(anchorID, []*url.URL{witness3URL}, true)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "witness[https://domain3.com/service] not found for anchorID[id]")
+	})
+}
+
 func TestStore_HandleExpiryKeys(t *testing.T) {
 	testWitnessURL, err := url.Parse("http://domain.com/service")
 	require.NoError(t, err)

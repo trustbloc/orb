@@ -32,7 +32,7 @@ Feature:
     When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
 
     # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}","${domain4IRI}"]}]'
     When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     When an HTTP GET is sent to "${domain1IRI}/acceptlist"
@@ -66,8 +66,19 @@ Feature:
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain3IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
     When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
+    # domain4 invites domain3 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4IRI}","to":"${domain3IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain3IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain4.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+
+    # domain4 invites domain2 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain4.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+
     # set witness policy for domain1
     When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
+
+    # set witness policy for domain4
+    When an HTTP POST is sent to "https://orb.domain4.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
 
     Then we wait 3 seconds
 
@@ -512,3 +523,32 @@ Feature:
     And the JSON path 'links.#(rel=="self").href' of the response equals "https://orb.domain1.com/cas/${anchorHash}"
     And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain2\.com.*"
     And the JSON path "links.#.href" of the response does not contain expression ".*orb\.domain3\.com.*"
+
+  @local_cas
+  @reselect_witnesses_batch_process
+  Scenario: reselect witnesses that failed scenario
+
+    # first create is just used to setup caches
+    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+
+     # stop system witness for domain4 operations requests - document operation(s) will fail after they have
+     # been added because anchor event will not get enough proofs
+    Then container "orb-domain3" is stopped
+
+    # wait for event status monitor process to wake-up and re-select different system witness
+    Then we wait 10 seconds
+
+    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "#canonicalDID"
+
+    Then container "orb-domain3" is started
+    Then we wait 5 seconds

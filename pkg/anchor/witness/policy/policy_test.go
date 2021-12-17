@@ -1042,6 +1042,70 @@ func TestSelect(t *testing.T) {
 		require.Equal(t, "https://system.com/service", selected[0].URI.String())
 	})
 
+	t.Run("error - default policy (AND) plus excluded system witness", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		batchWitness := &proof.Witness{
+			Type: proof.WitnessTypeBatch,
+			URI:  batchWitnessURL,
+		}
+
+		systemWitness := &proof.Witness{
+			Type: proof.WitnessTypeSystem,
+			URI:  systemWitnessURL,
+		}
+
+		witnesses := []*proof.Witness{
+			batchWitness,
+			systemWitness,
+		}
+
+		selected, err := wp.Select(witnesses, systemWitness)
+		require.Error(t, err)
+		require.Nil(t, selected)
+		require.Contains(t, err.Error(), "unable to select 1 witnesses from witness array of length 0")
+	})
+
+	t.Run("error - default policy (AND) plus excluded batch witness", func(t *testing.T) {
+		configStore, err := mem.NewProvider().OpenStore(configStoreName)
+		require.NoError(t, err)
+
+		wp, err := New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+		require.NotNil(t, wp)
+
+		batchWitness := &proof.Witness{
+			Type: proof.WitnessTypeBatch,
+			URI:  batchWitnessURL,
+		}
+
+		batchWitness2 := &proof.Witness{
+			Type: proof.WitnessTypeBatch,
+			URI:  batchWitness2URL,
+		}
+
+		systemWitness := &proof.Witness{
+			Type: proof.WitnessTypeSystem,
+			URI:  systemWitnessURL,
+		}
+
+		witnesses := []*proof.Witness{
+			batchWitness,
+			batchWitness2,
+			systemWitness,
+		}
+
+		selected, err := wp.Select(witnesses, batchWitness)
+		require.Error(t, err)
+		require.Nil(t, selected)
+		require.Contains(t, err.Error(), "unable to select 2 witnesses from witness array of length 1")
+	})
+
 	t.Run("error - number of eligible system witnesses doesn't meet policy requirements", func(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)

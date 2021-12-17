@@ -25,10 +25,11 @@ func (wf *Witness) String() string {
 
 // WitnessProof contains anchor index witness proof.
 type WitnessProof struct {
-	Type   WitnessType
-	URI    *url.URL
-	HasLog bool
-	Proof  []byte
+	Type     WitnessType
+	URI      *url.URL
+	HasLog   bool
+	Selected bool
+	Proof    []byte
 }
 
 func (wf *WitnessProof) String() string {
@@ -47,14 +48,14 @@ const (
 	WitnessTypeSystem WitnessType = "system"
 )
 
-// VCStatus defines valid values for verifiable credential proof collection status.
-type VCStatus string
+// AnchorIndexStatus defines valid values for verifiable credential proof collection status.
+type AnchorIndexStatus string
 
 const (
 
-	// VCStatusInProcess defines "in-process" status.
-	VCStatusInProcess VCStatus = "in-process"
+	// AnchorIndexStatusInProcess defines "in-process" status.
+	AnchorIndexStatusInProcess AnchorIndexStatus = "in-process"
 
-	// VCStatusCompleted defines "completed" status.
-	VCStatusCompleted VCStatus = "completed"
+	// AnchorIndexStatusCompleted defines "completed" status.
+	AnchorIndexStatusCompleted AnchorIndexStatus = "completed"
 )

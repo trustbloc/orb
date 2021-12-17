@@ -90,6 +90,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	"github.com/trustbloc/orb/pkg/anchor/linkstore"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy/inspector"
 	policyhandler "github.com/trustbloc/orb/pkg/anchor/witness/policy/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
@@ -122,12 +123,12 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
 	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
+	"github.com/trustbloc/orb/pkg/store/anchoreventstatus"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
-	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/store/wrapper"
 	"github.com/trustbloc/orb/pkg/taskmgr"
@@ -222,6 +223,8 @@ func createStartCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			logger.Infof("Orb parameters: %+v", parameters)
 
 			return startOrbServices(parameters)
 		},
@@ -569,11 +572,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}
 
-	vcStatusStore, err := vcstatus.New(storeProviders.provider, expiryService, parameters.maxWitnessDelay)
-	if err != nil {
-		return fmt.Errorf("failed to create vc status store: %s", err.Error())
-	}
-
 	var processorOpts []processor.Option
 	if parameters.updateDocumentStoreEnabled {
 		processorOpts = append(processorOpts, processor.WithUnpublishedOperationStore(updateDocumentStore))
@@ -642,10 +640,33 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create witness policy: %s", err.Error())
 	}
 
+	var activityPubService *apservice.Service
+
+	witnessPolicyInspectorProviders := &inspector.Providers{
+		AnchorEventStore: anchorEventStore,
+		WitnessStore:     witnessProofStore,
+		Outbox:           func() inspector.Outbox { return activityPubService.Outbox() },
+		WitnessPolicy:    witnessPolicy,
+	}
+
+	policyInspector, err := inspector.New(witnessPolicyInspectorProviders, parameters.maxWitnessDelay)
+	if err != nil {
+		return fmt.Errorf("failed to create witness policy inspector: %s", err.Error())
+	}
+
+	anchorEventStatusStore, err := anchoreventstatus.New(storeProviders.provider, expiryService,
+		parameters.maxWitnessDelay, anchoreventstatus.WithPolicyHandler(policyInspector),
+		anchoreventstatus.WithCheckStatusAfterTime(parameters.anchorStatusInProcessGracePeriod))
+	if err != nil {
+		return fmt.Errorf("failed to create vc status store: %s", err.Error())
+	}
+
+	taskMgr.RegisterTask("anchor-status-monitor", parameters.anchorStatusMonitoringInterval, anchorEventStatusStore.CheckInProcessAnchors)
+
 	proofHandler := proof.New(
 		&proof.Providers{
 			AnchorEventStore: anchorEventStore,
-			StatusStore:      vcStatusStore,
+			StatusStore:      anchorEventStatusStore,
 			MonitoringSvc:    monitoringSvc,
 			DocLoader:        orbDocumentLoader,
 			WitnessStore:     witnessProofStore,
@@ -658,8 +679,6 @@ func startOrbServices(parameters *orbParameters) error {
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 	)
-
-	var activityPubService *apservice.Service
 
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
@@ -732,22 +751,22 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	anchorWriterProviders := &writer.Providers{
-		AnchorGraph:      anchorGraph,
-		DidAnchors:       didAnchors,
-		AnchorBuilder:    vcBuilder,
-		AnchorEventStore: anchorEventStore,
-		VCStatusStore:    vcStatusStore,
-		OpProcessor:      opProcessor,
-		Outbox:           activityPubService.Outbox(),
-		Witness:          witness,
-		Signer:           vcSigner,
-		MonitoringSvc:    monitoringSvc,
-		ActivityStore:    apStore,
-		WitnessStore:     witnessProofStore,
-		WitnessPolicy:    witnessPolicy,
-		WFClient:         wfClient,
-		DocumentLoader:   orbDocumentLoader,
-		VCStore:          vcStore,
+		AnchorGraph:            anchorGraph,
+		DidAnchors:             didAnchors,
+		AnchorBuilder:          vcBuilder,
+		AnchorEventStore:       anchorEventStore,
+		AnchorEventStatusStore: anchorEventStatusStore,
+		OpProcessor:            opProcessor,
+		Outbox:                 activityPubService.Outbox(),
+		Witness:                witness,
+		Signer:                 vcSigner,
+		MonitoringSvc:          monitoringSvc,
+		ActivityStore:          apStore,
+		WitnessStore:           witnessProofStore,
+		WitnessPolicy:          witnessPolicy,
+		WFClient:               wfClient,
+		DocumentLoader:         orbDocumentLoader,
+		VCStore:                vcStore,
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,

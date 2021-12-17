@@ -76,22 +76,22 @@ type Writer struct {
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	AnchorGraph      anchorGraph
-	DidAnchors       didAnchors
-	AnchorBuilder    anchorBuilder
-	AnchorEventStore anchorEventStore
-	VCStatusStore    vcStatusStore
-	OpProcessor      opProcessor
-	Outbox           outbox
-	Witness          witness
-	Signer           signer
-	MonitoringSvc    monitoringSvc
-	WitnessStore     witnessStore
-	WitnessPolicy    witnessPolicy
-	ActivityStore    activityStore
-	WFClient         webfingerClient
-	DocumentLoader   ld.DocumentLoader
-	VCStore          storage.Store
+	AnchorGraph            anchorGraph
+	DidAnchors             didAnchors
+	AnchorBuilder          anchorBuilder
+	AnchorEventStore       anchorEventStore
+	AnchorEventStatusStore statusStore
+	OpProcessor            opProcessor
+	Outbox                 outbox
+	Witness                witness
+	Signer                 signer
+	MonitoringSvc          monitoringSvc
+	WitnessStore           witnessStore
+	WitnessPolicy          witnessPolicy
+	ActivityStore          activityStore
+	WFClient               webfingerClient
+	DocumentLoader         ld.DocumentLoader
+	VCStore                storage.Store
 }
 
 type webfingerClient interface {
@@ -108,7 +108,7 @@ type witnessStore interface {
 }
 
 type witnessPolicy interface {
-	Select(witnesses []*proof.Witness) ([]*proof.Witness, error)
+	Select(witnesses []*proof.Witness, exclude ...*proof.Witness) ([]*proof.Witness, error)
 }
 
 type witness interface {
@@ -148,8 +148,8 @@ type anchorEventStore interface {
 	Delete(id string) error
 }
 
-type vcStatusStore interface {
-	AddStatus(vcID string, status proof.VCStatus) error
+type statusStore interface {
+	AddStatus(vcID string, status proof.AnchorIndexStatus) error
 }
 
 type anchorPublisher interface {
@@ -781,7 +781,7 @@ func (c *Writer) storeWitnesses(anchorID string, witnesses []*proof.Witness) err
 		return fmt.Errorf("failed to store witnesses for anchor event[%s]: %w", anchorID, err)
 	}
 
-	err = c.VCStatusStore.AddStatus(anchorID, proof.VCStatusInProcess)
+	err = c.AnchorEventStatusStore.AddStatus(anchorID, proof.AnchorIndexStatusInProcess)
 	if err != nil {
 		return fmt.Errorf("failed to set 'in-process' status for anchor event[%s]: %w", anchorID, err)
 	}
@@ -810,6 +810,8 @@ func (c *Writer) getSystemWitnessesIRI() ([]*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read system witnesses from iterator: %w", err)
 	}
+
+	logger.Debugf("configured system witnesses: %+v", systemWitnessesIRI)
 
 	return systemWitnessesIRI, nil
 }

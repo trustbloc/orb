@@ -34,6 +34,8 @@ const (
 
 var logger = log.New("witness-store")
 
+type updateWitnessProofFnc func(wf *proof.WitnessProof)
+
 // New creates new anchor witness store.
 func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
@@ -235,7 +237,13 @@ func (s *Store) Get(anchorID string) ([]*proof.WitnessProof, error) {
 }
 
 // AddProof adds proof for anchor id and witness.
-func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //nolint:funlen,gocyclo,cyclop
+func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error {
+	return s.updateWitnessProof(anchorID, []*url.URL{witness}, func(wf *proof.WitnessProof) {
+		wf.Proof = p
+	})
+}
+
+func (s *Store) updateWitnessProof(anchorID string, witnesses []*url.URL, updateFnc updateWitnessProofFnc) error { //nolint:funlen,gocyclo,cyclop,lll
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	query := fmt.Sprintf("%s:%s", anchorIndex, anchorIDEncoded)
@@ -259,6 +267,8 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //
 
 	updatedNo := 0
 
+	witnessesMap := getWitnessesMap(witnesses)
+
 	for ok {
 		var value []byte
 
@@ -275,16 +285,16 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //
 				anchorID, err)
 		}
 
-		if w.URI.String() == witness.String() {
+		if _, ok = witnessesMap[w.URI.String()]; ok {
 			var key string
 
 			key, err = iter.Key()
 			if err != nil {
 				return fmt.Errorf("failed to get key for anchorID[%s] and witness[%s]: %w",
-					anchorID, witness, err)
+					anchorID, w.URI.String(), err)
 			}
 
-			w.Proof = p
+			updateFnc(&w)
 
 			witnessProofBytes, marshalErr := json.Marshal(w)
 			if marshalErr != nil {
@@ -294,12 +304,12 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //
 			err = s.store.Put(key, witnessProofBytes, storage.Tag{Name: anchorIndex, Value: anchorIDEncoded})
 			if err != nil {
 				return orberrors.NewTransient(fmt.Errorf("failed to add proof for anchorID[%s] and witness[%s]: %w",
-					anchorID, witness, err))
+					anchorID, w.URI.String(), err))
 			}
 
 			updatedNo++
 
-			logger.Debugf("added proof for anchorID[%s] and witness[%s]: %s", anchorID, witness, string(p))
+			logger.Debugf("updated witness proof for anchorID[%s] and witness[%s]", anchorID, w.URI.String())
 		}
 
 		ok, err = iter.Next()
@@ -309,10 +319,17 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error { //
 	}
 
 	if updatedNo == 0 {
-		return fmt.Errorf("witness[%s] not found for anchorID[%s]", witness, anchorID)
+		return fmt.Errorf("witness%s not found for anchorID[%s]", witnesses, anchorID)
 	}
 
 	return nil
+}
+
+// UpdateWitnessSelection updates witness selection flag.
+func (s *Store) UpdateWitnessSelection(anchorID string, witnesses []*url.URL, selected bool) error {
+	return s.updateWitnessProof(anchorID, witnesses, func(wf *proof.WitnessProof) {
+		wf.Selected = selected
+	})
 }
 
 // HandleExpiredKeys is expired keys inspector/handler.
@@ -353,4 +370,17 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 	logger.Errorf("failed to process anchors: %s", anchors)
 
 	return nil
+}
+
+func getWitnessesMap(witnesses []*url.URL) map[string]bool {
+	witnessesMap := make(map[string]bool)
+
+	for _, w := range witnesses {
+		_, ok := witnessesMap[w.String()]
+		if !ok {
+			witnessesMap[w.String()] = true
+		}
+	}
+
+	return witnessesMap
 }
