@@ -12,10 +12,10 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211203093644-b7d189cc06f4
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211206201819-d0e0ac91edf1
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211215153417-a58a60868edf
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211217190732-bf0dd1b79aba
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21

@@ -13,7 +13,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -64,7 +63,6 @@ var resolveUpdateHTTPTime []int64
 var resolveUpdateLogCount int64
 var resolveUpdateCount int64
 var resolveUpdateSlowCount int64
-var httpClientTime []int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -151,21 +149,11 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None),
-		orb.WithHTTPClient(&defaultHTTPClient{client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}}))
+		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {
 		return err
-	}
-
-	for range urls {
-		// call vdr before concurrent to populate cache
-		vdr.Read("did:orb:123")
 	}
 
 	verMethodsCreate := make([]*ariesdid.VerificationMethod, 0)
@@ -203,8 +191,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	createPool.Start()
 
-	createStart := time.Now()
-
 	for i := 0; i < didNums; i++ {
 		createPool.Submit(&createDIDReq{
 			vdr:              vdr,
@@ -221,21 +207,9 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("expecting created %d responses but got %d", didNums, len(createPool.responses))
 	}
 
-	createTimeStr := time.Since(createStart).String()
-
-	calc := calculator.NewInt64(httpClientTime)
-	fmt.Printf("http call for create avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
-		time.Millisecond).String())
-	fmt.Printf("http call for create max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
-		time.Millisecond).String())
-	fmt.Printf("http call for create min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
-		time.Millisecond).String())
-
 	resolvePool := NewWorkerPool(concurrencyReq)
 
 	resolvePool.Start()
-
-	resolveStart := time.Now()
 
 	for _, resp := range createPool.responses {
 		if resp.Err != nil {
@@ -266,8 +240,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
 	}
 
-	resolveTimeStr := time.Since(resolveStart).String()
-
 	for _, resp := range resolvePool.responses {
 		if resp.Err != nil {
 			return resp.Err
@@ -279,8 +251,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	updatePool := NewWorkerPool(concurrencyReq)
 
 	updatePool.Start()
-
-	updateStart := time.Now()
 
 	for _, resp := range resolvePool.responses {
 		r, ok := resp.Resp.(resolveDIDResp)
@@ -306,13 +276,9 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("expecting updated %d responses but got %d", didNums, len(updatePool.responses))
 	}
 
-	updateTimeStr := time.Since(updateStart).String()
-
 	resolveUpdatePool := NewWorkerPool(concurrencyReq)
 
 	resolveUpdatePool.Start()
-
-	resolveUpdateStart := time.Now()
 
 	for _, resp := range updatePool.responses {
 		if resp.Err != nil {
@@ -341,17 +307,14 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
 	}
 
-	resolveUpdateTimeStr := time.Since(resolveUpdateStart).String()
-
 	for _, resp := range resolveUpdatePool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
 	}
 
-	fmt.Printf("Created did %d took: %s\n", didNums, createTimeStr)
 	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
-	calc = calculator.NewInt64(createHTTPTime)
+	calc := calculator.NewInt64(createHTTPTime)
 	fmt.Printf("vdr create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
 	fmt.Printf("vdr create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
@@ -360,7 +323,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Resolved anchor did %d took: %s\n", didNums, resolveTimeStr)
 	fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
 		resolveCreateCount)
 	calc = calculator.NewInt64(resolveCreateHTTPTime)
@@ -372,7 +334,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Updated did %d took: %s\n", didNums, updateTimeStr)
 	fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
 	calc = calculator.NewInt64(updateHTTPTime)
 	fmt.Printf("vdr update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
@@ -383,7 +344,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Resolved updated did %d took: %s\n", didNums, resolveUpdateTimeStr)
 	fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
 		resolveUpdateCount)
 	calc = calculator.NewInt64(resolveUpdateHTTPTime)
@@ -805,24 +765,4 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 	}
 
 	return nil, nil
-}
-
-type defaultHTTPClient struct {
-	client *http.Client
-}
-
-func (d *defaultHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	startTime := time.Now()
-	defer func() {
-		endTime := time.Since(startTime)
-		endTimeMS := endTime.Milliseconds()
-
-		httpClientTime = append(httpClientTime, endTimeMS)
-
-		if endTimeMS > 1000 {
-			atomic.AddInt64(&resolveUpdateSlowCount, 1)
-			logger.Errorf("http call taking more than 1000ms %s", endTime.String())
-		}
-	}()
-	return d.client.Do(req)
 }
