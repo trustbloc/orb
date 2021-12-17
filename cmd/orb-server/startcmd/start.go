@@ -342,8 +342,9 @@ func startOrbServices(parameters *orbParameters) error {
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       5 * time.Second,
+		MaxIdleConns:          2000,
+		MaxConnsPerHost:       100,
+		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
