@@ -149,7 +149,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.None))
+		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.Unpublished))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {
