@@ -559,7 +559,7 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 
 		logger.Errorf("error create DID %s", err.Error())
 
-		if !strings.Contains(err.Error(), "cannot assign requested address") &&
+		if !strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") {
 			return nil, fmt.Errorf("failed to create did: %w", err)
 		}
@@ -620,7 +620,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 		logger.Errorf("error updated DID %s: %s", r.canonicalID, err.Error())
 
-		if !strings.Contains(err.Error(), "cannot assign requested address") &&
+		if !strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "DID does not exist") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
@@ -679,7 +679,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		}
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") {
 			return nil, err
 		}
@@ -745,7 +745,7 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 		}
 
 		if err != nil &&
-			!strings.Contains(err.Error(), "cannot assign requested address") &&
+			!strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "DID does not exist") {
 			return nil, err
