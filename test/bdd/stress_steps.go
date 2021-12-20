@@ -746,7 +746,8 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		if err != nil &&
 			!strings.Contains(err.Error(), "cannot assign requested address") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") {
+			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
+			!strings.Contains(err.Error(), "DID does not exist") {
 			return nil, err
 		}
 
