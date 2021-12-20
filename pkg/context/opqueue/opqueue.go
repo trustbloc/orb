@@ -38,6 +38,7 @@ const (
 	defaultInterval             = 10 * time.Second
 	defaultTaskExpirationFactor = 2
 	defaultOpCleanupFactor      = 5
+	defaultMaxRetries           = 10
 )
 
 type pubSub interface {
@@ -47,8 +48,15 @@ type pubSub interface {
 }
 
 type operationMessage struct {
-	id        string
-	op        *operation.QueuedOperationAtTime
+	ID        string                           `json:"id"`
+	Operation *operation.QueuedOperationAtTime `json:"operation"`
+	Retries   int                              `json:"retries"`
+}
+
+type queuedOperation struct {
+	*operationMessage
+
+	key       string
 	timeAdded time.Time
 }
 
@@ -90,6 +98,8 @@ type Config struct {
 	// operation is deleted. Operations should be deleted during normal processing but, in case it isn't deleted,
 	// the data expiry service will delete the operations that are older than this value.
 	OpExpiration time.Duration
+	// MaxRetries is the maximum number of retries for a failed operation in a batch.
+	MaxRetries int
 }
 
 // Queue implements an operation queue that uses a publisher/subscriber.
@@ -99,7 +109,7 @@ type Queue struct {
 	pubSub              pubSub
 	msgChan             <-chan *message.Message
 	mutex               sync.RWMutex
-	pending             []*operationMessage
+	pending             []*queuedOperation
 	marshal             func(interface{}) ([]byte, error)
 	unmarshal           func(data []byte, v interface{}) error
 	metrics             metricsProvider
@@ -110,6 +120,7 @@ type Queue struct {
 	opExpiration        time.Duration
 	taskMgr             taskManager
 	expiryService       dataExpiryService
+	maxRetries          int
 }
 
 // New returns a new operation queue.
@@ -130,24 +141,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
-	taskMonitorInterval := cfg.TaskMonitorInterval
-	if taskMonitorInterval == 0 {
-		taskMonitorInterval = defaultInterval
-	}
-
-	taskExpiration := cfg.TaskExpiration
-	if taskExpiration == 0 {
-		// Set the task expiration to a factor of the monitoring interval. So, if the monitoring interval is 10s and
-		// the expiration factor is 2 then the task is considered to have expired after 20s.
-		taskExpiration = taskMonitorInterval * defaultTaskExpirationFactor
-	}
-
-	opExpiration := cfg.OpExpiration
-	if opExpiration == 0 {
-		// Set the cleanup interval to a factor of the task expiration interval. So, if the task expiration interval
-		// is 20s and the cleanup factor is 5 then the operation is considered to have expired after 100s.
-		opExpiration = taskExpiration * defaultOpCleanupFactor
-	}
+	cfg = resolveConfig(cfg)
 
 	q := &Queue{
 		pubSub:              pubSub,
@@ -157,11 +151,12 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		metrics:             metrics,
 		serverInstanceID:    taskMgr.InstanceID(),
 		store:               s,
-		taskExpiration:      taskExpiration,
-		opExpiration:        opExpiration,
-		taskMonitorInterval: taskMonitorInterval,
+		taskExpiration:      cfg.TaskExpiration,
+		opExpiration:        cfg.OpExpiration,
+		taskMonitorInterval: cfg.TaskMonitorInterval,
 		taskMgr:             taskMgr,
 		expiryService:       expiryService,
+		maxRetries:          cfg.MaxRetries,
 	}
 
 	q.Lifecycle = lifecycle.New("operation-queue", lifecycle.WithStart(q.start))
@@ -178,6 +173,18 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 
 // Add publishes the given operation.
 func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
+	return q.post(
+		&operationMessage{
+			ID: uuid.New().String(),
+			Operation: &operation.QueuedOperationAtTime{
+				QueuedOperation: *op,
+				ProtocolVersion: protocolVersion,
+			},
+		},
+	)
+}
+
+func (q *Queue) post(op *operationMessage) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -188,19 +195,15 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 		q.metrics.AddOperationTime(time.Since(startTime))
 	}()
 
-	b, err := q.marshal(
-		&operation.QueuedOperationAtTime{
-			QueuedOperation: *op,
-			ProtocolVersion: protocolVersion,
-		},
-	)
+	b, err := q.marshal(op)
 	if err != nil {
 		return 0, fmt.Errorf("marshall queued operation: %w", err)
 	}
 
 	msg := message.NewMessage(watermill.NewUUID(), b)
 
-	logger.Debugf("Publishing operation message to topic [%s] - Msg [%s], DID [%s]", topic, msg.UUID, op.UniqueSuffix)
+	logger.Debugf("Publishing operation message to topic [%s] - Msg [%s], OpID [%s], DID [%s], Retries [%d]",
+		topic, msg.UUID, op.ID, op.Operation.UniqueSuffix, op.Retries)
 
 	err = q.pubSub.Publish(topic, msg)
 	if err != nil {
@@ -257,7 +260,7 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 
 	logger.Debugf("[%s] Removed %d operations", q.serverInstanceID, len(items))
 
-	return q.asQueuedOperations(items), q.newCommitFunc(items), q.newRollbackFunc(items), nil
+	return q.asQueuedOperations(items), q.newAckFunc(items), q.newNackFunc(items), nil
 }
 
 // Len returns the length of the pending queue.
@@ -310,7 +313,7 @@ func (q *Queue) listen() {
 func (q *Queue) handleMessage(msg *message.Message) {
 	logger.Debugf("Handling operation message [%s]", msg.UUID)
 
-	op := &operation.QueuedOperationAtTime{}
+	op := &operationMessage{}
 
 	err := q.unmarshal(msg.Payload, op)
 	if err != nil {
@@ -322,9 +325,9 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		return
 	}
 
-	id := uuid.New().String()
+	key := uuid.New().String()
 
-	err = q.store.Put(id, msg.Payload,
+	err = q.store.Put(key, msg.Payload,
 		storage.Tag{
 			Name:  tagServerID,
 			Value: q.serverInstanceID,
@@ -345,19 +348,19 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding operation to pending queue [%s] - DID [%s]",
-		q.serverInstanceID, id, op.UniqueSuffix)
+	logger.Debugf("[%s] Adding operation to pending queue - ID [%s], DID [%s], Retries [%d]",
+		q.serverInstanceID, op.ID, op.Operation.UniqueSuffix, op.Retries)
 
-	q.pending = append(q.pending, &operationMessage{
-		id:        id,
-		op:        op,
-		timeAdded: time.Now(),
+	q.pending = append(q.pending, &queuedOperation{
+		operationMessage: op,
+		key:              key,
+		timeAdded:        time.Now(),
 	})
 
 	msg.Ack()
 }
 
-func (q *Queue) newCommitFunc(items []*operationMessage) func() uint {
+func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 	return func() uint {
 		logger.Infof("Committed %d operation messages...", len(items))
 
@@ -379,13 +382,25 @@ func (q *Queue) newCommitFunc(items []*operationMessage) func() uint {
 	}
 }
 
-func (q *Queue) newRollbackFunc(items []*operationMessage) func() {
+func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 	return func() {
 		logger.Infof("%d operations were rolled back. Re-posting...", len(items))
 
 		for _, op := range items {
-			if _, err := q.Add(&op.op.QueuedOperation, op.op.ProtocolVersion); err != nil {
-				logger.Errorf("Error re-posting operation [%s]", op.id)
+			if op.Retries >= q.maxRetries {
+				logger.Warnf("... not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
+					op.ID, op.Operation.UniqueSuffix, op.Retries)
+
+				continue
+			}
+
+			op.Retries++
+
+			logger.Infof("... re-posting operation [%s] for suffix [%s], retries [%d]",
+				op.ID, op.Operation.UniqueSuffix, op.Retries)
+
+			if _, err := q.post(op.operationMessage); err != nil {
+				logger.Errorf("Error re-posting operation [%s]", op.ID)
 
 				return
 			}
@@ -449,12 +464,12 @@ func (q *Queue) monitorOtherServers() {
 	}
 }
 
-func (q *Queue) deleteOperations(items []*operationMessage) error {
+func (q *Queue) deleteOperations(items []*queuedOperation) error {
 	batchOperations := make([]storage.Operation, len(items))
 
 	for i, item := range items {
 		batchOperations[i] = storage.Operation{
-			Key: item.id,
+			Key: item.key,
 		}
 	}
 
@@ -465,15 +480,15 @@ func (q *Queue) deleteOperations(items []*operationMessage) error {
 	return nil
 }
 
-func (q *Queue) asQueuedOperations(opMsgs []*operationMessage) []*operation.QueuedOperationAtTime {
+func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.QueuedOperationAtTime {
 	ops := make([]*operation.QueuedOperationAtTime, len(opMsgs))
 
 	logger.Debugf("[%s] Returning %d queued operations:", q.serverInstanceID, len(opMsgs))
 
 	for i, opMsg := range opMsgs {
-		logger.Debugf("[%s] - Msg [%s], DID [%s]", q.serverInstanceID, opMsg.id, opMsg.op.UniqueSuffix)
+		logger.Debugf("[%s] - ID [%s], DID [%s]", q.serverInstanceID, opMsg.ID, opMsg.Operation.UniqueSuffix)
 
-		ops[i] = opMsg.op
+		ops[i] = opMsg.Operation
 	}
 
 	return ops
@@ -509,7 +524,7 @@ func (q *Queue) repostOperations(serverID string) error {
 	var batchOperations []storage.Operation
 
 	for {
-		id, op, ok, e := q.nextOperation(it)
+		key, op, ok, e := q.nextOperation(it)
 		if e != nil {
 			return fmt.Errorf("get nextOperation operation: %w", err)
 		}
@@ -518,14 +533,24 @@ func (q *Queue) repostOperations(serverID string) error {
 			break
 		}
 
-		logger.Debugf("[%s] Re-posting operation [%s] for suffix [%s]", q.serverInstanceID, id, op.UniqueSuffix)
+		if op.Retries >= q.maxRetries {
+			logger.Warnf("Not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
+				op.ID, op.Operation.UniqueSuffix, op.Retries)
 
-		_, e = q.Add(&op.QueuedOperation, op.ProtocolVersion)
-		if e != nil {
-			return fmt.Errorf("unmarshal operation [%s]: %w", id, e)
+			continue
 		}
 
-		batchOperations = append(batchOperations, storage.Operation{Key: id})
+		op.Retries++
+
+		logger.Debugf("[%s] Re-posting operation [%s] for suffix [%s]",
+			q.serverInstanceID, op.ID, op.Operation.UniqueSuffix)
+
+		_, e = q.post(op)
+		if e != nil {
+			return fmt.Errorf("unmarshal operation [%s]: %w", op.ID, e)
+		}
+
+		batchOperations = append(batchOperations, storage.Operation{Key: key})
 	}
 
 	logger.Infof("[%s] Deleting operation queue task [%s]", q.serverInstanceID, serverID)
@@ -573,7 +598,7 @@ func (q *Queue) nextTask(it storage.Iterator) (*opQueueTask, bool, error) {
 	return task, true, nil
 }
 
-func (q *Queue) nextOperation(it storage.Iterator) (string, *operation.QueuedOperationAtTime, bool, error) {
+func (q *Queue) nextOperation(it storage.Iterator) (string, *operationMessage, bool, error) {
 	ok, err := it.Next()
 	if err != nil {
 		return "", nil, false, fmt.Errorf("get next operation: %w", err)
@@ -583,22 +608,46 @@ func (q *Queue) nextOperation(it storage.Iterator) (string, *operation.QueuedOpe
 		return "", nil, false, nil
 	}
 
-	id, err := it.Key()
+	key, err := it.Key()
 	if err != nil {
 		return "", nil, false, fmt.Errorf("get operation ID from iterator: %w", err)
 	}
 
 	opBytes, err := it.Value()
 	if err != nil {
-		return "", nil, false, fmt.Errorf("get operation [%s]: %w", id, err)
+		return "", nil, false, fmt.Errorf("get operation [%s]: %w", key, err)
 	}
 
-	op := &operation.QueuedOperationAtTime{}
+	op := &operationMessage{}
 
 	err = q.unmarshal(opBytes, op)
 	if err != nil {
-		return "", nil, false, fmt.Errorf("unmarshal operation [%s]: %w", id, err)
+		return "", nil, false, fmt.Errorf("unmarshal operation [%s]: %w", key, err)
 	}
 
-	return id, op, true, nil
+	return key, op, true, nil
+}
+
+func resolveConfig(cfg Config) Config {
+	if cfg.TaskMonitorInterval == 0 {
+		cfg.TaskMonitorInterval = defaultInterval
+	}
+
+	if cfg.TaskExpiration == 0 {
+		// Set the task expiration to a factor of the monitoring interval. So, if the monitoring interval is 10s and
+		// the expiration factor is 2 then the task is considered to have expired after 20s.
+		cfg.TaskExpiration = cfg.TaskMonitorInterval * defaultTaskExpirationFactor
+	}
+
+	if cfg.OpExpiration == 0 {
+		// Set the cleanup interval to a factor of the task expiration interval. So, if the task expiration interval
+		// is 20s and the cleanup factor is 5 then the operation is considered to have expired after 100s.
+		cfg.OpExpiration = cfg.TaskExpiration * defaultOpCleanupFactor
+	}
+
+	if cfg.MaxRetries == 0 {
+		cfg.MaxRetries = defaultMaxRetries
+	}
+
+	return cfg
 }

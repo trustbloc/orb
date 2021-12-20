@@ -381,6 +381,61 @@ func TestQueue_Error(t *testing.T) {
 	})
 }
 
+func TestRepostWithMaxRetries(t *testing.T) {
+	log.SetLevel("sidetree_context", log.DEBUG)
+	log.SetLevel("pubsub", log.DEBUG)
+
+	storageProvider := storage.NewMockStoreProvider()
+
+	taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(500 * time.Millisecond)
+
+	taskMgr.Start()
+	defer taskMgr.Stop()
+
+	operations := newProcessedOperations(5)
+
+	ps := amqp.New(amqp.Config{URI: mqURI})
+	require.NotNil(t, ps)
+
+	defer ps.Stop()
+
+	q, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second, MaxRetries: 1},
+		ps, storageProvider, taskMgr,
+		expiry.NewService(taskMgr, 750*time.Millisecond),
+		&mocks.MetricsProvider{},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, q)
+
+	q.Start()
+	defer q.Stop()
+
+	for _, op := range operations {
+		_, err = q.Add(op.op, 100)
+		require.NoError(t, err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	removedOps, _, nack, err := q.Remove(5)
+	require.NoError(t, err)
+	require.Len(t, removedOps, 5)
+
+	nack()
+
+	time.Sleep(100 * time.Millisecond)
+
+	removedOps, _, nack, err = q.Remove(5)
+	require.NoError(t, err)
+	require.Len(t, removedOps, 5)
+
+	nack()
+
+	removedOps, _, _, err = q.Remove(5)
+	require.NoError(t, err)
+	require.Emptyf(t, removedOps, "no operations should have been remaining since the max retry count was reached")
+}
+
 func TestMain(m *testing.M) {
 	code := 1
 
@@ -424,7 +479,9 @@ func (po processedOperations) setProcessed(t *testing.T, ops operation.QueuedOpe
 	t.Helper()
 
 	for _, op := range ops {
-		pOp := po[op.UniqueSuffix]
+		pOp, ok := po[op.UniqueSuffix]
+
+		require.Truef(t, ok, "operation for suffix [%s] not found in processed operations queue", op.UniqueSuffix)
 		require.Falsef(t, pOp.processed, "Operation is already processed [%s]", op.UniqueSuffix)
 
 		t.Logf("Setting operation to processed state [%s]", op.UniqueSuffix)
