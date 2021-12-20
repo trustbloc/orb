@@ -621,7 +621,8 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 		logger.Errorf("error updated DID %s: %s", r.canonicalID, err.Error())
 
 		if !strings.Contains(err.Error(), "cannot assign requested address") &&
-			!strings.Contains(err.Error(), "connection timed out") {
+			!strings.Contains(err.Error(), "connection timed out") &&
+			!strings.Contains(err.Error(), "DID does not exist") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
 	}
