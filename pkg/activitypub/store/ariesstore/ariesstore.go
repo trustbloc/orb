@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
@@ -26,8 +27,10 @@ import (
 )
 
 const (
+	storeName           = "activitypub-ref"
 	activityTag         = "Activity"
 	objectIRITagName    = "ObjectIRI"
+	refTypeTagName      = "RefType"
 	timeAddedTagName    = "TimeAdded"
 	activityTypeTagName = "ActivityType"
 )
@@ -38,7 +41,7 @@ var logger = log.New("activitypub_store")
 type Provider struct {
 	serviceName             string
 	activityStore           ariesstorage.Store
-	referenceStores         map[spi.ReferenceType]ariesstorage.Store
+	referenceStore          ariesstorage.Store
 	actorStore              ariesstorage.Store
 	multipleTagQueryCapable bool
 }
@@ -56,7 +59,7 @@ func New(serviceName string, provider ariesstorage.Provider, multipleTagQueryCap
 	return &Provider{
 		serviceName:             serviceName,
 		activityStore:           stores.activities,
-		referenceStores:         stores.reference,
+		referenceStore:          stores.reference,
 		actorStore:              stores.actor,
 		multipleTagQueryCapable: multipleTagQueryCapable,
 	}, nil
@@ -187,19 +190,14 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.
 	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 
-	referenceStore, exists := s.referenceStores[referenceType]
-	if !exists {
-		return fmt.Errorf("no store found for %s", string(referenceType))
-	}
-
 	valueBytes, err := json.Marshal(referenceIRI.String())
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	tags := determineTags(objectIRI, refMetaDataOpts)
+	tags := determineTags(referenceType, objectIRI, refMetaDataOpts)
 
-	err = referenceStore.Put(objectIRI.String()+referenceIRI.String(), valueBytes, tags...)
+	err = s.referenceStore.Put(getRefKey(referenceType, objectIRI, referenceIRI), valueBytes, tags...)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to store reference: %w", err))
 	}
@@ -212,12 +210,7 @@ func (s *Provider) DeleteReference(referenceType spi.ReferenceType, objectIRI, r
 	logger.Debugf("[%s] Deleting reference of type %s from object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 
-	referenceStore, exists := s.referenceStores[referenceType]
-	if !exists {
-		return fmt.Errorf("no store found for %s", string(referenceType))
-	}
-
-	err := referenceStore.Delete(objectIRI.String() + referenceIRI.String())
+	err := s.referenceStore.Delete(getRefKey(referenceType, objectIRI, referenceIRI))
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete reference: %w", err))
 	}
@@ -236,26 +229,22 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 
 	options := storeutil.GetQueryOptions(opts...)
 
-	referenceStore, exists := s.referenceStores[referenceType]
-	if !exists {
-		return nil, fmt.Errorf("no store found for %s", string(referenceType))
-	}
-
 	// If no reference IRI is set, then grab all references associated with the object IRI.
 	if query.ReferenceIRI == nil {
-		queryExpression, err := s.generateQueryExpression(query)
+		queryExpression, err := s.generateQueryExpression(referenceType, query)
 		if err != nil {
 			return nil, err
 		}
 
-		iterator, errQuery := referenceStore.Query(
+		iterator, errQuery := s.referenceStore.Query(
 			queryExpression,
 			ariesstorage.WithSortOrder(&ariesstorage.SortOptions{
 				Order:   ariesstorage.SortOrder(options.SortOrder),
 				TagName: timeAddedTagName,
 			}),
 			ariesstorage.WithPageSize(options.PageSize),
-			ariesstorage.WithInitialPageNum(options.PageNumber))
+			ariesstorage.WithInitialPageNum(options.PageNumber),
+		)
 		if errQuery != nil {
 			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", errQuery))
 		}
@@ -265,7 +254,7 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 
 	// Otherwise, if there is a reference IRI,
 	// then we should only grab the reference associated with the object IRI and reference IRI.
-	retrievedURLBytes, err := referenceStore.Get(query.ObjectIRI.String() + query.ReferenceIRI.String())
+	retrievedURLBytes, err := s.referenceStore.Get(getRefKey(referenceType, query.ObjectIRI, query.ReferenceIRI))
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {
 			return memstore.NewReferenceIterator(nil, 0), nil
@@ -425,7 +414,7 @@ func (r *referenceIterator) Close() error {
 
 type stores struct {
 	activities ariesstorage.Store
-	reference  map[spi.ReferenceType]ariesstorage.Store
+	reference  ariesstorage.Store
 	actor      ariesstorage.Store
 }
 
@@ -443,7 +432,7 @@ func openStores(provider ariesstorage.Provider) (stores, error) {
 		return stores{}, fmt.Errorf("failed to set store configuration on activity store: %w", err)
 	}
 
-	referenceStores, err := openReferenceStores(provider)
+	referenceStore, err := openReferenceStore(provider)
 	if err != nil {
 		return stores{}, fmt.Errorf("failed to open reference stores: %w", err)
 	}
@@ -455,51 +444,48 @@ func openStores(provider ariesstorage.Provider) (stores, error) {
 
 	return stores{
 		activities: activityStore,
-		reference:  referenceStores,
+		reference:  referenceStore,
 		actor:      actorStore,
 	}, nil
 }
 
-func openReferenceStores(provider ariesstorage.Provider) (map[spi.ReferenceType]ariesstorage.Store, error) {
-	referenceTypes := []spi.ReferenceType{
-		spi.Inbox, spi.Outbox, spi.PublicOutbox, spi.Follower, spi.Following, spi.Witness,
-		spi.Witnessing, spi.Like, spi.Liked, spi.Share, spi.AnchorEvent,
-	}
-
+func openReferenceStore(provider ariesstorage.Provider) (ariesstorage.Store, error) {
 	storeConfig := ariesstorage.StoreConfiguration{
-		TagNames: []string{objectIRITagName, timeAddedTagName, activityTypeTagName},
+		TagNames: []string{refTypeTagName, objectIRITagName, timeAddedTagName, activityTypeTagName},
 	}
 
-	referenceStores := make(map[spi.ReferenceType]ariesstorage.Store)
-
-	for _, referenceType := range referenceTypes {
-		store, err := provider.OpenStore(string(referenceType))
-		if err != nil {
-			return nil, fmt.Errorf("failed to open %s store: %w", string(referenceType), err)
-		}
-
-		err = provider.SetStoreConfig(string(referenceType), storeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set store configuration on %s store: %w",
-				string(referenceType), err)
-		}
-
-		referenceStores[referenceType] = store
+	store, err := provider.OpenStore(storeName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open %s store: %w", storeName, err)
 	}
 
-	return referenceStores, nil
+	err = provider.SetStoreConfig(storeName, storeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set store configuration on %s store: %w",
+			storeName, err)
+	}
+
+	return store, nil
 }
 
-func determineTags(objectIRI *url.URL, refMetaDataOpts []spi.RefMetadataOpt) []ariesstorage.Tag {
+func determineTags(referenceType spi.ReferenceType, objectIRI *url.URL,
+	refMetaDataOpts []spi.RefMetadataOpt) []ariesstorage.Tag {
 	refMetadata := storeutil.GetRefMetadata(refMetaDataOpts...)
 
-	tags := []ariesstorage.Tag{{
-		Name:  objectIRITagName,
-		Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
-	}, {
-		Name:  timeAddedTagName,
-		Value: strconv.FormatInt(time.Now().UnixNano(), 10),
-	}}
+	tags := []ariesstorage.Tag{
+		{
+			Name:  refTypeTagName,
+			Value: string(referenceType),
+		},
+		{
+			Name:  objectIRITagName,
+			Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
+		},
+		{
+			Name:  timeAddedTagName,
+			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
+		},
+	}
 
 	if refMetadata.ActivityType != "" {
 		tags = append(tags, ariesstorage.Tag{Name: activityTypeTagName, Value: string(refMetadata.ActivityType)})
@@ -508,18 +494,22 @@ func determineTags(objectIRI *url.URL, refMetaDataOpts []spi.RefMetadataOpt) []a
 	return tags
 }
 
-func (s *Provider) generateQueryExpression(query *spi.Criteria) (string, error) {
-	queryExpression := fmt.Sprintf("%s:%s", objectIRITagName,
+func (s *Provider) generateQueryExpression(referenceType spi.ReferenceType, query *spi.Criteria) (string, error) {
+	if !s.multipleTagQueryCapable {
+		return "", errors.New("cannot run query since the underlying storage provider does not support " +
+			"querying with multiple tags")
+	}
+
+	queryExpression := fmt.Sprintf("%s:%s&&%s:%s", refTypeTagName, referenceType, objectIRITagName,
 		base64.RawStdEncoding.EncodeToString([]byte(query.ObjectIRI.String())))
 
 	if len(query.Types) > 0 {
-		if s.multipleTagQueryCapable {
-			queryExpression += fmt.Sprintf("&&%s:%s", activityTypeTagName, query.Types[0])
-		} else {
-			return "", errors.New("cannot run query since the underlying storage provider does not support " +
-				"querying with multiple tags")
-		}
+		queryExpression += fmt.Sprintf("&&%s:%s", activityTypeTagName, query.Types[0])
 	}
 
 	return queryExpression, nil
+}
+
+func getRefKey(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) string {
+	return fmt.Sprintf("%s-%s-%s", strings.ToLower(string(referenceType)), objectIRI, referenceIRI)
 }

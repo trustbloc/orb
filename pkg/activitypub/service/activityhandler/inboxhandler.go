@@ -254,8 +254,7 @@ func (h *Inbox) validateActivity(activity *vocab.ActivityType, getTargetIRI func
 }
 
 func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType, refType store.ReferenceType) error {
-	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL(),
-		store.WithActivityType(activity.Type().Types()[0])); err != nil {
+	if err := h.store.AddReference(refType, h.ServiceIRI, actor.ID().URL()); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to store reference: %w", err))
 	}
 
@@ -316,7 +315,7 @@ func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.Reference
 		return fmt.Errorf("actor %s is already in the '%s' collection", accept.Actor(), refType)
 	}
 
-	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor(), store.WithActivityType(accept.Type().Types()[0]))
+	err = h.store.AddReference(refType, h.ServiceIRI, accept.Actor())
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("handle accept '%s' activity %s: %w", refType, accept.ID(), err))
 	}
@@ -688,8 +687,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor event [%s]",
 			h.ServiceIRI, announce.ID(), anchorEventID)
 
-		err := h.store.AddReference(store.Share, anchorEventID, announce.ID().URL(),
-			store.WithActivityType(announce.Type().Types()[0]))
+		err := h.store.AddReference(store.Share, anchorEventID, announce.ID().URL())
 		if err != nil {
 			// This isn't a fatal error so just log a warning.
 			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor event %s: %s",
@@ -791,8 +789,7 @@ func (h *Inbox) announceAnchorEventRef(create *vocab.ActivityType) error {
 
 	logger.Debugf("[%s] Adding 'Announce' %s to shares of %s", h.ServiceIRI, announce.ID(), anchorEventURL)
 
-	err = h.store.AddReference(store.Share, anchorEventURL, activityID,
-		store.WithActivityType(create.Type().Types()[0]))
+	err = h.store.AddReference(store.Share, anchorEventURL, activityID)
 	if err != nil {
 		logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of %s",
 			h.ServiceIRI, announce.ID(), anchorEventURL)

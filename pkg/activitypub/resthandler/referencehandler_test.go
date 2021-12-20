@@ -478,7 +478,7 @@ func TestGetReference(t *testing.T) {
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, false)
+	}, true)
 	require.NoError(t, err)
 
 	referenceHandler := Reference{
@@ -496,7 +496,7 @@ func TestReferenceHandlerGetPage(t *testing.T) {
 		OpenStoreReturn: &mock.Store{
 			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
 		},
-	}, false)
+	}, true)
 	require.NoError(t, err)
 
 	referenceHandler := Reference{

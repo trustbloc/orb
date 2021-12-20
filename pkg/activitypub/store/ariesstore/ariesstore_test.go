@@ -76,18 +76,18 @@ func TestNew(t *testing.T) {
 	})
 	t.Run("Failed to open inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
-			openStoreNameToFailOn: string(spi.Inbox),
-		}, false)
+			openStoreNameToFailOn: "activitypub-ref",
+		}, true)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to open INBOX store: open store error")
+			"failed to open activitypub-ref store: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
-			setStoreConfigNameToFailOn: string(spi.Inbox),
-		}, false)
+			setStoreConfigNameToFailOn: "activitypub-ref",
+		}, true)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to set store configuration on INBOX store: set store config error")
+			"failed to set store configuration on activitypub-ref store: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open actor store", func(t *testing.T) {
@@ -458,16 +458,6 @@ func TestStore_Reference_Failures(t *testing.T) {
 			err = provider.AddReference(spi.Following, actor1, actor2)
 			require.EqualError(t, err, "failed to store reference: put error")
 		})
-		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
-			require.NoError(t, err)
-
-			actor1 := testutil.MustParseURL("https://actor1")
-			actor2 := testutil.MustParseURL("https://actor2")
-
-			err = provider.AddReference("UnknownReferenceType", actor1, actor2)
-			require.EqualError(t, err, "no store found for UnknownReferenceType")
-		})
 	})
 	t.Run("Fail to delete reference", func(t *testing.T) {
 		t.Run("Fail to delete in underlying storage", func(t *testing.T) {
@@ -484,16 +474,6 @@ func TestStore_Reference_Failures(t *testing.T) {
 			err = provider.DeleteReference(spi.Following, actor1, actor2)
 			require.EqualError(t, err, "failed to delete reference: delete error")
 		})
-		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
-			require.NoError(t, err)
-
-			actor1 := testutil.MustParseURL("https://actor1")
-			actor2 := testutil.MustParseURL("https://actor2")
-
-			err = provider.DeleteReference("UnknownReferenceType", actor1, actor2)
-			require.EqualError(t, err, "no store found for UnknownReferenceType")
-		})
 	})
 	t.Run("Fail to query references", func(t *testing.T) {
 		t.Run("Fail to query in underlying storage", func(t *testing.T) {
@@ -501,23 +481,13 @@ func TestStore_Reference_Failures(t *testing.T) {
 				OpenStoreReturn: &mock.Store{
 					ErrQuery: errors.New("query error"),
 				},
-			}, false)
+			}, true)
 			require.NoError(t, err)
 
 			actor1 := testutil.MustParseURL("https://actor1")
 
 			_, err = provider.QueryReferences(spi.Following, spi.NewCriteria(spi.WithObjectIRI(actor1)))
 			require.EqualError(t, err, "failed to query store: query error")
-		})
-		t.Run("No store found for the reference type", func(t *testing.T) {
-			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
-			require.NoError(t, err)
-
-			actor1 := testutil.MustParseURL("https://actor1")
-
-			_, err = provider.QueryReferences("UnknownReferenceType",
-				spi.NewCriteria(spi.WithObjectIRI(actor1)))
-			require.EqualError(t, err, "no store found for UnknownReferenceType")
 		})
 		t.Run("Fail to query with both object IRI and activity type", func(t *testing.T) {
 			provider, err := ariesstore.New("ServiceName", mem.NewProvider(), false)
