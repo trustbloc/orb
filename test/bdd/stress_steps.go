@@ -622,7 +622,8 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 		if !strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
-			!strings.Contains(err.Error(), "DID does not exist") {
+			!strings.Contains(err.Error(), "DID does not exist") &&
+			!strings.Contains(err.Error(), "broken pipe") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
 	}
