@@ -18,6 +18,7 @@ import (
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -66,7 +67,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 			testLogger := &stringLogger{}
 
-			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+				&apmocks.AuthTokenMgr{})
 			webCAS.logger = testLogger
 
 			rw := &failingResponseWriter{}
@@ -84,7 +86,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 			testLogger := &stringLogger{}
 
-			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+				&apmocks.AuthTokenMgr{})
 			webCAS.logger = testLogger
 
 			rw := &failingResponseWriter{}
@@ -104,7 +107,8 @@ func TestWriteResponseFailures(t *testing.T) {
 
 		testLogger := &stringLogger{}
 
-		webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+			&apmocks.AuthTokenMgr{})
 		webCAS.logger = testLogger
 
 		rw := &failingResponseWriter{}

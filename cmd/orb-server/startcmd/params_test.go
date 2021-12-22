@@ -113,7 +113,7 @@ func TestAuthTokens(t *testing.T) {
 
 	err := startCmd.Execute()
 
-	authDefs, err := getAuthTokenDefinitions(startCmd)
+	authDefs, err := getAuthTokenDefinitions(startCmd, authTokensDefFlagName, authTokensDefEnvKey, nil)
 	require.NoError(t, err)
 	require.Len(t, authDefs, 4)
 
@@ -136,11 +136,19 @@ func TestAuthTokens(t *testing.T) {
 	require.Len(t, authDefs[3].ReadTokens, 1)
 	require.Len(t, authDefs[3].WriteTokens, 0)
 
-	authTokens, err := getAuthTokens(startCmd)
+	authTokens, err := getAuthTokens(startCmd, authTokensFlagName, authTokensEnvKey, nil)
 	require.NoError(t, err)
 	require.Len(t, authTokens, 2)
 	require.Equal(t, "ADMIN_TOKEN", authTokens["admin"])
 	require.Equal(t, "READ_TOKEN", authTokens["read"])
+
+	clientAuthDefs, err := getAuthTokenDefinitions(startCmd, clientAuthTokensDefFlagName, clientAuthTokensDefEnvKey, authDefs)
+	require.NoError(t, err)
+	require.Len(t, clientAuthDefs, len(authDefs))
+
+	clientAuthTokens, err := getAuthTokens(startCmd, clientAuthTokensFlagName, clientAuthTokensEnvKey, authTokens)
+	require.NoError(t, err)
+	require.Len(t, clientAuthTokens, len(authTokens))
 }
 
 func TestStartCmdWithMissingArg(t *testing.T) {

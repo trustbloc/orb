@@ -15,6 +15,8 @@ import (
 	"net/url"
 
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 )
 
 var logger = log.New("activitypub_client")
@@ -39,21 +41,27 @@ type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type authTokenManager interface {
+	IsAuthRequired(endpoint, method string) (bool, error)
+}
+
 // Transport implements a client-side transport that Gets and Posts requests using HTTP signatures.
 type Transport struct {
 	client      httpClient
 	getSigner   Signer
 	postSigner  Signer
 	publicKeyID *url.URL
+	tokenMgr    authTokenManager
 }
 
 // New returns a new transport.
-func New(client httpClient, publicKeyID *url.URL, getSigner, postSigner Signer) *Transport {
+func New(client httpClient, publicKeyID *url.URL, getSigner, postSigner Signer, tm authTokenManager) *Transport {
 	return &Transport{
 		client:      client,
 		publicKeyID: publicKeyID,
 		getSigner:   getSigner,
 		postSigner:  postSigner,
+		tokenMgr:    tm,
 	}
 }
 
@@ -101,6 +109,7 @@ func Default() *Transport {
 		publicKeyID: &url.URL{},
 		getSigner:   &NoOpSigner{},
 		postSigner:  &NoOpSigner{},
+		tokenMgr:    &apclientmocks.AuthTokenMgr{},
 	}
 }
 
@@ -120,12 +129,21 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 		req.Header[k] = v
 	}
 
-	err = t.postSigner.SignRequest(t.publicKeyID.String(), req)
+	authRequired, err := t.tokenMgr.IsAuthRequired(r.URL.Path, http.MethodPost)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return nil, fmt.Errorf("is authorization required: %w", err)
 	}
 
-	logger.Debugf("Signed HTTP POST to %s. Headers: %s", r.URL, req.Header)
+	if authRequired {
+		err = t.postSigner.SignRequest(t.publicKeyID.String(), req)
+		if err != nil {
+			return nil, fmt.Errorf("sign request: %w", err)
+		}
+
+		logger.Debugf("Signed HTTP POST to %s. Headers: %s", r.URL, req.Header)
+	} else {
+		logger.Debugf("HTTP signature is not required for HTTP POST to %s", r.URL)
+	}
 
 	return t.client.Do(req)
 }
@@ -141,14 +159,21 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 		req.Header[k] = v
 	}
 
-	logger.Debugf("Signing HTTP GET to %s. Headers: %s", r.URL, req.Header)
-
-	err = t.getSigner.SignRequest(t.publicKeyID.String(), req)
+	authRequired, err := t.tokenMgr.IsAuthRequired(r.URL.Path, http.MethodGet)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return nil, fmt.Errorf("is authorization required: %w", err)
 	}
 
-	logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
+	if authRequired {
+		err = t.getSigner.SignRequest(t.publicKeyID.String(), req)
+		if err != nil {
+			return nil, fmt.Errorf("sign request: %w", err)
+		}
+
+		logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
+	} else {
+		logger.Debugf("HTTP signature is not required for HTTP GET to %s", r.URL)
+	}
 
 	return t.client.Do(req)
 }

@@ -17,11 +17,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/hashlink"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -74,7 +74,8 @@ func TestNew(t *testing.T) {
 	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 	require.NoError(t, err)
 
-	webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+	webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+		&apmocks.AuthTokenMgr{})
 	require.NotNil(t, webCAS)
 	require.Equal(t, "/cas/{cid}", webCAS.Path())
 	require.Equal(t, http.MethodGet, webCAS.Method())
@@ -90,7 +91,8 @@ func TestHandler(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+			&apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -120,7 +122,8 @@ func TestHandler(t *testing.T) {
 		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient,
+			&apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -149,19 +152,7 @@ func TestHandler(t *testing.T) {
 		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
 		require.NoError(t, err)
 
-		cfg := &resthandler.Config{
-			Config: auth.Config{
-				AuthTokensDef: []*auth.TokenDef{
-					{
-						EndpointExpression: "/cas",
-						ReadTokens:         []string{"read"},
-					},
-				},
-				AuthTokens: map[string]string{
-					"read": "READ_TOKEN",
-				},
-			},
-		}
+		cfg := &resthandler.Config{}
 
 		t.Run("Authorized", func(t *testing.T) {
 			actor := testutil.MustParseURL("https://sally.example.com/services/orb")
@@ -169,7 +160,8 @@ func TestHandler(t *testing.T) {
 			v := &mocks.SignatureVerifier{}
 			v.VerifyRequestReturns(true, actor, nil)
 
-			webCAS := webcas.New(cfg, memstore.New(""), v, casClient)
+			webCAS := webcas.New(cfg, memstore.New(""), v, casClient,
+				&apmocks.AuthTokenMgr{})
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -187,7 +179,10 @@ func TestHandler(t *testing.T) {
 		})
 
 		t.Run("Unauthorized", func(t *testing.T) {
-			webCAS := webcas.New(cfg, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			tm := &apmocks.AuthTokenMgr{}
+			tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+			webCAS := webcas.New(cfg, memstore.New(""), &mocks.SignatureVerifier{}, casClient, tm)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -205,10 +200,13 @@ func TestHandler(t *testing.T) {
 		})
 
 		t.Run("Authorization error", func(t *testing.T) {
+			tm := &apmocks.AuthTokenMgr{}
+			tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
 			sigVerifier := &mocks.SignatureVerifier{}
 			sigVerifier.VerifyRequestReturns(false, nil, errors.New("injected authorization error"))
 
-			webCAS := webcas.New(cfg, memstore.New(""), sigVerifier, casClient)
+			webCAS := webcas.New(cfg, memstore.New(""), sigVerifier, casClient, tm)
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()

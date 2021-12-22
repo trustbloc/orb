@@ -15,9 +15,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -46,7 +46,7 @@ func TestNewServices(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewServices(cfg, memstore.New(""), publicKey)
+	h := NewServices(cfg, memstore.New(""), publicKey, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, basePath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -60,7 +60,7 @@ func TestNewPublicKey(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewPublicKeys(cfg, memstore.New(""), publicKey)
+	h := NewPublicKeys(cfg, memstore.New(""), publicKey, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, publicKeyPath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -77,7 +77,7 @@ func TestServices_Handler(t *testing.T) {
 	activityStore := memstore.New("")
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewServices(cfg, activityStore, publicKey)
+		h := NewServices(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -98,7 +98,7 @@ func TestServices_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewServices(cfg, activityStore, publicKey)
+		h := NewServices(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -122,21 +122,12 @@ func TestServices_Handler(t *testing.T) {
 			BasePath:  basePath,
 			ObjectIRI: serviceIRI,
 			PageSize:  4,
-			Config: auth.Config{
-				AuthTokensDef: []*auth.TokenDef{
-					{
-						EndpointExpression: "/services/orb",
-						ReadTokens:         []string{"admin", "read"},
-					},
-				},
-				AuthTokens: map[string]string{
-					"read":  "READ_TOKEN",
-					"admin": "ADMIN_TOKEN",
-				},
-			},
 		}
 
-		h := NewServices(cfg, activityStore, publicKey)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+		h := NewServices(cfg, activityStore, publicKey, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -159,7 +150,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 	activityStore := memstore.New("")
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewPublicKeys(cfg, activityStore, publicKey)
+		h := NewPublicKeys(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -183,7 +174,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 	})
 
 	t.Run("No key ID -> BadRequest", func(t *testing.T) {
-		h := NewPublicKeys(cfg, activityStore, publicKey)
+		h := NewPublicKeys(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -197,7 +188,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 	})
 
 	t.Run("Key ID not found -> NotFound", func(t *testing.T) {
-		h := NewPublicKeys(cfg, activityStore, publicKey)
+		h := NewPublicKeys(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -214,7 +205,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewPublicKeys(cfg, activityStore, publicKey)
+		h := NewPublicKeys(cfg, activityStore, publicKey, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -241,21 +232,12 @@ func TestPublicKeys_Handler(t *testing.T) {
 			BasePath:  basePath,
 			ObjectIRI: serviceIRI,
 			PageSize:  4,
-			Config: auth.Config{
-				AuthTokensDef: []*auth.TokenDef{
-					{
-						EndpointExpression: "/services/orb/keys",
-						ReadTokens:         []string{"admin", "read"},
-					},
-				},
-				AuthTokens: map[string]string{
-					"read":  "READ_TOKEN",
-					"admin": "ADMIN_TOKEN",
-				},
-			},
 		}
 
-		h := NewPublicKeys(cfg, activityStore, publicKey)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+		h := NewPublicKeys(cfg, activityStore, publicKey, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()

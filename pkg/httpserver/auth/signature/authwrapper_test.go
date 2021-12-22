@@ -15,10 +15,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
-	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature/mocks"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -32,7 +32,11 @@ func TestNewAuthHandler(t *testing.T) {
 		testHandler.MethodReturns(http.MethodGet)
 		testHandler.PathReturns("/identifiers/{id}")
 
-		authHandler := NewHandlerWrapper(testHandler, &resthandler.Config{}, memstore.New(""), &apmocks.SignatureVerifier{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+		authHandler := NewHandlerWrapper(testHandler, &resthandler.Config{}, memstore.New(""),
+			&servicemocks.SignatureVerifier{}, tm)
 		require.NotNil(t, authHandler)
 		require.Equal(t, testHandler.Method(), authHandler.Method())
 		require.Equal(t, testHandler.Path(), authHandler.Path())
@@ -50,7 +54,8 @@ func TestAuthHandler(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		authHandler := NewHandlerWrapper(testHandler, &resthandler.Config{}, memstore.New(""), &apmocks.SignatureVerifier{})
+		authHandler := NewHandlerWrapper(testHandler, &resthandler.Config{}, memstore.New(""),
+			&servicemocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, authHandler)
 
 		router := mux.NewRouter()
@@ -75,19 +80,10 @@ func TestAuthHandler(t *testing.T) {
 	})
 
 	t.Run("authorization test cases", func(t *testing.T) {
-		cfg := &resthandler.Config{
-			Config: auth.Config{
-				AuthTokensDef: []*auth.TokenDef{
-					{
-						EndpointExpression: "/identifiers",
-						ReadTokens:         []string{"read"},
-					},
-				},
-				AuthTokens: map[string]string{
-					"read": "READ_TOKEN",
-				},
-			},
-		}
+		cfg := &resthandler.Config{}
+
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
 
 		testHandler := &mocks.HTTPHandler{}
 		testHandler.MethodReturns(http.MethodGet)
@@ -99,10 +95,10 @@ func TestAuthHandler(t *testing.T) {
 		t.Run("success - authorized", func(t *testing.T) {
 			actor := testutil.MustParseURL("https://sally.example.com/services/orb")
 
-			v := &apmocks.SignatureVerifier{}
+			v := &servicemocks.SignatureVerifier{}
 			v.VerifyRequestReturns(true, actor, nil)
 
-			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""), v)
+			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""), v, tm)
 			require.NotNil(t, authHandler)
 
 			router := mux.NewRouter()
@@ -120,7 +116,11 @@ func TestAuthHandler(t *testing.T) {
 		})
 
 		t.Run("error - unauthorized", func(t *testing.T) {
-			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""), &apmocks.SignatureVerifier{})
+			tm := &apmocks.AuthTokenMgr{}
+			tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""),
+				&servicemocks.SignatureVerifier{}, tm)
 			require.NotNil(t, authHandler)
 
 			router := mux.NewRouter()
@@ -138,10 +138,13 @@ func TestAuthHandler(t *testing.T) {
 		})
 
 		t.Run("error - authorization error", func(t *testing.T) {
-			sigVerifier := &apmocks.SignatureVerifier{}
+			sigVerifier := &servicemocks.SignatureVerifier{}
 			sigVerifier.VerifyRequestReturns(false, nil, errors.New("injected authorization error"))
 
-			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""), sigVerifier)
+			tm := &apmocks.AuthTokenMgr{}
+			tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+			authHandler := NewHandlerWrapper(testHandler, cfg, memstore.New(""), sigVerifier, tm)
 			require.NotNil(t, authHandler)
 
 			router := mux.NewRouter()

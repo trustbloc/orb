@@ -18,11 +18,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -35,7 +35,7 @@ func TestNewFollowers(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowers(cfg, memstore.New(""), &mocks.SignatureVerifier{})
+	h := NewFollowers(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/followers", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -59,7 +59,7 @@ func TestNewFollowing(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewFollowing(cfg, memstore.New(""), &mocks.SignatureVerifier{})
+	h := NewFollowing(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/following", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -83,7 +83,7 @@ func TestNewWitnesses(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnesses(cfg, memstore.New(""), &mocks.SignatureVerifier{})
+	h := NewWitnesses(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/witnesses", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -107,7 +107,7 @@ func TestNewWitnessing(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewWitnessing(cfg, memstore.New(""), &mocks.SignatureVerifier{})
+	h := NewWitnessing(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/witnessing", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -139,31 +139,13 @@ func TestFollowers_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
-		Config: auth.Config{
-			AuthTokensDef: []*auth.TokenDef{
-				{
-					EndpointExpression: "/services/orb/outbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-				{
-					EndpointExpression: "/services/orb/.*",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
-			},
-		},
 	}
 
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -189,7 +171,7 @@ func TestFollowers_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewFollowers(cfg, s, verifier)
+		h := NewFollowers(cfg, s, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -203,7 +185,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -223,7 +205,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -243,7 +225,7 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -263,12 +245,15 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Verify signature error", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
 		errExpected := errors.New("injected verifier error")
 
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -282,10 +267,13 @@ func TestFollowers_Handler(t *testing.T) {
 	})
 
 	t.Run("Invalid signature", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, nil)
 
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -318,7 +306,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewFollowers(cfg, activityStore, verifier)
+	h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 
 	t.Run("First page -> Success", func(t *testing.T) {
@@ -356,7 +344,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, s, verifier)
+		h := NewFollowers(cfg, s, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -378,7 +366,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewFollowers(cfg, activityStore, verifier)
+		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -421,7 +409,7 @@ func TestWitnesses_Handler(t *testing.T) {
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewWitnesses(cfg, activityStore, verifier)
+	h := NewWitnesses(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -457,7 +445,7 @@ func TestWitnessing_Handler(t *testing.T) {
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewWitnessing(cfg, activityStore, verifier)
+	h := NewWitnessing(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {

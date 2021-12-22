@@ -20,11 +20,13 @@ import (
 
 //go:generate counterfeiter -o ../mocks/httpclient.gen.go --fake-name HTTPClient . httpClient
 //go:generate counterfeiter -o ../mocks/httpsigner.gen.go --fake-name HTTPSigner . Signer
+//go:generate counterfeiter -o ../mocks/authtokenmgr.gen.go --fake-name AuthTokenMgr . authTokenManager
 
 const publicKeyID = "https://alice.example.com/services/orb/keys/main-key"
 
 func TestNew(t *testing.T) {
-	tp := New(http.DefaultClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+	tp := New(http.DefaultClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner(),
+		&mocks.AuthTokenMgr{})
 	require.NotNil(t, tp)
 }
 
@@ -48,7 +50,8 @@ func TestTransport_Post(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner(),
+			&mocks.AuthTokenMgr{})
 		require.NotNil(t, tp)
 
 		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
@@ -66,7 +69,29 @@ func TestTransport_Post(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer)
+		tm := &mocks.AuthTokenMgr{}
+		tm.IsAuthRequiredReturns(true, nil)
+
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer, tm)
+		require.NotNil(t, tp)
+
+		//nolint:bodyclose
+		resp, err := tp.Post(context.Background(),
+			NewRequest(testutil.MustParseURL("https://domain1.com")), nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, resp)
+	})
+
+	t.Run("Token manager error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected token manager error")
+
+		signer := &mocks.HTTPSigner{}
+
+		tm := &mocks.AuthTokenMgr{}
+		tm.IsAuthRequiredReturns(false, errExpected)
+
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer, tm)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose
@@ -85,7 +110,7 @@ func TestTransport_Get(t *testing.T) {
 	httpClient.DoReturns(resp, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner())
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), DefaultSigner(), DefaultSigner(), &mocks.AuthTokenMgr{})
 		require.NotNil(t, tp)
 
 		req := NewRequest(testutil.MustParseURL("https://domain1.com"))
@@ -103,7 +128,29 @@ func TestTransport_Get(t *testing.T) {
 		signer := &mocks.HTTPSigner{}
 		signer.SignRequestReturns(errExpected)
 
-		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer)
+		tm := &mocks.AuthTokenMgr{}
+		tm.IsAuthRequiredReturns(true, nil)
+
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer, tm)
+		require.NotNil(t, tp)
+
+		//nolint:bodyclose
+		resp, err := tp.Get(context.Background(),
+			NewRequest(testutil.MustParseURL("https://domain1.com")))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, resp)
+	})
+
+	t.Run("Token manager error", func(t *testing.T) {
+		errExpected := fmt.Errorf("injected token manager error")
+
+		signer := &mocks.HTTPSigner{}
+
+		tm := &mocks.AuthTokenMgr{}
+		tm.IsAuthRequiredReturns(false, errExpected)
+
+		tp := New(httpClient, testutil.MustParseURL(publicKeyID), signer, signer, tm)
 		require.NotNil(t, tp)
 
 		//nolint:bodyclose

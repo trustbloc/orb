@@ -57,15 +57,20 @@ func (w *WebCAS) Handler() common.HTTPRequestHandler {
 	return w.handler
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // New returns a new WebCAS, which contains a REST handler that implements WebCAS as defined in
 // https://trustbloc.github.io/did-method-orb/#webcas.
-func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier, casClient casapi.Client) *WebCAS {
+func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
+	casClient casapi.Client, tm authTokenManager) *WebCAS {
 	h := &WebCAS{
 		casClient: casClient,
 		logger:    log.New("webcas"),
 	}
 
-	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier,
+	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
 			// TODO: Does the actor need to be authorized? If so, how? A witness needs access to the /cas endpoint
 			// but does not need to be part of an actor's 'followers' or 'witnessing' collections (e.g. the case where

@@ -31,14 +31,18 @@ type AuthHandler struct {
 	writeResponse  func(w http.ResponseWriter, status int, body []byte)
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // NewAuthHandler returns a new authorization handler.
 func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifier signatureVerifier,
-	authorizeActor authorizeActorFunc) *AuthHandler {
+	tm authTokenManager, authorizeActor authorizeActorFunc) *AuthHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
 	h := &AuthHandler{
 		Config:         cfg,
-		tokenVerifier:  auth.NewTokenVerifier(cfg.Config, ep, method),
+		tokenVerifier:  auth.NewTokenVerifier(tm, ep, method),
 		endpoint:       ep,
 		verifier:       verifier,
 		activityStore:  s,

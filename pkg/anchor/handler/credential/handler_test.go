@@ -21,9 +21,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
-	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
@@ -106,7 +108,8 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Neither local nor remote CAS has the anchor credential", func(t *testing.T) {
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &apmocks.SignatureVerifier{}, createInMemoryCAS(t))
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &servicemocks.SignatureVerifier{},
+			createInMemoryCAS(t), &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -287,7 +290,7 @@ func newAnchorEventHandler(t *testing.T,
 	casResolver := casresolver.New(client, nil,
 		casresolver.NewWebCASResolver(
 			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()),
+				transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 			webfingerclient.New(), "https"),
 		&orbmocks.MetricsProvider{})
 

@@ -32,14 +32,19 @@ type HandlerWrapper struct {
 	resolver common.HTTPHandler
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // NewHandlerWrapper returns a new 'authenticated' handler. It verifies both tokens and signatures before proceeding.
-func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier) *HandlerWrapper { //nolint:lll
+func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store,
+	verifier signatureVerifier, tm authTokenManager) *HandlerWrapper {
 	ah := &HandlerWrapper{
 		resolver:      handler,
 		handleRequest: handler.Handler(),
 	}
 
-	ah.AuthHandler = resthandler.NewAuthHandler(authCfg, handler.Path(), handler.Method(), s, verifier,
+	ah.AuthHandler = resthandler.NewAuthHandler(authCfg, handler.Path(), handler.Method(), s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
 			logger.Debugf("[%s] Authorized actor [%s]", ah.Path(), actorIRI)
 

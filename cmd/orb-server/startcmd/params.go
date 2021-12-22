@@ -346,6 +346,14 @@ const (
 	authTokensFlagUsage     = "Authorization tokens."
 	authTokensEnvKey        = "ORB_AUTH_TOKENS"
 
+	clientAuthTokensDefFlagName  = "client-auth-tokens-def"
+	clientAuthTokensDefFlagUsage = "Client authorization token definitions."
+	clientAuthTokensDefEnvKey    = "ORB_CLIENT_AUTH_TOKENS_DEF"
+
+	clientAuthTokensFlagName  = "client-auth-tokens"
+	clientAuthTokensFlagUsage = "Client authorization tokens."
+	clientAuthTokensEnvKey    = "ORB_CLIENT_AUTH_TOKENS"
+
 	activityPubPageSizeFlagName      = "activitypub-page-size"
 	activityPubPageSizeFlagShorthand = "P"
 	activityPubPageSizeEnvKey        = "ACTIVITYPUB_PAGE_SIZE"
@@ -510,6 +518,8 @@ type orbParameters struct {
 	updateDocumentStoreTypes       []operation.Type
 	authTokenDefinitions           []*auth.TokenDef
 	authTokens                     map[string]string
+	clientAuthTokenDefinitions     []*auth.TokenDef
+	clientAuthTokens               map[string]string
 	opQueuePoolSize                uint
 	observerQueuePoolSize          uint
 	activityPubPageSize            int
@@ -879,14 +889,24 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	authTokenDefs, err := getAuthTokenDefinitions(cmd)
+	authTokenDefs, err := getAuthTokenDefinitions(cmd, authTokensDefFlagName, authTokensDefEnvKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("authorization token definitions: %w", err)
 	}
 
-	authTokens, err := getAuthTokens(cmd)
+	authTokens, err := getAuthTokens(cmd, authTokensFlagName, authTokensEnvKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("authorization tokens: %w", err)
+	}
+
+	clientAuthTokenDefs, err := getAuthTokenDefinitions(cmd, clientAuthTokensDefFlagName, clientAuthTokensDefEnvKey, authTokenDefs)
+	if err != nil {
+		return nil, fmt.Errorf("client authorization token definitions: %w", err)
+	}
+
+	clientAuthTokens, err := getAuthTokens(cmd, clientAuthTokensFlagName, clientAuthTokensEnvKey, authTokens)
+	if err != nil {
+		return nil, fmt.Errorf("client authorization tokens: %w", err)
 	}
 
 	activityPubPageSize, err := getActivityPubPageSize(cmd)
@@ -1017,6 +1037,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		verifyLatestFromAnchorOrigin:   verifyLatestFromAnchorOrigin,
 		authTokenDefinitions:           authTokenDefs,
 		authTokens:                     authTokens,
+		clientAuthTokenDefinitions:     clientAuthTokenDefs,
+		clientAuthTokens:               clientAuthTokens,
 		activityPubPageSize:            activityPubPageSize,
 		enableDevMode:                  enableDevMode,
 		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
@@ -1117,10 +1139,14 @@ func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error)
 	}, nil
 }
 
-func getAuthTokenDefinitions(cmd *cobra.Command) ([]*auth.TokenDef, error) {
-	authTokenDefsStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, authTokensDefFlagName, authTokensDefEnvKey, true)
+func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaultDefs []*auth.TokenDef) ([]*auth.TokenDef, error) {
+	authTokenDefsStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(authTokenDefsStr) == 0 {
+		return defaultDefs, nil
 	}
 
 	logger.Debugf("Auth tokens definition: %s", authTokenDefsStr)
@@ -1171,10 +1197,14 @@ func filterEmptyTokens(tokens []string) []string {
 	return nonEmptyTokens
 }
 
-func getAuthTokens(cmd *cobra.Command) (map[string]string, error) {
-	authTokensStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, authTokensFlagName, authTokensEnvKey, true)
+func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens map[string]string) (map[string]string, error) {
+	authTokensStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(authTokensStr) == 0 {
+		return defaultTokens, nil
 	}
 
 	authTokens := make(map[string]string)
@@ -1467,6 +1497,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(discoveryMinimumResolversFlagName, "", "", discoveryMinimumResolversFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensDefFlagName, authTokensDefFlagShorthand, nil, authTokensDefFlagUsage)
 	startCmd.Flags().StringArrayP(authTokensFlagName, authTokensFlagShorthand, nil, authTokensFlagUsage)
+	startCmd.Flags().StringArrayP(clientAuthTokensDefFlagName, "", nil, clientAuthTokensDefFlagUsage)
+	startCmd.Flags().StringArrayP(clientAuthTokensFlagName, "", nil, clientAuthTokensFlagUsage)
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)

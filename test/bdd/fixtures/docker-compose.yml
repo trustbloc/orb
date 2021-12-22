@@ -516,6 +516,13 @@ services:
       - ORB_AUTH_TOKENS_DEF=/services/orb/outbox||admin,/services/orb/inbox||admin,/sidetree/.*/operations||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN
+      # ORB_CLIENT_AUTH_TOKENS_DEF follows the same rules as ORB_AUTH_TOKENS_DEF but is used by the Orb client transport to
+      # determine whether an HTTP signature is required for an outbound HTTP request. If not specified then it is assumed
+      # to be the same as ORB_AUTH_TOKENS_DEF.
+      - ORB_CLIENT_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      # ORB_CLIENT_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_CLIENT_AUTH_TOKENS_DEF. If not specified
+      # then it is assumed to be the same as ORB_AUTH_TOKENS.
+      - ORB_CLIENT_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
       # or if the requesting service needs to be in an 'accept list' (accept-list policy).
       - FOLLOW_AUTH_POLICY=accept-all
@@ -618,7 +625,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
@@ -718,7 +725,14 @@ services:
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
       #      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
-      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      #      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
+      # ORB_CLIENT_AUTH_TOKENS_DEF follows the same rules as ORB_AUTH_TOKENS_DEF but is used by the Orb client transport to
+      # determine whether an HTTP signature is required for an outbound HTTP request. If not specified then it is assumed
+      # to be the same as ORB_AUTH_TOKENS_DEF.
+      - ORB_CLIENT_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
+      # ORB_CLIENT_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_CLIENT_AUTH_TOKENS_DEF. If not specified
+      # then it is assumed to be the same as ORB_AUTH_TOKENS.
+      - ORB_CLIENT_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
       # or if the requesting service needs to be in an 'accept list' (accept-list policy).
       - FOLLOW_AUTH_POLICY=accept-all

@@ -13,35 +13,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 )
 
 func TestHandlerWrapper(t *testing.T) {
-	cfg := Config{
-		AuthTokensDef: []*TokenDef{
-			{
-				EndpointExpression: "/services/orb/outbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
-			},
-			{
-				EndpointExpression: "/services/orb/inbox",
-				ReadTokens:         []string{"admin", "read"},
-				WriteTokens:        []string{"admin"},
-			},
-		},
-		AuthTokens: map[string]string{
-			"read":  "READ_TOKEN",
-			"admin": "ADMIN_TOKEN",
-		},
-	}
-
-	w := NewHandlerWrapper(cfg, &mockHTTPHandler{
-		path:   "/services/orb/outbox",
-		method: http.MethodPost,
-	})
-	require.NotNil(t, w)
-
 	t.Run("Success", func(t *testing.T) {
+		w := NewHandlerWrapper(&mockHTTPHandler{
+			path:   "/services/orb/outbox",
+			method: http.MethodPost,
+		}, &apmocks.AuthTokenMgr{})
+		require.NotNil(t, w)
+
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", nil)
 		req.Header[authHeader] = []string{tokenPrefix + "ADMIN_TOKEN"}
@@ -54,6 +37,15 @@ func TestHandlerWrapper(t *testing.T) {
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		w := NewHandlerWrapper(&mockHTTPHandler{
+			path:   "/services/orb/outbox",
+			method: http.MethodPost,
+		}, tm)
+		require.NotNil(t, w)
+
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", nil)
 

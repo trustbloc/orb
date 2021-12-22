@@ -26,23 +26,25 @@ type Services struct {
 }
 
 // NewServices returns a new 'services' REST handler.
-func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
+func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType,
+	tm authTokenManager) *Services {
 	h := &Services{
 		publicKey: publicKey,
 	}
 
-	h.handler = newHandler("", cfg, activityStore, h.handle, nil, spi.SortAscending)
+	h.handler = newHandler("", cfg, activityStore, h.handle, nil, spi.SortAscending, tm)
 
 	return h
 }
 
 // NewPublicKeys returns a new public keys REST handler.
-func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType) *Services {
+func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType,
+	tm authTokenManager) *Services {
 	h := &Services{
 		publicKey: publicKey,
 	}
 
-	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey, nil, spi.SortAscending)
+	h.handler = newHandler(PublicKeysPath, cfg, activityStore, h.handlePublicKey, nil, spi.SortAscending, tm)
 
 	return h
 }
