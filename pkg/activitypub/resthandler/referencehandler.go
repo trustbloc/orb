@@ -17,35 +17,35 @@ import (
 )
 
 // NewFollowers returns a new 'followers' REST handler that retrieves a service's list of followers.
-func NewFollowers(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+func NewFollowers(cfg *Config, activityStore spi.Store, verifier signatureVerifier, tm authTokenManager) *Reference {
 	return NewReference(FollowersPath, spi.Follower, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("followers"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("followers"), verifier, tm)
 }
 
 // NewFollowing returns a new 'following' REST handler that retrieves a service's list of following.
-func NewFollowing(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+func NewFollowing(cfg *Config, activityStore spi.Store, verifier signatureVerifier, tm authTokenManager) *Reference {
 	return NewReference(FollowingPath, spi.Following, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("following"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("following"), verifier, tm)
 }
 
 // NewWitnesses returns a new 'witnesses' REST handler that retrieves a service's list of witnesses.
-func NewWitnesses(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+func NewWitnesses(cfg *Config, activityStore spi.Store, verifier signatureVerifier, tm authTokenManager) *Reference {
 	return NewReference(WitnessesPath, spi.Witness, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("witnesses"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("witnesses"), verifier, tm)
 }
 
 // NewWitnessing returns a new 'witnessing' REST handler that retrieves collection of the services that the
 // local service is witnessing.
-func NewWitnessing(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+func NewWitnessing(cfg *Config, activityStore spi.Store, verifier signatureVerifier, tm authTokenManager) *Reference {
 	return NewReference(WitnessingPath, spi.Witnessing, spi.SortAscending, false, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("witnessing"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("witnessing"), verifier, tm)
 }
 
 // NewLiked returns a new 'liked' REST handler that retrieves the references of all the anchor events that
 // this service liked.
-func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier) *Reference {
+func NewLiked(cfg *Config, activityStore spi.Store, verifier signatureVerifier, tm authTokenManager) *Reference {
 	return NewReference(LikedPath, spi.Liked, spi.SortAscending, true, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier)
+		getObjectIRI(cfg.ObjectIRI), getID("liked"), verifier, tm)
 }
 
 type createCollectionFunc func(items []*vocab.ObjectProperty, opts ...vocab.Opt) interface{}
@@ -68,7 +68,7 @@ type Reference struct {
 // NewReference returns a new reference REST handler.
 func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
 	cfg *Config, activityStore spi.Store, getObjectIRI getObjectIRIFunc, getID getIDFunc,
-	verifier signatureVerifier) *Reference {
+	verifier signatureVerifier, tm authTokenManager) *Reference {
 	h := &Reference{
 		refType:              refType,
 		createCollection:     createCollection(ordered),
@@ -77,7 +77,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 		getObjectIRI:         getObjectIRI,
 	}
 
-	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier, sortOrder)
+	h.handler = newHandler(path, cfg, activityStore, h.handle, verifier, sortOrder, tm)
 
 	return h
 }

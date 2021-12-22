@@ -19,13 +19,13 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
@@ -42,7 +42,7 @@ func TestNewOutbox(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewOutbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending)
+	h := NewOutbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/outbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -66,7 +66,7 @@ func TestNewInbox(t *testing.T) {
 		PageSize:  4,
 	}
 
-	h := NewInbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending)
+	h := NewInbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/inbox", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -91,7 +91,7 @@ func TestNewShares(t *testing.T) {
 		ObjectIRI: serviceIRI,
 	}
 
-	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending)
+	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/shares", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -132,7 +132,7 @@ func TestNewLikes(t *testing.T) {
 		ObjectIRI: serviceIRI,
 	}
 
-	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending)
+	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, "/services/orb/likes", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -179,31 +179,13 @@ func TestActivities_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
-		Config: auth.Config{
-			AuthTokensDef: []*auth.TokenDef{
-				{
-					EndpointExpression: "/services/orb/outbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-				{
-					EndpointExpression: "/services/orb/inbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
-			},
-		},
 	}
 
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, service2IRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -229,7 +211,7 @@ func TestActivities_Handler(t *testing.T) {
 		s := &mocks.ActivityStore{}
 		s.QueryReferencesReturns(nil, errExpected)
 
-		h := NewInbox(cfg, s, verifier, spi.SortDescending)
+		h := NewInbox(cfg, s, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -243,7 +225,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -263,7 +245,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		t.Run("Internal error", func(t *testing.T) {
@@ -302,7 +284,7 @@ func TestActivities_Handler(t *testing.T) {
 	})
 
 	t.Run("GetID error", func(t *testing.T) {
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected error")
@@ -327,7 +309,10 @@ func TestActivities_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin", "read"}, nil)
+
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -344,7 +329,10 @@ func TestActivities_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, nil)
 
-		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin", "read"}, nil)
+
+		h := NewInbox(cfg, activityStore, verifier, spi.SortDescending, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -404,7 +392,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, s, verifier, spi.SortDescending)
+		h := NewOutbox(cfg, s, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -426,7 +414,7 @@ func TestActivities_PageHandler(t *testing.T) {
 			PageSize:  4,
 		}
 
-		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "0")
@@ -469,31 +457,13 @@ func TestReadOutbox_Handler(t *testing.T) {
 		BasePath:  basePath,
 		ObjectIRI: serviceIRI,
 		PageSize:  4,
-		Config: auth.Config{
-			AuthTokensDef: []*auth.TokenDef{
-				{
-					EndpointExpression: "/services/orb/outbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-				{
-					EndpointExpression: "/services/orb/inbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
-			},
-		},
 	}
 
 	t.Run("Authorized -> All items", func(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, service2IRI, nil)
 
-		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -517,7 +487,10 @@ func TestReadOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, nil)
 
-		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin", "read"}, nil)
+
+		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -541,7 +514,10 @@ func TestReadOutbox_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errors.New("injected auth error"))
 
-		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin", "read"}, nil)
+
+		h := NewOutbox(cfg, activityStore, verifier, spi.SortDescending, tm)
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -583,7 +559,7 @@ func TestShares_Handler(t *testing.T) {
 	verifier.VerifyRequestReturns(true, srvcIRI, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewShares(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restore := setIDParam(id)
@@ -635,7 +611,7 @@ func TestShares_PageHandler(t *testing.T) {
 	verifier.VerifyRequestReturns(true, srvcIRI, nil)
 
 	t.Run("First page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewShares(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "")
@@ -662,7 +638,7 @@ func TestShares_PageHandler(t *testing.T) {
 	})
 
 	t.Run("By page -> Success", func(t *testing.T) {
-		h := NewShares(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewShares(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		restorePaging := setPaging(h.handler, "true", "1")
@@ -710,7 +686,7 @@ func TestLiked_Handler(t *testing.T) {
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewLiked(cfg, activityStore, verifier)
+	h := NewLiked(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 
 	t.Run("Main page -> Success", func(t *testing.T) {
@@ -723,7 +699,8 @@ func TestLiked_Handler(t *testing.T) {
 }
 
 func TestNewActivity(t *testing.T) {
-	h := NewActivity(&Config{BasePath: basePath}, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending)
+	h := NewActivity(&Config{BasePath: basePath}, memstore.New(""), &mocks.SignatureVerifier{},
+		spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 	require.Equal(t, basePath+ActivitiesPath, h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
@@ -751,7 +728,7 @@ func TestActivity_Handler(t *testing.T) {
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, nil, nil)
 
-		h := NewActivity(cfg, activityStore, verifier, spi.SortDescending)
+		h := NewActivity(cfg, activityStore, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -775,7 +752,7 @@ func TestActivity_Handler(t *testing.T) {
 	})
 
 	t.Run("No activity ID -> BadRequest", func(t *testing.T) {
-		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending)
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -789,7 +766,7 @@ func TestActivity_Handler(t *testing.T) {
 	})
 
 	t.Run("Activity ID not found -> NotFound", func(t *testing.T) {
-		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending)
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -809,7 +786,7 @@ func TestActivity_Handler(t *testing.T) {
 		as := &mocks.ActivityStore{}
 		as.GetActivityReturns(nil, errors.New("injected store error"))
 
-		h := NewActivity(cfg, as, &mocks.SignatureVerifier{}, spi.SortDescending)
+		h := NewActivity(cfg, as, &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
@@ -826,7 +803,7 @@ func TestActivity_Handler(t *testing.T) {
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending)
+		h := NewActivity(cfg, activityStore, &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, h)
 
 		errExpected := fmt.Errorf("injected marshal error")
@@ -856,20 +833,12 @@ func TestActivity_Handler(t *testing.T) {
 			BasePath:               basePath,
 			ObjectIRI:              serviceIRI,
 			VerifyActorInSignature: true,
-			Config: auth.Config{
-				AuthTokensDef: []*auth.TokenDef{
-					{
-						EndpointExpression: "/services/orb/activities/.*",
-						ReadTokens:         []string{"read"},
-					},
-				},
-				AuthTokens: map[string]string{
-					"read": "READ_TOKEN",
-				},
-			},
 		}
 
-		h := NewActivity(cnfg, activityStore, verifier, spi.SortDescending)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+		h := NewActivity(cnfg, activityStore, verifier, spi.SortDescending, tm)
 		require.NotNil(t, h)
 
 		t.Run("Non-public activity -> unauthorized", func(t *testing.T) {
@@ -913,7 +882,7 @@ func TestActivity_Handler(t *testing.T) {
 			verifier := &mocks.SignatureVerifier{}
 			verifier.VerifyRequestReturns(false, nil, errExpected)
 
-			h := NewActivity(cnfg, activityStore, verifier, spi.SortDescending)
+			h := NewActivity(cnfg, activityStore, verifier, spi.SortDescending, tm)
 			require.NotNil(t, h)
 
 			rw := httptest.NewRecorder()
@@ -979,7 +948,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	verifier := &mocks.SignatureVerifier{}
 	verifier.VerifyRequestReturns(true, serviceIRI, nil)
 
-	h := NewInbox(cfg, as, verifier, spi.SortDescending)
+	h := NewInbox(cfg, as, verifier, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
 
 	restorePaging := setPaging(h.handler, page, pageNum)

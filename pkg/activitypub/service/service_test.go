@@ -26,6 +26,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	clientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -972,10 +973,14 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 
 	km := &mockkms.KeyManager{}
 
+	tm := &clientmocks.AuthTokenMgr{}
+	tm.IsAuthRequiredReturns(true, nil)
+
 	trnspt := transport.New(http.DefaultClient,
 		publicKey.ID.URL(),
 		httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, kmsKey1),
 		httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, kmsKey1),
+		tm,
 	)
 
 	activityStore := memstore.New(cfg.ServiceEndpoint)

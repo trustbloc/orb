@@ -21,7 +21,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
 var logger = log.New("activitypub_resthandler")
@@ -70,8 +69,6 @@ const (
 
 // Config contains configuration parameters for the handler.
 type Config struct {
-	auth.Config
-
 	BasePath               string
 	ObjectIRI              *url.URL
 	PageSize               int
@@ -90,7 +87,7 @@ type handler struct {
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequestHandler,
-	verifier signatureVerifier, sortOrder spi.SortOrder, params ...string) *handler {
+	verifier signatureVerifier, sortOrder spi.SortOrder, tm authTokenManager, params ...string) *handler {
 	h := &handler{
 		Config:  cfg,
 		params:  paramsBuilder(params).build(),
@@ -102,7 +99,7 @@ func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequest
 		sortOrder: sortOrder,
 	}
 
-	h.AuthHandler = NewAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, nil)
+	h.AuthHandler = NewAuthHandler(cfg, endpoint, http.MethodGet, s, verifier, tm, nil)
 
 	return h
 }

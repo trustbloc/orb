@@ -35,24 +35,25 @@ type Config struct {
 	AuthTokens    map[string]string
 }
 
+type tokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // TokenVerifier authorizes requests with bearer tokens.
 type TokenVerifier struct {
-	Config
-
 	endpoint   string
 	authTokens []string
 }
 
 // NewTokenVerifier returns a verifier that performs bearer token authorization.
-func NewTokenVerifier(cfg Config, endpoint, method string) *TokenVerifier {
-	authTokens, err := resolveAuthTokens(endpoint, method, cfg.AuthTokensDef, cfg.AuthTokens)
+func NewTokenVerifier(tm tokenManager, endpoint, method string) *TokenVerifier {
+	authTokens, err := tm.RequiredAuthTokens(endpoint, method)
 	if err != nil {
 		// This would occur on startup due to bad configuration, so it's better to panic.
 		panic(fmt.Errorf("resolve authorization tokens: %w", err))
 	}
 
 	return &TokenVerifier{
-		Config:     cfg,
 		endpoint:   endpoint,
 		authTokens: authTokens,
 	}
@@ -90,30 +91,95 @@ func (h *TokenVerifier) Verify(req *http.Request) bool {
 	return false
 }
 
-func resolveAuthTokens(endpoint, method string, authTokensDef []*TokenDef,
-	authTokenMap map[string]string) ([]string, error) {
-	var authTokens []string
+type tokenDef struct {
+	expr        *regexp.Regexp
+	readTokens  []string
+	writeTokens []string
+}
 
-	for _, def := range authTokensDef {
-		ok, err := endpointMatches(endpoint, def.EndpointExpression)
+// TokenManager manages the authorization tokens for both the client and server.
+type TokenManager struct {
+	tokenDefs  []*tokenDef
+	authTokens map[string]string
+}
+
+// NewTokenManager returns a token mapper that performs bearer token authorization.
+func NewTokenManager(cfg Config) (*TokenManager, error) {
+	defs := make([]*tokenDef, len(cfg.AuthTokensDef))
+
+	for i, def := range cfg.AuthTokensDef {
+		expr, err := regexp.Compile(def.EndpointExpression)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid endpoint expression [%s]: %w", def.EndpointExpression, err)
 		}
 
+		defs[i] = &tokenDef{
+			expr:        expr,
+			readTokens:  def.ReadTokens,
+			writeTokens: def.WriteTokens,
+		}
+	}
+
+	return &TokenManager{
+		tokenDefs:  defs,
+		authTokens: cfg.AuthTokens,
+	}, nil
+}
+
+// IsAuthRequired return true if authorization is required for the given endpoint/method.
+func (m *TokenManager) IsAuthRequired(endpoint, method string) (bool, error) {
+	for _, def := range m.tokenDefs {
+		ok := def.expr.MatchString(endpoint)
+		if !ok {
+			continue
+		}
+
+		switch method {
+		case http.MethodGet:
+			if len(def.readTokens) > 0 {
+				logger.Debugf("[%s] Authorization token(s) required for %s: %s", endpoint, method, def.readTokens)
+
+				return true, nil
+			}
+		case http.MethodPost:
+			if len(def.writeTokens) > 0 {
+				logger.Debugf("[%s] Authorization token(s) required for %s: %s", endpoint, method, def.writeTokens)
+
+				return true, nil
+			}
+		default:
+			return false, fmt.Errorf("unsupported HTTP method [%s]", method)
+		}
+	}
+
+	logger.Debugf("[%s] Authorization not required for %s", endpoint, method)
+
+	return false, nil
+}
+
+// RequiredAuthTokens returns the authorization tokens required for the given endpoint and method.
+func (m *TokenManager) RequiredAuthTokens(endpoint, method string) ([]string, error) {
+	var authTokens []string
+
+	for _, def := range m.tokenDefs {
+		ok := def.expr.MatchString(endpoint)
 		if !ok {
 			continue
 		}
 
 		var tokens []string
 
-		if method == http.MethodPost {
-			tokens = def.WriteTokens
-		} else {
-			tokens = def.ReadTokens
+		switch method {
+		case http.MethodGet:
+			tokens = def.readTokens
+		case http.MethodPost:
+			tokens = def.writeTokens
+		default:
+			return nil, fmt.Errorf("unsupported HTTP method [%s]", method)
 		}
 
 		for _, tokenID := range tokens {
-			token, ok := authTokenMap[tokenID]
+			token, ok := m.authTokens[tokenID]
 			if !ok {
 				return nil, fmt.Errorf("token not found: %s", tokenID)
 			}
@@ -124,18 +190,7 @@ func resolveAuthTokens(endpoint, method string, authTokensDef []*TokenDef,
 		break
 	}
 
-	logger.Debugf("[%s] Authorization tokens: %s", endpoint, authTokens)
+	logger.Debugf("[%s] Authorization tokens required for %s: %s", endpoint, method, authTokens)
 
 	return authTokens, nil
-}
-
-func endpointMatches(endpoint, pattern string) (bool, error) {
-	ok, err := regexp.MatchString(pattern, endpoint)
-	if err != nil {
-		return false, fmt.Errorf("match endpoint pattern %s: %w", pattern, err)
-	}
-
-	logger.Debugf("[%s] Endpoint matches pattern [%s]: %t", endpoint, pattern, ok)
-
-	return ok, nil
 }

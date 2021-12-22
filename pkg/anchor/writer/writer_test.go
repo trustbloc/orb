@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
@@ -117,7 +118,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-					transport.DefaultSigner(), transport.DefaultSigner()),
+					transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 	}
 
@@ -921,7 +922,7 @@ func TestWriter_handle(t *testing.T) {
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-					transport.DefaultSigner(), transport.DefaultSigner()),
+					transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 	}
 
@@ -1567,7 +1568,7 @@ func TestWriter_Read(t *testing.T) {
 		CasResolver: casresolver.New(casClient, nil,
 			casresolver.NewWebCASResolver(
 				transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-					transport.DefaultSigner(), transport.DefaultSigner()),
+					transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 				wfclient.New(), "https"), &mocks.MetricsProvider{}),
 	}
 

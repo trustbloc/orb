@@ -16,10 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
-	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
+
+//go:generate counterfeiter -o ../mocks/authtokenmgr.gen.go --fake-name AuthTokenMgr . authTokenManager
 
 func TestNewAuthHandler(t *testing.T) {
 	const inboxURL = "https://example.com/services/orb/inboxbox"
@@ -30,30 +32,14 @@ func TestNewAuthHandler(t *testing.T) {
 		BasePath:               basePath,
 		ObjectIRI:              serviceIRI,
 		VerifyActorInSignature: true,
-		Config: auth.Config{
-			AuthTokensDef: []*auth.TokenDef{
-				{
-					EndpointExpression: "/services/orb/outbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-				{
-					EndpointExpression: "/services/orb/inbox",
-					ReadTokens:         []string{"admin", "read"},
-					WriteTokens:        []string{"admin"},
-				},
-			},
-			AuthTokens: map[string]string{
-				"read":  "READ_TOKEN",
-				"admin": "ADMIN_TOKEN",
-			},
-		},
 	}
 
 	activityStore := memstore.New("")
 
 	t.Run("POST with auth token -> success", func(t *testing.T) {
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+		tm := &apmocks.AuthTokenMgr{}
+
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{}, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -70,7 +56,9 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("GET with auth token -> success", func(t *testing.T) {
-		h := NewAuthHandler(cfg, InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{},
+		tm := &apmocks.AuthTokenMgr{}
+
+		h := NewAuthHandler(cfg, InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{}, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -87,7 +75,10 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("With invalid auth token -> error", func(t *testing.T) {
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{}, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -104,10 +95,13 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("With HTTP signature -> success", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, cfg.ObjectIRI, nil)
 
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -123,12 +117,14 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("No auth token definitions -> success", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+
 		h := NewAuthHandler(
 			&Config{
 				BasePath:  basePath,
 				ObjectIRI: serviceIRI,
 			},
-			InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{},
+			InboxPath, http.MethodPost, activityStore, &mocks.SignatureVerifier{}, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -144,21 +140,16 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("Invalid auth token definitions -> panic", func(t *testing.T) {
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns(nil, errors.New("injected token manager error"))
+
 		require.Panics(t, func() {
 			h := NewAuthHandler(
 				&Config{
 					BasePath:  basePath,
 					ObjectIRI: serviceIRI,
-					Config: auth.Config{
-						AuthTokensDef: []*auth.TokenDef{
-							{
-								EndpointExpression: "/services/orb/inbox",
-								ReadTokens:         []string{"admin", "read"},
-							},
-						},
-					},
 				},
-				InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{},
+				InboxPath, http.MethodGet, activityStore, &mocks.SignatureVerifier{}, tm,
 				func(actorIRI *url.URL) (bool, error) {
 					return true, nil
 				},
@@ -168,7 +159,10 @@ func TestNewAuthHandler(t *testing.T) {
 	})
 
 	t.Run("No token and no HTTP signature verifier -> fail", func(t *testing.T) {
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, nil,
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"read"}, nil)
+
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, nil, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -186,10 +180,13 @@ func TestNewAuthHandler(t *testing.T) {
 	t.Run("HTTP signature verifier error -> fail", func(t *testing.T) {
 		errExpected := errors.New("injected verifier error")
 
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(false, nil, errExpected)
 
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return true, nil
 			},
@@ -208,10 +205,13 @@ func TestNewAuthHandler(t *testing.T) {
 	t.Run("Authorize actor error -> fail", func(t *testing.T) {
 		errExpected := errors.New("injected Authorize error")
 
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 		verifier := &mocks.SignatureVerifier{}
 		verifier.VerifyRequestReturns(true, cfg.ObjectIRI, nil)
 
-		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier,
+		h := NewAuthHandler(cfg, InboxPath, http.MethodPost, activityStore, verifier, tm,
 			func(actorIRI *url.URL) (bool, error) {
 				return false, errExpected
 			},

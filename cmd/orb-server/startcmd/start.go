@@ -457,9 +457,28 @@ func startOrbServices(parameters *orbParameters) error {
 	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint,
 		fmt.Sprintf("%s/keys/%s", activityPubServicesPath, aphandler.MainKeyID))
 
+	// authTokenManager is used by the REST endpoints to authorize the request.
+	authTokenManager, err := auth.NewTokenManager(auth.Config{
+		AuthTokensDef: parameters.authTokenDefinitions,
+		AuthTokens:    parameters.authTokens,
+	})
+	if err != nil {
+		return fmt.Errorf("create server Token Manager: %w", err)
+	}
+
+	// clientTokenManager is used by the HTTP transport to determine whether an outbound
+	// HTTP request should be signed.
+	clientTokenManager, err := auth.NewTokenManager(auth.Config{
+		AuthTokensDef: parameters.clientAuthTokenDefinitions,
+		AuthTokens:    parameters.clientAuthTokens,
+	})
+	if err != nil {
+		return fmt.Errorf("create client Token Manager: %w", err)
+	}
+
 	apGetSigner, apPostSigner := getActivityPubSigners(parameters, km, cr)
 
-	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner)
+	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner, clientTokenManager)
 
 	wfClient := wfclient.New(wfclient.WithHTTPClient(httpClient))
 
@@ -807,13 +826,7 @@ func startOrbServices(parameters *orbParameters) error {
 		didDocHandlerOpts...,
 	)
 
-	authCfg := auth.Config{
-		AuthTokensDef: parameters.authTokenDefinitions,
-		AuthTokens:    parameters.authTokens,
-	}
-
 	apEndpointCfg := &aphandler.Config{
-		Config:                 authCfg,
 		BasePath:               activityPubServicesPath,
 		ObjectIRI:              apServiceIRI,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
@@ -898,45 +911,57 @@ func startOrbServices(parameters *orbParameters) error {
 	handlers := make([]restcommon.HTTPHandler, 0)
 
 	handlers = append(handlers,
-		auth.NewHandlerWrapper(authCfg, diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get())),
-		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler, metrics.Get()), apEndpointCfg, apStore, apSigVerifier),
+		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get()), authTokenManager),
+		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler, metrics.Get()),
+			&aphandler.Config{
+				ObjectIRI:              apServiceIRI,
+				VerifyActorInSignature: parameters.httpSignaturesEnabled,
+				PageSize:               parameters.activityPubPageSize,
+			},
+			apStore, apSigVerifier, authTokenManager,
+		),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apEndpointCfg, apStore, publicKey),
-		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey),
-		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewFollowing(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewOutbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
-		aphandler.NewInbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
-		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier),
-		aphandler.NewLikes(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
-		aphandler.NewShares(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
-		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier),
-		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending),
-		webcas.New(apEndpointCfg, apStore, apSigVerifier, coreCASClient),
-		auth.NewHandlerWrapper(authCfg, policyhandler.New(configStore)),
-		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger)),
-		auth.NewHandlerWrapper(authCfg, nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger)),
-		auth.NewHandlerWrapper(authCfg, vcresthandler.New(vcStore)),
+		aphandler.NewServices(apEndpointCfg, apStore, publicKey, authTokenManager),
+		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey, authTokenManager),
+		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
+		aphandler.NewFollowing(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
+		aphandler.NewOutbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
+		aphandler.NewInbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
+		aphandler.NewWitnesses(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
+		aphandler.NewWitnessing(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
+		aphandler.NewLiked(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
+		aphandler.NewLikes(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
+		aphandler.NewShares(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
+		aphandler.NewPostOutbox(apEndpointCfg, activityPubService.Outbox(), apStore, apSigVerifier, authTokenManager),
+		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
+		webcas.New(
+			&aphandler.Config{
+				ObjectIRI:              apServiceIRI,
+				VerifyActorInSignature: parameters.httpSignaturesEnabled,
+				PageSize:               parameters.activityPubPageSize,
+			},
+			apStore, apSigVerifier, coreCASClient, authTokenManager,
+		),
+		auth.NewHandlerWrapper(policyhandler.New(configStore), authTokenManager),
+		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
+		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger), authTokenManager),
+		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
 	)
 
 	handlers = append(handlers,
 		endpointDiscoveryOp.GetRESTHandlers()...)
 
 	for _, handler := range ldrest.New(ldsvc.New(ldStore)).GetRESTHandlers() {
-		handlers = append(handlers, auth.NewHandlerWrapper(authCfg, &httpHandler{handler}))
+		handlers = append(handlers, auth.NewHandlerWrapper(&httpHandler{handler}, authTokenManager))
 	}
 
 	if parameters.followAuthPolicy == acceptListPolicy || parameters.inviteWitnessAuthPolicy == acceptListPolicy {
 		// Register endpoints to manage the 'accept list'.
 		handlers = append(handlers, auth.NewHandlerWrapper(
-			authCfg,
-			aphandler.NewAcceptListWriter(apEndpointCfg, acceptlist.NewManager(configStore)),
-		))
+			aphandler.NewAcceptListWriter(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
+		)
 		handlers = append(handlers, auth.NewHandlerWrapper(
-			authCfg,
-			aphandler.NewAcceptListReader(apEndpointCfg, acceptlist.NewManager(configStore))),
+			aphandler.NewAcceptListReader(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
 		)
 	}
 

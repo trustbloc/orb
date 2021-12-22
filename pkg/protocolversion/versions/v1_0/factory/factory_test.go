@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -98,7 +99,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casres
 	casResolver := casresolver.New(casClient, nil,
 		casresolver.NewWebCASResolver(
 			transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-				transport.DefaultSigner(), transport.DefaultSigner()),
+				transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 			webfingerclient.New(), "https"), &orbmocks.MetricsProvider{})
 	require.NotNil(t, casResolver)
 

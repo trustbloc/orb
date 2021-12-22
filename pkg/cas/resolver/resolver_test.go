@@ -23,7 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -138,7 +140,8 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, hl)
 
-			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+				casClient, &apmocks.AuthTokenMgr{})
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -174,7 +177,8 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+			casClient, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -218,7 +222,8 @@ func TestResolver_Resolve(t *testing.T) {
 
 		linkStore := &orbmocks.AnchorLinkStore{}
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+			casClient, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -286,7 +291,7 @@ func TestResolver_Resolve(t *testing.T) {
 		// remote server doesn't have cid (clean CAS)
 		webCAS := webcas.New(
 			&resthandler.Config{},
-			memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
+			memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t), &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -417,7 +422,8 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("error - failed to retrieve data from two servers", func(t *testing.T) {
 		casClient := createInMemoryCAS(t)
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+			casClient, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -488,7 +494,8 @@ func TestResolver_Resolve(t *testing.T) {
 		require.Empty(t, localHL)
 	})
 	t.Run("Neither local nor remote CAS has the data", func(t *testing.T) {
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, createInMemoryCAS(t))
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+			createInMemoryCAS(t), &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -526,7 +533,8 @@ func TestResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
-		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+		webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+			casClient, &apmocks.AuthTokenMgr{})
 		require.NotNil(t, webCAS)
 
 		router := mux.NewRouter()
@@ -643,7 +651,8 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, hl)
 
-			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+				casClient, &apmocks.AuthTokenMgr{})
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -684,7 +693,8 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, hl)
 
-			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+				casClient, &apmocks.AuthTokenMgr{})
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -726,7 +736,8 @@ func TestResolver_Resolve(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, hl)
 
-			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{}, casClient)
+			webCAS := webcas.New(&resthandler.Config{}, memstore.New(""), &mocks.SignatureVerifier{},
+				casClient, &apmocks.AuthTokenMgr{})
 			require.NotNil(t, webCAS)
 
 			router := mux.NewRouter()
@@ -776,7 +787,7 @@ func createNewResolver(t *testing.T, casClient extendedcasclient.Client, ipfsRea
 	webCASResolver := NewWebCASResolver(
 		transport.New(&http.Client{},
 			testutil.MustParseURL("https://example.com/keys/public-key"),
-			transport.DefaultSigner(), transport.DefaultSigner()),
+			transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 		webFingerResolver,
 		"http")
 

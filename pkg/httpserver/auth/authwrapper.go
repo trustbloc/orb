@@ -27,9 +27,9 @@ type HandlerWrapper struct {
 
 // NewHandlerWrapper returns a handler that first performs bearer token authorization and, if authorized,
 // invokes the wrapped handler.
-func NewHandlerWrapper(cfg Config, handler common.HTTPHandler) *HandlerWrapper {
+func NewHandlerWrapper(handler common.HTTPHandler, tm tokenManager) *HandlerWrapper {
 	return &HandlerWrapper{
-		verifier:      NewTokenVerifier(cfg, handler.Path(), handler.Method()),
+		verifier:      NewTokenVerifier(tm, handler.Path(), handler.Method()),
 		HTTPHandler:   handler,
 		handler:       handler,
 		handleRequest: handler.Handler(),

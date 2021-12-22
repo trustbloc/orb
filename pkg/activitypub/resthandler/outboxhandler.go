@@ -35,7 +35,7 @@ type Outbox struct {
 }
 
 // NewPostOutbox returns a new REST handler to post activities to the outbox.
-func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVerifier) *Outbox {
+func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVerifier, tm authTokenManager) *Outbox {
 	h := &Outbox{
 		Config:   cfg,
 		endpoint: fmt.Sprintf("%s%s", cfg.BasePath, "/outbox"),
@@ -43,7 +43,7 @@ func NewPostOutbox(cfg *Config, ob outbox, s store.Store, verifier signatureVeri
 		marshal:  json.Marshal,
 	}
 
-	h.AuthHandler = NewAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, h.authorizeActor)
+	h.AuthHandler = NewAuthHandler(cfg, "/outbox", http.MethodPost, s, verifier, tm, h.authorizeActor)
 
 	return h
 }

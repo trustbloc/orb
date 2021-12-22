@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -114,7 +115,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -205,7 +206,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -267,7 +268,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -332,7 +333,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -396,7 +397,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -457,7 +458,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -531,7 +532,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
@@ -644,7 +645,7 @@ func TestStartObserver(t *testing.T) {
 			CasResolver: casresolver.New(casClient, nil,
 				casresolver.NewWebCASResolver(
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
-						transport.DefaultSigner(), transport.DefaultSigner()),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
 			DocLoader: testutil.GetLoader(t),
 		}
