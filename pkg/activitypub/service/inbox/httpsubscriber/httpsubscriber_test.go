@@ -19,6 +19,7 @@ import (
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/stretchr/testify/require"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
@@ -30,7 +31,10 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	s := New(&Config{ServiceEndpoint: endpoint}, &mocks.SignatureVerifier{})
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, &mocks.SignatureVerifier{}, tm)
 	require.NotNil(t, s)
 
 	require.Equal(t, lifecycle.StateStarted, s.State())
@@ -47,7 +51,10 @@ func TestSubscriber_HandleAck(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -76,7 +83,10 @@ func TestSubscriber_HandleNack(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -105,7 +115,10 @@ func TestSubscriber_HandleRequestTimeout(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -136,7 +149,10 @@ func TestSubscriber_UnmarshalError(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -163,7 +179,10 @@ func TestSubscriber_Close(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 		require.NotNil(t, s)
 
 		_, err := s.Subscribe(context.Background(), "")
@@ -194,7 +213,10 @@ func TestSubscriber_Close(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, testutil.MustParseURL(serviceURL), nil)
 
-		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 		require.NotNil(t, s)
 
 		_, err := s.Subscribe(context.Background(), "")
@@ -220,7 +242,10 @@ func TestSubscriber_InvalidHTTPSignature(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(false, nil, nil)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -251,7 +276,10 @@ func TestSubscriber_HTTPSignatureError(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(false, nil, errExpected)
 
-	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier)
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, tm)
 	require.NotNil(t, s)
 
 	defer s.Stop()
@@ -273,5 +301,34 @@ func TestSubscriber_HTTPSignatureError(t *testing.T) {
 
 	result := rw.Result()
 	require.Equal(t, http.StatusInternalServerError, result.StatusCode)
+	require.NoError(t, result.Body.Close())
+}
+
+func TestSubscriber_NoHTTPSignatureRequired(t *testing.T) {
+	sigVerifier := &mocks.SignatureVerifier{}
+	sigVerifier.VerifyRequestReturns(false, nil, nil)
+
+	s := New(&Config{ServiceEndpoint: endpoint}, sigVerifier, &apmocks.AuthTokenMgr{})
+	require.NotNil(t, s)
+
+	defer s.Stop()
+
+	msgChan, err := s.Subscribe(context.Background(), "")
+	require.NoError(t, err)
+	require.NotNil(t, msgChan)
+
+	go func() {
+		for msg := range msgChan {
+			msg.Ack()
+		}
+	}()
+
+	rw := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+
+	s.handleMessage(rw, req)
+
+	result := rw.Result()
+	require.Equal(t, http.StatusOK, result.StatusCode)
 	require.NoError(t, result.Body.Close())
 }

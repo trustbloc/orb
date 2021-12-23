@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
@@ -41,6 +42,10 @@ type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // Subscriber implements a subscriber for Watermill that handles HTTP requests.
 type Subscriber struct {
 	*lifecycle.Lifecycle
@@ -51,10 +56,11 @@ type Subscriber struct {
 	done             chan struct{}
 	unmarshalMessage wmhttp.UnmarshalMessageFunc
 	verifier         signatureVerifier
+	tokenVerifier    *auth.TokenVerifier
 }
 
 // New returns a new HTTP subscriber.
-func New(cfg *Config, sigVerifier signatureVerifier) *Subscriber {
+func New(cfg *Config, sigVerifier signatureVerifier, tm authTokenManager) *Subscriber {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}
@@ -66,6 +72,7 @@ func New(cfg *Config, sigVerifier signatureVerifier) *Subscriber {
 		msgChan:          make(chan *message.Message, cfg.BufferSize),
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
+		tokenVerifier:    auth.NewTokenVerifier(tm, cfg.ServiceEndpoint, http.MethodPost),
 	}
 
 	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint, lifecycle.WithStop(s.stop))
@@ -105,21 +112,31 @@ func (s *Subscriber) Handler() common.HTTPRequestHandler {
 }
 
 func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
-	ok, actorIRI, err := s.verifier.VerifyRequest(r)
-	if err != nil {
-		logger.Errorf("[%s] Error verifying HTTP signature: %s", s.ServiceEndpoint, err)
+	var actorIRI *url.URL
 
-		w.WriteHeader(http.StatusInternalServerError)
+	if !s.tokenVerifier.Verify(r) {
+		logger.Debugf("Request was not verified using authorization bearer tokens. Verifying request via HTTP signature")
 
-		return
-	}
+		verified, actor, err := s.verifier.VerifyRequest(r)
+		if err != nil {
+			logger.Errorf("[%s] Error verifying HTTP signature: %s", s.ServiceEndpoint, err)
 
-	if !ok {
-		logger.Infof("[%s] Invalid HTTP signature", s.ServiceEndpoint)
+			w.WriteHeader(http.StatusInternalServerError)
 
-		w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-		return
+		if !verified {
+			logger.Infof("[%s] Invalid HTTP signature", s.ServiceEndpoint)
+
+			w.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
+
+		actorIRI = actor
+	} else {
+		logger.Debugf("Request was verified with a bearer token or no authorization was required.")
 	}
 
 	msg, err := s.unmarshalMessage("", r)

@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
@@ -50,8 +51,11 @@ func TestInbox_StartStop(t *testing.T) {
 		Topic:           "activities",
 	}
 
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 	ib, err := New(cfg, memstore.New(cfg.ServiceEndpoint), mocks.NewPubSub(), &mocks.ActivityHandler{},
-		&mocks.SignatureVerifier{}, &orbmocks.MetricsProvider{})
+		&mocks.SignatureVerifier{}, tm, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -93,7 +97,10 @@ func TestInbox_Handle(t *testing.T) {
 	sigVerifier := &mocks.SignatureVerifier{}
 	sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+	ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, tm, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ib)
 
@@ -189,7 +196,11 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier,
+			tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -245,7 +256,11 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier,
+			tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -318,7 +333,10 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -378,8 +396,11 @@ func TestInbox_Error(t *testing.T) {
 
 		errExpected := fmt.Errorf("injected pub sub error")
 
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 		ib, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), activityHandler,
-			&mocks.SignatureVerifier{}, &orbmocks.MetricsProvider{})
+			&mocks.SignatureVerifier{}, tm, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, ib)
@@ -407,7 +428,11 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, mocks.NewPubSub(), activityHandler, sigVerifier,
+			tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -477,7 +502,10 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -556,7 +584,10 @@ func TestInbox_Error(t *testing.T) {
 		sigVerifier := &mocks.SignatureVerifier{}
 		sigVerifier.VerifyRequestReturns(true, cfg.ServiceIRI, nil)
 
-		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, &orbmocks.MetricsProvider{})
+		tm := &apmocks.AuthTokenMgr{}
+		tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
+		ib, err := New(cfg, activityStore, pubSub, activityHandler, sigVerifier, tm, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ib)
 
@@ -603,8 +634,11 @@ func TestUnmarshalAndValidateActivity(t *testing.T) {
 	activityID := testutil.MustParseURL("https://example1.com/activities/activity1")
 	actorIRI := testutil.MustParseURL("https://example1.com/services/service1")
 
+	tm := &apmocks.AuthTokenMgr{}
+	tm.RequiredAuthTokensReturns([]string{"admin"}, nil)
+
 	ib, e := New(&Config{VerifyActorInSignature: true}, memstore.New(""), mocks.NewPubSub(),
-		nil, nil, &orbmocks.MetricsProvider{})
+		nil, nil, tm, &orbmocks.MetricsProvider{})
 	require.NoError(t, e)
 	require.NotNil(t, ib)
 

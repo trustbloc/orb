@@ -85,6 +85,10 @@ type resourceResolver interface {
 	ResolveHostMetaLink(uri, linkType string) (string, error)
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 type metricsProvider interface {
 	InboxHandlerTime(activityType string, value time.Duration)
 	OutboxPostTime(value time.Duration)
@@ -96,7 +100,7 @@ type metricsProvider interface {
 //nolint:funlen
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
 	pubSub PubSub, activityPubClient activityPubClient, resourceResolver resourceResolver,
-	m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
+	tm authTokenManager, m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
 			ServiceName: cfg.ServiceEndpoint + "/outbox",
@@ -138,7 +142,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
 		},
 		activityStore, pubSub,
-		inboxHandler, sigVerifier, m,
+		inboxHandler, sigVerifier, tm, m,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create inbox failed: %w", err)
