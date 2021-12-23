@@ -708,7 +708,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	activityPubService, err = apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, metrics.Get(),
+		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(

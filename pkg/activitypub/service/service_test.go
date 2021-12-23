@@ -29,6 +29,7 @@ import (
 	clientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
+	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
@@ -53,11 +54,13 @@ func TestNewService(t *testing.T) {
 		ServiceIRI:      testutil.MustParseURL("http://localhost:8301/services/service1"),
 	}
 
+	tm := &apmocks.AuthTokenMgr{}
+
 	store1 := memstore.New(cfg1.ServiceEndpoint)
 	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
-		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
+		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, tm, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(undeliverableHandler1))
 	require.NoError(t, err)
 	require.NotNil(t, service1.InboxHandler())
@@ -973,20 +976,24 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 
 	km := &mockkms.KeyManager{}
 
-	tm := &clientmocks.AuthTokenMgr{}
-	tm.IsAuthRequiredReturns(true, nil)
+	clientAuthTokenMgr := &clientmocks.AuthTokenMgr{}
+	clientAuthTokenMgr.IsAuthRequiredReturns(true, nil)
+
+	serverAuthTokenMgr := &apmocks.AuthTokenMgr{}
+	serverAuthTokenMgr.RequiredAuthTokensReturns([]string{"admin"}, nil)
 
 	trnspt := transport.New(http.DefaultClient,
 		publicKey.ID.URL(),
 		httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, kmsKey1),
 		httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, kmsKey1),
-		tm,
+		clientAuthTokenMgr,
 	)
 
 	activityStore := memstore.New(cfg.ServiceEndpoint)
 
 	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
-		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
+		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{},
+		serverAuthTokenMgr, &orbmocks.MetricsProvider{},
 		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorEventHandler(providers.anchorEventHandler),
 		service.WithFollowAuth(providers.followerAuth),

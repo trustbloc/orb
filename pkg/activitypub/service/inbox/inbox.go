@@ -45,6 +45,10 @@ type metricsProvider interface {
 	InboxHandlerTime(activityType string, value time.Duration)
 }
 
+type authTokenManager interface {
+	RequiredAuthTokens(endpoint, method string) ([]string, error)
+}
+
 // Config holds configuration parameters for the Inbox.
 type Config struct {
 	ServiceEndpoint        string
@@ -58,18 +62,19 @@ type Inbox struct {
 	*Config
 	*lifecycle.Lifecycle
 
-	router          *message.Router
-	httpSubscriber  *httpsubscriber.Subscriber
-	msgChannel      <-chan *message.Message
-	activityHandler service.ActivityHandler
-	activityStore   store.Store
-	jsonUnmarshal   func(data []byte, v interface{}) error
-	metrics         metricsProvider
+	router                 *message.Router
+	httpSubscriber         *httpsubscriber.Subscriber
+	msgChannel             <-chan *message.Message
+	activityHandler        service.ActivityHandler
+	activityStore          store.Store
+	jsonUnmarshal          func(data []byte, v interface{}) error
+	metrics                metricsProvider
+	verifyActorInSignature bool
 }
 
 // New returns a new ActivityPub inbox.
 func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
-	sigVerifier signatureVerifier, metrics metricsProvider) (*Inbox, error) {
+	sigVerifier signatureVerifier, tm authTokenManager, metrics metricsProvider) (*Inbox, error) {
 	h := &Inbox{
 		Config:          cfg,
 		activityHandler: activityHandler,
@@ -92,7 +97,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		&httpsubscriber.Config{
 			ServiceEndpoint: cfg.ServiceEndpoint,
 		},
-		sigVerifier,
+		sigVerifier, tm,
 	)
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
@@ -114,6 +119,13 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 	h.router = router
 	h.httpSubscriber = httpSubscriber
 	h.msgChannel = msgChan
+
+	requiredTokens, err := tm.RequiredAuthTokens(h.ServiceEndpoint, http.MethodPost)
+	if err != nil {
+		return nil, fmt.Errorf("required auth tokens: %w", err)
+	}
+
+	h.verifyActorInSignature = cfg.VerifyActorInSignature && len(requiredTokens) > 0
 
 	return h, nil
 }
@@ -251,7 +263,7 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 		return nil, fmt.Errorf("no actor specified in activity [%s]", activity.ID())
 	}
 
-	if h.VerifyActorInSignature {
+	if h.verifyActorInSignature {
 		actorIRI := msg.Metadata[httpsubscriber.ActorIRIKey]
 		if actorIRI == "" {
 			return nil, fmt.Errorf("no actorIRI specified in message context")
