@@ -33,7 +33,6 @@ func TestResolveVerifier_Verify(t *testing.T) {
 		require.NoError(t, err)
 
 		handler, err := New("did:orb",
-			WithUnpublishedLabel(unpublishedLabel),
 			WithAnchorOrigins(nil),
 			WithMethodContext(nil),
 			WithEnableBase(false))

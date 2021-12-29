@@ -25,15 +25,12 @@ import (
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
-const unpublishedLabel = "uAAA"
-
 // ResolutionVerifier verifies resolved documents.
 type ResolutionVerifier struct {
 	processor operationProcessor
 	protocol  protocol.Client
 
-	namespace        string
-	unpublishedLabel string
+	namespace string
 
 	methodContexts []string
 	anchorOrigins  []string
@@ -53,8 +50,7 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 	opStore := &noopOperationStore{}
 
 	rv := &ResolutionVerifier{
-		namespace:        namespace,
-		unpublishedLabel: unpublishedLabel,
+		namespace: namespace,
 	}
 
 	// apply options
@@ -72,13 +68,6 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 	rv.processor = processor.New(namespace, opStore, pc)
 
 	return rv, nil
-}
-
-// WithUnpublishedLabel sets optional unpublished label.
-func WithUnpublishedLabel(label string) Option {
-	return func(opts *ResolutionVerifier) {
-		opts.unpublishedLabel = label
-	}
 }
 
 // WithMethodContext sets optional method contexts.
@@ -180,7 +169,12 @@ func (r *ResolutionVerifier) resolveDocument(id string,
 	if len(internalResult.PublishedOperations) > 0 {
 		ti = dochandler.GetTransformationInfoForPublished(r.namespace, id, suffix, internalResult)
 	} else {
-		ti = dochandler.GetTransformationInfoForUnpublished(r.namespace, "", r.unpublishedLabel, suffix, "")
+		hint, err := util.GetHint(id, r.namespace, suffix)
+		if err != nil {
+			return nil, err
+		}
+
+		ti = dochandler.GetTransformationInfoForUnpublished(r.namespace, "", hint, suffix, "")
 	}
 
 	return pv.DocumentTransformer().TransformDocument(internalResult, ti)
