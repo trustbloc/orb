@@ -33,6 +33,18 @@ func GetSuffix(id string) (string, error) {
 	return suffix, nil
 }
 
+// GetHint returns hint from id.
+func GetHint(id, namespace, suffix string) (string, error) {
+	posSuffix := strings.LastIndex(id, suffix)
+	if posSuffix == -1 {
+		return "", fmt.Errorf("invalid ID [%s]", id)
+	}
+
+	hint := id[len(namespace)+1 : posSuffix-1]
+
+	return hint, nil
+}
+
 // BetweenStrings returns string between first and second string.
 func BetweenStrings(value, first, second string) (string, error) {
 	posFirst := strings.Index(value, first)
