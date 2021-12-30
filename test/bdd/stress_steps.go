@@ -560,7 +560,8 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		logger.Errorf("error create DID %s", err.Error())
 
 		if !strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") {
+			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
+			!strings.Contains(err.Error(), "broken pipe") {
 			return nil, fmt.Errorf("failed to create did: %w", err)
 		}
 	}
@@ -681,7 +682,8 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
 			!strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") {
+			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
+			!strings.Contains(err.Error(), "broken pipe") {
 			return nil, err
 		}
 
