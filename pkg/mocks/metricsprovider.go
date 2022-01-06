@@ -239,3 +239,9 @@ func (m *MetricsProvider) PutPublishedOperations(value time.Duration) {
 // GetPublishedOperations records the time to get published operations for suffix.
 func (m *MetricsProvider) GetPublishedOperations(value time.Duration) {
 }
+
+func (m *MetricsProvider) OpenAMQPPublisherChannel(duration time.Duration) {
+}
+
+func (m *MetricsProvider) CloseAMQPPublisherChannel(duration time.Duration) {
+}

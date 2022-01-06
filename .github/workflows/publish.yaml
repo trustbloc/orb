@@ -53,7 +53,6 @@ jobs:
             GO_VER=1.16
           push: true
           tags: |
-            ${{ env.ORB_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
             ${{ env.ORB_IMAGE_PREFIX }}:latest
 
       - name: Build and Push orb driver image
@@ -67,7 +66,6 @@ jobs:
             GO_VER=1.16
           push: true
           tags: |
-            ${{ env.ORB_DRIVER_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}
             ${{ env.ORB_DRIVER_IMAGE_PREFIX }}:latest
 
       - name: Build binaries

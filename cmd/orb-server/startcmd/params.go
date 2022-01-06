@@ -36,6 +36,7 @@ const (
 	defaultAnchorSyncInterval               = time.Minute
 	defaultVCTMonitoringInterval            = 10 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
+	mqDefaultPublisherChannelPoolSize       = 25
 	defaultActivityPubClientCacheSize       = 100
 	defaultActivityPubClientCacheExpiration = time.Hour
 	defaultActivityPubIRICacheSize          = 100
@@ -183,6 +184,12 @@ const (
 	mqMaxConnectionSubscriptionsEnvKey        = "MQ_MAX_CONNECTION_SUBSCRIPTIONS"
 	mqMaxConnectionSubscriptionsFlagUsage     = "The maximum number of subscriptions per connection. " +
 		commonEnvVarUsageText + mqMaxConnectionSubscriptionsEnvKey
+
+	mqPublisherChannelPoolSizeFlagName  = "mq-publisher-channel-pool-size"
+	mqPublisherChannelPoolSizeEnvKey    = "MQ_PUBLISHER_POOL"
+	mqPublisherChannelPoolSizeFlagUsage = "The size of a channel pool for an AMQP publisher (default is 25). " +
+		"If set to 0 then a channel pool is not used and a new channel is opened/closed for every publish to a queue." +
+		commonEnvVarUsageText + mqPublisherChannelPoolSizeEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -494,6 +501,7 @@ type orbParameters struct {
 	cidVersion                     int
 	mqURL                          string
 	mqMaxConnectionSubscriptions   int
+	mqPublisherChannelPoolSize     int
 	dbParameters                   *dbParameters
 	logLevel                       string
 	methodContext                  []string
@@ -636,7 +644,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		localCASReplicateInIPFSEnabled = enable
 	}
 
-	mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxSubscriptionsPerConnection, err := getMQParameters(cmd)
+	mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxSubscriptionsPerConnection,
+		mqPublisherChannelPoolSize, err := getMQParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,6 +1024,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		cidVersion:                     cidVersion,
 		mqURL:                          mqURL,
 		mqMaxConnectionSubscriptions:   mqMaxSubscriptionsPerConnection,
+		mqPublisherChannelPoolSize:     mqPublisherChannelPoolSize,
 		opQueuePoolSize:                uint(mqOpPoolSize),
 		observerQueuePoolSize:          uint(mqObserverPoolSize),
 		batchWriterTimeout:             batchWriterTimeout,
@@ -1265,22 +1275,22 @@ func getDuration(cmd *cobra.Command, flagName, envKey string,
 	return timeout, nil
 }
 
-func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObserverPoolSize int,
-	mqMaxConnectionSubscriptions int, err error) {
+func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize, mqObserverPoolSize,
+	mqMaxConnectionSubscriptions, mqPublisherChannelPoolSize int, err error) {
 	mqURL, err = cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
-		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqURLFlagName, err)
+		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqURLFlagName, err)
 	}
 
 	mqOpPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, true)
 	if err != nil {
-		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqOpPoolFlagName, err)
+		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqOpPoolFlagName, err)
 	}
 
 	if mqOpPoolStr != "" {
 		mqOpPoolSize, err = strconv.Atoi(mqOpPoolStr)
 		if err != nil {
-			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
+			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
 		}
 	} else {
 		mqOpPoolSize = defaultMQOpPoolSize
@@ -1288,32 +1298,47 @@ func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize int, mqObse
 
 	mqObserverPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, true)
 	if err != nil {
-		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqObserverPoolFlagName, err)
+		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqObserverPoolFlagName, err)
 	}
 
 	if mqObserverPoolStr != "" {
 		mqObserverPoolSize, err = strconv.Atoi(mqObserverPoolStr)
 		if err != nil {
-			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqObserverPoolFlagName, mqObserverPoolStr, err)
+			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqObserverPoolFlagName, mqObserverPoolStr, err)
 		}
 	}
 
 	mqMaxConnectionSubscriptionsStr, err := cmdutils.GetUserSetVarFromString(cmd, mqMaxConnectionSubscriptionsFlagName,
 		mqMaxConnectionSubscriptionsEnvKey, true)
 	if err != nil {
-		return "", 0, 0, 0, fmt.Errorf("%s: %w", mqMaxConnectionSubscriptionsFlagName, err)
+		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqMaxConnectionSubscriptionsFlagName, err)
 	}
 
 	if mqMaxConnectionSubscriptionsStr != "" {
 		mqMaxConnectionSubscriptions, err = strconv.Atoi(mqMaxConnectionSubscriptionsStr)
 		if err != nil {
-			return "", 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsStr, err)
+			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsStr, err)
 		}
 	} else {
 		mqMaxConnectionSubscriptions = mqDefaultMaxConnectionSubscriptions
 	}
 
-	return mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxConnectionSubscriptions, nil
+	mqPublisherChannelPoolSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, mqPublisherChannelPoolSizeFlagName,
+		mqPublisherChannelPoolSizeEnvKey, true)
+	if err != nil {
+		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqPublisherChannelPoolSizeFlagName, err)
+	}
+
+	if mqPublisherChannelPoolSizeStr != "" {
+		mqPublisherChannelPoolSize, err = strconv.Atoi(mqPublisherChannelPoolSizeStr)
+		if err != nil {
+			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqPublisherChannelPoolSizeFlagName, mqPublisherChannelPoolSizeStr, err)
+		}
+	} else {
+		mqPublisherChannelPoolSize = mqDefaultPublisherChannelPoolSize
+	}
+
+	return mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxConnectionSubscriptions, mqPublisherChannelPoolSize, nil
 }
 
 func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
@@ -1475,6 +1500,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqOpPoolFlagName, mqOpPoolFlagShorthand, "", mqOpPoolFlagUsage)
 	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
+	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

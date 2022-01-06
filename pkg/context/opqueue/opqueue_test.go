@@ -55,12 +55,12 @@ func TestQueue(t *testing.T) {
 
 	operations := newProcessedOperations(10)
 
-	ps1 := amqp.New(amqp.Config{URI: mqURI})
+	ps1 := amqp.New(amqp.Config{URI: mqURI}, &mocks.MetricsProvider{})
 	require.NotNil(t, ps1)
 
 	defer ps1.Stop()
 
-	ps2 := amqp.New(amqp.Config{URI: mqURI})
+	ps2 := amqp.New(amqp.Config{URI: mqURI}, &mocks.MetricsProvider{})
 	require.NotNil(t, ps2)
 
 	defer ps2.Stop()
@@ -394,7 +394,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 
 	operations := newProcessedOperations(5)
 
-	ps := amqp.New(amqp.Config{URI: mqURI})
+	ps := amqp.New(amqp.Config{URI: mqURI}, &mocks.MetricsProvider{})
 	require.NotNil(t, ps)
 
 	defer ps.Stop()

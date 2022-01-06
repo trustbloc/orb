@@ -69,6 +69,7 @@ type Config struct {
 	RedeliveryMultiplier       float64
 	RedeliveryInitialInterval  time.Duration
 	MaxRedeliveryInterval      time.Duration
+	PublisherChannelPoolSize   int
 }
 
 type closeable interface {
@@ -124,15 +125,15 @@ type PubSub struct {
 }
 
 // New returns a new AMQP publisher/subscriber.
-func New(cfg Config) *PubSub {
+func New(cfg Config, metrics amqp.MetricsProvider) *PubSub {
 	cfg = initConfig(cfg)
 
 	p := &PubSub{
 		Config:               cfg,
 		connMgr:              newConnectionMgr(amqp.ConnectionConfig{AmqpURI: cfg.URI}, cfg.MaxConnectionSubscriptions),
-		amqpConfig:           newQueueConfig(cfg.URI),
-		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg.URI),
-		amqpWaitConfig:       newWaitQueueConfig(cfg.URI),
+		amqpConfig:           newQueueConfig(cfg),
+		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg),
+		amqpWaitConfig:       newWaitQueueConfig(cfg),
 	}
 
 	p.Lifecycle = lifecycle.New("amqp",
@@ -144,7 +145,7 @@ func New(cfg Config) *PubSub {
 	}
 
 	p.createPublisher = func(conn connection) (publisher, error) {
-		return amqp.NewPublisherWithConnection(p.amqpConfig, wmlogger.New(), conn.amqpConnection())
+		return amqp.NewPublisherWithConnectionAndMetrics(p.amqpConfig, wmlogger.New(), conn.amqpConnection(), metrics)
 	}
 
 	p.redeliverySubscriberFactory = func(conn connection) (initializingSubscriber, error) {
@@ -156,7 +157,7 @@ func New(cfg Config) *PubSub {
 	}
 
 	p.createWaitPublisher = func(conn connection) (publisher, error) {
-		return amqp.NewPublisherWithConnection(p.amqpWaitConfig, wmlogger.New(), conn.amqpConnection())
+		return amqp.NewPublisherWithConnectionAndMetrics(p.amqpWaitConfig, wmlogger.New(), conn.amqpConnection(), metrics)
 	}
 
 	// Start the service immediately.
@@ -732,8 +733,8 @@ func newMessage(msg *message.Message, opts ...messageOpt) *message.Message {
 	return newMsg
 }
 
-func newQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(exchange)
 	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
@@ -743,8 +744,8 @@ func newQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newRedeliveryQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newRedeliveryQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(redeliveryExchange)
 	queueConfig.Consume = amqp.ConsumeConfig{
 		Qos:             amqp.QosConfig{PrefetchCount: 1},
@@ -754,8 +755,8 @@ func newRedeliveryQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newWaitQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newWaitQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(waitExchange)
 	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
@@ -765,9 +766,9 @@ func newWaitQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newDefaultQueueConfig(amqpURI string) amqp.Config {
+func newDefaultQueueConfig(cfg Config) amqp.Config {
 	return amqp.Config{
-		Connection: amqp.ConnectionConfig{AmqpURI: amqpURI},
+		Connection: amqp.ConnectionConfig{AmqpURI: cfg.URI},
 		Marshaler:  &DefaultMarshaler{},
 		Queue:      newAMQPQueueConfig(nil),
 		QueueBind: amqp.QueueBindConfig{
@@ -775,6 +776,7 @@ func newDefaultQueueConfig(amqpURI string) amqp.Config {
 		},
 		Publish: amqp.PublishConfig{
 			GenerateRoutingKey: func(queue string) string { return queue },
+			ChannelPoolSize:    cfg.PublisherChannelPoolSize,
 		},
 		Consume: amqp.ConsumeConfig{
 			Qos:             amqp.QosConfig{PrefetchCount: 1},
