@@ -43,3 +43,5 @@ require (
 )
 
 go 1.16
+
+replace github.com/ThreeDotsLabs/watermill-amqp => github.com/bstasyszyn/watermill-amqp v1.1.4-0.20220106182946-ef499ab8a2f7

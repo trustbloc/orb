@@ -23,6 +23,7 @@ import (
 	dctest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/orb/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -37,7 +38,7 @@ func TestAMQP(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		const topic = "some-topic"
 
-		p := New(Config{URI: "amqp://guest:guest@localhost:5672/"})
+		p := New(Config{URI: "amqp://guest:guest@localhost:5672/"}, &mocks.MetricsProvider{})
 		require.NotNil(t, p)
 
 		msgChan, err := p.Subscribe(context.Background(), topic)
@@ -62,7 +63,7 @@ func TestAMQP(t *testing.T) {
 
 	t.Run("Connection failure", func(t *testing.T) {
 		require.Panics(t, func() {
-			p := New(Config{URI: "amqp://guest:guest@localhost:9999/", MaxConnectRetries: 3})
+			p := New(Config{URI: "amqp://guest:guest@localhost:9999/", MaxConnectRetries: 3}, &mocks.MetricsProvider{})
 			require.NotNil(t, p)
 		})
 	})
@@ -79,7 +80,7 @@ func TestAMQP(t *testing.T) {
 		p := New(Config{
 			URI:                        "amqp://guest:guest@localhost:5672/",
 			MaxConnectionSubscriptions: 5,
-		})
+		}, &mocks.MetricsProvider{})
 		require.NotNil(t, p)
 		defer func() {
 			require.NoError(t, p.Close())
@@ -140,7 +141,7 @@ func TestAMQP(t *testing.T) {
 			MaxConnectionSubscriptions: 5,
 			MaxRedeliveryAttempts:      5,
 			MaxRedeliveryInterval:      200 * time.Millisecond,
-		})
+		}, &mocks.MetricsProvider{})
 		require.NotNil(t, p)
 		defer func() {
 			require.NoError(t, p.Close())

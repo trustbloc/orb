@@ -133,6 +133,11 @@ const (
 	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
 	coreHTTPCreateUpdateTimeMetrics       = "http_create_update_seconds"
 	coreHTTPResolveTimeMetrics            = "http_resolve_seconds"
+
+	// AMQP.
+	amqp                            = "amqp"
+	amqpOpenPublisherChannelMetric  = "open_publisher_channel"
+	amqpClosePublisherChannelMetric = "close_publisher_channel"
 )
 
 var logger = log.New("metrics")
@@ -228,6 +233,9 @@ type Metrics struct {
 	coreGetCreateOperationResultTime prometheus.Histogram
 	coreHTTPCreateUpdateTime         prometheus.Histogram
 	coreHTTPResolveTime              prometheus.Histogram
+
+	amqpOpenPublisherChannelTime  prometheus.Histogram
+	amqpClosePublisherChannelTime prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -317,6 +325,8 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		coreGetCreateOperationResultTime:             newCoreGetCreateOperationResultTime(),
 		coreHTTPCreateUpdateTime:                     newCoreHTTPCreateUpdateTime(),
 		coreHTTPResolveTime:                          newCoreHTTPResolveTime(),
+		amqpOpenPublisherChannelTime:                 newAMQPOpenPublisherChannelTime(),
+		amqpClosePublisherChannelTime:                newAMQPClosePublisherChannelTime(),
 	}
 
 	prometheus.MustRegister(
@@ -344,7 +354,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
 		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
 		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
-		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime,
+		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime, m.amqpOpenPublisherChannelTime, m.amqpClosePublisherChannelTime,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -907,6 +917,20 @@ func (m *Metrics) SignerSign(value time.Duration) {
 	m.signerSignTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer sign time: %s", value)
+}
+
+// OpenAMQPPublisherChannel records the time it takes to open an AMQP publisher channel.
+func (m *Metrics) OpenAMQPPublisherChannel(value time.Duration) {
+	m.amqpOpenPublisherChannelTime.Observe(value.Seconds())
+
+	logger.Debugf("AMQP open channel time: %s", value)
+}
+
+// CloseAMQPPublisherChannel records the time it takes to close an AMQP publisher channel.
+func (m *Metrics) CloseAMQPPublisherChannel(value time.Duration) {
+	m.amqpClosePublisherChannelTime.Observe(value.Seconds())
+
+	logger.Debugf("AMQP close channel time: %s", value)
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
@@ -1582,6 +1606,22 @@ func newCoreHTTPResolveTime() prometheus.Histogram {
 	return newHistogram(
 		coreOperations, coreHTTPResolveTimeMetrics,
 		"The time (in seconds) it takes for resolve http call.",
+		nil,
+	)
+}
+
+func newAMQPOpenPublisherChannelTime() prometheus.Histogram {
+	return newHistogram(
+		amqp, amqpOpenPublisherChannelMetric,
+		"The time (in seconds) it takes to open an AMQP channel.",
+		nil,
+	)
+}
+
+func newAMQPClosePublisherChannelTime() prometheus.Histogram {
+	return newHistogram(
+		amqp, amqpClosePublisherChannelMetric,
+		"The time (in seconds) it takes to close an AMQP channel.",
 		nil,
 	)
 }

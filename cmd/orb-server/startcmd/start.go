@@ -595,7 +595,8 @@ func startOrbServices(parameters *orbParameters) error {
 		pubSub = amqp.New(amqp.Config{
 			URI:                        parameters.mqURL,
 			MaxConnectionSubscriptions: parameters.mqMaxConnectionSubscriptions,
-		})
+			PublisherChannelPoolSize:   parameters.mqPublisherChannelPoolSize,
+		}, metrics.Get())
 	} else {
 		pubSub = mempubsub.New(mempubsub.DefaultConfig())
 	}
