@@ -75,8 +75,8 @@ type anchorEventStore interface {
 }
 
 type statusStore interface {
-	AddStatus(anchorEventID string, status proofapi.VCStatus) error
-	GetStatus(anchorEventID string) (proofapi.VCStatus, error)
+	AddStatus(anchorEventID string, status proofapi.AnchorIndexStatus) error
+	GetStatus(anchorEventID string) (proofapi.AnchorIndexStatus, error)
 }
 
 type monitoringSvc interface {
@@ -106,7 +106,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchors string, endT
 		return fmt.Errorf("failed to get status for anchor event [%s]: %w", anchors, err)
 	}
 
-	if status == proofapi.VCStatusCompleted {
+	if status == proofapi.AnchorIndexStatusCompleted {
 		logger.Infof("Received proof from [%s] but witness policy has already been satisfied for anchor event[%s]",
 			witness, anchors, string(proof))
 
@@ -204,7 +204,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 
 	logger.Debugf("Current status for VC [%s] is [%s]", anchorID)
 
-	if status == proofapi.VCStatusCompleted {
+	if status == proofapi.AnchorIndexStatusCompleted {
 		logger.Infof("VC status has already been marked as completed for [%s]", anchorID)
 
 		return nil
@@ -255,9 +255,9 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("publish credential[%s]: %w", anchorID, err)
 	}
 
-	logger.Debugf("Setting status to [%s] for [%s]", proofapi.VCStatusCompleted, anchorID)
+	logger.Debugf("Setting status to [%s] for [%s]", proofapi.AnchorIndexStatusCompleted, anchorID)
 
-	err = h.StatusStore.AddStatus(anchorID, proofapi.VCStatusCompleted)
+	err = h.StatusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusCompleted)
 	if err != nil {
 		return fmt.Errorf("failed to change status to 'completed' for anchor event [%s]: %w", anchorID, err)
 	}

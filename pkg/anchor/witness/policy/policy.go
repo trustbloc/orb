@@ -180,13 +180,13 @@ func checkLog(logRequired, hasLog bool) bool {
 }
 
 // Select selects min number of witnesses required based on witness policy.
-func (wp *WitnessPolicy) Select(witnesses []*proof.Witness) ([]*proof.Witness, error) {
+func (wp *WitnessPolicy) Select(witnesses []*proof.Witness, exclude ...*proof.Witness) ([]*proof.Witness, error) {
 	cfg, err := wp.getWitnessPolicyConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	selectedBatchWitnesses, selectedSystemWitnesses, err := wp.selectBatchAndSystemWitnesses(witnesses, cfg)
+	selectedBatchWitnesses, selectedSystemWitnesses, err := wp.selectBatchAndSystemWitnesses(witnesses, cfg, exclude...)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +203,8 @@ func (wp *WitnessPolicy) Select(witnesses []*proof.Witness) ([]*proof.Witness, e
 }
 
 // selects min number of batch and system witnesses that are required to fulfill witness policy.
-func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, // nolint:funlen
-	cfg *config.WitnessPolicyConfig) ([]*proof.Witness, []*proof.Witness, error) {
+func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, // nolint:funlen,gocyclo,cyclop
+	cfg *config.WitnessPolicyConfig, exclude ...*proof.Witness) ([]*proof.Witness, []*proof.Witness, error) {
 	logger.Debugf("selecting minimum number of batch and system witnesses based on cfg[%s] and witnesses: %+v",
 		cfg, witnesses)
 
@@ -222,14 +222,14 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		case proof.WitnessTypeBatch:
 			totalBatchWitnesses++
 
-			if logOK {
+			if logOK && !isExcluded(w, exclude...) {
 				eligibleBatchWitnesses = append(eligibleBatchWitnesses, w)
 			}
 
 		case proof.WitnessTypeSystem:
 			totalSystemWitnesses++
 
-			if logOK {
+			if logOK && !isExcluded(w, exclude...) {
 				eligibleSystemWitnesses = append(eligibleSystemWitnesses, w)
 			}
 		}
@@ -253,8 +253,8 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		selectedBatchWitnesses, err = wp.selectMinWitnesses(eligibleBatchWitnesses, cfg.MinNumberBatch,
 			cfg.MinPercentBatch, totalBatchWitnesses, commonWitnesses...)
 		if err != nil {
-			return nil, nil, fmt.Errorf("select batch witnesses based on witnesses%s, eligible%s, common%s, total[%d], policy[%s]: %w", //nolint:lll
-				witnesses, eligibleBatchWitnesses, commonWitnesses, totalBatchWitnesses, cfg, err)
+			return nil, nil, fmt.Errorf("select batch witnesses based on witnesses%s, eligible%s, exclude%s common%s, total[%d], policy[%s]: %w", //nolint:lll
+				witnesses, eligibleBatchWitnesses, exclude, commonWitnesses, totalBatchWitnesses, cfg, err)
 		}
 	}
 
@@ -270,6 +270,16 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 	logger.Debugf("selected %d system witnesses: %v", len(selectedSystemWitnesses), selectedSystemWitnesses)
 
 	return selectedBatchWitnesses, selectedSystemWitnesses, nil
+}
+
+func isExcluded(witness *proof.Witness, excluded ...*proof.Witness) bool {
+	for _, e := range excluded {
+		if witness.URI.String() == e.URI.String() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,

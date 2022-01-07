@@ -24,16 +24,16 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
+	"github.com/trustbloc/orb/pkg/store/anchoreventstatus"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
-	"github.com/trustbloc/orb/pkg/store/vcstatus"
 	"github.com/trustbloc/orb/pkg/store/witness"
 )
 
 //go:generate counterfeiter -o ../mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
-//go:generate counterfeiter -o ../mocks/vcstatus.gen.go --fake-name VCStatusStore . vcStatusStore
+//go:generate counterfeiter -o ../mocks/anchorindexstatus.gen.go --fake-name AnchorIndexStatusStore . statusStore
 
 const (
-	vcID                     = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
+	anchorID                 = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
 	witnessURL               = "http://example.com/orb/services"
 	configStoreName          = "orb-config"
 	defaultPolicyCacheExpiry = 5 * time.Second
@@ -66,19 +66,19 @@ func TestWitnessProofHandler(t *testing.T) {
 	expiryTime := time.Now().Add(60 * time.Second)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEvent), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -90,8 +90,8 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    &mockWitnessPolicy{eval: false},
@@ -110,24 +110,24 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		expiredTime := time.Now().Add(-60 * time.Second)
 
-		err := proofHandler.HandleProof(witnessIRI, vcID, expiredTime, nil)
+		err := proofHandler.HandleProof(witnessIRI, anchorID, expiredTime, nil)
 		require.NoError(t, err)
 	})
 
 	t.Run("success - witness policy satisfied", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -142,8 +142,8 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    witnessPolicy,
@@ -158,25 +158,25 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("success - vc status is completed", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("success - status is completed", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusCompleted)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusCompleted)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{eval: true},
@@ -192,24 +192,24 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied but some witness proofs are empty", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{{
 				Type: proofapi.WitnessTypeSystem,
@@ -227,14 +227,14 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("error - get vc status error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("error - get status error", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -248,12 +248,12 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
-		mockVCStatusStore := &mocks.VCStatusStore{}
-		mockVCStatusStore.GetStatusReturns("", fmt.Errorf("get vc status error"))
+		mockStatusStore := &mocks.AnchorIndexStatusStore{}
+		mockStatusStore.GetStatusReturns("", fmt.Errorf("get status error"))
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      mockVCStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      mockStatusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    witnessPolicy,
@@ -267,17 +267,17 @@ func TestWitnessProofHandler(t *testing.T) {
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor event [%s]: get vc status error", ae.Index().String()))
+			"failed to get status for anchor event [%s]: get status error", ae.Index().String()))
 	})
 
-	t.Run("error - second get vc status error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("error - second get status error", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -291,13 +291,13 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
-		mockVCStatusStore := &mocks.VCStatusStore{}
-		mockVCStatusStore.GetStatusReturnsOnCall(0, proofapi.VCStatusInProcess, nil)
-		mockVCStatusStore.GetStatusReturnsOnCall(1, "", fmt.Errorf("second get vc status error"))
+		mockStatusStore := &mocks.AnchorIndexStatusStore{}
+		mockStatusStore.GetStatusReturnsOnCall(0, proofapi.AnchorIndexStatusInProcess, nil)
+		mockStatusStore.GetStatusReturnsOnCall(1, "", fmt.Errorf("second get status error"))
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      mockVCStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      mockStatusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    witnessPolicy,
@@ -311,17 +311,17 @@ func TestWitnessProofHandler(t *testing.T) {
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to get status for anchor event [%s]: second get vc status error", ae.Index().String()))
+			"failed to get status for anchor event [%s]: second get status error", ae.Index().String()))
 	})
 
-	t.Run("error - set vc status to complete error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("error - set status to complete error", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -335,12 +335,12 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
-		mockVCStatusStore := &mocks.VCStatusStore{}
-		mockVCStatusStore.AddStatusReturns(fmt.Errorf("add vc status error"))
+		mockStatusStore := &mocks.AnchorIndexStatusStore{}
+		mockStatusStore.AddStatusReturns(fmt.Errorf("add status error"))
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      mockVCStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      mockStatusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    witnessPolicy,
@@ -354,17 +354,17 @@ func TestWitnessProofHandler(t *testing.T) {
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to change status to 'completed' for anchor event [%s]: add vc status error", ae.Index().String()))
+			"failed to change status to 'completed' for anchor event [%s]: add status error", ae.Index().String()))
 	})
 
-	t.Run("VC status already completed", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("status already completed", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
 		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -378,13 +378,13 @@ func TestWitnessProofHandler(t *testing.T) {
 		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
 		require.NoError(t, err)
 
-		mockVCStatusStore := &mocks.VCStatusStore{}
-		mockVCStatusStore.GetStatusReturnsOnCall(0, proofapi.VCStatusInProcess, nil)
-		mockVCStatusStore.GetStatusReturnsOnCall(1, proofapi.VCStatusCompleted, nil)
+		mockStatusStore := &mocks.AnchorIndexStatusStore{}
+		mockStatusStore.GetStatusReturnsOnCall(0, proofapi.AnchorIndexStatusInProcess, nil)
+		mockStatusStore.GetStatusReturnsOnCall(1, proofapi.AnchorIndexStatusCompleted, nil)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      mockVCStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      mockStatusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     witnessStore,
 			WitnessPolicy:    witnessPolicy,
@@ -400,24 +400,24 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness policy error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
@@ -434,22 +434,22 @@ func TestWitnessProofHandler(t *testing.T) {
 			"failed to evaluate witness policy for anchor event [%s]: witness policy error", ae.Index().String()))
 	})
 
-	t.Run("error - vc status not found store error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	t.Run("error - status not found store error", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore, // error will be returned b/c we didn't set "in-process" status for vc
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore, // error will be returned b/c we didn't set "in-process" status for anchor
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{},
@@ -472,18 +472,18 @@ func TestWitnessProofHandler(t *testing.T) {
 		provider := &storemocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		vcStore, err := anchoreventstore.New(provider, testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(provider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{},
@@ -492,30 +492,30 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get anchor event: get error")
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
 			WitnessPolicy:    &mockWitnessPolicy{},
@@ -531,24 +531,24 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
 			WitnessPolicy:    &mockWitnessPolicy{},
@@ -564,18 +564,18 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(vcID, proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    &mocks.MonitoringService{},
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{},
@@ -584,33 +584,33 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps)
 
-		err = proofHandler.HandleProof(witnessIRI, vcID, expiryTime, []byte(""))
+		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor event")
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
-		vcStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		ae := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(anchorEvent), ae))
 
-		err = vcStore.Put(ae)
+		err = aeStore.Put(ae)
 		require.NoError(t, err)
 
 		monitoringSvc := &mocks.MonitoringService{}
 		monitoringSvc.WatchReturns(fmt.Errorf("monitoring error"))
 
-		vcStatusStore, err := vcstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
-		err = vcStatusStore.AddStatus(ae.Index().String(), proofapi.VCStatusInProcess)
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: vcStore,
-			StatusStore:      vcStatusStore,
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
 			MonitoringSvc:    monitoringSvc,
 			WitnessStore:     &mockWitnessStore{},
 			WitnessPolicy:    &mockWitnessPolicy{},

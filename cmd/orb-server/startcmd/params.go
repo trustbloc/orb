@@ -35,6 +35,8 @@ const (
 	defaultDataExpiryCheckInterval          = time.Minute
 	defaultAnchorSyncInterval               = time.Minute
 	defaultVCTMonitoringInterval            = 10 * time.Second
+	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
+	defaultAnchorStatusInProcessGracePeriod = 10 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	defaultActivityPubClientCacheSize       = 100
 	defaultActivityPubClientCacheExpiration = time.Hour
@@ -70,6 +72,18 @@ const (
 	vctMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
 		"Defaults to 10s if not set. " +
 		commonEnvVarUsageText + vctMonitoringIntervalEnvKey
+
+	anchorStatusMonitoringIntervalFlagName  = "anchor-status-monitoring-interval"
+	anchorStatusMonitoringIntervalEnvKey    = "ANCHOR_STATUS_MONITORING_INTERVAL"
+	anchorStatusMonitoringIntervalFlagUsage = "The interval in which 'in-process' anchors are monitored to ensure that they will be witnessed(completed) as per policy." +
+		"Defaults to 5s if not set. " +
+		commonEnvVarUsageText + anchorStatusMonitoringIntervalEnvKey
+
+	anchorStatusInProcessGracePeriodFlagName  = "anchor-status-in-process-grace-period"
+	anchorStatusInProcessGracePeriodEnvKey    = "ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD"
+	anchorStatusInProcessGracePeriodFlagUsage = "The period in which witnesses will not be re-selected for 'in-process' anchors." +
+		"Defaults to 10s if not set. " +
+		commonEnvVarUsageText + anchorStatusInProcessGracePeriodEnvKey
 
 	kmsStoreEndpointFlagName  = "kms-store-endpoint"
 	kmsStoreEndpointEnvKey    = "ORB_KMS_STORE_ENDPOINT"
@@ -475,72 +489,74 @@ type tlsParameters struct {
 }
 
 type orbParameters struct {
-	hostURL                        string
-	hostMetricsURL                 string
-	vctURL                         string
-	keyID                          string
-	privateKeyBase64               string
-	secretLockKeyPath              string
-	kmsEndpoint                    string
-	kmsStoreEndpoint               string
-	externalEndpoint               string
-	discoveryDomain                string
-	didNamespace                   string
-	didAliases                     []string
-	batchWriterTimeout             time.Duration
-	casType                        string
-	ipfsURL                        string
-	localCASReplicateInIPFSEnabled bool
-	cidVersion                     int
-	mqURL                          string
-	mqMaxConnectionSubscriptions   int
-	dbParameters                   *dbParameters
-	logLevel                       string
-	methodContext                  []string
-	baseEnabled                    bool
-	allowedOrigins                 []string
-	tlsParams                      *tlsParameters
-	anchorCredentialParams         *anchorCredentialParams
-	discoveryDomains               []string
-	discoveryVctDomains            []string
-	discoveryMinimumResolvers      int
-	maxWitnessDelay                time.Duration
-	syncTimeout                    uint64
-	signWithLocalWitness           bool
-	httpSignaturesEnabled          bool
-	didDiscoveryEnabled            bool
-	createDocumentStoreEnabled     bool
-	updateDocumentStoreEnabled     bool
-	includeUnpublishedOperations   bool
-	includePublishedOperations     bool
-	resolveFromAnchorOrigin        bool
-	verifyLatestFromAnchorOrigin   bool
-	updateDocumentStoreTypes       []operation.Type
-	authTokenDefinitions           []*auth.TokenDef
-	authTokens                     map[string]string
-	clientAuthTokenDefinitions     []*auth.TokenDef
-	clientAuthTokens               map[string]string
-	opQueuePoolSize                uint
-	observerQueuePoolSize          uint
-	activityPubPageSize            int
-	enableDevMode                  bool
-	nodeInfoRefreshInterval        time.Duration
-	ipfsTimeout                    time.Duration
-	databaseTimeout                time.Duration
-	httpTimeout                    time.Duration
-	httpDialTimeout                time.Duration
-	contextProviderURLs            []string
-	unpublishedOperationLifespan   time.Duration
-	dataExpiryCheckInterval        time.Duration
-	inviteWitnessAuthPolicy        acceptRejectPolicy
-	followAuthPolicy               acceptRejectPolicy
-	taskMgrCheckInterval           time.Duration
-	syncPeriod                     time.Duration
-	vctMonitoringInterval          time.Duration
-	apClientCacheSize              int
-	apClientCacheExpiration        time.Duration
-	apIRICacheSize                 int
-	apIRICacheExpiration           time.Duration
+	hostURL                          string
+	hostMetricsURL                   string
+	vctURL                           string
+	keyID                            string
+	privateKeyBase64                 string
+	secretLockKeyPath                string
+	kmsEndpoint                      string
+	kmsStoreEndpoint                 string
+	externalEndpoint                 string
+	discoveryDomain                  string
+	didNamespace                     string
+	didAliases                       []string
+	batchWriterTimeout               time.Duration
+	casType                          string
+	ipfsURL                          string
+	localCASReplicateInIPFSEnabled   bool
+	cidVersion                       int
+	mqURL                            string
+	mqMaxConnectionSubscriptions     int
+	dbParameters                     *dbParameters
+	logLevel                         string
+	methodContext                    []string
+	baseEnabled                      bool
+	allowedOrigins                   []string
+	tlsParams                        *tlsParameters
+	anchorCredentialParams           *anchorCredentialParams
+	discoveryDomains                 []string
+	discoveryVctDomains              []string
+	discoveryMinimumResolvers        int
+	maxWitnessDelay                  time.Duration
+	syncTimeout                      uint64
+	signWithLocalWitness             bool
+	httpSignaturesEnabled            bool
+	didDiscoveryEnabled              bool
+	createDocumentStoreEnabled       bool
+	updateDocumentStoreEnabled       bool
+	includeUnpublishedOperations     bool
+	includePublishedOperations       bool
+	resolveFromAnchorOrigin          bool
+	verifyLatestFromAnchorOrigin     bool
+	updateDocumentStoreTypes         []operation.Type
+	authTokenDefinitions             []*auth.TokenDef
+	authTokens                       map[string]string
+	clientAuthTokenDefinitions       []*auth.TokenDef
+	clientAuthTokens                 map[string]string
+	opQueuePoolSize                  uint
+	observerQueuePoolSize            uint
+	activityPubPageSize              int
+	enableDevMode                    bool
+	nodeInfoRefreshInterval          time.Duration
+	ipfsTimeout                      time.Duration
+	databaseTimeout                  time.Duration
+	httpTimeout                      time.Duration
+	httpDialTimeout                  time.Duration
+	contextProviderURLs              []string
+	unpublishedOperationLifespan     time.Duration
+	dataExpiryCheckInterval          time.Duration
+	inviteWitnessAuthPolicy          acceptRejectPolicy
+	followAuthPolicy                 acceptRejectPolicy
+	taskMgrCheckInterval             time.Duration
+	syncPeriod                       time.Duration
+	vctMonitoringInterval            time.Duration
+	anchorStatusMonitoringInterval   time.Duration
+	anchorStatusInProcessGracePeriod time.Duration
+	apClientCacheSize                int
+	apClientCacheExpiration          time.Duration
+	apIRICacheSize                   int
+	apIRICacheExpiration             time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -984,6 +1000,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", vctMonitoringIntervalFlagName, err)
 	}
 
+	anchorStatusMonitoringInterval, err := getDuration(cmd, anchorStatusMonitoringIntervalFlagName, anchorStatusMonitoringIntervalEnvKey,
+		defaultAnchorStatusMonitoringInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusMonitoringIntervalFlagName, err)
+	}
+
+	anchorStatusInProcessGracePeriod, err := getDuration(cmd, anchorStatusInProcessGracePeriodFlagName, anchorStatusInProcessGracePeriodEnvKey,
+		defaultAnchorStatusInProcessGracePeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
+	}
+
 	apClientCacheSize, apClientCacheExpiration, err := getActivityPubClientParameters(cmd)
 	if err != nil {
 		return nil, err
@@ -995,69 +1023,71 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		hostURL:                        hostURL,
-		hostMetricsURL:                 hostMetricsURL,
-		vctURL:                         vctURL,
-		kmsEndpoint:                    kmsEndpoint,
-		keyID:                          keyID,
-		privateKeyBase64:               privateKeyBase64,
-		secretLockKeyPath:              secretLockKeyPath,
-		kmsStoreEndpoint:               kmsStoreEndpoint,
-		discoveryDomain:                discoveryDomain,
-		externalEndpoint:               externalEndpoint,
-		tlsParams:                      tlsParams,
-		didNamespace:                   didNamespace,
-		didAliases:                     didAliases,
-		allowedOrigins:                 allowedOrigins,
-		casType:                        casType,
-		ipfsURL:                        ipfsURL,
-		localCASReplicateInIPFSEnabled: localCASReplicateInIPFSEnabled,
-		cidVersion:                     cidVersion,
-		mqURL:                          mqURL,
-		mqMaxConnectionSubscriptions:   mqMaxSubscriptionsPerConnection,
-		opQueuePoolSize:                uint(mqOpPoolSize),
-		observerQueuePoolSize:          uint(mqObserverPoolSize),
-		batchWriterTimeout:             batchWriterTimeout,
-		anchorCredentialParams:         anchorCredentialParams,
-		logLevel:                       loggingLevel,
-		dbParameters:                   dbParams,
-		discoveryDomains:               discoveryDomains,
-		discoveryVctDomains:            discoveryVctDomains,
-		discoveryMinimumResolvers:      discoveryMinimumResolvers,
-		maxWitnessDelay:                maxWitnessDelay,
-		syncTimeout:                    syncTimeout,
-		signWithLocalWitness:           signWithLocalWitness,
-		httpSignaturesEnabled:          httpSignaturesEnabled,
-		didDiscoveryEnabled:            didDiscoveryEnabled,
-		createDocumentStoreEnabled:     createDocumentStoreEnabled,
-		updateDocumentStoreEnabled:     updateDocumentStoreEnabled,
-		includePublishedOperations:     includePublishedOperations,
-		includeUnpublishedOperations:   includeUnpublishedOperations,
-		resolveFromAnchorOrigin:        resolveFromAnchorOrigin,
-		verifyLatestFromAnchorOrigin:   verifyLatestFromAnchorOrigin,
-		authTokenDefinitions:           authTokenDefs,
-		authTokens:                     authTokens,
-		clientAuthTokenDefinitions:     clientAuthTokenDefs,
-		clientAuthTokens:               clientAuthTokens,
-		activityPubPageSize:            activityPubPageSize,
-		enableDevMode:                  enableDevMode,
-		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
-		ipfsTimeout:                    ipfsTimeout,
-		databaseTimeout:                databaseTimeout,
-		contextProviderURLs:            contextProviderURLs,
-		unpublishedOperationLifespan:   unpublishedOperationLifespan,
-		dataExpiryCheckInterval:        dataExpiryCheckInterval,
-		followAuthPolicy:               followAuthPolicy,
-		inviteWitnessAuthPolicy:        inviteWitnessAuthPolicy,
-		taskMgrCheckInterval:           taskMgrCheckInterval,
-		httpDialTimeout:                httpDialTimeout,
-		httpTimeout:                    httpTimeout,
-		syncPeriod:                     syncPeriod,
-		vctMonitoringInterval:          vctMonitoringInterval,
-		apClientCacheSize:              apClientCacheSize,
-		apClientCacheExpiration:        apClientCacheExpiration,
-		apIRICacheSize:                 apIRICacheSize,
-		apIRICacheExpiration:           apIRICacheExpiration,
+		hostURL:                          hostURL,
+		hostMetricsURL:                   hostMetricsURL,
+		vctURL:                           vctURL,
+		kmsEndpoint:                      kmsEndpoint,
+		keyID:                            keyID,
+		privateKeyBase64:                 privateKeyBase64,
+		secretLockKeyPath:                secretLockKeyPath,
+		kmsStoreEndpoint:                 kmsStoreEndpoint,
+		discoveryDomain:                  discoveryDomain,
+		externalEndpoint:                 externalEndpoint,
+		tlsParams:                        tlsParams,
+		didNamespace:                     didNamespace,
+		didAliases:                       didAliases,
+		allowedOrigins:                   allowedOrigins,
+		casType:                          casType,
+		ipfsURL:                          ipfsURL,
+		localCASReplicateInIPFSEnabled:   localCASReplicateInIPFSEnabled,
+		cidVersion:                       cidVersion,
+		mqURL:                            mqURL,
+		mqMaxConnectionSubscriptions:     mqMaxSubscriptionsPerConnection,
+		opQueuePoolSize:                  uint(mqOpPoolSize),
+		observerQueuePoolSize:            uint(mqObserverPoolSize),
+		batchWriterTimeout:               batchWriterTimeout,
+		anchorCredentialParams:           anchorCredentialParams,
+		logLevel:                         loggingLevel,
+		dbParameters:                     dbParams,
+		discoveryDomains:                 discoveryDomains,
+		discoveryVctDomains:              discoveryVctDomains,
+		discoveryMinimumResolvers:        discoveryMinimumResolvers,
+		maxWitnessDelay:                  maxWitnessDelay,
+		syncTimeout:                      syncTimeout,
+		signWithLocalWitness:             signWithLocalWitness,
+		httpSignaturesEnabled:            httpSignaturesEnabled,
+		didDiscoveryEnabled:              didDiscoveryEnabled,
+		createDocumentStoreEnabled:       createDocumentStoreEnabled,
+		updateDocumentStoreEnabled:       updateDocumentStoreEnabled,
+		includePublishedOperations:       includePublishedOperations,
+		includeUnpublishedOperations:     includeUnpublishedOperations,
+		resolveFromAnchorOrigin:          resolveFromAnchorOrigin,
+		verifyLatestFromAnchorOrigin:     verifyLatestFromAnchorOrigin,
+		authTokenDefinitions:             authTokenDefs,
+		authTokens:                       authTokens,
+		clientAuthTokenDefinitions:       clientAuthTokenDefs,
+		clientAuthTokens:                 clientAuthTokens,
+		activityPubPageSize:              activityPubPageSize,
+		enableDevMode:                    enableDevMode,
+		nodeInfoRefreshInterval:          nodeInfoRefreshInterval,
+		ipfsTimeout:                      ipfsTimeout,
+		databaseTimeout:                  databaseTimeout,
+		contextProviderURLs:              contextProviderURLs,
+		unpublishedOperationLifespan:     unpublishedOperationLifespan,
+		dataExpiryCheckInterval:          dataExpiryCheckInterval,
+		followAuthPolicy:                 followAuthPolicy,
+		inviteWitnessAuthPolicy:          inviteWitnessAuthPolicy,
+		taskMgrCheckInterval:             taskMgrCheckInterval,
+		httpDialTimeout:                  httpDialTimeout,
+		httpTimeout:                      httpTimeout,
+		syncPeriod:                       syncPeriod,
+		vctMonitoringInterval:            vctMonitoringInterval,
+		anchorStatusMonitoringInterval:   anchorStatusMonitoringInterval,
+		anchorStatusInProcessGracePeriod: anchorStatusInProcessGracePeriod,
+		apClientCacheSize:                apClientCacheSize,
+		apClientCacheExpiration:          apClientCacheExpiration,
+		apIRICacheSize:                   apIRICacheSize,
+		apIRICacheExpiration:             apIRICacheExpiration,
 	}, nil
 }
 
@@ -1514,6 +1544,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
 	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheSizeFlagName, "", "", activityPubClientCacheSizeFlagUsage)
 	startCmd.Flags().StringP(activityPubIRICacheSizeFlagName, "", "", activityPubIRICacheSizeFlagUsage)
 }

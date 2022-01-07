@@ -684,6 +684,32 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "vct-monitoring-interval: invalid value [xxx]")
 	})
 
+	t.Run("anchor status monitoring interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, anchorStatusMonitoringIntervalEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor-status-monitoring-interval: invalid value [xxx]")
+	})
+
+	t.Run("anchor status in-process grace period", func(t *testing.T) {
+		restoreEnv := setEnv(t, anchorStatusInProcessGracePeriodEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor-status-in-process-grace-period: invalid value [xxx]")
+	})
+
 	t.Run("ActivityPub client parameters", func(t *testing.T) {
 		restoreEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "xxx")
 		defer restoreEnv()
