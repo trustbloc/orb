@@ -69,6 +69,7 @@ type Config struct {
 	RedeliveryMultiplier       float64
 	RedeliveryInitialInterval  time.Duration
 	MaxRedeliveryInterval      time.Duration
+	PublisherChannelPoolSize   int
 }
 
 type closeable interface {
@@ -92,7 +93,7 @@ type publisher interface {
 
 type connMgr interface {
 	close() error
-	getConnection() (connection, error)
+	getConnection(shared bool) (connection, error)
 }
 
 type subscriberFactory = func(conn connection) (initializingSubscriber, error)
@@ -130,9 +131,9 @@ func New(cfg Config) *PubSub {
 	p := &PubSub{
 		Config:               cfg,
 		connMgr:              newConnectionMgr(amqp.ConnectionConfig{AmqpURI: cfg.URI}, cfg.MaxConnectionSubscriptions),
-		amqpConfig:           newQueueConfig(cfg.URI),
-		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg.URI),
-		amqpWaitConfig:       newWaitQueueConfig(cfg.URI),
+		amqpConfig:           newQueueConfig(cfg),
+		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg),
+		amqpWaitConfig:       newWaitQueueConfig(cfg),
 	}
 
 	p.Lifecycle = lifecycle.New("amqp",
@@ -312,7 +313,8 @@ func (p *PubSub) start() {
 }
 
 func (p *PubSub) connect() error {
-	conn, err := p.connMgr.getConnection()
+	// Use a dedicated connection for the publishers that will not be shared by subscribers.
+	conn, err := p.connMgr.getConnection(false)
 	if err != nil {
 		return fmt.Errorf("get connection: %w", err)
 	}
@@ -488,9 +490,24 @@ func newConnectionMgr(cfg amqp.ConnectionConfig, limit int) *connectionMgr {
 	}
 }
 
-func (m *connectionMgr) getConnection() (connection, error) {
+func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+
+	if !shared {
+		conn, err := amqp.NewConnection(m.config, wmlogger.New())
+		if err != nil {
+			return nil, fmt.Errorf("create connection: %w", err)
+		}
+
+		c := &connectionWrapper{conn: conn}
+
+		m.connections = append(m.connections, c)
+
+		logger.Infof("Created new connection. Total connections: %d.", len(m.connections))
+
+		return c, nil
+	}
 
 	if m.current == nil || m.current.numChannels() >= m.channelLimit {
 		conn, err := amqp.NewConnection(m.config, wmlogger.New())
@@ -503,7 +520,7 @@ func (m *connectionMgr) getConnection() (connection, error) {
 		m.connections = append(m.connections, newCurrent)
 		m.current = newCurrent
 
-		logger.Infof("Created new connection. Total connections: %d.", len(m.connections))
+		logger.Infof("Created new shared connection. Total connections: %d.", len(m.connections))
 	}
 
 	numChannels := m.current.incrementChannelCount()
@@ -602,7 +619,7 @@ func (m *subscriberMgr) get() (initializingSubscriber, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	conn, err := m.connMgr.getConnection()
+	conn, err := m.connMgr.getConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("get connection for subscriber: %w", err)
 	}
@@ -732,8 +749,8 @@ func newMessage(msg *message.Message, opts ...messageOpt) *message.Message {
 	return newMsg
 }
 
-func newQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(exchange)
 	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
@@ -743,8 +760,8 @@ func newQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newRedeliveryQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newRedeliveryQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(redeliveryExchange)
 	queueConfig.Consume = amqp.ConsumeConfig{
 		Qos:             amqp.QosConfig{PrefetchCount: 1},
@@ -754,8 +771,8 @@ func newRedeliveryQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newWaitQueueConfig(amqpURI string) amqp.Config {
-	queueConfig := newDefaultQueueConfig(amqpURI)
+func newWaitQueueConfig(cfg Config) amqp.Config {
+	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(waitExchange)
 	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
@@ -765,9 +782,9 @@ func newWaitQueueConfig(amqpURI string) amqp.Config {
 	return queueConfig
 }
 
-func newDefaultQueueConfig(amqpURI string) amqp.Config {
+func newDefaultQueueConfig(cfg Config) amqp.Config {
 	return amqp.Config{
-		Connection: amqp.ConnectionConfig{AmqpURI: amqpURI},
+		Connection: amqp.ConnectionConfig{AmqpURI: cfg.URI},
 		Marshaler:  &DefaultMarshaler{},
 		Queue:      newAMQPQueueConfig(nil),
 		QueueBind: amqp.QueueBindConfig{
@@ -775,6 +792,7 @@ func newDefaultQueueConfig(amqpURI string) amqp.Config {
 		},
 		Publish: amqp.PublishConfig{
 			GenerateRoutingKey: func(queue string) string { return queue },
+			ChannelPoolSize:    cfg.PublisherChannelPoolSize,
 		},
 		Consume: amqp.ConsumeConfig{
 			Qos:             amqp.QosConfig{PrefetchCount: 1},

@@ -65,7 +65,7 @@ func TestWMLogger(t *testing.T) {
 		logger.Trace("message", nil)
 
 		require.Equal(t, 1, l.ErrorfCallCount())
-		require.Equal(t, 0, l.InfofCallCount())
+		require.Equal(t, 1, l.InfofCallCount())
 		require.Equal(t, 0, l.DebugfCallCount())
 	})
 

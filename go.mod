@@ -44,3 +44,5 @@ require (
 )
 
 go 1.16
+
+replace github.com/ThreeDotsLabs/watermill-amqp => github.com/trustbloc/watermill-amqp v1.1.5-0.20220106223131-ce18ebbcf857

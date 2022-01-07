@@ -364,7 +364,7 @@ func (m *mockConnectionMgr) close() error {
 	return m.err
 }
 
-func (m *mockConnectionMgr) getConnection() (connection, error) {
+func (m *mockConnectionMgr) getConnection(bool) (connection, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

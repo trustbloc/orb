@@ -1107,6 +1107,7 @@ func TestGetMQParameters(t *testing.T) {
 		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
 		restoreOpPoolEnv := setEnv(t, mqOpPoolEnvKey, "221")
 		restoreObserverPoolEnv := setEnv(t, mqObserverPoolEnvKey, "3")
+		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
 
 		defer func() {
@@ -1114,16 +1115,19 @@ func TestGetMQParameters(t *testing.T) {
 			restoreOpPoolEnv()
 			restoreObserverPoolEnv()
 			restoreConnectionSubscriptionsEnv()
+			restoreChannelPoolEnv()
 		}()
 
 		cmd := getTestCmd(t)
 
-		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions,
+			mqPublisherPoolSize, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqURL)
 		require.Equal(t, 221, mqOpPoolSize)
 		require.Equal(t, 3, mqObserverPoolSize)
 		require.Equal(t, 456, maxConnectionSubscriptions)
+		require.Equal(t, 321, mqPublisherPoolSize)
 	})
 
 	t.Run("Not specified -> default value", func(t *testing.T) {
@@ -1135,12 +1139,14 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions, err := getMQParameters(cmd)
+		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions,
+			mqPublisherPoolSize, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqURL)
 		require.Equal(t, defaultMQOpPoolSize, mqOpPoolSize)
 		require.Equal(t, 0, mqObserverPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, maxConnectionSubscriptions)
+		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqPublisherPoolSize)
 	})
 
 	t.Run("Invalid op pool size value -> error", func(t *testing.T) {
@@ -1152,7 +1158,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, _, err := getMQParameters(cmd)
+		_, _, _, _, _, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1166,7 +1172,21 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, _, err := getMQParameters(cmd)
+		_, _, _, _, _, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid publisher channel pool value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "xxx")
+
+		defer func() {
+			restoreEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, _, _, _, _, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
