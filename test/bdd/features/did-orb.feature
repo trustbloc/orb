@@ -545,7 +545,7 @@ Feature:
     Then container "orb-domain3" is stopped
 
     # wait for event status monitor process to wake-up and re-select different system witness
-    Then we wait 10 seconds
+    Then we wait 5 seconds
 
     When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "#canonicalDID"

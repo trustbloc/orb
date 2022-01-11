@@ -639,7 +639,7 @@ services:
       # TASK_MANAGER_CHECK_INTERVAL is the interval in which to check for scheduled tasks to be run. Note that this value is
       # merely the 'check' interval since each task has its own interval.
       # Default value: 10s.
-      - TASK_MANAGER_CHECK_INTERVAL=10s
+      - TASK_MANAGER_CHECK_INTERVAL=2s
       # ANCHOR_EVENT_SYNC_INTERVAL is the interval in which anchor events are synchronized with other services that
       # we're following.
       # Default value: 1m.
