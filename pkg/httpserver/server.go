@@ -19,6 +19,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"golang.org/x/net/http2"
 )
 
 var logger = log.New("httpserver")
@@ -56,13 +57,25 @@ func New(url, certFile, keyFile string, handlers ...common.HTTPHandler) *Server 
 		},
 	).Handler(router)
 
+	httpServ := &http.Server{
+		Addr:    url,
+		Handler: handler,
+	}
+
+	if err := http2.ConfigureServer(httpServ,
+		&http2.Server{
+			MaxConcurrentStreams: 100000, //nolint: gomnd
+			CountError: func(errType string) {
+				logger.Errorf("http2 server error %s", errType)
+			},
+		}); err != nil {
+		panic(err.Error())
+	}
+
 	return &Server{
-		httpServer: &http.Server{
-			Addr:    url,
-			Handler: handler,
-		},
-		certFile: certFile,
-		keyFile:  keyFile,
+		httpServer: httpServ,
+		certFile:   certFile,
+		keyFile:    keyFile,
 	}
 }
 

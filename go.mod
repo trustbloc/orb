@@ -39,6 +39,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.8.0
 	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	golang.org/x/text v0.3.7 // indirect
 )
 
