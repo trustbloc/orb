@@ -562,7 +562,8 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		if !strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") {
+			!strings.Contains(err.Error(), "connection reset by peer") &&
+			!strings.Contains(err.Error(), "502 Bad Gateway") {
 			return nil, fmt.Errorf("failed to create did: %w", err)
 		}
 	}
@@ -626,7 +627,8 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "DID does not exist") &&
 			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") {
+			!strings.Contains(err.Error(), "connection reset by peer") &&
+			!strings.Contains(err.Error(), "502 Bad Gateway") {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
 	}
@@ -686,7 +688,8 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 			!strings.Contains(err.Error(), "client connection force closed") &&
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") {
+			!strings.Contains(err.Error(), "connection reset by peer") &&
+			!strings.Contains(err.Error(), "502 Bad Gateway") {
 			return nil, err
 		}
 
@@ -755,7 +758,8 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
 			!strings.Contains(err.Error(), "DID does not exist") &&
 			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") {
+			!strings.Contains(err.Error(), "connection reset by peer") &&
+			!strings.Contains(err.Error(), "502 Bad Gateway") {
 			return nil, err
 		}
 
