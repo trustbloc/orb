@@ -63,8 +63,8 @@ func (m *MetricsProvider) WriteAnchorSignWithServerKeyTime(value time.Duration) 
 func (m *MetricsProvider) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
 }
 
-// WriteAnchorSignLocalStoreTime records the time it takes to store inside sign local.
-func (m *MetricsProvider) WriteAnchorSignLocalStoreTime(value time.Duration) {
+// WriteAnchorStoreTime records the time it takes to store inside sign local.
+func (m *MetricsProvider) WriteAnchorStoreTime(value time.Duration) {
 }
 
 // WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.

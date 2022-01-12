@@ -35,10 +35,10 @@ const (
 	anchorWritePostOfferActivityTimeMetric         = "write_post_offer_activity_seconds"
 	anchorWriteGetPreviousAnchorsGetBulkTimeMetric = "write_get_previous_anchor_get_bulk_seconds"
 	anchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
+	anchorWriteStoreTimeMetric                     = "write_store_seconds"
 	anchorWriteSignWithLocalWitnessTimeMetric      = "write_sign_with_local_witness_seconds"
 	anchorWriteSignWithServerKeyTimeMetric         = "write_sign_with_server_key_seconds"
 	anchorWriteSignLocalWitnessLogTimeMetric       = "write_sign_local_witness_log_seconds"
-	anchorWriteSignLocalStoreTimeMetric            = "write_sign_local_store_seconds"
 	anchorWriteSignLocalWatchTimeMetric            = "write_sign_local_watch_seconds"
 	anchorWriteResolveHostMetaLinkTimeMetric       = "write_resolve_host_meta_link_seconds"
 
@@ -161,7 +161,7 @@ type Metrics struct {
 	anchorWriteSignWithLocalWitnessTime      prometheus.Histogram
 	anchorWriteSignWithServerKeyTime         prometheus.Histogram
 	anchorWriteSignLocalWitnessLogTime       prometheus.Histogram
-	anchorWriteSignLocalStoreTime            prometheus.Histogram
+	anchorWriteStoreTime                     prometheus.Histogram
 	anchorWriteSignLocalWatchTime            prometheus.Histogram
 	anchorWriteResolveHostMetaLinkTime       prometheus.Histogram
 
@@ -258,7 +258,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		anchorWriteSignWithLocalWitnessTime:          newAnchorWriteSignWithLocalWitnessTime(),
 		anchorWriteSignWithServerKeyTime:             newAnchorWriteSignWithServerKeyTime(),
 		anchorWriteSignLocalWitnessLogTime:           newAnchorWriteSignLocalWitnessLogTime(),
-		anchorWriteSignLocalStoreTime:                newAnchorWriteSignLocalStoreTime(),
+		anchorWriteStoreTime:                         newAnchorWriteStoreTime(),
 		anchorWriteSignLocalWatchTime:                newAnchorWriteSignLocalWatchTime(),
 		anchorWriteResolveHostMetaLinkTime:           newAnchorWriteResolveHostMetaLinkTime(),
 		opqueueAddOperationTime:                      newOpQueueAddOperationTime(),
@@ -325,7 +325,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
 		m.anchorWriteGetPreviousAnchorsGetBulkTime, m.anchorWriteGetPreviousAnchorsTime,
 		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime, m.anchorWriteSignLocalWitnessLogTime,
-		m.anchorWriteSignLocalStoreTime, m.anchorWriteSignLocalWatchTime,
+		m.anchorWriteStoreTime, m.anchorWriteSignLocalWatchTime,
 		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
 		m.opqueueBatchSize, m.observerProcessAnchorTime, m.observerProcessDIDTime,
 		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
@@ -490,11 +490,11 @@ func (m *Metrics) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
 	logger.Debugf("WriteAnchor witness log inside sign local time: %s", value)
 }
 
-// WriteAnchorSignLocalStoreTime records the time it takes to store inside sign local.
-func (m *Metrics) WriteAnchorSignLocalStoreTime(value time.Duration) {
-	m.anchorWriteSignLocalStoreTime.Observe(value.Seconds())
+// WriteAnchorStoreTime records the time it takes to store an anchor event.
+func (m *Metrics) WriteAnchorStoreTime(value time.Duration) {
+	m.anchorWriteStoreTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor store inside sign local time: %s", value)
+	logger.Debugf("WriteAnchor store time: %s", value)
 }
 
 // WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.
@@ -1081,10 +1081,10 @@ func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
 	)
 }
 
-func newAnchorWriteSignLocalStoreTime() prometheus.Histogram {
+func newAnchorWriteStoreTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignLocalStoreTimeMetric,
-		"The time (in seconds) that it takes to store inside sign local.",
+		anchor, anchorWriteStoreTimeMetric,
+		"The time (in seconds) that it takes to store an anchor event.",
 		nil,
 	)
 }

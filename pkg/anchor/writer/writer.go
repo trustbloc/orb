@@ -48,6 +48,7 @@ type metricsProvider interface {
 	WriteAnchorTime(value time.Duration)
 	WriteAnchorBuildCredentialTime(value time.Duration)
 	WriteAnchorGetWitnessesTime(value time.Duration)
+	WriteAnchorStoreTime(value time.Duration)
 	ProcessWitnessedAnchorCredentialTime(value time.Duration)
 	WriteAnchorSignCredentialTime(value time.Duration)
 	WriteAnchorPostOfferActivityTime(value time.Duration)
@@ -56,7 +57,6 @@ type metricsProvider interface {
 	WriteAnchorSignWithLocalWitnessTime(value time.Duration)
 	WriteAnchorSignWithServerKeyTime(value time.Duration)
 	WriteAnchorSignLocalWitnessLogTime(value time.Duration)
-	WriteAnchorSignLocalStoreTime(value time.Duration)
 	WriteAnchorSignLocalWatchTime(value time.Duration)
 	WriteAnchorResolveHostMetaLinkTime(value time.Duration)
 }
@@ -238,7 +238,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("store anchor event: %w", err)
 	}
 
-	c.metrics.WriteAnchorSignLocalStoreTime(time.Since(storeStartTime))
+	c.metrics.WriteAnchorStoreTime(time.Since(storeStartTime))
 
 	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index(), anchor)
 
