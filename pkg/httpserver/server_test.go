@@ -31,6 +31,7 @@ func TestServer_Start(t *testing.T) {
 	s := New(url,
 		"",
 		"",
+		1*time.Second,
 		&mockUpdateHandler{},
 		&mockResolveHandler{},
 	)

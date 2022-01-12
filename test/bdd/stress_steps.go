@@ -128,10 +128,10 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		maxRetryStr = "10"
 	}
 
-	//maxRetry, err := strconv.Atoi(maxRetryStr)
-	//if err != nil {
-	//	return err
-	//}
+	maxRetry, err := strconv.Atoi(maxRetryStr)
+	if err != nil {
+		return err
+	}
 
 	urls := strings.Split(domains, ",")
 
@@ -207,111 +207,111 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("expecting created %d responses but got %d", didNums, len(createPool.responses))
 	}
 
-	//resolvePool := NewWorkerPool(concurrencyReq)
-	//
-	//resolvePool.Start()
-	//
-	//for _, resp := range createPool.responses {
-	//	if resp.Err != nil {
-	//		return resp.Err
-	//	}
-	//
-	//	r, ok := resp.Resp.(createDIDResp)
-	//	if !ok {
-	//		return fmt.Errorf("failed to cast resp to createDIDResp")
-	//	}
-	//
-	//	resolvePool.Submit(&resolveDIDReq{
-	//		vdr:                   r.vdr,
-	//		kr:                    kr,
-	//		maxRetry:              maxRetry,
-	//		intermID:              r.intermID,
-	//		recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
-	//		updateKeyPrivateKey:   r.updateKeyPrivateKey,
-	//	})
-	//
-	//}
-	//
-	//resolvePool.Stop()
-	//
-	//logger.Infof("got resolved created %d responses for %d requests", len(resolvePool.responses), didNums)
-	//
-	//if len(resolvePool.responses) != didNums {
-	//	return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
-	//}
-	//
-	//for _, resp := range resolvePool.responses {
-	//	if resp.Err != nil {
-	//		return resp.Err
-	//	}
-	//}
-	//
-	//// update did
-	//
-	//updatePool := NewWorkerPool(concurrencyReq)
-	//
-	//updatePool.Start()
-	//
-	//for _, resp := range resolvePool.responses {
-	//	r, ok := resp.Resp.(resolveDIDResp)
-	//	if !ok {
-	//		return fmt.Errorf("failed to cast resp to createDIDResp")
-	//	}
-	//
-	//	updatePool.Submit(&updateDIDReq{
-	//		vdr:              r.vdr,
-	//		steps:            e,
-	//		canonicalID:      r.canonicalID,
-	//		kr:               kr,
-	//		verMethodsCreate: verMethodsCreate,
-	//		verMethodsUpdate: verMethodsUpdate,
-	//	})
-	//}
-	//
-	//updatePool.Stop()
-	//
-	//logger.Infof("got updated %d responses for %d requests", len(updatePool.responses), didNums)
-	//
-	//if len(updatePool.responses) != didNums {
-	//	return fmt.Errorf("expecting updated %d responses but got %d", didNums, len(updatePool.responses))
-	//}
-	//
-	//resolveUpdatePool := NewWorkerPool(concurrencyReq)
-	//
-	//resolveUpdatePool.Start()
-	//
-	//for _, resp := range updatePool.responses {
-	//	if resp.Err != nil {
-	//		return resp.Err
-	//	}
-	//
-	//	r, ok := resp.Resp.(updateDIDResp)
-	//	if !ok {
-	//		return fmt.Errorf("failed to cast resp to updateDIDResp")
-	//	}
-	//
-	//	resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
-	//		vdr:         r.vdr,
-	//		maxRetry:    maxRetry,
-	//		canonicalID: r.canonicalID,
-	//		svcEndpoint: r.svcEndpoint,
-	//	})
-	//
-	//}
-	//
-	//resolveUpdatePool.Stop()
-	//
-	//logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
-	//
-	//if len(resolveUpdatePool.responses) != didNums {
-	//	return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
-	//}
-	//
-	//for _, resp := range resolveUpdatePool.responses {
-	//	if resp.Err != nil {
-	//		return resp.Err
-	//	}
-	//}
+	resolvePool := NewWorkerPool(concurrencyReq)
+
+	resolvePool.Start()
+
+	for _, resp := range createPool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+
+		r, ok := resp.Resp.(createDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to createDIDResp")
+		}
+
+		resolvePool.Submit(&resolveDIDReq{
+			vdr:                   r.vdr,
+			kr:                    kr,
+			maxRetry:              maxRetry,
+			intermID:              r.intermID,
+			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
+			updateKeyPrivateKey:   r.updateKeyPrivateKey,
+		})
+
+	}
+
+	resolvePool.Stop()
+
+	logger.Infof("got resolved created %d responses for %d requests", len(resolvePool.responses), didNums)
+
+	if len(resolvePool.responses) != didNums {
+		return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
+	}
+
+	for _, resp := range resolvePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
+
+	// update did
+
+	updatePool := NewWorkerPool(concurrencyReq)
+
+	updatePool.Start()
+
+	for _, resp := range resolvePool.responses {
+		r, ok := resp.Resp.(resolveDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to createDIDResp")
+		}
+
+		updatePool.Submit(&updateDIDReq{
+			vdr:              r.vdr,
+			steps:            e,
+			canonicalID:      r.canonicalID,
+			kr:               kr,
+			verMethodsCreate: verMethodsCreate,
+			verMethodsUpdate: verMethodsUpdate,
+		})
+	}
+
+	updatePool.Stop()
+
+	logger.Infof("got updated %d responses for %d requests", len(updatePool.responses), didNums)
+
+	if len(updatePool.responses) != didNums {
+		return fmt.Errorf("expecting updated %d responses but got %d", didNums, len(updatePool.responses))
+	}
+
+	resolveUpdatePool := NewWorkerPool(concurrencyReq)
+
+	resolveUpdatePool.Start()
+
+	for _, resp := range updatePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+
+		r, ok := resp.Resp.(updateDIDResp)
+		if !ok {
+			return fmt.Errorf("failed to cast resp to updateDIDResp")
+		}
+
+		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
+			vdr:         r.vdr,
+			maxRetry:    maxRetry,
+			canonicalID: r.canonicalID,
+			svcEndpoint: r.svcEndpoint,
+		})
+
+	}
+
+	resolveUpdatePool.Stop()
+
+	logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
+
+	if len(resolveUpdatePool.responses) != didNums {
+		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
+	}
+
+	for _, resp := range resolveUpdatePool.responses {
+		if resp.Err != nil {
+			return resp.Err
+		}
+	}
 
 	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
 	calc := calculator.NewInt64(createHTTPTime)
@@ -323,37 +323,37 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	//fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
-	//	resolveCreateCount)
-	//calc = calculator.NewInt64(resolveCreateHTTPTime)
-	//fmt.Printf("vdr resolve create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr resolve create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr resolve create DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
-	//	time.Millisecond).String())
-	//fmt.Println("------")
-	//
-	//fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
-	//calc = calculator.NewInt64(updateHTTPTime)
-	//fmt.Printf("vdr update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
-	//	time.Millisecond).String())
-	//fmt.Println("------")
-	//
-	//fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
-	//	resolveUpdateCount)
-	//calc = calculator.NewInt64(resolveUpdateHTTPTime)
-	//fmt.Printf("vdr resolve update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr resolve update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
-	//	time.Millisecond).String())
-	//fmt.Printf("vdr resolve update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
-	//	time.Millisecond).String())
-	//fmt.Println("------")
+	fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
+		resolveCreateCount)
+	calc = calculator.NewInt64(resolveCreateHTTPTime)
+	fmt.Printf("vdr resolve create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve create DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve create DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
+
+	fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
+	calc = calculator.NewInt64(updateHTTPTime)
+	fmt.Printf("vdr update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
+
+	fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
+		resolveUpdateCount)
+	calc = calculator.NewInt64(resolveUpdateHTTPTime)
+	fmt.Printf("vdr resolve update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve update DID max time: %s\n", (time.Duration(calc.Max().Register.MaxValue) *
+		time.Millisecond).String())
+	fmt.Printf("vdr resolve update DID min time: %s\n", (time.Duration(calc.Min().Register.MinValue) *
+		time.Millisecond).String())
+	fmt.Println("------")
 
 	return nil
 }

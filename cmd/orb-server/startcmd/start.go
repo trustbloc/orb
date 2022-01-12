@@ -989,11 +989,12 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.hostURL,
 		parameters.tlsParams.serveCertPath,
 		parameters.tlsParams.serveKeyPath,
+		parameters.serverIdleTimeout,
 		handlers...,
 	)
 
 	metricsHttpServer := httpserver.New(
-		parameters.hostMetricsURL, "", "",
+		parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
 		metrics.NewHandler(),
 	)
 

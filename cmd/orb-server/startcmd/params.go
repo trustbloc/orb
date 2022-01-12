@@ -29,6 +29,7 @@ const (
 	defaultIPFSTimeout                      = 20 * time.Second
 	defaultDatabaseTimeout                  = 10 * time.Second
 	defaultHTTPDialTimeout                  = 2 * time.Second
+	defaultServerIdleTimeout                = 20 * time.Second
 	defaultHTTPTimeout                      = 20 * time.Second
 	defaultUnpublishedOperationLifespan     = time.Minute * 5
 	defaultTaskMgrCheckInterval             = 10 * time.Second
@@ -442,13 +443,11 @@ const (
 	httpTimeoutFlagName  = "http-timeout"
 	httpTimeoutEnvKey    = "HTTP_TIMEOUT"
 	httpTimeoutFlagUsage = "The timeout for http requests. For example, '30s' for a 30 second timeout. " +
-		"Currently this setting only applies if you're using MongoDB. " +
 		commonEnvVarUsageText + httpTimeoutEnvKey
 
 	httpDialTimeoutFlagName  = "http-dial-timeout"
 	httpDialTimeoutEnvKey    = "HTTP_DIAL_TIMEOUT"
 	httpDialTimeoutFlagUsage = "The timeout for http dial. For example, '30s' for a 30 second timeout. " +
-		"Currently this setting only applies if you're using MongoDB. " +
 		commonEnvVarUsageText + httpDialTimeoutEnvKey
 
 	anchorSyncIntervalFlagName      = "sync-interval"
@@ -477,6 +476,11 @@ const (
 	activityPubIRICacheExpirationEnvKey    = "ACTIVITYPUB_IRI_CACHE_EXPIRATION"
 	activityPubIRICacheExpirationFlagUsage = "The expiration time of an ActivityPub actor IRI cache. " +
 		commonEnvVarUsageText + activityPubIRICacheExpirationEnvKey
+
+	serverIdleTimeoutFlagName  = "server-idle-timeout"
+	serverIdleTimeoutEnvKey    = "SERVER_IDLE_TIMEOUT"
+	serverIdleTimeoutFlagUsage = "The timeout for server idle timeout. For example, '30s' for a 30 second timeout. " +
+		commonEnvVarUsageText + serverIdleTimeoutEnvKey
 
 	// TODO: Update verification method
 )
@@ -551,6 +555,7 @@ type orbParameters struct {
 	databaseTimeout                  time.Duration
 	httpTimeout                      time.Duration
 	httpDialTimeout                  time.Duration
+	serverIdleTimeout                time.Duration
 	contextProviderURLs              []string
 	unpublishedOperationLifespan     time.Duration
 	dataExpiryCheckInterval          time.Duration
@@ -960,6 +965,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", httpDialTimeoutFlagName, err)
 	}
 
+	serverIdleTimeout, err := getDuration(cmd, serverIdleTimeoutFlagName, serverIdleTimeoutEnvKey, defaultServerIdleTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", serverIdleTimeoutFlagName, err)
+	}
+
 	httpTimeout, err := getDuration(cmd, httpTimeoutFlagName, httpTimeoutEnvKey, defaultHTTPTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
@@ -1098,6 +1108,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		apClientCacheExpiration:          apClientCacheExpiration,
 		apIRICacheSize:                   apIRICacheSize,
 		apIRICacheExpiration:             apIRICacheExpiration,
+		serverIdleTimeout:                serverIdleTimeout,
 	}, nil
 }
 
@@ -1574,4 +1585,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheSizeFlagName, "", "", activityPubClientCacheSizeFlagUsage)
 	startCmd.Flags().StringP(activityPubIRICacheSizeFlagName, "", "", activityPubIRICacheSizeFlagUsage)
+	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)
+	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
+	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
+
 }

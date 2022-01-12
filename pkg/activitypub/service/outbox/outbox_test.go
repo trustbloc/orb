@@ -138,7 +138,7 @@ func TestOutbox_Post(t *testing.T) {
 		mutex.Unlock()
 	}
 
-	httpServer := httpserver.New(":8003", "", "",
+	httpServer := httpserver.New(":8003", "", "", 1*time.Second,
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
 		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),

@@ -35,7 +35,7 @@ type Server struct {
 }
 
 // New returns a new HTTP server.
-func New(url, certFile, keyFile string, handlers ...common.HTTPHandler) *Server {
+func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, handlers ...common.HTTPHandler) *Server {
 	router := mux.NewRouter()
 
 	for _, handler := range handlers {
@@ -58,13 +58,14 @@ func New(url, certFile, keyFile string, handlers ...common.HTTPHandler) *Server 
 	).Handler(router)
 
 	httpServ := &http.Server{
-		Addr:    url,
-		Handler: handler,
+		Addr:        url,
+		Handler:     handler,
+		IdleTimeout: serverIdleTimeout,
 	}
 
 	if err := http2.ConfigureServer(httpServ,
 		&http2.Server{
-			MaxConcurrentStreams: 100000, //nolint: gomnd
+			IdleTimeout: serverIdleTimeout,
 			CountError: func(errType string) {
 				logger.Errorf("http2 server error %s", errType)
 			},
