@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
@@ -44,7 +45,7 @@ func TestPublisher_Publish(t *testing.T) {
 
 	messagesReceived := make(map[string]*message.Message)
 
-	httpServer := httpserver.New(":8100", "", "",
+	httpServer := httpserver.New(":8100", "", "", 1*time.Second,
 		newTestHandler("/services/service1", func(w http.ResponseWriter, req *http.Request) {
 			payload, err := ioutil.ReadAll(req.Body)
 			if err != nil {

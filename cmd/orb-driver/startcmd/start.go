@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/spf13/cobra"
@@ -206,6 +207,7 @@ func startDriver(parameters *parameters) error {
 		parameters.hostURL,
 		parameters.tlsCertificate,
 		parameters.tlsKey,
+		20*time.Second, //nolint: gomnd
 		handlers...,
 	)
 
