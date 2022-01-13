@@ -81,6 +81,7 @@ func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 
 			httpClient := &http.Client{
 				Transport: &http.Transport{
+					ForceAttemptHTTP2: true,
 					TLSClientConfig: &tls.Config{
 						RootCAs:    rootCAs,
 						MinVersion: tls.VersionTLS12,
