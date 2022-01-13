@@ -50,19 +50,15 @@ const (
 var createHTTPTime []int64
 var createLogCount int64
 var createCount int64
-var createSlowCount int64
 var resolveCreateHTTPTime []int64
 var resolveCreateLogCount int64
 var resolveCreateCount int64
-var resolveCreateSlowCount int64
 var updateHTTPTime []int64
 var updateLogCount int64
 var updateCount int64
-var updateSlowCount int64
 var resolveUpdateHTTPTime []int64
 var resolveUpdateLogCount int64
 var resolveUpdateCount int64
-var resolveUpdateSlowCount int64
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -112,6 +108,8 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	if err != nil {
 		return err
 	}
+
+	didNums = didNums / 2
 
 	concurrencyReqStr := os.Getenv(concurrencyEnv)
 	if concurrencyReqStr == "" {
@@ -187,133 +185,139 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		verMethodsUpdate = append(verMethodsUpdate, vm)
 	}
 
-	createPool := NewWorkerPool(concurrencyReq)
+	fmt.Println("start pre test creating did")
 
-	createPool.Start()
+	preTestCreatePool := NewWorkerPool(concurrencyReq)
+
+	preTestCreatePool.Start()
 
 	for i := 0; i < didNums; i++ {
-		createPool.Submit(&createDIDReq{
+		preTestCreatePool.Submit(&createDIDReq{
 			vdr:              vdr,
 			steps:            e,
 			verMethodsCreate: verMethodsCreate,
 		})
 	}
 
-	createPool.Stop()
+	preTestCreatePool.Stop()
 
-	logger.Infof("got created %d responses for %d requests", len(createPool.responses), didNums)
+	logger.Infof("pre test: got created %d responses for %d requests", len(preTestCreatePool.responses), didNums)
 
-	if len(createPool.responses) != didNums {
-		return fmt.Errorf("expecting created %d responses but got %d", didNums, len(createPool.responses))
+	if len(preTestCreatePool.responses) != didNums {
+		return fmt.Errorf("pre test: expecting created %d responses but got %d", didNums, len(preTestCreatePool.responses))
 	}
 
-	resolvePool := NewWorkerPool(concurrencyReq)
+	preTestResolvePool := NewWorkerPool(concurrencyReq)
 
-	resolvePool.Start()
+	preTestResolvePool.Start()
 
-	for _, resp := range createPool.responses {
+	anchoredDID := make([]string, 0)
+
+	for _, resp := range preTestCreatePool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
 
 		r, ok := resp.Resp.(createDIDResp)
 		if !ok {
-			return fmt.Errorf("failed to cast resp to createDIDResp")
+			return fmt.Errorf("pre test: failed to cast resp to createDIDResp")
 		}
 
-		resolvePool.Submit(&resolveDIDReq{
-			vdr:                   r.vdr,
+		preTestResolvePool.Submit(&resolveDIDReq{
+			vdr:                   vdr,
 			kr:                    kr,
 			maxRetry:              maxRetry,
 			intermID:              r.intermID,
 			recoveryKeyPrivateKey: r.recoveryKeyPrivateKey,
 			updateKeyPrivateKey:   r.updateKeyPrivateKey,
+			checkForPublished:     true,
 		})
 
 	}
 
-	resolvePool.Stop()
+	preTestResolvePool.Stop()
 
-	logger.Infof("got resolved created %d responses for %d requests", len(resolvePool.responses), didNums)
+	logger.Infof("pre test: got resolved created %d responses for %d requests", len(preTestResolvePool.responses), didNums)
 
-	if len(resolvePool.responses) != didNums {
-		return fmt.Errorf("expecting resolved created %d responses but got %d", didNums, len(resolvePool.responses))
+	if len(preTestResolvePool.responses) != didNums {
+		return fmt.Errorf("pre test: expecting resolved created %d responses but got %d", didNums, len(preTestResolvePool.responses))
 	}
 
-	for _, resp := range resolvePool.responses {
+	for _, resp := range preTestResolvePool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
-	}
 
-	// update did
-
-	updatePool := NewWorkerPool(concurrencyReq)
-
-	updatePool.Start()
-
-	for _, resp := range resolvePool.responses {
 		r, ok := resp.Resp.(resolveDIDResp)
 		if !ok {
-			return fmt.Errorf("failed to cast resp to createDIDResp")
+			return fmt.Errorf("pre test: failed to cast resp to resolveDIDResp")
 		}
 
-		updatePool.Submit(&updateDIDReq{
-			vdr:              r.vdr,
-			steps:            e,
-			canonicalID:      r.canonicalID,
-			kr:               kr,
-			verMethodsCreate: verMethodsCreate,
-			verMethodsUpdate: verMethodsUpdate,
-		})
+		anchoredDID = append(anchoredDID, r.canonicalID)
 	}
 
-	updatePool.Stop()
+	createHTTPTime = make([]int64, 0)
+	resolveCreateHTTPTime = make([]int64, 0)
+	resolveCreateLogCount = 0
+	createLogCount = 0
 
-	logger.Infof("got updated %d responses for %d requests", len(updatePool.responses), didNums)
+	fmt.Println("finish pre test creating did")
 
-	if len(updatePool.responses) != didNums {
-		return fmt.Errorf("expecting updated %d responses but got %d", didNums, len(updatePool.responses))
+	testPool := NewWorkerPool(concurrencyReq)
+
+	testPool.Start()
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		for i := 0; i < didNums; i++ {
+			testPool.Submit(&createResolveDIDReq{
+				vdr:               vdr,
+				steps:             e,
+				verMethodsCreate:  verMethodsCreate,
+				kr:                kr,
+				maxRetry:          maxRetry,
+				checkForPublished: false,
+			})
+		}
+
+		wg.Done()
+	}()
+
+	go func() {
+		for i := 0; i < len(anchoredDID); i++ {
+			testPool.Submit(&updateResolveDIDReq{
+				vdr:              vdr,
+				canonicalID:      anchoredDID[i],
+				kr:               kr,
+				steps:            e,
+				verMethodsCreate: verMethodsCreate,
+				verMethodsUpdate: verMethodsUpdate,
+				maxRetry:         maxRetry,
+			})
+		}
+
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	testPool.Stop()
+
+	if len(testPool.responses) != didNums*2 {
+		return fmt.Errorf("expecting responses %d but got %d", didNums*2, len(preTestCreatePool.responses))
 	}
 
-	resolveUpdatePool := NewWorkerPool(concurrencyReq)
-
-	resolveUpdatePool.Start()
-
-	for _, resp := range updatePool.responses {
+	for _, resp := range testPool.responses {
 		if resp.Err != nil {
 			return resp.Err
 		}
-
-		r, ok := resp.Resp.(updateDIDResp)
-		if !ok {
-			return fmt.Errorf("failed to cast resp to updateDIDResp")
-		}
-
-		resolveUpdatePool.Submit(&resolveUpdatedDIDReq{
-			vdr:         r.vdr,
-			maxRetry:    maxRetry,
-			canonicalID: r.canonicalID,
-			svcEndpoint: r.svcEndpoint,
-		})
-
 	}
 
-	resolveUpdatePool.Stop()
+	fmt.Printf("finished test with DID %d concurrent %d\n", len(testPool.responses), concurrencyReq)
 
-	logger.Infof("got resolved updated %d responses for %d requests", len(resolveUpdatePool.responses), didNums)
-
-	if len(resolveUpdatePool.responses) != didNums {
-		return fmt.Errorf("expecting resolved updated %d responses but got %d", didNums, len(resolveUpdatePool.responses))
-	}
-
-	for _, resp := range resolveUpdatePool.responses {
-		if resp.Err != nil {
-			return resp.Err
-		}
-	}
-
-	fmt.Printf("Created did request that took more than 1000ms: %d/%d\n", createSlowCount, createCount)
 	calc := calculator.NewInt64(createHTTPTime)
 	fmt.Printf("vdr create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
@@ -323,8 +327,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Resolved anchor did request that took more than 1000ms: %d/%d\n", resolveCreateSlowCount,
-		resolveCreateCount)
 	calc = calculator.NewInt64(resolveCreateHTTPTime)
 	fmt.Printf("vdr resolve create DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
@@ -334,7 +336,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Updated did request that took more than 1000ms: %d/%d\n", updateSlowCount, updateCount)
 	calc = calculator.NewInt64(updateHTTPTime)
 	fmt.Printf("vdr update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
@@ -344,8 +345,6 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		time.Millisecond).String())
 	fmt.Println("------")
 
-	fmt.Printf("Resolved updated did request that took more than 1000ms: %d/%d\n", resolveUpdateSlowCount,
-		resolveUpdateCount)
 	calc = calculator.NewInt64(resolveUpdateHTTPTime)
 	fmt.Printf("vdr resolve update DID avg time: %s\n", (time.Duration(calc.Mean().Register.Mean) *
 		time.Millisecond).String())
@@ -436,11 +435,6 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 
 	createHTTPTime = append(createHTTPTime, endTimeMS)
 
-	if endTimeMS > 1000 {
-		atomic.AddInt64(&createSlowCount, 1)
-		logger.Errorf("request time for create DID taking more than 1000ms %s", endTime.String())
-	}
-
 	return recoveryKeyPrivateKey, updateKeyPrivateKey, createdDocResolution.DocumentMetadata.EquivalentID[0], nil
 }
 
@@ -529,6 +523,97 @@ func (k *keyRetrieverMap) WriteNextUpdatePublicKey(didID string, key crypto.Publ
 	k.Unlock()
 }
 
+type createResolveDIDReq struct {
+	vdr               *orb.VDR
+	steps             *StressSteps
+	verMethodsCreate  []*ariesdid.VerificationMethod
+	kr                *keyRetrieverMap
+	maxRetry          int
+	checkForPublished bool
+}
+
+func (r *createResolveDIDReq) Invoke() (interface{}, error) {
+
+	createReq := createDIDReq{
+		vdr:              r.vdr,
+		steps:            r.steps,
+		verMethodsCreate: r.verMethodsCreate,
+	}
+
+	resp, err := createReq.Invoke()
+	if err != nil {
+		return nil, err
+	}
+
+	createResp, ok := resp.(createDIDResp)
+	if !ok {
+		return nil, fmt.Errorf("response not createDIDResp")
+	}
+
+	resolveReq := resolveDIDReq{
+		vdr:                   r.vdr,
+		kr:                    r.kr,
+		maxRetry:              r.maxRetry,
+		intermID:              createResp.intermID,
+		recoveryKeyPrivateKey: createResp.recoveryKeyPrivateKey,
+		updateKeyPrivateKey:   createResp.updateKeyPrivateKey,
+		checkForPublished:     r.checkForPublished,
+	}
+
+	resp, err = resolveReq.Invoke()
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+type updateResolveDIDReq struct {
+	vdr              *orb.VDR
+	canonicalID      string
+	kr               *keyRetrieverMap
+	steps            *StressSteps
+	verMethodsCreate []*ariesdid.VerificationMethod
+	verMethodsUpdate []*ariesdid.VerificationMethod
+	maxRetry         int
+}
+
+func (r *updateResolveDIDReq) Invoke() (interface{}, error) {
+
+	updateReq := updateDIDReq{
+		vdr:              r.vdr,
+		steps:            r.steps,
+		canonicalID:      r.canonicalID,
+		kr:               r.kr,
+		verMethodsCreate: r.verMethodsCreate,
+		verMethodsUpdate: r.verMethodsUpdate,
+	}
+
+	resp, err := updateReq.Invoke()
+	if err != nil {
+		return nil, err
+	}
+
+	updateResp, ok := resp.(updateDIDResp)
+	if !ok {
+		return nil, fmt.Errorf("response not updateDIDResp")
+	}
+
+	resolveReq := resolveUpdatedDIDReq{
+		vdr:         r.vdr,
+		maxRetry:    r.maxRetry,
+		canonicalID: updateResp.canonicalID,
+		svcEndpoint: updateResp.svcEndpoint,
+	}
+
+	resp, err = resolveReq.Invoke()
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
 type createDIDReq struct {
 	vdr              *orb.VDR
 	steps            *StressSteps
@@ -536,7 +621,6 @@ type createDIDReq struct {
 }
 
 type createDIDResp struct {
-	vdr                   *orb.VDR
 	intermID              string
 	recoveryKeyPrivateKey crypto.PrivateKey
 	updateKeyPrivateKey   crypto.PrivateKey
@@ -552,27 +636,20 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 			uuid.New().URN(), r.vdr)
 
 		atomic.AddInt64(&createCount, 1)
-
 		if err == nil {
 			break
 		}
 
-		logger.Errorf("error create DID %s", err.Error())
-
-		if !strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
-			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") &&
-			!strings.Contains(err.Error(), "502 Bad Gateway") {
+		if !checkRetryError(err) {
 			return nil, fmt.Errorf("failed to create did: %w", err)
 		}
 	}
 
-	if atomic.AddInt64(&createLogCount, 1)%100 == 0 {
+	if atomic.AddInt64(&createLogCount, 1)%1000 == 0 {
 		logger.Infof("created did successfully %d", createLogCount)
 	}
 
-	return createDIDResp{vdr: r.vdr, intermID: intermID, recoveryKeyPrivateKey: recoveryKeyPrivateKey, updateKeyPrivateKey: updateKeyPrivateKey}, nil
+	return createDIDResp{intermID: intermID, recoveryKeyPrivateKey: recoveryKeyPrivateKey, updateKeyPrivateKey: updateKeyPrivateKey}, nil
 }
 
 type updateDIDReq struct {
@@ -585,7 +662,6 @@ type updateDIDReq struct {
 }
 
 type updateDIDResp struct {
-	vdr         *orb.VDR
 	canonicalID string
 	svcEndpoint string
 }
@@ -612,32 +688,20 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 
 		updateHTTPTime = append(updateHTTPTime, endTimeMS)
 
-		if endTimeMS > 1000 {
-			atomic.AddInt64(&updateSlowCount, 1)
-			logger.Errorf("request time for update DID taking more than 1000ms %s", endTime.String())
-		}
-
 		if err == nil {
 			break
 		}
 
-		logger.Errorf("error updated DID %s: %s", r.canonicalID, err.Error())
-
-		if !strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
-			!strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") &&
-			!strings.Contains(err.Error(), "502 Bad Gateway") {
+		if !strings.Contains(err.Error(), "DID does not exist") && !checkRetryError(err) {
 			return nil, fmt.Errorf("failed to update did: %w", err)
 		}
 	}
 
-	if atomic.AddInt64(&updateLogCount, 1)%100 == 0 {
+	if atomic.AddInt64(&updateLogCount, 1)%1000 == 0 {
 		logger.Infof("updated did successfully %d", updateLogCount)
 	}
 
-	return updateDIDResp{vdr: r.vdr, canonicalID: r.canonicalID, svcEndpoint: svcEndpoint}, nil
+	return updateDIDResp{canonicalID: r.canonicalID, svcEndpoint: svcEndpoint}, nil
 }
 
 type resolveDIDReq struct {
@@ -647,10 +711,10 @@ type resolveDIDReq struct {
 	intermID              string
 	recoveryKeyPrivateKey crypto.PrivateKey
 	updateKeyPrivateKey   crypto.PrivateKey
+	checkForPublished     bool
 }
 
 type resolveDIDResp struct {
-	vdr         *orb.VDR
 	canonicalID string
 }
 
@@ -671,26 +735,13 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 
 		resolveCreateHTTPTime = append(resolveCreateHTTPTime, endTimeMS)
 
-		if endTimeMS > 1000 {
-			atomic.AddInt64(&resolveCreateSlowCount, 1)
-			logger.Errorf("request time for resolve created DID taking more than 1000ms %s", endTime.String())
-		}
-
-		if err == nil && docResolution.DocumentMetadata.Method.Published {
+		if err == nil && (docResolution.DocumentMetadata.Method.Published || !r.checkForPublished) {
 			break
 		}
 
-		if err != nil && !strings.Contains(err.Error(), "DID does not exist") {
-			logger.Errorf("failed resolve created DID %s: %s", r.intermID, err.Error())
-		}
-
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
-			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") &&
-			!strings.Contains(err.Error(), "502 Bad Gateway") {
-			return nil, err
+			!checkRetryError(err) {
+			return nil, fmt.Errorf("failed to resolve create did: %s", err.Error())
 		}
 
 		if i == r.maxRetry {
@@ -709,11 +760,11 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 	r.kr.WriteKey(canonicalID, orb.Recover, r.recoveryKeyPrivateKey)
 	r.kr.WriteKey(canonicalID, orb.Update, r.updateKeyPrivateKey)
 
-	if atomic.AddInt64(&resolveCreateLogCount, 1)%100 == 0 {
+	if atomic.AddInt64(&resolveCreateLogCount, 1)%1000 == 0 {
 		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
 	}
 
-	return resolveDIDResp{vdr: r.vdr, canonicalID: canonicalID}, nil
+	return resolveDIDResp{canonicalID: canonicalID}, nil
 }
 
 type resolveUpdatedDIDReq struct {
@@ -740,26 +791,11 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		resolveUpdateHTTPTime = append(resolveUpdateHTTPTime, endTimeMS)
 
-		if endTimeMS > 1000 {
-			atomic.AddInt64(&resolveUpdateSlowCount, 1)
-			logger.Errorf("request time for resolve updated DID taking more than 1000ms %s", endTime.String())
-		}
-
 		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == r.svcEndpoint {
 			break
 		}
 
-		if err != nil {
-			logger.Errorf("error resolve updated DID %s: %s", r.canonicalID, err.Error())
-		}
-
-		if err != nil &&
-			!strings.Contains(err.Error(), "client connection force closed") &&
-			!strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") &&
-			!strings.Contains(err.Error(), "DID does not exist") &&
-			!strings.Contains(err.Error(), "broken pipe") &&
-			!strings.Contains(err.Error(), "connection reset by peer") &&
-			!strings.Contains(err.Error(), "502 Bad Gateway") {
+		if err != nil && !checkRetryError(err) {
 			return nil, err
 		}
 
@@ -774,9 +810,21 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 		time.Sleep(1 * time.Second)
 	}
 
-	if atomic.AddInt64(&resolveUpdateLogCount, 1)%100 == 0 {
+	if atomic.AddInt64(&resolveUpdateLogCount, 1)%1000 == 0 {
 		logger.Infof("resolved updated did successfully %d", resolveUpdateLogCount)
 	}
 
 	return nil, nil
+}
+
+func checkRetryError(err error) bool {
+	if strings.Contains(err.Error(), "client connection force closed") ||
+		strings.Contains(err.Error(), "server sent GOAWAY and closed the connection") ||
+		strings.Contains(err.Error(), "broken pipe") ||
+		strings.Contains(err.Error(), "connection reset by peer") ||
+		strings.Contains(err.Error(), "502 Bad Gateway") {
+		return true
+	}
+
+	return false
 }
