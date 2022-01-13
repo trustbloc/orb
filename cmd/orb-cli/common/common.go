@@ -338,6 +338,7 @@ func newHTTPClient(cmd *cobra.Command) (*http.Client, error) {
 
 	return &http.Client{
 		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
 			TLSClientConfig: &tls.Config{
 				RootCAs:    rootCAs,
 				MinVersion: tls.VersionTLS12,
