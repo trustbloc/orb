@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	"golang.org/x/net/http2"
 )
 
 var logger = log.New("orb-cli")
@@ -337,7 +338,7 @@ func newHTTPClient(cmd *cobra.Command) (*http.Client, error) {
 	}
 
 	return &http.Client{
-		Transport: &http.Transport{
+		Transport: &http2.Transport{
 			TLSClientConfig: &tls.Config{
 				RootCAs:    rootCAs,
 				MinVersion: tls.VersionTLS12,

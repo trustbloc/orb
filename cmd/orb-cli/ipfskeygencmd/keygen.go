@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	"golang.org/x/net/http2"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
 )
@@ -80,7 +81,7 @@ func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 			}
 
 			httpClient := &http.Client{
-				Transport: &http.Transport{
+				Transport: &http2.Transport{
 					TLSClientConfig: &tls.Config{
 						RootCAs:    rootCAs,
 						MinVersion: tls.VersionTLS12,
