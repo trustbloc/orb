@@ -35,9 +35,9 @@ import (
 	"testing"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/ThreeDotsLabs/watermill-amqp/pkg/amqp"
+	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
-	stdAmqp "github.com/streadway/amqp"
+	ramqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +65,7 @@ func TestDefaultMarshaler(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, arrHeader, 1)
 
-	xDeathValues, ok := arrHeader[0].(stdAmqp.Table)
+	xDeathValues, ok := arrHeader[0].(ramqp.Table)
 	require.True(t, ok)
 
 	count, ok := xDeathValues["count"]
@@ -84,7 +84,7 @@ func TestDefaultMarshaler(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, msg.Equals(unmarshaledMsg))
-	assert.Equal(t, marshaled.DeliveryMode, stdAmqp.Persistent)
+	assert.Equal(t, marshaled.DeliveryMode, ramqp.Persistent)
 }
 
 func TestDefaultMarshaler_without_message_uuid(t *testing.T) {
@@ -133,7 +133,7 @@ func TestDefaultMarshaler_not_persistent(t *testing.T) {
 
 func TestDefaultMarshaler_postprocess_publishing(t *testing.T) {
 	marshaler := DefaultMarshaler{
-		PostprocessPublishing: func(publishing stdAmqp.Publishing) stdAmqp.Publishing {
+		PostprocessPublishing: func(publishing ramqp.Publishing) ramqp.Publishing {
 			publishing.CorrelationId = "correlation"
 			publishing.ContentType = "application/json"
 
@@ -153,7 +153,7 @@ func TestDefaultMarshaler_postprocess_publishing(t *testing.T) {
 
 func TestDefaultMarshaler_metadata(t *testing.T) {
 	marshaler := DefaultMarshaler{
-		PostprocessPublishing: func(publishing stdAmqp.Publishing) stdAmqp.Publishing {
+		PostprocessPublishing: func(publishing ramqp.Publishing) ramqp.Publishing {
 			publishing.CorrelationId = "correlation"
 			publishing.ContentType = "application/json"
 
@@ -173,8 +173,8 @@ func TestDefaultMarshaler_metadata(t *testing.T) {
 	assert.Equal(t, marshaled.ContentType, "application/json")
 }
 
-func publishingToDelivery(marshaled *stdAmqp.Publishing) stdAmqp.Delivery {
-	return stdAmqp.Delivery{
+func publishingToDelivery(marshaled *ramqp.Publishing) ramqp.Delivery {
+	return ramqp.Delivery{
 		Body:    marshaled.Body,
 		Headers: marshaled.Headers,
 	}
