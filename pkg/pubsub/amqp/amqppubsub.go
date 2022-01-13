@@ -16,10 +16,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ThreeDotsLabs/watermill-amqp/pkg/amqp"
+	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/cenkalti/backoff"
-	samqp "github.com/streadway/amqp"
+	ramqp "github.com/rabbitmq/amqp091-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/errors"
@@ -752,7 +752,7 @@ func newMessage(msg *message.Message, opts ...messageOpt) *message.Message {
 func newQueueConfig(cfg Config) amqp.Config {
 	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(exchange)
-	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
+	queueConfig.Queue = newAMQPQueueConfig(ramqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
 		metadataDeadLetterExchange:   redeliveryExchange,
 	})
@@ -774,7 +774,7 @@ func newRedeliveryQueueConfig(cfg Config) amqp.Config {
 func newWaitQueueConfig(cfg Config) amqp.Config {
 	queueConfig := newDefaultQueueConfig(cfg)
 	queueConfig.Exchange = newAMQPExchangeConfig(waitExchange)
-	queueConfig.Queue = newAMQPQueueConfig(samqp.Table{
+	queueConfig.Queue = newAMQPQueueConfig(ramqp.Table{
 		metadataDeadLetterRoutingKey: redeliveryQueue,
 		metadataDeadLetterExchange:   redeliveryExchange,
 	})
@@ -812,7 +812,7 @@ func newAMQPExchangeConfig(exchange string) amqp.ExchangeConfig {
 	}
 }
 
-func newAMQPQueueConfig(args samqp.Table) amqp.QueueConfig {
+func newAMQPQueueConfig(args ramqp.Table) amqp.QueueConfig {
 	return amqp.QueueConfig{
 		GenerateName: amqp.GenerateQueueNameTopicName,
 		Durable:      true,

@@ -38,7 +38,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const defaultMessageUUIDHeaderKey = "_watermill_message_uuid"

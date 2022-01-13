@@ -5,7 +5,7 @@
 module github.com/trustbloc/orb/cmd/orb-server
 
 require (
-	github.com/ThreeDotsLabs/watermill v1.2.0-rc.6
+	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211203093644-b7d189cc06f4
@@ -22,7 +22,5 @@ require (
 )
 
 replace github.com/trustbloc/orb => ../..
-
-replace github.com/ThreeDotsLabs/watermill-amqp => github.com/trustbloc/watermill-amqp v1.1.5-0.20220106223131-ce18ebbcf857
 
 go 1.16
