@@ -80,6 +80,13 @@ func TestParse_OutOf(t *testing.T) {
 		require.Contains(t, err.Error(), "first argument for OutOf policy must be an integer")
 	})
 
+	t.Run("error - first argument for OutOf policy must be 0 or positive integer", func(t *testing.T) {
+		wp, err := Parse("OutOf(-1,system)")
+		require.Error(t, err)
+		require.Nil(t, wp)
+		require.Contains(t, err.Error(), "first argument[-1] for OutOf policy rule must be 0 or positive integer")
+	})
+
 	t.Run("error - role 'invalid' not supported for OutOf policy", func(t *testing.T) {
 		wp, err := Parse("OutOf(2,invalid)")
 		require.Error(t, err)
