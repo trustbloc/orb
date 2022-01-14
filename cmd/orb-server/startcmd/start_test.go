@@ -7,12 +7,16 @@ package startcmd
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 func TestCreateProviders(t *testing.T) {
@@ -137,4 +141,63 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "open key.file: no such file or directory")
 	})
+}
+
+type mockActivityLogger struct {
+	infos []string
+	warns []string
+	mutex sync.Mutex
+}
+
+func (m *mockActivityLogger) Infof(msg string, args ...interface{}) {
+	m.mutex.Lock()
+	m.infos = append(m.infos, fmt.Sprintf(msg, args...))
+	m.mutex.Unlock()
+}
+
+func (m *mockActivityLogger) Warnf(msg string, args ...interface{}) {
+	m.mutex.Lock()
+	m.warns = append(m.warns, fmt.Sprintf(msg, args...))
+	m.mutex.Unlock()
+}
+
+func (m *mockActivityLogger) getInfos() []string {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return m.infos
+}
+
+func (m *mockActivityLogger) getWarns() []string {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return m.warns
+}
+
+func TestMonitorActivities(t *testing.T) {
+	activityChan := make(chan *vocab.ActivityType)
+
+	l := &mockActivityLogger{}
+
+	go monitorActivities(activityChan, l)
+
+	activityChan <- vocab.NewRejectActivity(vocab.NewObjectProperty(),
+		vocab.WithID(vocab.MustParseURL("https://domain1.com/123")),
+		vocab.WithActor(vocab.MustParseURL("https://domain2.com/456")),
+	)
+
+	activityChan <- vocab.NewAcceptActivity(vocab.NewObjectProperty(),
+		vocab.WithID(vocab.MustParseURL("https://domain2.com/456")),
+		vocab.WithActor(vocab.MustParseURL("https://domain1.com/123")),
+	)
+
+	time.Sleep(10 * time.Millisecond)
+
+	close(activityChan)
+
+	require.Contains(t, l.getWarns(),
+		"Received activity [https://domain1.com/123] of type Reject from [https://domain2.com/456]")
+	require.Contains(t, l.getInfos(),
+		"Received activity [https://domain2.com/456] of type Accept from [https://domain1.com/123]")
 }

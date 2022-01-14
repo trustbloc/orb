@@ -744,6 +744,8 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
+	go monitorActivities(activityPubService.Subscribe(), logger)
+
 	o.Start()
 
 	vcStore, err := storeProviders.provider.OpenStore("verifiable")
@@ -1392,4 +1394,27 @@ func NewAcceptRejectHandler(targetType string, policy acceptRejectPolicy, config
 	default:
 		return &activityhandler.AcceptAllActorsAuth{}
 	}
+}
+
+type activityLogger interface {
+	Infof(msg string, args ...interface{})
+	Warnf(msg string, args ...interface{})
+}
+
+func monitorActivities(activityChan <-chan *vocab.ActivityType, l activityLogger) {
+	logger.Infof("Activity monitor started.")
+
+	for activity := range activityChan {
+		switch {
+		case activity.Type().IsAny(vocab.TypeReject):
+			// Log this as a warning since one of our activities was rejected by another server.
+			l.Warnf("Received activity [%s] of type %s from [%s]",
+				activity.ID(), activity.Type(), activity.Actor())
+		default:
+			l.Infof("Received activity [%s] of type %s from [%s]",
+				activity.ID(), activity.Type(), activity.Actor())
+		}
+	}
+
+	logger.Infof("Activity monitor stopped.")
 }
