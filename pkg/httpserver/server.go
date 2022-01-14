@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var logger = log.New("httpserver")
@@ -57,20 +58,17 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, handler
 		},
 	).Handler(router)
 
-	httpServ := &http.Server{
-		Addr:        url,
-		Handler:     handler,
+	http2Server := &http2.Server{
 		IdleTimeout: serverIdleTimeout,
+		CountError: func(errType string) {
+			logger.Errorf("http2 server error %s", errType)
+		},
 	}
 
-	if err := http2.ConfigureServer(httpServ,
-		&http2.Server{
-			IdleTimeout: serverIdleTimeout,
-			CountError: func(errType string) {
-				logger.Errorf("http2 server error %s", errType)
-			},
-		}); err != nil {
-		panic(err.Error())
+	httpServ := &http.Server{
+		Addr:        url,
+		Handler:     h2c.NewHandler(handler, http2Server),
+		IdleTimeout: serverIdleTimeout,
 	}
 
 	return &Server{
