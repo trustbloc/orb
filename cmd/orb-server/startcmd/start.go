@@ -152,7 +152,6 @@ const (
 	defaultVerifyLatestFromAnchorOrigin   = false
 	defaultLocalCASReplicateInIPFSEnabled = false
 	defaultDevModeEnabled                 = false
-	defaultPolicyCacheExpiry              = 30 * time.Second
 	defaultCasCacheSize                   = 1000
 
 	unpublishedDIDLabel = "uAAA"
@@ -636,7 +635,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
 
-	witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+	witnessPolicy, err := policy.New(configStore, parameters.witnessPolicyCacheExpiration)
 	if err != nil {
 		return fmt.Errorf("failed to create witness policy: %s", err.Error())
 	}

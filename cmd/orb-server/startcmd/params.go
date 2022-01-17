@@ -47,6 +47,7 @@ const (
 	defaultFollowAuthType                   = acceptAllPolicy
 	defaultInviteWitnessAuthType            = acceptAllPolicy
 	defaultMQOpPoolSize                     = 5
+	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -482,7 +483,10 @@ const (
 	serverIdleTimeoutFlagUsage = "The timeout for server idle timeout. For example, '30s' for a 30 second timeout. " +
 		commonEnvVarUsageText + serverIdleTimeoutEnvKey
 
-	// TODO: Update verification method
+	witnessPolicyCacheExpirationFlagName  = "witness-policy-cache-expiration"
+	witnessPolicyCacheExpirationEnvKey    = "WITNESS_POLICY_CACHE_EXPIRATION"
+	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
+		commonEnvVarUsageText + witnessPolicyCacheExpirationEnvKey
 )
 
 type acceptRejectPolicy string
@@ -570,6 +574,7 @@ type orbParameters struct {
 	apClientCacheExpiration          time.Duration
 	apIRICacheSize                   int
 	apIRICacheExpiration             time.Duration
+	witnessPolicyCacheExpiration     time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -1031,6 +1036,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
 	}
 
+	witnessPolicyCacheExpiration, err := getDuration(cmd, witnessPolicyCacheExpirationFlagName,
+		witnessPolicyCacheExpirationEnvKey, defaultWitnessPolicyCacheExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", witnessPolicyCacheExpirationFlagName, err)
+	}
+
 	apClientCacheSize, apClientCacheExpiration, err := getActivityPubClientParameters(cmd)
 	if err != nil {
 		return nil, err
@@ -1104,6 +1115,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		vctMonitoringInterval:            vctMonitoringInterval,
 		anchorStatusMonitoringInterval:   anchorStatusMonitoringInterval,
 		anchorStatusInProcessGracePeriod: anchorStatusInProcessGracePeriod,
+		witnessPolicyCacheExpiration:     witnessPolicyCacheExpiration,
 		apClientCacheSize:                apClientCacheSize,
 		apClientCacheExpiration:          apClientCacheExpiration,
 		apIRICacheSize:                   apIRICacheSize,
@@ -1583,6 +1595,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
+	startCmd.Flags().StringP(witnessPolicyCacheExpirationFlagName, "", "", witnessPolicyCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheSizeFlagName, "", "", activityPubClientCacheSizeFlagUsage)
 	startCmd.Flags().StringP(activityPubIRICacheSizeFlagName, "", "", activityPubIRICacheSizeFlagUsage)
 	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)

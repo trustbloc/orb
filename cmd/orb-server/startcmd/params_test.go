@@ -710,6 +710,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "anchor-status-in-process-grace-period: invalid value [xxx]")
 	})
 
+	t.Run("witness policy cache expiration", func(t *testing.T) {
+		restoreEnv := setEnv(t, witnessPolicyCacheExpirationEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "witness-policy-cache-expiration: invalid value [xxx]")
+	})
+
 	t.Run("ActivityPub client parameters", func(t *testing.T) {
 		restoreEnv := setEnv(t, activityPubClientCacheSizeEnvKey, "xxx")
 		defer restoreEnv()

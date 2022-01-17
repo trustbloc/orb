@@ -51,7 +51,7 @@ type selector interface {
 	Select(witnesses []*proof.Witness, n int) ([]*proof.Witness, error)
 }
 
-// New parses witness policy from policy string.
+// New will create new witness policy evaluator.
 func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPolicy, error) {
 	wp := &WitnessPolicy{
 		configStore: configStore,
@@ -70,6 +70,9 @@ func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPo
 	if err != nil {
 		return nil, fmt.Errorf("failed to set expiry entry in policy cache: %w", err)
 	}
+
+	logger.Debugf("created new witness policy evaluator with policy: %s "+
+		"and witness policy cache expiry period set to: %s", policy, policyCacheExpiry)
 
 	return wp, nil
 }
