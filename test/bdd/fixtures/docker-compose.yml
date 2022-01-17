@@ -108,6 +108,9 @@ services:
       # ACTIVITYPUB_IRI_CACHE_EXPIRATION sets the expiration time of an ActivityPub actor IRI cache.
       # Default value: 1h (one hour)
       - ACTIVITYPUB_IRI_CACHE_EXPIRATION=90s
+      # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
+      # Default value: 30s
+      - WITNESS_POLICY_CACHE_EXPIRATION=10s
     ports:
       - 48326:443
       - 48327:48327
