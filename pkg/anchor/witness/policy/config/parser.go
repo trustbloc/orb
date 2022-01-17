@@ -115,6 +115,10 @@ func (wp *WitnessPolicyConfig) processOutOf(token string) error {
 		return fmt.Errorf("first argument for OutOf policy must be an integer: %w", err)
 	}
 
+	if minNo < 0 {
+		return fmt.Errorf("first argument[%d] for OutOf policy rule must be 0 or positive integer", minNo)
+	}
+
 	switch outOfArgs[1] {
 	case RoleSystem:
 		wp.MinNumberSystem = minNo
