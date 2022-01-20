@@ -87,8 +87,7 @@ func New(c *Config, p *Providers) (*Operation, error) {
 	}
 
 	return &Operation{
-		pubKey:                    c.PubKey,
-		kid:                       c.KID,
+		pubKeys:                   c.PubKeys,
 		host:                      u.Host,
 		verificationMethodType:    c.VerificationMethodType,
 		resolutionPath:            c.ResolutionPath,
@@ -110,8 +109,7 @@ func New(c *Config, p *Providers) (*Operation, error) {
 type Operation struct {
 	anchorInfoRetriever
 
-	pubKey                    []byte
-	kid                       string
+	pubKeys                   map[string][]byte
 	host                      string
 	verificationMethodType    string
 	resolutionPath            string
@@ -129,8 +127,7 @@ type Operation struct {
 
 // Config defines configuration for discovery operations.
 type Config struct {
-	PubKey                    []byte
-	KID                       string
+	PubKeys                   map[string][]byte
 	VerificationMethodType    string
 	ResolutionPath            string
 	OperationPath             string
@@ -186,20 +183,26 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 	ID := "did:web:" + o.host
 
-	writeResponse(rw, &RawDoc{
+	rawDoc := &RawDoc{
 		Context: context,
 		ID:      ID,
-		VerificationMethod: []verificationMethod{{
-			ID:              ID + "#" + o.kid,
+	}
+
+	for keyID, value := range o.pubKeys {
+		rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, verificationMethod{
+			ID:              ID + "#" + keyID,
 			Controller:      ID,
 			Type:            o.verificationMethodType,
-			PublicKeyBase58: base58.Encode(o.pubKey),
-		}},
-		Authentication:       []string{ID + "#" + o.kid},
-		AssertionMethod:      []string{ID + "#" + o.kid},
-		CapabilityDelegation: []string{ID + "#" + o.kid},
-		CapabilityInvocation: []string{ID + "#" + o.kid},
-	}, http.StatusOK)
+			PublicKeyBase58: base58.Encode(value),
+		})
+
+		rawDoc.Authentication = append(rawDoc.Authentication, ID+"#"+keyID)
+		rawDoc.AssertionMethod = append(rawDoc.AssertionMethod, ID+"#"+keyID)
+		rawDoc.CapabilityDelegation = append(rawDoc.CapabilityDelegation, ID+"#"+keyID)
+		rawDoc.CapabilityInvocation = append(rawDoc.CapabilityInvocation, ID+"#"+keyID)
+	}
+
+	writeResponse(rw, rawDoc, http.StatusOK)
 }
 
 // webFingerHandler swagger:route Get /.well-known/webfinger discovery webFingerReq

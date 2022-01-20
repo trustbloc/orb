@@ -111,6 +111,57 @@ func TestGetOrInit(t *testing.T) {
 	).Error(), "marshal config value for \"key\"")
 }
 
+func TestPrivateKeys(t *testing.T) {
+	t.Run("active key not exist in private key", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + privateKeysFlagName, "k1=value",
+			"--" + activeKeyIDFlagName, "k2",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "active key id k2 not exist in private keys")
+	})
+
+	t.Run("private keys not optional if active key exist", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + activeKeyIDFlagName, "k2",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "Neither private-keys (command line flag) nor ORB_PRIVATE_KEYS (environment variable) have been set")
+	})
+}
+
 func TestPrepareMasterKeyReader(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		lock, err := prepareKeyLock("")
