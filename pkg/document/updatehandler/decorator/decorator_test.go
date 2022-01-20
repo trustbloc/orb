@@ -327,6 +327,24 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 		require.Contains(t, err.Error(), "operation processor error")
 	})
 
+	t.Run("error - document has been deactivated, no further operations allowed", func(t *testing.T) {
+		rm := &protocol.ResolutionModel{
+			Deactivated: true,
+		}
+
+		processor := &mocks.OperationProcessor{}
+		processor.ResolveReturns(rm, nil)
+
+		handler := New(namespace, domain, processor, &mocks.EndpointClient{},
+			&mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+		require.NotNil(t, handler)
+
+		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: suffix})
+		require.Error(t, err)
+		require.Nil(t, op)
+		require.Contains(t, err.Error(), "document has been deactivated, no further operations are allowed")
+	})
+
 	t.Run("error - anchor origin has additional operations", func(t *testing.T) {
 		processor := &mocks.OperationProcessor{}
 		processor.ResolveReturns(&protocol.ResolutionModel{

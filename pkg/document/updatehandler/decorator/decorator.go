@@ -90,6 +90,13 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return nil, err
 	}
 
+	logger.Debugf("processor returned internal result for suffix[%s] for operation type[%s]: %+v",
+		op.UniqueSuffix, op.Type, internalResult)
+
+	if internalResult.Deactivated {
+		return nil, fmt.Errorf("document has been deactivated, no further operations are allowed")
+	}
+
 	d.metrics.ProcessorResolveTime(time.Since(processorResolveStartTime))
 
 	if op.Type == operation.TypeUpdate || op.Type == operation.TypeDeactivate {

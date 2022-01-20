@@ -108,6 +108,9 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "deactivated"
 
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
+    Then check error response contains "document has been deactivated, no further operations are allowed"
+
   @create_recover_did_doc
   Scenario: recover did doc
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
