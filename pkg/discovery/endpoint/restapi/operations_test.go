@@ -681,6 +681,7 @@ func TestWellKnownDID(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
 		BaseURL:    "https://example.com",
 		WebCASPath: "/cas",
+		PubKeys:    map[string][]byte{"k1": []byte("value")},
 	}, &restapi.Providers{})
 	require.NoError(t, err)
 

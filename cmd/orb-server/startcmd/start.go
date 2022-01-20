@@ -285,7 +285,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 }
 
 func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
-	return getOrInit(cfg, kidKey, &parameters.keyID, func() (interface{}, error) {
+	return getOrInit(cfg, kidKey, &parameters.activeKeyID, func() (interface{}, error) {
 		keyID, _, err := km.Create(kmsKeyType)
 
 		return keyID, err
@@ -293,18 +293,19 @@ func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) 
 }
 
 func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
-	return getOrInit(cfg, kidKey, &parameters.keyID, func() (interface{}, error) {
-		keyBytes, err := base64.RawStdEncoding.DecodeString(parameters.privateKeyBase64)
-		if err != nil {
-			return nil, err
-		}
+	return getOrInit(cfg, kidKey, &parameters.activeKeyID, func() (interface{}, error) {
+		for keyID, value := range parameters.privateKeys {
+			keyBytes, err := base64.RawStdEncoding.DecodeString(value)
+			if err != nil {
+				return nil, err
+			}
 
-		keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(parameters.keyID))
-		if err == nil && strings.TrimSpace(keyID) == "" {
-			return nil, errors.New("import private key: keyID is empty")
+			keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(keyID))
+			if err == nil && strings.TrimSpace(keyID) == "" {
+				return nil, errors.New("import private key: keyID is empty")
+			}
 		}
-
-		return keyID, err
+		return parameters.activeKeyID, nil
 	}, parameters.syncTimeout)
 }
 
@@ -444,13 +445,13 @@ func startOrbServices(parameters *orbParameters) error {
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New(), useHTTPOpt: useHTTPOpt}),
 	)
 
-	if parameters.keyID == "" {
+	if parameters.activeKeyID == "" {
 		if err = createKID(km, parameters, configStore); err != nil {
 			return fmt.Errorf("create kid: %w", err)
 		}
 	}
 
-	if parameters.keyID != "" && parameters.privateKeyBase64 != "" {
+	if parameters.activeKeyID != "" && len(parameters.privateKeys) > 0 {
 		if err = importPrivateKey(km, parameters, configStore); err != nil {
 			return fmt.Errorf("import kid: %w", err)
 		}
@@ -534,7 +535,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:" + u.Host + "#" + parameters.keyID,
+		VerificationMethod: "did:web:" + u.Host + "#" + parameters.activeKeyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
@@ -612,12 +613,26 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	pubKey, err := km.ExportPubKeyBytes(parameters.keyID)
+	activePubKey, err := km.ExportPubKeyBytes(parameters.activeKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
 
-	publicKey, err := getActivityPubPublicKey(pubKey, apServiceIRI, apServicePublicKeyIRI)
+	pubKeys := make(map[string][]byte)
+	pubKeys[parameters.activeKeyID] = activePubKey
+
+	if len(parameters.privateKeys) > 0 {
+		for keyID := range parameters.privateKeys {
+			pubKey, err := km.ExportPubKeyBytes(keyID)
+			if err != nil {
+				return fmt.Errorf("failed to export pub key: %w", err)
+			}
+
+			pubKeys[keyID] = pubKey
+		}
+	}
+
+	activePublicKey, err := getActivityPubPublicKey(activePubKey, apServiceIRI, apServicePublicKeyIRI)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
@@ -890,9 +905,8 @@ func startOrbServices(parameters *orbParameters) error {
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(
 		&discoveryrest.Config{
-			PubKey:                    pubKey,
+			PubKeys:                   pubKeys,
 			VerificationMethodType:    verificationMethodType,
-			KID:                       parameters.keyID,
 			ResolutionPath:            baseResolvePath,
 			OperationPath:             baseUpdatePath,
 			WebCASPath:                casPath,
@@ -942,8 +956,8 @@ func startOrbServices(parameters *orbParameters) error {
 			apStore, apSigVerifier, authTokenManager,
 		),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apEndpointCfg, apStore, publicKey, authTokenManager),
-		aphandler.NewPublicKeys(apEndpointCfg, apStore, publicKey, authTokenManager),
+		aphandler.NewServices(apEndpointCfg, apStore, activePublicKey, authTokenManager),
+		aphandler.NewPublicKeys(apEndpointCfg, apStore, activePublicKey, authTokenManager),
 		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
 		aphandler.NewFollowing(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
 		aphandler.NewOutbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
@@ -1310,8 +1324,8 @@ type signatureVerifier interface {
 func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
 	cr acrypto.Crypto) (getSigner signer, postSigner signer) {
 	if parameters.httpSignaturesEnabled {
-		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.keyID)
-		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.keyID)
+		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.activeKeyID)
+		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.activeKeyID)
 	} else {
 		getSigner = &transport.NoOpSigner{}
 		postSigner = &transport.NoOpSigner{}
