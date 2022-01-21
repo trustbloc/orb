@@ -37,7 +37,7 @@ ORB_DRIVER_REST_PATH=cmd/orb-driver
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.12
+ALPINE_VER ?= 3.13
 GO_TAGS    ?=
 
 export GO111MODULE=on
