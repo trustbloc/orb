@@ -58,7 +58,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
 	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
@@ -140,19 +139,19 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	defaultMaxWitnessDelay                = 600 * time.Second // 10 minutes
-	defaultSyncTimeout                    = 1
-	defaulthttpSignaturesEnabled          = true
-	defaultDidDiscoveryEnabled            = false
-	defaultCreateDocumentStoreEnabled     = false
-	defaultUpdateDocumentStoreEnabled     = false
-	defaultIncludeUnpublishedOperations   = false
-	defaultIncludePublishedOperations     = false
-	defaultResolveFromAnchorOrigin        = false
-	defaultVerifyLatestFromAnchorOrigin   = false
-	defaultLocalCASReplicateInIPFSEnabled = false
-	defaultDevModeEnabled                 = false
-	defaultCasCacheSize                   = 1000
+	defaultMaxWitnessDelay                  = 600 * time.Second // 10 minutes
+	defaultSyncTimeout                      = 1
+	defaulthttpSignaturesEnabled            = true
+	defaultDidDiscoveryEnabled              = false
+	defaultCreateDocumentStoreEnabled       = false
+	defaultUnpublishedOperationStoreEnabled = false
+	defaultIncludeUnpublishedOperations     = false
+	defaultIncludePublishedOperations       = false
+	defaultResolveFromAnchorOrigin          = false
+	defaultVerifyLatestFromAnchorOrigin     = false
+	defaultLocalCASReplicateInIPFSEnabled   = false
+	defaultDevModeEnabled                   = false
+	defaultCasCacheSize                     = 1000
 
 	unpublishedDIDLabel = "uAAA"
 )
@@ -362,9 +361,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	// TODO: If we decide to offer deactivate and recover we should configure this
-	parameters.updateDocumentStoreTypes = []operation.Type{operation.TypeUpdate}
-
 	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
 
 	var coreCASClient extendedcasclient.Client
@@ -510,7 +506,7 @@ func startOrbServices(parameters *orbParameters) error {
 	expiryService := expiry.NewService(taskMgr, parameters.dataExpiryCheckInterval)
 
 	var updateDocumentStore *unpublishedopstore.Store
-	if parameters.updateDocumentStoreEnabled {
+	if parameters.unpublishedOperationStoreEnabled {
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
 			parameters.unpublishedOperationLifespan, expiryService, metrics.Get())
 		if err != nil {
@@ -573,7 +569,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	var processorOpts []processor.Option
-	if parameters.updateDocumentStoreEnabled {
+	if parameters.unpublishedOperationStoreEnabled {
 		processorOpts = append(processorOpts, processor.WithUnpublishedOperationStore(updateDocumentStore))
 	}
 
@@ -830,8 +826,8 @@ func startOrbServices(parameters *orbParameters) error {
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithLabel(unpublishedDIDLabel))
 
-	if parameters.updateDocumentStoreEnabled {
-		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.updateDocumentStoreTypes))
+	if parameters.unpublishedOperationStoreEnabled {
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.unpublishedOperationStoreOperationTypes))
 	}
 
 	endpointClient, err := discoveryclient.New(orbDocumentLoader,
@@ -1058,13 +1054,13 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
-		MethodContext:                parameters.methodContext,
-		EnableBase:                   parameters.baseEnabled,
-		AnchorOrigins:                parameters.allowedOrigins,
-		UnpublishedOpStore:           unpublishedOpStore,
-		UpdateDocumentStoreTypes:     parameters.updateDocumentStoreTypes,
-		IncludeUnpublishedOperations: parameters.includeUnpublishedOperations,
-		IncludePublishedOperations:   parameters.includePublishedOperations,
+		MethodContext:                           parameters.methodContext,
+		EnableBase:                              parameters.baseEnabled,
+		AnchorOrigins:                           parameters.allowedOrigins,
+		UnpublishedOpStore:                      unpublishedOpStore,
+		UnpublishedOperationStoreOperationTypes: parameters.unpublishedOperationStoreOperationTypes,
+		IncludeUnpublishedOperations:            parameters.includeUnpublishedOperations,
+		IncludePublishedOperations:              parameters.includePublishedOperations,
 	}
 
 	registry := factoryregistry.New()

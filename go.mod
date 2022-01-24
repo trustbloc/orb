@@ -32,7 +32,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220119231708-bceddd36ff3e
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220124195951-717ab301acb0
 	github.com/trustbloc/vct v0.1.3
 	go.mongodb.org/mongo-driver v1.8.0
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2

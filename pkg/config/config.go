@@ -18,8 +18,8 @@ type Sidetree struct {
 	EnableBase    bool
 	AnchorOrigins []string
 
-	UnpublishedOpStore       *unpublished.Store
-	UpdateDocumentStoreTypes []operation.Type
+	UnpublishedOpStore                      *unpublished.Store
+	UnpublishedOperationStoreOperationTypes []operation.Type
 
 	IncludeUnpublishedOperations bool
 	IncludePublishedOperations   bool

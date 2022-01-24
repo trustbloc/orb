@@ -334,11 +334,17 @@ const (
 		`Used for resolving unpublished created documents.` +
 		commonEnvVarUsageText + enableCreateDocumentStoreEnvKey
 
-	enableUpdateDocumentStoreFlagName = "enable-update-document-store"
-	enableUpdateDocumentStoreEnvKey   = "UPDATE_DOCUMENT_STORE_ENABLED"
-	enableUpdateDocumentStoreUsage    = `Set to "true" to enable update document store. ` +
-		`Used for resolving unpublished updates for documents.` +
-		commonEnvVarUsageText + enableUpdateDocumentStoreEnvKey
+	enableUnpublishedOperationStoreFlagName = "enable-unpublished-operation-store"
+	enableUnpublishedOperationStoreEnvKey   = "UNPUBLISHED_OPERATION_STORE_ENABLED"
+	enableUnpublishedOperationStoreUsage    = `Set to "true" to enable un-published operation store. ` +
+		`Used to enable including unpublished operations when resolving documents.` +
+		commonEnvVarUsageText + enableUnpublishedOperationStoreEnvKey
+
+	unpublishedOperationStoreOperationTypesFlagName = "unpublished-operation-store-operation-types"
+	unpublishedOperationStoreOperationTypesEnvKey   = "UNPUBLISHED_OPERATION_STORE_OPERATION_TYPES"
+	unpublishedOperationStoreOperationTypesUsage    = `Comma-separated list of operation types. ` +
+		`Used if unpublished operation store is enabled.` +
+		commonEnvVarUsageText + unpublishedOperationStoreOperationTypesEnvKey
 
 	includeUnpublishedOperationsFlagName = "include-unpublished-operations-in-metadata"
 	includeUnpublishedOperationsEnvKey   = "INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA"
@@ -505,77 +511,77 @@ type tlsParameters struct {
 }
 
 type orbParameters struct {
-	hostURL                          string
-	hostMetricsURL                   string
-	vctURL                           string
-	activeKeyID                      string
-	privateKeys                      map[string]string
-	secretLockKeyPath                string
-	kmsEndpoint                      string
-	kmsStoreEndpoint                 string
-	externalEndpoint                 string
-	discoveryDomain                  string
-	didNamespace                     string
-	didAliases                       []string
-	batchWriterTimeout               time.Duration
-	casType                          string
-	ipfsURL                          string
-	localCASReplicateInIPFSEnabled   bool
-	cidVersion                       int
-	mqURL                            string
-	mqMaxConnectionSubscriptions     int
-	mqPublisherChannelPoolSize       int
-	dbParameters                     *dbParameters
-	logLevel                         string
-	methodContext                    []string
-	baseEnabled                      bool
-	allowedOrigins                   []string
-	tlsParams                        *tlsParameters
-	anchorCredentialParams           *anchorCredentialParams
-	discoveryDomains                 []string
-	discoveryVctDomains              []string
-	discoveryMinimumResolvers        int
-	maxWitnessDelay                  time.Duration
-	syncTimeout                      uint64
-	signWithLocalWitness             bool
-	httpSignaturesEnabled            bool
-	didDiscoveryEnabled              bool
-	createDocumentStoreEnabled       bool
-	updateDocumentStoreEnabled       bool
-	includeUnpublishedOperations     bool
-	includePublishedOperations       bool
-	resolveFromAnchorOrigin          bool
-	verifyLatestFromAnchorOrigin     bool
-	updateDocumentStoreTypes         []operation.Type
-	authTokenDefinitions             []*auth.TokenDef
-	authTokens                       map[string]string
-	clientAuthTokenDefinitions       []*auth.TokenDef
-	clientAuthTokens                 map[string]string
-	opQueuePoolSize                  uint
-	observerQueuePoolSize            uint
-	activityPubPageSize              int
-	enableDevMode                    bool
-	nodeInfoRefreshInterval          time.Duration
-	ipfsTimeout                      time.Duration
-	databaseTimeout                  time.Duration
-	httpTimeout                      time.Duration
-	httpDialTimeout                  time.Duration
-	serverIdleTimeout                time.Duration
-	contextProviderURLs              []string
-	unpublishedOperationLifespan     time.Duration
-	dataExpiryCheckInterval          time.Duration
-	inviteWitnessAuthPolicy          acceptRejectPolicy
-	followAuthPolicy                 acceptRejectPolicy
-	taskMgrCheckInterval             time.Duration
-	syncPeriod                       time.Duration
-	vctMonitoringInterval            time.Duration
-	anchorStatusMonitoringInterval   time.Duration
-	anchorStatusInProcessGracePeriod time.Duration
-	apClientCacheSize                int
-	apClientCacheExpiration          time.Duration
-	apIRICacheSize                   int
-	apIRICacheExpiration             time.Duration
-	witnessPolicyCacheExpiration     time.Duration
+	hostURL                                 string
+	hostMetricsURL                          string
+	vctURL                                  string
+	activeKeyID                             string
+	privateKeys                             map[string]string
+	secretLockKeyPath                       string
+	kmsEndpoint                             string
+	kmsStoreEndpoint                        string
+	externalEndpoint                        string
+	discoveryDomain                         string
+	didNamespace                            string
+	didAliases                              []string
+	batchWriterTimeout                      time.Duration
+	casType                                 string
+	ipfsURL                                 string
+	localCASReplicateInIPFSEnabled          bool
+	cidVersion                              int
+	mqURL                                   string
+	mqMaxConnectionSubscriptions            int
+	mqPublisherChannelPoolSize              int
+	dbParameters                            *dbParameters
+	logLevel                                string
+	methodContext                           []string
+	baseEnabled                             bool
+	allowedOrigins                          []string
+	tlsParams                               *tlsParameters
+	anchorCredentialParams                  *anchorCredentialParams
+	discoveryDomains                        []string
+	discoveryVctDomains                     []string
+	discoveryMinimumResolvers               int
+	maxWitnessDelay                         time.Duration
+	syncTimeout                             uint64
+	signWithLocalWitness                    bool
+	httpSignaturesEnabled                   bool
+	didDiscoveryEnabled                     bool
+	createDocumentStoreEnabled              bool
+	unpublishedOperationStoreEnabled        bool
+	unpublishedOperationStoreOperationTypes []operation.Type
+	includeUnpublishedOperations            bool
+	includePublishedOperations              bool
+	resolveFromAnchorOrigin                 bool
+	verifyLatestFromAnchorOrigin            bool
+	authTokenDefinitions                    []*auth.TokenDef
+	authTokens                              map[string]string
+	clientAuthTokenDefinitions              []*auth.TokenDef
+	clientAuthTokens                        map[string]string
+	opQueuePoolSize                         uint
+	observerQueuePoolSize                   uint
+	activityPubPageSize                     int
+	enableDevMode                           bool
+	nodeInfoRefreshInterval                 time.Duration
+	ipfsTimeout                             time.Duration
+	databaseTimeout                         time.Duration
+	httpTimeout                             time.Duration
+	httpDialTimeout                         time.Duration
+	serverIdleTimeout                       time.Duration
+	contextProviderURLs                     []string
+	unpublishedOperationLifespan            time.Duration
+	dataExpiryCheckInterval                 time.Duration
+	inviteWitnessAuthPolicy                 acceptRejectPolicy
+	followAuthPolicy                        acceptRejectPolicy
+	taskMgrCheckInterval                    time.Duration
+	syncPeriod                              time.Duration
+	vctMonitoringInterval                   time.Duration
+	anchorStatusMonitoringInterval          time.Duration
+	anchorStatusInProcessGracePeriod        time.Duration
+	apClientCacheSize                       int
+	apClientCacheExpiration                 time.Duration
+	apIRICacheSize                          int
+	apIRICacheExpiration                    time.Duration
+	witnessPolicyCacheExpiration            time.Duration
 }
 
 type anchorCredentialParams struct {
@@ -828,19 +834,35 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		createDocumentStoreEnabled = enable
 	}
 
-	enableUpdateDocStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableUpdateDocumentStoreFlagName, enableUpdateDocumentStoreEnvKey, true)
+	enableUnpublishedOperationStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	updateDocumentStoreEnabled := defaultUpdateDocumentStoreEnabled
-	if enableUpdateDocStoreStr != "" {
-		enable, parseErr := strconv.ParseBool(enableUpdateDocStoreStr)
+	unpublishedOperationStoreEnabled := defaultUnpublishedOperationStoreEnabled
+	if enableUnpublishedOperationStoreStr != "" {
+		enable, parseErr := strconv.ParseBool(enableUnpublishedOperationStoreStr)
 		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", enableUpdateDocumentStoreFlagName, parseErr)
+			return nil, fmt.Errorf("invalid value for %s: %s", enableUnpublishedOperationStoreFlagName, parseErr)
 		}
 
-		updateDocumentStoreEnabled = enable
+		unpublishedOperationStoreEnabled = enable
+	}
+
+	unpublishedOperationStoreOperationTypesArr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, unpublishedOperationStoreOperationTypesFlagName, unpublishedOperationStoreOperationTypesEnvKey)
+
+	defaultOperationTypes := []operation.Type{operation.TypeCreate, operation.TypeUpdate}
+
+	unpublishedOperationStoreOperationTypes := defaultOperationTypes
+
+	if len(unpublishedOperationStoreOperationTypesArr) > 0 {
+		var configuredOpTypes []operation.Type
+
+		for _, t := range unpublishedOperationStoreOperationTypesArr {
+			configuredOpTypes = append(configuredOpTypes, operation.Type(t))
+		}
+
+		unpublishedOperationStoreOperationTypes = configuredOpTypes
 	}
 
 	includeUnpublishedOperationsStr, err := cmdutils.GetUserSetVarFromString(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey, true)
@@ -1074,74 +1096,75 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		hostURL:                          hostURL,
-		hostMetricsURL:                   hostMetricsURL,
-		vctURL:                           vctURL,
-		kmsEndpoint:                      kmsEndpoint,
-		activeKeyID:                      activeKeyID,
-		privateKeys:                      privateKeys,
-		secretLockKeyPath:                secretLockKeyPath,
-		kmsStoreEndpoint:                 kmsStoreEndpoint,
-		discoveryDomain:                  discoveryDomain,
-		externalEndpoint:                 externalEndpoint,
-		tlsParams:                        tlsParams,
-		didNamespace:                     didNamespace,
-		didAliases:                       didAliases,
-		allowedOrigins:                   allowedOrigins,
-		casType:                          casType,
-		ipfsURL:                          ipfsURL,
-		localCASReplicateInIPFSEnabled:   localCASReplicateInIPFSEnabled,
-		cidVersion:                       cidVersion,
-		mqURL:                            mqURL,
-		mqMaxConnectionSubscriptions:     mqMaxSubscriptionsPerConnection,
-		mqPublisherChannelPoolSize:       mqPublisherChannelPoolSize,
-		opQueuePoolSize:                  uint(mqOpPoolSize),
-		observerQueuePoolSize:            uint(mqObserverPoolSize),
-		batchWriterTimeout:               batchWriterTimeout,
-		anchorCredentialParams:           anchorCredentialParams,
-		logLevel:                         loggingLevel,
-		dbParameters:                     dbParams,
-		discoveryDomains:                 discoveryDomains,
-		discoveryVctDomains:              discoveryVctDomains,
-		discoveryMinimumResolvers:        discoveryMinimumResolvers,
-		maxWitnessDelay:                  maxWitnessDelay,
-		syncTimeout:                      syncTimeout,
-		signWithLocalWitness:             signWithLocalWitness,
-		httpSignaturesEnabled:            httpSignaturesEnabled,
-		didDiscoveryEnabled:              didDiscoveryEnabled,
-		createDocumentStoreEnabled:       createDocumentStoreEnabled,
-		updateDocumentStoreEnabled:       updateDocumentStoreEnabled,
-		includePublishedOperations:       includePublishedOperations,
-		includeUnpublishedOperations:     includeUnpublishedOperations,
-		resolveFromAnchorOrigin:          resolveFromAnchorOrigin,
-		verifyLatestFromAnchorOrigin:     verifyLatestFromAnchorOrigin,
-		authTokenDefinitions:             authTokenDefs,
-		authTokens:                       authTokens,
-		clientAuthTokenDefinitions:       clientAuthTokenDefs,
-		clientAuthTokens:                 clientAuthTokens,
-		activityPubPageSize:              activityPubPageSize,
-		enableDevMode:                    enableDevMode,
-		nodeInfoRefreshInterval:          nodeInfoRefreshInterval,
-		ipfsTimeout:                      ipfsTimeout,
-		databaseTimeout:                  databaseTimeout,
-		contextProviderURLs:              contextProviderURLs,
-		unpublishedOperationLifespan:     unpublishedOperationLifespan,
-		dataExpiryCheckInterval:          dataExpiryCheckInterval,
-		followAuthPolicy:                 followAuthPolicy,
-		inviteWitnessAuthPolicy:          inviteWitnessAuthPolicy,
-		taskMgrCheckInterval:             taskMgrCheckInterval,
-		httpDialTimeout:                  httpDialTimeout,
-		httpTimeout:                      httpTimeout,
-		syncPeriod:                       syncPeriod,
-		vctMonitoringInterval:            vctMonitoringInterval,
-		anchorStatusMonitoringInterval:   anchorStatusMonitoringInterval,
-		anchorStatusInProcessGracePeriod: anchorStatusInProcessGracePeriod,
-		witnessPolicyCacheExpiration:     witnessPolicyCacheExpiration,
-		apClientCacheSize:                apClientCacheSize,
-		apClientCacheExpiration:          apClientCacheExpiration,
-		apIRICacheSize:                   apIRICacheSize,
-		apIRICacheExpiration:             apIRICacheExpiration,
-		serverIdleTimeout:                serverIdleTimeout,
+		hostURL:                                 hostURL,
+		hostMetricsURL:                          hostMetricsURL,
+		vctURL:                                  vctURL,
+		kmsEndpoint:                             kmsEndpoint,
+		activeKeyID:                             activeKeyID,
+		privateKeys:                             privateKeys,
+		secretLockKeyPath:                       secretLockKeyPath,
+		kmsStoreEndpoint:                        kmsStoreEndpoint,
+		discoveryDomain:                         discoveryDomain,
+		externalEndpoint:                        externalEndpoint,
+		tlsParams:                               tlsParams,
+		didNamespace:                            didNamespace,
+		didAliases:                              didAliases,
+		allowedOrigins:                          allowedOrigins,
+		casType:                                 casType,
+		ipfsURL:                                 ipfsURL,
+		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
+		cidVersion:                              cidVersion,
+		mqURL:                                   mqURL,
+		mqMaxConnectionSubscriptions:            mqMaxSubscriptionsPerConnection,
+		mqPublisherChannelPoolSize:              mqPublisherChannelPoolSize,
+		opQueuePoolSize:                         uint(mqOpPoolSize),
+		observerQueuePoolSize:                   uint(mqObserverPoolSize),
+		batchWriterTimeout:                      batchWriterTimeout,
+		anchorCredentialParams:                  anchorCredentialParams,
+		logLevel:                                loggingLevel,
+		dbParameters:                            dbParams,
+		discoveryDomains:                        discoveryDomains,
+		discoveryVctDomains:                     discoveryVctDomains,
+		discoveryMinimumResolvers:               discoveryMinimumResolvers,
+		maxWitnessDelay:                         maxWitnessDelay,
+		syncTimeout:                             syncTimeout,
+		signWithLocalWitness:                    signWithLocalWitness,
+		httpSignaturesEnabled:                   httpSignaturesEnabled,
+		didDiscoveryEnabled:                     didDiscoveryEnabled,
+		createDocumentStoreEnabled:              createDocumentStoreEnabled,
+		unpublishedOperationStoreEnabled:        unpublishedOperationStoreEnabled,
+		unpublishedOperationStoreOperationTypes: unpublishedOperationStoreOperationTypes,
+		includePublishedOperations:              includePublishedOperations,
+		includeUnpublishedOperations:            includeUnpublishedOperations,
+		resolveFromAnchorOrigin:                 resolveFromAnchorOrigin,
+		verifyLatestFromAnchorOrigin:            verifyLatestFromAnchorOrigin,
+		authTokenDefinitions:                    authTokenDefs,
+		authTokens:                              authTokens,
+		clientAuthTokenDefinitions:              clientAuthTokenDefs,
+		clientAuthTokens:                        clientAuthTokens,
+		activityPubPageSize:                     activityPubPageSize,
+		enableDevMode:                           enableDevMode,
+		nodeInfoRefreshInterval:                 nodeInfoRefreshInterval,
+		ipfsTimeout:                             ipfsTimeout,
+		databaseTimeout:                         databaseTimeout,
+		contextProviderURLs:                     contextProviderURLs,
+		unpublishedOperationLifespan:            unpublishedOperationLifespan,
+		dataExpiryCheckInterval:                 dataExpiryCheckInterval,
+		followAuthPolicy:                        followAuthPolicy,
+		inviteWitnessAuthPolicy:                 inviteWitnessAuthPolicy,
+		taskMgrCheckInterval:                    taskMgrCheckInterval,
+		httpDialTimeout:                         httpDialTimeout,
+		httpTimeout:                             httpTimeout,
+		syncPeriod:                              syncPeriod,
+		vctMonitoringInterval:                   vctMonitoringInterval,
+		anchorStatusMonitoringInterval:          anchorStatusMonitoringInterval,
+		anchorStatusInProcessGracePeriod:        anchorStatusInProcessGracePeriod,
+		witnessPolicyCacheExpiration:            witnessPolicyCacheExpiration,
+		apClientCacheSize:                       apClientCacheSize,
+		apClientCacheExpiration:                 apClientCacheExpiration,
+		apIRICacheSize:                          apIRICacheSize,
+		apIRICacheExpiration:                    apIRICacheExpiration,
+		serverIdleTimeout:                       serverIdleTimeout,
 	}, nil
 }
 
@@ -1587,7 +1610,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
 	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
-	startCmd.Flags().String(enableUpdateDocumentStoreFlagName, "", enableUpdateDocumentStoreUsage)
+	startCmd.Flags().String(enableUnpublishedOperationStoreFlagName, "", enableUnpublishedOperationStoreUsage)
+	startCmd.Flags().String(unpublishedOperationStoreOperationTypesFlagName, "", unpublishedOperationStoreOperationTypesUsage)
 	startCmd.Flags().String(includeUnpublishedOperationsFlagName, "", includeUnpublishedOperationsUsage)
 	startCmd.Flags().String(includePublishedOperationsFlagName, "", includePublishedOperationsUsage)
 	startCmd.Flags().String(resolveFromAnchorOriginFlagName, "", resolveFromAnchorOriginUsage)

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/spf13/cobra"
@@ -401,7 +401,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for enable-create-document-store")
 	})
 
-	t.Run("test invalid enable-update-document-store", func(t *testing.T) {
+	t.Run("test invalid enable-unpublished-operation-store", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
@@ -418,7 +418,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
-			"--" + enableUpdateDocumentStoreFlagName, "invalid bool",
+			"--" + enableUnpublishedOperationStoreFlagName, "invalid bool",
 		}
 
 		startCmd.SetArgs(args)
@@ -426,7 +426,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value for enable-update-document-store")
+		require.Contains(t, err.Error(), "invalid value for enable-unpublished-operation-store")
 	})
 
 	t.Run("test invalid resolve-from-anchor-origin", func(t *testing.T) {
@@ -1475,7 +1475,7 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")
 	require.NoError(t, err)
 
-	err = os.Setenv(enableUpdateDocumentStoreEnvKey, "true")
+	err = os.Setenv(enableUnpublishedOperationStoreEnvKey, "true")
 	require.NoError(t, err)
 }
 
@@ -1556,7 +1556,8 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		"--" + localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnabled,
-		"--" + enableUpdateDocumentStoreFlagName, "true",
+		"--" + enableUnpublishedOperationStoreFlagName, "true",
+		"--" + unpublishedOperationStoreOperationTypesFlagName, "update",
 		"--" + enableCreateDocumentStoreFlagName, "true",
 		"--" + includePublishedOperationsFlagName, "true",
 		"--" + includeUnpublishedOperationsFlagName, "true",
