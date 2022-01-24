@@ -135,7 +135,7 @@ func TestResolveVerifier_Verify(t *testing.T) {
 
 		err = handler.Verify(&input)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to resolve document with provided operations: missing create operation")
+		require.Contains(t, err.Error(), "failed to resolve document with provided operations: create operation not found")
 	})
 
 	t.Run("error - input and resolved documents don't match error", func(t *testing.T) {

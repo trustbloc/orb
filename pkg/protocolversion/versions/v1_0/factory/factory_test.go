@@ -50,8 +50,8 @@ func TestFactory_Create(t *testing.T) {
 		require.NoError(t, err)
 
 		cfg := &config.Sidetree{
-			UnpublishedOpStore:       updateDocumentStore,
-			UpdateDocumentStoreTypes: []operation.Type{operation.TypeUpdate},
+			UnpublishedOpStore:                      updateDocumentStore,
+			UnpublishedOperationStoreOperationTypes: []operation.Type{operation.TypeUpdate},
 		}
 
 		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, cfg)

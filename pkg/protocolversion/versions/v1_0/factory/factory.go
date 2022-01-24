@@ -68,7 +68,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	if sidetreeCfg.UnpublishedOpStore != nil {
 		orbTxnProcessorOpts = append(orbTxnProcessorOpts,
 			txnprocessor.WithUnpublishedOperationStore(sidetreeCfg.UnpublishedOpStore,
-				sidetreeCfg.UpdateDocumentStoreTypes))
+				sidetreeCfg.UnpublishedOperationStoreOperationTypes))
 	}
 
 	orbTxnProcessor := txnprocessor.New(
