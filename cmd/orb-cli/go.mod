@@ -8,16 +8,16 @@ go 1.17
 
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211203093644-b7d189cc06f4
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210915134807-3e19121646a4
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210901104217-40a48c89b9f7
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220125212227-6bfc2b0907d6
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/orb v0.1.3-0.20210914173654-dab098ce4e32
+	github.com/trustbloc/orb v0.1.4-0.20220114151418-ee519eb3cd25
 )
 
 require (
@@ -58,6 +58,7 @@ require (
 	github.com/multiformats/go-multibase v0.0.3 // indirect
 	github.com/multiformats/go-multihash v0.0.14 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
+	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

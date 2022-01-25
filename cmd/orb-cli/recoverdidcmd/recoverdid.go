@@ -318,14 +318,14 @@ type keyRetriever struct {
 	signingKey      crypto.PublicKey
 }
 
-func (k *keyRetriever) GetNextRecoveryPublicKey(didID string) (crypto.PublicKey, error) {
+func (k *keyRetriever) GetNextRecoveryPublicKey(didID, commitment string) (crypto.PublicKey, error) {
 	return k.nextRecoveryKey, nil
 }
 
-func (k *keyRetriever) GetNextUpdatePublicKey(didID string) (crypto.PublicKey, error) {
+func (k *keyRetriever) GetNextUpdatePublicKey(didID, commitment string) (crypto.PublicKey, error) {
 	return k.nextUpdateKey, nil
 }
 
-func (k *keyRetriever) GetSigningKey(didID string, ot orb.OperationType) (crypto.PrivateKey, error) {
+func (k *keyRetriever) GetSigningKey(didID string, ot orb.OperationType, commitment string) (crypto.PrivateKey, error) {
 	return k.signingKey, nil
 }
