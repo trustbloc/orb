@@ -236,7 +236,8 @@ func TestCreateDID(t *testing.T) {
 		cmd.SetArgs(args)
 		err = cmd.Execute()
 
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "http2: unsupported scheme")
 	})
 }
 
