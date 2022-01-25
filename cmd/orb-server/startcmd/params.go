@@ -328,12 +328,6 @@ const (
 	enableDidDiscoveryUsage    = `Set to "true" to enable did discovery. ` +
 		commonEnvVarUsageText + enableDidDiscoveryEnvKey
 
-	enableCreateDocumentStoreFlagName = "enable-create-document-store"
-	enableCreateDocumentStoreEnvKey   = "CREATE_DOCUMENT_STORE_ENABLED"
-	enableCreateDocumentStoreUsage    = `Set to "true" to enable create document store. ` +
-		`Used for resolving unpublished created documents.` +
-		commonEnvVarUsageText + enableCreateDocumentStoreEnvKey
-
 	enableUnpublishedOperationStoreFlagName = "enable-unpublished-operation-store"
 	enableUnpublishedOperationStoreEnvKey   = "UNPUBLISHED_OPERATION_STORE_ENABLED"
 	enableUnpublishedOperationStoreUsage    = `Set to "true" to enable un-published operation store. ` +
@@ -546,7 +540,6 @@ type orbParameters struct {
 	signWithLocalWitness                    bool
 	httpSignaturesEnabled                   bool
 	didDiscoveryEnabled                     bool
-	createDocumentStoreEnabled              bool
 	unpublishedOperationStoreEnabled        bool
 	unpublishedOperationStoreOperationTypes []operation.Type
 	includeUnpublishedOperations            bool
@@ -817,21 +810,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 
 		enableDevMode = enable
-	}
-
-	enableCreateDocStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableCreateDocumentStoreFlagName, enableCreateDocumentStoreEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	createDocumentStoreEnabled := defaultCreateDocumentStoreEnabled
-	if enableCreateDocStoreStr != "" {
-		enable, parseErr := strconv.ParseBool(enableCreateDocStoreStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", enableCreateDocumentStoreFlagName, parseErr)
-		}
-
-		createDocumentStoreEnabled = enable
 	}
 
 	enableUnpublishedOperationStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
@@ -1131,7 +1109,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		signWithLocalWitness:                    signWithLocalWitness,
 		httpSignaturesEnabled:                   httpSignaturesEnabled,
 		didDiscoveryEnabled:                     didDiscoveryEnabled,
-		createDocumentStoreEnabled:              createDocumentStoreEnabled,
 		unpublishedOperationStoreEnabled:        unpublishedOperationStoreEnabled,
 		unpublishedOperationStoreOperationTypes: unpublishedOperationStoreOperationTypes,
 		includePublishedOperations:              includePublishedOperations,
@@ -1609,7 +1586,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)
-	startCmd.Flags().String(enableCreateDocumentStoreFlagName, "", enableCreateDocumentStoreUsage)
 	startCmd.Flags().String(enableUnpublishedOperationStoreFlagName, "", enableUnpublishedOperationStoreUsage)
 	startCmd.Flags().String(unpublishedOperationStoreOperationTypesFlagName, "", unpublishedOperationStoreOperationTypesUsage)
 	startCmd.Flags().String(includeUnpublishedOperationsFlagName, "", includeUnpublishedOperationsUsage)

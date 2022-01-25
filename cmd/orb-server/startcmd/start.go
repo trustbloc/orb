@@ -872,16 +872,6 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var updateHandlerOpts []updatehandler.Option
 
-	if parameters.createDocumentStoreEnabled {
-		store, openErr := storeProviders.provider.OpenStore("create-document")
-		if openErr != nil {
-			return fmt.Errorf("failed to open 'create-document' store: %w", openErr)
-		}
-
-		resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithCreateDocumentStore(store))
-		updateHandlerOpts = append(updateHandlerOpts, updatehandler.WithCreateDocumentStore(store))
-	}
-
 	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), endpointClient)
 
 	orbDocResolveHandler := resolvehandler.NewResolveHandler(

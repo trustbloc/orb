@@ -359,52 +359,48 @@ Feature:
     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
 
   @all
-  @enable_create_document_store_interim
-  Scenario: domain4 has create document store enabled (interim DID)
+  @resolve_unpublished_create
+  Scenario: domain3 has both create and update operations enabled (by default) for unpublished operation store
 
-    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
 
       # since domain4 has create document store enabled we are able to resolve did document immediately from the store
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "#interimDID"
     Then check success response does NOT contain "canonicalId"
 
     Then client verifies resolved document
 
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
     Then check success response does NOT contain "canonicalId"
+
+    Then client verifies resolved document
+
+    # repeat same request with hint(additional check)
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain3.com"
+    Then check success response does NOT contain "canonicalId"
+
+    Then client verifies resolved document
 
     Then mis-configured client fails to verify resolved document
 
     Then we wait 6 seconds
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
 
-  @all
-  @enable_create_document_store_interim_with_hint
-  Scenario: domain4 has create document store enabled (interim DID with hint)
-
-    When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
-    Then check success response contains "#interimDID"
-
-    When client sends request to "https://orb.domain4.com/sidetree/v1/identifiers" to resolve interim DID document with hint "https:orb.domain4.com"
-    Then check success response does NOT contain "canonicalId"
+    Then client verifies resolved document
 
   @local_cas
   @create_followed_by_immediate_update
-  Scenario: domain3 has create store disabled and it has create store
+  Scenario: domain3 has both create and update operations enabled (by default) for unpublished operation store
 
     When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
 
-    # since domain3 has create operation enabled we are able to resolve did document immediately from the store
+    #  we are able to resolve did document immediately from the store
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "#interimDID"
-    Then check success response does NOT contain "canonicalId"
-
-    # repeat same request with equivalent ID (additional check)
-    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
     Then check success response does NOT contain "canonicalId"
 
     When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
@@ -414,8 +410,12 @@ Feature:
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
     Then check success response contains "firstKey"
 
+    Then client verifies resolved document
+
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
     Then check success response contains "canonicalId"
+
+    Then client verifies resolved document
 
     When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
     Then check for request success
@@ -434,10 +434,11 @@ Feature:
     Then check success response contains "firstKey"
     Then check success response contains "secondKey"
 
+    Then client verifies resolved document
+
   @local_cas
   @enable_update_document_store
-  Scenario: domain4 has update document store enabled
-
+  Scenario: various 'failure' scenarios for unpublished/published stores
     When client sends request to "https://orb.domain4.com/sidetree/v1/operations" to create DID document
     Then check success response contains "#interimDID"
 
