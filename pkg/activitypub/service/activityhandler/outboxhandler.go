@@ -47,7 +47,7 @@ func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) 
 }
 
 // HandleActivity handles the ActivityPub activity in the outbox.
-func (h *Outbox) HandleActivity(activity *vocab.ActivityType) error {
+func (h *Outbox) HandleActivity(_ *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
 	switch {

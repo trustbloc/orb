@@ -240,7 +240,7 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 		return nil, fmt.Errorf("store activity: %w", err)
 	}
 
-	err = h.activityHandler.HandleActivity(activity)
+	err = h.activityHandler.HandleActivity(nil, activity)
 	if err != nil {
 		return nil, fmt.Errorf("handle activity: %w", err)
 	}

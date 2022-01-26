@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"net/url"
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
@@ -89,6 +90,7 @@ func TestRun(t *testing.T) {
 	apStore := memstore.New("service1")
 
 	require.NoError(t, apStore.AddReference(spi2.Following, serviceIRI, service2IRI))
+	require.NoError(t, apStore.AddReference(spi2.Follower, serviceIRI, service2IRI))
 	require.NoError(t, apStore.AddActivity(createActivities[0])) // This activity should be ignored.
 
 	apClient := mocks.NewActivitPubClient().
@@ -204,7 +206,7 @@ type mockHandler struct {
 	err              error
 }
 
-func (m *mockHandler) HandleCreateActivity(a *vocab.ActivityType, announce bool) error {
+func (m *mockHandler) HandleCreateActivity(src *url.URL, a *vocab.ActivityType, announce bool) error {
 	if m.err != nil {
 		return m.err
 	}
@@ -218,7 +220,7 @@ func (m *mockHandler) HandleCreateActivity(a *vocab.ActivityType, announce bool)
 	return nil
 }
 
-func (m *mockHandler) HandleAnnounceActivity(a *vocab.ActivityType) error {
+func (m *mockHandler) HandleAnnounceActivity(src *url.URL, a *vocab.ActivityType) error {
 	if m.err != nil {
 		return m.err
 	}

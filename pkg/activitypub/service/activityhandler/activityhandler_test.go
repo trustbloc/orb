@@ -93,7 +93,7 @@ func TestHandler_HandleUnsupportedActivity(t *testing.T) {
 		activity := &vocab.ActivityType{
 			ObjectType: vocab.NewObject(vocab.WithType(vocab.Type("unsupported_type"))),
 		}
-		err := h.HandleActivity(activity)
+		err := h.HandleActivity(nil, activity)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported activity type")
 	})
@@ -138,7 +138,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
 
-			require.NoError(t, h.HandleActivity(create))
+			require.NoError(t, h.HandleActivity(nil, create))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -168,7 +168,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			anchorEventHandler.WithError(errExpected)
 			defer func() { anchorEventHandler.WithError(nil) }()
 
-			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
+			require.True(t, errors.Is(h.HandleActivity(nil, create), errExpected))
 		})
 	})
 
@@ -181,7 +181,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
 
-			require.NoError(t, h.HandleActivity(create))
+			require.NoError(t, h.HandleActivity(nil, create))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -216,7 +216,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 				vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEventRef(t))))
 
-			require.True(t, errors.Is(h.HandleActivity(create), errExpected))
+			require.True(t, errors.Is(h.HandleActivity(nil, create), errExpected))
 		})
 	})
 
@@ -224,7 +224,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))))
 
-		err := h.HandleActivity(create)
+		err := h.HandleActivity(nil, create)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported object type in 'Create' activity")
 	})
@@ -258,7 +258,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		)
 
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, h.HandleActivity(create))
+			require.NoError(t, h.HandleActivity(nil, create))
 
 			it, err := activityStore.QueryReferences(store.AnchorEvent,
 				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
@@ -280,7 +280,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		)
 
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, h.HandleActivity(create))
+			require.NoError(t, h.HandleActivity(nil, create))
 
 			it, err := activityStore.QueryReferences(store.AnchorEvent,
 				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
@@ -296,7 +296,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeService)))))
 
-		err := h.HandleActivity(create)
+		err := h.HandleActivity(nil, create)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported object type in 'Create' activity")
 	})
@@ -317,7 +317,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 			),
 		)
 
-		err := obHandler.HandleActivity(create)
+		err := obHandler.HandleActivity(nil, create)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -362,7 +362,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(follow))
+		require.NoError(t, h.HandleActivity(nil, follow))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -385,7 +385,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(follow))
+		require.NoError(t, h.HandleActivity(nil, follow))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -405,7 +405,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 		followerAuth.WithReject()
 
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, h.HandleActivity(follow))
+			require.NoError(t, h.HandleActivity(nil, follow))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -428,7 +428,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := h.HandleActivity(follow)
+		err := h.HandleActivity(nil, follow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no actor specified")
 	})
@@ -441,7 +441,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := h.HandleActivity(follow)
+		err := h.HandleActivity(nil, follow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no IRI specified")
 	})
@@ -454,7 +454,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := h.HandleActivity(follow)
+		err := h.HandleActivity(nil, follow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "this service is not the target object for the 'Follow'")
 	})
@@ -470,7 +470,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.True(t, errors.Is(h.HandleActivity(follow), client.ErrNotFound))
+		require.True(t, errors.Is(h.HandleActivity(nil, follow), client.ErrNotFound))
 	})
 
 	t.Run("AuthorizeActor error", func(t *testing.T) {
@@ -489,7 +489,7 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := h.HandleActivity(follow)
+		err := h.HandleActivity(nil, follow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -537,7 +537,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		require.NoError(t, h.HandleActivity(invite))
+		require.NoError(t, h.HandleActivity(nil, invite))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -561,7 +561,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		require.NoError(t, h.HandleActivity(invite))
+		require.NoError(t, h.HandleActivity(nil, invite))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -582,7 +582,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 		witnessInvitationAuth.WithReject()
 
 		t.Run("Success", func(t *testing.T) {
-			require.NoError(t, h.HandleActivity(invite))
+			require.NoError(t, h.HandleActivity(nil, invite))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -606,7 +606,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		err := h.HandleActivity(invite)
+		err := h.HandleActivity(nil, invite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no actor specified")
 	})
@@ -620,7 +620,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		err := h.HandleActivity(invite)
+		err := h.HandleActivity(nil, invite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no object specified in 'Invite' activity")
 	})
@@ -634,7 +634,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service3IRI))),
 		)
 
-		err := h.HandleActivity(invite)
+		err := h.HandleActivity(nil, invite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "this service is not the target object for the 'Invite'")
 	})
@@ -651,7 +651,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		require.True(t, errors.Is(h.HandleActivity(invite), client.ErrNotFound))
+		require.True(t, errors.Is(h.HandleActivity(nil, invite), client.ErrNotFound))
 	})
 
 	t.Run("AuthorizeWitness error", func(t *testing.T) {
@@ -671,7 +671,7 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		err := h.HandleActivity(invite)
+		err := h.HandleActivity(nil, invite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -717,7 +717,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(accept))
+		require.NoError(t, h.HandleActivity(nil, accept))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -732,7 +732,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.True(t, containsIRI(following, service1IRI))
 
 		// Post another accept activity with the same actor.
-		err = h.HandleActivity(accept)
+		err = h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "already in the 'FOLLOWING' collection")
 	})
@@ -757,7 +757,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(accept))
+		require.NoError(t, h.HandleActivity(nil, accept))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -772,7 +772,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		require.True(t, containsIRI(witnesses, service1IRI))
 
 		// Post another accept activity with the same actor.
-		err = h.HandleActivity(accept)
+		err = h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "already in the 'WITNESS' collection")
 	})
@@ -791,7 +791,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(accept), "no actor specified in 'Accept' activity")
+		require.EqualError(t, h.HandleActivity(nil, accept), "no actor specified in 'Accept' activity")
 	})
 
 	t.Run("No activity specified in 'object' field", func(t *testing.T) {
@@ -802,7 +802,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(accept),
+		require.EqualError(t, h.HandleActivity(nil, accept),
 			"no activity specified in the 'object' field of the 'Accept' activity")
 	})
 
@@ -821,7 +821,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(accept),
+		require.EqualError(t, h.HandleActivity(nil, accept),
 			"unsupported activity type [Announce] in the 'object' field of the 'Accept' activity")
 	})
 
@@ -839,7 +839,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(accept),
+		require.EqualError(t, h.HandleActivity(nil, accept),
 			"no actor specified in the object of the 'Accept' activity")
 	})
 
@@ -858,7 +858,7 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(accept),
+		require.EqualError(t, h.HandleActivity(nil, accept),
 			"the actor in the object of the 'Accept' activity is not this service")
 	})
 }
@@ -900,7 +900,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 
 		as.QueryActivitiesReturns(nil, errExpected)
 
-		err := h.HandleActivity(accept)
+		err := h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -910,7 +910,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 
 		as.QueryActivitiesReturns(it, nil)
 
-		require.True(t, errors.Is(h.HandleActivity(accept), store.ErrNotFound))
+		require.True(t, errors.Is(h.HandleActivity(nil, accept), store.ErrNotFound))
 	})
 
 	t.Run("Actor mismatch", func(t *testing.T) {
@@ -925,7 +925,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 
 		as.QueryActivitiesReturns(it, nil)
 
-		err := h.HandleActivity(accept)
+		err := h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "actors do not match")
 	})
@@ -943,7 +943,7 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 
 		as.QueryActivitiesReturns(it, nil)
 
-		err := h.HandleActivity(accept)
+		err := h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "types do not match")
 	})
@@ -1006,7 +1006,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 
 		as.QueryReferencesReturns(nil, errExpected)
 
-		err := h.HandleActivity(acceptFollow)
+		err := h.HandleActivity(nil, acceptFollow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -1021,7 +1021,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 		as.QueryReferencesReturns(it, nil)
 		as.AddReferenceReturns(errExpected)
 
-		err := h.HandleActivity(acceptFollow)
+		err := h.HandleActivity(nil, acceptFollow)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -1033,7 +1033,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 
 		as.QueryReferencesReturns(nil, errExpected)
 
-		err := h.HandleActivity(acceptInvite)
+		err := h.HandleActivity(nil, acceptInvite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -1048,7 +1048,7 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 		as.QueryReferencesReturns(it, nil)
 		as.AddReferenceReturns(errExpected)
 
-		err := h.HandleActivity(acceptInvite)
+		err := h.HandleActivity(nil, acceptInvite)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -1090,7 +1090,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(reject))
+		require.NoError(t, h.HandleActivity(nil, reject))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1120,7 +1120,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.NoError(t, h.HandleActivity(reject))
+		require.NoError(t, h.HandleActivity(nil, reject))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1148,7 +1148,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(reject), "no actor specified in 'Reject' activity")
+		require.EqualError(t, h.HandleActivity(nil, reject), "no actor specified in 'Reject' activity")
 	})
 
 	t.Run("No Follow activity specified in 'object' field", func(t *testing.T) {
@@ -1159,7 +1159,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(reject),
+		require.EqualError(t, h.HandleActivity(nil, reject),
 			"no activity specified in the 'object' field of the 'Reject' activity")
 	})
 
@@ -1178,7 +1178,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(reject),
+		require.EqualError(t, h.HandleActivity(nil, reject),
 			"unsupported activity type [Announce] in the 'object' field of the 'Accept' activity")
 	})
 
@@ -1196,7 +1196,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(reject),
+		require.EqualError(t, h.HandleActivity(nil, reject),
 			"no actor specified in the object of the 'Reject' activity")
 	})
 
@@ -1216,7 +1216,7 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		require.EqualError(t, h.HandleActivity(reject),
+		require.EqualError(t, h.HandleActivity(nil, reject),
 			"the actor in the object of the 'Reject' activity is not this service")
 	})
 }
@@ -1275,7 +1275,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, h.HandleActivity(announce))
+		require.NoError(t, h.HandleActivity(nil, announce))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1320,7 +1320,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, h.HandleActivity(announce))
+		require.NoError(t, h.HandleActivity(nil, announce))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1357,7 +1357,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		require.NoError(t, h.HandleActivity(announce))
+		require.NoError(t, h.HandleActivity(nil, announce))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1392,7 +1392,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		err := h.HandleActivity(announce)
+		err := h.HandleActivity(nil, announce)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "expecting 'Info' type")
 	})
@@ -1418,7 +1418,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		err := h.HandleActivity(announce)
+		err := h.HandleActivity(nil, announce)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "expecting 'Info' type")
 	})
@@ -1436,7 +1436,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		err := h.HandleActivity(announce)
+		err := h.HandleActivity(nil, announce)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported object type for 'Announce'")
 	})
@@ -1473,7 +1473,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		ib.Start()
 		defer ib.Stop()
 
-		require.NoError(t, ib.HandleActivity(announce))
+		require.NoError(t, ib.HandleActivity(nil, announce))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1526,7 +1526,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		require.NoError(t, h.HandleActivity(offer))
+		require.NoError(t, h.HandleActivity(nil, offer))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1550,7 +1550,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unable to unmarshal proof")
 	})
@@ -1573,7 +1573,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		require.True(t, errors.Is(h.HandleActivity(offer), errExpected))
+		require.True(t, errors.Is(h.HandleActivity(nil, offer), errExpected))
 	})
 
 	t.Run("No start time", func(t *testing.T) {
@@ -1588,7 +1588,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "startTime is required")
 	})
@@ -1604,7 +1604,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "endTime is required")
 	})
@@ -1623,7 +1623,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor event is required")
 	})
@@ -1642,7 +1642,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor event is required")
 	})
@@ -1663,7 +1663,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.NoError(t, err)
 	})
 
@@ -1682,7 +1682,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 			vocab.WithEndTime(&endTime),
 		)
 
-		err := h.HandleActivity(offer)
+		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "object target IRI must be set to https://w3id.org/activityanchors#AnchorWitness")
 	})
@@ -1763,7 +1763,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Log(string(bytes))
 
 	t.Run("Success", func(t *testing.T) {
-		require.NoError(t, h.HandleActivity(acceptOffer))
+		require.NoError(t, h.HandleActivity(nil, acceptOffer))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -1778,7 +1778,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		proofHandler.WithError(errExpected)
 		defer proofHandler.WithError(nil)
 
-		require.True(t, errors.Is(h.HandleActivity(acceptOffer), errExpected))
+		require.True(t, errors.Is(h.HandleActivity(nil, acceptOffer), errExpected))
 	})
 
 	t.Run("inReplyTo does not match object IRI in offer activity", func(t *testing.T) {
@@ -2048,7 +2048,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, ibHandler.HandleActivity(undo), "no actor specified in 'Undo' activity")
+		require.EqualError(t, ibHandler.HandleActivity(nil, undo), "no actor specified in 'Undo' activity")
 	})
 
 	t.Run("No object in activity", func(t *testing.T) {
@@ -2060,7 +2060,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		require.EqualError(t, ibHandler.HandleActivity(undo),
+		require.EqualError(t, ibHandler.HandleActivity(nil, undo),
 			"no activity specified in 'object' field of the 'Undo' activity")
 	})
 
@@ -2072,7 +2072,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := ibHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(nil, undo)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, store.ErrNotFound))
 	})
@@ -2085,7 +2085,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := ibHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(nil, undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no actor in stored 'Follow' activity")
 	})
@@ -2097,7 +2097,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := ibHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(nil, undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not the same as the actor of the original activity")
 	})
@@ -2110,7 +2110,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := ibHandler.HandleActivity(undo)
+		err := ibHandler.HandleActivity(nil, undo)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not supported")
 	})
@@ -2138,7 +2138,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			vocab.WithTo(service1IRI),
 		)
 
-		err := inboxHandler.HandleActivity(undo)
+		err := inboxHandler.HandleActivity(nil, undo)
 		require.True(t, orberrors.IsTransient(err))
 
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
@@ -2172,7 +2172,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, ibHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2196,7 +2196,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "nil object IRI")
 		})
@@ -2209,7 +2209,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), fmt.Sprintf("object IRI mismatch - expecting %s but got %s",
 				service1IRI, service3IRI))
@@ -2231,7 +2231,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, ibHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2258,7 +2258,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, obHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2282,7 +2282,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "nil object IRI")
 		})
@@ -2294,7 +2294,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "not the same as the actor of the original activity")
 		})
@@ -2316,7 +2316,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, obHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2396,7 +2396,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, ibHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2420,7 +2420,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "object IRI mismatch")
 		})
@@ -2433,7 +2433,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "nil target IRI")
 		})
@@ -2446,7 +2446,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "target IRI mismatch")
 		})
@@ -2467,7 +2467,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, ibHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2494,7 +2494,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, obHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2518,7 +2518,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "object IRI mismatch")
 		})
@@ -2531,7 +2531,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "nil target IRI")
 		})
@@ -2544,7 +2544,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "target IRI mismatch")
 		})
@@ -2556,7 +2556,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := obHandler.HandleActivity(undo)
+			err := obHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "is not the same as the actor of the original activity")
 		})
@@ -2578,7 +2578,7 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, obHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2642,7 +2642,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, ibHandler.HandleActivity(undo))
+			require.NoError(t, ibHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2685,7 +2685,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			err := ibHandler.HandleActivity(undo)
+			err := ibHandler.HandleActivity(nil, undo)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "invalid anchor event URL")
 		})
@@ -2711,7 +2711,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 				vocab.WithTo(service1IRI),
 			)
 
-			require.NoError(t, obHandler.HandleActivity(undo))
+			require.NoError(t, obHandler.HandleActivity(nil, undo))
 
 			time.Sleep(50 * time.Millisecond)
 
@@ -2895,7 +2895,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	)
 
 	t.Run("Success", func(t *testing.T) {
-		require.NoError(t, h.HandleActivity(like))
+		require.NoError(t, h.HandleActivity(nil, like))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -2921,7 +2921,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 			vocab.WithPublishedTime(&publishedTime),
 		)
 
-		require.NoError(t, h.HandleActivity(likeNoResult))
+		require.NoError(t, h.HandleActivity(nil, likeNoResult))
 
 		time.Sleep(50 * time.Millisecond)
 
@@ -2952,7 +2952,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 			),
 		)
 
-		err := h.HandleActivity(invalidLike)
+		err := h.HandleActivity(nil, invalidLike)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor reference URL is required")
 	})
@@ -2973,7 +2973,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		h.Start()
 		defer h.Stop()
 
-		err := h.HandleActivity(like)
+		err := h.HandleActivity(nil, like)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -2993,7 +2993,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		h.Start()
 		defer h.Stop()
 
-		err := h.HandleActivity(like)
+		err := h.HandleActivity(nil, like)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -3041,7 +3041,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 	)
 
 	t.Run("Success", func(t *testing.T) {
-		require.NoError(t, h.HandleActivity(like))
+		require.NoError(t, h.HandleActivity(nil, like))
 
 		it, err := activityStore.QueryReferences(store.Liked,
 			store.NewCriteria(store.WithObjectIRI(service2IRI)))
@@ -3069,7 +3069,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 			),
 		)
 
-		require.EqualError(t, h.HandleActivity(invalidLike), "no anchor reference URL in 'Like' activity")
+		require.EqualError(t, h.HandleActivity(nil, invalidLike), "no anchor reference URL in 'Like' activity")
 	})
 
 	t.Run("Store error", func(t *testing.T) {
@@ -3083,7 +3083,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 		h.Start()
 		defer h.Stop()
 
-		err := h.HandleActivity(like)
+		err := h.HandleActivity(nil, like)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), err.Error())
 	})

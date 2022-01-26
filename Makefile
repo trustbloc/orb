@@ -19,7 +19,7 @@
 CONTAINER_IDS      = $(shell type docker >/dev/null 2>&1 && docker ps -a -q)
 DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* -q)
 ARCH               = $(shell go env GOARCH)
-GO_VER             = 1.16
+GO_VER             = 1.17
 
 # defined in github.com/trustbloc/orb/pkg/nodeinfo/metadata.go
 METADATA_VAR = OrbVersion=0.1.2
@@ -37,7 +37,7 @@ ORB_DRIVER_REST_PATH=cmd/orb-driver
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.13
+ALPINE_VER ?= 3.15
 GO_TAGS    ?=
 
 export GO111MODULE=on

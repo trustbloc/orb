@@ -228,7 +228,7 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 		return activity, nil
 	}
 
-	err = h.activityHandler.HandleActivity(activity)
+	err = h.activityHandler.HandleActivity(nil, activity)
 	if err != nil {
 		// If it's a transient error then return it so that the message is Nacked and retried. Otherwise, fall
 		// through in order to store the activity and Ack the message.

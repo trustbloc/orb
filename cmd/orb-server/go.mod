@@ -19,8 +19,8 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/orb v0.0.0
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220124195951-717ab301acb0
+	github.com/trustbloc/orb v0.1.3
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220125222405-838eba904ae4
 )
 
 require (

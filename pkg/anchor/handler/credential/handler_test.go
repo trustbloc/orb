@@ -61,7 +61,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(testutil.GetCanonical(t, sampleAnchorEvent)), nil)
 		require.NoError(t, err)
 
-		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), anchorEvent)
+		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), actor, anchorEvent)
 		require.NoError(t, err)
 	})
 
@@ -73,7 +73,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		handler := newAnchorEventHandler(t, casStore)
 
-		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil)
+		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
 		require.NoError(t, err)
 	})
 
@@ -87,7 +87,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		err = newAnchorEventHandler(t, createInMemoryCAS(t)).
-			HandleAnchorEvent(actor, testutil.MustParseURL(hl), anchorEvent)
+			HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, anchorEvent)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "parse created: parsing time")
 	})
@@ -104,7 +104,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, newAnchorEventHandler(t, createInMemoryCAS(t)).
-			HandleAnchorEvent(actor, testutil.MustParseURL(hl), anchorEvent))
+			HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, anchorEvent))
 	})
 
 	t.Run("Neither local nor remote CAS has the anchor credential", func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorEvent), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil)
+		err = anchorCredentialHandler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "content not found")
 	})

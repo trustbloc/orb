@@ -31,6 +31,13 @@ const (
 	taskName        = "activity-sync"
 )
 
+type activitySource string
+
+const (
+	inbox  activitySource = "Inbox"
+	outbox activitySource = "Outbox"
+)
+
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
 	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
@@ -94,7 +101,7 @@ func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Stor
 }
 
 func (m *task) run() {
-	following, err := m.getFollowing()
+	following, err := m.getServices(store.Following)
 	if err != nil {
 		logger.Errorf("Error retrieving my following list: %s", err)
 
@@ -103,7 +110,9 @@ func (m *task) run() {
 
 	if len(following) > 0 {
 		for _, serviceIRI := range following {
-			err = m.syncOutbox(serviceIRI)
+			err = m.sync(serviceIRI, outbox, func(a *vocab.ActivityType) bool {
+				return a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce)
+			})
 			if err != nil {
 				logger.Warnf("Error processing activities from outbox of service [%s]: %s", serviceIRI, err)
 			}
@@ -111,11 +120,32 @@ func (m *task) run() {
 
 		logger.Debugf("Done synchronizing activities with %d services that I'm following.", len(following))
 	}
+
+	followers, err := m.getServices(store.Follower)
+	if err != nil {
+		logger.Errorf("Error retrieving my followers list: %s", err)
+
+		return
+	}
+
+	if len(followers) > 0 {
+		for _, serviceIRI := range followers {
+			err = m.sync(serviceIRI, inbox, func(a *vocab.ActivityType) bool {
+				// Only sync Create activities that were originated by this service.
+				return a.Type().Is(vocab.TypeCreate) && a.Actor().String() == m.serviceIRI.String()
+			})
+			if err != nil {
+				logger.Warnf("Error processing activities from inbox of service [%s]: %s", serviceIRI, err)
+			}
+		}
+
+		logger.Debugf("Done synchronizing activities with %d services that are following me.", len(followers))
+	}
 }
 
 //nolint:gocyclo,cyclop
-func (m *task) syncOutbox(serviceIRI *url.URL) error {
-	it, lastSyncedPage, lastSyncedIndex, err := m.getNewActivities(serviceIRI)
+func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vocab.ActivityType) bool) error {
+	it, lastSyncedPage, lastSyncedIndex, err := m.getNewActivities(serviceIRI, src)
 	if err != nil {
 		return fmt.Errorf("get new activities: %w", err)
 	}
@@ -138,7 +168,14 @@ func (m *task) syncOutbox(serviceIRI *url.URL) error {
 
 		currentPage := it.CurrentPage()
 
-		processed, e := m.syncActivity(currentPage, a)
+		if !shouldSync(a) {
+			logger.Debugf("%s sync from [%s]: Ignoring activity [%s] of Type %s",
+				src, serviceIRI, a.ID(), a.Type())
+
+			continue
+		}
+
+		processed, e := m.syncActivity(serviceIRI, currentPage, a)
 		if e != nil {
 			return fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
 		}
@@ -155,28 +192,22 @@ func (m *task) syncOutbox(serviceIRI *url.URL) error {
 	if page.String() != lastSyncedPage.String() || index != lastSyncedIndex {
 		logger.Debugf("Updating last synced page to [%s], index [%d]", page, index)
 
-		err = m.store.PutLastSyncedPage(serviceIRI, page, index)
+		err = m.store.PutLastSyncedPage(serviceIRI, src, page, index)
 		if err != nil {
 			return fmt.Errorf("update last synced page [%s] at index [%d]: %w", page, index, err)
 		}
 
 		if numProcessed > 0 {
-			logger.Infof("Processed %d missing anchor events from outbox ending at page [%s], index [%d]",
-				numProcessed, page, index)
+			logger.Infof("Processed %d missing anchor events from %s ending at page [%s], index [%d]",
+				numProcessed, src, page, index)
 		}
 	}
 
 	return nil
 }
 
-func (m *task) syncActivity(currentPage *url.URL, a *vocab.ActivityType) (bool, error) {
+func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (bool, error) {
 	logger.Debugf("Syncing activity [%s] from current page [%s]", a.ID(), currentPage)
-
-	if !a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce) {
-		logger.Debugf("Ignoring activity [%s] of Type %s", a.ID(), a.Type())
-
-		return false, nil
-	}
 
 	processed, err := m.isProcessed(a)
 	if err != nil {
@@ -192,7 +223,7 @@ func (m *task) syncActivity(currentPage *url.URL, a *vocab.ActivityType) (bool, 
 
 	logger.Debugf("Processing activity [%s] of type %s from page [%s].", a.ID(), a.Type(), currentPage)
 
-	if e := m.process(a); e != nil {
+	if e := m.process(serviceIRI, a); e != nil {
 		if errors.Is(e, spi.ErrDuplicateAnchorEvent) {
 			logger.Debugf("Ignoring activity [%s] of type %s since it has already been processed in page [%s]. "+
 				"Error from handler: %s", a.ID(), a.Type(), currentPage, e)
@@ -206,19 +237,19 @@ func (m *task) syncActivity(currentPage *url.URL, a *vocab.ActivityType) (bool, 
 	return true, nil
 }
 
-func (m *task) process(a *vocab.ActivityType) error {
+func (m *task) process(source *url.URL, a *vocab.ActivityType) error {
 	switch {
 	case a.Type().Is(vocab.TypeCreate):
 		logger.Debugf("Processing create activity [%s]", a.ID())
 
-		if err := m.getHandler().HandleCreateActivity(a, false); err != nil {
+		if err := m.getHandler().HandleCreateActivity(source, a, false); err != nil {
 			return fmt.Errorf("handle create activity [%s]: %w", a.ID(), err)
 		}
 
 	case a.Type().Is(vocab.TypeAnnounce):
 		logger.Debugf("Processing announce activity [%s]", a.ID())
 
-		if err := m.getHandler().HandleAnnounceActivity(a); err != nil {
+		if err := m.getHandler().HandleAnnounceActivity(source, a); err != nil {
 			return fmt.Errorf("handle announce activity [%s]: %w", a.ID(), err)
 		}
 
@@ -247,24 +278,23 @@ func (m *task) isProcessed(a *vocab.ActivityType) (bool, error) {
 	return false, err
 }
 
-func (m *task) getFollowing() ([]*url.URL, error) {
-	it, err := m.activityPubStore.QueryReferences(store.Following, store.NewCriteria(store.WithObjectIRI(m.serviceIRI)))
+func (m *task) getServices(refType store.ReferenceType) ([]*url.URL, error) {
+	it, err := m.activityPubStore.QueryReferences(refType, store.NewCriteria(store.WithObjectIRI(m.serviceIRI)))
 	if err != nil {
-		return nil, fmt.Errorf("error querying for references of type %s from storage: %w",
-			store.Following, err)
+		return nil, fmt.Errorf("error querying for references of type %s from storage: %w", refType, err)
 	}
 
 	refs, err := storeutil.ReadReferences(it, 0)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving references of type %s from storage: %w",
-			store.Following, err)
+		return nil, fmt.Errorf("error retrieving references of type %s from storage: %w", refType, err)
 	}
 
 	return refs, nil
 }
 
-func (m *task) getNewActivities(serviceIRI *url.URL) (client.ActivityIterator, *url.URL, int, error) {
-	page, index, err := m.getLastSyncedPage(serviceIRI)
+func (m *task) getNewActivities(serviceIRI *url.URL, src activitySource) (client.ActivityIterator,
+	*url.URL, int, error) {
+	page, index, err := m.getLastSyncedPage(serviceIRI, src)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("get last synced page: %w", err)
 	}
@@ -280,11 +310,11 @@ func (m *task) getNewActivities(serviceIRI *url.URL) (client.ActivityIterator, *
 	return it, page, index, nil
 }
 
-func (m *task) getLastSyncedPage(serviceIRI *url.URL) (*url.URL, int, error) {
-	lastSyncedPage, index, err := m.store.GetLastSyncedPage(serviceIRI)
+func (m *task) getLastSyncedPage(serviceIRI *url.URL, src activitySource) (*url.URL, int, error) {
+	lastSyncedPage, index, err := m.store.GetLastSyncedPage(serviceIRI, src)
 	if err != nil {
 		if !errors.Is(err, storage.ErrDataNotFound) {
-			return nil, 0, fmt.Errorf("get last synced page: %w", err)
+			return nil, 0, fmt.Errorf("get last synced page for %s: %w", src, err)
 		}
 	}
 
@@ -292,12 +322,16 @@ func (m *task) getLastSyncedPage(serviceIRI *url.URL) (*url.URL, int, error) {
 		return lastSyncedPage, index, nil
 	}
 
-	logger.Debugf("Last synced page not found for service [%s]. Will start at the beginning of the outbox.",
-		serviceIRI)
+	logger.Debugf("Last synced page not found for service [%s]. Will start at the beginning of the %s.",
+		serviceIRI, src)
 
 	actor, err := m.apClient.GetActor(serviceIRI)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get actor: %w", err)
+	}
+
+	if src == inbox {
+		return actor.Inbox(), 0, nil
 	}
 
 	return actor.Outbox(), 0, nil

@@ -98,7 +98,8 @@ func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
 }
 
 // HandleAnchorEvent handles an anchor event.
-func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef *url.URL,
+// nolint:funlen
+func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
 	logger.Debugf("Received request from [%s] for anchor event URL [%s]", actor, anchorEventRef)
 
@@ -140,13 +141,23 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef *url.URL,
 
 	logger.Infof("Processing anchor event [%s]", anchorEventRef)
 
+	var alternateSources []string
+
+	if source != nil {
+		// The anchor index in the AnchorEvent may not be found in the CAS store. This may occur in the event that
+		// the anchor origin lost the original data. So we add an alternate source from which the Sidetree
+		// files may be retrieved.
+		alternateSources = []string{source.String()}
+	}
+
 	// Now process the latest anchor event.
 	err = h.processAnchorEvent(&anchorInfo{
 		anchorEvent: anchorEvent,
 		AnchorInfo: &anchorinfo.AnchorInfo{
-			Hashlink:      anchorEventRef.String(),
-			LocalHashlink: localHL,
-			AttributedTo:  attributedTo,
+			Hashlink:         anchorEventRef.String(),
+			LocalHashlink:    localHL,
+			AttributedTo:     attributedTo,
+			AlternateSources: alternateSources,
 		},
 	})
 	if err != nil {

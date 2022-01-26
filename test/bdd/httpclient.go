@@ -121,12 +121,18 @@ func (c *httpClient) GetWithSignature(url, domain string) (*httpResponse, error)
 }
 
 func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int, retryableCodes ...int) (*httpResponse, error) {
+	codes := append(retryableCodes, retryableCode)
+
+	return c.GetWithRetryFunc(url, attempts, func(resp *httpResponse) bool {
+		return containsStatusCode(codes, resp.StatusCode)
+	})
+}
+
+func (c *httpClient) GetWithRetryFunc(url string, attempts uint8, shouldRetry func(resp *httpResponse) bool) (*httpResponse, error) {
 	var err error
 	var resp *httpResponse
 
 	logger.Infof("resolving: %s", url)
-
-	codes := append(retryableCodes, retryableCode)
 
 	remainingAttempts := attempts
 	for {
@@ -135,7 +141,7 @@ func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int,
 			return nil, err
 		}
 
-		if !containsStatusCode(codes, resp.StatusCode) {
+		if !shouldRetry(resp) {
 			break
 		}
 
@@ -147,7 +153,7 @@ func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int,
 			break
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 
 	return resp, nil

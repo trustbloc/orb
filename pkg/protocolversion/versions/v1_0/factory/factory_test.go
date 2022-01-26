@@ -93,6 +93,20 @@ func TestCasReader_Read(t *testing.T) {
 	})
 }
 
+func TestFormatWebCASURI(t *testing.T) {
+	t.Run("hash", func(t *testing.T) {
+		casURI, err := formatWebCASURI("12345", "https://orb.domain1.com/services/orb")
+		require.NoError(t, err)
+		require.Equal(t, casURI, "https:orb.domain1.com:12345")
+	})
+
+	t.Run("hashlink", func(t *testing.T) {
+		casURI, err := formatWebCASURI("hl:12345", "https://orb.domain1.com/services/orb")
+		require.NoError(t, err)
+		require.Equal(t, casURI, "https:orb.domain1.com:12345")
+	})
+}
+
 func createNewResolver(t *testing.T, casClient extendedcasclient.Client) *casresolver.Resolver {
 	t.Helper()
 

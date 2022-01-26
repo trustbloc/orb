@@ -291,7 +291,6 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 // CheckInProcessAnchors will be invoked to check for in-complete (not processed) anchors.
 func (s *Store) CheckInProcessAnchors() {
 	query := fmt.Sprintf("%s<=%d", statusCheckTimeTagName, time.Now().Unix())
-	logger.Debugf("Checking anchor event status data query: %s", query)
 
 	iterator, err := s.store.Query(query)
 	if err != nil {
