@@ -35,7 +35,7 @@ func (m *AnchorEventHandler) WithError(err error) *AnchorEventHandler {
 }
 
 // HandleAnchorEvent stores the anchor event or returns an error if it was set.
-func (m *AnchorEventHandler) HandleAnchorEvent(actor, hl *url.URL, anchorEvent *vocab.AnchorEventType) error {
+func (m *AnchorEventHandler) HandleAnchorEvent(actor, hl, src *url.URL, anchorEvent *vocab.AnchorEventType) error {
 	if m.err != nil {
 		return m.err
 	}

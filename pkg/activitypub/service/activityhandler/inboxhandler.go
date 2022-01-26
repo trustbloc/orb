@@ -72,12 +72,12 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 
 // HandleActivity handles the ActivityPub activity in the inbox.
 //nolint:cyclop
-func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
+func (h *Inbox) HandleActivity(source *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
-		return h.HandleCreateActivity(activity, true)
+		return h.HandleCreateActivity(source, activity, true)
 	case typeProp.Is(vocab.TypeFollow):
 		return h.handleFollowActivity(activity)
 	case typeProp.Is(vocab.TypeInvite):
@@ -87,7 +87,7 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 	case typeProp.Is(vocab.TypeReject):
 		return h.handleRejectActivity(activity)
 	case typeProp.Is(vocab.TypeAnnounce):
-		return h.HandleAnnounceActivity(activity)
+		return h.HandleAnnounceActivity(source, activity)
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
 	case typeProp.Is(vocab.TypeLike):
@@ -100,7 +100,7 @@ func (h *Inbox) HandleActivity(activity *vocab.ActivityType) error {
 }
 
 // HandleCreateActivity handles a 'Create' ActivityPub activity.
-func (h *Inbox) HandleCreateActivity(create *vocab.ActivityType, announce bool) error {
+func (h *Inbox) HandleCreateActivity(source *url.URL, create *vocab.ActivityType, announce bool) error {
 	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
 
 	if !create.Object().Type().Is(vocab.TypeAnchorEvent) {
@@ -115,9 +115,9 @@ func (h *Inbox) HandleCreateActivity(create *vocab.ActivityType, announce bool) 
 	}
 
 	if anchorEvent.Index() != nil {
-		err = h.handleEmbeddedAnchorEvent(create, anchorEvent, announce)
+		err = h.handleEmbeddedAnchorEvent(source, create, anchorEvent, announce)
 	} else {
-		err = h.handleAnchorEventRef(create, anchorEvent.URL()[0], announce)
+		err = h.handleAnchorEventRef(source, create, anchorEvent.URL()[0], announce)
 	}
 
 	if err != nil {
@@ -129,13 +129,13 @@ func (h *Inbox) HandleCreateActivity(create *vocab.ActivityType, announce bool) 
 	return nil
 }
 
-func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType,
+func (h *Inbox) handleEmbeddedAnchorEvent(source *url.URL, create *vocab.ActivityType,
 	anchorEvent *vocab.AnchorEventType, announce bool) error {
 	if len(anchorEvent.URL()) == 0 {
 		return errors.New("missing anchor event URL")
 	}
 
-	if err := h.handleAnchorEvent(create.Actor(), anchorEvent); err != nil {
+	if err := h.handleAnchorEvent(create.Actor(), source, anchorEvent); err != nil {
 		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 	}
 
@@ -149,8 +149,9 @@ func (h *Inbox) handleEmbeddedAnchorEvent(create *vocab.ActivityType,
 	return nil
 }
 
-func (h *Inbox) handleAnchorEventRef(create *vocab.ActivityType, anchorEventURL *url.URL, announce bool) error {
-	if err := h.handleAnchorEventReference(create.Actor(), anchorEventURL); err != nil {
+func (h *Inbox) handleAnchorEventRef(source *url.URL, create *vocab.ActivityType,
+	anchorEventURL *url.URL, announce bool) error {
+	if err := h.handleAnchorEventReference(create.Actor(), anchorEventURL, source); err != nil {
 		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 	}
 
@@ -447,7 +448,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 }
 
 // HandleAnnounceActivity handles an 'Announce' ActivityPub activity.
-func (h *Inbox) HandleAnnounceActivity(announce *vocab.ActivityType) error {
+func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Announce' activity: %s", h.ServiceName, announce.ID())
 
 	obj := announce.Object()
@@ -456,12 +457,12 @@ func (h *Inbox) HandleAnnounceActivity(announce *vocab.ActivityType) error {
 
 	switch {
 	case t.Is(vocab.TypeCollection):
-		if err := h.handleAnnounceCollection(announce, obj.Collection().Items()); err != nil {
+		if err := h.handleAnnounceCollection(source, announce, obj.Collection().Items()); err != nil {
 			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
 	case t.Is(vocab.TypeOrderedCollection):
-		if err := h.handleAnnounceCollection(announce, obj.OrderedCollection().Items()); err != nil {
+		if err := h.handleAnnounceCollection(source, announce, obj.OrderedCollection().Items()); err != nil {
 			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
@@ -575,7 +576,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 	return nil
 }
 
-func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEventType) error {
+func (h *Inbox) handleAnchorEvent(actor, source *url.URL, anchorEvent *vocab.AnchorEventType) error {
 	anchorEventRef := anchorEvent.URL()[0]
 
 	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
@@ -598,7 +599,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 		vocab.WithAttachment(anchorEvent.Attachment()...),
 	)
 
-	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, ae)
+	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, source, ae)
 	if err != nil {
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
@@ -613,7 +614,7 @@ func (h *Inbox) handleAnchorEvent(actor *url.URL, anchorEvent *vocab.AnchorEvent
 	return nil
 }
 
-func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error {
+func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef, source *url.URL) error {
 	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("has anchor event reference [%s]: %w",
@@ -624,7 +625,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error
 		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, service.ErrDuplicateAnchorEvent)
 	}
 
-	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, nil)
+	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, source, nil)
 	if err != nil {
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
@@ -639,7 +640,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef *url.URL) error
 	return nil
 }
 
-func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*vocab.ObjectProperty) error { //nolint:gocyclo,cyclop,lll
+func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.ActivityType, items []*vocab.ObjectProperty) error { //nolint:gocyclo,cyclop,lll
 	logger.Debugf("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
 
 	var anchorEventIDs []*url.URL
@@ -659,7 +660,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 		}
 
 		if anchorEvent.Index() != nil { //nolint:nestif
-			if err := h.handleAnchorEvent(announce.Actor(), anchorEvent); err != nil {
+			if err := h.handleAnchorEvent(announce.Actor(), source, anchorEvent); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
 					return err
@@ -670,7 +671,7 @@ func (h *Inbox) handleAnnounceCollection(announce *vocab.ActivityType, items []*
 				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
 			}
 		} else {
-			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0]); err != nil {
+			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0], source); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
 					return err
@@ -1021,7 +1022,7 @@ func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 
 type noOpAnchorCredentialPublisher struct{}
 
-func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_, _ *url.URL, _ *vocab.AnchorEventType) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_, _, _ *url.URL, _ *vocab.AnchorEventType) error {
 	return nil
 }
 

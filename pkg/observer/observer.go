@@ -324,6 +324,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		ProtocolVersion:      anchorPayload.Version,
 		CanonicalReference:   canonicalID,
 		EquivalentReferences: equivalentRefs,
+		AlternateSources:     anchor.AlternateSources,
 	}
 
 	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)

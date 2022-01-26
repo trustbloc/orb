@@ -40,8 +40,8 @@ type syncInfo struct {
 	Index int    `json:"index"`
 }
 
-func (s *syncStore) GetLastSyncedPage(serviceIRI *url.URL) (*url.URL, int, error) {
-	pageBytes, err := s.store.Get(serviceIRI.String())
+func (s *syncStore) GetLastSyncedPage(serviceIRI *url.URL, source activitySource) (*url.URL, int, error) {
+	pageBytes, err := s.store.Get(getKey(serviceIRI, source))
 	if err != nil {
 		return nil, 0, fmt.Errorf("get from DB: %w", err)
 	}
@@ -50,7 +50,7 @@ func (s *syncStore) GetLastSyncedPage(serviceIRI *url.URL) (*url.URL, int, error
 
 	err = s.unmarshal(pageBytes, info)
 	if err != nil {
-		return nil, 0, fmt.Errorf("unmarshal sybc info [%s]: %w", pageBytes, err)
+		return nil, 0, fmt.Errorf("unmarshal sync info [%s]: %w", pageBytes, err)
 	}
 
 	pageIRI, err := url.Parse(info.Page)
@@ -61,7 +61,7 @@ func (s *syncStore) GetLastSyncedPage(serviceIRI *url.URL) (*url.URL, int, error
 	return pageIRI, info.Index, nil
 }
 
-func (s *syncStore) PutLastSyncedPage(serviceIRI, page *url.URL, index int) error {
+func (s *syncStore) PutLastSyncedPage(serviceIRI *url.URL, source activitySource, page *url.URL, index int) error {
 	info := &syncInfo{
 		Page:  page.String(),
 		Index: index,
@@ -69,13 +69,18 @@ func (s *syncStore) PutLastSyncedPage(serviceIRI, page *url.URL, index int) erro
 
 	infoBytes, err := s.marshal(info)
 	if err != nil {
-		return fmt.Errorf("marshal sync info at page [%s] and index %d: %w", info.Page, info.Index, err)
+		return fmt.Errorf("marshal sync info of %s at page [%s] and index %d: %w",
+			source, info.Page, info.Index, err)
 	}
 
-	err = s.store.Put(serviceIRI.String(), infoBytes)
+	err = s.store.Put(getKey(serviceIRI, source), infoBytes)
 	if err != nil {
 		return fmt.Errorf("put to DB [%s]: %w", infoBytes, err)
 	}
 
 	return nil
+}
+
+func getKey(serviceIRI *url.URL, source activitySource) string {
+	return fmt.Sprintf("%s!%s", serviceIRI, source)
 }

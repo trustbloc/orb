@@ -57,18 +57,18 @@ func TestSyncStore_GetAndPut(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
-	require.NoError(t, s.PutLastSyncedPage(service1IRI, page0, 3))
+	require.NoError(t, s.PutLastSyncedPage(service1IRI, outbox, page0, 3))
 	require.NoError(t, err)
 
-	require.NoError(t, s.PutLastSyncedPage(service2IRI, page1, 4))
+	require.NoError(t, s.PutLastSyncedPage(service2IRI, outbox, page1, 4))
 	require.NoError(t, err)
 
-	page, index, err := s.GetLastSyncedPage(service1IRI)
+	page, index, err := s.GetLastSyncedPage(service1IRI, outbox)
 	require.NoError(t, err)
 	require.Equal(t, page0.String(), page.String())
 	require.Equal(t, 3, index)
 
-	page, index, err = s.GetLastSyncedPage(service2IRI)
+	page, index, err = s.GetLastSyncedPage(service2IRI, outbox)
 	require.NoError(t, err)
 	require.Equal(t, page1.String(), page.String())
 	require.Equal(t, 4, index)
@@ -94,7 +94,7 @@ func TestSyncStore_Error(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, s)
 
-		_, _, err = s.GetLastSyncedPage(serviceIRI)
+		_, _, err = s.GetLastSyncedPage(serviceIRI, outbox)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -112,10 +112,10 @@ func TestSyncStore_Error(t *testing.T) {
 
 		s.unmarshal = func(data []byte, v interface{}) error { return errExpected }
 
-		require.NoError(t, s.PutLastSyncedPage(serviceIRI, page, 3))
+		require.NoError(t, s.PutLastSyncedPage(serviceIRI, outbox, page, 3))
 		require.NoError(t, err)
 
-		_, _, err = s.GetLastSyncedPage(serviceIRI)
+		_, _, err = s.GetLastSyncedPage(serviceIRI, outbox)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -132,13 +132,13 @@ func TestSyncStore_Error(t *testing.T) {
 		infoBytes, err := json.Marshal(info)
 		require.NoError(t, err)
 
-		require.NoError(t, p.Store.Put(serviceIRI.String(), infoBytes))
+		require.NoError(t, p.Store.Put(getKey(serviceIRI, outbox), infoBytes))
 
 		s, err := newSyncStore(p)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 
-		_, _, err = s.GetLastSyncedPage(serviceIRI)
+		_, _, err = s.GetLastSyncedPage(serviceIRI, outbox)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing protocol scheme")
 	})
@@ -155,7 +155,7 @@ func TestSyncStore_Error(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, s)
 
-		err = s.PutLastSyncedPage(serviceIRI, page, 3)
+		err = s.PutLastSyncedPage(serviceIRI, outbox, page, 3)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -173,7 +173,7 @@ func TestSyncStore_Error(t *testing.T) {
 
 		s.marshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
-		err = s.PutLastSyncedPage(serviceIRI, page, 3)
+		err = s.PutLastSyncedPage(serviceIRI, outbox, page, 3)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})

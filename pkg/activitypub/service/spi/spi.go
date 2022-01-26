@@ -40,7 +40,7 @@ type Inbox interface {
 
 // AnchorEventHandler handles a new, published anchor event.
 type AnchorEventHandler interface {
-	HandleAnchorEvent(actor, anchorEventRef *url.URL, anchorEvent *vocab.AnchorEventType) error
+	HandleAnchorEvent(actor, anchorEventRef, source *url.URL, anchorEvent *vocab.AnchorEventType) error
 }
 
 // AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server,
@@ -70,8 +70,9 @@ type ProofHandler interface {
 type ActivityHandler interface {
 	ServiceLifecycle
 
-	// HandleActivity handles the ActivityPub activity.
-	HandleActivity(activity *vocab.ActivityType) error
+	// HandleActivity handles the ActivityPub activity. An optional source may be added
+	// to indicate where the activity was retrieved from.
+	HandleActivity(source *url.URL, activity *vocab.ActivityType) error
 
 	// Subscribe allows a client to receive published activities.
 	Subscribe() <-chan *vocab.ActivityType
@@ -82,8 +83,8 @@ var ErrDuplicateAnchorEvent = errors.New("anchor event already handled")
 
 // InboxHandler defines functions for handling Create and Announce activities.
 type InboxHandler interface {
-	HandleCreateActivity(create *vocab.ActivityType, announce bool) error
-	HandleAnnounceActivity(create *vocab.ActivityType) error
+	HandleCreateActivity(source *url.URL, create *vocab.ActivityType, announce bool) error
+	HandleAnnounceActivity(source *url.URL, create *vocab.ActivityType) error
 }
 
 // UndeliverableActivityHandler handles undeliverable activities.

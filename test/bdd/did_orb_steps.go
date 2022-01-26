@@ -1471,7 +1471,34 @@ func (d *DIDOrbSteps) doVerifyUpdatedDIDContainsKeyID(urls []string, did, keyID 
 func (d *DIDOrbSteps) verifyDID(url, did string) (canonicalID string, err error) {
 	logger.Infof("verifying DID %s from %s", did, url)
 
-	resp, err := d.httpClient.GetWithRetry(url+"/"+did, 25, http.StatusNotFound)
+	resp, err := d.httpClient.GetWithRetryFunc(url+"/"+did, 25,
+		func(resp *httpResponse) bool {
+			if resp.StatusCode == http.StatusNotFound {
+				return true
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				return false
+			}
+
+			var rr document.ResolutionResult
+			err = json.Unmarshal(resp.Payload, &rr)
+			if err != nil {
+				return false
+			}
+
+			_, ok := rr.DocumentMetadata["canonicalId"]
+			if !ok {
+				// The DID is not anchored yet. Retry until it's anchored.
+				logger.Infof("Document metadata is missing field 'canonicalId'. Retrying.")
+
+				return true
+			}
+
+			return false
+		},
+	)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve DID[%s]: %w", did, err)
 	}

@@ -2,33 +2,19 @@
 package mocks
 
 import (
+	"net/url"
 	"sync"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
 type ActivityHandler struct {
-	StartStub        func()
-	startMutex       sync.RWMutex
-	startArgsForCall []struct{}
-	StopStub         func()
-	stopMutex        sync.RWMutex
-	stopArgsForCall  []struct{}
-	StateStub        func() lifecycle.State
-	stateMutex       sync.RWMutex
-	stateArgsForCall []struct{}
-	stateReturns     struct {
-		result1 lifecycle.State
-	}
-	stateReturnsOnCall map[int]struct {
-		result1 lifecycle.State
-	}
-	HandleActivityStub        func(activity *vocab.ActivityType) error
+	HandleActivityStub        func(*url.URL, *vocab.ActivityType) error
 	handleActivityMutex       sync.RWMutex
 	handleActivityArgsForCall []struct {
-		activity *vocab.ActivityType
+		arg1 *url.URL
+		arg2 *vocab.ActivityType
 	}
 	handleActivityReturns struct {
 		result1 error
@@ -36,10 +22,29 @@ type ActivityHandler struct {
 	handleActivityReturnsOnCall map[int]struct {
 		result1 error
 	}
+	StartStub        func()
+	startMutex       sync.RWMutex
+	startArgsForCall []struct {
+	}
+	StateStub        func() uint32
+	stateMutex       sync.RWMutex
+	stateArgsForCall []struct {
+	}
+	stateReturns struct {
+		result1 uint32
+	}
+	stateReturnsOnCall map[int]struct {
+		result1 uint32
+	}
+	StopStub        func()
+	stopMutex       sync.RWMutex
+	stopArgsForCall []struct {
+	}
 	SubscribeStub        func() <-chan *vocab.ActivityType
 	subscribeMutex       sync.RWMutex
-	subscribeArgsForCall []struct{}
-	subscribeReturns     struct {
+	subscribeArgsForCall []struct {
+	}
+	subscribeReturns struct {
 		result1 <-chan *vocab.ActivityType
 	}
 	subscribeReturnsOnCall map[int]struct {
@@ -49,93 +54,24 @@ type ActivityHandler struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ActivityHandler) Start() {
-	fake.startMutex.Lock()
-	fake.startArgsForCall = append(fake.startArgsForCall, struct{}{})
-	fake.recordInvocation("Start", []interface{}{})
-	fake.startMutex.Unlock()
-	if fake.StartStub != nil {
-		fake.StartStub()
-	}
-}
-
-func (fake *ActivityHandler) StartCallCount() int {
-	fake.startMutex.RLock()
-	defer fake.startMutex.RUnlock()
-	return len(fake.startArgsForCall)
-}
-
-func (fake *ActivityHandler) Stop() {
-	fake.stopMutex.Lock()
-	fake.stopArgsForCall = append(fake.stopArgsForCall, struct{}{})
-	fake.recordInvocation("Stop", []interface{}{})
-	fake.stopMutex.Unlock()
-	if fake.StopStub != nil {
-		fake.StopStub()
-	}
-}
-
-func (fake *ActivityHandler) StopCallCount() int {
-	fake.stopMutex.RLock()
-	defer fake.stopMutex.RUnlock()
-	return len(fake.stopArgsForCall)
-}
-
-func (fake *ActivityHandler) State() lifecycle.State {
-	fake.stateMutex.Lock()
-	ret, specificReturn := fake.stateReturnsOnCall[len(fake.stateArgsForCall)]
-	fake.stateArgsForCall = append(fake.stateArgsForCall, struct{}{})
-	fake.recordInvocation("State", []interface{}{})
-	fake.stateMutex.Unlock()
-	if fake.StateStub != nil {
-		return fake.StateStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.stateReturns.result1
-}
-
-func (fake *ActivityHandler) StateCallCount() int {
-	fake.stateMutex.RLock()
-	defer fake.stateMutex.RUnlock()
-	return len(fake.stateArgsForCall)
-}
-
-func (fake *ActivityHandler) StateReturns(result1 lifecycle.State) {
-	fake.StateStub = nil
-	fake.stateReturns = struct {
-		result1 lifecycle.State
-	}{result1}
-}
-
-func (fake *ActivityHandler) StateReturnsOnCall(i int, result1 lifecycle.State) {
-	fake.StateStub = nil
-	if fake.stateReturnsOnCall == nil {
-		fake.stateReturnsOnCall = make(map[int]struct {
-			result1 lifecycle.State
-		})
-	}
-	fake.stateReturnsOnCall[i] = struct {
-		result1 lifecycle.State
-	}{result1}
-}
-
-func (fake *ActivityHandler) HandleActivity(activity *vocab.ActivityType) error {
+func (fake *ActivityHandler) HandleActivity(arg1 *url.URL, arg2 *vocab.ActivityType) error {
 	fake.handleActivityMutex.Lock()
 	ret, specificReturn := fake.handleActivityReturnsOnCall[len(fake.handleActivityArgsForCall)]
 	fake.handleActivityArgsForCall = append(fake.handleActivityArgsForCall, struct {
-		activity *vocab.ActivityType
-	}{activity})
-	fake.recordInvocation("HandleActivity", []interface{}{activity})
+		arg1 *url.URL
+		arg2 *vocab.ActivityType
+	}{arg1, arg2})
+	stub := fake.HandleActivityStub
+	fakeReturns := fake.handleActivityReturns
+	fake.recordInvocation("HandleActivity", []interface{}{arg1, arg2})
 	fake.handleActivityMutex.Unlock()
-	if fake.HandleActivityStub != nil {
-		return fake.HandleActivityStub(activity)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.handleActivityReturns.result1
+	return fakeReturns.result1
 }
 
 func (fake *ActivityHandler) HandleActivityCallCount() int {
@@ -144,13 +80,22 @@ func (fake *ActivityHandler) HandleActivityCallCount() int {
 	return len(fake.handleActivityArgsForCall)
 }
 
-func (fake *ActivityHandler) HandleActivityArgsForCall(i int) *vocab.ActivityType {
+func (fake *ActivityHandler) HandleActivityCalls(stub func(*url.URL, *vocab.ActivityType) error) {
+	fake.handleActivityMutex.Lock()
+	defer fake.handleActivityMutex.Unlock()
+	fake.HandleActivityStub = stub
+}
+
+func (fake *ActivityHandler) HandleActivityArgsForCall(i int) (*url.URL, *vocab.ActivityType) {
 	fake.handleActivityMutex.RLock()
 	defer fake.handleActivityMutex.RUnlock()
-	return fake.handleActivityArgsForCall[i].activity
+	argsForCall := fake.handleActivityArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *ActivityHandler) HandleActivityReturns(result1 error) {
+	fake.handleActivityMutex.Lock()
+	defer fake.handleActivityMutex.Unlock()
 	fake.HandleActivityStub = nil
 	fake.handleActivityReturns = struct {
 		result1 error
@@ -158,6 +103,8 @@ func (fake *ActivityHandler) HandleActivityReturns(result1 error) {
 }
 
 func (fake *ActivityHandler) HandleActivityReturnsOnCall(i int, result1 error) {
+	fake.handleActivityMutex.Lock()
+	defer fake.handleActivityMutex.Unlock()
 	fake.HandleActivityStub = nil
 	if fake.handleActivityReturnsOnCall == nil {
 		fake.handleActivityReturnsOnCall = make(map[int]struct {
@@ -169,19 +116,123 @@ func (fake *ActivityHandler) HandleActivityReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *ActivityHandler) Subscribe() <-chan *vocab.ActivityType {
-	fake.subscribeMutex.Lock()
-	ret, specificReturn := fake.subscribeReturnsOnCall[len(fake.subscribeArgsForCall)]
-	fake.subscribeArgsForCall = append(fake.subscribeArgsForCall, struct{}{})
-	fake.recordInvocation("Subscribe", []interface{}{})
-	fake.subscribeMutex.Unlock()
-	if fake.SubscribeStub != nil {
-		return fake.SubscribeStub()
+func (fake *ActivityHandler) Start() {
+	fake.startMutex.Lock()
+	fake.startArgsForCall = append(fake.startArgsForCall, struct {
+	}{})
+	stub := fake.StartStub
+	fake.recordInvocation("Start", []interface{}{})
+	fake.startMutex.Unlock()
+	if stub != nil {
+		fake.StartStub()
+	}
+}
+
+func (fake *ActivityHandler) StartCallCount() int {
+	fake.startMutex.RLock()
+	defer fake.startMutex.RUnlock()
+	return len(fake.startArgsForCall)
+}
+
+func (fake *ActivityHandler) StartCalls(stub func()) {
+	fake.startMutex.Lock()
+	defer fake.startMutex.Unlock()
+	fake.StartStub = stub
+}
+
+func (fake *ActivityHandler) State() uint32 {
+	fake.stateMutex.Lock()
+	ret, specificReturn := fake.stateReturnsOnCall[len(fake.stateArgsForCall)]
+	fake.stateArgsForCall = append(fake.stateArgsForCall, struct {
+	}{})
+	stub := fake.StateStub
+	fakeReturns := fake.stateReturns
+	fake.recordInvocation("State", []interface{}{})
+	fake.stateMutex.Unlock()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.subscribeReturns.result1
+	return fakeReturns.result1
+}
+
+func (fake *ActivityHandler) StateCallCount() int {
+	fake.stateMutex.RLock()
+	defer fake.stateMutex.RUnlock()
+	return len(fake.stateArgsForCall)
+}
+
+func (fake *ActivityHandler) StateCalls(stub func() uint32) {
+	fake.stateMutex.Lock()
+	defer fake.stateMutex.Unlock()
+	fake.StateStub = stub
+}
+
+func (fake *ActivityHandler) StateReturns(result1 uint32) {
+	fake.stateMutex.Lock()
+	defer fake.stateMutex.Unlock()
+	fake.StateStub = nil
+	fake.stateReturns = struct {
+		result1 uint32
+	}{result1}
+}
+
+func (fake *ActivityHandler) StateReturnsOnCall(i int, result1 uint32) {
+	fake.stateMutex.Lock()
+	defer fake.stateMutex.Unlock()
+	fake.StateStub = nil
+	if fake.stateReturnsOnCall == nil {
+		fake.stateReturnsOnCall = make(map[int]struct {
+			result1 uint32
+		})
+	}
+	fake.stateReturnsOnCall[i] = struct {
+		result1 uint32
+	}{result1}
+}
+
+func (fake *ActivityHandler) Stop() {
+	fake.stopMutex.Lock()
+	fake.stopArgsForCall = append(fake.stopArgsForCall, struct {
+	}{})
+	stub := fake.StopStub
+	fake.recordInvocation("Stop", []interface{}{})
+	fake.stopMutex.Unlock()
+	if stub != nil {
+		fake.StopStub()
+	}
+}
+
+func (fake *ActivityHandler) StopCallCount() int {
+	fake.stopMutex.RLock()
+	defer fake.stopMutex.RUnlock()
+	return len(fake.stopArgsForCall)
+}
+
+func (fake *ActivityHandler) StopCalls(stub func()) {
+	fake.stopMutex.Lock()
+	defer fake.stopMutex.Unlock()
+	fake.StopStub = stub
+}
+
+func (fake *ActivityHandler) Subscribe() <-chan *vocab.ActivityType {
+	fake.subscribeMutex.Lock()
+	ret, specificReturn := fake.subscribeReturnsOnCall[len(fake.subscribeArgsForCall)]
+	fake.subscribeArgsForCall = append(fake.subscribeArgsForCall, struct {
+	}{})
+	stub := fake.SubscribeStub
+	fakeReturns := fake.subscribeReturns
+	fake.recordInvocation("Subscribe", []interface{}{})
+	fake.subscribeMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
 }
 
 func (fake *ActivityHandler) SubscribeCallCount() int {
@@ -190,7 +241,15 @@ func (fake *ActivityHandler) SubscribeCallCount() int {
 	return len(fake.subscribeArgsForCall)
 }
 
+func (fake *ActivityHandler) SubscribeCalls(stub func() <-chan *vocab.ActivityType) {
+	fake.subscribeMutex.Lock()
+	defer fake.subscribeMutex.Unlock()
+	fake.SubscribeStub = stub
+}
+
 func (fake *ActivityHandler) SubscribeReturns(result1 <-chan *vocab.ActivityType) {
+	fake.subscribeMutex.Lock()
+	defer fake.subscribeMutex.Unlock()
 	fake.SubscribeStub = nil
 	fake.subscribeReturns = struct {
 		result1 <-chan *vocab.ActivityType
@@ -198,6 +257,8 @@ func (fake *ActivityHandler) SubscribeReturns(result1 <-chan *vocab.ActivityType
 }
 
 func (fake *ActivityHandler) SubscribeReturnsOnCall(i int, result1 <-chan *vocab.ActivityType) {
+	fake.subscribeMutex.Lock()
+	defer fake.subscribeMutex.Unlock()
 	fake.SubscribeStub = nil
 	if fake.subscribeReturnsOnCall == nil {
 		fake.subscribeReturnsOnCall = make(map[int]struct {
@@ -212,14 +273,14 @@ func (fake *ActivityHandler) SubscribeReturnsOnCall(i int, result1 <-chan *vocab
 func (fake *ActivityHandler) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.startMutex.RLock()
-	defer fake.startMutex.RUnlock()
-	fake.stopMutex.RLock()
-	defer fake.stopMutex.RUnlock()
-	fake.stateMutex.RLock()
-	defer fake.stateMutex.RUnlock()
 	fake.handleActivityMutex.RLock()
 	defer fake.handleActivityMutex.RUnlock()
+	fake.startMutex.RLock()
+	defer fake.startMutex.RUnlock()
+	fake.stateMutex.RLock()
+	defer fake.stateMutex.RUnlock()
+	fake.stopMutex.RLock()
+	defer fake.stopMutex.RUnlock()
 	fake.subscribeMutex.RLock()
 	defer fake.subscribeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
