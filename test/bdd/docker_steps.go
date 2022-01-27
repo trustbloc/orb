@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package bdd
 
 import (
+	"fmt"
 	"github.com/cucumber/godog"
 )
 
@@ -46,6 +47,22 @@ func (d *DockerSteps) unpauseContainer(containerID string) error {
 	return err
 }
 
+func (d *DockerSteps) recreateContainer(containerID string) error {
+	logger.Infof("Recreating Docker container [%s]", containerID)
+
+	_, err := d.BDDContext.Composition().issueCommand([]string{"rm", "-s", "--force", "-v", containerID})
+	if err != nil {
+		return fmt.Errorf("error removing container [%s]: %w", containerID, err)
+	}
+
+	_, err = d.BDDContext.Composition().issueCommand([]string{"up", "-d", containerID})
+	if err != nil {
+		return fmt.Errorf("error starting container [%s]: %w", containerID, err)
+	}
+
+	return err
+}
+
 // RegisterSteps register steps
 func (d *DockerSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
@@ -55,4 +72,5 @@ func (d *DockerSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^container "([^"]*)" is stopped$`, d.stopContainer)
 	s.Step(`^container "([^"]*)" is paused$`, d.pauseContainer)
 	s.Step(`^container "([^"]*)" is unpaused$`, d.unpauseContainer)
+	s.Step(`^container "([^"]*)" is recreated$`, d.recreateContainer)
 }

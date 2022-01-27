@@ -8,6 +8,7 @@ package bdd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -830,6 +831,25 @@ func (d *CommonSteps) hostMetaDocumentIsUploadedToIPNS() error {
 	return nil
 }
 
+func (d *CommonSteps) executeCommand(cmd string) error {
+	logger.Infof("Executing command: %s", cmd)
+
+	parts := strings.Split(cmd, " ")
+
+	if len(parts) == 0 {
+		return errors.New("empty command")
+	}
+
+	response, err := executeCMD(parts[0], parts[1:]...)
+	if err != nil {
+		return err
+	}
+
+	d.state.setResponse(response)
+
+	return nil
+}
+
 func getSignerConfig(domain, pubKeyID string) (*signerConfig, error) {
 	storeProvider, err := newStoreProvider(domain)
 	if err != nil {
@@ -961,4 +981,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
 	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
 	s.Step(`^host-meta document is uploaded to IPNS$`, d.hostMetaDocumentIsUploadedToIPNS)
+	s.Step(`^command "([^"]*)" is executed$`, d.executeCommand)
 }

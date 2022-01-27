@@ -137,3 +137,4 @@ clean:
 	rm -Rf ./test/bdd/docker-compose.log
 	rm -Rf ./test/bdd/fixtures/keys/tls
 	rm -Rf ./test/bdd/fixtures/data/ipfs
+	rm -Rf ./test/bdd/fixtures/mongodbbackup

@@ -37,3 +37,4 @@ test/bdd/fixtures/export
 
 test/bdd/website
 test/bdd/OrbBDDTestKey.key
+/test/bdd/fixtures/mongodbbackup/
