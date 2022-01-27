@@ -68,7 +68,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220125222405-838eba904ae4 // indirect
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220127163805-32a4b54f7dff // indirect
 	github.com/trustbloc/vct v0.1.3 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect

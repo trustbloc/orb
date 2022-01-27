@@ -121,3 +121,57 @@ Feature:
     # Create a bunch of DIDs on domain5 and make sure they're available on domain1 and domain2.
     When client sends request to "https://orb.domain5.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+
+  @all
+  @orb_domain_backup_and_restore
+  Scenario: Backup and restore a domain
+    # Onboard domain5 by asking to follow domain1 and domain2:
+    # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
+    Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
+    Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
+    Then an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${acceptList}" of type "application/json"
+    # --- domain5 server follows domain1 server
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain5 server follows domain2 server
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain5 invites domain1 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    # --- domain5 invites domain2 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    # --- domain1 server follows domain5 server
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain2 server follows domain5 server
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+
+    # Take a backup of the domain5 database.
+    When command "mongodump --out ./fixtures/mongodbbackup --host localhost --port 28017" is executed
+
+    # Create some DIDs on domain5, domain1, domain2.
+    When client sends request to "https://orb.domain5.com/sidetree/v1/operations,https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+
+    Then container "orb-domain5" is stopped
+
+    # Wipe out the database on domain5 by recreating the mongodb container.
+    And container "mongodb.domain5.com" is recreated
+
+    Then we wait 5 seconds
+
+    # Restore the database from backup. Note that the DB will NOT contain the AnchorEvents, Sidetree files,
+    # or Sidetree operations that were created after the backup.
+    Then command "mongorestore ./fixtures/mongodbbackup --host localhost --port 28017" is executed
+    And command "rm -rf ./fixtures/mongodbbackup" is executed
+
+    # Start domain5 and wait a bit for the synchronization process to kick in.
+    Then container "orb-domain5" is started
+
+    Then we wait 15 seconds
+
+    # Ensure that domain5 has retrieved the anchor files (that were created after the backup) from alternate sources.
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
