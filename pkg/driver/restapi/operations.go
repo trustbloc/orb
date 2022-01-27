@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 )
 
 const (
-	resolveDIDEndpoint = "/resolveDID"
+	resolveDIDEndpoint = "/1.0/identifiers/{id}"
 	didLDJson          = "application/did+ld+json"
 )
 
@@ -44,15 +45,15 @@ func New(config *Config) *Operation {
 }
 
 func (o *Operation) resolveDIDHandler(rw http.ResponseWriter, req *http.Request) {
-	didParam, ok := req.URL.Query()["did"]
+	didID := mux.Vars(req)["id"]
 
-	if !ok || didParam[0] == "" {
+	if didID == "" {
 		o.writeErrorResponse(rw, http.StatusBadRequest, "url param 'did' is missing")
 
 		return
 	}
 
-	DocResolution, err := o.orbVDR.Read(didParam[0])
+	DocResolution, err := o.orbVDR.Read(didID)
 	if err != nil {
 		o.writeErrorResponse(rw, http.StatusBadRequest,
 			fmt.Sprintf("failed to resolve did: %s", err.Error()))

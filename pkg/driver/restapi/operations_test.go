@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	resolveDIDEndpoint = "/resolveDID"
+	resolveDIDEndpoint = "/1.0/identifiers/{id}"
 )
 
 func TestDIDResolve(t *testing.T) {
@@ -47,7 +47,10 @@ func TestDIDResolve(t *testing.T) {
 
 		handler := getHandler(t, c, resolveDIDEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, resolveDIDEndpoint+"?did=did1", nil, nil)
+		urlVars := make(map[string]string)
+		urlVars["id"] = "did1"
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, resolveDIDEndpoint, nil, urlVars)
 
 		require.Equal(t, http.StatusBadRequest, rr.Code)
 		require.Contains(t, rr.Body.String(), "failed to read did")
@@ -62,7 +65,10 @@ func TestDIDResolve(t *testing.T) {
 
 		handler := getHandler(t, c, resolveDIDEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, resolveDIDEndpoint+"?did=did1", nil, nil)
+		urlVars := make(map[string]string)
+		urlVars["id"] = "did1"
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, resolveDIDEndpoint, nil, urlVars)
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Contains(t, rr.Body.String(), "did1")
