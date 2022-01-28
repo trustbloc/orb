@@ -68,6 +68,7 @@ Feature:
     # Don't wait for the updates to finish. On-board domain5 immediately and then verify them on domain5.
 
     # Onboard domain5 by asking to follow domain1 and domain2:
+    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
     Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
@@ -126,6 +127,7 @@ Feature:
   @orb_domain_backup_and_restore
   Scenario: Backup and restore a domain
     # Onboard domain5 by asking to follow domain1 and domain2:
+    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
     Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"

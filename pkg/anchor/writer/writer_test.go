@@ -27,6 +27,7 @@ import (
 
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
+	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -853,6 +854,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		activityStore := memstore.New("")
 
+		witnessPolicy := &mockWitnessPolicy{}
+		witnessPolicy.Err = orberrors.NewTransientf("no witnesses are provided")
+
 		providers := &Providers{
 			AnchorGraph:            anchorGraph,
 			DidAnchors:             memdidanchor.New(),
@@ -866,6 +870,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStore:       anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			WitnessPolicy:          witnessPolicy,
+			ProofHandler:           servicemocks.NewProofHandler(),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -906,6 +912,70 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, orberrors.IsTransient(err))
 		require.Contains(t, err.Error(), "no witnesses are provided")
+	})
+
+	t.Run("success - no witnesses required", func(t *testing.T) {
+		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		activityStore := memstore.New("")
+
+		providers := &Providers{
+			AnchorGraph:            anchorGraph,
+			DidAnchors:             memdidanchor.New(),
+			AnchorBuilder:          &mockTxnBuilder{},
+			OpProcessor:            &mockOpProcessor{},
+			Outbox:                 &mockOutbox{},
+			Signer:                 &mockSigner{},
+			MonitoringSvc:          &mockMonitoring{},
+			WitnessStore:           &mockWitnessStore{},
+			ActivityStore:          activityStore,
+			AnchorEventStore:       anchorEventStore,
+			AnchorEventStatusStore: statusStore,
+			WFClient:               wfClient,
+			WitnessPolicy:          &mockWitnessPolicy{},
+			ProofHandler:           servicemocks.NewProofHandler(),
+		}
+
+		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+			testMaxWitnessDelay, false, resourceresolver.New(http.DefaultClient,
+				nil), &mocks.MetricsProvider{})
+		require.NoError(t, err)
+
+		hostMetaResponse := discoveryrest.JRD{
+			Subject:    "",
+			Properties: nil,
+			Links: []discoveryrest.Link{
+				{
+					Type: discoveryrest.ActivityJSONType,
+					Href: apServiceIRI.String(),
+				},
+			},
+		}
+
+		hostMetaResponseBytes, err := json.Marshal(hostMetaResponse)
+		require.NoError(t, err)
+
+		testServer := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, err = w.Write(hostMetaResponseBytes)
+				require.NoError(t, err)
+			}))
+		defer testServer.Close()
+
+		opRefs := []*operation.Reference{
+			{
+				UniqueSuffix: "did-1",
+				Type:         operation.TypeCreate,
+				AnchorOrigin: fmt.Sprintf("%s/services/orb", testServer.URL),
+			},
+		}
+
+		err = c.WriteAnchor("1.anchor", nil, opRefs, 0)
+		require.NoError(t, err)
 	})
 }
 
@@ -1226,7 +1296,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.NoError(t, err)
 	})
 
@@ -1239,7 +1309,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{":xyz"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{":xyz"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing protocol scheme")
 	})
@@ -1257,7 +1327,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -1283,13 +1353,13 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		require.NoError(t, err)
 
 		// test error for batch witness
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to resolve WebFinger resource[https://abc.com/vct]: received unexpected status code. URL [https://abc.com/.well-known/webfinger?resource=https://abc.com/vct], status code [500], response body [internal server error]") //nolint:lll
 
 		// test error for system witness (no batch witnesses)
-		err = c.postOfferActivity(anchorEvent, []string{})
+		err = c.postOfferActivity(anchorEvent, nil, []string{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to resolve WebFinger resource[http://orb.domain1.com/vct]: received unexpected status code. URL [http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct], status code [500], response body [internal server error]") //nolint:lll
@@ -1307,7 +1377,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to query references for system witnesses: activity store error")
@@ -1327,7 +1397,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
 	})
@@ -1346,7 +1416,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get witnesses: select witnesses: witness selection error")
 	})

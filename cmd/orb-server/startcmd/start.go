@@ -771,6 +771,7 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorEventStatusStore: anchorEventStatusStore,
 		OpProcessor:            opProcessor,
 		Outbox:                 activityPubService.Outbox(),
+		ProofHandler:           proofHandler,
 		Witness:                witness,
 		Signer:                 vcSigner,
 		MonitoringSvc:          monitoringSvc,
