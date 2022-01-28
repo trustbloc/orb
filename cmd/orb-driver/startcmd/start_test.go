@@ -33,6 +33,18 @@ func TestStartCmdWithMissingHostArg(t *testing.T) {
 		err.Error())
 }
 
+func TestVInvalidArgsEnvVar(t *testing.T) {
+	startCmd := GetStartCmd()
+
+	require.NoError(t, os.Setenv(hostURLEnvKey, "localhost:8080"))
+	require.NoError(t, os.Setenv(tlsSystemCertPoolEnvKey, "true"))
+	require.NoError(t, os.Setenv(verifyTypeEnvKey, "wrongvalue"))
+
+	err := startCmd.Execute()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unsupported wrongvalue for verifyResolutionResultType")
+}
+
 func TestTLSSystemCertPoolInvalidArgsEnvVar(t *testing.T) {
 	startCmd := GetStartCmd()
 

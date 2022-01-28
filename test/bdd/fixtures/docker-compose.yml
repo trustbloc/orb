@@ -947,10 +947,11 @@ services:
     image: ghcr.io/trustbloc/orb-did-driver:latest
     environment:
       - ORB_DRIVER_HOST_URL=172.20.0.15:8070
-      - ORB_DRIVER_DOMAIN=https://orb.domain1.com
+      - ORB_DRIVER_DOMAIN=https://orb.domain3.com
       - ORB_DRIVER_TLS_SYSTEMCERTPOOL=true
       - ORB_DRIVER_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DRIVER_SIDETREE_TOKEN=READ_TOKEN
+      - ORB_DRIVER_VERIFY_RESOLUTION_RESULT_TYPE=all
     volumes:
       - ./keys/tls:/etc/orb/tls
     ports:

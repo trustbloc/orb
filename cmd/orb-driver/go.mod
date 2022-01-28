@@ -7,11 +7,11 @@ module github.com/trustbloc/orb/cmd/orb-driver
 go 1.17
 
 require (
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.0.0-20210915134807-3e19121646a4
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220125212227-6bfc2b0907d6
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/orb v0.1.3-0.20210914173654-dab098ce4e32
+	github.com/trustbloc/orb v0.1.4-0.20220114151418-ee519eb3cd25
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220127163805-32a4b54f7dff
 )
 
@@ -32,8 +32,8 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211203093644-b7d189cc06f4 // indirect
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20210817192417-e46e251f4caf // indirect
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a // indirect
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620 // indirect
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c // indirect
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -49,6 +49,7 @@ require (
 	github.com/multiformats/go-multibase v0.0.3 // indirect
 	github.com/multiformats/go-multihash v0.0.14 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
+	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/piprate/json-gold v0.4.1-0.20210813112359-33b90c4ca86c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
