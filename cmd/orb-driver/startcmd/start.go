@@ -7,9 +7,11 @@ package startcmd
 
 import (
 	"crypto/tls"
+	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -54,10 +56,21 @@ const (
 	domainFlagUsage = "discovery endpoint domain"
 	domainEnvKey    = "ORB_DRIVER_DOMAIN"
 
+	verifyTypeFlagName  = "verify-resolution-result-type"
+	verifyTypeEnvKey    = "ORB_DRIVER_VERIFY_RESOLUTION_RESULT_TYPE"
+	verifyTypeFlagUsage = "verify resolution result type. Values [all, none, unpublished] " +
+		" Alternatively, this can be set with the following environment variable: " + verifyTypeEnvKey
+
 	sidetreeTokenFlagName  = "sidetree-write-token"
 	sidetreeTokenEnvKey    = "ORB_DRIVER_SIDETREE_TOKEN" //nolint: gosec
 	sidetreeTokenFlagUsage = "The sidetree token." +
 		" Alternatively, this can be set with the following environment variable: " + sidetreeTokenEnvKey
+)
+
+const (
+	verifyTypeAll         = "all"
+	verifyTypeUnpublished = "unpublished"
+	verifyTypeNone        = "none"
 )
 
 var logger = log.New("orb-driver")
@@ -83,13 +96,14 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 }
 
 type parameters struct {
-	hostURL           string
-	tlsSystemCertPool bool
-	tlsCACerts        []string
-	discoveryDomain   string
-	sidetreeToken     string
-	tlsCertificate    string
-	tlsKey            string
+	hostURL                    string
+	tlsSystemCertPool          bool
+	tlsCACerts                 []string
+	discoveryDomain            string
+	sidetreeToken              string
+	tlsCertificate             string
+	tlsKey                     string
+	verifyResolutionResultType orb.VerifyResolutionResultType
 }
 
 // GetStartCmd returns the Cobra start command.
@@ -137,15 +151,40 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 
 	discoveryDomain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainEnvKey)
 
+	verifyResolutionResultType, err := getVerifyResolutionResultType(cmd)
+	if err != nil {
+		return nil, err
+	}
+
 	return &parameters{
-		hostURL:           hostURL,
-		tlsSystemCertPool: tlsSystemCertPool,
-		tlsCACerts:        tlsCACerts,
-		discoveryDomain:   discoveryDomain,
-		sidetreeToken:     sidetreeToken,
-		tlsCertificate:    tlsCertificate,
-		tlsKey:            tlsKey,
+		hostURL:                    hostURL,
+		tlsSystemCertPool:          tlsSystemCertPool,
+		tlsCACerts:                 tlsCACerts,
+		discoveryDomain:            discoveryDomain,
+		sidetreeToken:              sidetreeToken,
+		tlsCertificate:             tlsCertificate,
+		tlsKey:                     tlsKey,
+		verifyResolutionResultType: verifyResolutionResultType,
 	}, nil
+}
+
+func getVerifyResolutionResultType(cmd *cobra.Command) (orb.VerifyResolutionResultType, error) {
+	verifyTypeString, err := cmdutils.GetUserSetVarFromString(cmd, verifyTypeFlagName,
+		verifyTypeEnvKey, false)
+	if err != nil {
+		return -1, err
+	}
+
+	switch strings.ToLower(verifyTypeString) {
+	case verifyTypeNone:
+		return orb.None, nil
+	case verifyTypeAll:
+		return orb.All, nil
+	case verifyTypeUnpublished:
+		return orb.Unpublished, nil
+	}
+
+	return -1, fmt.Errorf("unsupported %s for verifyResolutionResultType", verifyTypeString)
 }
 
 func getTLS(cmd *cobra.Command) (bool, []string, error) {
@@ -178,6 +217,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(sidetreeTokenFlagName, "", "", sidetreeTokenFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, "", "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, "", "", tlsKeyFlagUsage)
+	startCmd.Flags().StringP(verifyTypeFlagName, "", "", verifyTypeFlagUsage)
 }
 
 func startDriver(parameters *parameters) error {
@@ -188,6 +228,7 @@ func startDriver(parameters *parameters) error {
 
 	orbVDR, err := orb.New(nil, orb.WithAuthToken(parameters.sidetreeToken),
 		orb.WithDomain(parameters.discoveryDomain),
+		orb.WithVerifyResolutionResultType(parameters.verifyResolutionResultType),
 		orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
 	if err != nil {
 		return err
