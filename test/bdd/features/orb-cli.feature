@@ -22,6 +22,7 @@ Feature: Using Orb CLI
     Then we wait 3 seconds
     When Orb DID is created through cli
     Then check cli created valid DID
+    Then Orb DID is resolved through cli
     When Orb DID is updated through cli
     Then check cli updated DID
     When Orb DID is recovered through cli
