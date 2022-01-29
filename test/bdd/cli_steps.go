@@ -39,6 +39,7 @@ func NewCLISteps(ctx *BDDContext, state *state) *Steps {
 // RegisterSteps registers agent steps.
 func (e *Steps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^Orb DID is created through cli$`, e.createDID)
+	s.Step(`^Orb DID is resolved through cli$`, e.cliResolveDID)
 	s.Step(`^Orb DID is updated through cli$`, e.updateDID)
 	s.Step(`^Orb DID is recovered through cli$`, e.recoverDID)
 	s.Step(`^Orb DID is deactivated through cli$`,
@@ -139,6 +140,26 @@ func (e *Steps) checkRecoveredDID() error {
 	}
 
 	return fmt.Errorf("recover failed")
+}
+
+func (e *Steps) cliResolveDID() error {
+	var args []string
+
+	args = append(args, "did", "resolve",
+		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
+		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
+		"--auth-token", "ADMIN_TOKEN", "--verify-resolution-result-type", "all")
+
+	value, err := execCMD(args...)
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(value, e.createdDID.ID) {
+		return nil
+	}
+
+	return fmt.Errorf(value)
 }
 
 func (e *Steps) resolveDID(did string) (*ariesdid.DocResolution, error) {

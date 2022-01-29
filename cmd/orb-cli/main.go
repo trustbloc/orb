@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetagencmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetauploadcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/resolvedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/witnesscmd"
 )
@@ -54,6 +55,7 @@ func main() {
 	didCmd.AddCommand(updatedidcmd.GetUpdateDIDCmd())
 	didCmd.AddCommand(recoverdidcmd.GetRecoverDIDCmd())
 	didCmd.AddCommand(deactivatedidcmd.GetDeactivateDIDCmd())
+	didCmd.AddCommand(resolvedidcmd.GetResolveDIDCmd())
 
 	rootCmd.AddCommand(didCmd)
 	rootCmd.AddCommand(ipfsCmd)
