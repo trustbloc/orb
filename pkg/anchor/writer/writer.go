@@ -36,7 +36,6 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -61,6 +60,10 @@ type metricsProvider interface {
 	WriteAnchorResolveHostMetaLinkTime(value time.Duration)
 }
 
+type proofHandler interface {
+	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
+}
+
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
@@ -83,6 +86,7 @@ type Providers struct {
 	AnchorEventStatusStore statusStore
 	OpProcessor            opProcessor
 	Outbox                 outbox
+	ProofHandler           proofHandler
 	Witness                witness
 	Signer                 signer
 	MonitoringSvc          monitoringSvc
@@ -226,7 +230,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	anchorEvent, err := c.buildAnchorEvent(payload, batchWitnesses)
+	anchorEvent, vc, err := c.buildAnchorEvent(payload, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("build anchor event for anchor [%s]: %w", anchor, err)
 	}
@@ -243,7 +247,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index(), anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(anchorEvent, batchWitnesses)
+	err = c.postOfferActivity(anchorEvent, vc, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for anchor event %s: %w",
 			anchorEvent.Index(), err)
@@ -252,35 +256,36 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	return nil
 }
 
-func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string) (*vocab.AnchorEventType, error) {
+func (c *Writer) buildAnchorEvent(payload *subject.Payload,
+	witnesses []string) (*vocab.AnchorEventType, vocab.Document, error) {
 	indexContentObj, err := anchorevent.BuildContentObject(payload)
 	if err != nil {
-		return nil, fmt.Errorf("build content object: %w", err)
+		return nil, nil, fmt.Errorf("build content object: %w", err)
 	}
 
 	vc, err := c.buildCredential(indexContentObj.Payload)
 	if err != nil {
-		return nil, fmt.Errorf("build credential: %w", err)
+		return nil, nil, fmt.Errorf("build credential: %w", err)
 	}
 
 	// sign credential using local witness log or server public key
 	vc, err = c.signCredential(vc, witnesses)
 	if err != nil {
-		return nil, fmt.Errorf("sign credential: %w", err)
+		return nil, nil, fmt.Errorf("sign credential: %w", err)
 	}
 
 	witnessContentObj, err := vocab.MarshalToDoc(vc)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal verifiable credential to doc: %w", err)
+		return nil, nil, fmt.Errorf("unmarshal verifiable credential to doc: %w", err)
 	}
 
 	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, indexContentObj.GeneratorID,
 		indexContentObj.Payload, witnessContentObj)
 	if err != nil {
-		return nil, fmt.Errorf("build anchor event: %w", err)
+		return nil, nil, fmt.Errorf("build anchor event: %w", err)
 	}
 
-	return anchorEvent, nil
+	return anchorEvent, witnessContentObj, nil
 }
 
 func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.SuffixAnchor, error) {
@@ -582,7 +587,8 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, batchWitnesses []string) error {
+func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, localProof vocab.Document,
+	batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
@@ -611,10 +617,29 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, batchWitn
 
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
-		return fmt.Errorf("failed to post offer for anchor event[%s]: %w", anchorEvent.Index(), err)
+		return fmt.Errorf("failed to post offer for anchor index[%s]: %w", anchorEvent.Index(), err)
 	}
 
-	logger.Debugf("created pre-announce activity for anchor event[%s], post id[%s]", anchorEvent.Index(), postID)
+	logger.Debugf("created pre-announce activity for anchor index[%s], post id[%s]", anchorEvent.Index(), postID)
+
+	if len(witnessesIRI) == 1 {
+		// The Offer was posted only to the public IRI. This means that it will be persisted
+		// in the ActivityPub Outbox (to be viewed by anyone) but won't be sent to any service.
+		// In this case we can handle the anchor event immediately.
+		logger.Debugf("According to witness policy, no witnesses are required for anchor index[%s]. "+
+			"Processing the anchor immediately.", anchorEvent.Index())
+
+		localProofBytes, e := json.Marshal(localProof)
+		if err != nil {
+			return fmt.Errorf("marshal localProof: %w", e)
+		}
+
+		// Handle the anchor event by providing this service's proof.
+		e = c.ProofHandler.HandleProof(c.apServiceIRI, anchorEvent.Index().String(), endTime, localProofBytes)
+		if e != nil {
+			return fmt.Errorf("handle offer with no witnesses: %w", e)
+		}
+	}
 
 	return nil
 }
@@ -721,22 +746,31 @@ func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*u
 	witnesses = append(witnesses, batchWitnesses...)
 	witnesses = append(witnesses, systemWitnesses...)
 
-	if len(witnesses) == 0 {
-		logger.Errorf("No witnesses are configured for service [%s]. At least one system witness must be configured",
-			c.apServiceIRI)
-
-		// Return a transient error since adding a witness should allow a retry to succeed.
-		return nil, errors.NewTransient(
-			fmt.Errorf("unable to store witnesses for anchor credential [%s] since no witnesses are provided",
-				anchorID))
-	}
-
 	selectedWitnesses, err := c.WitnessPolicy.Select(witnesses)
 	if err != nil {
 		return nil, fmt.Errorf("select witnesses: %w", err)
 	}
 
 	selectedWitnessesIRI, selectedWitnessesMap := getUniqueWitnesses(selectedWitnesses)
+
+	if len(selectedWitnesses) == 0 {
+		logger.Debugf("No witnesses were configured. Adding self [%s] to witness list.", c.apServiceIRI)
+
+		hasLog, e := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", c.apServiceIRI.Scheme, c.apServiceIRI.Host))
+		if e != nil {
+			return nil, e
+		}
+
+		witness := &proof.Witness{
+			URI:      c.apServiceIRI,
+			HasLog:   hasLog,
+			Selected: true,
+		}
+
+		witnesses = append(witnesses, witness)
+
+		_, selectedWitnessesMap = getUniqueWitnesses([]*proof.Witness{witness})
+	}
 
 	// store witnesses before posting offers
 	err = c.storeWitnesses(anchorID, updateWitnessSelectionFlag(witnesses, selectedWitnessesMap))

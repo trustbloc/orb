@@ -770,6 +770,9 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=10s
+      # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
+      # Default value: 30s. Set the cache expiration very low since we're updating the policy frequently during the test.
+      - WITNESS_POLICY_CACHE_EXPIRATION=500ms
     ports:
       - 49026:443
       - 49027:49027

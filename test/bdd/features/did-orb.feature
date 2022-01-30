@@ -17,6 +17,7 @@ Feature:
     And domain "orb.domain2.com" is mapped to "localhost:48426"
     And domain "orb.domain3.com" is mapped to "localhost:48626"
     And domain "orb.domain4.com" is mapped to "localhost:48726"
+    And domain "orb.domain5.com" is mapped to "localhost:49026"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -427,6 +428,16 @@ Feature:
     Then check success response does NOT contain "unpublishedOperations"
     Then check success response contains "createKey"
     Then check success response contains "firstKey"
+
+  @all
+  @standalone_domain
+  Scenario: Standalone domain
+    # Set the witness policy to require no external proofs since this is a stand-alone domain where
+    # no witnesses or followers are configured.
+    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(0,system)" of type "text/plain"
+
+    When client sends request to "https://orb.domain5.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
   @local_cas
   @create_followed_by_immediate_update
