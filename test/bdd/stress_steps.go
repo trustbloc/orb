@@ -89,11 +89,11 @@ func NewStressSteps(ctx *BDDContext) *StressSteps {
 
 // RegisterSteps registers agent steps.
 func (e *StressSteps) RegisterSteps(s *godog.Suite) {
-	s.Step(`^client sends request to "([^"]*)" to create and update "([^"]*)" DID documents using "([^"]*)" concurrent requests$`,
+	s.Step(`^client sends request to "([^"]*)" to create and update "([^"]*)" DID documents using "([^"]*)" concurrent requests with auth token "([^"]*)"$`,
 		e.createConcurrentReq)
 }
 
-func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv string) error {
+func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv, authTokenEnv string) error {
 	domains := os.Getenv(domainsEnv)
 	if domains == "" {
 		return fmt.Errorf("domains is empty")
@@ -102,6 +102,11 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	didNumsStr := os.Getenv(didNumsEnv)
 	if didNumsStr == "" {
 		return fmt.Errorf("did nums is empty")
+	}
+
+	authTokenStr := os.Getenv(authTokenEnv)
+	if authTokenStr == "" {
+		return fmt.Errorf("auth token is empty")
 	}
 
 	didNums, err := strconv.Atoi(didNumsStr)
@@ -147,7 +152,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 	}
 
 	orbOpts = append(orbOpts, orb.WithTLSConfig(&tls.Config{InsecureSkipVerify: true}),
-		orb.WithAuthToken("ADMIN_TOKEN"), orb.WithVerifyResolutionResultType(orb.Unpublished))
+		orb.WithAuthToken(authTokenStr), orb.WithVerifyResolutionResultType(orb.Unpublished))
 
 	vdr, err := orb.New(kr, orbOpts...)
 	if err != nil {

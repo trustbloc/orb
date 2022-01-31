@@ -19,4 +19,4 @@ Feature: Using Orb stress test
 
   @orb_did_stress_test
   Scenario:
-    When client sends request to "ORB_STRESS_DID_DOMAINS" to create and update "ORB_STRESS_DID_NUMS" DID documents using "ORB_STRESS_CONCURRENT_REQ" concurrent requests
+    When client sends request to "ORB_STRESS_DID_DOMAINS" to create and update "ORB_STRESS_DID_NUMS" DID documents using "ORB_STRESS_CONCURRENT_REQ" concurrent requests with auth token "ORB_AUTH_TOKEN"

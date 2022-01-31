@@ -55,6 +55,10 @@ func TestMain(m *testing.M) {
 					panic(err.Error())
 				}
 
+				if err := os.Setenv("ORB_AUTH_TOKEN", "ADMIN_TOKEN"); err != nil {
+					panic(err.Error())
+				}
+
 				if err := bddContext.Composition().Up(); err != nil {
 					panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 				}
