@@ -9,6 +9,7 @@ package bdd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -31,8 +32,16 @@ type state struct {
 }
 
 func newState() *state {
+	vars := make(map[string]string)
+
+	// Add environment variables.
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		vars[pair[0]] = pair[1]
+	}
+
 	return &state{
-		vars:         make(map[string]string),
+		vars:         vars,
 		authTokenMap: make(map[httpPath]map[httpMethod]authToken),
 	}
 }
@@ -40,6 +49,13 @@ func newState() *state {
 // clearState clears all global variables
 func (s *state) clear() {
 	s.vars = make(map[string]string)
+
+	// Add environment variables.
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		s.vars[pair[0]] = pair[1]
+	}
+
 	s.authTokenMap = make(map[httpPath]map[httpMethod]authToken)
 	s.responseValue = ""
 }
