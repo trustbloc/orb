@@ -9,7 +9,7 @@ go 1.17
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220125212227-6bfc2b0907d6
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220131193748-ae22f3a3d107
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
