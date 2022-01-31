@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
@@ -167,13 +168,18 @@ func recoverDIDCmd() *cobra.Command { //nolint: funlen
 				return err
 			}
 
+			httpClient := http.Client{Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
+			}}
+
 			vdr, err := orb.New(&keyRetriever{
 				nextUpdateKey:   nextUpdateKey,
 				signingKey:      signingKey,
 				nextRecoveryKey: nextRecoveryKey,
 			}, orb.WithAuthToken(sidetreeWriteToken),
 				orb.WithDomain(cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainFileEnvKey)),
-				orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
+				orb.WithHTTPClient(&httpClient))
 			if err != nil {
 				return err
 			}

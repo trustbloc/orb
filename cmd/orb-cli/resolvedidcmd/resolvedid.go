@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -100,10 +101,15 @@ func resolveDIDCmd() *cobra.Command {
 				return err
 			}
 
+			httpClient := http.Client{Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
+			}}
+
 			vdr, err := orb.New(nil,
 				orb.WithAuthToken(authToken), orb.WithDomain(domain),
 				orb.WithVerifyResolutionResultType(verifyResolutionResultType),
-				orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
+				orb.WithHTTPClient(&httpClient))
 			if err != nil {
 				return err
 			}

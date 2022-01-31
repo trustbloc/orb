@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
@@ -114,9 +115,14 @@ func deactivateDIDCmd() *cobra.Command {
 				return err
 			}
 
+			httpClient := http.Client{Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
+			}}
+
 			vdr, err := orb.New(&keyRetriever{signingKey: signingKey},
 				orb.WithAuthToken(sidetreeWriteToken), orb.WithDomain(domain),
-				orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
+				orb.WithHTTPClient(&httpClient))
 			if err != nil {
 				return err
 			}
