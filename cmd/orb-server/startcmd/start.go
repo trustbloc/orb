@@ -995,19 +995,21 @@ func startOrbServices(parameters *orbParameters) error {
 		handlers...,
 	)
 
-	metricsHttpServer := httpserver.New(
-		parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
-		metrics.NewHandler(),
-	)
+	if parameters.hostMetricsURL != "" {
+		metricsHttpServer := httpserver.New(
+			parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
+			metrics.NewHandler(),
+		)
+
+		err = metricsHttpServer.Start()
+		if err != nil {
+			return fmt.Errorf("start metrics HTTP server at %s: %w", parameters.hostMetricsURL, err)
+		}
+	}
 
 	activityPubService.Start()
 
 	nodeInfoService.Start()
-
-	err = metricsHttpServer.Start()
-	if err != nil {
-		return fmt.Errorf("start metrics HTTP server at %s: %w", parameters.hostMetricsURL, err)
-	}
 
 	srv := &HTTPServer{}
 

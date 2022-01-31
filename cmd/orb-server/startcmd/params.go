@@ -58,8 +58,9 @@ const (
 
 	hostMetricsURLFlagName      = "host-metrics-url"
 	hostMetricsURLFlagShorthand = "M"
-	hostMetricsURLFlagUsage     = "URL that exposes the metrics endpoint. Format: HostName:Port."
-	hostMetricsURLEnvKey        = "ORB_HOST_METRICS_URL"
+	hostMetricsURLFlagUsage     = "URL that exposes the metrics endpoint. If not specified then no metrics " +
+		"endpoint is exposed. Format: HostName:Port."
+	hostMetricsURLEnvKey = "ORB_HOST_METRICS_URL"
 
 	syncTimeoutFlagName  = "sync-timeout"
 	syncTimeoutEnvKey    = "ORB_SYNC_TIMEOUT"
@@ -601,7 +602,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	hostMetricsURL, err := cmdutils.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, false)
+	hostMetricsURL, err := cmdutils.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
