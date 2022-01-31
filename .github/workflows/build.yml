@@ -165,3 +165,5 @@ jobs:
           path: |
             ./.build/dist/bin/orb-cli-darwin-amd64.tar.gz
             ./.build/dist/bin/orb-cli-linux-amd64.tar.gz
+            ./.build/dist/bin/orb-cli-linux-arm64.tar.gz
+            ./.build/dist/bin/orb-cli-darwin-arm64.tar.gz
