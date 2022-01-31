@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package bdd
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	mrand "math/rand"
 	"net/http"
 	"net/url"
@@ -462,10 +465,12 @@ func (d *DIDOrbSteps) setSidetreeURL(url string) error {
 }
 
 func getLocalURL(url, separator string) (string, error) {
-	parts := strings.Split(url, separator)
+	var parts []string
 
-	if len(parts) != 2 {
-		return "", fmt.Errorf("wrong format of URL: %s", url)
+	if separator != "" {
+		parts = strings.Split(url, separator)
+	} else {
+		parts = []string{url}
 	}
 
 	externalURL := parts[0]
@@ -1203,6 +1208,23 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 
 	urls := strings.Split(strURLs, ",")
 
+	localUrls := make([]string, len(urls))
+
+	for i, u := range urls {
+		localURL, err := getLocalURL(u, "/sidetree/v1/")
+		if err != nil {
+			return err
+		}
+
+		localUrls[i] = localURL
+	}
+
+	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
+}
+
+func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurrency int) error {
+	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
+
 	d.createResponses = nil
 
 	p := NewWorkerPool(concurrency)
@@ -1210,15 +1232,8 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 	p.Start()
 
 	for i := 0; i < num; i++ {
-		randomURL := urls[mrand.Intn(len(urls))]
-
-		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
-		if err != nil {
-			return err
-		}
-
 		p.Submit(&createDIDRequest{
-			url:        localURL,
+			url:        urls[mrand.Intn(len(urls))],
 			httpClient: d.httpClient,
 		})
 	}
@@ -1244,6 +1259,57 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 
 		d.createResponses = append(d.createResponses, createResp)
 	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs string, num int, concurrency int, file string) error {
+	if err := d.state.resolveVarsInExpression(&strURLs, &file); err != nil {
+		return err
+	}
+
+	urls := strings.Split(strURLs, ",")
+
+	localUrls := make([]string, len(urls))
+
+	for i, u := range urls {
+		localURL, err := getLocalURL(u, "")
+		if err != nil {
+			return err
+		}
+
+		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", localURL)
+	}
+
+	err := d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if e := f.Close(); e != nil {
+			logger.Warnf("Error closing file [%s]: %s", file, err)
+		}
+	}()
+
+	for _, resp := range d.createResponses {
+		_, e := f.WriteString(fmt.Sprintf("%s\n", resp.did))
+		if e != nil {
+			return e
+		}
+	}
+
+	err = f.Sync()
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Wrote %d DIDs to file [%s]", len(d.createResponses), file)
 
 	return nil
 }
@@ -1408,6 +1474,79 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 
 		logger.Infof("... verified %d out of %d DIDs", i+1, len(d.createResponses))
 	}
+
+	return nil
+}
+
+func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file string) error {
+	if err := d.state.resolveVarsInExpression(&strURLs, &file); err != nil {
+		return err
+	}
+
+	var reader io.Reader
+
+	if u, err := url.Parse(file); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+		httpClient := newHTTPClient(d.state, d.bddContext)
+		resp, e := httpClient.Get(file)
+		if e != nil {
+			return fmt.Errorf("get DID file from [%s]: %w", file, e)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("get DID file from [%s] returned status %d: %s", file, resp.StatusCode, resp.ErrorMsg)
+		}
+
+		reader = bytes.NewReader(resp.Payload)
+	} else {
+		f, e := os.Open(file)
+		if e != nil {
+			return e
+		}
+
+		reader = f
+
+		defer func() {
+			if e := f.Close(); e != nil {
+				logger.Warnf("Error closing file [%s]: %s", file, e)
+			}
+		}()
+	}
+
+	logger.Infof("Verifying created DIDs from file [%s]", file)
+
+	scanner := bufio.NewScanner(reader)
+
+	var dids []string
+
+	for scanner.Scan() {
+		dids = append(dids, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		logger.Errorf("Error verifying created DIDs from file [%s]: %s", file, err)
+
+		return err
+	}
+
+	urls := strings.Split(strURLs, ",")
+
+	for i, did := range dids {
+		randomURL := urls[mrand.Intn(len(urls))]
+
+		localURL, e := getLocalURL(randomURL, "")
+		if e != nil {
+			return e
+		}
+
+		_, e = d.verifyDID(fmt.Sprintf("%s/sidetree/v1/identifiers", localURL), did)
+		if e != nil {
+			return e
+		}
+
+		logger.Infof("... verified %d out of %d DIDs", i+1, len(dids))
+	}
+
+	logger.Infof("... verified %d DIDs from file [%s]", len(dids), file)
 
 	return nil
 }
@@ -1692,7 +1831,9 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
+	s.Step(`^client sends request to domains "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
+	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)"$`, d.verifyDIDDocumentsFromFile)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were updated with key "([^"]*)"$`, d.verifyUpdatedDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents again with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocumentsAgain)
