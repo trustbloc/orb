@@ -70,9 +70,10 @@ func GetCmd() *cobra.Command {
 
 func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
-		Use:   "key-gen",
-		Short: "generate IPFS key",
-		Long:  "generate IPFS key ",
+		Use:          "key-gen",
+		Short:        "generate IPFS key",
+		Long:         "generate IPFS key ",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

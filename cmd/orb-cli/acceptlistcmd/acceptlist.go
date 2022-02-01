@@ -32,9 +32,10 @@ const (
 // GetCmd returns the Cobra acceptlist command.
 func GetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "acceptlist",
-		Short: "Manages accept lists.",
-		Long:  "Manages accept lists for 'Follow' and 'Invite' witness authorization handlers.",
+		Use:          "acceptlist",
+		Short:        "Manages accept lists.",
+		Long:         "Manages accept lists for 'Follow' and 'Invite' witness authorization handlers.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return errors.New("expecting subcommand add, remove, or get")
 		},

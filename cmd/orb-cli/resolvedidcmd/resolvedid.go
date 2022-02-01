@@ -75,9 +75,10 @@ func GetResolveDIDCmd() *cobra.Command {
 
 func resolveDIDCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "resolve",
-		Short: "Resolve orb DID",
-		Long:  "Resolve orb DID",
+		Use:          "resolve",
+		Short:        "Resolve orb DID",
+		Long:         "Resolve orb DID",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

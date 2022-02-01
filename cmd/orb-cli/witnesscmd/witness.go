@@ -81,9 +81,10 @@ func GetCmd() *cobra.Command {
 
 func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
-		Use:   "witness",
-		Short: "manage witness",
-		Long:  "manage witness ",
+		Use:          "witness",
+		Short:        "manage witness",
+		Long:         "manage witness ",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {
