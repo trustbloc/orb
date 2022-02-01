@@ -16,7 +16,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211219215001-23cd75276fdc
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20211217190732-bf0dd1b79aba
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220201210414-141091195e94
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
@@ -24,7 +24,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
-	github.com/trustbloc/orb v0.1.4-0.20211201141158-15a02b430f04
+	github.com/trustbloc/orb v0.1.4-0.20220201200943-513f238cd9ed
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220201200000-75907072b045
 )
 
