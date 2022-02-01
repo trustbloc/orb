@@ -68,6 +68,7 @@ type Client struct {
 	casReader         casReader
 	authToken         string
 	disableProofCheck bool
+	didWebHTTP        bool
 	docLoader         ld.DocumentLoader
 	orbClient         orbClient
 
@@ -109,8 +110,9 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 	} else {
 		orbClientOpts = append(orbClientOpts, aoprovider.WithPublicKeyFetcher(
 			verifiable.NewVDRKeyResolver(vdr.New(vdr.WithVDR(&webVDR{
-				http: configService.httpClient,
-				VDR:  web.New(),
+				http:    configService.httpClient,
+				useHTTP: configService.didWebHTTP,
+				VDR:     web.New(),
 			}),
 			)).PublicKeyFetcher()))
 	}
@@ -496,6 +498,13 @@ func WithDisableProofCheck(disable bool) Option {
 	}
 }
 
+// WithDIDWebHTTP use did web http.
+func WithDIDWebHTTP(enable bool) Option {
+	return func(opts *Client) {
+		opts.didWebHTTP = enable
+	}
+}
+
 // WithNamespace option is for custom namespace.
 func WithNamespace(namespace string) Option {
 	return func(opts *Client) {
@@ -518,11 +527,16 @@ func WithCacheSize(size int) Option {
 }
 
 type webVDR struct {
-	http httpClient
+	http    httpClient
+	useHTTP bool
 	*web.VDR
 }
 
 func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocResolution, error) {
+	if w.useHTTP {
+		opts = append(opts, vdrapi.WithOption(web.UseHTTPOpt, true))
+	}
+
 	return w.VDR.Read(didID, append(opts, vdrapi.WithOption(web.HTTPClientOpt, w.http))...)
 }
 
