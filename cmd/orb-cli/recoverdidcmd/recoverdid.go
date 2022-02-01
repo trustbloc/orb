@@ -126,9 +126,10 @@ func GetRecoverDIDCmd() *cobra.Command {
 
 func recoverDIDCmd() *cobra.Command { //nolint: funlen
 	return &cobra.Command{
-		Use:   "recover",
-		Short: "Recover orb DID",
-		Long:  "Recover orb DID",
+		Use:          "recover",
+		Short:        "Recover orb DID",
+		Long:         "Recover orb DID",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

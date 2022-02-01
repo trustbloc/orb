@@ -109,9 +109,10 @@ func GetUpdateDIDCmd() *cobra.Command {
 
 func updateDIDCmd() *cobra.Command { //nolint: funlen
 	return &cobra.Command{
-		Use:   "update",
-		Short: "Update Orb DID",
-		Long:  "Update Orb DID",
+		Use:          "update",
+		Short:        "Update Orb DID",
+		Long:         "Update Orb DID",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

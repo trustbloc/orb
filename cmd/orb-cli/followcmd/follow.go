@@ -81,9 +81,10 @@ func GetCmd() *cobra.Command {
 
 func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 	return &cobra.Command{
-		Use:   "follower",
-		Short: "manage followers",
-		Long:  "manage followers ",
+		Use:          "follower",
+		Short:        "manage followers",
+		Long:         "manage followers ",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

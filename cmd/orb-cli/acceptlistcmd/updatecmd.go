@@ -20,9 +20,10 @@ import (
 
 func newAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Adds actors to an accept list.",
-		Long:  "Adds actors to an accept list used by the 'Follow' and 'Invite' witness authorization handlers.",
+		Use:          "add",
+		Short:        "Adds actors to an accept list.",
+		Long:         "Adds actors to an accept list used by the 'Follow' and 'Invite' witness authorization handlers.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return executeUpdate(cmd, true)
 		},

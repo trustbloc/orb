@@ -87,9 +87,10 @@ func GetDeactivateDIDCmd() *cobra.Command {
 
 func deactivateDIDCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "deactivate",
-		Short: "Deactivate orb DID",
-		Long:  "Deactivate orb DID",
+		Use:          "deactivate",
+		Short:        "Deactivate orb DID",
+		Long:         "Deactivate orb DID",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

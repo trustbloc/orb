@@ -72,9 +72,10 @@ func GetCmd() *cobra.Command {
 
 func hostMetaGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 	return &cobra.Command{
-		Use:   "host-meta-doc-gen",
-		Short: "generate IPNS host-meta document",
-		Long:  "generate IPNS host-meta document",
+		Use:          "host-meta-doc-gen",
+		Short:        "generate IPNS host-meta document",
+		Long:         "generate IPNS host-meta document",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

@@ -19,9 +19,10 @@ import (
 
 func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "get",
-		Short: "Retrieves accept lists.",
-		Long:  "Retrieves accept lists used by the 'Follow' and 'Invite' witness authorization handlers.",
+		Use:          "get",
+		Short:        "Retrieves accept lists.",
+		Long:         "Retrieves accept lists used by the 'Follow' and 'Invite' witness authorization handlers.",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return executeGet(cmd)
 		},

@@ -97,9 +97,10 @@ func GetCreateDIDCmd() *cobra.Command {
 
 func createDIDCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "create",
-		Short: "Create Orb DID",
-		Long:  "Create Orb DID",
+		Use:          "create",
+		Short:        "Create Orb DID",
+		Long:         "Create Orb DID",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootCAs, err := getRootCAs(cmd)
 			if err != nil {

@@ -57,9 +57,10 @@ func GetCmd() *cobra.Command {
 
 func hostMetaDocUploadCmd() *cobra.Command { //nolint: funlen
 	return &cobra.Command{
-		Use:   "host-meta-dir-upload",
-		Short: "upload IPNS host-meta document",
-		Long:  "upload IPNS host-meta document",
+		Use:          "host-meta-dir-upload",
+		Short:        "upload IPNS host-meta document",
+		Long:         "upload IPNS host-meta document",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName,
 				ipfsURLEnvKey, false)
