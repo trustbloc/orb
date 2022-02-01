@@ -9,6 +9,7 @@ package bdd
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -17,7 +18,9 @@ import (
 )
 
 const (
-	funcHashLinkPrefix   = "$hashlink(|"
+	funcHashLinkPrefix  = "$hashlink(|"
+	funcURLEncodePrefix = "$URLEncode(|"
+
 	resourceHashProperty = "ResourceHash"
 )
 
@@ -298,12 +301,16 @@ func (s *state) evaluateFunctions(expression string) (string, error) {
 	switch {
 	case strings.Contains(expression, funcHashLinkPrefix):
 		return s.evaluateHashlinkFunc(expression)
+	case strings.Contains(expression, funcURLEncodePrefix):
+		return s.evaluateURLEncodeFunc(expression)
 	default:
 		return expression, nil
 	}
 }
 
 func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
+	logger.Infof("Evaluating hashlink function for expression %s", expression)
+
 	i := strings.Index(expression, "|)")
 	if i < 0 {
 		return expression, nil
@@ -335,4 +342,21 @@ func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
 	default:
 		return "", fmt.Errorf("invalid hashlink property [%s]", property)
 	}
+}
+
+func (s *state) evaluateURLEncodeFunc(expression string) (string, error) {
+	logger.Infof("Evaluating URLEncode function for expression %s", expression)
+
+	i := strings.Index(expression, "|)")
+	if i < 0 {
+		return expression, nil
+	}
+
+	param := expression[len(funcURLEncodePrefix):i]
+
+	escapedParam := url.QueryEscape(param)
+
+	logger.Infof("Evaluated URLEncode function for parameter %s: %s", param, escapedParam)
+
+	return escapedParam, nil
 }

@@ -53,14 +53,14 @@ func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
 func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
-	return NewActivities(SharesPath, spi.Share, cfg, activityStore,
+	return NewActivities(fmt.Sprintf("%s/{id}", SharesPath), spi.Share, cfg, activityStore,
 		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, SharesPath), verifier, sortOrder, tm)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
 func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
-	return NewActivities(LikesPath, spi.Like, cfg, activityStore,
+	return NewActivities(fmt.Sprintf("%s/{id}", LikesPath), spi.Like, cfg, activityStore,
 		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier, sortOrder, tm)
 }
 

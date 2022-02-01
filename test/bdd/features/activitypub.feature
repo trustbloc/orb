@@ -210,7 +210,7 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares?id=hl%3AuEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg%3AuoQ-BeEJpcGZzOi8vYmFma3JlaWI2eWRhd2xteDdyeW1yYnlza2JydmhoNWhnZTQ1emRqanVsc24zd25xdTR4c2I3MnFqaXk"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg%3AuoQ-BeEJpcGZzOi8vYmFma3JlaWI2eWRhd2xteDdyeW1yYnlza2JydmhoNWhnZTQ1emRqanVsc24zd25xdTR4c2I3MnFqaXk"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
