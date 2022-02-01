@@ -157,7 +157,7 @@ func (h *Resolver) getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHin
 	}
 
 	switch hashWithPossibleHintParts[0] {
-	case "https":
+	case "https", "http":
 		resourceHash = hashWithPossibleHintParts[len(hashWithPossibleHintParts)-1]
 
 		domain = hashWithPossibleHintParts[1]
