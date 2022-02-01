@@ -93,7 +93,7 @@ func TestNewShares(t *testing.T) {
 
 	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
-	require.Equal(t, "/services/orb/shares", h.Path())
+	require.Equal(t, "/services/orb/shares/{id}", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
@@ -110,7 +110,7 @@ func TestNewShares(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, actualID)
 		require.Equal(t,
-			serviceIRI.String()+"/shares?id=http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
+			serviceIRI.String()+"/shares/http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
 			actualID.String())
 	})
 
@@ -134,7 +134,7 @@ func TestNewLikes(t *testing.T) {
 
 	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
 	require.NotNil(t, h)
-	require.Equal(t, "/services/orb/likes", h.Path())
+	require.Equal(t, "/services/orb/likes/{id}", h.Path())
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
@@ -151,7 +151,7 @@ func TestNewLikes(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, actualID)
 		require.Equal(t,
-			serviceIRI.String()+"/likes?id=http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
+			serviceIRI.String()+"/likes/http%3A%2F%2Fexample1.com%2Fvc%2F31027ffa-bfc9-4a36-aa1a-6bfc04e6d432",
 			actualID.String())
 	})
 
@@ -1214,9 +1214,9 @@ const (
 	//nolint:lll
 	sharesJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "first": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true",
-  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760",
-  "last": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=0",
+  "first": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true",
+  "id": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760",
+  "last": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=0",
   "totalItems": 19,
   "type": "OrderedCollection"
 }`
@@ -1224,9 +1224,9 @@ const (
 	//nolint:lll
 	sharesFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=4",
+  "id": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=4",
   "type": "OrderedCollectionPage",
-  "next": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=3",
+  "next": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=3",
   "totalItems": 19,
   "orderedItems": [
     {
@@ -1259,10 +1259,10 @@ const (
 	//nolint:lll
 	sharesPage1JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=1",
+  "id": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=1",
   "type": "OrderedCollectionPage",
-  "next": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=0",
-  "prev": "https://sally.example.com/services/orb/shares?id=https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760&page=true&page-num=2",
+  "next": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=0",
+  "prev": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=2",
   "totalItems": 19,
   "orderedItems": [
     {

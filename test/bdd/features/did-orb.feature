@@ -319,6 +319,7 @@ Feature:
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems" of the array response is not empty
     And the JSON path "orderedItems.0" of the response is saved to variable "anchorLink"
+    And variable "anchorLinkEncoded" is assigned the value "$URLEncode(|${anchorLink}|)"
 
     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
 
@@ -328,7 +329,7 @@ Feature:
     When an HTTP GET is sent to "${vcID}"
     Then the JSON path "id" of the response equals "${vcID}"
 
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorLink}&page=true"
+    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be two Like's:
      # 1 - From domain1 (which received the 'Create');
@@ -339,7 +340,7 @@ Feature:
     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
     And the JSON path 'orderedItems.#(actor="https://orb.domain1.com/services/orb")' of the raw response is saved to variable "likeActivity"
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
+    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be one Like:
      # 1 - From domain3 (which received the 'Announce')
@@ -355,7 +356,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
     Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorLink}"
 
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes?id=${anchorLink}&page=true"
+    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "orderedItems.#" of the response has 1 items
     And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
 
@@ -584,6 +585,7 @@ Feature:
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
     And the JSON path 'links.#(rel=="via").href' of the response is saved to variable "anchorLink"
     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
+    And variable "anchorLinkEncoded" is assigned the value "$URLEncode(|${anchorLink}|)"
 
     # domain3 is following domain1 so it should also have the DID.
     When an HTTP GET is sent to "https://orb.domain3.com/.well-known/webfinger?resource=${didID}"
@@ -595,7 +597,7 @@ Feature:
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain2\.com.*"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes?id=${anchorLink}&page=true"
+    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#" of the response has 2 items
     And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity_1"

@@ -343,7 +343,7 @@ func getIDFromParam(objectIRI *url.URL, path string) getIDFunc {
 			return nil, orberrors.NewBadRequest(errors.New("id not specified in URL"))
 		}
 
-		return url.Parse(fmt.Sprintf("%s%s?id=%s", objectIRI, path, url.QueryEscape(id)))
+		return url.Parse(fmt.Sprintf("%s%s/%s", objectIRI, path, url.QueryEscape(id)))
 	}
 }
 
