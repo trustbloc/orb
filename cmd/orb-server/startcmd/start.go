@@ -835,6 +835,7 @@ func startOrbServices(parameters *orbParameters) error {
 		&discoveryCAS{resolver: casResolver},
 		discoveryclient.WithNamespace(parameters.didNamespace),
 		discoveryclient.WithHTTPClient(httpClient),
+		discoveryclient.WithDIDWebHTTP(parameters.enableDevMode),
 	)
 
 	if parameters.verifyLatestFromAnchorOrigin {
