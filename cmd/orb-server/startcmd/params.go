@@ -462,7 +462,7 @@ const (
 		commonEnvVarUsageText + anchorSyncIntervalEnvKey
 
 	anchorSyncMinActivityAgeFlagName  = "sync-min-activity-age"
-	anchorSyncMinActivityAgeEnvKey    = "ANCHOR_EVENT_MIN_ACTIVITY_AGE"
+	anchorSyncMinActivityAgeEnvKey    = "ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE"
 	anchorSyncMinActivityAgeFlagUsage = "The minimum age of an activity to be synchronized. The activity will be " +
 		"processed only if its age is greater than this value. Defaults to 1m if not set. " +
 		commonEnvVarUsageText + anchorSyncMinActivityAgeEnvKey
