@@ -35,6 +35,7 @@ const (
 	defaultTaskMgrCheckInterval             = 10 * time.Second
 	defaultDataExpiryCheckInterval          = time.Minute
 	defaultAnchorSyncInterval               = time.Minute
+	defaultAnchorSyncMinActivityAge         = time.Minute
 	defaultVCTMonitoringInterval            = 10 * time.Second
 	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
 	defaultAnchorStatusInProcessGracePeriod = 10 * time.Second
@@ -460,6 +461,12 @@ const (
 		"this service is following. Defaults to 1m if not set. " +
 		commonEnvVarUsageText + anchorSyncIntervalEnvKey
 
+	anchorSyncMinActivityAgeFlagName  = "sync-min-activity-age"
+	anchorSyncMinActivityAgeEnvKey    = "ANCHOR_EVENT_MIN_ACTIVITY_AGE"
+	anchorSyncMinActivityAgeFlagUsage = "The minimum age of an activity to be synchronized. The activity will be " +
+		"processed only if its age is greater than this value. Defaults to 1m if not set. " +
+		commonEnvVarUsageText + anchorSyncMinActivityAgeEnvKey
+
 	activityPubClientCacheSizeFlagName  = "apclient-cache-size"
 	activityPubClientCacheSizeEnvKey    = "ACTIVITYPUB_CLIENT_CACHE_SIZE"
 	activityPubClientCacheSizeFlagUsage = "The maximum size of an ActivityPub service and public key cache. " +
@@ -567,7 +574,8 @@ type orbParameters struct {
 	inviteWitnessAuthPolicy                 acceptRejectPolicy
 	followAuthPolicy                        acceptRejectPolicy
 	taskMgrCheckInterval                    time.Duration
-	syncPeriod                              time.Duration
+	anchorSyncPeriod                        time.Duration
+	anchorSyncMinActivityAge                time.Duration
 	vctMonitoringInterval                   time.Duration
 	anchorStatusMonitoringInterval          time.Duration
 	anchorStatusInProcessGracePeriod        time.Duration
@@ -1035,9 +1043,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	syncPeriod, err := getDuration(cmd, anchorSyncIntervalFlagName, anchorSyncIntervalEnvKey, defaultAnchorSyncInterval)
+	syncPeriod, minActivityAge, err := getAnchorSyncParameters(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", anchorSyncIntervalFlagName, err)
+		return nil, err
 	}
 
 	vctMonitoringInterval, err := getDuration(cmd, vctMonitoringIntervalFlagName, vctMonitoringIntervalEnvKey,
@@ -1133,7 +1141,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		taskMgrCheckInterval:                    taskMgrCheckInterval,
 		httpDialTimeout:                         httpDialTimeout,
 		httpTimeout:                             httpTimeout,
-		syncPeriod:                              syncPeriod,
+		anchorSyncPeriod:                        syncPeriod,
+		anchorSyncMinActivityAge:                minActivityAge,
 		vctMonitoringInterval:                   vctMonitoringInterval,
 		anchorStatusMonitoringInterval:          anchorStatusMonitoringInterval,
 		anchorStatusInProcessGracePeriod:        anchorStatusInProcessGracePeriod,
@@ -1566,6 +1575,21 @@ func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, e
 	return cacheSize, cacheExpiration, nil
 }
 
+func getAnchorSyncParameters(cmd *cobra.Command) (syncPeriod, minActivityAge time.Duration, err error) {
+	syncPeriod, err = getDuration(cmd, anchorSyncIntervalFlagName, anchorSyncIntervalEnvKey, defaultAnchorSyncInterval)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%s: %w", anchorSyncIntervalFlagName, err)
+	}
+
+	minActivityAge, err = getDuration(cmd, anchorSyncMinActivityAgeFlagName, anchorSyncMinActivityAgeEnvKey,
+		defaultAnchorSyncMinActivityAge)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%s: %w", anchorSyncMinActivityAgeFlagName, err)
+	}
+
+	return syncPeriod, minActivityAge, nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
@@ -1639,6 +1663,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpTimeoutFlagName, "", "", httpTimeoutFlagUsage)
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
+	startCmd.Flags().StringP(anchorSyncMinActivityAgeFlagName, "", "", anchorSyncMinActivityAgeFlagUsage)
 	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)

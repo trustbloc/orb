@@ -14,6 +14,7 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
@@ -105,13 +106,20 @@ func TestRun(t *testing.T) {
 		handler.duplicateAnchors = append(handler.duplicateAnchors, announceActivities[1], createActivities[1])
 
 		task, err := newTask(
-			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(),
+			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(), time.Second,
 			func() spi.InboxHandler {
 				return handler
 			},
 		)
 		require.NoError(t, err)
 		require.NotNil(t, task)
+
+		task.run()
+
+		require.Emptyf(t, len(handler.activities),
+			"Should not have processed any activities since the minimum activity age is one second")
+
+		time.Sleep(time.Second)
 
 		task.run()
 
@@ -127,7 +135,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, s, storage.NewMockStoreProvider(),
+			serviceIRI, apClient, s, storage.NewMockStoreProvider(), time.Nanosecond,
 			func() spi.InboxHandler {
 				return handler
 			},
@@ -152,7 +160,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, s, storage.NewMockStoreProvider(),
+			serviceIRI, apClient, s, storage.NewMockStoreProvider(), time.Nanosecond,
 			func() spi.InboxHandler {
 				return handler
 			},
@@ -173,7 +181,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(),
+			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(), time.Nanosecond,
 			func() spi.InboxHandler {
 				return handler
 			},

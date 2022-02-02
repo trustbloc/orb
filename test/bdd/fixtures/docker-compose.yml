@@ -92,6 +92,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
       # VCT_MONITORING_INTERVAL is the interval (period) in which proofs are monitored from various VCTs that promised
       # to anchor a VC by a certain time.
       # Default value: 10s.
@@ -215,6 +219,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
       # VCT_MONITORING_INTERVAL is the interval (period) in which proofs are monitored from various VCTs that promised
       # to anchor a VC by a certain time.
       # Default value: 10s.
@@ -345,6 +353,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
     ports:
       - 48826:80
       - 48827:48827
@@ -442,6 +454,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
     ports:
       - 48926:80
       - 48927:48927
@@ -555,6 +571,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
     ports:
       - 48626:443
       - 48627:48627
@@ -664,6 +684,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=1m
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=1m
     ports:
       - 48726:443
       - 48727:48727
@@ -770,6 +794,10 @@ services:
       # we're following.
       # Default value: 1m.
       - ANCHOR_EVENT_SYNC_INTERVAL=10s
+      # ANCHOR_EVENT_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
+      # only if its age is greater than this value.
+      # Default value: 1m
+      - ANCHOR_EVENT_MIN_ACTIVITY_AGE=20s
       # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
       # Default value: 30s. Set the cache expiration very low since we're updating the policy frequently during the test.
       - WITNESS_POLICY_CACHE_EXPIRATION=500ms
