@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-const logModule = "anchor_sync"
+const logModule = "activity_sync"
 
 var logger = log.New(logModule)
 
@@ -114,26 +114,6 @@ func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Stor
 }
 
 func (m *task) run() {
-	following, err := m.getServices(store.Following)
-	if err != nil {
-		logger.Errorf("Error retrieving my following list: %s", err)
-
-		return
-	}
-
-	if len(following) > 0 {
-		for _, serviceIRI := range following {
-			err = m.sync(serviceIRI, outbox, func(a *vocab.ActivityType) bool {
-				return a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce)
-			})
-			if err != nil {
-				logger.Warnf("Error processing activities from outbox of service [%s]: %s", serviceIRI, err)
-			}
-		}
-
-		logger.Debugf("Done synchronizing activities with %d services that I'm following.", len(following))
-	}
-
 	followers, err := m.getServices(store.Follower)
 	if err != nil {
 		logger.Errorf("Error retrieving my followers list: %s", err)
@@ -153,6 +133,26 @@ func (m *task) run() {
 		}
 
 		logger.Debugf("Done synchronizing activities with %d services that are following me.", len(followers))
+	}
+
+	following, err := m.getServices(store.Following)
+	if err != nil {
+		logger.Errorf("Error retrieving my following list: %s", err)
+
+		return
+	}
+
+	if len(following) > 0 {
+		for _, serviceIRI := range following {
+			err = m.sync(serviceIRI, outbox, func(a *vocab.ActivityType) bool {
+				return a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce)
+			})
+			if err != nil {
+				logger.Warnf("Error processing activities from outbox of service [%s]: %s", serviceIRI, err)
+			}
+		}
+
+		logger.Debugf("Done synchronizing activities with %d services that I'm following.", len(following))
 	}
 }
 
