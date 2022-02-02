@@ -744,6 +744,10 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 			break
 		}
 
+		if !r.checkForPublished {
+			fmt.Println(r.intermID)
+		}
+
 		if err != nil && !strings.Contains(err.Error(), "DID does not exist") &&
 			!checkRetryError(err) {
 			return nil, fmt.Errorf("failed to resolve create did: %s", err.Error())
