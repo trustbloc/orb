@@ -482,7 +482,7 @@ func getLocalURL(url, separator string) (string, error) {
 
 	localURL, ok := localURLs[externalURL]
 	if !ok {
-		return "", fmt.Errorf("server URL not configured for: %s", url)
+		return url, nil
 	}
 
 	return strings.ReplaceAll(url, externalURL, localURL), nil
@@ -918,7 +918,7 @@ func (d *DIDOrbSteps) getInitialState() (string, error) {
 	return encoder.EncodeToString(bytes), nil
 }
 
-func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.PrivateKey, *ecdsa.PrivateKey, []byte, error) {
+func getCreateRequest(strUrl string, doc []byte, patches []patch.Patch) (*ecdsa.PrivateKey, *ecdsa.PrivateKey, []byte, error) {
 	recoveryKey, recoveryCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, nil, err
@@ -929,9 +929,16 @@ func getCreateRequest(url string, doc []byte, patches []patch.Patch) (*ecdsa.Pri
 		return nil, nil, nil, err
 	}
 
-	origin, ok := anchorOriginURLs[url]
+	origin, ok := anchorOriginURLs[strUrl]
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("anchor origin not configured for %s", url)
+		u, err := url.Parse(strUrl)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+
+		logger.Infof("Anchor origin not configured for %s. Using %s", strUrl, origin)
 	}
 
 	reqBytes, err := client.NewCreateRequest(&client.CreateRequestInfo{
