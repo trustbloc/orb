@@ -27,8 +27,10 @@ const logModule = "anchor_sync"
 var logger = log.New(logModule)
 
 const (
-	defaultInterval = time.Minute
-	taskName        = "activity-sync"
+	defaultInterval       = time.Minute
+	defaultMinActivityAge = time.Minute
+
+	taskName = "activity-sync"
 )
 
 type activitySource string
@@ -49,8 +51,9 @@ type taskManager interface {
 
 // Config contains configuration parameters for the anchor event synchronization task.
 type Config struct {
-	ServiceIRI *url.URL
-	Interval   time.Duration
+	ServiceIRI     *url.URL
+	Interval       time.Duration
+	MinActivityAge time.Duration
 }
 
 type task struct {
@@ -60,23 +63,31 @@ type task struct {
 	getHandler       func() spi.InboxHandler
 	activityPubStore store.Store
 	closed           chan struct{}
+	minActivityAge   time.Duration
 }
 
 // Register registers the anchor event synchronization task.
 func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apStore store.Store,
 	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler) error {
-	t, err := newTask(cfg.ServiceIRI, apClient, apStore, storageProvider, handlerFactory)
-	if err != nil {
-		return fmt.Errorf("create task: %w", err)
-	}
-
 	interval := cfg.Interval
 
 	if interval == 0 {
 		interval = defaultInterval
 	}
 
-	logger.Infof("Registering activity-sync task - ServiceIRI: %s, Interval: %s.", cfg.ServiceIRI, interval)
+	minActivityAge := cfg.MinActivityAge
+
+	if minActivityAge == 0 {
+		minActivityAge = defaultMinActivityAge
+	}
+
+	t, err := newTask(cfg.ServiceIRI, apClient, apStore, storageProvider, minActivityAge, handlerFactory)
+	if err != nil {
+		return fmt.Errorf("create task: %w", err)
+	}
+
+	logger.Infof("Registering activity-sync task - ServiceIRI: %s, Interval: %s, MinActivityAge: %s.",
+		cfg.ServiceIRI, interval, minActivityAge)
 
 	taskMgr.RegisterTask(taskName, interval, t.run)
 
@@ -84,7 +95,8 @@ func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apSto
 }
 
 func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Store,
-	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler) (*task, error) {
+	storageProvider storage.Provider, minActivityAge time.Duration,
+	handlerFactory func() spi.InboxHandler) (*task, error) {
 	s, err := newSyncStore(storageProvider)
 	if err != nil {
 		return nil, fmt.Errorf("create new run store: %w", err)
@@ -96,6 +108,7 @@ func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Stor
 		store:            s,
 		activityPubStore: apStore,
 		getHandler:       handlerFactory,
+		minActivityAge:   minActivityAge,
 		closed:           make(chan struct{}),
 	}, nil
 }
@@ -143,7 +156,7 @@ func (m *task) run() {
 	}
 }
 
-//nolint:gocyclo,cyclop
+//nolint:gocyclo,cyclop,funlen
 func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vocab.ActivityType) bool) error {
 	it, lastSyncedPage, lastSyncedIndex, err := m.getNewActivities(serviceIRI, src)
 	if err != nil {
@@ -172,7 +185,19 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 			logger.Debugf("%s sync from [%s]: Ignoring activity [%s] of Type %s",
 				src, serviceIRI, a.ID(), a.Type())
 
+			page, index = currentPage, it.NextIndex()-1
+
 			continue
+		}
+
+		if publishedTime := a.Published(); publishedTime != nil {
+			if activityAge := time.Since(*publishedTime); activityAge < m.minActivityAge {
+				logger.Debugf("%s sync from [%s]: Not syncing activity [%s] of Type %s since it was added %s ago"+
+					" which is less than the minimum activity age of %s",
+					src, serviceIRI, a.ID(), a.Type(), activityAge, m.minActivityAge)
+
+				break
+			}
 		}
 
 		processed, e := m.syncActivity(serviceIRI, currentPage, a)
@@ -190,7 +215,8 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 	}
 
 	if page.String() != lastSyncedPage.String() || index != lastSyncedIndex {
-		logger.Debugf("Updating last synced page to [%s], index [%d]", page, index)
+		logger.Debugf("%s sync from [%s]: Updating last synced page to [%s], index [%d]",
+			src, serviceIRI, page, index)
 
 		err = m.store.PutLastSyncedPage(serviceIRI, src, page, index)
 		if err != nil {
@@ -198,9 +224,12 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 		}
 
 		if numProcessed > 0 {
-			logger.Infof("Processed %d missing anchor events from %s ending at page [%s], index [%d]",
-				numProcessed, src, page, index)
+			logger.Infof("%s sync from [%s]: Processed %d missing anchor events ending at page [%s], index [%d]",
+				src, serviceIRI, numProcessed, page, index)
 		}
+	} else {
+		logger.Debugf("%s sync from [%s]: Processed %d missing anchor events ending at page [%s], index [%d]",
+			src, serviceIRI, numProcessed, page, index)
 	}
 
 	return nil
