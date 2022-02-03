@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	mrand "math/rand"
 	"net/http"
 	"net/url"
@@ -1490,33 +1491,9 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file string) error {
 		return err
 	}
 
-	var reader io.Reader
-
-	if u, err := url.Parse(file); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-		httpClient := newHTTPClient(d.state, d.bddContext)
-		resp, e := httpClient.Get(file)
-		if e != nil {
-			return fmt.Errorf("get DID file from [%s]: %w", file, e)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("get DID file from [%s] returned status %d: %s", file, resp.StatusCode, resp.ErrorMsg)
-		}
-
-		reader = bytes.NewReader(resp.Payload)
-	} else {
-		f, e := os.Open(file)
-		if e != nil {
-			return e
-		}
-
-		reader = f
-
-		defer func() {
-			if e := f.Close(); e != nil {
-				logger.Warnf("Error closing file [%s]: %s", file, e)
-			}
-		}()
+	reader, err := d.newReader(file)
+	if err != nil {
+		return fmt.Errorf("get DID file from [%s]: %w", file, err)
 	}
 
 	logger.Infof("Verifying created DIDs from file [%s]", file)
@@ -1718,6 +1695,60 @@ func (d *DIDOrbSteps) verifyUpdatedDIDContainsKeyID(url, did, keyID string) erro
 	}
 
 	return fmt.Errorf("DID %s does not contain key ID [%s]", did, keyID)
+}
+
+func (d *DIDOrbSteps) newReader(file string) (io.Reader, error) {
+	if u, err := url.Parse(file); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+		httpClient := newHTTPClient(d.state, d.bddContext)
+		resp, e := httpClient.Get(file)
+		if e != nil {
+			return nil, fmt.Errorf("new reader from [%s]: %w", file, e)
+		}
+
+		logger.Infof("Got header: %s", resp.Header)
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("new reader from [%s] returned status %d: %s", file, resp.StatusCode, resp.ErrorMsg)
+		}
+
+		if strings.Contains(resp.Header.Get("Content-Type"), "application/zip") {
+			reader, e := readZip(resp.Payload)
+			if e != nil {
+				return nil, fmt.Errorf("new reader from [%s]: %w", file, e)
+			}
+
+			return reader, nil
+		}
+
+		return bytes.NewReader(resp.Payload), nil
+	}
+
+	f, e := os.Open(file)
+	if e != nil {
+		return nil, fmt.Errorf("open file [%s]: %w", file, e)
+	}
+
+	defer func() {
+		if e := f.Close(); e != nil {
+			logger.Warnf("Error closing file [%s]: %s", file, e)
+		}
+	}()
+
+	contents, e := ioutil.ReadAll(f)
+	if e != nil {
+		return nil, fmt.Errorf("read file [%s]: %w", file, e)
+	}
+
+	if strings.HasSuffix(file, ".zip") {
+		reader, e := readZip(contents)
+		if e != nil {
+			return nil, fmt.Errorf("read zip file [%s]: %w", file, e)
+		}
+
+		return reader, nil
+	}
+
+	return bytes.NewReader(contents), nil
 }
 
 type createDIDRequest struct {
