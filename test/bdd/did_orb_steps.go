@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1271,9 +1272,19 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurren
 	return nil
 }
 
-func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs string, num int, concurrency int, file string) error {
-	if err := d.state.resolveVarsInExpression(&strURLs, &file); err != nil {
+func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strConcurrency string, file string) error {
+	if err := d.state.resolveVarsInExpression(&strURLs, &file, &strNum, &strConcurrency); err != nil {
 		return err
+	}
+
+	num, err := strconv.Atoi(strNum)
+	if err != nil {
+		return fmt.Errorf("invalid value for number of DIDs: %w", err)
+	}
+
+	concurrency, err := strconv.Atoi(strConcurrency)
+	if err != nil {
+		return fmt.Errorf("invalid value for concurrency: %w", err)
 	}
 
 	urls := strings.Split(strURLs, ",")
@@ -1289,7 +1300,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs string, num i
 		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", localURL)
 	}
 
-	err := d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
+	err = d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
 	if err != nil {
 		return err
 	}
@@ -1869,7 +1880,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
-	s.Step(`^client sends request to domains "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
+	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
 	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)"$`, d.verifyDIDDocumentsFromFile)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
