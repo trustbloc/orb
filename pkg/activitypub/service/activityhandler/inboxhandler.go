@@ -751,7 +751,8 @@ func (h *Inbox) announceAnchorEvent(create *vocab.ActivityType) error {
 		vocab.WithPublishedTime(&published),
 	)
 
-	if _, err := h.outbox.Post(announce); err != nil {
+	// Announce the activity to our followers but exclude the actor of the Create.
+	if _, err := h.outbox.Post(announce, create.Actor()); err != nil {
 		return orberrors.NewTransient(err)
 	}
 

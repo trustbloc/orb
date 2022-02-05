@@ -297,7 +297,7 @@ type mockOutbox struct {
 	Err error
 }
 
-func (m *mockOutbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
+func (m *mockOutbox) Post(activity *vocab.ActivityType, _ ...*url.URL) (*url.URL, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

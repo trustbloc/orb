@@ -200,7 +200,7 @@ type mockActivityLogger struct {
 	mutex sync.Mutex
 }
 
-func (m *mockActivityLogger) Infof(msg string, args ...interface{}) {
+func (m *mockActivityLogger) Debugf(msg string, args ...interface{}) {
 	m.mutex.Lock()
 	m.infos = append(m.infos, fmt.Sprintf(msg, args...))
 	m.mutex.Unlock()

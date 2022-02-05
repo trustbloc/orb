@@ -128,7 +128,7 @@ type monitoringSvc interface {
 }
 
 type outbox interface {
-	Post(activity *vocab.ActivityType) (*url.URL, error)
+	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type opProcessor interface {
