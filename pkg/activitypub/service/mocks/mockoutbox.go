@@ -51,7 +51,7 @@ func (m *Outbox) Activities() Activities {
 
 // Post post an activity to the outbox. The activity is simply stored
 // so that it may be retrieved by the Activies function.
-func (m *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
+func (m *Outbox) Post(activity *vocab.ActivityType, _ ...*url.URL) (*url.URL, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

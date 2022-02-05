@@ -40,5 +40,5 @@ Feature:
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
-    Then client sends request to domains "https://orb.domain1.com" to create "50" DID documents using "5" concurrent requests storing the dids to file "./fixtures/dids.txt"
-    And client sends request to domains "https://orb.domain1.com" to verify the DID documents that were created from file "./fixtures/dids.txt"
+    Then client sends request to domains "https://orb.domain1.com" to create "50" DID documents using "5" concurrent requests storing the dids to file "./fixtures/data/dids.txt"
+    And client sends request to domains "https://orb.domain1.com" to verify the DID documents that were created from file "./fixtures/data/dids.txt"

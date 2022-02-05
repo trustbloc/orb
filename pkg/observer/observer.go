@@ -80,7 +80,7 @@ type metricsProvider interface {
 
 // Outbox defines an ActivityPub outbox.
 type Outbox interface {
-	Post(activity *vocab.ActivityType) (*url.URL, error)
+	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type resourceResolver interface {

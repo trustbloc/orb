@@ -21,7 +21,7 @@ import (
 )
 
 type outbox interface {
-	Post(activity *vocab.ActivityType) (*url.URL, error)
+	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 // Outbox implements a REST handler for posts to a service's outbox.

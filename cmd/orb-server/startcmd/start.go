@@ -139,11 +139,10 @@ import (
 const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
-	defaultMaxWitnessDelay                  = 600 * time.Second // 10 minutes
+	defaultMaxWitnessDelay                  = 10 * time.Minute
 	defaultSyncTimeout                      = 1
 	defaulthttpSignaturesEnabled            = true
 	defaultDidDiscoveryEnabled              = false
-	defaultCreateDocumentStoreEnabled       = false
 	defaultUnpublishedOperationStoreEnabled = false
 	defaultIncludeUnpublishedOperations     = false
 	defaultIncludePublishedOperations       = false
@@ -1401,7 +1400,7 @@ func NewAcceptRejectHandler(targetType string, policy acceptRejectPolicy, config
 }
 
 type activityLogger interface {
-	Infof(msg string, args ...interface{})
+	Debugf(msg string, args ...interface{})
 	Warnf(msg string, args ...interface{})
 }
 
@@ -1415,7 +1414,7 @@ func monitorActivities(activityChan <-chan *vocab.ActivityType, l activityLogger
 			l.Warnf("Received activity [%s] of type %s from [%s]",
 				activity.ID(), activity.Type(), activity.Actor())
 		default:
-			l.Infof("Received activity [%s] of type %s from [%s]",
+			l.Debugf("Received activity [%s] of type %s from [%s]",
 				activity.ID(), activity.Type(), activity.Actor())
 		}
 	}

@@ -38,7 +38,7 @@ const (
 	defaultAnchorSyncMinActivityAge         = time.Minute
 	defaultVCTMonitoringInterval            = 10 * time.Second
 	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
-	defaultAnchorStatusInProcessGracePeriod = 10 * time.Second
+	defaultAnchorStatusInProcessGracePeriod = time.Minute
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	mqDefaultPublisherChannelPoolSize       = 25
 	defaultActivityPubClientCacheSize       = 100
@@ -87,7 +87,7 @@ const (
 	anchorStatusInProcessGracePeriodFlagName  = "anchor-status-in-process-grace-period"
 	anchorStatusInProcessGracePeriodEnvKey    = "ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD"
 	anchorStatusInProcessGracePeriodFlagUsage = "The period in which witnesses will not be re-selected for 'in-process' anchors." +
-		"Defaults to 10s if not set. " +
+		"Defaults to 1m if not set. " +
 		commonEnvVarUsageText + anchorStatusInProcessGracePeriodEnvKey
 
 	kmsStoreEndpointFlagName  = "kms-store-endpoint"
@@ -299,7 +299,7 @@ const (
 	maxWitnessDelayFlagName      = "max-witness-delay"
 	maxWitnessDelayEnvKey        = "MAX_WITNESS_DELAY"
 	maxWitnessDelayFlagShorthand = "w"
-	maxWitnessDelayFlagUsage     = "Maximum witness response time (in seconds). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
+	maxWitnessDelayFlagUsage     = "Maximum witness response time (default 10m). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
 
 	signWithLocalWitnessFlagName      = "sign-with-local-witness"
 	signWithLocalWitnessEnvKey        = "SIGN_WITH_LOCAL_WITNESS"
@@ -739,19 +739,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
 	}
 
-	maxWitnessDelayStr, err := cmdutils.GetUserSetVarFromString(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, true)
+	maxWitnessDelay, err := getDuration(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, defaultMaxWitnessDelay)
 	if err != nil {
 		return nil, err
-	}
-
-	maxWitnessDelay := defaultMaxWitnessDelay
-	if maxWitnessDelayStr != "" {
-		delay, parseErr := strconv.ParseUint(maxWitnessDelayStr, 10, 32)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid max witness delay format: %s", parseErr.Error())
-		}
-
-		maxWitnessDelay = time.Duration(delay) * time.Second
 	}
 
 	signWithLocalWitnessStr, err := cmdutils.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
