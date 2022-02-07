@@ -29,7 +29,7 @@ func TestTxnProcessor_Process(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.Process(txn.SidetreeTxn{})
+		_, err := p.Process(txn.SidetreeTxn{})
 		require.NoError(t, err)
 	})
 
@@ -40,7 +40,7 @@ func TestTxnProcessor_Process(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, suffix)
+		_, err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, suffix)
 		require.NoError(t, err)
 	})
 
@@ -51,7 +51,7 @@ func TestTxnProcessor_Process(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, "different")
+		_, err := p.Process(txn.SidetreeTxn{AnchorString: anchorString}, "different")
 		require.NoError(t, err)
 	})
 
@@ -68,7 +68,7 @@ func TestTxnProcessor_Process(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.Process(txn.SidetreeTxn{})
+		_, err := p.Process(txn.SidetreeTxn{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -83,7 +83,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
+		_, err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: "abc"}},
 			&txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to store operation from anchor string")
@@ -98,7 +98,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		}
 
 		p := New(providers)
-		err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: suffix}},
+		_, err := p.processTxnOperations([]*operation.AnchoredOperation{{UniqueSuffix: suffix}},
 			&txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get error")
@@ -114,7 +114,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 
-		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		_, err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
 
@@ -136,7 +136,7 @@ func TestProcessTxnOperations(t *testing.T) {
 			})
 		require.NoError(t, err)
 
-		err = p.processTxnOperations(batchOps,
+		_, err = p.processTxnOperations(batchOps,
 			&txn.SidetreeTxn{AnchorString: anchorString, CanonicalReference: canonicalRef})
 		require.NoError(t, err)
 	})
@@ -155,7 +155,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		// only first operation will be processed, subsequent operations will be discarded
 		batchOps = append(batchOps, batchOps...)
 
-		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		_, err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
 
@@ -171,7 +171,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 
-		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		_, err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 	})
 
@@ -189,7 +189,7 @@ func TestProcessTxnOperations(t *testing.T) {
 		batchOps, err := p.OperationProtocolProvider.GetTxnOperations(&txn.SidetreeTxn{AnchorString: anchorString})
 		require.NoError(t, err)
 
-		err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
+		_, err = p.processTxnOperations(batchOps, &txn.SidetreeTxn{AnchorString: anchorString})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to delete unpublished operations for anchor string[1.coreIndexURI]: delete all error")

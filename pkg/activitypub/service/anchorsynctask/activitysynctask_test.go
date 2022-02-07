@@ -228,18 +228,18 @@ func (m *mockHandler) HandleCreateActivity(src *url.URL, a *vocab.ActivityType, 
 	return nil
 }
 
-func (m *mockHandler) HandleAnnounceActivity(src *url.URL, a *vocab.ActivityType) error {
+func (m *mockHandler) HandleAnnounceActivity(src *url.URL, a *vocab.ActivityType) (int, error) {
 	if m.err != nil {
-		return m.err
+		return 0, m.err
 	}
 
 	if m.exists(a) {
-		return spi.ErrDuplicateAnchorEvent
+		return 0, spi.ErrDuplicateAnchorEvent
 	}
 
 	m.activities = append(m.activities, a)
 
-	return nil
+	return 1, nil
 }
 
 func (m *mockHandler) exists(activity *vocab.ActivityType) bool {

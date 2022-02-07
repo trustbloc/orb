@@ -87,7 +87,9 @@ func (h *Inbox) HandleActivity(source *url.URL, activity *vocab.ActivityType) er
 	case typeProp.Is(vocab.TypeReject):
 		return h.handleRejectActivity(activity)
 	case typeProp.Is(vocab.TypeAnnounce):
-		return h.HandleAnnounceActivity(source, activity)
+		_, err := h.HandleAnnounceActivity(source, activity)
+
+		return err
 	case typeProp.Is(vocab.TypeOffer):
 		return h.handleOfferActivity(activity)
 	case typeProp.Is(vocab.TypeLike):
@@ -448,7 +450,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 }
 
 // HandleAnnounceActivity handles an 'Announce' ActivityPub activity.
-func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.ActivityType) error {
+func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.ActivityType) (numProcessed int, err error) {
 	logger.Debugf("[%s] Handling 'Announce' activity: %s", h.ServiceName, announce.ID())
 
 	obj := announce.Object()
@@ -457,22 +459,24 @@ func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.Activity
 
 	switch {
 	case t.Is(vocab.TypeCollection):
-		if err := h.handleAnnounceCollection(source, announce, obj.Collection().Items()); err != nil {
-			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
+		numProcessed, err = h.handleAnnounceCollection(source, announce, obj.Collection().Items())
+		if err != nil {
+			return numProcessed, fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
 	case t.Is(vocab.TypeOrderedCollection):
-		if err := h.handleAnnounceCollection(source, announce, obj.OrderedCollection().Items()); err != nil {
-			return fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
+		numProcessed, err = h.handleAnnounceCollection(source, announce, obj.OrderedCollection().Items())
+		if err != nil {
+			return numProcessed, fmt.Errorf("error handling 'Announce' activity [%s]: %w", announce.ID(), err)
 		}
 
 	default:
-		return fmt.Errorf("unsupported object type for 'Announce' %s", t)
+		return numProcessed, fmt.Errorf("unsupported object type for 'Announce' %s", t)
 	}
 
 	h.notify(announce)
 
-	return nil
+	return numProcessed, nil
 }
 
 func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
@@ -640,14 +644,16 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef, source *url.UR
 	return nil
 }
 
-func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.ActivityType, items []*vocab.ObjectProperty) error { //nolint:gocyclo,cyclop,lll
+//nolint:cyclop,gocyclo
+func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.ActivityType,
+	items []*vocab.ObjectProperty) (int, error) {
 	logger.Debugf("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
 
 	var anchorEventIDs []*url.URL
 
 	for _, item := range items {
 		if !item.Type().Is(vocab.TypeAnchorEvent) {
-			return fmt.Errorf("expecting 'Info' type")
+			return 0, fmt.Errorf("expecting 'Info' type")
 		}
 
 		anchorEvent := item.AnchorEvent()
@@ -663,7 +669,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 			if err := h.handleAnchorEvent(announce.Actor(), source, anchorEvent); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
-					return err
+					return 0, err
 				}
 
 				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
@@ -674,7 +680,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0], source); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
-					return err
+					return 0, err
 				}
 
 				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
@@ -696,7 +702,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 		}
 	}
 
-	return nil
+	return len(anchorEventIDs), nil
 }
 
 func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
