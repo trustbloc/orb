@@ -200,32 +200,30 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 			}
 		}
 
-		processed, e := m.syncActivity(serviceIRI, currentPage, a)
+		n, e := m.syncActivity(serviceIRI, currentPage, a)
 		if e != nil {
 			return fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
 		}
 
-		if processed {
-			numProcessed++
-		}
+		numProcessed += n
 
-		progress.Log(processed, page, currentPage)
+		progress.Log(n, page, currentPage)
 
 		page, index = currentPage, it.NextIndex()-1
 	}
 
 	if page.String() != lastSyncedPage.String() || index != lastSyncedIndex {
-		logger.Debugf("%s sync from [%s]: Updating last synced page to [%s], index [%d]",
+		if numProcessed > 0 {
+			logger.Infof("%s sync from [%s]: Processed %d missing anchor events ending at page [%s], index [%d]",
+				src, serviceIRI, numProcessed, page, index)
+		}
+
+		logger.Infof("%s sync from [%s]: Updating last synced page to [%s], index [%d]",
 			src, serviceIRI, page, index)
 
 		err = m.store.PutLastSyncedPage(serviceIRI, src, page, index)
 		if err != nil {
 			return fmt.Errorf("update last synced page [%s] at index [%d]: %w", page, index, err)
-		}
-
-		if numProcessed > 0 {
-			logger.Infof("%s sync from [%s]: Processed %d missing anchor events ending at page [%s], index [%d]",
-				src, serviceIRI, numProcessed, page, index)
 		}
 	} else {
 		logger.Debugf("%s sync from [%s]: Processed %d missing anchor events ending at page [%s], index [%d]",
@@ -235,51 +233,56 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 	return nil
 }
 
-func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (bool, error) {
+func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (int, error) {
 	logger.Debugf("Syncing activity [%s] from current page [%s]", a.ID(), currentPage)
 
 	processed, err := m.isProcessed(a)
 	if err != nil {
-		return false, fmt.Errorf("isProcessed [%s]: %w", a.ID(), err)
+		return 0, fmt.Errorf("isProcessed [%s]: %w", a.ID(), err)
 	}
 
 	if processed {
 		logger.Debugf("Ignoring activity [%s] of type %s since it has already been processed in page [%s].",
 			a.ID(), a.Type(), currentPage)
 
-		return false, nil
+		return 0, nil
 	}
 
 	logger.Debugf("Processing activity [%s] of type %s from page [%s].", a.ID(), a.Type(), currentPage)
 
-	if e := m.process(serviceIRI, a); e != nil {
+	numProcessed, e := m.process(serviceIRI, a)
+	if e != nil {
 		if errors.Is(e, spi.ErrDuplicateAnchorEvent) {
 			logger.Debugf("Ignoring activity [%s] of type %s since it has already been processed in page [%s]. "+
 				"Error from handler: %s", a.ID(), a.Type(), currentPage, e)
 
-			return false, nil
+			return 0, nil
 		}
 
-		return false, fmt.Errorf("process activity [%s]: %w", a.ID(), e)
+		return 0, fmt.Errorf("process activity [%s]: %w", a.ID(), e)
 	}
 
-	return true, nil
+	return numProcessed, nil
 }
 
-func (m *task) process(source *url.URL, a *vocab.ActivityType) error {
+func (m *task) process(source *url.URL, a *vocab.ActivityType) (numProcessed int, err error) {
 	switch {
 	case a.Type().Is(vocab.TypeCreate):
 		logger.Debugf("Processing create activity [%s]", a.ID())
 
-		if err := m.getHandler().HandleCreateActivity(source, a, false); err != nil {
-			return fmt.Errorf("handle create activity [%s]: %w", a.ID(), err)
+		err = m.getHandler().HandleCreateActivity(source, a, false)
+		if err != nil {
+			return 0, fmt.Errorf("handle create activity [%s]: %w", a.ID(), err)
 		}
+
+		numProcessed = 1
 
 	case a.Type().Is(vocab.TypeAnnounce):
 		logger.Debugf("Processing announce activity [%s]", a.ID())
 
-		if err := m.getHandler().HandleAnnounceActivity(source, a); err != nil {
-			return fmt.Errorf("handle announce activity [%s]: %w", a.ID(), err)
+		numProcessed, err = m.getHandler().HandleAnnounceActivity(source, a)
+		if err != nil {
+			return 0, fmt.Errorf("handle announce activity [%s]: %w", a.ID(), err)
 		}
 
 	default:
@@ -288,10 +291,10 @@ func (m *task) process(source *url.URL, a *vocab.ActivityType) error {
 
 	// Store the activity so that we don't process it again.
 	if err := m.activityPubStore.AddActivity(a); err != nil {
-		return fmt.Errorf("store activity: %w", err)
+		return 0, fmt.Errorf("store activity: %w", err)
 	}
 
-	return nil
+	return numProcessed, nil
 }
 
 func (m *task) isProcessed(a *vocab.ActivityType) (bool, error) {
@@ -370,17 +373,15 @@ type progressLogger struct {
 	numProcessedInPage int
 }
 
-func (l *progressLogger) Log(processed bool, page, currentPage fmt.Stringer) {
+func (l *progressLogger) Log(numProcessed int, page, currentPage fmt.Stringer) {
 	if !log.IsEnabledFor(logModule, log.INFO) {
 		return
 	}
 
-	if processed {
-		l.numProcessedInPage++
-	}
+	l.numProcessedInPage += numProcessed
 
 	if l.numProcessedInPage > 0 && page.String() != currentPage.String() {
-		logger.Infof("Processed %d missing anchor events from outbox page [%s]",
+		logger.Infof("Processed %d missing anchor events from page [%s]",
 			l.numProcessedInPage, page)
 
 		l.numProcessedInPage = 0

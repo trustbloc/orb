@@ -84,7 +84,7 @@ var ErrDuplicateAnchorEvent = errors.New("anchor event already handled")
 // InboxHandler defines functions for handling Create and Announce activities.
 type InboxHandler interface {
 	HandleCreateActivity(source *url.URL, create *vocab.ActivityType, announce bool) error
-	HandleAnnounceActivity(source *url.URL, create *vocab.ActivityType) error
+	HandleAnnounceActivity(source *url.URL, create *vocab.ActivityType) (numProcessed int, err error)
 }
 
 // UndeliverableActivityHandler handles undeliverable activities.

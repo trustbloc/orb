@@ -97,6 +97,7 @@ type documentLoader interface {
 
 type anchorLinkStore interface {
 	PutLinks(links []*url.URL) error
+	GetLinks(anchorHash string) ([]*url.URL, error)
 }
 
 type outboxProvider func() Outbox
@@ -275,7 +276,7 @@ func getDidParts(did string) (cid, suffix string, err error) {
 	return did[0:pos], did[pos+1:], nil
 }
 
-//nolint:funlen
+//nolint:funlen,gocyclo,cyclop
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	anchorEvent *vocab.AnchorEventType, suffixes ...string) error {
 	logger.Debugf("processing anchor[%s] from [%s], suffixes: %s", anchor.Hashlink, anchor.AttributedTo, suffixes)
@@ -329,10 +330,31 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 
 	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)
 
-	err = v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
+	numProcessed, err := v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
 	if err != nil {
 		return fmt.Errorf("failed to process anchor[%s] core index[%s]: %w",
 			anchor.Hashlink, anchorPayload.CoreIndex, err)
+	}
+
+	if numProcessed == 0 {
+		// This could be a duplicate anchor. Check if we have already completely processed the anchor.
+		processed, e := o.isAnchorEventProcessed(anchor.Hashlink)
+		if e != nil {
+			return fmt.Errorf("check if anchor event %s is processed: %w",
+				anchor.Hashlink, e)
+		}
+
+		if processed {
+			logger.Infof("Ignoring anchor event %s since it has already been processed",
+				anchor.Hashlink)
+
+			return nil
+		}
+
+		logger.Infof("No operations were processed for anchor event %s (probably because all operations in the "+
+			"anchor were already processed from a duplicate anchor event) but the anchor event is missing "+
+			"from storage. The anchor event will be processed (again) which may result in some duplicate key warnings "+
+			"from the DB, but this shouldn't be a problem since those duplicates will be ignored.", anchor.Hashlink)
 	}
 
 	// update global did/anchor references
@@ -472,6 +494,28 @@ func (o *Observer) saveAnchorHashlink(ref *url.URL) error {
 	logger.Debugf("Saved anchor link [%s]", ref)
 
 	return nil
+}
+
+func (o *Observer) isAnchorEventProcessed(hl string) (bool, error) {
+	hash, err := hashlink.GetResourceHashFromHashLink(hl)
+	if err != nil {
+		return false, fmt.Errorf("parse hashlink: %w", err)
+	}
+
+	links, err := o.AnchorLinkStore.GetLinks(hash)
+	if err != nil {
+		return false, fmt.Errorf("get anchor event: %w", err)
+	}
+
+	// There must be one link that matches the given hashlink.
+	// (There may also be alternate links from 'Like' activities.)
+	for _, link := range links {
+		if link.String() == hl {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func getSuffixes(m []*subject.SuffixAnchor) (suffixes []string, areNewSuffixes []bool) {
