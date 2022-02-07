@@ -227,6 +227,50 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("success - duplicate proofs", func(t *testing.T) {
+		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		require.NoError(t, err)
+
+		ae := &vocab.AnchorEventType{}
+		require.NoError(t, json.Unmarshal([]byte(anchorEventTwoProofs), ae))
+
+		err = aeStore.Put(ae)
+		require.NoError(t, err)
+
+		statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		err = statusStore.AddStatus(ae.Index().String(), proofapi.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore, err := witness.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		// prepare witness store
+		emptyWitnessProofs := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: witnessIRI}}
+		err = witnessStore.Put(ae.Index().String(), emptyWitnessProofs)
+		require.NoError(t, err)
+
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorEventStore: aeStore,
+			StatusStore:      statusStore,
+			MonitoringSvc:    &mocks.MonitoringService{},
+			WitnessStore:     witnessStore,
+			WitnessPolicy:    witnessPolicy,
+			Metrics:          &orbmocks.MetricsProvider{},
+			DocLoader:        testutil.GetLoader(t),
+		}
+
+		proofHandler := New(providers, ps)
+
+		err = proofHandler.HandleProof(witnessIRI, ae.Index().String(),
+			expiryTime, []byte(duplicateWitnessProof))
+		require.NoError(t, err)
+	})
+
 	t.Run("error - get status error", func(t *testing.T) {
 		aeStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
@@ -822,5 +866,21 @@ const witnessProof = `{
     "proofPurpose": "assertionMethod",
     "type": "Ed25519Signature2018",
     "verificationMethod": "did:web:abc.com#2130bhDAK-2jKsOXJiEDG909Jux4rcYEpFsYzVlqdAY"
+  }
+}`
+
+//nolint:lll
+const duplicateWitnessProof = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "proof": {
+    "created": "2021-10-14T18:32:17.91Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..h3-0HC3L87TM0j0o3Nd0VLlalcVVphwOPsfdkCLZ4q-uL4z8eO2vQ4sobbtOtFpNNZlpIOQnaWJMX3Ch5Wh-AQ",
+    "proofPurpose": "assertionMethod",
+    "type": "Ed25519Signature2018",
+    "verificationMethod": "did:web:orb.domain1.com#orb1key"
   }
 }`
