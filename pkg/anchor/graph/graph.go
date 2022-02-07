@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/compression"
 	"github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -26,6 +27,8 @@ var logger = log.New("anchor-graph")
 // Graph manages anchor graph.
 type Graph struct {
 	*Providers
+
+	compressionProvider compressionProvider
 }
 
 // Providers for anchor graph.
@@ -36,10 +39,26 @@ type Providers struct {
 }
 
 // New creates new graph manager.
-func New(providers *Providers) *Graph {
-	return &Graph{
-		Providers: providers,
+func New(providers *Providers, opts ...Option) *Graph {
+	cp := compression.New()
+
+	g := &Graph{
+		Providers:           providers,
+		compressionProvider: cp,
 	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(g)
+	}
+
+	return g
+}
+
+// compressionProvider defines an interface for handling different types of compression.
+type compressionProvider interface {
+	Compress(data []byte) (string, []byte, error)
+	Decompress(id string, data []byte) ([]byte, error)
 }
 
 type casResolver interface {
@@ -50,6 +69,16 @@ type casWriter interface {
 	Write(content []byte) (string, error)
 }
 
+// Option is an option anchor graph.
+type Option func(opts *Graph)
+
+// WithCompressionProvider sets optional compression/decompression provider.
+func WithCompressionProvider(cp compressionProvider) Option {
+	return func(opts *Graph) {
+		opts.compressionProvider = cp
+	}
+}
+
 // Add adds an anchor to the anchor graph.
 // Returns hl that contains anchor information.
 func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //nolint:interfacer
@@ -58,7 +87,12 @@ func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //noli
 		return "", fmt.Errorf("failed to marshal anchor event: %w", err)
 	}
 
-	hl, err := g.CasWriter.Write(canonicalBytes)
+	_, compressedValue, err := g.compressionProvider.Compress(canonicalBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to compress anchor event[%s]: %w", anchorEvent.Index().String(), err)
+	}
+
+	hl, err := g.CasWriter.Write(compressedValue)
 	if err != nil {
 		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
@@ -70,9 +104,17 @@ func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //noli
 
 // Read reads anchor.
 func (g *Graph) Read(hl string) (*vocab.AnchorEventType, error) {
-	anchorEventBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
+	compressedBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	anchorEventBytes, err := g.compressionProvider.Decompress(hl, compressedBytes)
+	if err != nil {
+		logger.Debugf("unable to decompress anchor event: %s", err.Error())
+
+		// decompression failed - try to unmarshal original value
+		anchorEventBytes = compressedBytes
 	}
 
 	logger.Debugf("read anchor event [%s]: %s", hl, string(anchorEventBytes))

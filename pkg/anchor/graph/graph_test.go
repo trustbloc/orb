@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package graph
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,8 +21,10 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
+	"github.com/trustbloc/orb/pkg/anchor/graph/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	"github.com/trustbloc/orb/pkg/compression"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
@@ -34,6 +38,8 @@ const (
 
 	nonExistent = "uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ"
 )
+
+//go:generate counterfeiter -o ./mocks/compression.gen.go --fake-name CompressionProvider . compressionProvider
 
 func TestNew(t *testing.T) {
 	graph := New(&Providers{})
@@ -56,16 +62,29 @@ func TestGraph_Add(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		graph := New(providers)
 
-		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
-		require.NoError(t, err)
+		hl, addErr := graph.Add(newDefaultMockAnchorEvent(t))
+		require.NoError(t, addErr)
 		require.NotEmpty(t, hl)
+	})
+
+	t.Run("error - from compression", func(t *testing.T) {
+		cp := &mocks.CompressionProvider{}
+		cp.CompressReturns("", nil, fmt.Errorf("compression error"))
+
+		graph := New(providers, WithCompressionProvider(cp))
+		require.NoError(t, err)
+
+		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "compression error")
+		require.Empty(t, hl)
 	})
 }
 
 func TestGraph_Read(t *testing.T) {
-	casClient, err := cas.New(mem.NewProvider(), casLink, nil, &metricsProvider{}, 0)
+	casClient, e := cas.New(mem.NewProvider(), casLink, nil, &metricsProvider{}, 0)
 
-	require.NoError(t, err)
+	require.NoError(t, e)
 
 	providers := &Providers{
 		CasWriter: casClient,
@@ -92,12 +111,52 @@ func TestGraph_Read(t *testing.T) {
 		require.Equal(t, testNS, payloadFromVC.Namespace)
 	})
 
+	t.Run("success - no compression", func(t *testing.T) {
+		graph := New(providers, WithCompressionProvider(compression.New(
+			compression.WithCompressionAlgorithm("None"),
+			compression.WithDecompressionAlgorithms([]string{"None"}))))
+
+		ae := newDefaultMockAnchorEvent(t)
+
+		aeBytes, err := json.Marshal(ae)
+		require.NoError(t, err)
+
+		hl, err := graph.Add(ae)
+		require.NoError(t, err)
+		require.NotEmpty(t, hl)
+
+		val, err := graph.Read(hl)
+		require.NoError(t, err)
+		require.NotEmpty(t, val)
+
+		valBytes, err := json.Marshal(val)
+		require.NoError(t, err)
+		require.Equal(t, aeBytes, valBytes)
+	})
+
 	t.Run("error - anchor (cid) not found", func(t *testing.T) {
 		graph := New(providers)
 
 		anchorNode, err := graph.Read("non-existent")
 		require.Error(t, err)
 		require.Nil(t, anchorNode)
+	})
+
+	t.Run("success - error from decompression", func(t *testing.T) {
+		graph := New(providers, WithCompressionProvider(compression.New(compression.WithCompressionAlgorithm("None"))))
+
+		hl, err := graph.Add(newDefaultMockAnchorEvent(t))
+		require.NoError(t, err)
+		require.NotEmpty(t, hl)
+
+		cp := &mocks.CompressionProvider{}
+		cp.DecompressReturns(nil, fmt.Errorf("decompression error"))
+
+		graph.compressionProvider = cp
+
+		val, err := graph.Read(hl)
+		require.NoError(t, err)
+		require.NotEmpty(t, val)
 	})
 }
 

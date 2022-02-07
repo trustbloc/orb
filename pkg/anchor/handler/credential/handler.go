@@ -112,12 +112,18 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef, source *ur
 		if err != nil {
 			return fmt.Errorf("marshal anchor event: %w", err)
 		}
+
+		// GZIP
 	}
 
-	anchorEventBytes, localHL, err := h.casResolver.Resolve(nil, anchorEventRef.String(), anchorEventBytes)
+	// TODO: Data cannot be provided here because it mixes compressed data CID and uncompressed data
+
+	anchorEventBytes, localHL, err := h.casResolver.Resolve(nil, anchorEventRef.String(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to resolve anchor event [%s]: %w", anchorEventRef, err)
 	}
+
+	// TODO: Data can potentially be uncompressed here and compared to provided data?
 
 	if anchorEvent == nil {
 		anchorEvent = &vocab.AnchorEventType{}

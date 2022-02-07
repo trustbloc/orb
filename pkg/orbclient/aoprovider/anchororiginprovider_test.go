@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/compression"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/orbclient/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
@@ -47,12 +48,18 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(aeBytes)
+		cp := compression.New()
+
+		_, compressed, err := cp.Compress(aeBytes)
+		require.NoError(t, err)
+
+		cid, err := casClient.Write(compressed)
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
 			WithPublicKeyFetcher(pubKeyFetcherFnc),
-			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			WithCompressionProvider(compression.New()))
 		require.NoError(t, err)
 
 		createOp := &operation.AnchoredOperation{

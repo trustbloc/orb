@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
+	"github.com/trustbloc/orb/pkg/compression"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
@@ -32,15 +33,22 @@ var logger = log.New("orb-client")
 
 // OrbClient implements Orb client.
 type OrbClient struct {
-	nsProvider        namespaceProvider
-	publicKeyFetcher  verifiable.PublicKeyFetcher
-	docLoader         ld.DocumentLoader
-	casReader         common.CASReader
-	disableProofCheck bool
+	nsProvider          namespaceProvider
+	publicKeyFetcher    verifiable.PublicKeyFetcher
+	docLoader           ld.DocumentLoader
+	casReader           common.CASReader
+	disableProofCheck   bool
+	compressionProvider compressionProvider
 }
 
 type namespaceProvider interface {
 	ForNamespace(namespace string) (nsprovider.ClientVersionProvider, error)
+}
+
+// compressionProvider defines an interface for handling different types of compression.
+type compressionProvider interface {
+	Compress(data []byte) (string, []byte, error)
+	Decompress(id string, data []byte) ([]byte, error)
 }
 
 // Option is an option for document handler.
@@ -67,6 +75,13 @@ func WithDisableProofCheck(disableProofCheck bool) Option {
 	}
 }
 
+// WithCompressionProvider sets optional compression/decompression provider.
+func WithCompressionProvider(cp compressionProvider) Option {
+	return func(opts *OrbClient) {
+		opts.compressionProvider = cp
+	}
+}
+
 // New creates new Orb client.
 func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, error) {
 	versions := []string{"1.0"}
@@ -87,9 +102,12 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 	nsProvider := nsprovider.New()
 	nsProvider.Add(namespace, verprovider.New(clientVersions))
 
+	cp := compression.New()
+
 	orbClient := &OrbClient{
-		nsProvider: nsProvider,
-		casReader:  cas,
+		nsProvider:          nsProvider,
+		casReader:           cas,
+		compressionProvider: cp,
 	}
 
 	// apply options
@@ -103,9 +121,17 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 // GetAnchorOrigin will retrieve anchor credential based on CID, parse Sidetree core index file referenced in anchor
 // credential and return anchor origin.
 func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
-	anchorEventBytes, err := c.casReader.Read(cid)
+	compressedAnchorEventBytes, err := c.casReader.Read(cid)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read CID[%s] from CAS: %w", cid, err)
+	}
+
+	anchorEventBytes, err := c.compressionProvider.Decompress(cid, compressedAnchorEventBytes)
+	if err != nil {
+		logger.Debugf("unable to decompress anchor event: %s", err.Error())
+
+		// decompression failed - try to unmarshal original value
+		anchorEventBytes = compressedAnchorEventBytes
 	}
 
 	logger.Debugf("read anchor[%s]: %s", cid, string(anchorEventBytes))
