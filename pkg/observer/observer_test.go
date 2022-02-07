@@ -631,7 +631,7 @@ func TestStartObserver(t *testing.T) {
 
 	t.Run("PublishDID transient error in process anchor -> error", func(t *testing.T) {
 		tp := &mocks.TxnProcessor{}
-		tp.ProcessReturns(orberrors.NewTransient(errors.New("injected processing error")))
+		tp.ProcessReturns(0, orberrors.NewTransient(errors.New("injected processing error")))
 
 		pc := mocks.NewMockProtocolClient()
 		pc.Versions[0].TransactionProcessorReturns(tp)
@@ -695,6 +695,110 @@ func TestStartObserver(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("Expecting undeliverable message")
 		}
+	})
+
+	t.Run("success - process duplicate operations", func(t *testing.T) {
+		tp := &mocks.TxnProcessor{}
+		tp.ProcessReturns(0, nil)
+
+		pc := mocks.NewMockProtocolClient()
+		pc.Versions[0].TransactionProcessorReturns(tp)
+		pc.Versions[0].ProtocolReturns(pc.Protocol)
+
+		casClient, err := cas.New(mem.NewProvider(), casLink, nil, &orbmocks.MetricsProvider{}, 0)
+
+		require.NoError(t, err)
+
+		graphProviders := &graph.Providers{
+			CasWriter: casClient,
+			CasResolver: casresolver.New(casClient, nil,
+				casresolver.NewWebCASResolver(
+					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
+						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
+					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
+			DocLoader: testutil.GetLoader(t),
+		}
+
+		anchorGraph := graph.New(graphProviders)
+
+		prevAnchors := []*subject.SuffixAnchor{
+			{Suffix: "did1"},
+		}
+
+		payload1 := subject.Payload{Namespace: namespace1, Version: 0, CoreIndex: "core1", PreviousAnchors: prevAnchors}
+
+		cid, err := anchorGraph.Add(newMockAnchorEvent(t, &payload1))
+		require.NoError(t, err)
+		anchor1 := &anchorinfo.AnchorInfo{
+			Hashlink:      cid,
+			LocalHashlink: cid,
+			AttributedTo:  "https://example.com/services/orb",
+		}
+
+		casResolver := &protomocks.CASResolver{}
+		casResolver.ResolveReturns([]byte(anchorEvent), "", nil)
+
+		t.Run("no operations", func(t *testing.T) {
+			anchorLinkStore := &orbmocks.AnchorLinkStore{}
+			anchorLinkStore.GetLinksReturns([]*url.URL{testutil.MustParseURL(anchor1.Hashlink)}, nil)
+
+			providers := &Providers{
+				ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+				AnchorGraph:            anchorGraph,
+				DidAnchors:             memdidanchor.New(),
+				PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+				Metrics:                &orbmocks.MetricsProvider{},
+				Outbox:                 func() Outbox { return apmocks.NewOutbox() },
+				WebFingerResolver:      &apmocks.WebFingerResolver{},
+				CASResolver:            casResolver,
+				DocLoader:              testutil.GetLoader(t),
+				Pkf:                    pubKeyFetcherFnc,
+				AnchorLinkStore:        anchorLinkStore,
+			}
+
+			o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
+			require.NotNil(t, o)
+			require.NoError(t, err)
+
+			o.Start()
+			defer o.Stop()
+
+			require.NoError(t, o.pubSub.PublishAnchor(anchor1))
+
+			time.Sleep(200 * time.Millisecond)
+
+			require.Equal(t, 1, tp.ProcessCallCount())
+		})
+
+		t.Run("GetLinks error", func(t *testing.T) {
+			anchorLinkStore := &orbmocks.AnchorLinkStore{}
+			anchorLinkStore.GetLinksReturns(nil, errors.New("injected GetLinks error"))
+
+			providers := &Providers{
+				ProtocolClientProvider: mocks.NewMockProtocolClientProvider().WithProtocolClient(namespace1, pc),
+				AnchorGraph:            anchorGraph,
+				DidAnchors:             memdidanchor.New(),
+				PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
+				Metrics:                &orbmocks.MetricsProvider{},
+				Outbox:                 func() Outbox { return apmocks.NewOutbox() },
+				WebFingerResolver:      &apmocks.WebFingerResolver{},
+				CASResolver:            casResolver,
+				DocLoader:              testutil.GetLoader(t),
+				Pkf:                    pubKeyFetcherFnc,
+				AnchorLinkStore:        anchorLinkStore,
+			}
+
+			o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
+			require.NotNil(t, o)
+			require.NoError(t, err)
+
+			o.Start()
+			defer o.Stop()
+
+			require.NoError(t, o.pubSub.PublishAnchor(anchor1))
+
+			time.Sleep(200 * time.Millisecond)
+		})
 	})
 }
 

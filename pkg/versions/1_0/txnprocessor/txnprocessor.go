@@ -68,12 +68,12 @@ func WithUnpublishedOperationStore(store unpublishedOperationStore, opTypes []op
 }
 
 // Process persists all of the operations for the given anchor.
-func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) error { //nolint:gocritic
+func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) (int, error) { //nolint:gocritic
 	logger.Debugf("processing sidetree txn:%+v", sidetreeTxn)
 
 	txnOps, err := p.OperationProtocolProvider.GetTxnOperations(&sidetreeTxn)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve operations for anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
+		return 0, fmt.Errorf("failed to retrieve operations for anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
 	}
 
 	if len(suffixes) > 0 {
@@ -105,7 +105,9 @@ func contains(arr []string, v string) bool {
 	return false
 }
 
-func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn *txn.SidetreeTxn) error { //nolint:funlen,lll
+//nolint:funlen
+func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation,
+	sidetreeTxn *txn.SidetreeTxn) (int, error) {
 	logger.Debugf("processing %d transaction operations", len(txnOps))
 
 	batchSuffixes := make(map[string]bool)
@@ -125,11 +127,11 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 
 		opsSoFar, err := p.OpStore.Get(op.UniqueSuffix)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return err
+			return 0, err
 		}
 
 		if containsCanonicalReference(opsSoFar, sidetreeTxn.CanonicalReference) {
-			logger.Infof("[%s] Ignoring operation that has already been inserted [%s]",
+			logger.Debugf("[%s] Ignoring operation that has already been inserted [%s]",
 				sidetreeTxn.Namespace, sidetreeTxn.CanonicalReference)
 
 			// this operation has already been inserted - ignore it
@@ -147,7 +149,9 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		batchSuffixes[op.UniqueSuffix] = true
 
 		if containsOperationType(p.unpublishedOperationTypes, op.Type) {
-			logger.Debugf("added operation with suffix[%s] for deletion from unpublished operation store", op.UniqueSuffix)
+			logger.Debugf("added operation with suffix[%s] for deletion from unpublished operation store",
+				op.UniqueSuffix)
+
 			unpublishedOps = append(unpublishedOps, op)
 		}
 	}
@@ -155,19 +159,21 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 	if len(ops) == 0 {
 		logger.Infof("No operations to be processed for anchor string [%s]", sidetreeTxn.AnchorString)
 
-		return nil
+		return 0, nil
 	}
 
 	if err := p.OpStore.Put(ops); err != nil {
-		return fmt.Errorf("failed to store operation from anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
+		return 0, fmt.Errorf("failed to store operation from anchor string[%s]: %w",
+			sidetreeTxn.AnchorString, err)
 	}
 
 	err := p.unpublishedOperationStore.DeleteAll(unpublishedOps)
 	if err != nil {
-		return fmt.Errorf("failed to delete unpublished operations for anchor string[%s]: %w", sidetreeTxn.AnchorString, err)
+		return 0, fmt.Errorf("failed to delete unpublished operations for anchor string[%s]: %w",
+			sidetreeTxn.AnchorString, err)
 	}
 
-	return nil
+	return len(ops), nil
 }
 
 func containsCanonicalReference(ops []*operation.AnchoredOperation, ref string) bool {
