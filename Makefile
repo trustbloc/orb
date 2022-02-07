@@ -135,6 +135,8 @@ bdd-test: generate-test-keys orb-docker orb-driver-docker build-orb-cli-binaries
 clean:
 	rm -Rf ./.build
 	rm -Rf ./test/bdd/docker-compose.log
-	rm -Rf ./test/bdd/fixtures/keys/tls
-	rm -Rf ./test/bdd/fixtures/data/ipfs
+	rm -Rf ./test/bdd/fixtures/keys
+	rm -Rf ./test/bdd/fixtures/data
 	rm -Rf ./test/bdd/fixtures/mongodbbackup
+	rm -Rf ./test/bdd/fixtures/export
+	rm -Rf ./test/bdd/website

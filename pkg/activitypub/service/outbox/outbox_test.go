@@ -551,7 +551,8 @@ func TestDeduplicate(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 	service2URL := testutil.MustParseURL("http://localhost:8002/services/service2")
 
-	require.Len(t, deduplicate([]*url.URL{service1URL, service2URL, service1URL, service2URL}), 2)
+	require.Len(t, deduplicateAndFilter([]*url.URL{service1URL, service2URL, service1URL, service2URL}, nil), 2)
+	require.Len(t, deduplicateAndFilter([]*url.URL{service1URL, service2URL, service1URL}, []*url.URL{service2URL}), 1)
 }
 
 func TestResolveInboxes(t *testing.T) {
@@ -577,7 +578,7 @@ func TestResolveInboxes(t *testing.T) {
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)})
+		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)}, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errTransient.Error())
 		require.Empty(t, inboxes)
@@ -588,7 +589,7 @@ func TestResolveInboxes(t *testing.T) {
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)})
+		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)}, nil)
 		require.NoError(t, err)
 		require.Empty(t, inboxes)
 	})

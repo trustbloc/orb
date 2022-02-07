@@ -258,7 +258,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid max witness delay format")
+		require.Contains(t, err.Error(), "invalid duration")
 	})
 
 	t.Run("test invalid sign with local witness flag", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + maxWitnessDelayFlagName, "5",
+			"--" + maxWitnessDelayFlagName, "1m",
 			"--" + signWithLocalWitnessFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
@@ -773,7 +773,7 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + vctURLFlagName, "localhost:8081",
 		"--" + cidVersionFlagName, "-1",
 		"--" + batchWriterTimeoutFlagName, "700",
-		"--" + maxWitnessDelayFlagName, "600",
+		"--" + maxWitnessDelayFlagName, "1m",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
@@ -1420,7 +1420,7 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")
 	require.NoError(t, err)
 
-	err = os.Setenv(maxWitnessDelayEnvKey, "600")
+	err = os.Setenv(maxWitnessDelayEnvKey, "10m")
 	require.NoError(t, err)
 
 	err = os.Setenv(signWithLocalWitnessEnvKey, "true")
@@ -1516,7 +1516,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + ipfsURLFlagName, ipfsURL,
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
-		"--" + maxWitnessDelayFlagName, "600",
+		"--" + maxWitnessDelayFlagName, "1m",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + casTypeFlagName, casType,
 		"--" + didNamespaceFlagName, "namespace",

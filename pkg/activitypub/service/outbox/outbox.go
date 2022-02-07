@@ -210,8 +210,9 @@ func (h *Outbox) stop() {
 
 // Post posts an activity to the outbox and returns the ID of the activity that was posted.
 // If the activity does not specify an ID then a unique ID will be generated. The 'actor' of the
-// activity is also assigned to the service IRI of the outbox.
-func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
+// activity is also assigned to the service IRI of the outbox. An exclude list may be provided
+// so that the activity is not posted to the given URLs.
+func (h *Outbox) Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error) {
 	if h.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
@@ -245,7 +246,7 @@ func (h *Outbox) Post(activity *vocab.ActivityType) (*url.URL, error) {
 		return nil, fmt.Errorf("handle activity: %w", err)
 	}
 
-	inboxes, err := h.resolveInboxes(activity.To())
+	inboxes, err := h.resolveInboxes(activity.To(), exclude)
 	if err != nil {
 		return nil, fmt.Errorf("resolve inboxes: %w", err)
 	}
@@ -350,7 +351,7 @@ func (h *Outbox) redeliver() {
 	}
 }
 
-func (h *Outbox) resolveInboxes(toIRIs []*url.URL) ([]*url.URL, error) {
+func (h *Outbox) resolveInboxes(toIRIs, excludeIRIs []*url.URL) ([]*url.URL, error) {
 	startTime := time.Now()
 
 	defer func() {
@@ -363,7 +364,7 @@ func (h *Outbox) resolveInboxes(toIRIs []*url.URL) ([]*url.URL, error) {
 	}
 
 	return h.resolveIRIs(
-		deduplicate(toIRIs),
+		deduplicateAndFilter(toIRIs, excludeIRIs),
 		func(actorIRI *url.URL) ([]*url.URL, error) {
 			inboxIRI, err := h.resolveInbox(actorIRI)
 			if err != nil {
@@ -576,14 +577,15 @@ func populateConfigDefaults(cnfg *Config) Config {
 	return cfg
 }
 
-func deduplicate(toIRIs []*url.URL) []*url.URL {
+func deduplicateAndFilter(toIRIs, excludeIRIs []*url.URL) []*url.URL {
 	m := make(map[string]struct{})
-	iris := make([]*url.URL, 0, len(toIRIs))
+
+	var iris []*url.URL
 
 	for _, iri := range toIRIs {
 		strIRI := iri.String()
 
-		if _, exists := m[strIRI]; !exists {
+		if _, exists := m[strIRI]; !exists && !contains(excludeIRIs, iri) {
 			iris = append(iris, iri)
 			m[strIRI] = struct{}{}
 		}
@@ -611,4 +613,14 @@ func defaultOptions() *service.Handlers {
 	return &service.Handlers{
 		UndeliverableHandler: &noOpUndeliverableHandler{},
 	}
+}
+
+func contains(arr []*url.URL, u *url.URL) bool {
+	for _, s := range arr {
+		if s.String() == u.String() {
+			return true
+		}
+	}
+
+	return false
 }

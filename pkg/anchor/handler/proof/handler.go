@@ -202,7 +202,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("failed to get status for anchor event [%s]: %w", anchorID, err)
 	}
 
-	logger.Debugf("Current status for VC [%s] is [%s]", anchorID)
+	logger.Debugf("Current status for VC [%s] is [%s]", anchorID, status)
 
 	if status == proofapi.AnchorIndexStatusCompleted {
 		logger.Infof("VC status has already been marked as completed for [%s]", anchorID)

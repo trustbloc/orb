@@ -30,7 +30,7 @@ type Outbox interface {
 	ServiceLifecycle
 
 	// Post posts an activity to the outbox and returns the ID of the activity.
-	Post(activity *vocab.ActivityType) (*url.URL, error)
+	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 // Inbox defines the functions for an ActivityPub inbox.

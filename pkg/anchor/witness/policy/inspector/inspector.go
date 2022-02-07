@@ -49,7 +49,7 @@ type witnessPolicy interface {
 
 // Outbox defines outbox.
 type Outbox interface {
-	Post(activity *vocab.ActivityType) (*url.URL, error)
+	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type outboxProvider func() Outbox
@@ -110,8 +110,8 @@ func (c *Inspector) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnes
 		return fmt.Errorf("failed to post additional offer for anchor event[%s]: %w", anchorEvent.Index(), err)
 	}
 
-	logger.Debugf("created additional pre-announce activity for anchor event[%s], post id[%s]",
-		anchorEvent.Index(), postID)
+	logger.Infof("created additional pre-announce activity for anchor event[%s], post id[%s], to%s",
+		anchorEvent.Index(), postID, witnessesIRI)
 
 	return nil
 }
