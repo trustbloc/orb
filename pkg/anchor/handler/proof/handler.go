@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -279,9 +280,25 @@ func addProofs(vc *verifiable.Credential, proofs []*proofapi.WitnessProof) (*ver
 				return nil, fmt.Errorf("failed to unmarshal stored witness proof for anchor credential[%s]: %w", vc.ID, err)
 			}
 
-			vc.Proofs = append(vc.Proofs, witnessProof.Proof)
+			if !proofExists(vc.Proofs, witnessProof.Proof) {
+				logger.Debugf("Adding witness proof: %s", witnessProof.Proof)
+
+				vc.Proofs = append(vc.Proofs, witnessProof.Proof)
+			} else {
+				logger.Debugf("Not adding witness proof since it already exists: %s", witnessProof.Proof)
+			}
 		}
 	}
 
 	return vc, nil
+}
+
+func proofExists(proofs []verifiable.Proof, proof verifiable.Proof) bool {
+	for _, p := range proofs {
+		if reflect.DeepEqual(p, proof) {
+			return true
+		}
+	}
+
+	return false
 }
