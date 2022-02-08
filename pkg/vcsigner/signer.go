@@ -26,8 +26,13 @@ import (
 const (
 	// Ed25519Signature2018 ed25519 signature suite.
 	Ed25519Signature2018 = "Ed25519Signature2018"
+	// Ed25519Signature2020 ed25519 signature suite.
+	Ed25519Signature2020 = "Ed25519Signature2020"
 	// JSONWebSignature2020 json web signature suite.
 	JSONWebSignature2020 = "JsonWebSignature2020"
+
+	ctxJWS                  = "https://w3id.org/security/suites/jws-2020/v1"
+	ctxEd25519Signature2020 = "https://w3id.org/security/suites/ed25519-2020/v1"
 
 	// AssertionMethod assertionMethod.
 	AssertionMethod = "assertionMethod"
@@ -129,6 +134,17 @@ func (s *Signer) Sign(vc *verifiable.Credential, opts ...Opt) (*verifiable.Crede
 	s.Providers.Metrics.SignerAddLinkedDataProof(time.Since(addLinkedDataProofStartTime))
 
 	return vc, nil
+}
+
+// Context return context.
+func (s *Signer) Context() []string {
+	if s.params.SignatureSuite == JSONWebSignature2020 {
+		return []string{ctxJWS}
+	} else if s.params.SignatureSuite == Ed25519Signature2020 {
+		return []string{ctxEd25519Signature2020}
+	}
+
+	return []string{}
 }
 
 func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataProofContext, error) {

@@ -19,8 +19,6 @@ import (
 const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
-	// jwsContextURIV1 is jws context.
-	jwsContextURIV1 = "https://w3id.org/security/suites/jws-2020/v1"
 )
 
 // Params holds required parameters for building anchor credential.
@@ -51,17 +49,18 @@ type CredentialSubject struct {
 }
 
 // Build will create and sign anchor credential.
-func (b *Builder) Build(anchorHashlink string) (*verifiable.Credential, error) {
+func (b *Builder) Build(anchorHashlink string, context []string) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	now := &util.TimeWrapper{Time: time.Now()}
 
+	ctx := []string{vcContextURIV1}
+
+	ctx = append(ctx, context...)
+
 	vc := &verifiable.Credential{
-		Types: []string{"VerifiableCredential"},
-		Context: []string{
-			vcContextURIV1,
-			jwsContextURIV1,
-		},
+		Types:   []string{"VerifiableCredential"},
+		Context: ctx,
 		Subject: &CredentialSubject{ID: anchorHashlink},
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,

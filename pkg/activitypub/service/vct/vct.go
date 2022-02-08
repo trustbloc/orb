@@ -27,11 +27,11 @@ import (
 
 const (
 	ctxSecurity = "https://w3id.org/security/v1"
-	ctxJWS      = "https://w3id.org/security/suites/jws-2020/v1"
 )
 
 type signer interface {
 	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
+	Context() []string
 }
 
 type metricsProvider interface {
@@ -157,10 +157,14 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 			return nil, fmt.Errorf("add proof: %w", err)
 		}
 
+		ctx := []string{ctxSecurity}
+
+		ctx = append(ctx, c.signer.Context()...)
+
 		c.metrics.WitnessAddProofVctNil(time.Since(addProofStartTime))
 
 		return json.Marshal(Proof{
-			Context: []string{ctxSecurity, ctxJWS},
+			Context: ctx,
 			Proof:   vc.Proofs[len(vc.Proofs)-1], // gets the latest proof
 		})
 	}
@@ -232,14 +236,18 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	c.metrics.WitnessVerifyVCTSignature(time.Since(verifyVCTStartTime))
 
+	ctx := []string{ctxSecurity}
+
+	ctx = append(ctx, c.signer.Context()...)
+
 	return json.Marshal(Proof{
-		Context: []string{ctxSecurity, ctxJWS},
+		Context: ctx,
 		Proof:   proof,
 	})
 }
 
 // Proof represents response.
 type Proof struct {
-	Context []string         `json:"@context"`
+	Context interface{}      `json:"@context"`
 	Proof   verifiable.Proof `json:"proof"`
 }
