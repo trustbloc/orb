@@ -1094,6 +1094,11 @@ func TestGetMQParameters(t *testing.T) {
 		restoreObserverPoolEnv := setEnv(t, mqObserverPoolEnvKey, "3")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
+		restoreConnectionRetriesEnv := setEnv(t, mqConnectMaxRetriesEnvKey, "12")
+		restoreRedeliveryMaxAttempts := setEnv(t, mqRedeliveryMaxAttemptsEnvKey, "17")
+		restoreRedeliveryMultiplier := setEnv(t, mqRedeliveryMultiplierEnvKey, "1.7")
+		restoreRedeliveryInitialInterval := setEnv(t, mqRedeliveryInitialIntervalEnvKey, "3s")
+		restoreRedeliveryMaxInterval := setEnv(t, mqRedeliveryMaxIntervalEnvKey, "35s")
 
 		defer func() {
 			restoreURLEnv()
@@ -1101,18 +1106,27 @@ func TestGetMQParameters(t *testing.T) {
 			restoreObserverPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 			restoreChannelPoolEnv()
+			restoreConnectionRetriesEnv()
+			restoreRedeliveryMaxAttempts()
+			restoreRedeliveryMultiplier()
+			restoreRedeliveryInitialInterval()
+			restoreRedeliveryMaxInterval()
 		}()
 
 		cmd := getTestCmd(t)
 
-		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions,
-			mqPublisherPoolSize, err := getMQParameters(cmd)
+		mqParams, err := getMQParameters(cmd)
 		require.NoError(t, err)
-		require.Equal(t, u, mqURL)
-		require.Equal(t, 221, mqOpPoolSize)
-		require.Equal(t, 3, mqObserverPoolSize)
-		require.Equal(t, 456, maxConnectionSubscriptions)
-		require.Equal(t, 321, mqPublisherPoolSize)
+		require.Equal(t, u, mqParams.endpoint)
+		require.Equal(t, 221, mqParams.opPoolSize)
+		require.Equal(t, 3, mqParams.observerPoolSize)
+		require.Equal(t, 456, mqParams.maxConnectionSubscriptions)
+		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
+		require.Equal(t, 12, mqParams.maxConnectRetries)
+		require.Equal(t, 17, mqParams.maxRedeliveryAttempts)
+		require.Equal(t, 1.7, mqParams.redeliveryMultiplier)
+		require.Equal(t, 3*time.Second, mqParams.redeliveryInitialInterval)
+		require.Equal(t, 35*time.Second, mqParams.maxRedeliveryInterval)
 	})
 
 	t.Run("Not specified -> default value", func(t *testing.T) {
@@ -1124,14 +1138,17 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		mqURL, mqOpPoolSize, mqObserverPoolSize, maxConnectionSubscriptions,
-			mqPublisherPoolSize, err := getMQParameters(cmd)
+		mqParams, err := getMQParameters(cmd)
 		require.NoError(t, err)
-		require.Equal(t, u, mqURL)
-		require.Equal(t, defaultMQOpPoolSize, mqOpPoolSize)
-		require.Equal(t, 0, mqObserverPoolSize)
-		require.Equal(t, mqDefaultMaxConnectionSubscriptions, maxConnectionSubscriptions)
-		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqPublisherPoolSize)
+		require.Equal(t, u, mqParams.endpoint)
+		require.Equal(t, defaultMQOpPoolSize, mqParams.opPoolSize)
+		require.Equal(t, mqDefaultObserverPoolSize, mqParams.observerPoolSize)
+		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionSubscriptions)
+		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
+		require.Equal(t, mqDefaultRedeliveryMaxInterval, mqParams.maxRedeliveryInterval)
+		require.Equal(t, mqDefaultRedeliveryInitialInterval, mqParams.redeliveryInitialInterval)
+		require.Equal(t, mqDefaultRedeliveryMaxAttempts, mqParams.maxRedeliveryAttempts)
+		require.Equal(t, mqDefaultRedeliveryMultiplier, mqParams.redeliveryMultiplier)
 	})
 
 	t.Run("Invalid op pool size value -> error", func(t *testing.T) {
@@ -1143,7 +1160,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, _, _, err := getMQParameters(cmd)
+		_, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1157,7 +1174,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, _, _, err := getMQParameters(cmd)
+		_, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1171,7 +1188,7 @@ func TestGetMQParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		_, _, _, _, _, err := getMQParameters(cmd)
+		_, err := getMQParameters(cmd)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})

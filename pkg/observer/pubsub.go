@@ -51,7 +51,7 @@ type PubSub struct {
 
 // NewPubSub returns a new publisher/subscriber.
 func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didProcessor,
-	poolSize uint) (*PubSub, error) {
+	poolSize int) (*PubSub, error) {
 	h := &PubSub{
 		publisher:      pubSub,
 		processAnchors: anchorProcessor,

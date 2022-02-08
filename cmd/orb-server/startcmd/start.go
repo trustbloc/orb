@@ -584,11 +584,18 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var pubSub pubSub
 
-	if parameters.mqURL != "" {
+	mqParams := parameters.mqParams
+
+	if mqParams.endpoint != "" {
 		pubSub = amqp.New(amqp.Config{
-			URI:                        parameters.mqURL,
-			MaxConnectionSubscriptions: parameters.mqMaxConnectionSubscriptions,
-			PublisherChannelPoolSize:   parameters.mqPublisherChannelPoolSize,
+			URI:                        mqParams.endpoint,
+			MaxConnectionSubscriptions: mqParams.maxConnectionSubscriptions,
+			PublisherChannelPoolSize:   mqParams.publisherChannelPoolSize,
+			MaxConnectRetries:          mqParams.maxConnectRetries,
+			MaxRedeliveryAttempts:      mqParams.maxRedeliveryAttempts,
+			RedeliveryMultiplier:       mqParams.redeliveryMultiplier,
+			RedeliveryInitialInterval:  mqParams.redeliveryInitialInterval,
+			MaxRedeliveryInterval:      mqParams.maxRedeliveryInterval,
 		})
 	} else {
 		pubSub = mempubsub.New(mempubsub.DefaultConfig())
@@ -714,7 +721,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	o, err := observer.New(apConfig.ServiceIRI, providers,
 		observer.WithDiscoveryDomain(parameters.discoveryDomain),
-		observer.WithSubscriberPoolSize(parameters.observerQueuePoolSize),
+		observer.WithSubscriberPoolSize(parameters.mqParams.observerPoolSize),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %w", err)
@@ -796,7 +803,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	opQueueCfg := opqueue.Config{
-		PoolSize:            parameters.opQueuePoolSize,
+		PoolSize:            parameters.mqParams.opPoolSize,
 		TaskMonitorInterval: parameters.taskMgrCheckInterval,
 	}
 

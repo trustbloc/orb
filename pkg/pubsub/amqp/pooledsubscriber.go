@@ -22,7 +22,7 @@ type pooledSubscriber struct {
 	subscribers []reflect.SelectCase
 }
 
-func newPooledSubscriber(ctx context.Context, size uint, subscriber subscriber,
+func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 	topic string) (*pooledSubscriber, error) {
 	p := &pooledSubscriber{
 		topic:       topic,
@@ -30,7 +30,7 @@ func newPooledSubscriber(ctx context.Context, size uint, subscriber subscriber,
 		subscribers: make([]reflect.SelectCase, size),
 	}
 
-	for i := uint(0); i < size; i++ {
+	for i := 0; i < size; i++ {
 		logger.Debugf("[%s-%d] Subscribing...", topic, i)
 
 		msgChan, err := subscriber.Subscribe(ctx, topic)

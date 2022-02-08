@@ -41,6 +41,12 @@ const (
 	defaultAnchorStatusInProcessGracePeriod = time.Minute
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	mqDefaultPublisherChannelPoolSize       = 25
+	mqDefaultObserverPoolSize               = 5
+	mqDefaultConnectMaxRetries              = 25
+	mqDefaultRedeliveryMaxAttempts          = 10
+	mqDefaultRedeliveryMultiplier           = 1.5
+	mqDefaultRedeliveryInitialInterval      = 2 * time.Second
+	mqDefaultRedeliveryMaxInterval          = 30 * time.Second
 	defaultActivityPubClientCacheSize       = 100
 	defaultActivityPubClientCacheExpiration = time.Hour
 	defaultActivityPubIRICacheSize          = 100
@@ -209,6 +215,32 @@ const (
 	mqPublisherChannelPoolSizeFlagUsage = "The size of a channel pool for an AMQP publisher (default is 25). " +
 		"If set to 0 then a channel pool is not used and a new channel is opened/closed for every publish to a queue." +
 		commonEnvVarUsageText + mqPublisherChannelPoolSizeEnvKey
+
+	mqConnectMaxRetriesFlagName  = "mq-connect-max-retries"
+	mqConnectMaxRetriesEnvKey    = "MQ_CONNECT_MAX_RETRIES"
+	mqConnectMaxRetriesFlagUsage = "The maximum number of retries to connect to an AMQP service (default is 25). " +
+		commonEnvVarUsageText + mqConnectMaxRetriesEnvKey
+
+	mqRedeliveryMaxAttemptsFlagName  = "mq-redelivery-max-attempts"
+	mqRedeliveryMaxAttemptsEnvKey    = "MQ_REDELIVERY_MAX_ATTEMPTS"
+	mqRedeliveryMaxAttemptsFlagUsage = "The maximum number of redelivery attempts for a failed message (default is 10). " +
+		commonEnvVarUsageText + mqRedeliveryMaxAttemptsEnvKey
+
+	mqRedeliveryInitialIntervalFlagName  = "mq-redelivery-initial-interval"
+	mqRedeliveryInitialIntervalEnvKey    = "MQ_REDELIVERY_INITIAL_INTERVAL"
+	mqRedeliveryInitialIntervalFlagUsage = "The delay for the initial redelivery attempt (default is 2s). " +
+		commonEnvVarUsageText + mqRedeliveryInitialIntervalEnvKey
+
+	mqRedeliveryMultiplierFlagName  = "mq-redelivery-multiplier"
+	mqRedeliveryMultiplierEnvKey    = "MQ_REDELIVERY_MULTIPLIER"
+	mqRedeliveryMultiplierFlagUsage = "The multiplier for a redelivery attempt. For example, if set to 1.5 and " +
+		"the previous redelivery interval was 2s then the next redelivery interval is set 3s (default is 1.5). " +
+		commonEnvVarUsageText + mqRedeliveryMultiplierEnvKey
+
+	mqRedeliveryMaxIntervalFlagName  = "mq-redelivery-max-interval"
+	mqRedeliveryMaxIntervalEnvKey    = "MQ_REDELIVERY_MAX_INTERVAL"
+	mqRedeliveryMaxIntervalFlagUsage = "The maximum delay for a redelivery (default is 30s). " +
+		commonEnvVarUsageText + mqRedeliveryMaxIntervalEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -530,9 +562,7 @@ type orbParameters struct {
 	ipfsURL                                 string
 	localCASReplicateInIPFSEnabled          bool
 	cidVersion                              int
-	mqURL                                   string
-	mqMaxConnectionSubscriptions            int
-	mqPublisherChannelPoolSize              int
+	mqParams                                *mqParams
 	dbParameters                            *dbParameters
 	logLevel                                string
 	methodContext                           []string
@@ -558,8 +588,6 @@ type orbParameters struct {
 	authTokens                              map[string]string
 	clientAuthTokenDefinitions              []*auth.TokenDef
 	clientAuthTokens                        map[string]string
-	opQueuePoolSize                         uint
-	observerQueuePoolSize                   uint
 	activityPubPageSize                     int
 	enableDevMode                           bool
 	nodeInfoRefreshInterval                 time.Duration
@@ -699,8 +727,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		localCASReplicateInIPFSEnabled = enable
 	}
 
-	mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxSubscriptionsPerConnection,
-		mqPublisherChannelPoolSize, err := getMQParameters(cmd)
+	mqParams, err := getMQParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -1091,11 +1118,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		ipfsURL:                                 ipfsURL,
 		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
 		cidVersion:                              cidVersion,
-		mqURL:                                   mqURL,
-		mqMaxConnectionSubscriptions:            mqMaxSubscriptionsPerConnection,
-		mqPublisherChannelPoolSize:              mqPublisherChannelPoolSize,
-		opQueuePoolSize:                         uint(mqOpPoolSize),
-		observerQueuePoolSize:                   uint(mqObserverPoolSize),
+		mqParams:                                mqParams,
 		batchWriterTimeout:                      batchWriterTimeout,
 		anchorCredentialParams:                  anchorCredentialParams,
 		logLevel:                                loggingLevel,
@@ -1374,70 +1397,125 @@ func getDuration(cmd *cobra.Command, flagName, envKey string,
 	return timeout, nil
 }
 
-func getMQParameters(cmd *cobra.Command) (mqURL string, mqOpPoolSize, mqObserverPoolSize,
-	mqMaxConnectionSubscriptions, mqPublisherChannelPoolSize int, err error) {
-	mqURL, err = cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
+func getInt(cmd *cobra.Command, flagName, envKey string, defaultValue int) (int, error) {
+	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
-		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqURLFlagName, err)
+		return 0, fmt.Errorf("%s: %w", flagName, err)
 	}
 
-	mqOpPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, true)
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.Atoi(str)
 	if err != nil {
-		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqOpPoolFlagName, err)
+		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
 	}
 
-	if mqOpPoolStr != "" {
-		mqOpPoolSize, err = strconv.Atoi(mqOpPoolStr)
-		if err != nil {
-			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqOpPoolFlagName, mqOpPoolStr, err)
-		}
-	} else {
-		mqOpPoolSize = defaultMQOpPoolSize
-	}
+	return value, nil
+}
 
-	mqObserverPoolStr, err := cmdutils.GetUserSetVarFromString(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, true)
+func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64) (float64, error) {
+	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
-		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqObserverPoolFlagName, err)
+		return 0, fmt.Errorf("%s: %w", flagName, err)
 	}
 
-	if mqObserverPoolStr != "" {
-		mqObserverPoolSize, err = strconv.Atoi(mqObserverPoolStr)
-		if err != nil {
-			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqObserverPoolFlagName, mqObserverPoolStr, err)
-		}
+	if str == "" {
+		return defaultValue, nil
 	}
 
-	mqMaxConnectionSubscriptionsStr, err := cmdutils.GetUserSetVarFromString(cmd, mqMaxConnectionSubscriptionsFlagName,
-		mqMaxConnectionSubscriptionsEnvKey, true)
+	value, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqMaxConnectionSubscriptionsFlagName, err)
+		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
 	}
 
-	if mqMaxConnectionSubscriptionsStr != "" {
-		mqMaxConnectionSubscriptions, err = strconv.Atoi(mqMaxConnectionSubscriptionsStr)
-		if err != nil {
-			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsStr, err)
-		}
-	} else {
-		mqMaxConnectionSubscriptions = mqDefaultMaxConnectionSubscriptions
-	}
+	return value, nil
+}
 
-	mqPublisherChannelPoolSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, mqPublisherChannelPoolSizeFlagName,
-		mqPublisherChannelPoolSizeEnvKey, true)
+type mqParams struct {
+	endpoint                   string
+	opPoolSize                 int
+	observerPoolSize           int
+	maxConnectionSubscriptions int
+	publisherChannelPoolSize   int
+	maxConnectRetries          int
+	maxRedeliveryAttempts      int
+	redeliveryMultiplier       float64
+	redeliveryInitialInterval  time.Duration
+	maxRedeliveryInterval      time.Duration
+}
+
+func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
+	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
-		return "", 0, 0, 0, 0, fmt.Errorf("%s: %w", mqPublisherChannelPoolSizeFlagName, err)
+		return nil, fmt.Errorf("%s: %w", mqURLFlagName, err)
 	}
 
-	if mqPublisherChannelPoolSizeStr != "" {
-		mqPublisherChannelPoolSize, err = strconv.Atoi(mqPublisherChannelPoolSizeStr)
-		if err != nil {
-			return "", 0, 0, 0, 0, fmt.Errorf("invalid value for %s [%s]: %w", mqPublisherChannelPoolSizeFlagName, mqPublisherChannelPoolSizeStr, err)
-		}
-	} else {
-		mqPublisherChannelPoolSize = mqDefaultPublisherChannelPoolSize
+	mqOpPoolSize, err := getInt(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, defaultMQOpPoolSize)
+	if err != nil {
+		return nil, err
 	}
 
-	return mqURL, mqOpPoolSize, mqObserverPoolSize, mqMaxConnectionSubscriptions, mqPublisherChannelPoolSize, nil
+	mqObserverPoolSize, err := getInt(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, mqDefaultObserverPoolSize)
+	if err != nil {
+		return nil, err
+	}
+
+	mqMaxConnectionSubscriptions, err := getInt(cmd, mqMaxConnectionSubscriptionsFlagName,
+		mqMaxConnectionSubscriptionsEnvKey, mqDefaultMaxConnectionSubscriptions)
+	if err != nil {
+		return nil, err
+	}
+
+	mqPublisherChannelPoolSize, err := getInt(cmd, mqPublisherChannelPoolSizeFlagName,
+		mqPublisherChannelPoolSizeEnvKey, mqDefaultPublisherChannelPoolSize)
+	if err != nil {
+		return nil, err
+	}
+
+	mqMaxConnectRetries, err := getInt(cmd, mqConnectMaxRetriesFlagName, mqConnectMaxRetriesEnvKey,
+		mqDefaultConnectMaxRetries)
+	if err != nil {
+		return nil, err
+	}
+
+	mqMaxRedeliveryAttempts, err := getInt(cmd, mqRedeliveryMaxAttemptsFlagName, mqRedeliveryMaxAttemptsEnvKey,
+		mqDefaultRedeliveryMaxAttempts)
+	if err != nil {
+		return nil, err
+	}
+
+	mqRedeliveryMultiplier, err := getFloat(cmd, mqRedeliveryMultiplierFlagName, mqRedeliveryMultiplierEnvKey,
+		mqDefaultRedeliveryMultiplier)
+	if err != nil {
+		return nil, err
+	}
+
+	mqRedeliveryInitialInterval, err := getDuration(cmd, mqRedeliveryInitialIntervalFlagName,
+		mqRedeliveryInitialIntervalEnvKey, mqDefaultRedeliveryInitialInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	mqRedeliveryMaxInterval, err := getDuration(cmd, mqRedeliveryMaxIntervalFlagName,
+		mqRedeliveryMaxIntervalEnvKey, mqDefaultRedeliveryMaxInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mqParams{
+		endpoint:                   mqURL,
+		opPoolSize:                 mqOpPoolSize,
+		observerPoolSize:           mqObserverPoolSize,
+		maxConnectionSubscriptions: mqMaxConnectionSubscriptions,
+		publisherChannelPoolSize:   mqPublisherChannelPoolSize,
+		maxConnectRetries:          mqMaxConnectRetries,
+		maxRedeliveryAttempts:      mqMaxRedeliveryAttempts,
+		redeliveryMultiplier:       mqRedeliveryMultiplier,
+		redeliveryInitialInterval:  mqRedeliveryInitialInterval,
+		maxRedeliveryInterval:      mqRedeliveryMaxInterval,
+	}, nil
 }
 
 func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
@@ -1615,6 +1693,11 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
 	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
+	startCmd.Flags().StringP(mqConnectMaxRetriesFlagName, "", "", mqConnectMaxRetriesFlagUsage)
+	startCmd.Flags().StringP(mqRedeliveryMaxAttemptsFlagName, "", "", mqRedeliveryMaxAttemptsFlagUsage)
+	startCmd.Flags().StringP(mqRedeliveryInitialIntervalFlagName, "", "", mqRedeliveryInitialIntervalFlagUsage)
+	startCmd.Flags().StringP(mqRedeliveryMultiplierFlagName, "", "", mqRedeliveryMultiplierFlagUsage)
+	startCmd.Flags().StringP(mqRedeliveryMaxIntervalFlagName, "", "", mqRedeliveryMaxIntervalFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
@@ -1663,5 +1746,4 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
-
 }

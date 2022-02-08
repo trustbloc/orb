@@ -86,7 +86,7 @@ type opQueueTask struct {
 // Config contains configuration parameters for the operation queue.
 type Config struct {
 	// PoolSize is the number of AMQP subscribers that are listening for operation messages.
-	PoolSize uint
+	PoolSize int
 	// TaskMonitorInterval is the interval (period) in which operation queue tasks from other server instances
 	// are monitored.
 	TaskMonitorInterval time.Duration
