@@ -63,7 +63,7 @@ const (
 // Config holds the configuration for the publisher/subscriber.
 type Config struct {
 	URI                        string
-	MaxConnectRetries          uint64
+	MaxConnectRetries          int
 	MaxConnectionSubscriptions int
 	MaxRedeliveryAttempts      int
 	RedeliveryMultiplier       float64
@@ -281,7 +281,7 @@ func (p *PubSub) start() {
 		func() error {
 			return p.connect()
 		},
-		backoff.WithMaxRetries(newConnectBackOff(), maxRetries),
+		backoff.WithMaxRetries(newConnectBackOff(), uint64(maxRetries)),
 		func(err error, duration time.Duration) {
 			logger.Debugf("Error connecting to AMQP service %s after %s: %s. Retrying...",
 				extractEndpoint(p.amqpConfig.Connection.AmqpURI), duration, err)

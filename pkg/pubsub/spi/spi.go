@@ -11,14 +11,14 @@ const UndeliverableTopic = "orb.undeliverable.activities"
 
 // Options contains publisher/subscriber options.
 type Options struct {
-	PoolSize uint
+	PoolSize int
 }
 
 // Option specifies a publisher/subscriber option.
 type Option func(option *Options)
 
 // WithPool sets the pool size.
-func WithPool(size uint) Option {
+func WithPool(size int) Option {
 	return func(option *Options) {
 		option.PoolSize = size
 	}

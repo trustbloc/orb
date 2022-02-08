@@ -104,7 +104,7 @@ type outboxProvider func() Outbox
 
 type options struct {
 	discoveryDomain    string
-	subscriberPoolSize uint
+	subscriberPoolSize int
 }
 
 // Option is an option for observer.
@@ -118,7 +118,7 @@ func WithDiscoveryDomain(domain string) Option {
 }
 
 // WithSubscriberPoolSize sets the size of the message queue subscriber pool.
-func WithSubscriberPoolSize(value uint) Option {
+func WithSubscriberPoolSize(value int) Option {
 	return func(opts *options) {
 		opts.subscriberPoolSize = value
 	}
