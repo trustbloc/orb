@@ -121,6 +121,7 @@ type witness interface {
 
 type signer interface {
 	Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*verifiable.Credential, error)
+	Context() []string
 }
 
 type monitoringSvc interface {
@@ -140,7 +141,7 @@ type anchorGraph interface {
 }
 
 type anchorBuilder interface {
-	Build(anchorHashlink string) (*verifiable.Credential, error)
+	Build(anchorHashlink string, context []string) (*verifiable.Credential, error)
 }
 
 type didAnchors interface {
@@ -263,7 +264,7 @@ func (c *Writer) buildAnchorEvent(payload *subject.Payload,
 		return nil, nil, fmt.Errorf("build content object: %w", err)
 	}
 
-	vc, err := c.buildCredential(indexContentObj.Payload)
+	vc, err := c.buildCredential(indexContentObj.Payload, c.Signer.Context())
 	if err != nil {
 		return nil, nil, fmt.Errorf("build credential: %w", err)
 	}
@@ -333,7 +334,7 @@ func getSuffixes(refs []*operation.Reference) []string {
 }
 
 // buildCredential builds and signs anchor credential.
-func (c *Writer) buildCredential(contentObj vocab.Document) (*verifiable.Credential, error) {
+func (c *Writer) buildCredential(contentObj vocab.Document, ctx []string) (*verifiable.Credential, error) {
 	buildCredStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
@@ -348,7 +349,7 @@ func (c *Writer) buildCredential(contentObj vocab.Document) (*verifiable.Credent
 		return nil, fmt.Errorf("create hashlink for content object: %w", err)
 	}
 
-	vc, err := c.AnchorBuilder.Build(hl)
+	vc, err := c.AnchorBuilder.Build(hl, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("build anchor credential: %w", err)
 	}

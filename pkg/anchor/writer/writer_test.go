@@ -1668,7 +1668,7 @@ type mockTxnBuilder struct {
 	Err error
 }
 
-func (m *mockTxnBuilder) Build(anchorHashlink string) (*verifiable.Credential, error) {
+func (m *mockTxnBuilder) Build(anchorHashlink string, context []string) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -1731,6 +1731,10 @@ func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*ver
 	}
 
 	return vc, nil
+}
+
+func (m *mockSigner) Context() []string {
+	return []string{}
 }
 
 type mockWitness struct {

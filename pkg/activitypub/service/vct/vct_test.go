@@ -87,7 +87,7 @@ func TestClient_Witness(t *testing.T) {
 		var p Proof
 		require.NoError(t, json.Unmarshal(resp, &p))
 
-		require.Len(t, p.Context, 2)
+		require.Len(t, p.Context, 1)
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
@@ -102,7 +102,7 @@ func TestClient_Witness(t *testing.T) {
 		var p Proof
 		require.NoError(t, json.Unmarshal(resp, &p))
 
-		require.Len(t, p.Context, 2)
+		require.Len(t, p.Context, 1)
 		require.Empty(t, p.Proof["domain"])
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
@@ -252,4 +252,8 @@ func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*ver
 	})
 
 	return vc, nil
+}
+
+func (m *mockSigner) Context() []string {
+	return []string{}
 }

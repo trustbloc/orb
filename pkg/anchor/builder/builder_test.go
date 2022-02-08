@@ -52,7 +52,7 @@ func TestBuilder_Build(t *testing.T) {
 		b, err := New(builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build("hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg")
+		vc, err := b.Build("hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg", []string{})
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
 	})
