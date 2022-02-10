@@ -62,7 +62,8 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 		vcDoc, err := vocab.MarshalToDoc(vc)
 		require.NoError(t, err)
 
-		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload, vcDoc)
+		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
+			vcDoc, vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		vcBytes, err := vc.MarshalJSON()
@@ -90,7 +91,7 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc)
+		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		act := vocab.NewAnchorEvent(
@@ -140,7 +141,8 @@ func TestGetWitnessDoc(t *testing.T) {
 		vcDoc, err := vocab.MarshalToDoc(vc)
 		require.NoError(t, err)
 
-		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload, vcDoc)
+		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
+			vcDoc, vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		vcDoc, err = GetWitnessDoc(act)
@@ -159,7 +161,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc)
+		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		ae := vocab.NewAnchorEvent(
@@ -176,7 +178,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc,
+		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
 			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
 				"some-relationship")))
 		require.NoError(t, err)
@@ -195,7 +197,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc,
+		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
 			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
 				vocab.RelationshipWitness)))
 		require.NoError(t, err)
@@ -214,7 +216,7 @@ func TestGetWitnessDoc(t *testing.T) {
 		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc,
+		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
 			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
 				vocab.RelationshipWitness)))
 		require.NoError(t, err)

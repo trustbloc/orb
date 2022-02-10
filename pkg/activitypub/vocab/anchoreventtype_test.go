@@ -45,12 +45,12 @@ func TestAnchorEvent(t *testing.T) {
 
 	published := getStaticTime()
 
-	anchorObj, err := NewAnchorObject(sampleGenerator, MustMarshalToDoc(contentObj))
+	anchorObj, err := NewAnchorObject(sampleGenerator, MustMarshalToDoc(contentObj), JSONMediaType)
 	require.NoError(t, err)
 	require.Len(t, anchorObj.URL(), 1)
 
 	anchorObj2, err := NewAnchorObject(sampleGenerator2,
-		MustMarshalToDoc(contentObj2),
+		MustMarshalToDoc(contentObj2), JSONMediaType,
 		WithLink(NewLink(anchorObj.URL()[0], relationship1, relationship2)),
 	)
 	require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 
 	t.Run("Anchor URL mismatch", func(t *testing.T) {
 		anchorObj, err := NewAnchorObject(sampleGenerator,
-			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+			MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}), JSONMediaType,
 		)
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
@@ -198,7 +198,7 @@ func TestAnchorEventType_Validate(t *testing.T) {
 		require.Contains(t, err.Error(), "unable to find the attachment that matches the anchors URL in the anchor event")
 	})
 
-	t.Run("No content object", func(t *testing.T) {
+	t.Run("No content", func(t *testing.T) {
 		anchorObj := &AnchorObjectType{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorObjNoContentObj), anchorObj))
 
@@ -236,6 +236,14 @@ func TestAnchorEventType_Validate(t *testing.T) {
 		err := ae.Validate()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "generator is required in anchor event")
+	})
+
+	t.Run("No mediaType", func(t *testing.T) {
+		anchorObj := &AnchorObjectType{}
+
+		err := json.Unmarshal([]byte(jsonAnchorObjNoMediaType), anchorObj)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "media type not specified")
 	})
 
 	t.Run("Invalid content object hash", func(t *testing.T) {
@@ -289,22 +297,18 @@ const (
 	//nolint:lll
 	jsonAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "index": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
   "attachment": [
     {
-      "contentObject": {
-        "field_1": "value1",
-        "field_2": "value2"
-      },
+      "content": "{\"field_1\":\"value1\",\"field_2\":\"value2\"}",
       "generator": "https://sample.com#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject",
       "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
     },
     {
-      "contentObject": {
-        "field_3": "value3"
-      },
+      "content": "{\"field_3\":\"value3\"}",
       "generator": "https://sample2.com#v0",
+      "mediaType": "application/json",
       "tag": [
         {
           "href": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
@@ -320,6 +324,7 @@ const (
     }
   ],
   "attributedTo": "https://orb.domain1.com/services/orb",
+  "index": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
   "parent": [
     "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
     "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
@@ -336,11 +341,9 @@ const (
   "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
 }`
 	jsonAnchorObjInvalidURL = `{
-      "contentObject": {
-        "field_1": "value1",
-        "field_2": "value2"
-      },
+      "content": "{\"field_3\":\"value3\"}",
       "generator": "https://sample.com#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject",
       "url": "hl:uEiAcDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
       "witness": {
@@ -373,20 +376,26 @@ const (
     }`
 
 	jsonAnchorObjNoURL = `{
-      "contentObject": {
-        "field_1": "value1",
-        "field_2": "value2"
-      },
+      "content": "{\"field_1\": \"value1\",\"field_2\":\"value2\"}",
       "generator": "https://sample.com#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject"
 }`
 	jsonAnchorObjNoContentObj = `{
       "generator": "https://sample.com#v0",
+      "mediaType": "application/json",
       "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
       "type": "AnchorObject"
 }`
 	jsonAnchorObjNoGenerator = `{
       "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+      "mediaType": "application/json",
+      "type": "AnchorObject"
+}`
+	jsonAnchorObjNoMediaType = `{
+      "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA",
+      "generator": "https://sample.com#v0",
+      "content": "{\"field_1\": \"value1\",\"field_2\":\"value2\"}",
       "type": "AnchorObject"
 }`
 )

@@ -86,8 +86,9 @@ func TestNew(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, &mocks.PubSub{},
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, &mocks.PubSub{}, testMaxWitnessDelay,
+			signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, c)
 	})
@@ -98,8 +99,9 @@ func TestNew(t *testing.T) {
 		ps := &mocks.PubSub{}
 		ps.SubscribeReturns(nil, errExpected)
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
+			nil, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, c)
@@ -164,8 +166,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, resourceresolver.New(http.DefaultClient,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
+			resourceresolver.New(http.DefaultClient,
 				nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -226,8 +229,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient,
 				ipfs.New(testServer.URL, 5*time.Second, 0, &mocks.MetricsProvider{}),
 			), &mocks.MetricsProvider{})
@@ -269,8 +272,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -323,8 +326,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -374,8 +377,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -424,8 +427,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:         wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, nil, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			nil, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -471,8 +474,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:         wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
+			nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -510,8 +514,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -548,8 +552,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Signer:        &mockSigner{Err: fmt.Errorf("signer error")},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -591,8 +595,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStore:       anchorEventStore,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -624,8 +628,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			Witness:       &mockWitness{Err: fmt.Errorf("witness error")},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -663,8 +667,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStore: anchorEventStoreWithErr,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -704,8 +708,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStore: anchorEventStoreWithErr,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -739,8 +743,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStore: anchorEventStore,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
+			nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.WriteAnchor("anchor", nil, []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 0)
@@ -774,7 +779,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		publisher := &anchormocks.AnchorPublisher{}
 		publisher.PublishAnchorReturns(errors.New("injected publisher error"))
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, publisher, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, publisher, ps,
 			testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
@@ -823,8 +828,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorEventStatusStore: statusStore,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", time.Second, 0, &mocks.MetricsProvider{})),
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
@@ -874,8 +879,9 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ProofHandler:           servicemocks.NewProofHandler(),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, false, resourceresolver.New(http.DefaultClient,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay,
+			false, resourceresolver.New(http.DefaultClient,
 				nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -940,7 +946,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ProofHandler:           servicemocks.NewProofHandler(),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, false, resourceresolver.New(http.DefaultClient,
 				nil), &mocks.MetricsProvider{})
 		require.NoError(t, err)
@@ -1023,7 +1029,7 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1051,8 +1057,9 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
+			nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorEvent := &vocab.AnchorEventType{}
@@ -1087,7 +1094,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorPublisher := &anchormocks.AnchorPublisher{}
 		anchorPublisher.PublishAnchorReturns(errExpected)
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, anchorPublisher, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr, anchorPublisher, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1117,7 +1124,7 @@ func TestWriter_handle(t *testing.T) {
 			WitnessStore:     &mockWitnessStore{},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1149,7 +1156,7 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1182,8 +1189,9 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providersWithErr, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
+			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
+			nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorEvent := &vocab.AnchorEventType{}
@@ -1211,7 +1219,7 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1243,7 +1251,7 @@ func TestWriter_handle(t *testing.T) {
 			DocumentLoader:   testutil.GetLoader(t),
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1292,7 +1300,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1305,7 +1313,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			Outbox: &mockOutbox{},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1323,7 +1331,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:      wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1348,7 +1356,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:      wfClientWithErr,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1373,7 +1381,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:      wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1393,7 +1401,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1412,7 +1420,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			WFClient:               wfClient,
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1467,7 +1475,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil, resourceresolver.WithCacheLifetime(0)),
 			&mocks.MetricsProvider{})
@@ -1531,7 +1539,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1557,7 +1565,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			OpProcessor: &mockOpProcessor{Map: opMap},
 		}
 
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1592,8 +1600,9 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 
 	wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
-	c, err := New(namespace, apServiceIRI, nil, &Providers{WFClient: wfClient}, &anchormocks.AnchorPublisher{}, ps,
-		testMaxWitnessDelay, true, nil, &mocks.MetricsProvider{})
+	c, err := New(namespace, apServiceIRI, nil, vocab.JSONMediaType, &Providers{WFClient: wfClient},
+		&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, true, nil,
+		&mocks.MetricsProvider{})
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
@@ -1654,7 +1663,7 @@ func TestWriter_Read(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
-		c, err := New(namespace, apServiceIRI, casIRI, providers, &anchormocks.AnchorPublisher{}, ps,
+		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
 			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
@@ -1876,135 +1885,70 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 
 //nolint: lll
 const jsonAnchorEvent = `{
-  "@context": [
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1"
-  ],
-  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "@context": "https://w3id.org/activityanchors/v1",
   "attachment": [
     {
-      "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "ID": "did:orb:uAAA:EiAqm7CXVPxriNZv_A6GVCrqlmCmrUSGJ1YaheTzFxa_Fw"
-            }
-          ]
-        },
-        "subject": "hl:uEiDYMTm9nJ5B0gwpNtflwrcZCT9uT6BFiEs5sYWB45piXg:uoQ-BeEJpcGZzOi8vYmFma3JlaWd5Z2U0MzNoZTZpaGpheWtqdzI3czRmbnl6YmU3dzR0NWFpd2Vld29ucnF3YTZoZ3RjbHk"
-      },
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "tag": [
         {
-          "type": "Link",
-          "href": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+          "href": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA",
           "rel": [
             "witness"
-          ]
+          ],
+          "type": "Link"
         }
       ],
       "type": "AnchorObject",
-      "url": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA"
     },
     {
-      "contentObject": {
-        "@context": [
-          "https://www.w3.org/2018/credentials/v1",
-          "https://w3id.org/security/jws/v1"
-        ],
-        "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
-        "id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
-        "issuanceDate": "2021-10-14T18:32:17.894314751Z",
-        "issuer": "http://orb2.domain1.com",
-        "proof": [
-          {
-            "created": "2021-10-14T18:32:17.91Z",
-            "domain": "http://orb.vct:8077/maple2020",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..h3-0HC3L87TM0j0o3Nd0VLlalcVVphwOPsfdkCLZ4q-uL4z8eO2vQ4sobbtOtFpNNZlpIOQnaWJMX3Ch5Wh-AQ",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain1.com#orb1key"
-          },
-          {
-            "created": "2021-10-14T18:32:18.09110265Z",
-            "domain": "https://orb.domain2.com",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DSL3zsltnh9dbSn3VNPb1C-6pKt6VOy-H1WadO5ZV2QZd3xZq3uRRhaShi9K1SzX-VaGPxs3gfbazJ-fpHVxBg",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain2.com#orb2key"
-          }
-        ],
-        "type": "VerifiableCredential"
-      },
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA\",\"id\":\"https://orb.domain2.com/vc/1636951e-9117-4134-904a-e0cd177517a1\",\"issuanceDate\":\"2022-02-10T18:50:48.682168399Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-10T18:50:48.682348236Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..fqgLBKohg962_3GNbH-QXklA89KBMHev95-Pk1XcGa47jq0TbFUeZi3DBGLgc-pDBisqkh0U3bUSvKY_edBAAw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:48.729Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..xlI19T5KT-Sy1CJuCQLIhgGHdlaK0dIjoctRwzJUz6-TpiluluGEa69aCuDjx426TgHvGXJDn8jHi5aDqGuTDA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject",
-      "url": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
-  "parent": [
-    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
-    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
-  ],
-  "published": "2021-10-14T18:32:17.888176489Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA",
+  "parent": "hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWswQ1V1SUlWT3hsYWxZSDZKVTdnc0l3dm81ekdOY01fellvMmpYd3pCenc",
+  "published": "2022-02-10T18:50:48.681998572Z",
+  "type": "AnchorEvent"
 }`
 
 //nolint: lll
 const jsonAnchorEventInvalidWitness = `{
-  "@context": [
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1"
-  ],
-  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "@context": "https://w3id.org/activityanchors/v1",
   "attachment": [
     {
-      "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "ID": "did:orb:uAAA:EiAqm7CXVPxriNZv_A6GVCrqlmCmrUSGJ1YaheTzFxa_Fw"
-            }
-          ]
-        },
-        "subject": "hl:uEiDYMTm9nJ5B0gwpNtflwrcZCT9uT6BFiEs5sYWB45piXg:uoQ-BeEJpcGZzOi8vYmFma3JlaWd5Z2U0MzNoZTZpaGpheWtqdzI3czRmbnl6YmU3dzR0NWFpd2Vld29ucnF3YTZoZ3RjbHk"
-      },
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "tag": [
         {
-          "type": "Link",
-          "href": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+          "href": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA",
           "rel": [
             "witness"
-          ]
+          ],
+          "type": "Link"
         }
       ],
       "type": "AnchorObject",
-      "url": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA"
     },
     {
-      "contentObject": {
-        "@context": [
-          "https://www.w3.org/2018/credentials/v1",
-          "https://w3id.org/security/jws/v1"
-        ],
-        "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
-        "type": "VerifiableCredential"
-      },
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA\",\"id\":\"https://orb.domain2.com/vc/1636951e-9117-4134-904a-e0cd177517a1\",\"issuanceDate\":\"2022-02-10T18:50:48.682168399Z\",\"proof\":[{\"created\":\"2022-02-10T18:50:48.682348236Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..fqgLBKohg962_3GNbH-QXklA89KBMHev95-Pk1XcGa47jq0TbFUeZi3DBGLgc-pDBisqkh0U3bUSvKY_edBAAw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:48.729Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..xlI19T5KT-Sy1CJuCQLIhgGHdlaK0dIjoctRwzJUz6-TpiluluGEa69aCuDjx426TgHvGXJDn8jHi5aDqGuTDA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject",
-      "url": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
-  "parent": [
-    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
-    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
-  ],
-  "published": "2021-10-14T18:32:17.888176489Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA",
+  "parent": "hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWswQ1V1SUlWT3hsYWxZSDZKVTdnc0l3dm81ekdOY01fellvMmpYd3pCenc",
+  "published": "2022-02-10T18:50:48.681998572Z",
+  "type": "AnchorEvent"
 }`

@@ -115,6 +115,7 @@ services:
       # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
       # Default value: 30s
       - WITNESS_POLICY_CACHE_EXPIRATION=10s
+      - ANCHOR_ATTACHMENT_MEDIA_TYPE=application/gzip
     ports:
       - 48326:443
       - 48327:48327
@@ -239,6 +240,7 @@ services:
       # ACTIVITYPUB_IRI_CACHE_EXPIRATION sets the expiration time of an ActivityPub actor IRI cache.
       # Default value: 1h (one hour)
       - ACTIVITYPUB_IRI_CACHE_EXPIRATION=90s
+      - ANCHOR_ATTACHMENT_MEDIA_TYPE=application/gzip
     ports:
       - 48526:443
       - 48527:48527
@@ -357,6 +359,7 @@ services:
       # only if its age is greater than this value.
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
+      - ANCHOR_ATTACHMENT_MEDIA_TYPE=application/json
     ports:
       - 48826:80
       - 48827:48827
@@ -458,6 +461,7 @@ services:
       # only if its age is greater than this value.
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
+      - ANCHOR_ATTACHMENT_MEDIA_TYPE=application/json
     ports:
       - 48926:80
       - 48927:48927

@@ -105,6 +105,46 @@ func TestMarshal(t *testing.T) {
 	})
 }
 
+func TestEncodeDecodeDocument(t *testing.T) {
+	t.Run("JSON media type", func(t *testing.T) {
+		content, err := EncodeDocument(Document{"field1": "value1", "field2": "value2"}, JSONMediaType)
+		require.NoError(t, err)
+		require.Equal(t, `{"field1":"value1","field2":"value2"}`, content)
+
+		doc, err := DecodeToDocument(content, JSONMediaType)
+		require.NoError(t, err)
+		require.Equal(t, "value1", doc["field1"])
+		require.Equal(t, "value2", doc["field2"])
+	})
+
+	t.Run("GZIP media type", func(t *testing.T) {
+		content, err := EncodeDocument(Document{"field1": "value1", "field2": "value2"}, GzipMediaType)
+		require.NoError(t, err)
+		require.Equal(t, `H4sIAAAAAAAA/6pWSstMzUkxVLJSKkvMKU01VNKBiBjBRIyUagEBAAD//+dwtrYlAAAA`, content)
+
+		doc, err := DecodeToDocument(content, GzipMediaType)
+		require.NoError(t, err)
+		require.Equal(t, "value1", doc["field1"])
+		require.Equal(t, "value2", doc["field2"])
+	})
+
+	t.Run("No media type", func(t *testing.T) {
+		_, err := EncodeDocument(Document{"field1": "value1", "field2": "value2"}, "")
+		require.EqualError(t, err, "media type not specified")
+
+		_, err = DecodeToDocument("xxx", "")
+		require.EqualError(t, err, "media type not specified")
+	})
+
+	t.Run("Unsupported media type", func(t *testing.T) {
+		_, err := EncodeDocument(Document{"field1": "value1", "field2": "value2"}, "invalid")
+		require.EqualError(t, err, "unsupported media type [invalid]")
+
+		_, err = DecodeToDocument("xxx", "invalid")
+		require.EqualError(t, err, "unsupported media type [invalid]")
+	})
+}
+
 type mockObject1 struct {
 	Field1 string
 	Field2 int

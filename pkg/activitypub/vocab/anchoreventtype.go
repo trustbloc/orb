@@ -127,6 +127,10 @@ func validateAnchorObject(anchorObj *AnchorObjectType) error {
 		return fmt.Errorf("content object is required in anchor event")
 	}
 
+	if anchorObj.MediaType() == "" {
+		return fmt.Errorf("media type is required in anchor event")
+	}
+
 	contentObjBytes, err := canonicalizer.MarshalCanonical(anchorObj.ContentObject())
 	if err != nil {
 		return fmt.Errorf("marshal content object: %w", err)
@@ -177,15 +181,18 @@ func (t *AnchorEventType) UnmarshalJSON(bytes []byte) error {
 type AnchorObjectType struct {
 	*ObjectType
 
-	anchorObject *anchorObjectType
+	content   Document
+	mediaType string
 }
 
 type anchorObjectType struct {
-	ContentObject Document `json:"contentObject,omitempty"`
+	Content   string `json:"content,omitempty"`
+	MediaType string `json:"mediaType,omitempty"`
 }
 
 // NewAnchorObject returns a new AnchorObject type.
-func NewAnchorObject(generator string, contentObject Document, opts ...Opt) (*AnchorObjectType, error) {
+func NewAnchorObject(generator string, contentObject Document, mediaType MediaType,
+	opts ...Opt) (*AnchorObjectType, error) {
 	options := NewOptions(opts...)
 
 	contentObjBytes, err := json.Marshal(contentObject)
@@ -217,30 +224,66 @@ func NewAnchorObject(generator string, contentObject Document, opts ...Opt) (*An
 			WithURL(hlURL),
 			WithTag(tag),
 		),
-		anchorObject: &anchorObjectType{
-			ContentObject: contentObject,
-		},
+		content:   contentObject,
+		mediaType: mediaType,
 	}, nil
 }
 
 // ContentObject returns the content object.
 func (t *AnchorObjectType) ContentObject() Document {
-	if t == nil || t.anchorObject == nil {
+	if t == nil {
 		return nil
 	}
 
-	return t.anchorObject.ContentObject
+	return t.content
+}
+
+// MediaType returns the media type of the content in the anchor object.
+func (t *AnchorObjectType) MediaType() MediaType {
+	if t == nil {
+		return ""
+	}
+
+	return t.mediaType
 }
 
 // MarshalJSON marshals the object to JSON.
 func (t *AnchorObjectType) MarshalJSON() ([]byte, error) {
-	return MarshalJSON(t.ObjectType, t.anchorObject)
+	ao := &anchorObjectType{
+		MediaType: t.mediaType,
+	}
+
+	var err error
+
+	ao.Content, err = EncodeDocument(t.ContentObject(), t.mediaType)
+	if err != nil {
+		return nil, fmt.Errorf("encode content: %w", err)
+	}
+
+	return MarshalJSON(t.ObjectType, ao)
 }
 
-// UnmarshalJSON umarshals the object from JSON.
+// UnmarshalJSON unmarshals the object from JSON.
 func (t *AnchorObjectType) UnmarshalJSON(bytes []byte) error {
 	t.ObjectType = NewObject()
-	t.anchorObject = &anchorObjectType{}
 
-	return UnmarshalJSON(bytes, t.ObjectType, t.anchorObject)
+	ao := &anchorObjectType{}
+
+	err := UnmarshalJSON(bytes, t.ObjectType, ao)
+	if err != nil {
+		return fmt.Errorf("marshal anchor object: %w", err)
+	}
+
+	t.mediaType = ao.MediaType
+
+	if ao.Content == "" {
+		return nil
+	}
+
+	t.content, err = DecodeToDocument(ao.Content, t.mediaType)
+	if err != nil {
+		return fmt.Errorf("decode content: %w", err)
+	}
+
+	return nil
 }

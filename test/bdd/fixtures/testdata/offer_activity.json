@@ -1,28 +1,18 @@
 {
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://orb.domain2.com/services/orb",
-  "endTime": "2021-10-27T20:30:54.75836827Z",
-  "id": "https://orb.domain2.com/services/orb/activities/a9e66de1-2f9c-4822-b321-07d8c36d31a4",
+  "endTime": "2022-02-10T22:00:15.7046171Z",
+  "id": "https://orb.domain2.com/services/orb/activities/018c5944-5201-4af4-bce0-ea2cb143ee2b",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
     "attachment": [
       {
-        "contentObject": {
-          "properties": {
-            "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-            "https://w3id.org/activityanchors#resources": [
-              {
-                "id": "did:orb:uEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg:EiCVLYJdOmoKgq6kXMGe7ZhrHhNGXhjD7cnkfz8JGw_yjw",
-                "previousAnchor": "hl:uEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg"
-              }
-            ]
-          },
-          "subject": "hl:uEiBN-H0wxN9_izGjfi8D7WH7DmH8NAawQvL2cnONNGCsVw:uoQ-BeEJpcGZzOi8vYmFma3JlaWNuN2I2dGJyZzdwNmZ0ZGkzNmY0YjYyeXAzYnpxN3luYWd3YmJwZjV0c29vZ3RpeWZtazQ"
-        },
+        "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uAAA:EiAmj6LLkoL5DgmBKI-SRoKKksnVc9OYqfjj08VXe5e9hw\"},{\"id\":\"did:orb:uAAA:EiAH7AOxCsoi-WLjac5FxzGxWyHJVhrtXjwbNwZTYNKo8g\"},{\"id\":\"did:orb:uAAA:EiDKvvUEvfMPvSxPUpF37RQoxkJKxdJJNtgjqEYyx8S9IA\"},{\"id\":\"did:orb:uAAA:EiAP6d5LVlGjwm2z1gDUuieH20lT-Pm-CDbr5WYWn7RPMg\"},{\"id\":\"did:orb:uAAA:EiDu7cQmLhVqcQTouf8YIxtUYtvY-eI-HWYu2BwQUbddng\"},{\"id\":\"did:orb:uAAA:EiAre1hiLvvfBnHj8MktHgJjTE-e1coek3JadAGTO2LWdw\"},{\"id\":\"did:orb:uAAA:EiAcUlv97lHEY3D56dWesas4OUB-KQHL_tckmNaFl7MaGw\"},{\"id\":\"did:orb:uAAA:EiAkAhDukhlrul22BpNhWqewhpN_C0_Ad6Jq6xLd57jOgA\"},{\"id\":\"did:orb:uAAA:EiAfeHIah4UJYTJ7tdgPWPGqVHU0wSuga9q5tmXGMdbYRQ\"},{\"id\":\"did:orb:uAAA:EiBP7qgmpguk4iX7t_eb86FGA02E6Qjf6y2lyPfuf9I0Kw\"},{\"id\":\"did:orb:uAAA:EiB96llulf66DJV-dE8-ESdQefE5yBff7dO53BVVnmXxQw\"},{\"id\":\"did:orb:uAAA:EiBwy1l0ucgzJNNEsJVN8tKddqZocVvHkKefpQoMDazDkg\"},{\"id\":\"did:orb:uAAA:EiAIaz4ZJxQ3_7fOXNpfo7Qo3SvqWppwXn97UCYWT83PEQ\"},{\"id\":\"did:orb:uAAA:EiC6yBURHZ2PVIrtwtj0KneexPvnqfYQBL6GHLkKixxOWA\"},{\"id\":\"did:orb:uAAA:EiCA7I6xO9DDqziAfHmshOPDHwwJdTFXMKy9nLqnaVufKg\"}]},\"subject\":\"hl:uEiDLf0LkQ3TO_mWzoPkxnrmzUOM9T2oZSCMjO56epzU0eg:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpRExmMExrUTNUT19tV3pvUGt4bnJtelVPTTlUMm9aU0NNak81NmVwelUwZWc\"}",
         "generator": "https://w3id.org/orb#v0",
+        "mediaType": "application/json",
         "tag": [
           {
-            "href": "hl:uEiDL8iXtM0uL7y85SPNcn-IVUg08Gdhn6EufFvz-uWiwlw",
+            "href": "hl:uEiA5gn0G4xdsC-hIAIE2trPTRjtJlQhZ7cV4dWkcwy_9OA",
             "rel": [
               "witness"
             ],
@@ -30,44 +20,26 @@
           }
         ],
         "type": "AnchorObject",
-        "url": "hl:uEiCDFlNNQ6PvDg0W49WpZP6375hmAN_WlsUdJP2KZ1-9_g"
+        "url": "hl:uEiBAnjeqN2h1BdgJ4uKu0YVHtSQL0IfGo5cKSLuTtgQP_Q"
       },
       {
-        "contentObject": {
-          "@context": [
-            "https://www.w3.org/2018/credentials/v1",
-            "https://w3id.org/security/suites/jws-2020/v1"
-          ],
-          "credentialSubject": "hl:uEiCDFlNNQ6PvDg0W49WpZP6375hmAN_WlsUdJP2KZ1-9_g",
-          "id": "https://orb2.domain1.com/vc/c56ae4d1-7c8d-45a1-bb8b-b596c1454830",
-          "issuanceDate": "2021-10-27T20:20:54.702740385Z",
-          "issuer": "https://orb2.domain1.com",
-          "proof": {
-            "created": "2021-10-27T20:20:54.711Z",
-            "domain": "http://orb.vct:8077/maple2020",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..KzeNdqoM43Vpt7l5_COjLj23Puhxf0SFxkW4QNjUhJQuBLJkeNtBMkoYYhuXUb57L4cZPD21IOVEK2mm46ipAA",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain1.com#orb1key"
-          },
-          "type": "VerifiableCredential"
-        },
+        "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiBAnjeqN2h1BdgJ4uKu0YVHtSQL0IfGo5cKSLuTtgQP_Q\",\"id\":\"https://orb.domain2.com/vc/ee03f40c-7f67-4ec4-b523-c504e353f66d\",\"issuanceDate\":\"2022-02-10T21:50:15.606028255Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":{\"created\":\"2022-02-10T21:50:15.61403824Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..dsYSfh8JATP-LOUch1JLP4ScRZHkh0OohZAwm6g170fkvo-C8uYpeI_88JxO7xgPapq6ejuYR0RPYSa_H-eSCA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},\"type\":\"VerifiableCredential\"}",
         "generator": "https://w3id.org/orb#v0",
+        "mediaType": "application/json",
         "type": "AnchorObject",
-        "url": "hl:uEiDL8iXtM0uL7y85SPNcn-IVUg08Gdhn6EufFvz-uWiwlw"
+        "url": "hl:uEiA5gn0G4xdsC-hIAIE2trPTRjtJlQhZ7cV4dWkcwy_9OA"
       }
     ],
-    "attributedTo": "https://orb.domain1.com/services/orb",
-    "index": "hl:uEiCDFlNNQ6PvDg0W49WpZP6375hmAN_WlsUdJP2KZ1-9_g",
-    "parent": "hl:uEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg:uoQ-BeEJpcGZzOi8vYmFma3JlaWI2eWRhd2xteDdyeW1yYnlza2JydmhoNWhnZTQ1emRqanVsc24zd25xdTR4c2I3MnFqaXk",
-    "published": "2021-10-27T20:20:54.699265538Z",
+    "attributedTo": "https://orb.domain2.com/services/orb",
+    "index": "hl:uEiBAnjeqN2h1BdgJ4uKu0YVHtSQL0IfGo5cKSLuTtgQP_Q",
+    "published": "2022-02-10T21:50:15.592568774Z",
     "type": "AnchorEvent"
   },
-  "startTime": "2021-10-27T20:20:54.75836827Z",
+  "startTime": "2022-02-10T21:50:15.7046171Z",
   "target": "https://w3id.org/activityanchors#AnchorWitness",
   "to": [
-    "https://www.w3.org/ns/activitystreams#Public",
-    "https://orb.domain1.com/services/orb/witnesses"
+    "https://orb.domain1.com/services/orb",
+    "https://www.w3.org/ns/activitystreams#Public"
   ],
   "type": "Offer"
 }

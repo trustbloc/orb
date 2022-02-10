@@ -273,7 +273,7 @@ func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEve
 	}
 
 	act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-		vocab.MustMarshalToDoc(vc))
+		vocab.MustMarshalToDoc(vc), vocab.GzipMediaType)
 	require.NoError(t, err)
 
 	return act

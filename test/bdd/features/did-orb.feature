@@ -324,8 +324,18 @@ Feature:
     And variable "anchorHash" is assigned the value "$hashlink(|${anchorLink}|).ResourceHash"
 
     When an HTTP GET is sent to "https://orb.domain1.com/cas/${anchorHash}"
-    Then the JSON path 'attachment.#(contentObject.type="VerifiableCredential").contentObject.id' of the response is saved to variable "vcID"
+    Then the JSON path "index" of the response is saved to variable "anchorIndex"
 
+    # Get the hashlink of the verifiable credential content from the index
+    Then the JSON path 'attachment.#(url="${anchorIndex}").tag.#(type="Link").href' of the response is saved to variable "vcHL"
+    # Get the verifiable credential encoded content
+    Then the JSON path 'attachment.#(url="${vcHL}").content' of the response is saved to variable "vcEncodedContent"
+    Then the JSON path 'attachment.#(url="${vcHL}").mediaType' of the response is saved to variable "vcContentType"
+    # Decode the verifiable credential content according to the specified media type
+    Then the content "${vcEncodedContent}" of type "${vcContentType}" is decoded and saved to variable "vcContent"
+    Then the JSON path "id" of document '${vcContent}' is saved to variable "vcID"
+
+    # Ensure the verifiable credential can be retrieved by ID
     When an HTTP GET is sent to "${vcID}"
     Then the JSON path "id" of the response equals "${vcID}"
 

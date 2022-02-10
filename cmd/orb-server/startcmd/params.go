@@ -18,6 +18,7 @@ import (
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -55,6 +56,7 @@ const (
 	defaultInviteWitnessAuthType            = acceptAllPolicy
 	defaultMQOpPoolSize                     = 5
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
+	defaultAnchorAttachmentMediaType        = vocab.JSONMediaType
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -528,6 +530,14 @@ const (
 	witnessPolicyCacheExpirationEnvKey    = "WITNESS_POLICY_CACHE_EXPIRATION"
 	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
 		commonEnvVarUsageText + witnessPolicyCacheExpirationEnvKey
+
+	anchorAttachmentMediaTypeFlagName  = "anchor-attachment-media-type"
+	anchorAttachmentMediaTypeEnvKey    = "ANCHOR_ATTACHMENT_MEDIA_TYPE"
+	anchorAttachmentMediaTypeFlagUsage = "The media type for attachments in an AnchorEvent. Possible values are " +
+		"'application/json' and 'application/gzip'. If 'application/json' is specified then the content of the attachments " +
+		"in the AnchorEvent are encoded as an escaped JSON string. If 'application/gzip' is specified then the content is " +
+		"compressed with gzip and base64 encoded (default is 'application/json')." +
+		commonEnvVarUsageText + anchorAttachmentMediaTypeEnvKey
 )
 
 type acceptRejectPolicy string
@@ -557,6 +567,7 @@ type orbParameters struct {
 	discoveryDomain                         string
 	didNamespace                            string
 	didAliases                              []string
+	anchorAttachmentMediaType               vocab.MediaType
 	batchWriterTimeout                      time.Duration
 	casType                                 string
 	ipfsURL                                 string
@@ -956,6 +967,15 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	anchorAttachmentMediaType, err := cmdutils.GetUserSetVarFromString(cmd, anchorAttachmentMediaTypeFlagName, anchorAttachmentMediaTypeEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if anchorAttachmentMediaType == "" {
+		anchorAttachmentMediaType = defaultAnchorAttachmentMediaType
+	}
+
 	discoveryDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
 
 	discoveryVctDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryVctDomainsFlagName, discoveryVctDomainsEnvKey)
@@ -1165,6 +1185,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		apIRICacheSize:                          apIRICacheSize,
 		apIRICacheExpiration:                    apIRICacheExpiration,
 		serverIdleTimeout:                       serverIdleTimeout,
+		anchorAttachmentMediaType:               anchorAttachmentMediaType,
 	}, nil
 }
 
@@ -1746,4 +1767,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
+	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
 }

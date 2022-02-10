@@ -67,14 +67,15 @@ type proofHandler interface {
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
-	namespace            string
-	anchorPublisher      anchorPublisher
-	apServiceIRI         *url.URL
-	casIRI               *url.URL
-	maxWitnessDelay      time.Duration
-	signWithLocalWitness bool
-	resourceResolver     *resourceresolver.Resolver
-	metrics              metricsProvider
+	namespace                 string
+	anchorPublisher           anchorPublisher
+	apServiceIRI              *url.URL
+	casIRI                    *url.URL
+	anchorAttachmentMediaType vocab.MediaType
+	maxWitnessDelay           time.Duration
+	signWithLocalWitness      bool
+	resourceResolver          *resourceresolver.Resolver
+	metrics                   metricsProvider
 }
 
 // Providers contains all of the providers required by the client.
@@ -167,21 +168,22 @@ type pubSub interface {
 }
 
 // New returns a new anchor writer.
-func New(namespace string, apServiceIRI, casURL *url.URL, providers *Providers,
-	anchorPublisher anchorPublisher, pubSub pubSub,
+func New(namespace string, apServiceIRI, casURL *url.URL, anchorAttachmentMediaType vocab.MediaType,
+	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
 	resourceResolver *resourceresolver.Resolver,
 	metrics metricsProvider) (*Writer, error) {
 	w := &Writer{
-		Providers:            providers,
-		anchorPublisher:      anchorPublisher,
-		namespace:            namespace,
-		apServiceIRI:         apServiceIRI,
-		casIRI:               casURL,
-		maxWitnessDelay:      maxWitnessDelay,
-		signWithLocalWitness: signWithLocalWitness,
-		resourceResolver:     resourceResolver,
-		metrics:              metrics,
+		Providers:                 providers,
+		anchorPublisher:           anchorPublisher,
+		namespace:                 namespace,
+		apServiceIRI:              apServiceIRI,
+		casIRI:                    casURL,
+		maxWitnessDelay:           maxWitnessDelay,
+		signWithLocalWitness:      signWithLocalWitness,
+		resourceResolver:          resourceResolver,
+		metrics:                   metrics,
+		anchorAttachmentMediaType: anchorAttachmentMediaType,
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle)
@@ -231,7 +233,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	anchorEvent, vc, err := c.buildAnchorEvent(payload, batchWitnesses)
+	anchorEvent, vc, err := c.buildAnchorEvent(payload, batchWitnesses, c.anchorAttachmentMediaType)
 	if err != nil {
 		return fmt.Errorf("build anchor event for anchor [%s]: %w", anchor, err)
 	}
@@ -257,8 +259,8 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	return nil
 }
 
-func (c *Writer) buildAnchorEvent(payload *subject.Payload,
-	witnesses []string) (*vocab.AnchorEventType, vocab.Document, error) {
+func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string,
+	attachmentMediaType vocab.MediaType) (*vocab.AnchorEventType, vocab.Document, error) {
 	indexContentObj, err := anchorevent.BuildContentObject(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build content object: %w", err)
@@ -281,7 +283,7 @@ func (c *Writer) buildAnchorEvent(payload *subject.Payload,
 	}
 
 	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, indexContentObj.GeneratorID,
-		indexContentObj.Payload, witnessContentObj)
+		indexContentObj.Payload, witnessContentObj, attachmentMediaType)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build anchor event: %w", err)
 	}
