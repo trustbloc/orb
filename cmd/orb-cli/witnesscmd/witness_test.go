@@ -181,13 +181,18 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 	})
 }
 
-func TestCreateDID(t *testing.T) {
+func TestWitness(t *testing.T) {
 	serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := fmt.Fprint(w, "d1")
 		require.NoError(t, err)
 	}))
 
-	t.Run("test failed to create did", func(t *testing.T) {
+	serv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := fmt.Fprint(w, "{ \"items\": [ \"to\" ] }")
+		require.NoError(t, err)
+	}))
+
+	t.Run("test failed to witness", func(t *testing.T) {
 		os.Clearenv()
 		cmd := GetCmd()
 
@@ -210,7 +215,7 @@ func TestCreateDID(t *testing.T) {
 
 		var args []string
 		args = append(args, outboxURL(serv.URL)...)
-		args = append(args, actor("actor")...)
+		args = append(args, actor(serv1.URL)...)
 		args = append(args, to("to")...)
 		args = append(args, action("InviteWitness")...)
 

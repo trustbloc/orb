@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
@@ -377,6 +378,26 @@ func newAuthTokenHeader(cmd *cobra.Command) map[string]string {
 	}
 
 	return headers
+}
+
+// GetDuration get duration.
+func GetDuration(cmd *cobra.Command, flagName, envKey string,
+	defaultDuration time.Duration) (time.Duration, error) {
+	timeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return -1, err
+	}
+
+	if timeoutStr == "" {
+		return defaultDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		return -1, fmt.Errorf("invalid value [%s]: %w", timeoutStr, err)
+	}
+
+	return timeout, nil
 }
 
 // AddCommonFlags adds common flags to the given command.
