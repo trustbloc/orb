@@ -324,6 +324,7 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 		"--actor", actor,
 		"--to", to,
 		"--action", action,
+		"--max-retry", "3",
 		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--auth-token", "ADMIN_TOKEN",
 	)
@@ -341,7 +342,8 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 	}
 
 	value, err := execCMD(args...)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "no such host") &&
+		!strings.Contains(err.Error(), "connection timed out") {
 		return err
 	}
 

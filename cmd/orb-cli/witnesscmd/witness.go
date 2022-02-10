@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
@@ -63,12 +64,28 @@ const (
 	inviteWitnessFlagUsage = "Invite witness id required for undo action." +
 		" Alternatively, this can be set with the following environment variable: " + inviteWitnessEnvKey
 	inviteWitnessEnvKey = "ORB_CLI_INVITE_WITNESS_ID"
+
+	maxRetryFlagName  = "max-retry"
+	maxRetryFlagUsage = "max retry to check if follow cmd is succeed default value is 10" +
+		" Alternatively, this can be set with the following environment variable: " + maxRetryEnvKey
+	maxRetryEnvKey = "ORB_CLI_MAX_RETRY"
+
+	waitTimeFlagName  = "wait-time"
+	waitTimeFlagUsage = "wait time between retries default value is 1s" +
+		" Alternatively, this can be set with the following environment variable: " + waitTimeEnvKey
+	waitTimeEnvKey = "ORB_CLI_WAIT_TIME"
 )
 
 const (
 	inviteWitnessAction = "InviteWitness"
 	undoAction          = "Undo"
+	defaultMaxRetry     = 10
+	defaultWaitTime     = 1 * time.Second
 )
+
+type witnessResp struct {
+	Items []string `json:"items,omitempty"`
+}
 
 // GetCmd returns the Cobra witness command.
 func GetCmd() *cobra.Command {
@@ -138,6 +155,24 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
 				authTokenEnvKey)
 
+			maxRetry := defaultMaxRetry
+
+			maxRetryString := cmdutils.GetUserSetOptionalVarFromString(cmd, maxRetryFlagName,
+				maxRetryEnvKey)
+
+			if maxRetryString != "" {
+				maxRetry, err = strconv.Atoi(maxRetryString)
+				if err != nil {
+					return fmt.Errorf("failed to convert max retry string to an integer: %w", err)
+				}
+			}
+
+			waitTime, err := common.GetDuration(cmd, waitTimeFlagName,
+				waitTimeEnvKey, defaultWaitTime)
+			if err != nil {
+				return err
+			}
+
 			var reqBytes []byte
 
 			switch action {
@@ -193,13 +228,45 @@ func cmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 				headers["Authorization"] = "Bearer " + authToken
 			}
 
-			resp, err := common.SendRequest(httpClient, reqBytes, headers, http.MethodPost,
+			result, err := common.SendRequest(httpClient, reqBytes, headers, http.MethodPost,
 				outboxURL)
 			if err != nil {
 				return fmt.Errorf("failed to send http request: %w", err)
 			}
 
-			fmt.Printf("success %s id: %s\n", action, resp)
+			for i := 0; i < maxRetry; i++ {
+				resp, err := common.SendRequest(httpClient, nil, headers, http.MethodGet,
+					fmt.Sprintf("%s/witnesses?page=true", actor))
+				if err != nil {
+					return fmt.Errorf("failed to send http request: %w", err)
+				}
+
+				witnessResp := &witnessResp{}
+
+				if err := json.Unmarshal(resp, witnessResp); err != nil {
+					return err
+				}
+
+				exists := false
+
+				for _, item := range witnessResp.Items {
+					if item == to {
+						exists = true
+					}
+				}
+
+				if (action == undoAction && !exists) || (action == inviteWitnessAction && exists) {
+					break
+				}
+
+				if i == maxRetry {
+					return fmt.Errorf("%s failed max retries exhausted check server logs for more info", action)
+				}
+
+				time.Sleep(waitTime)
+			}
+
+			fmt.Printf("success %s id: %s\n", action, result)
 
 			return nil
 		},
@@ -236,4 +303,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(actionFlagName, "", "", actionFlagUsage)
 	startCmd.Flags().StringP(authTokenFlagName, "", "", authTokenFlagUsage)
 	startCmd.Flags().StringP(inviteWitnessFlagName, "", "", inviteWitnessFlagUsage)
+	startCmd.Flags().StringP(maxRetryFlagName, "", "", maxRetryFlagUsage)
+	startCmd.Flags().StringP(waitTimeFlagName, "", "", waitTimeFlagUsage)
 }
