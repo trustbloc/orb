@@ -67,7 +67,7 @@ func TestNewOptions(t *testing.T) {
 
 	anchorObj, err := NewAnchorObject(
 		sampleGenerator,
-		MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}),
+		MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}), JSONMediaType,
 	)
 	require.NoError(t, err)
 	require.Len(t, anchorObj.URL(), 1)

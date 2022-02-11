@@ -145,11 +145,12 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 		},
 	}
 
-	witnessAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustUnmarshalToDoc([]byte(verifiableCred)))
+	witnessAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustUnmarshalToDoc([]byte(verifiableCred)),
+		vocab.GzipMediaType)
 	require.NoError(t, err)
 	require.Len(t, witnessAnchorObj.URL(), 1)
 
-	indexAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(contentObj),
+	indexAnchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(contentObj), vocab.GzipMediaType,
 		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)))
 	require.NoError(t, err)
 	require.Len(t, indexAnchorObj.URL(), 1)
@@ -197,7 +198,7 @@ func TestGenerator_GetPayloadFromAnchorEvent(t *testing.T) {
 	})
 
 	t.Run("No subject in content object", func(t *testing.T) {
-		anchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(&contentObject{}))
+		anchorObj, err := vocab.NewAnchorObject(ID, vocab.MustMarshalToDoc(&contentObject{}), vocab.GzipMediaType)
 		require.NoError(t, err)
 		require.Len(t, anchorObj.URL(), 1)
 

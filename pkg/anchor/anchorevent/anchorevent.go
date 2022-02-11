@@ -29,19 +29,19 @@ type ContentObject struct {
 }
 
 // BuildAnchorEvent builds an anchor event from the given payload, content object, and verifiable credential.
-func BuildAnchorEvent(payload *subject.Payload, gen string,
-	indexContentObj, witnessContentObj vocab.Document) (*vocab.AnchorEventType, error) {
+func BuildAnchorEvent(payload *subject.Payload, gen string, indexContentObj,
+	witnessContentObj vocab.Document, attachmentMediaType vocab.MediaType) (*vocab.AnchorEventType, error) {
 	attributedTo, err := url.Parse(payload.AnchorOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("parse attributed to URL [%s]: %w", payload.AnchorOrigin, err)
 	}
 
-	witnessAnchorObj, err := vocab.NewAnchorObject(gen, witnessContentObj)
+	witnessAnchorObj, err := vocab.NewAnchorObject(gen, witnessContentObj, attachmentMediaType)
 	if err != nil {
 		return nil, fmt.Errorf("create new witness anchor object: %w", err)
 	}
 
-	indexAnchorObj, err := vocab.NewAnchorObject(gen, indexContentObj,
+	indexAnchorObj, err := vocab.NewAnchorObject(gen, indexContentObj, attachmentMediaType,
 		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)))
 	if err != nil {
 		return nil, fmt.Errorf("create new index anchor object: %w", err)

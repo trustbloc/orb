@@ -227,7 +227,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 		return fmt.Errorf("create new object with document: %w", err)
 	}
 
-	witnessAnchorObj, err := vocab.NewAnchorObject(anchorObj.Generator(), witness)
+	witnessAnchorObj, err := vocab.NewAnchorObject(anchorObj.Generator(), witness, anchorObj.MediaType())
 	if err != nil {
 		return fmt.Errorf("create new anchor object: %w", err)
 	}
@@ -235,6 +235,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 	witnessedAnchorObj, err := vocab.NewAnchorObject(
 		anchorObj.Generator(),
 		anchorObj.ContentObject(),
+		anchorObj.MediaType(),
 		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)),
 	)
 	if err != nil {

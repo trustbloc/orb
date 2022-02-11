@@ -56,7 +56,7 @@ func TestBuildAnchorEvent(t *testing.T) {
 		require.NoError(t, err)
 
 		anchorEvent, err := BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-			vocab.MustMarshalToDoc(&verifiable.Credential{}))
+			vocab.MustMarshalToDoc(&verifiable.Credential{}), vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		require.Equal(t, anchorOrigin, anchorEvent.AttributedTo().String())
@@ -80,7 +80,7 @@ func TestBuildAnchorEvent(t *testing.T) {
 		contentObjBytes, err := canonicalizer.MarshalCanonical(anchorObject.ContentObject())
 		require.NoError(t, err)
 
-		t.Logf("ContentObject: %s", contentObjBytes)
+		t.Logf("Content: %s", contentObjBytes)
 
 		require.Equal(t, testutil.GetCanonical(t, jsonContentObj), string(contentObjBytes))
 	})
@@ -108,7 +108,7 @@ func TestBuildAnchorEvent(t *testing.T) {
 		require.NotNil(t, anchorEvent.Published)
 
 		// check previous (two items - no create)
-		require.Equal(t, 2, len(anchorEvent.Parent()))
+		require.Equal(t, 4, len(anchorEvent.Parent()))
 
 		anchorObject, err := anchorEvent.AnchorObject(anchorEvent.Index())
 		require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestBuildAnchorEvent(t *testing.T) {
 		contentObjBytes, err := canonicalizer.MarshalCanonical(anchorObject.ContentObject())
 		require.NoError(t, err)
 
-		t.Logf("ContentObject: %s", contentObjBytes)
+		t.Logf("Content: %s", contentObjBytes)
 
 		require.Equal(t, testutil.GetCanonical(t, jsonContentObj2), string(contentObjBytes))
 	})
@@ -165,7 +165,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		require.NoError(t, err)
 
 		anchorEvent, err := BuildAnchorEvent(inPayload, contentObj.GeneratorID, contentObj.Payload,
-			vocab.MustMarshalToDoc(&verifiable.Credential{}))
+			vocab.MustMarshalToDoc(&verifiable.Credential{}), vocab.GzipMediaType)
 		require.NoError(t, err)
 
 		activityBytes, err := json.Marshal(anchorEvent)
@@ -220,163 +220,114 @@ func TestGetPayloadFromActivity(t *testing.T) {
 const (
 	//nolint:lll
 	exampleAnchorEvent = `{
-  "@context": [
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1"
-  ],
-  "index": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+  "@context": "https://w3id.org/activityanchors/v1",
   "attachment": [
     {
-      "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "id": "did:orb:uAAA:EiAqm7CXVPxriNZv_A6GVCrqlmCmrUSGJ1YaheTzFxa_Fw"
-            }
-          ]
-        },
-        "subject": "hl:uEiDYMTm9nJ5B0gwpNtflwrcZCT9uT6BFiEs5sYWB45piXg:uoQ-BeEJpcGZzOi8vYmFma3JlaWd5Z2U0MzNoZTZpaGpheWtqdzI3czRmbnl6YmU3dzR0NWFpd2Vld29ucnF3YTZoZ3RjbHk"
-      },
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiBu_uYz6DWjy65dYQB4w7sr1LYP5K9-HCEDb74bHJq6aQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiCskiP5FXgmaq-cQUlsMMTRZgFLS6CQ-yZRTWDHPQk-SQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:EiBZ0gLKITQe2IYaCLJPjOzzszejFbzOtaNFzJF29uOL4A\",\"previousAnchor\":\"hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ\"},{\"id\":\"did:orb:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:EiAz8obk2MCsdqLq1trO4ubTYIsg3vlYaJdHKVR3wo3sGw\",\"previousAnchor\":\"hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAADCcZOeu_sgtkF2JSWuwvc7LEw4u24Pfi1d5_0APl3Q\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiA6WSQ_2y2vcyakXW24vZk3Q45KMGIE4AL_2S2Hyz9VXw\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAOaoQzphgwqX_PNBDSYDhwgu_3Q63hPZqEYio9tmfFCg\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiDMQfIzZFztRMNzTanIY5VoDcRr_zGA5SV0pNuDIDF47w\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"}]},\"subject\":\"hl:uEiAjb4i-wvE5w-pdE-WdX-aecG_Vd30HIvArHVdjjeqVUw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWpiNGktd3ZFNXctcGRFLVdkWC1hZWNHX1ZkMzBISXZBckhWZGpqZXFWVXc\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "tag": [
         {
-          "type": "Link",
-          "href": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
+          "href": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg",
           "rel": [
             "witness"
-          ]
+          ],
+          "type": "Link"
         }
       ],
       "type": "AnchorObject",
-      "url": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ"
     },
     {
-      "contentObject": {
-        "@context": [
-          "https://www.w3.org/2018/credentials/v1",
-          "https://w3id.org/security/jws/v1"
-        ],
-        "credentialSubject": "hl:uEiDzUEQi2qRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw",
-        "id": "http://orb2.domain1.com/vc/3994cc26-555c-47f1-9890-058148c154f1",
-        "issuanceDate": "2021-10-14T18:32:17.894314751Z",
-        "issuer": "http://orb2.domain1.com",
-        "proof": [
-          {
-            "created": "2021-10-14T18:32:17.91Z",
-            "domain": "http://orb.vct:8077/maple2020",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..h3-0HC3L87TM0j0o3Nd0VLlalcVVphwOPsfdkCLZ4q-uL4z8eO2vQ4sobbtOtFpNNZlpIOQnaWJMX3Ch5Wh-AQ",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain1.com#orb1key"
-          },
-          {
-            "created": "2021-10-14T18:32:18.09110265Z",
-            "domain": "https://orb.domain2.com",
-            "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DSL3zsltnh9dbSn3VNPb1C-6pKt6VOy-H1WadO5ZV2QZd3xZq3uRRhaShi9K1SzX-VaGPxs3gfbazJ-fpHVxBg",
-            "proofPurpose": "assertionMethod",
-            "type": "Ed25519Signature2018",
-            "verificationMethod": "did:web:orb.domain2.com#orb2key"
-          }
-        ],
-        "type": "VerifiableCredential"
-      },
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ\",\"id\":\"https://orb.domain2.com/vc/204c06b0-89d9-496d-9148-233e138ed745\",\"issuanceDate\":\"2022-02-10T18:02:13.530381545Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":{\"created\":\"2022-02-10T18:02:13.530557527Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..w6zwingj2NvResa6elVbYxLv6c_jMTo_9zPY0T9po0MekuWRJCBDlYIR3ESYUdAEpnH1iYQ3_gYT-VMioNZtCw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},\"type\":\"VerifiableCredential\"}",
       "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
       "type": "AnchorObject",
-      "url": "hl:uEiDzOEQi2wRreCTfvp2AKmTaxuqUUZZNhbxe5RTBH59AWw"
+      "url": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ",
   "parent": [
-    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
-    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+    "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG56MUZIbzhmRHN5ZE1lU18tYnFkNVQwNXRHRXNueXRHUUVpaF9kMVJRT3d4QmlwZnM6Ly9iYWZrcmVpaGh6NWl1cGk2aHlvenNvdGR6Zjc3ZzVqM3pqNWhnMmdjbGU3Zm5kZWFzZmI3eG92Y3FobQ",
+    "hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVFNTy1oNV94T3kwaWcwbE9UeHVxMnVXeFBCY1FWcmtwMEVKY3A2OWtyY1F4QmlwZnM6Ly9iYWZrcmVpYXFnZHgyZHo3NGozZnVyaWdza29qNG4ydnd4ZndlNmJvZWN3eGV1NWFxczR1Nnh3amxvZQ",
+    "hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ3Y3STRrSGNNeS1JNmJ3YlJJZmZPSjE5U2xvaS0zdmw0cTkzUGIwUndKTXc",
+    "hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpRHJsNUt4aVRlX0VHb3Y1ZEhldG1PMnVKT1R0SWZjS0E5UE1OZ21kR1RZaXc"
   ],
-  "published": "2021-10-14T18:32:17.888176489Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiDhdDIS_-_SWKoh5Y3KJ_sWpIoXZUPBeTBMCSBUKXpe5w:uoQ-BeEJpcGZzOi8vYmFma3JlaWhib3F6YmY3N3Ayam1rdWlwZnJ4ZmNwNnl3dXNmYm96a2R5ZjR0YXRhamVia2NzNnM2NDQ"
+  "published": "2022-02-10T18:02:13.515820672Z",
+  "type": "AnchorEvent"
 }`
 
 	//nolint:lll
 	invalidAnchorEventNoURN = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "index": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
   "attachment": [
     {
-      "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v1",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "id": "EiD6mH7iCLGjm9mhBr2TP_5_vRz6nyLYZ5E74xbZzrlmLg"
-            }
-          ]
-        },
-        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
-      },
-      "type": "AnchorObject",
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiBu_uYz6DWjy65dYQB4w7sr1LYP5K9-HCEDb74bHJq6aQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiCskiP5FXgmaq-cQUlsMMTRZgFLS6CQ-yZRTWDHPQk-SQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:EiBZ0gLKITQe2IYaCLJPjOzzszejFbzOtaNFzJF29uOL4A\",\"previousAnchor\":\"hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ\"},{\"id\":\"did:orb:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:EiAz8obk2MCsdqLq1trO4ubTYIsg3vlYaJdHKVR3wo3sGw\",\"previousAnchor\":\"hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAADCcZOeu_sgtkF2JSWuwvc7LEw4u24Pfi1d5_0APl3Q\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiA6WSQ_2y2vcyakXW24vZk3Q45KMGIE4AL_2S2Hyz9VXw\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAOaoQzphgwqX_PNBDSYDhwgu_3Q63hPZqEYio9tmfFCg\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiDMQfIzZFztRMNzTanIY5VoDcRr_zGA5SV0pNuDIDF47w\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"}]},\"subject\":\"hl:uEiAjb4i-wvE5w-pdE-WdX-aecG_Vd30HIvArHVdjjeqVUw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWpiNGktd3ZFNXctcGRFLVdkWC1hZWNHX1ZkMzBISXZBckhWZGpqZXFWVXc\"}",
       "generator": "https://w3id.org/orb#v0",
-      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
-      "witness": {
-        "@context": "https://www.w3.org/2018/credentials/v1",
-        "credentialSubject": {
-          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
-        },
-        "issuanceDate": "2021-01-27T09:30:10Z",
-        "issuer": "https://sally.example.com/services/anchor",
-        "type": "VerifiableCredential"
-      }
+      "mediaType": "application/json",
+      "tag": [
+        {
+          "href": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg",
+          "rel": [
+            "witness"
+          ],
+          "type": "Link"
+        }
+      ],
+      "type": "AnchorObject",
+      "url": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ"
+    },
+    {
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ\",\"id\":\"https://orb.domain2.com/vc/204c06b0-89d9-496d-9148-233e138ed745\",\"issuanceDate\":\"2022-02-10T18:02:13.530381545Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":{\"created\":\"2022-02-10T18:02:13.530557527Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..w6zwingj2NvResa6elVbYxLv6c_jMTo_9zPY0T9po0MekuWRJCBDlYIR3ESYUdAEpnH1iYQ3_gYT-VMioNZtCw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},\"type\":\"VerifiableCredential\"}",
+      "generator": "https://w3id.org/orb#v0",
+      "mediaType": "application/json",
+      "type": "AnchorObject",
+      "url": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
-  "parent": [
-    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
-    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
-  ],
-  "published": "2021-01-27T09:30:10Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ",
+  "published": "2022-02-10T18:02:13.515820672Z",
+  "type": "AnchorEvent"
 }`
 
 	//nolint:lll
 	invalidAnchorEventGenerator = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "index": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
   "attachment": [
     {
-      "contentObject": {
-        "properties": {
-          "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v1",
-          "https://w3id.org/activityanchors#resources": [
-            {
-              "id": "did:orb:uAAA:uEiARIc_M1ZE_CmP-xApv_UTqZPncE1xmY0ugAdELz0MCogo",
-              "previousAnchor": "hl:uEiAs3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg"
-            }
-          ]
-        },
-        "subject": "hl:uEiB1miJeUsG7PiLvFel8DKoluzDVl3OnpjKgAGZS588PXQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWR2dGlyZjR1d2J4bTdjZjN5djVmNmF6a3JmeG15bmxmM3R1NnRkZmlhYW16am9wdHlwbHU"
-      },
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiBu_uYz6DWjy65dYQB4w7sr1LYP5K9-HCEDb74bHJq6aQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiCskiP5FXgmaq-cQUlsMMTRZgFLS6CQ-yZRTWDHPQk-SQ\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:EiBZ0gLKITQe2IYaCLJPjOzzszejFbzOtaNFzJF29uOL4A\",\"previousAnchor\":\"hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ\"},{\"id\":\"did:orb:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:EiAz8obk2MCsdqLq1trO4ubTYIsg3vlYaJdHKVR3wo3sGw\",\"previousAnchor\":\"hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAADCcZOeu_sgtkF2JSWuwvc7LEw4u24Pfi1d5_0APl3Q\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiA6WSQ_2y2vcyakXW24vZk3Q45KMGIE4AL_2S2Hyz9VXw\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"},{\"id\":\"did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAOaoQzphgwqX_PNBDSYDhwgu_3Q63hPZqEYio9tmfFCg\",\"previousAnchor\":\"hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw\"},{\"id\":\"did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiDMQfIzZFztRMNzTanIY5VoDcRr_zGA5SV0pNuDIDF47w\",\"previousAnchor\":\"hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw\"}]},\"subject\":\"hl:uEiAjb4i-wvE5w-pdE-WdX-aecG_Vd30HIvArHVdjjeqVUw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWpiNGktd3ZFNXctcGRFLVdkWC1hZWNHX1ZkMzBISXZBckhWZGpqZXFWVXc\"}",
+      "mediaType": "application/json",
+      "tag": [
+        {
+          "href": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg",
+          "rel": [
+            "witness"
+          ],
+          "type": "Link"
+        }
+      ],
       "type": "AnchorObject",
-      "generator": "https://invalid#v0",
-      "url": "hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w",
-      "witness": {
-        "@context": "https://www.w3.org/2018/credentials/v1",
-        "credentialSubject": {
-          "id": "hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg"
-        },
-        "issuanceDate": "2021-01-27T09:30:10Z",
-        "issuer": "https://sally.example.com/services/anchor",
-        "type": "VerifiableCredential"
-      }
+      "url": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ"
+    },
+    {
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ\",\"id\":\"https://orb.domain2.com/vc/204c06b0-89d9-496d-9148-233e138ed745\",\"issuanceDate\":\"2022-02-10T18:02:13.530381545Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":{\"created\":\"2022-02-10T18:02:13.530557527Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..w6zwingj2NvResa6elVbYxLv6c_jMTo_9zPY0T9po0MekuWRJCBDlYIR3ESYUdAEpnH1iYQ3_gYT-VMioNZtCw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},\"type\":\"VerifiableCredential\"}",
+      "mediaType": "application/json",
+      "type": "AnchorObject",
+      "url": "hl:uEiD6H3nMnJDB6WJ2evunRbjyb6R9t2yGwGB7p3g3RUUHRg"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiBwvdpyXrDOZzEyVNnfaw793ditWQtG_4U72dkReHe4fQ",
   "parent": [
-    "hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5",
-    "hl:uEiAn3Y7USoP_lNVX-f0EEu1ajLymnqBJItiMARhKBzAKWg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBbjNZN1VTb1BfbE5WWC1mMEVFdTFhakx5bW5xQkpJdGlNQVJoS0J6QUtXZ3hCaXBmczovL2JhZmtyZWliaDN3aG5pc3VkNzZrbmt2N3o3dWNiZjNrMnJzNmtuaHZhamVybnJkYWJkYmZhb21ha2xp"
+    "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRG56MUZIbzhmRHN5ZE1lU18tYnFkNVQwNXRHRXNueXRHUUVpaF9kMVJRT3d4QmlwZnM6Ly9iYWZrcmVpaGh6NWl1cGk2aHlvenNvdGR6Zjc3ZzVqM3pqNWhnMmdjbGU3Zm5kZWFzZmI3eG92Y3FobQ",
+    "hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVFNTy1oNV94T3kwaWcwbE9UeHVxMnVXeFBCY1FWcmtwMEVKY3A2OWtyY1F4QmlwZnM6Ly9iYWZrcmVpYXFnZHgyZHo3NGozZnVyaWdza29qNG4ydnd4ZndlNmJvZWN3eGV1NWFxczR1Nnh3amxvZQ",
+    "hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ3Y3STRrSGNNeS1JNmJ3YlJJZmZPSjE5U2xvaS0zdmw0cTkzUGIwUndKTXc",
+    "hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpRHJsNUt4aVRlX0VHb3Y1ZEhldG1PMnVKT1R0SWZjS0E5UE1OZ21kR1RZaXc"
   ],
-  "published": "2021-01-27T09:30:10Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"
+  "published": "2022-02-10T18:02:13.515820672Z",
+  "type": "AnchorEvent"
 }`
 
 	//nolint:lll
@@ -402,10 +353,39 @@ const (
     "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
     "https://w3id.org/activityanchors#resources": [
       {
-        "id": "did:orb:uAAA:EiAqm7CXVPxriNZv_A6GVCrqlmCmrUSGJ1YaheTzFxa_Fw"
+        "id": "did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiBu_uYz6DWjy65dYQB4w7sr1LYP5K9-HCEDb74bHJq6aQ",
+        "previousAnchor": "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw"
+      },
+      {
+        "id": "did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiCskiP5FXgmaq-cQUlsMMTRZgFLS6CQ-yZRTWDHPQk-SQ",
+        "previousAnchor": "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw"
+      },
+      {
+        "id": "did:orb:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ:EiBZ0gLKITQe2IYaCLJPjOzzszejFbzOtaNFzJF29uOL4A",
+        "previousAnchor": "hl:uEiAQMO-h5_xOy0ig0lOTxuq2uWxPBcQVrkp0EJcp69krcQ"
+      },
+      {
+        "id": "did:orb:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw:EiAz8obk2MCsdqLq1trO4ubTYIsg3vlYaJdHKVR3wo3sGw",
+        "previousAnchor": "hl:uEiCv7I4kHcMy-I6bwbRIffOJ19Sloi-3vl4q93Pb0RwJMw"
+      },
+      {
+        "id": "did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAADCcZOeu_sgtkF2JSWuwvc7LEw4u24Pfi1d5_0APl3Q",
+        "previousAnchor": "hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw"
+      },
+      {
+        "id": "did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiA6WSQ_2y2vcyakXW24vZk3Q45KMGIE4AL_2S2Hyz9VXw",
+        "previousAnchor": "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw"
+      },
+      {
+        "id": "did:orb:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw:EiAOaoQzphgwqX_PNBDSYDhwgu_3Q63hPZqEYio9tmfFCg",
+        "previousAnchor": "hl:uEiDrl5KxiTe_EGov5dHetmO2uJOTtIfcKA9PMNgmdGTYiw"
+      },
+      {
+        "id": "did:orb:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw:EiDMQfIzZFztRMNzTanIY5VoDcRr_zGA5SV0pNuDIDF47w",
+        "previousAnchor": "hl:uEiDnz1FHo8fDsydMeS_-bqd5T05tGEsnytGQEih_d1RQOw"
       }
     ]
   },
-  "subject": "hl:uEiDYMTm9nJ5B0gwpNtflwrcZCT9uT6BFiEs5sYWB45piXg:uoQ-BeEJpcGZzOi8vYmFma3JlaWd5Z2U0MzNoZTZpaGpheWtqdzI3czRmbnl6YmU3dzR0NWFpd2Vld29ucnF3YTZoZ3RjbHk"
+  "subject": "hl:uEiAjb4i-wvE5w-pdE-WdX-aecG_Vd30HIvArHVdjjeqVUw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWpiNGktd3ZFNXctcGRFLVdkWC1hZWNHX1ZkMzBISXZBckhWZGpqZXFWVXc"
 }`
 )

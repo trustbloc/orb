@@ -28,6 +28,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/tidwall/gjson"
+
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
@@ -307,9 +309,15 @@ func (d *CommonSteps) jsonPathOfResponseNotContainsRegEx(path, pattern string) e
 }
 
 func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
-	r := gjson.Get(d.state.getResponse(), path)
+	jsonPath, err := d.state.resolveVars(path)
+	if err != nil {
+		return err
+	}
 
-	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]", path, d.state.getResponse(), r.Str, varName)
+	r := gjson.Get(d.state.getResponse(), jsonPath.(string))
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]",
+		jsonPath, d.state.getResponse(), r.Str, varName)
 
 	d.state.setVar(varName, r.Str)
 
@@ -369,6 +377,21 @@ func (d *CommonSteps) jsonPathOfArrayResponseNotEmpty(path string) error {
 	}
 
 	return fmt.Errorf("JSON path [%s] resolves to an empty array", path)
+}
+
+func (d *CommonSteps) jsonPathOfDocumentSavedToVar(path, doc, varName string) error {
+	if err := d.state.resolveVarsInExpression(&path, &doc); err != nil {
+		return err
+	}
+
+	r := gjson.Get(doc, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]",
+		path, d.state.getResponse(), r.Str, varName)
+
+	d.state.setVar(varName, r.Str)
+
+	return nil
 }
 
 func (d *CommonSteps) valueOfJSONStringResponseSavedToVar(varName string) error {
@@ -850,6 +873,25 @@ func (d *CommonSteps) executeCommand(cmd string) error {
 	return nil
 }
 
+func (d *CommonSteps) decodeStringAndSaveToVar(content, contentType, varName string) error {
+	if err := d.state.resolveVarsInExpression(&content, &contentType); err != nil {
+		return err
+	}
+
+	logger.Infof("Using content type [%s] to decode %s", contentType, content)
+
+	decodedContent, err := vocab.Decode(content, contentType)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Decoded content saved to variable [%s]: %s", varName, decodedContent)
+
+	d.state.setVar(varName, string(decodedContent))
+
+	return nil
+}
+
 func getSignerConfig(domain, pubKeyID string) (*signerConfig, error) {
 	storeProvider, err := newStoreProvider(domain)
 	if err != nil {
@@ -964,6 +1006,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path '([^']*)' of the raw response is saved to variable "([^"]*)"$`, d.jsonPathOfRawResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
+	s.Step(`^the JSON path "([^"]*)" of document '([^"]*)' is saved to variable "([^"]*)"$`, d.jsonPathOfDocumentSavedToVar)
 	s.Step(`^the value of the JSON string response is saved to variable "([^"]*)"$`, d.valueOfJSONStringResponseSavedToVar)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
@@ -982,4 +1025,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
 	s.Step(`^host-meta document is uploaded to IPNS$`, d.hostMetaDocumentIsUploadedToIPNS)
 	s.Step(`^command "([^"]*)" is executed$`, d.executeCommand)
+	s.Step(`^the content "([^"]*)" of type "([^"]*)" is decoded and saved to variable "([^"]*)"$`, d.decodeStringAndSaveToVar)
 }

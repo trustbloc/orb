@@ -77,7 +77,9 @@ const (
 	TypeOffer Type = "Offer"
 	// TypeUndo specifies the "Undo" activity type.
 	TypeUndo Type = "Undo"
+)
 
+const (
 	// RelationshipWitness defines the 'witness' relationship of a Link.
 	RelationshipWitness = "witness"
 )
@@ -105,6 +107,16 @@ const (
 	propertyAttachment   = "attachment"
 	propertyIndex        = "index"
 	propertyParent       = "parent"
+)
+
+// MediaType defines a type of encoding for content embedded within a document.
+type MediaType = string
+
+const (
+	// JSONMediaType indicates that the content is plain JSON string.
+	JSONMediaType MediaType = "application/json"
+	// GzipMediaType indicates that the content is compressed with gzip and base64-encoded.
+	GzipMediaType MediaType = "application/gzip"
 )
 
 func reservedProperties() []string {

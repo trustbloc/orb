@@ -4,26 +4,17 @@
     "https://w3id.org/activityanchors/v1"
   ],
   "actor": "https://orb.domain1.com/services/orb",
-  "id": "https://orb.domain1.com/services/orb/activities/5ea84ab1-9ed9-4f84-8241-e7f6b97ecd94",
+  "id": "https://orb.domain1.com/services/orb/activities/55a9f656-7ce1-4d5b-8f38-966cfdcbc155",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
     "attachment": [
       {
-        "contentObject": {
-          "properties": {
-            "https://w3id.org/activityanchors#generator": "https://w3id.org/orb#v0",
-            "https://w3id.org/activityanchors#resources": [
-              {
-                "id": "did:orb:uAAA:EiCVLYJdOmoKgq6kXMGe7ZhrHhNGXhjD7cnkfz8JGw_yjw"
-              }
-            ]
-          },
-          "subject": "hl:uEiAGpSCfjDlcs_ztFEyHaqndwAEzUrSars7_rFN-bHbquA:uoQ-BeEJpcGZzOi8vYmFma3JlaWFndXVxajdkYnpsc3o3ejNpdWpzZHd2a281eWFhdGd1dnV0a3htNTc1bWtuN2d5NXhreGE"
-        },
+        "content": "H4sIAAAAAAAA/4SQy3KbMABF/0XZpg0POx2zwzZgXMA2JjzU6XSERCzFgIgQyODJv3e87qL7O/ecOXfQCd5VQrKqB9YdUCm73np5USYj37m4vCAs2cjkhFpMueifLlVbCSS5ANa/Yy7Kp1EDz/+/EVXPB4Ef0F93wAiwAGHE4qK0Btu2LYfZU/N+9JxgJ72+OZiHVx9e/9wKJ2Dl5udbYkN1abNPHIZJeQJfv7+eQT+UHxWWD7HaGhy2PR5oPKrFLvB3SaK91zatAzcuwjHfb6DWdsrt3WtKf6x8ZQ389G1TOZKTXazwzMfAWE0FW15LQ6coW9yCJhrL8+qjyMORvKVd7K6PyN0bZI79xKn91D0p2NzWyLuFcb2HSQ6L8zVCobdURINz3MgMbfHynJPFqakVbMPXYFqxIoMCN2kHzTVHmWwj09GKtpM4o58kgVNkQIoyXScG7Iixn6OW1jiPOWqoHnmuWWVwho3Oq21aP0r8DQAA//+H9xwO0gEAAA==",
         "generator": "https://w3id.org/orb#v0",
+        "mediaType": "application/gzip",
         "tag": [
           {
-            "href": "hl:uEiDTSIyOm4vgLleEOhKqj5i-JhpvqNRtadO9parG2R9W0w",
+            "href": "hl:uEiDitojxPVsciVFkA76-2VUZqxvsfg0Rc587SiKcJRwYVA",
             "rel": [
               "witness"
             ],
@@ -31,50 +22,23 @@
           }
         ],
         "type": "AnchorObject",
-        "url": "hl:uEiCtX8AtV9t1WLezJ8irzzFBaKGGM8kr7e4OQohxa-1wVg"
+        "url": "hl:uEiBIWW6wXXjJyAAeIewft4I9ROWXg6zjAQPPQMna3P07ig"
       },
       {
-        "contentObject": {
-          "@context": [
-            "https://www.w3.org/2018/credentials/v1",
-            "https://w3id.org/security/suites/jws-2020/v1"
-          ],
-          "credentialSubject": "hl:uEiCtX8AtV9t1WLezJ8irzzFBaKGGM8kr7e4OQohxa-1wVg",
-          "id": "https://orb.domain1.com/vc/39ec8eda-42e3-42db-a70a-ea5f3d56244b",
-          "issuanceDate": "2021-10-27T20:20:52.70237546Z",
-          "issuer": "https://orb.domain1.com",
-          "proof": [
-            {
-              "created": "2021-10-27T20:20:52.732Z",
-              "domain": "http://orb.vct:8077/maple2020",
-              "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..cvVgIAtldakYH40gAUnnuajRDOasKnrjYpj1Y0grZQDJb-rOjGQBHI_Yg4U3qLyX3C49P1pzZQKL4wrnt3a8Cg",
-              "proofPurpose": "assertionMethod",
-              "type": "Ed25519Signature2018",
-              "verificationMethod": "did:web:orb.domain1.com#orb1key"
-            },
-            {
-              "created": "2021-10-27T20:20:52.897710856Z",
-              "domain": "https://orb.domain2.com",
-              "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..3Wm9GHzBr-sqHkFV4fSkjv-xyYQJKTHsn86LLe_8WIFOP83aHWMGXolhMxJaQpFb2AULz4tiAsYQISa3XfVwBw",
-              "proofPurpose": "assertionMethod",
-              "type": "Ed25519Signature2018",
-              "verificationMethod": "did:web:orb.domain2.com#orb2key"
-            }
-          ],
-          "type": "VerifiableCredential"
-        },
+        "content": "H4sIAAAAAAAA/7yT23OiPhTH/5f8XuUWLhKeflStC62gRSva6ewECBrkYkkAbaf/+w67tnubzj7szL4m+X7OnM/JeQH/x1XJyYkD6wHsOT8yS5K6rhM7VazqnQRlxZTimiSk5BTnTGoV8DgA30+CJspIzIEF9rnVTOiVs14bXRhm7tm2iUO6lGsOuvPX4c54zuzFfL6YlVidy0O6AwNAkz55qVvVkZhUBaalIsZVIbWxhKCupalsChibWNAiggSEzKFATMPUVBQnSYp6DGMNLmMyxpwAC0AZQkGGgiIvoWKpqqUiUYaabiBDRtvLe1J/XBoMwLGuqhRYDy99s5iT5COuZvTEb+EL8QJsY26Z8nAoFfiYEyhDGQxA1jFgAXJ299E0pj51r7eTu+UicJhTONAbOca2uGYxXDGn8M44XFA/Z3STbWQnV5AoBtNw5KJP5to5sGccCS7MFmP7qdmvF+0BrlhY5dMZnOIlUyJjtpwYicHwsk232e1x1HJ0usN843naVRYOPbhaXwcM291bw/OmPlasd4gZIzWnVTkjfF8lYAD4+dhfTBKo6woK6K7EvKlJ/0XAALSkpimN8Q8RCyQ0sToSWb/o/a+qI+VAzhC8Dv7kV9ENBZqqBn+z/PPc4GVuf+v38wGXCfTnXqzgJ1qeqLtN6Y07DpnQ2SOm4xsko/Z+pD15G46qqCiWflhqs8BHus3DA9vhKG3ICgbcPw1VPua3t/bun/mFb37hgZzB6+M79v5rHkc5Gb0vL3j9EgAA//9u/yEWAQQAAA==",
         "generator": "https://w3id.org/orb#v0",
+        "mediaType": "application/gzip",
         "type": "AnchorObject",
-        "url": "hl:uEiDTSIyOm4vgLleEOhKqj5i-JhpvqNRtadO9parG2R9W0w"
+        "url": "hl:uEiDitojxPVsciVFkA76-2VUZqxvsfg0Rc587SiKcJRwYVA"
       }
     ],
     "attributedTo": "https://orb.domain1.com/services/orb",
-    "index": "hl:uEiCtX8AtV9t1WLezJ8irzzFBaKGGM8kr7e4OQohxa-1wVg",
-    "published": "2021-10-27T20:20:52.694269029Z",
+    "index": "hl:uEiBIWW6wXXjJyAAeIewft4I9ROWXg6zjAQPPQMna3P07ig",
+    "published": "2022-02-10T21:33:39.020661418Z",
     "type": "AnchorEvent",
-    "url": "hl:uEiA-wMFlsv-OGRDiSgxqc_TmJzuRpTRcm7s2FOXkH-oJRg:uoQ-BeEJpcGZzOi8vYmFma3JlaWI2eWRhd2xteDdyeW1yYnlza2JydmhoNWhnZTQ1emRqanVsc24zd25xdTR4c2I3MnFqaXk"
+    "url": "hl:uEiDifpBqbQq7laXLKKXIehmXNo1k1sdt1Z1EbHlmdXf2Qw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRGlmcEJxYlFxN2xhWExLS1hJZWhtWE5vMWsxc2R0MVoxRWJIbG1kWGYyUXd4QmlwZnM6Ly9iYWZrcmVpaGNwMmlndTNpa3hvazJsc3ppdXhlaHVnbXhnMmd3anZ3aG54a3oycmRtcGZ0aGs1N3dpbQ"
   },
-  "published": "2021-10-27T20:20:53.148242625Z",
+  "published": "2022-02-10T21:33:39.279618592Z",
   "to": [
     "https://orb.domain1.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"

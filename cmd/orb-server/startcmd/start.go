@@ -792,6 +792,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	anchorWriter, err := writer.New(parameters.didNamespace,
 		apServiceIRI, casIRI,
+		parameters.anchorAttachmentMediaType,
 		anchorWriterProviders,
 		o.Publisher(), pubSub,
 		parameters.maxWitnessDelay,

@@ -222,6 +222,7 @@ func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 	witnessAnchorObj, err := vocab.NewAnchorObject(
 		generator,
 		vocab.MustUnmarshalToDoc([]byte(verifiableCred)),
+		vocab.GzipMediaType,
 	)
 	require.NoError(t, err)
 	require.Len(t, witnessAnchorObj.URL(), 1)
@@ -236,6 +237,7 @@ func NewMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 				Field2: "value2",
 			},
 		),
+		vocab.GzipMediaType,
 		vocab.WithLink(vocab.NewLink(witnessAnchorObj.URL()[0], vocab.RelationshipWitness)),
 	)
 	require.NoError(t, err)
