@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/cucumber/godog"
-	"github.com/cucumber/messages-go/v10"
+	messages "github.com/cucumber/messages-go/v10"
 )
 
 var bddContext *BDDContext
@@ -40,6 +40,10 @@ func TestMain(m *testing.M) {
 
 	state := newState()
 
+	if os.Getenv("DOCKER_COMPOSE_FILE") != "" {
+		state.dockerComposeFile = os.Getenv("DOCKER_COMPOSE_FILE")
+	}
+	
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
@@ -116,7 +120,7 @@ func FeatureContext(s *godog.Suite, state *state) {
 
 	// Need a unique name, but docker does not allow '-' in names
 	composeProjectName := strings.Replace(generateUUID(), "-", "", -1)
-	composition, err := NewComposition(composeProjectName, "docker-compose.yml", "./fixtures")
+	composition, err := NewComposition(composeProjectName, state.dockerComposeFile, "./fixtures")
 	if err != nil {
 		panic(fmt.Sprintf("Error composing system in BDD context: %s", err))
 	}

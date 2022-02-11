@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
@@ -82,6 +82,26 @@ func (d *CommonSteps) setVariableFromResponse(key string) error {
 	logger.Infof("Saving value %s to variable %s", d.state.getResponse(), key)
 
 	d.state.setVar(key, d.state.getResponse())
+
+	return nil
+}
+
+func (d *CommonSteps) setEnvVariable(varName, value string) error {
+	if err := os.Setenv(varName, value); err != nil {
+		return err
+	}
+
+	logger.Infof("Set environment var [%s] to [%s]", varName, value)
+
+	return nil
+}
+
+func (d *CommonSteps) unsetEnvVariable(varName string) error {
+	if err := os.Unsetenv(varName); err != nil {
+		return err
+	}
+
+	logger.Infof("Un-set environment var [%s]", varName)
 
 	return nil
 }
@@ -987,6 +1007,8 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^variable "([^"]*)" is assigned the value "([^"]*)"$`, d.setVariable)
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
 	s.Step(`^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$`, d.setVariable)
+	s.Step(`^set environment variable "([^"]*)" to the value "([^"]*)"$`, d.setEnvVariable)
+	s.Step(`^unset environment variable "([^"]*)"$`, d.unsetEnvVariable)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfResponseEquals)
 	s.Step(`^the JSON path '([^']*)' of the response equals "([^"]*)"$`, d.jsonPathOfResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)

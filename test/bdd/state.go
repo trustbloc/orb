@@ -29,9 +29,10 @@ type httpMethod = string
 type authToken = string
 
 type state struct {
-	vars          map[string]string
-	responseValue string
-	authTokenMap  map[httpPath]map[httpMethod]authToken
+	dockerComposeFile string
+	vars              map[string]string
+	responseValue     string
+	authTokenMap      map[httpPath]map[httpMethod]authToken
 }
 
 func newState() *state {
@@ -44,8 +45,9 @@ func newState() *state {
 	}
 
 	return &state{
-		vars:         vars,
-		authTokenMap: make(map[httpPath]map[httpMethod]authToken),
+		vars:              vars,
+		authTokenMap:      make(map[httpPath]map[httpMethod]authToken),
+		dockerComposeFile: "docker-compose.yml",
 	}
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
-	v1_0 "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/client"
 )
 
 var logger = log.New("client-factory-registry")
@@ -24,11 +23,6 @@ var logger = log.New("client-factory-registry")
 type factory interface {
 	Create(version string, casClient common.CASReader, sidetreeCfg *config.Sidetree) (protocol.Version, error)
 }
-
-const (
-	// V1_0 ...
-	V1_0 = "1.0"
-)
 
 // Registry implements a client version factory registry.
 type Registry struct {
@@ -42,8 +36,7 @@ func New() *Registry {
 
 	registry := &Registry{factories: make(map[string]factory)}
 
-	// register supported versions
-	registry.Register(V1_0, v1_0.New())
+	addVersions(registry)
 
 	return registry
 }

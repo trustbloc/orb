@@ -1053,7 +1053,6 @@ func startOrbServices(parameters *orbParameters) error {
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
 	opStore common.OperationStore, provider storage.Provider,
 	unpublishedOpStore *unpublishedopstore.Store) (*orbpcp.ClientProvider, error) {
-	versions := []string{"1.0"}
 
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                           parameters.methodContext,
@@ -1068,7 +1067,7 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	registry := factoryregistry.New()
 
 	var protocolVersions []protocol.Version
-	for _, version := range versions {
+	for _, version := range parameters.sidetreeProtocolVersions {
 		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg)
 		if err != nil {
 			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)

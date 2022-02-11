@@ -538,6 +538,11 @@ const (
 		"in the AnchorEvent are encoded as an escaped JSON string. If 'application/gzip' is specified then the content is " +
 		"compressed with gzip and base64 encoded (default is 'application/json')." +
 		commonEnvVarUsageText + anchorAttachmentMediaTypeEnvKey
+
+	sidetreeProtocolVersionsFlagName = "sidetree-protocol-versions"
+	sidetreeProtocolVersionsEnvKey   = "SIDETREE_PROTOCOL_VERSIONS"
+	sidetreeProtocolVersionsUsage    = `Comma-separated list of sidetree protocol versions. ` +
+		commonEnvVarUsageText + sidetreeProtocolVersionsEnvKey
 )
 
 type acceptRejectPolicy string
@@ -623,6 +628,7 @@ type orbParameters struct {
 	apIRICacheSize                          int
 	apIRICacheExpiration                    time.Duration
 	witnessPolicyCacheExpiration            time.Duration
+	sidetreeProtocolVersions                []string
 }
 
 type anchorCredentialParams struct {
@@ -1119,6 +1125,16 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	sidetreeProtocolVersionsArr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeProtocolVersionsFlagName, sidetreeProtocolVersionsEnvKey)
+
+	defaultSidetreeProtocolVersions := []string{"1.0"}
+
+	sidetreeProtocolVersions := defaultSidetreeProtocolVersions
+
+	if len(sidetreeProtocolVersionsArr) > 0 {
+		sidetreeProtocolVersions = sidetreeProtocolVersionsArr
+	}
+
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
@@ -1186,6 +1202,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		apIRICacheExpiration:                    apIRICacheExpiration,
 		serverIdleTimeout:                       serverIdleTimeout,
 		anchorAttachmentMediaType:               anchorAttachmentMediaType,
+		sidetreeProtocolVersions:                sidetreeProtocolVersions,
 	}, nil
 }
 
@@ -1768,4 +1785,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
+	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 }
