@@ -520,6 +520,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 		vocab.WithTo(oa.Actor(), vocab.PublicIRI),
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
+				vocab.WithContext(vocab.ContextActivityAnchors),
 				vocab.WithType(vocab.TypeAnchorReceipt),
 				vocab.WithInReplyTo(anchorEvent.Index()),
 				vocab.WithStartTime(&startTime),
@@ -596,6 +597,7 @@ func (h *Inbox) handleAnchorEvent(actor, source *url.URL, anchorEvent *vocab.Anc
 	// Create a new anchor event without the URL property since this data is an add-on that's only used by
 	// ActivityPub in the 'Create" and "Announce" activities.
 	ae := vocab.NewAnchorEvent(
+		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
 		vocab.WithIndex(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),

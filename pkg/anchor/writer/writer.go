@@ -574,7 +574,6 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
-		vocab.WithContext(vocab.ContextActivityAnchors),
 		vocab.WithTo(systemFollowers, vocab.PublicIRI),
 		vocab.WithPublishedTime(&now),
 	)

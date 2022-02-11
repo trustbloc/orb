@@ -1,20 +1,17 @@
 {
-  "@context": [
-    "https://www.w3.org/ns/activitystreams",
-    "https://w3id.org/activityanchors/v1"
-  ],
+  "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://orb.domain1.com/services/orb",
   "id": "https://orb.domain1.com/services/orb/activities/55a9f656-7ce1-4d5b-8f38-966cfdcbc155",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
     "attachment": [
       {
-        "content": "H4sIAAAAAAAA/4SQy3KbMABF/0XZpg0POx2zwzZgXMA2JjzU6XSERCzFgIgQyODJv3e87qL7O/ecOXfQCd5VQrKqB9YdUCm73np5USYj37m4vCAs2cjkhFpMueifLlVbCSS5ANa/Yy7Kp1EDz/+/EVXPB4Ef0F93wAiwAGHE4qK0Btu2LYfZU/N+9JxgJ72+OZiHVx9e/9wKJ2Dl5udbYkN1abNPHIZJeQJfv7+eQT+UHxWWD7HaGhy2PR5oPKrFLvB3SaK91zatAzcuwjHfb6DWdsrt3WtKf6x8ZQ389G1TOZKTXazwzMfAWE0FW15LQ6coW9yCJhrL8+qjyMORvKVd7K6PyN0bZI79xKn91D0p2NzWyLuFcb2HSQ6L8zVCobdURINz3MgMbfHynJPFqakVbMPXYFqxIoMCN2kHzTVHmWwj09GKtpM4o58kgVNkQIoyXScG7Iixn6OW1jiPOWqoHnmuWWVwho3Oq21aP0r8DQAA//+H9xwO0gEAAA==",
+        "content": "H4sIAAAAAAAA/4SOy3KbMAAA/0W5JrXBJg7coOXhxDAlDTao0+mgh0EGISwJMPb43zs595D7zu7eQC9FT6VmVAHnBmqte+UsFtOKkW9CVosSazYyPZcdroVUDxXtqCy1kMD5HxYSPYxL8Pi1RlIlBok/o79vgBHgAMKIIyRyBtd1HZ/9UNu/zUCMhHsI/Zz0hhJ3Lap+xNvo7Wk6v5OPekqOqdefK3D/c38EakAnivXnWOsMPvN2nQpfx3lDt616mY/CPrqZtw3Sa5XHH8aEM2W3buHO1SZ1BpE+fae+FiR6n/BVjDvTngtmNcg06vKwvux4MqJf9qnI45Fk+z5tLgNekjfSNSuYtQpfawvyFws2wT5t2jDL++7gG1mck9M+jy3kBzDN2y4xgnXK2wl28fNutllxgBLzfV+Yl2VsBhaJvGd0TSzM4QqH5JyYjUmjlpWH17bguinDQJEwmVAUjJDDZWzCGppBA7lvkBTc/wUAAP//2hTZD9IBAAA=",
         "generator": "https://w3id.org/orb#v0",
         "mediaType": "application/gzip",
         "tag": [
           {
-            "href": "hl:uEiDitojxPVsciVFkA76-2VUZqxvsfg0Rc587SiKcJRwYVA",
+            "href": "hl:uEiCcoPrbk2sLOl89PAJZrl5TtXrPA-i8zjIFwcn7xaBQbA",
             "rel": [
               "witness"
             ],
@@ -22,23 +19,23 @@
           }
         ],
         "type": "AnchorObject",
-        "url": "hl:uEiBIWW6wXXjJyAAeIewft4I9ROWXg6zjAQPPQMna3P07ig"
+        "url": "hl:uEiB1mmNOJZJWESnOswEm8fre4R8Wq6YpKwyQSkKa96Hu-Q"
       },
       {
-        "content": "H4sIAAAAAAAA/7yT23OiPhTH/5f8XuUWLhKeflStC62gRSva6ewECBrkYkkAbaf/+w67tnubzj7szL4m+X7OnM/JeQH/x1XJyYkD6wHsOT8yS5K6rhM7VazqnQRlxZTimiSk5BTnTGoV8DgA30+CJspIzIEF9rnVTOiVs14bXRhm7tm2iUO6lGsOuvPX4c54zuzFfL6YlVidy0O6AwNAkz55qVvVkZhUBaalIsZVIbWxhKCupalsChibWNAiggSEzKFATMPUVBQnSYp6DGMNLmMyxpwAC0AZQkGGgiIvoWKpqqUiUYaabiBDRtvLe1J/XBoMwLGuqhRYDy99s5iT5COuZvTEb+EL8QJsY26Z8nAoFfiYEyhDGQxA1jFgAXJ299E0pj51r7eTu+UicJhTONAbOca2uGYxXDGn8M44XFA/Z3STbWQnV5AoBtNw5KJP5to5sGccCS7MFmP7qdmvF+0BrlhY5dMZnOIlUyJjtpwYicHwsk232e1x1HJ0usN843naVRYOPbhaXwcM291bw/OmPlasd4gZIzWnVTkjfF8lYAD4+dhfTBKo6woK6K7EvKlJ/0XAALSkpimN8Q8RCyQ0sToSWb/o/a+qI+VAzhC8Dv7kV9ENBZqqBn+z/PPc4GVuf+v38wGXCfTnXqzgJ1qeqLtN6Y07DpnQ2SOm4xsko/Z+pD15G46qqCiWflhqs8BHus3DA9vhKG3ICgbcPw1VPua3t/bun/mFb37hgZzB6+M79v5rHkc5Gb0vL3j9EgAA//9u/yEWAQQAAA==",
+        "content": "H4sIAAAAAAAA/7yTW2/iOBTHv4v3lZDYJCHJ0xYIEFpuTS9AVa1sxwGXXG2HbKj63VfZoZ2bqnkYaV5t/39H53d8XsHfNM8U+1cB7wkclCqkp+t1XXfrXjcXex0Z0NGpYBHLFMeJ1E8QPHfA15OwIi+MKuCBQ+JVPh/ANF0sZ7vZox9mS1n7qRMLZt46j6W9La7rZh0er7FrTyttDTqAR23yUjcXpBvlKeYZ7NI81U9Uh7BHbIuaGjOinmbGNtUIhpYWmT2HEIxsaFktRsoKZ5SNsGLAA8hASDOQBuEdgp5hetDpWtBClgN3l9dMfF4YdEAh8jwG3tNr2ypWLPqMityW+CV8IV6AJ6o8x+j39RQXCUMGMkAHvNQSeIA1swOZUL7ks/HOv71bh4EM0gAthoG9S8eSonsZpIsGb9Z8mUi+fdkaQQLdbncc2ZMjy6g7JIv56mZgO8lqVmKumT10MkxG13w6L43FGN/TASKl3MR7OsFJKIxHMt2k/UAJ//Yfpp3uiD2s3cotnav6veFVJYpctgaxlEwonmdzpg55BDpANUV74UfIsqAb8n2GVSVY+0FAB5yY4DGn+JuIByIeeTUj3g96/8oFgUfWIPDW+ZXfPnQM23F+cvz91NBlar9rFyVyD8c4nknXPG+Sm1F9cJVKwnOhthHm1768iuxVMdoetiqf+E6CyyQos3xabsJDXDXn5RqPB2cx3457aPYQ9x7C0XD9x+yid7voyBrw9vyBffg/j0nChh+LC97+CwAA//9JujPs/QMAAA==",
         "generator": "https://w3id.org/orb#v0",
         "mediaType": "application/gzip",
         "type": "AnchorObject",
-        "url": "hl:uEiDitojxPVsciVFkA76-2VUZqxvsfg0Rc587SiKcJRwYVA"
+        "url": "hl:uEiCcoPrbk2sLOl89PAJZrl5TtXrPA-i8zjIFwcn7xaBQbA"
       }
     ],
     "attributedTo": "https://orb.domain1.com/services/orb",
-    "index": "hl:uEiBIWW6wXXjJyAAeIewft4I9ROWXg6zjAQPPQMna3P07ig",
-    "published": "2022-02-10T21:33:39.020661418Z",
+    "index": "hl:uEiB1mmNOJZJWESnOswEm8fre4R8Wq6YpKwyQSkKa96Hu-Q",
+    "published": "2022-02-11T21:04:18.5073527Z",
     "type": "AnchorEvent",
-    "url": "hl:uEiDifpBqbQq7laXLKKXIehmXNo1k1sdt1Z1EbHlmdXf2Qw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRGlmcEJxYlFxN2xhWExLS1hJZWhtWE5vMWsxc2R0MVoxRWJIbG1kWGYyUXd4QmlwZnM6Ly9iYWZrcmVpaGNwMmlndTNpa3hvazJsc3ppdXhlaHVnbXhnMmd3anZ3aG54a3oycmRtcGZ0aGs1N3dpbQ"
+    "url": "hl:uEiD7JriribW6HzEZujSP6Q4V2BoB0BQUvMaU1xR-cEtueg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRDdKcmlyaWJXNkh6RVp1alNQNlE0VjJCb0IwQlFVdk1hVTF4Ui1jRXR1ZWd4QmlwZnM6Ly9iYWZrcmVpaDNlMjRreGNudnhpcHRjZ24yZ3NoNnNkcXYzYW5hZHVhdWNzNm1uZmd4Y3I3aGFzM29waQ"
   },
-  "published": "2022-02-10T21:33:39.279618592Z",
+  "published": "2022-02-11T21:04:18.9751431Z",
   "to": [
     "https://orb.domain1.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"

@@ -210,12 +210,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiDifpBqbQq7laXLKKXIehmXNo1k1sdt1Z1EbHlmdXf2Qw%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRGlmcEJxYlFxN2xhWExLS1hJZWhtWE5vMWsxc2R0MVoxRWJIbG1kWGYyUXd4QmlwZnM6Ly9iYWZrcmVpaGNwMmlndTNpa3hvazJsc3ppdXhlaHVnbXhnMmd3anZ3aG54a3oycmRtcGZ0aGs1N3dpbQ"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiD7JriribW6HzEZujSP6Q4V2BoB0BQUvMaU1xR-cEtueg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRDdKcmlyaWJXNkh6RVp1alNQNlE0VjJCb0IwQlFVdk1hVTF4Ui1jRXR1ZWd4QmlwZnM6Ly9iYWZrcmVpaDNlMjRreGNudnhpcHRjZ24yZ3NoNnNkcXYzYW5hZHVhdWNzNm1uZmd4Y3I3aGFzM29waQ"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDifpBqbQq7laXLKKXIehmXNo1k1sdt1Z1EbHlmdXf2Qw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRGlmcEJxYlFxN2xhWExLS1hJZWhtWE5vMWsxc2R0MVoxRWJIbG1kWGYyUXd4QmlwZnM6Ly9iYWZrcmVpaGNwMmlndTNpa3hvazJsc3ppdXhlaHVnbXhnMmd3anZ3aG54a3oycmRtcGZ0aGs1N3dpbQ"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiD7JriribW6HzEZujSP6Q4V2BoB0BQUvMaU1xR-cEtueg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRDdKcmlyaWJXNkh6RVp1alNQNlE0VjJCb0IwQlFVdk1hVTF4Ui1jRXR1ZWd4QmlwZnM6Ly9iYWZrcmVpaDNlMjRreGNudnhpcHRjZ24yZ3NoNnNkcXYzYW5hZHVhdWNzNm1uZmd4Y3I3aGFzM29waQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

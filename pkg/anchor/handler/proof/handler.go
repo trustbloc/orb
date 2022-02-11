@@ -244,6 +244,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorEvent *vocab.AnchorEvent
 
 	// Create a new anchor event with the updated verifiable credential (witness).
 	anchorEvent = vocab.NewAnchorEvent(
+		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
 		vocab.WithIndex(anchorEvent.Index()),
 		vocab.WithPublishedTime(anchorEvent.Published()),

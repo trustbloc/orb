@@ -68,6 +68,7 @@ func TestAnchorEvent(t *testing.T) {
 	require.Equal(t, anchorObj.URL()[0].String(), link.HRef().String())
 
 	anchorEvent := NewAnchorEvent(
+		WithContext(ContextActivityStreams),
 		WithURL(testutil.MustParseURL(
 			"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk"), //nolint:lll
 		),
@@ -296,7 +297,10 @@ type sample2ContentObj struct {
 const (
 	//nolint:lll
 	jsonAnchorEvent = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
       "content": "{\"field_1\":\"value1\",\"field_2\":\"value2\"}",
