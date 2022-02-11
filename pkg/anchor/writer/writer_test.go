@@ -1885,7 +1885,10 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 
 //nolint: lll
 const jsonAnchorEvent = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
       "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
@@ -1920,7 +1923,10 @@ const jsonAnchorEvent = `{
 
 //nolint: lll
 const jsonAnchorEventInvalidWitness = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
       "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",

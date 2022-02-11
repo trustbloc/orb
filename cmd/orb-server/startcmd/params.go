@@ -56,7 +56,7 @@ const (
 	defaultInviteWitnessAuthType            = acceptAllPolicy
 	defaultMQOpPoolSize                     = 5
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
-	defaultAnchorAttachmentMediaType        = vocab.JSONMediaType
+	defaultAnchorAttachmentMediaType        = vocab.GzipMediaType
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 

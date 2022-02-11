@@ -235,7 +235,7 @@ func (d *CommonSteps) jsonPathOfResponseContains(path, expected string) error {
 		}
 	}
 
-	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Array(), expected)
+	return fmt.Errorf("JSON path resolves to [%s] which does not contain the expected value [%s]", r.Array(), expected)
 }
 
 func (d *CommonSteps) jsonPathOfResponseContainsRegEx(path, pattern string) error {

@@ -48,6 +48,7 @@ func BuildAnchorEvent(payload *subject.Payload, gen string, indexContentObj,
 	}
 
 	return vocab.NewAnchorEvent(
+		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithAttributedTo(attributedTo),
 		vocab.WithIndex(indexAnchorObj.URL()[0]),
 		vocab.WithPublishedTime(payload.Published),

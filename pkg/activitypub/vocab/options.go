@@ -395,7 +395,7 @@ func WithPublicKeyPem(pem string) Opt {
 }
 
 func getContexts(options *Options, contexts ...Context) []Context {
-	return append(contexts, options.Context...)
+	return append(options.Context, contexts...)
 }
 
 // AnchorEventOptions holds the options for an AnchorEvent.

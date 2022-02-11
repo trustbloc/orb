@@ -613,8 +613,10 @@ func TestAcceptOfferMarshal(t *testing.T) {
 	obj, err := NewObjectWithDocument(MustUnmarshalToDoc([]byte(anchorEvent1)))
 	require.NoError(t, err)
 
+	anchorEventHL := MustParseURL("hl:uEiCQuv6CDPwISpAlkTpRSYacZAQ2PREhpWS2uxGe0jIRZg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVxeGw3aWVkaDRiYmZqYWptcmhqaXV0YnU0bXFjZG1waXJlZ3N3am52M2NncG5lbXFybXk") //nolint:lll
+
 	offer := NewOfferActivity(
-		NewObjectProperty(WithIRI(obj.URL()[0])),
+		NewObjectProperty(WithIRI(anchorEventHL)),
 		WithID(offerID),
 		WithActor(org1Service),
 		WithTo(org2Service),
@@ -629,6 +631,7 @@ func TestAcceptOfferMarshal(t *testing.T) {
 			WithActor(org2Service),
 			WithResult(NewObjectProperty(
 				WithObject(NewObject(
+					WithContext(ContextActivityAnchors),
 					WithType(TypeAnchorReceipt),
 					WithInReplyTo(obj.ID().URL()),
 					WithStartTime(&startTime),
@@ -691,7 +694,7 @@ func TestAcceptOfferMarshal(t *testing.T) {
 		require.NotNil(t, oaObj)
 		objIRI := oaObj.IRI()
 		require.NotNil(t, objIRI)
-		require.Equal(t, obj.URL()[0].String(), objIRI.String())
+		require.Equal(t, anchorEventHL.String(), objIRI.String())
 
 		result := a.Result().Object()
 		require.NotNil(t, result)
@@ -1201,15 +1204,18 @@ const (
 
 	//nolint:lll
 	anchorEvent1 = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
-      "content": "H4sIAAAAAAAA/4SOTXOiMABA/0t6bVeDoCU360eoC3FUQGRnpxOSbImWhA0Bio7/fafnPfT+5r13A7XRtTBWigagGyitrRs0GvUTyX9o8z6izMpO2oEqVmrTPLwLJQy12gD0P6xN8dCNweP3GiMa3Rr2Ff11A5IDBLjkSJsCtfP5HK3kIkncl+T5dbZdNJXVDewV6/u/lLleOaaZ2Hy+eQ5WT00Y78D99/0RNG1xFsx+jX2gdiWXb+tXOykXw6a6dtHp55+lP/M4I/LszTCO5XMLQ5kbIhK/R63ePS3Eymoe7Ht21V3o+MNJepfCgSU9up9hRbri4J9PWdTxJK33ax8fst2Vroh3qOCUX2B+cPLVNmYwx2RLjxqSMQ9SfHF5vI5oWg9xlabbjLu76qPPVTQNB1+ejrlhVVrTJT8zJ3cZ3sgi26hC7V2O9yWPuSSTl55d0y7H0NBAQ6bWU4ojpwg4FJjYSNUOCRKHzMH9XwAAAP//olm6utIBAAA=",
+      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiCw3HmUhPgEoEB-afGdWxt7VYYk8xPvP6ep-TWvFVxCCg:EiDjRenN-5P-DSDP_EPaf5EIPciOcD_V3HzqX3HYgp2N6A\",\"previousAnchor\":\"hl:uEiCw3HmUhPgEoEB-afGdWxt7VYYk8xPvP6ep-TWvFVxCCg\"},{\"id\":\"did:orb:uEiDFZjvK5hyGr8kZ1_W5QPkaG-22m2X67JMxGcig2n3e9g:EiBNtDcd1FnFV6r-1f-zpgfMpgDpp1cqNPjBPXZ-o1eeqA\",\"previousAnchor\":\"hl:uEiDFZjvK5hyGr8kZ1_W5QPkaG-22m2X67JMxGcig2n3e9g\"}]},\"subject\":\"hl:uEiDdJyC26xLU5xsBsRghJXwcGQ_jXEON1Pw5rHFNq1uXYQ:uoQ-BeEJpcGZzOi8vYmFma3JlaWc1ZTRxbG4yeXMydHRyd2FucmRhcXNrN2E0ZGVoNmd4Y2RyeGtweW9ubW9mZzJ3dzR4bWU\"}",
       "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/gzip",
+      "mediaType": "application/json",
       "tag": [
         {
-          "href": "hl:uEiD3TxYCYZbL1AKnH4163TfJlil98cl_nhidlQFU0q5TbA",
+          "href": "hl:uEiDHlIovFKESx4-3xkRKkIQKCiPSWgCVyA5jBGI5r3bujg",
           "rel": [
             "witness"
           ],
@@ -1217,21 +1223,24 @@ const (
         }
       ],
       "type": "AnchorObject",
-      "url": "hl:uEiDeKSd43td_CzQlnw7mYOicXgj3ySEBmpsn2Ix8E-8Kdg"
+      "url": "hl:uEiCo-TfID4mBuMCAUfTJ2iMAVvI9MJCOgrsWDYUIjAGmiw"
     },
     {
-      "content": "H4sIAAAAAAAA/7yTXXOiPBTHv0ueWxESEYSrp1bsoFtRcVtrp9MJ4ShRXpQEEDr97jvs2u7bdPZiZ/Y2yf935vxOzgv6n2WphLNE9iOKpDwKW1WrqupWvW6W71Si4YHKcgghlZzGQi0xeuqg7yd+EeyBSWSjKLYLh49g6od6T4bP180iTiszefA4W+/2vdp3hslRpMQ9DxxlMA13qIN42CYvdbM86IZZQnmKuyxL1JKpBIBpjBkKBAZVdNwzFEujoaIHJtlaDAgEVosRoqApgxGVgGxENEIUjShYW2HD1nWb9LuGYfSwZejW5vIe8o9Low465lm2RfbjS9sslRB+xDVxS/wWvhAvwJJJe6CZpprQYwxEIxrqoH0lkI2gnkTBDeMen4w3znK18F3hJi6ZXbvGJhkLRj4LN5nVdL3gXiz4w/5Bc2NsdbuOSHengKxrh2d+Qk6L+OaG15qr9PtDkQ2KbbksJnE0LZ+jUxU45T00s7E+9/bR7cpLdUdWDYbGuf+0Gg5PS/BHB2d5tXhreF7kx0y0DqkQkEuepbcgoyxEHSTrY3vhhKTfx5bPdymVRQ7tF0EdVELOt5zRHyI2CnloVxDYv+j9L8sDfICaoNfOn/yaumkSovf7v1n+eW7kMre/9VtMRqEbz7Z4oxlTmBx69aE2m/KwAZ2Gp7FVX1HfrM8wr3QfD9K6KebTtacTeTfBUbPz+HlvzrEnsiDWWLIBHjTiavfP/JI3v+QANXp9esfefc3TIIbr9+VFr18CAAD//2QAVkQBBAAA",
+      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiCo-TfID4mBuMCAUfTJ2iMAVvI9MJCOgrsWDYUIjAGmiw\",\"id\":\"https://orb.domain2.com/vc/c6c9e4d1-4e14-4c73-bf31-89b88588ea72\",\"issuanceDate\":\"2022-02-11T19:25:51.1519171Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-11T19:25:51.1521991Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..t4cqMMC8gbapbTfm0896q2RRIfFObKJmnOlZSXFLdXk_cm8oYgywaornYGby64LoaQogbj1BGTUNk3v5jWfFAQ\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-11T19:25:51.331Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..DoYJeLm2DIHOG5FIzbXOy6wCWw4QEfJIeiCReP7Fl5gmU2e0vJvb_AoNxEahY99LHak_bxXcPa763xBqsx4CBw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
       "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/gzip",
+      "mediaType": "application/json",
       "type": "AnchorObject",
-      "url": "hl:uEiD3TxYCYZbL1AKnH4163TfJlil98cl_nhidlQFU0q5TbA"
+      "url": "hl:uEiDHlIovFKESx4-3xkRKkIQKCiPSWgCVyA5jBGI5r3bujg"
     }
   ],
-  "attributedTo": "https://orb.domain1.com/services/orb",
-  "index": "hl:uEiDeKSd43td_CzQlnw7mYOicXgj3ySEBmpsn2Ix8E-8Kdg",
-  "published": "2022-02-10T16:44:25.663779675Z",
-  "type": "AnchorEvent",
-  "url": "hl:uEiAL0rm5Qaaumz79MN-BvSEMkN9S9M9hjnGpZtwOAF3CFA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUwwcm01UWFhdW16NzlNTi1CdlNFTWtOOVM5TTloam5HcFp0d09BRjNDRkF4QmlwZnM6Ly9iYWZrcmVpYWwyazQzc3FuZ3YybnQ1N2pxMzZhMzJpaW1zZHB2ZjVncG1naGhka2xnM3FoYWF4b2NjcQ"
+  "attributedTo": "https://orb.domain2.com/services/orb",
+  "index": "hl:uEiCo-TfID4mBuMCAUfTJ2iMAVvI9MJCOgrsWDYUIjAGmiw",
+  "parent": [
+    "hl:uEiCw3HmUhPgEoEB-afGdWxt7VYYk8xPvP6ep-TWvFVxCCg:uoQ-BeEJpcGZzOi8vYmFma3JlaWZxM3I0empiaHlhc3FlYTd0ajZnb3Z3ZzMza3dkY2o0eXQ1NDcycGtwemd3eHJreGNjYmk",
+    "hl:uEiDFZjvK5hyGr8kZ1_W5QPkaG-22m2X67JMxGcig2n3e9g:uoQ-BeEJpcGZzOi8vYmFma3JlaWdmbXk1NHZ6cTRxMng0c2dveDZ3NHViNmkyZHB3M25nM2Y3bHdqZ21penpjcW51N282Nnk"
+  ],
+  "published": "2022-02-11T19:25:51.1512028Z",
+  "type": "AnchorEvent"
 }`
 
 	//nolint:lll
@@ -1303,12 +1312,13 @@ const (
     "@context": "https://www.w3.org/ns/activitystreams",
     "actor": "https://org1.com/services/anchor",
     "id": "https://org1.com/services/anchor/activities/ef0f86b1-bfe7-4ccc-9400-aff4732bc1ac",
-    "object": "hl:uEiAL0rm5Qaaumz79MN-BvSEMkN9S9M9hjnGpZtwOAF3CFA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUwwcm01UWFhdW16NzlNTi1CdlNFTWtOOVM5TTloam5HcFp0d09BRjNDRkF4QmlwZnM6Ly9iYWZrcmVpYWwyazQzc3FuZ3YybnQ1N2pxMzZhMzJpaW1zZHB2ZjVncG1naGhka2xnM3FoYWF4b2NjcQ",
+    "object": "hl:uEiCQuv6CDPwISpAlkTpRSYacZAQ2PREhpWS2uxGe0jIRZg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVxeGw3aWVkaDRiYmZqYWptcmhqaXV0YnU0bXFjZG1waXJlZ3N3am52M2NncG5lbXFybXk",
     "target": "https://w3id.org/activityanchors#AnchorWitness",
     "to": "https://org2.com/services/anchor",
     "type": "Offer"
   },
   "result": {
+    "@context": "https://w3id.org/activityanchors/v1",
     "attachment": [
       {
         "@context": "https://www.w3.org/2018/credentials/v1",

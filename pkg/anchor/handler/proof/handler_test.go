@@ -707,7 +707,10 @@ func (wp *mockWitnessPolicy) Evaluate(_ []*proofapi.WitnessProof) (bool, error) 
 
 //nolint:lll
 const anchorEvent = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
       "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
@@ -742,7 +745,10 @@ const anchorEvent = `{
 
 //nolint:lll
 const anchorEventTwoProofs = `{
-  "@context": "https://w3id.org/activityanchors/v1",
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/activityanchors/v1"
+  ],
   "attachment": [
     {
       "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uAAA:EiCjNbfvKWZDsa59BcLw0TE9t6JrY6D8N9T_8GKnuI8oxw\"},{\"id\":\"did:orb:uAAA:EiBlxzs4KPQ0H4zJHFVwY7x3UGuJe4Lro9HMr2SXz0LUDw\"},{\"id\":\"did:orb:uAAA:EiDhm7PZtsT6V9kwr5Uxcr_CJgobAVqQlGNG4_3r4TQQFA\"},{\"id\":\"did:orb:uAAA:EiAFi_-TaUuSa4C991o0BhFoJwxkEtRiQDSb3x_H76XyGQ\"},{\"id\":\"did:orb:uAAA:EiDoYvqwqqo9YSkqBB0LEM0oxkn1ouRfnMlHN1mlCoJKxw\"},{\"id\":\"did:orb:uAAA:EiCDzGTIVFUr3YCyWiyzExvOAMwogn29XOM01Y6v9kKKiA\"}]},\"subject\":\"hl:uEiBuyLBSjEYws4_MZyoD9Bt7rXsnVNKkM1eX0rB5SDQeGA:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQnV5TEJTakVZd3M0X01aeW9EOUJ0N3JYc25WTktrTTFlWDByQjVTRFFlR0E\"}",
