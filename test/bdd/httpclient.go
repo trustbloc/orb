@@ -120,7 +120,7 @@ func (c *httpClient) GetWithSignature(url, domain string) (*httpResponse, error)
 	}, nil
 }
 
-func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int, retryableCodes ...int) (*httpResponse, error) {
+func (c *httpClient) GetWithRetry(url string, attempts int, retryableCode int, retryableCodes ...int) (*httpResponse, error) {
 	codes := append(retryableCodes, retryableCode)
 
 	return c.GetWithRetryFunc(url, attempts, func(resp *httpResponse) bool {
@@ -128,7 +128,7 @@ func (c *httpClient) GetWithRetry(url string, attempts uint8, retryableCode int,
 	})
 }
 
-func (c *httpClient) GetWithRetryFunc(url string, attempts uint8, shouldRetry func(resp *httpResponse) bool) (*httpResponse, error) {
+func (c *httpClient) GetWithRetryFunc(url string, attempts int, shouldRetry func(resp *httpResponse) bool) (*httpResponse, error) {
 	var err error
 	var resp *httpResponse
 
