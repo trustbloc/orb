@@ -1484,7 +1484,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 			return err
 		}
 
-		canonicalID, err := d.verifyDID(localURL, resp.did)
+		canonicalID, err := d.verifyDID(localURL, resp.did, 25)
 		if err != nil {
 			return err
 		}
@@ -1497,9 +1497,14 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 	return nil
 }
 
-func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file string) error {
-	if err := d.state.resolveVarsInExpression(&strURLs, &file); err != nil {
+func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file, strAttempts string) error {
+	if err := d.state.resolveVarsInExpression(&strURLs, &file, &strAttempts); err != nil {
 		return err
+	}
+
+	attempts, err := strconv.Atoi(strAttempts)
+	if err != nil {
+		return fmt.Errorf("invalid value for attempts: %w", err)
 	}
 
 	reader, err := d.newReader(file)
@@ -1507,7 +1512,8 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file string) error {
 		return fmt.Errorf("get DID file from [%s]: %w", file, err)
 	}
 
-	logger.Infof("Verifying created DIDs from file [%s]", file)
+	logger.Infof("Verifying created DIDs from file [%s] at %s with %d retry attempt(s)",
+		file, strURLs, attempts)
 
 	scanner := bufio.NewScanner(reader)
 
@@ -1533,7 +1539,7 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file string) error {
 			return e
 		}
 
-		_, e = d.verifyDID(fmt.Sprintf("%s/sidetree/v1/identifiers", localURL), did)
+		_, e = d.verifyDID(fmt.Sprintf("%s/sidetree/v1/identifiers", localURL), did, attempts)
 		if e != nil {
 			return e
 		}
@@ -1602,10 +1608,10 @@ func (d *DIDOrbSteps) doVerifyUpdatedDIDContainsKeyID(urls []string, did, keyID 
 	return nil
 }
 
-func (d *DIDOrbSteps) verifyDID(url, did string) (canonicalID string, err error) {
+func (d *DIDOrbSteps) verifyDID(url, did string, attempts int) (canonicalID string, err error) {
 	logger.Infof("verifying DID %s from %s", did, url)
 
-	resp, err := d.httpClient.GetWithRetryFunc(url+"/"+did, 25,
+	resp, err := d.httpClient.GetWithRetryFunc(url+"/"+did, attempts,
 		func(resp *httpResponse) bool {
 			if resp.StatusCode == http.StatusNotFound {
 				return true
@@ -1882,7 +1888,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
-	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)"$`, d.verifyDIDDocumentsFromFile)
+	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)" with a maximum of "([^"]*)" attempts$`, d.verifyDIDDocumentsFromFile)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were updated with key "([^"]*)"$`, d.verifyUpdatedDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents again with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocumentsAgain)
