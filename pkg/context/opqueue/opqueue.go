@@ -143,6 +143,10 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 
 	cfg = resolveConfig(cfg)
 
+	logger.Infof("Creating operation queue - PoolSize: %d, TaskMonitorInterval: %s, TaskExpiration: %s, "+
+		"OpExpiration: %s, MaxRetries: %d", cfg.PoolSize, cfg.TaskMonitorInterval, cfg.TaskExpiration,
+		cfg.OpExpiration, cfg.MaxRetries)
+
 	q := &Queue{
 		pubSub:              pubSub,
 		msgChan:             msgChan,

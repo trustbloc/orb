@@ -12,6 +12,7 @@ Feature:
     And variable "domain5IRI" is assigned the value "https://orb.domain5.com/services/orb"
 
     Given domain "orb.domain1.com" is mapped to "localhost:48326"
+    And domain "orb2.domain1.com" is mapped to "localhost:48526"
     And domain "orb.domain2.com" is mapped to "localhost:48426"
     And domain "orb.domain5.com" is mapped to "localhost:49026"
 
@@ -58,7 +59,12 @@ Feature:
   Scenario: Domain onboarding and recovery
     # Create and update a bunch of DIDs.
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+    # Stop an instance in domain1 (orb2-domain1) and ensure that the pending operations in orb2-domain1's queue are reposted
+    # to the AMQP queue so that they are processed by the other instance (orb.domain1.com).
+    Then container "orb2-domain1" is stopped
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    Then container "orb2-domain1" is started
+
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_1_1" using 10 concurrent requests
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_1_1"
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents again with public key ID "newkey_1_2" using 10 concurrent requests

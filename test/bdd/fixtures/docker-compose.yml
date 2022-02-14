@@ -39,8 +39,16 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      - MQ_OP_POOL=10
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      - OP_QUEUE_POOL=10
+      # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).
+      - OP_QUEUE_TASK_MONITOR_INTERVAL=10s
+      # OP_QUEUE_TASK_EXPIRATION specifies the maximum time that an operation queue task can exist in the database before
+      #	it is considered to have expired. At which point, any other server instance may delete the task and repost the
+      # operations associated with the task to the queue so that they are processed by another instance (default is 30s).
+      - OP_QUEUE_TASK_EXPIRATION=20s
+      # OP_QUEUE_MAX_REPOSTS specifies the maximum number of times an operation may be reposted to the queue after having failed (default is 10).
+      - OP_QUEUE_MAX_REPOSTS=12
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -167,8 +175,16 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      - MQ_OP_POOL=10
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      - OP_QUEUE_POOL=10
+      # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).
+      - OP_QUEUE_TASK_MONITOR_INTERVAL=10s
+      # OP_QUEUE_TASK_EXPIRATION specifies the maximum time that an operation queue task can exist in the database before
+      #	it is considered to have expired. At which point, any other server instance may delete the task and repost the
+      # operations associated with the task to the queue so that they are processed by another instance (default is 30s).
+      - OP_QUEUE_TASK_EXPIRATION=20s
+      # OP_QUEUE_MAX_REPOSTS specifies the maximum number of times an operation may be reposted to the queue after having failed (default is 10).
+      - OP_QUEUE_MAX_REPOSTS=12
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -302,8 +318,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - MQ_OP_POOL=5
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - OP_QUEUE_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -404,8 +420,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - MQ_OP_POOL=5
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - OP_QUEUE_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -509,8 +525,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - MQ_OP_POOL=5
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - OP_QUEUE_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -626,8 +642,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - MQ_OP_POOL=5
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - OP_QUEUE_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=3
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -739,8 +755,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain5.com:5672/
-      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - MQ_OP_POOL=5
+      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - OP_QUEUE_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then

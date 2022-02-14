@@ -1090,7 +1090,6 @@ func TestGetMQParameters(t *testing.T) {
 
 	t.Run("Valid env values -> error", func(t *testing.T) {
 		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
-		restoreOpPoolEnv := setEnv(t, mqOpPoolEnvKey, "221")
 		restoreObserverPoolEnv := setEnv(t, mqObserverPoolEnvKey, "3")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
@@ -1102,7 +1101,6 @@ func TestGetMQParameters(t *testing.T) {
 
 		defer func() {
 			restoreURLEnv()
-			restoreOpPoolEnv()
 			restoreObserverPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 			restoreChannelPoolEnv()
@@ -1118,7 +1116,6 @@ func TestGetMQParameters(t *testing.T) {
 		mqParams, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqParams.endpoint)
-		require.Equal(t, 221, mqParams.opPoolSize)
 		require.Equal(t, 3, mqParams.observerPoolSize)
 		require.Equal(t, 456, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
@@ -1141,7 +1138,6 @@ func TestGetMQParameters(t *testing.T) {
 		mqParams, err := getMQParameters(cmd)
 		require.NoError(t, err)
 		require.Equal(t, u, mqParams.endpoint)
-		require.Equal(t, defaultMQOpPoolSize, mqParams.opPoolSize)
 		require.Equal(t, mqDefaultObserverPoolSize, mqParams.observerPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
@@ -1149,20 +1145,6 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, mqDefaultRedeliveryInitialInterval, mqParams.redeliveryInitialInterval)
 		require.Equal(t, mqDefaultRedeliveryMaxAttempts, mqParams.maxRedeliveryAttempts)
 		require.Equal(t, mqDefaultRedeliveryMultiplier, mqParams.redeliveryMultiplier)
-	})
-
-	t.Run("Invalid op pool size value -> error", func(t *testing.T) {
-		restoreEnv := setEnv(t, mqOpPoolEnvKey, "xxx")
-
-		defer func() {
-			restoreEnv()
-		}()
-
-		cmd := getTestCmd(t)
-
-		_, err := getMQParameters(cmd)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value")
 	})
 
 	t.Run("Invalid max connection subscriptions value -> error", func(t *testing.T) {
@@ -1189,6 +1171,100 @@ func TestGetMQParameters(t *testing.T) {
 		cmd := getTestCmd(t)
 
 		_, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+}
+
+func TestGetOpQueueParameters(t *testing.T) {
+	t.Run("Valid env values -> error", func(t *testing.T) {
+		restorePoolEnv := setEnv(t, opQueuePoolEnvKey, "221")
+		restoreTaskMonitorIntervalEnv := setEnv(t, opQueueTaskMonitorIntervalEnvKey, "17s")
+		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33s")
+		restoreMaxRepostsEnv := setEnv(t, opQueueMaxRepostsEnvKey, "23")
+
+		defer func() {
+			restorePoolEnv()
+			restoreTaskExpirationEnv()
+			restoreTaskMonitorIntervalEnv()
+			restoreMaxRepostsEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		opQueueParams, err := getOpQueueParameters(cmd, time.Minute)
+		require.NoError(t, err)
+		require.Equal(t, 221, opQueueParams.PoolSize)
+		require.Equal(t, 17*time.Second, opQueueParams.TaskMonitorInterval)
+		require.Equal(t, 33*time.Second, opQueueParams.TaskExpiration)
+		require.Equal(t, 23, opQueueParams.MaxRetries)
+		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
+	})
+
+	t.Run("Not specified -> default value", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		opQueueParams, err := getOpQueueParameters(cmd, time.Minute)
+		require.NoError(t, err)
+		require.Equal(t, opQueueDefaultPoolSize, opQueueParams.PoolSize)
+		require.Equal(t, opQueueDefaultTaskMonitorInterval, opQueueParams.TaskMonitorInterval)
+		require.Equal(t, opQueueDefaultTaskExpiration, opQueueParams.TaskExpiration)
+		require.Equal(t, opQueueDefaultMaxReposts, opQueueParams.MaxRetries)
+		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
+	})
+
+	t.Run("Invalid pool size value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, opQueuePoolEnvKey, "xxx")
+
+		defer func() {
+			restoreEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid pool size value -> error", func(t *testing.T) {
+		restoreTaskMonitorIntervalEnv := setEnv(t, opQueueTaskMonitorIntervalEnvKey, "17")
+
+		defer func() {
+			restoreTaskMonitorIntervalEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid task expiration value -> error", func(t *testing.T) {
+		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33")
+
+		defer func() {
+			restoreTaskExpirationEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid max reposts value -> error", func(t *testing.T) {
+		restoreMaxRepostsEnv := setEnv(t, opQueueMaxRepostsEnvKey, "xxx")
+
+		defer func() {
+			restoreMaxRepostsEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
