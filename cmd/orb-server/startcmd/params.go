@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/context/opqueue"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -54,9 +55,14 @@ const (
 	defaultActivityPubIRICacheExpiration    = time.Hour
 	defaultFollowAuthType                   = acceptAllPolicy
 	defaultInviteWitnessAuthType            = acceptAllPolicy
-	defaultMQOpPoolSize                     = 5
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
 	defaultAnchorAttachmentMediaType        = vocab.GzipMediaType
+
+	opQueueDefaultPoolSize                = 5
+	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
+	opQueueDefaultTaskExpiration          = 30 * time.Second
+	opQueueDefaultMaxReposts              = 10
+	opQueueOperationExpirationGracePeriod = time.Minute
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -194,12 +200,6 @@ const (
 	mqURLEnvKey        = "MQ_URL"
 	mqURLFlagUsage     = "The URL of the message broker. " + commonEnvVarUsageText + mqURLEnvKey
 
-	mqOpPoolFlagName      = "mq-op-pool"
-	mqOpPoolFlagShorthand = "O"
-	mqOpPoolEnvKey        = "MQ_OP_POOL"
-	mqOpPoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
-		commonEnvVarUsageText + mqOpPoolEnvKey
-
 	mqObserverPoolFlagName      = "mq-observer-pool"
 	mqObserverPoolFlagShorthand = "B"
 	mqObserverPoolEnvKey        = "MQ_OBSERVER_POOL"
@@ -243,6 +243,30 @@ const (
 	mqRedeliveryMaxIntervalEnvKey    = "MQ_REDELIVERY_MAX_INTERVAL"
 	mqRedeliveryMaxIntervalFlagUsage = "The maximum delay for a redelivery (default is 30s). " +
 		commonEnvVarUsageText + mqRedeliveryMaxIntervalEnvKey
+
+	opQueuePoolFlagName      = "op-queue-pool"
+	opQueuePoolFlagShorthand = "O"
+	opQueuePoolEnvKey        = "OP_QUEUE_POOL"
+	opQueuePoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
+		commonEnvVarUsageText + opQueuePoolEnvKey
+
+	opQueueTaskMonitorIntervalFlagName  = "op-queue-task-monitor-interval"
+	opQueueTaskMonitorIntervalEnvKey    = "OP_QUEUE_TASK_MONITOR_INTERVAL"
+	opQueueTaskMonitorIntervalFlagUsage = "The interval (period) in which operation queue tasks from other server " +
+		" instances are monitored (default is 10s). " + commonEnvVarUsageText + opQueueTaskMonitorIntervalEnvKey
+
+	opQueueTaskExpirationFlagName  = "op-queue-task-expiration"
+	opQueueTaskExpirationEnvKey    = "OP_QUEUE_TASK_EXPIRATION"
+	opQueueTaskExpirationFlagUsage = "The maximum time that an operation queue task can exist in the database before " +
+		"it is considered to have expired. At which point, any other server instance may delete the task and " +
+		"repost the operations associated with the task to the queue so that they are processed by another " +
+		"Orb instance (default is 30s). " +
+		commonEnvVarUsageText + opQueueTaskExpirationEnvKey
+
+	opQueueMaxRepostsFlagName  = "op-queue-max-reposts"
+	opQueueMaxRepostsEnvKey    = "OP_QUEUE_MAX_REPOSTS"
+	opQueueMaxRepostsFlagUsage = "The maximum number of times an operation may be reposted to the queue " +
+		"after having failed (default is 10). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -574,6 +598,7 @@ type orbParameters struct {
 	localCASReplicateInIPFSEnabled          bool
 	cidVersion                              int
 	mqParams                                *mqParams
+	opQueueParams                           *opqueue.Config
 	dbParameters                            *dbParameters
 	logLevel                                string
 	methodContext                           []string
@@ -775,6 +800,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 
 		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
+	}
+
+	opQueueParams, err := getOpQueueParameters(cmd, batchWriterTimeout)
+	if err != nil {
+		return nil, err
 	}
 
 	maxWitnessDelay, err := getDuration(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, defaultMaxWitnessDelay)
@@ -1139,6 +1169,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
 		cidVersion:                              cidVersion,
 		mqParams:                                mqParams,
+		opQueueParams:                           opQueueParams,
 		batchWriterTimeout:                      batchWriterTimeout,
 		anchorCredentialParams:                  anchorCredentialParams,
 		logLevel:                                loggingLevel,
@@ -1456,7 +1487,6 @@ func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64)
 
 type mqParams struct {
 	endpoint                   string
-	opPoolSize                 int
 	observerPoolSize           int
 	maxConnectionSubscriptions int
 	publisherChannelPoolSize   int
@@ -1471,11 +1501,6 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", mqURLFlagName, err)
-	}
-
-	mqOpPoolSize, err := getInt(cmd, mqOpPoolFlagName, mqOpPoolEnvKey, defaultMQOpPoolSize)
-	if err != nil {
-		return nil, err
 	}
 
 	mqObserverPoolSize, err := getInt(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, mqDefaultObserverPoolSize)
@@ -1527,7 +1552,6 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 
 	return &mqParams{
 		endpoint:                   mqURL,
-		opPoolSize:                 mqOpPoolSize,
 		observerPoolSize:           mqObserverPoolSize,
 		maxConnectionSubscriptions: mqMaxConnectionSubscriptions,
 		publisherChannelPoolSize:   mqPublisherChannelPoolSize,
@@ -1536,6 +1560,43 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		redeliveryMultiplier:       mqRedeliveryMultiplier,
 		redeliveryInitialInterval:  mqRedeliveryInitialInterval,
 		maxRedeliveryInterval:      mqRedeliveryMaxInterval,
+	}, nil
+}
+
+func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration) (*opqueue.Config, error) {
+	poolSize, err := getInt(cmd, opQueuePoolFlagName, opQueuePoolEnvKey, opQueueDefaultPoolSize)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueuePoolFlagName, err)
+	}
+
+	taskMonitorInterval, err := getDuration(cmd, opQueueTaskMonitorIntervalFlagName,
+		opQueueTaskMonitorIntervalEnvKey, opQueueDefaultTaskMonitorInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueTaskMonitorIntervalFlagName, err)
+	}
+
+	taskExpiration, err := getDuration(cmd, opQueueTaskExpirationFlagName,
+		opQueueTaskExpirationEnvKey, opQueueDefaultTaskExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueTaskExpirationFlagName, err)
+	}
+
+	maxRetries, err := getInt(cmd, opQueueMaxRepostsFlagName, opQueueMaxRepostsEnvKey, opQueueDefaultMaxReposts)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueMaxRepostsFlagName, err)
+	}
+
+	// The operation expiration is set to the batch timeout plus a grace period. The operation should
+	// exist in the database until a batch times out, after which it is assumed that those operations are no
+	// longer valid and may be deleted.
+	operationExpiration := batchTimeout + opQueueOperationExpirationGracePeriod
+
+	return &opqueue.Config{
+		PoolSize:            poolSize,
+		TaskMonitorInterval: taskMonitorInterval,
+		TaskExpiration:      taskExpiration,
+		OpExpiration:        operationExpiration,
+		MaxRetries:          maxRetries,
 	}, nil
 }
 
@@ -1710,7 +1771,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(ipfsURLFlagName, ipfsURLFlagShorthand, "", ipfsURLFlagUsage)
 	startCmd.Flags().StringP(localCASReplicateInIPFSFlagName, "", "false", localCASReplicateInIPFSFlagUsage)
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
-	startCmd.Flags().StringP(mqOpPoolFlagName, mqOpPoolFlagShorthand, "", mqOpPoolFlagUsage)
 	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
 	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
@@ -1719,6 +1779,10 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqRedeliveryInitialIntervalFlagName, "", "", mqRedeliveryInitialIntervalFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMultiplierFlagName, "", "", mqRedeliveryMultiplierFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMaxIntervalFlagName, "", "", mqRedeliveryMaxIntervalFlagUsage)
+	startCmd.Flags().StringP(opQueuePoolFlagName, opQueuePoolFlagShorthand, "", opQueuePoolFlagUsage)
+	startCmd.Flags().StringP(opQueueTaskMonitorIntervalFlagName, "", "", opQueueTaskMonitorIntervalFlagUsage)
+	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
+	startCmd.Flags().StringP(opQueueMaxRepostsFlagName, "", "", opQueueMaxRepostsFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
