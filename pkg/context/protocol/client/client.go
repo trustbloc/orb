@@ -55,7 +55,7 @@ func (c *Client) Get(genesisTime uint64) (protocol.Version, error) {
 
 		logger.Debugf("Checking protocol for version genesis time %d: %+v", genesisTime, p)
 
-		if genesisTime >= p.GenesisTime {
+		if genesisTime == p.GenesisTime {
 			logger.Debugf("Found protocol for version genesis time %d: %+v", genesisTime, p)
 
 			return pv, nil

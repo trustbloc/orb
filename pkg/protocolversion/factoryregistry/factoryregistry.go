@@ -18,7 +18,6 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
-	v1_0 "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/factory"
 )
 
 var logger = log.New("factory-registry")
@@ -26,11 +25,6 @@ var logger = log.New("factory-registry")
 type factory interface {
 	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore, provider storage.Provider, sidetreeCfg *config.Sidetree) (protocol.Version, error) //nolint: lll
 }
-
-const (
-	// V1_0 ...
-	V1_0 = "1.0"
-)
 
 // Registry implements a protocol version factory registry.
 type Registry struct {
@@ -45,7 +39,7 @@ func New() *Registry {
 	registry := &Registry{factories: make(map[string]factory)}
 
 	// register supported versions
-	registry.Register(V1_0, v1_0.New())
+	addVersions(registry)
 
 	return registry
 }

@@ -9,7 +9,7 @@ services:
 
   orb-domain1:
     container_name: orb.domain1.com
-    image: ${ORB_FIXTURE_IMAGE}:latest
+    image: ${ORB_TEST_FIXTURE_IMAGE}:latest
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
@@ -31,6 +31,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
+      - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -39,16 +40,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      - OP_QUEUE_POOL=10
-      # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).
-      - OP_QUEUE_TASK_MONITOR_INTERVAL=10s
-      # OP_QUEUE_TASK_EXPIRATION specifies the maximum time that an operation queue task can exist in the database before
-      #	it is considered to have expired. At which point, any other server instance may delete the task and repost the
-      # operations associated with the task to the queue so that they are processed by another instance (default is 30s).
-      - OP_QUEUE_TASK_EXPIRATION=20s
-      # OP_QUEUE_MAX_REPOSTS specifies the maximum number of times an operation may be reposted to the queue after having failed (default is 10).
-      - OP_QUEUE_MAX_REPOSTS=12
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      - MQ_OP_POOL=10
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -144,7 +137,7 @@ services:
 
   orb2-domain1:
     container_name: orb2.domain1.com
-    image: ${ORB_FIXTURE_IMAGE}:latest
+    image: ${ORB_TEST_FIXTURE_IMAGE}:latest
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
@@ -168,6 +161,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
+      - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -176,16 +170,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      - OP_QUEUE_POOL=10
-      # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).
-      - OP_QUEUE_TASK_MONITOR_INTERVAL=10s
-      # OP_QUEUE_TASK_EXPIRATION specifies the maximum time that an operation queue task can exist in the database before
-      #	it is considered to have expired. At which point, any other server instance may delete the task and repost the
-      # operations associated with the task to the queue so that they are processed by another instance (default is 30s).
-      - OP_QUEUE_TASK_EXPIRATION=20s
-      # OP_QUEUE_MAX_REPOSTS specifies the maximum number of times an operation may be reposted to the queue after having failed (default is 10).
-      - OP_QUEUE_MAX_REPOSTS=12
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      - MQ_OP_POOL=10
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -293,7 +279,7 @@ services:
 
   orb-domain2.backend:
     container_name: orb-domain2.backend
-    image: ${ORB_FIXTURE_IMAGE}:latest
+    image: ${ORB_TEST_FIXTURE_IMAGE}:latest
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
@@ -312,6 +298,7 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
+      - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -319,8 +306,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - OP_QUEUE_POOL=5
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - MQ_OP_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -395,7 +382,7 @@ services:
 
   orb1-domain2.backend:
     container_name: orb1-domain2.backend
-    image: ${ORB_FIXTURE_IMAGE}:latest
+    image: ${ORB_TEST_FIXTURE_IMAGE}:latest
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
@@ -414,6 +401,7 @@ services:
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
+      - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -421,8 +409,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain2.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - OP_QUEUE_POOL=5
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - MQ_OP_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -497,7 +485,7 @@ services:
 
   orb-domain3:
     container_name: orb.domain3.com
-    image: ${ORB_FIXTURE_IMAGE}:latest
+    image: ${ORB_TEST_FIXTURE_IMAGE}:latest
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
@@ -519,6 +507,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
+      - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=2000
@@ -526,8 +515,8 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain3.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - OP_QUEUE_POOL=5
+      # MQ_OP_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
+      # - MQ_OP_POOL=5
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
@@ -612,232 +601,6 @@ services:
       orb_net:
         ipv4_address: 172.20.0.6
 
-  orb-domain4:
-    container_name: orb.domain4.com
-    image: ${ORB_FIXTURE_IMAGE}:latest
-    restart: always
-    environment:
-      - ORB_SYNC_TIMEOUT=3
-      - ORB_KMS_ENDPOINT=http://orb.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
-      - ORB_HOST_URL=172.20.0.7:443
-      - ORB_HOST_METRICS_URL=172.20.0.7:48727
-      - ORB_PRIVATE_KEYS=orb4key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_ACTIVE_KEY_ID=orb4key
-      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
-      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
-      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
-      # balancer servicing multiple nodes.
-      - ORB_EXTERNAL_ENDPOINT=https://orb.domain4.com
-      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
-      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
-      - ORB_TLS_SYSTEMCERTPOOL=true
-      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
-      - ORB_DISCOVERY_DOMAIN=shared.domain.com
-      - DID_NAMESPACE=did:orb
-      - DID_DISCOVERY_ENABLED=true
-      - ALLOWED_ORIGINS=https://orb.domain4.com,https://orb.domain1.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
-      # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=5000
-      - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
-      - IPFS_TIMEOUT=10s
-      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain4.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - OP_QUEUE_POOL=5
-      # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
-      - MQ_OBSERVER_POOL=3
-      # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
-      #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
-      - MQ_PUBLISHER_POOL=25
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
-      - CID_VERSION=${CID_VERSION_DOMAIN4}
-      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain4.com
-      - ANCHOR_CREDENTIAL_URL=https://orb.domain4.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      # used in case that orb server signs anchor credential (there is no local witness log)
-      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
-      - DATABASE_TYPE=mongodb
-      - DATABASE_URL=mongodb://mongodb.shared.com:27017
-      - DATABASE_PREFIX=domain4
-      - HTTP_SIGNATURES_ENABLED=true
-      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
-      - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
-      - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
-      - RESOLVE_FROM_ANCHOR_ORIGIN=true
-      - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
-      - UNPUBLISHED_OPERATION_LIFETIME=30s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
-      - DATA_EXPIRY_CHECK_INTERVAL=15s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
-      - ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD=3s
-      - ANCHOR_STATUS_MONITORING_INTERVAL=2s
-
-      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
-      #
-      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
-      #
-      # Where:
-      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
-      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
-      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
-      #
-      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
-      #
-      # Example:
-      #
-      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
-      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
-      # - The client requires an 'admin' token in order to post to the outbox
-      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
-      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
-      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
-      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
-      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
-      - FOLLOW_AUTH_POLICY=accept-all
-      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
-      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
-      - INVITE_WITNESS_AUTH_POLICY=accept-all
-      # TASK_MANAGER_CHECK_INTERVAL is the interval in which to check for scheduled tasks to be run. Note that this value is
-      # merely the 'check' interval since each task has its own interval.
-      # Default value: 10s.
-      - TASK_MANAGER_CHECK_INTERVAL=2s
-      # ANCHOR_EVENT_SYNC_INTERVAL is the interval in which anchor events are synchronized with other services that
-      # we're following.
-      # Default value: 1m.
-      - ANCHOR_EVENT_SYNC_INTERVAL=1m
-      # ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
-      # only if its age is greater than this value.
-      # Default value: 1m
-      - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
-    ports:
-      - 48726:443
-      - 48727:48727
-    command: start
-    volumes:
-      - ./keys/tls:/etc/orb/tls
-      - ./testdata/keys/domain2:/etc/orb/activitypub
-    depends_on:
-      - ipfs
-      - orb.kms
-      - mongodb.shared.com
-      - orb.mq.domain4.com
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.7
-
-  orb-domain5:
-    container_name: orb.domain5.com
-    image: ${ORB_FIXTURE_IMAGE}:latest
-    restart: always
-    environment:
-      - ORB_SYNC_TIMEOUT=3
-      - ORB_KMS_ENDPOINT=http://orb5.kms:7878
-      - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
-      - ORB_HOST_URL=172.20.0.31:443
-      - ORB_HOST_METRICS_URL=172.20.0.31:48727
-      - ORB_PRIVATE_KEYS=orb5key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_ACTIVE_KEY_ID=orb5key
-      # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
-      # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
-      # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
-      # balancer servicing multiple nodes.
-      - ORB_EXTERNAL_ENDPOINT=https://orb.domain5.com
-      - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
-      - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
-      - ORB_TLS_SYSTEMCERTPOOL=true
-      - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
-      - ORB_DISCOVERY_DOMAIN=shared.domain.com
-      - DID_NAMESPACE=did:orb
-      - DID_DISCOVERY_ENABLED=false
-      - ALLOWED_ORIGINS=https://orb.domain5.com,https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
-      # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
-      - BATCH_WRITER_TIMEOUT=5000
-      - CAS_TYPE=${CAS_TYPE}
-      - IPFS_URL=ipfs:5001
-      - IPFS_TIMEOUT=10s
-      - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain5.com:5672/
-      # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
-      # - OP_QUEUE_POOL=5
-      # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
-      - MQ_OBSERVER_POOL=5
-      # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
-      #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
-      - MQ_PUBLISHER_POOL=25
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
-      - CID_VERSION=${CID_VERSION_DOMAIN4}
-      - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain5.com
-      - ANCHOR_CREDENTIAL_URL=https://orb.domain5.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
-      # used in case that orb server signs anchor credential (there is no local witness log)
-      - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain5.com
-      - DATABASE_TYPE=mongodb
-      - DATABASE_URL=mongodb://mongodb.domain5.com:27017
-      - HTTP_SIGNATURES_ENABLED=true
-      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
-      # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
-      #
-      # <path-expr>|<read-token1>&<read-token2>&...>|<write-token1>&<write-token2>&...>,<path-expr> ...
-      #
-      # Where:
-      # - path-expr contains a regular expression for a path. Path expressions are processed in the order they are specified.
-      # - read-token defines a token for a read (GET) operation. If not specified then authorization is not performed.
-      # - write-token defines a token for a write (POST) operation. If not specified then authorization is not performed.
-      #
-      # If no definition is included for an endpoint then authorization is NOT performed for that endpoint.
-      #
-      # Example:
-      #
-      # ORB_AUTH_TOKENS_DEF=/services/orb/outbox|admin&read|admin,/services/orb/.*|read&admin
-      # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
-      # - The client requires an 'admin' token in order to post to the outbox
-      # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      #      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
-      # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
-      #      - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
-      # ORB_CLIENT_AUTH_TOKENS_DEF follows the same rules as ORB_AUTH_TOKENS_DEF but is used by the Orb client transport to
-      # determine whether an HTTP signature is required for an outbound HTTP request. If not specified then it is assumed
-      # to be the same as ORB_AUTH_TOKENS_DEF.
-      - ORB_CLIENT_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin
-      # ORB_CLIENT_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_CLIENT_AUTH_TOKENS_DEF. If not specified
-      # then it is assumed to be the same as ORB_AUTH_TOKENS.
-      - ORB_CLIENT_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
-      # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
-      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
-      - FOLLOW_AUTH_POLICY=accept-all
-      # INVITE_WITNESS_AUTH_POLICY indicates whether an 'Invite' witness request is automatically accepted (accept-all policy)
-      # or if the requesting service needs to be in an 'accept list' (accept-list policy).
-      - INVITE_WITNESS_AUTH_POLICY=accept-all
-      # TASK_MANAGER_CHECK_INTERVAL is the interval in which to check for scheduled tasks to be run. Note that this value is
-      # merely the 'check' interval since each task has its own interval.
-      # Default value: 10s.
-      - TASK_MANAGER_CHECK_INTERVAL=3s
-      # ANCHOR_EVENT_SYNC_INTERVAL is the interval in which anchor events are synchronized with other services that
-      # we're following.
-      # Default value: 1m.
-      - ANCHOR_EVENT_SYNC_INTERVAL=10s
-      # ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE is the minimum age of an activity to be synchronized. The activity will be processed
-      # only if its age is greater than this value.
-      # Default value: 1m
-      - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=20s
-      # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
-      # Default value: 30s. Set the cache expiration very low since we're updating the policy frequently during the test.
-      - WITNESS_POLICY_CACHE_EXPIRATION=500ms
-    ports:
-      - 49026:443
-      - 49027:49027
-    command: start
-    volumes:
-      - ./keys/tls:/etc/orb/tls
-      - ./testdata/keys/domain2:/etc/orb/activitypub
-    depends_on:
-      - ipfs
-      - orb5.kms
-      - mongodb.domain5.com
-      - orb.mq.domain5.com
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.31
-
   ipfs:
     container_name: ipfs
     #TODO: this image doesn't work on ARM64 yet (investigate images)
@@ -862,15 +625,6 @@ services:
     networks:
       orb_net:
         ipv4_address: 172.20.0.9
-
-  mongodb.domain5.com:
-    container_name: mongodb.domain5.com
-    image: ${MONGODB_IMAGE}:${MONGODB_IMAGE_TAG}
-    ports:
-      - "28017:27017"
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.26
 
   orb.postgres:
     container_name: orb.postgres
@@ -945,30 +699,6 @@ services:
     networks:
       orb_net:
         ipv4_address: 172.20.0.13
-
-  orb5.kms:
-    container_name: orb5.kms
-    restart: always
-    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-2dff373
-    environment:
-      - KMS_BASE_URL=http://orb5.kms:7878
-      - KMS_HOST=172.20.0.27:7878
-      - KMS_DATABASE_TYPE=mongodb
-      - KMS_DATABASE_URL=mongodb://mongodb.domain5.com:27017
-      - KMS_DATABASE_PREFIX=keystore_
-      - KMS_SECRET_LOCK_TYPE=local
-      - KMS_SECRET_LOCK_KEY_PATH=/etc/kms/secret-lock.key
-      - KMS_LOG_LEVEL=debug
-    ports:
-      - 7978:7878
-    volumes:
-      - ./keys/kms:/etc/kms
-    depends_on:
-      - mongodb.domain5.com
-    command: start
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.27
 
   orb.vct:
     container_name: orb.vct
@@ -1070,38 +800,6 @@ services:
     networks:
       orb_net:
         ipv4_address: 172.20.0.19
-
-  orb.mq.domain4.com:
-    container_name: orb.mq.domain4.com
-    image: rabbitmq:3-management-alpine
-    environment:
-      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
-    volumes:
-      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
-    ports:
-      - 5694:5672
-      # Management port
-      - 15694:15672
-    restart: unless-stopped
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.20
-
-  orb.mq.domain5.com:
-    container_name: orb.mq.domain5.com
-    image: rabbitmq:3-management-alpine
-    environment:
-      - CONFIG_FILE=/etc/rabbitmq/ext-config/rabbitmq.conf
-    volumes:
-      - ./rabbitmq-config/rabbitmq.conf:/etc/rabbitmq/ext-config/rabbitmq.conf
-    ports:
-      - 5695:5672
-      # Management port
-      - 15695:15672
-    restart: unless-stopped
-    networks:
-      orb_net:
-        ipv4_address: 172.20.0.25
 
   metrics.example.com:
     container_name: metrics.example.com

@@ -572,6 +572,21 @@ func (d *DIDOrbSteps) recoverDIDDocument(url string) error {
 	return err
 }
 
+func (d *DIDOrbSteps) addNPublicKeysToDIDDocument(url string, n int) error {
+	var patches []patch.Patch
+
+	for i := 1; i <= n; i++ {
+		p, err := getAddPublicKeysPatch("key-" + strconv.Itoa(i))
+		if err != nil {
+			return err
+		}
+
+		patches = append(patches, p)
+	}
+
+	return d.updateDIDDocument(url, patches)
+}
+
 func (d *DIDOrbSteps) addPublicKeyToDIDDocument(url, keyID string) error {
 	p, err := getAddPublicKeysPatch(keyID)
 	if err != nil {
@@ -1877,6 +1892,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous equivalent did$`, d.resolveDIDDocumentWithPreviousEquivalentDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with hint "([^"]*)"`, d.resolveDIDDocumentWithHint)
 	s.Step(`^client sends request to "([^"]*)" to resolve interim DID document with hint "([^"]*)"`, d.resolveInterimDIDDocumentWithHint)
+	s.Step(`^^client sends request to "([^"]*)" to add (\d+) public keys to DID document$`, d.addNPublicKeysToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add public key with ID "([^"]*)" to DID document$`, d.addPublicKeyToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)

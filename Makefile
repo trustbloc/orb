@@ -29,6 +29,7 @@ GO_LDFLAGS ?= $(METADATA_VAR:%=-X 'github.com/trustbloc/orb/pkg/nodeinfo.%')
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb
+ORB_TEST_IMAGE_NAME ?= trustbloc/orb-test
 ORB_DRIVER_IMAGE_NAME  ?= trustbloc/orb-did-driver
 
 ORB_REST_PATH=cmd/orb-server
@@ -66,12 +67,27 @@ orb:
 	@cd ${ORB_REST_PATH} && go build -v -tags "$(GO_TAGS)" -ldflags "$(GO_LDFLAGS)" \
 		-o ../../.build/bin/orb main.go
 
+.PHONY: orb-test
+orb-test:
+	@mkdir -p ./.build/bin
+	@cd ${ORB_REST_PATH} && go build -v -tags testver -ldflags "$(GO_LDFLAGS)" \
+		-o ../../.build/bin/orb-test main.go
+
 .PHONY: orb-docker
 orb-docker:
 	@docker build -f ./images/orb/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(ORB_IMAGE_NAME):latest \
 	--build-arg GO_VER=$(GO_VER) \
 	--build-arg ALPINE_VER=$(ALPINE_VER) \
 	--build-arg GO_TAGS=$(GO_TAGS) \
+	--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
+	--build-arg GOPROXY=$(GOPROXY) .
+
+.PHONY: orb-test-docker
+orb-test-docker:
+	@docker build -f ./images/orb-test/Dockerfile --no-cache -t $(DOCKER_OUTPUT_NS)/$(ORB_TEST_IMAGE_NAME):latest \
+	--build-arg GO_VER=$(GO_VER) \
+	--build-arg ALPINE_VER=$(ALPINE_VER) \
+	--build-arg GO_TAGS=testver \
 	--build-arg GO_LDFLAGS="$(GO_LDFLAGS)" \
 	--build-arg GOPROXY=$(GOPROXY) .
 
@@ -124,7 +140,7 @@ extract-orb-cli-binaries:
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-amd64.tar.gz;mv orb-cli-darwin-amd64 ../../extract/
 
 .PHONY: bdd-test
-bdd-test: generate-test-keys orb-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
+bdd-test: generate-test-keys orb-docker orb-test-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
 	@scripts/integration.sh
 
 .PHONY: clean

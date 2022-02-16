@@ -11,6 +11,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent/generator/didorbgenerator"
+	"github.com/trustbloc/orb/pkg/anchor/anchorevent/generator/didorbtestgenerator"
 	"github.com/trustbloc/orb/pkg/anchor/anchorevent/generator/samplegenerator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -36,6 +37,7 @@ func NewRegistry() *Registry {
 		generators: []Generator{
 			didorbgenerator.New(),
 			samplegenerator.New(),
+			didorbtestgenerator.New(),
 		},
 	}
 }
