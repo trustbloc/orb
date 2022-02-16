@@ -40,7 +40,7 @@ const (
 	defaultAnchorSyncMinActivityAge         = time.Minute
 	defaultVCTMonitoringInterval            = 10 * time.Second
 	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
-	defaultAnchorStatusInProcessGracePeriod = time.Minute
+	defaultAnchorStatusInProcessGracePeriod = 30 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	mqDefaultPublisherChannelPoolSize       = 25
 	mqDefaultObserverPoolSize               = 5

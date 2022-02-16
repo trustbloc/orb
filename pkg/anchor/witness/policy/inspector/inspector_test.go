@@ -203,7 +203,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 
 		err = c.CheckPolicy(anchorEvent.Index().String())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get additional witnesses: unable to select additional witnesses[[]] "+
+		require.Contains(t, err.Error(), "failed to get additional witnesses: unable to select additional witnesses "+
 			"from newly selected witnesses[[http://domain.com/service]] "+
 			"and previously selected witnesses[[http://domain.com/service]]")
 	})

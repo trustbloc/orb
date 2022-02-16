@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/encoder"
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
@@ -332,6 +333,31 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
 			WithCheckStatusAfterTime(time.Second), WithPolicyHandler(&mockPolicyHandler{Err: fmt.Errorf("policy error")}))
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		time.Sleep(2 * time.Second)
+
+		s.CheckInProcessAnchors()
+	})
+
+	t.Run("process incomplete - witnesses found", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+			WithCheckStatusAfterTime(time.Second),
+			WithPolicyHandler(
+				&mockPolicyHandler{
+					Err: fmt.Errorf("unable to select additional witnesses: %w", orberrors.ErrWitnessesNotFound),
+				},
+			),
+		)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)

@@ -29,7 +29,7 @@ var logger = log.New("sidetree_context")
 
 const (
 	topic          = "orb.operation"
-	taskID         = "op-queue-monitorOtherServers"
+	taskID         = "op-queue-monitor"
 	storeName      = "op-queue"
 	tagOpExpiry    = "ExpiryTime"
 	tagOpQueueTask = "Task"

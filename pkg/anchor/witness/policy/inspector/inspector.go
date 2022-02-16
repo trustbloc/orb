@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("policy-inspector")
@@ -169,9 +170,9 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 	additionalWitnessesIRI := difference(newlySelectedWitnessesIRI, selectedWitnessesIRI)
 
 	if len(additionalWitnessesIRI) == 0 {
-		return nil, fmt.Errorf("unable to select additional witnesses[%s] from newly selected witnesses[%s] "+
-			"and previously selected witnesses[%s] with exclude witnesses[%s]",
-			additionalWitnessesIRI, newlySelectedWitnessesIRI, selectedWitnessesIRI, excludeWitnesses)
+		return nil, fmt.Errorf("unable to select additional witnesses from newly selected witnesses[%s] "+
+			"and previously selected witnesses[%s] with exclude witnesses[%s]: %w",
+			newlySelectedWitnessesIRI, selectedWitnessesIRI, excludeWitnesses, orberrors.ErrWitnessesNotFound)
 	}
 
 	// update selected flag for additional witnesses
