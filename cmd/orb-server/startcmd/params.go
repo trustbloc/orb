@@ -359,6 +359,11 @@ const (
 	maxWitnessDelayFlagShorthand = "w"
 	maxWitnessDelayFlagUsage     = "Maximum witness response time (default 10m). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
 
+	witnessStoreExpiryPeriodFlagName  = "witness-store-expiry-period"
+	witnessStoreExpiryPeriodEnvKey    = "WITNESS_STORE_EXPIRY_PERIOD"
+	witnessStoreExpiryPeriodFlagUsage = "Witness store expiry period has to be greater than maximum witness response time" +
+		"(default 12m). " + commonEnvVarUsageText + witnessStoreExpiryPeriodEnvKey
+
 	signWithLocalWitnessFlagName      = "sign-with-local-witness"
 	signWithLocalWitnessEnvKey        = "SIGN_WITH_LOCAL_WITNESS"
 	signWithLocalWitnessFlagShorthand = "f"
@@ -621,6 +626,7 @@ type orbParameters struct {
 	discoveryVctDomains                     []string
 	discoveryMinimumResolvers               int
 	maxWitnessDelay                         time.Duration
+	witnessStoreExpiryPeriod                time.Duration
 	syncTimeout                             uint64
 	signWithLocalWitness                    bool
 	httpSignaturesEnabled                   bool
@@ -823,6 +829,15 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	maxWitnessDelay, err := getDuration(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, defaultMaxWitnessDelay)
 	if err != nil {
 		return nil, err
+	}
+
+	witnessStoreExpiryPeriod, err := getDuration(cmd, witnessStoreExpiryPeriodFlagName, witnessStoreExpiryPeriodEnvKey, defaultWitnessStoreExpiryDelta)
+	if err != nil {
+		return nil, err
+	}
+
+	if witnessStoreExpiryPeriod <= maxWitnessDelay {
+		return nil, fmt.Errorf("witness store expiry period must me greater than maximum witness delay")
 	}
 
 	signWithLocalWitnessStr, err := cmdutils.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
@@ -1203,6 +1218,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		discoveryVctDomains:                     discoveryVctDomains,
 		discoveryMinimumResolvers:               discoveryMinimumResolvers,
 		maxWitnessDelay:                         maxWitnessDelay,
+		witnessStoreExpiryPeriod:                witnessStoreExpiryPeriod,
 		syncTimeout:                             syncTimeout,
 		signWithLocalWitness:                    signWithLocalWitness,
 		httpSignaturesEnabled:                   httpSignaturesEnabled,
@@ -1785,6 +1801,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
+	startCmd.Flags().StringP(witnessStoreExpiryPeriodFlagName, "", "", witnessStoreExpiryPeriodFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
 	startCmd.Flags().String(enableDidDiscoveryFlagName, "", enableDidDiscoveryUsage)

@@ -679,8 +679,6 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 		s, err := New(mongoDBProvider, expiryService, time.Second)
 		require.NoError(t, err)
 
-		s.delta = time.Second
-
 		taskMgr.Start()
 
 		err = s.Put(anchorID, []*proof.Witness{getTestWitness(testWitnessURL)})
