@@ -9,6 +9,7 @@ package anchoreventstatus
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -318,7 +319,12 @@ func (s *Store) CheckInProcessAnchors() {
 			if tag.Name == index {
 				err := s.processIndex(tag.Value)
 				if err != nil {
-					logger.Errorf("failed to process anchor event index: %s", err.Error())
+					if errors.Is(err, orberrors.ErrWitnessesNotFound) {
+						// This is not a critical error. Log it as info.
+						logger.Infof("failed to process anchor event index: %s", err.Error())
+					} else {
+						logger.Errorf("failed to process anchor event index: %s", err.Error())
+					}
 				}
 
 				break

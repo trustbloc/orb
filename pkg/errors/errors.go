@@ -18,6 +18,9 @@ var (
 
 	// ErrContentNotFound is used to indicate that content at a given address could not be found.
 	ErrContentNotFound = errors.New("content not found")
+
+	// ErrWitnessesNotFound is used to indicate that no witnesses could not be found.
+	ErrWitnessesNotFound = errors.New("witnesses not found")
 )
 
 // NewTransient returns a transient error that wraps the given error in order to indicate to the caller that a retry may
