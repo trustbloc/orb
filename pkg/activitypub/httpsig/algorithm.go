@@ -20,7 +20,7 @@ import (
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 )
 
-const orbHTTPSigAlgorithm = "https://github.com/trustbloc/orb/httpsig"
+const orbHTTPSigAlgorithm = "Ed25519"
 
 // ErrInvalidSignature indicates that the signature is not valid for the given data.
 var ErrInvalidSignature = errors.New("invalid HTTP signature")
