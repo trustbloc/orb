@@ -1542,6 +1542,12 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 
 	err = os.Setenv(enableUnpublishedOperationStoreEnvKey, "true")
 	require.NoError(t, err)
+
+	err = os.Setenv(sidetreeProtocolVersionsEnvKey, "1.0")
+	require.NoError(t, err)
+
+	err = os.Setenv(currentSidetreeProtocolVersionEnvKey, "1.0")
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -1627,6 +1633,8 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + includeUnpublishedOperationsFlagName, "true",
 		"--" + resolveFromAnchorOriginFlagName, "true",
 		"--" + verifyLatestFromAnchorOriginFlagName, "true",
+		"--" + sidetreeProtocolVersionsFlagName, "1.0",
+		"--" + currentSidetreeProtocolVersionFlagName, "1.0",
 	}
 
 	if databaseURL != "" {

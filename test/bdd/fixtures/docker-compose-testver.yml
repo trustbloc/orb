@@ -32,6 +32,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
+      - CURRENT_SIDETREE_PROTOCOL_VERSION=${CURRENT_SIDETREE_VERSION}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -162,6 +163,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
+      - CURRENT_SIDETREE_PROTOCOL_VERSION=${CURRENT_SIDETREE_VERSION}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -299,6 +301,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
+      - CURRENT_SIDETREE_PROTOCOL_VERSION=${CURRENT_SIDETREE_VERSION}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -402,6 +405,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
+      - CURRENT_SIDETREE_PROTOCOL_VERSION=${CURRENT_SIDETREE_VERSION}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
@@ -508,6 +512,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - SIDETREE_PROTOCOL_VERSIONS=${SIDETREE_VERSIONS}
+      - CURRENT_SIDETREE_PROTOCOL_VERSION=${CURRENT_SIDETREE_VERSION}
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=2000

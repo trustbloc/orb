@@ -567,6 +567,12 @@ const (
 	sidetreeProtocolVersionsEnvKey   = "SIDETREE_PROTOCOL_VERSIONS"
 	sidetreeProtocolVersionsUsage    = `Comma-separated list of sidetree protocol versions. ` +
 		commonEnvVarUsageText + sidetreeProtocolVersionsEnvKey
+
+	currentSidetreeProtocolVersionFlagName = "current-sidetree-protocol-version"
+	currentSidetreeProtocolVersionEnvKey   = "CURRENT_SIDETREE_PROTOCOL_VERSION"
+	currentSidetreeProtocolVersionUsage    = `One of available sidetree protocol versions.  ` +
+		`Defaults to latest Sidetree protocol version. ` +
+		commonEnvVarUsageText + currentSidetreeProtocolVersionEnvKey
 )
 
 type acceptRejectPolicy string
@@ -654,6 +660,7 @@ type orbParameters struct {
 	apIRICacheExpiration                    time.Duration
 	witnessPolicyCacheExpiration            time.Duration
 	sidetreeProtocolVersions                []string
+	currentSidetreeProtocolVersion          string
 }
 
 type anchorCredentialParams struct {
@@ -1165,6 +1172,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		sidetreeProtocolVersions = sidetreeProtocolVersionsArr
 	}
 
+	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
+
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
@@ -1234,6 +1243,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		serverIdleTimeout:                       serverIdleTimeout,
 		anchorAttachmentMediaType:               anchorAttachmentMediaType,
 		sidetreeProtocolVersions:                sidetreeProtocolVersions,
+		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
 	}, nil
 }
 
@@ -1850,4 +1860,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
+	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
 }

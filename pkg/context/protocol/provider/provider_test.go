@@ -32,8 +32,9 @@ func TestClientProvider_ForNamespace(t *testing.T) {
 
 	versions := []protocol.Version{v1_0}
 
-	pc := client.New(versions)
+	pc, err := client.New(versions)
 	require.NotNil(t, pc)
+	require.NoError(t, err)
 
 	p := New()
 	require.NotNil(t, p)

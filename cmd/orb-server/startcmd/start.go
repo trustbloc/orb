@@ -1073,7 +1073,18 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	}
 
 	pcp := orbpcp.New()
-	pcp.Add(parameters.didNamespace, orbpc.New(protocolVersions))
+
+	var pcOpts []orbpc.Option
+	if parameters.currentSidetreeProtocolVersion != "" {
+		pcOpts = append(pcOpts, orbpc.WithCurrentProtocolVersion(parameters.currentSidetreeProtocolVersion))
+	}
+
+	pc, err := orbpc.New(protocolVersions, pcOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	pcp.Add(parameters.didNamespace, pc)
 
 	return pcp, nil
 }

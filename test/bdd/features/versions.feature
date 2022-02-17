@@ -104,10 +104,10 @@ Feature:
     And we wait 2 seconds
 
     Then set environment variable "SIDETREE_VERSIONS" to the value "1.0,test"
+    Then set environment variable "CURRENT_SIDETREE_VERSION" to the value "test"
 
     Then container "orb-domain1" is recreated
     And container "orb2-domain1" is recreated
-    # And container "orb-domain2" is recreated
     And container "orb-domain3" is recreated
 
     And we wait 15 seconds
@@ -119,14 +119,45 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "testKey"
 
-    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
-    Then check success response does NOT contain "testKey"
-
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "testKey"
+
+    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response does NOT contain "testKey"
 
     # test version of protocol cannot handle adding 5 keys at once (exceeds max operation/delta size)
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add 5 public keys to DID document
     Then check error response contains "exceeds maximum operation size"
+
+    Then set environment variable "CURRENT_SIDETREE_VERSION" to the value "1.0"
+
+    # Now domain 2 is finally upgraded (observer) but still accepts only version 1
+    And container "orb-domain2" is recreated
+
+    # update document again - this time domain 2 is able to process it
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "anotherKey" to DID document
+    Then check for request success
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "anotherKey"
+
+    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "anotherKey"
+
+    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "anotherKey"
+
+    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "testKey"
+
+    # test that domain 2 still supports version 1 of protocol for operations
+
+    # version one protocol can handle adding 5 keys at once (it is withing maximum operation size for version 1)
+    When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to add 5 public keys to DID document
+    Then check for request success
+
+
+
+
 
 
