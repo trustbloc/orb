@@ -19,10 +19,31 @@ var logger = log.New("protocol-client")
 // Client implements protocol client.
 type Client struct {
 	protocols []protocol.Version
+	current   protocol.Version
+}
+
+// Option is an option for client.
+type Option func(opts *Client)
+
+// WithCurrentProtocolVersion sets optional current protocol version (defaults to last registered protocol).
+func WithCurrentProtocolVersion(version string) Option {
+	return func(opts *Client) {
+		for _, p := range opts.protocols {
+			if p.Version() == version {
+				opts.current = p
+
+				return
+			}
+		}
+	}
 }
 
 // New creates new protocol client.
-func New(protocolVersions []protocol.Version) *Client {
+func New(protocolVersions []protocol.Version, opts ...Option) (*Client, error) {
+	if len(protocolVersions) == 0 {
+		return nil, fmt.Errorf("must provide at least one protocol version")
+	}
+
 	// Creating the list of the protocol versions
 	var protocols []protocol.Version
 
@@ -33,16 +54,22 @@ func New(protocolVersions []protocol.Version) *Client {
 		return protocols[j].Protocol().GenesisTime > protocols[i].Protocol().GenesisTime
 	})
 
-	return &Client{
+	client := &Client{
 		protocols: protocols,
+		current:   protocols[len(protocols)-1],
 	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	return client, nil
 }
 
 // Current returns the latest version of protocol.
 func (c *Client) Current() (protocol.Version, error) {
-	latest := len(c.protocols) - 1
-
-	return c.protocols[latest], nil
+	return c.current, nil
 }
 
 // Get gets protocol version based on blockchain(transaction) time.
