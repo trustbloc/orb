@@ -1251,7 +1251,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurren
 
 	d.createResponses = nil
 
-	p := NewWorkerPool(concurrency)
+	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Create %d DID documents", num)))
 
 	p.Start()
 
@@ -1315,6 +1315,9 @@ func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strC
 		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", localURL)
 	}
 
+	logger.Warnf("creating %d DID document(s) at %s using a concurrency of %d and storing to file [%s]",
+		num, urls, concurrency, file)
+
 	err = d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
 	if err != nil {
 		return err
@@ -1343,7 +1346,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strC
 		return err
 	}
 
-	logger.Infof("Wrote %d DIDs to file [%s]", len(d.createResponses), file)
+	logger.Warnf("Wrote %d DIDs to file [%s]", len(d.createResponses), file)
 
 	return nil
 }
@@ -1362,7 +1365,7 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency)
+	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
@@ -1435,7 +1438,7 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency)
+	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
@@ -1559,10 +1562,12 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file, strAttempts stri
 			return e
 		}
 
-		logger.Infof("... verified %d out of %d DIDs", i+1, len(dids))
+		if (i+1)%100 == 0 {
+			logger.Warnf("... verified %d out of %d DIDs", i+1, len(dids))
+		}
 	}
 
-	logger.Infof("... verified %d DIDs from file [%s]", len(dids), file)
+	logger.Warnf("... verified %d DIDs from file [%s]", len(dids), file)
 
 	return nil
 }

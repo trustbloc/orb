@@ -17,6 +17,7 @@ import (
 
 	"github.com/cucumber/godog"
 	messages "github.com/cucumber/messages-go/v10"
+	"github.com/sirupsen/logrus"
 )
 
 var bddContext *BDDContext
@@ -27,6 +28,21 @@ func TestMain(m *testing.M) {
 
 	if os.Getenv("TAGS") != "" {
 		tags = os.Getenv("TAGS")
+	}
+
+	logLevel := os.Getenv("LOG_LEVEL")
+
+	if logLevel != "" {
+		switch strings.ToLower(logLevel) {
+		case "debug":
+			logger.SetLevel(logrus.DebugLevel)
+		case "warning":
+			logger.SetLevel(logrus.WarnLevel)
+		case "error":
+			logger.SetLevel(logrus.ErrorLevel)
+		default:
+			logger.SetLevel(logrus.InfoLevel)
+		}
 	}
 
 	flag.Parse()
@@ -43,7 +59,7 @@ func TestMain(m *testing.M) {
 	if os.Getenv("DOCKER_COMPOSE_FILE") != "" {
 		state.dockerComposeFile = os.Getenv("DOCKER_COMPOSE_FILE")
 	}
-	
+
 	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
 		s.BeforeSuite(func() {
 			if compose {
