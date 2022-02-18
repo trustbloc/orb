@@ -118,7 +118,7 @@ func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("getLedgerType: %w", err)
 	}
 
 	return contains(supportedLedgerTypes, lt), nil

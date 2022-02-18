@@ -206,7 +206,7 @@ const (
 	mqObserverPoolFlagUsage     = "The size of the observer queue subscriber pool. If not specified then the default size will be used. " +
 		commonEnvVarUsageText + mqObserverPoolEnvKey
 
-	mqMaxConnectionSubscriptionsFlagName      = "mq-max-connection-subscription"
+	mqMaxConnectionSubscriptionsFlagName      = "mq-max-connection-subscriptions"
 	mqMaxConnectionSubscriptionsFlagShorthand = "C"
 	mqMaxConnectionSubscriptionsEnvKey        = "MQ_MAX_CONNECTION_SUBSCRIPTIONS"
 	mqMaxConnectionSubscriptionsFlagUsage     = "The maximum number of subscriptions per connection. " +

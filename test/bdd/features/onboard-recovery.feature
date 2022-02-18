@@ -153,9 +153,15 @@ Feature:
     # --- domain1 server follows domain5 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
     Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain1 invites domain5 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain2 server follows domain5 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
     Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain2 invites domain5 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # Take a backup of the domain5 database.
     When command "mongodump --out ./fixtures/mongodbbackup --host localhost --port 28017" is executed
@@ -164,7 +170,16 @@ Feature:
     When client sends request to "https://orb.domain5.com/sidetree/v1/operations,https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
     Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
+    Then we wait 5 seconds
+
+    # Update the DIDs on domain5, domain1, domain2.
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_3_1" using 10 concurrent requests
+    Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
+
     Then container "orb-domain5" is stopped
+
+    # Create some DIDs on domain1 and domain2 while domain5 is down.
+    Then client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
 
     # Wipe out the database on domain5 by recreating the mongodb container.
     And container "mongodb.domain5.com" is recreated
@@ -182,4 +197,5 @@ Feature:
     Then we wait 15 seconds
 
     # Ensure that domain5 has retrieved the anchor files (that were created after the backup) from alternate sources.
-    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
+    And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created

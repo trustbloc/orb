@@ -601,7 +601,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value for mq-max-connection-subscription")
+		require.Contains(t, err.Error(), "invalid value for mq-max-connection-subscriptions")
 	})
 
 	t.Run("Invalid follow auth policy", func(t *testing.T) {
