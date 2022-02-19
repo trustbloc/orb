@@ -692,7 +692,7 @@ func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
 			// origin object will not be set and we have to resolve document in order to get it
 			result, err := c.OpProcessor.Resolve(ref.UniqueSuffix)
 			if err != nil {
-				return "", err
+				return "", fmt.Errorf("resolve unique suffix [%s]: %w", ref.UniqueSuffix, err)
 			}
 
 			logger.Debugf("resolved anchor origin[%s] for operation type[%s] : %s", result.AnchorOrigin, ref.Type)
@@ -865,7 +865,10 @@ func (c *Writer) getSystemWitnesses() ([]*proof.Witness, error) {
 
 		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(domain)
 		if innerErr != nil {
-			return nil, innerErr
+			logger.Warnf("Skipping system witness [%s] since an error occurred while determining its ledger types: %s",
+				domain, err)
+
+			continue
 		}
 
 		witnesses = append(witnesses,
@@ -893,9 +896,14 @@ func (c *Writer) getBatchWitnesses(batchWitnesses []string) ([]*proof.Witness, e
 			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", batchWitness, err)
 		}
 
-		hasLog, err := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", batchWitnessIRI.Scheme, batchWitnessIRI.Host))
+		domain := fmt.Sprintf("%s://%s", batchWitnessIRI.Scheme, batchWitnessIRI.Host)
+
+		hasLog, err := c.WFClient.HasSupportedLedgerType(domain)
 		if err != nil {
-			return nil, err
+			logger.Warnf("Skipping batch witness [%s] since an error occurred while determining its ledger types: %s",
+				domain, err)
+
+			continue
 		}
 
 		witnesses = append(witnesses,

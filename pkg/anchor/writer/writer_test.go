@@ -36,6 +36,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
+	writermocks "github.com/trustbloc/orb/pkg/anchor/writer/mocks"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/didanchor/memdidanchor"
@@ -52,6 +53,8 @@ import (
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
+
+//go:generate counterfeiter -o ./mocks/webfingerclient.gen.go --fake-name WebFingerCLient . webfingerClient
 
 const (
 	namespace = "did:orb"
@@ -1340,38 +1343,41 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		require.Contains(t, err.Error(), "witness store error")
 	})
 
-	t.Run("error - webfinger client error (batch and system witness)", func(t *testing.T) {
-		wfClientWithErr := wfclient.New(wfclient.WithHTTPClient(
-			httpMock(func(req *http.Request) (*http.Response, error) {
-				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("internal server error")),
-					StatusCode: http.StatusInternalServerError,
-				}, nil
-			})))
+	t.Run("webfinger client error (batch and system witness) - ignores witnesses for domains that are down",
+		func(t *testing.T) {
+			wfClientWithErr := &writermocks.WebFingerCLient{}
+			wfClientWithErr.HasSupportedLedgerTypeReturnsOnCall(0, false,
+				errors.New("injected WebFinger client error"))
+			wfClientWithErr.HasSupportedLedgerTypeReturnsOnCall(1, true, nil)
+			wfClientWithErr.HasSupportedLedgerTypeReturnsOnCall(3, false,
+				errors.New("injected WebFinger client error"))
+			wfClientWithErr.HasSupportedLedgerTypeReturnsOnCall(4, true, nil)
 
-		providers := &Providers{
-			Outbox:        &mockOutbox{},
-			WitnessStore:  &mockWitnessStore{},
-			ActivityStore: &mockActivityStore{},
-			WFClient:      wfClientWithErr,
-		}
+			statusStore, err := anchoreventstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+			require.NoError(t, err)
 
-		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
-			testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
-		require.NoError(t, err)
+			providers := &Providers{
+				Outbox:                 &mockOutbox{},
+				WitnessStore:           &mockWitnessStore{},
+				WitnessPolicy:          &mockWitnessPolicy{},
+				ActivityStore:          &mockActivityStore{},
+				WFClient:               wfClientWithErr,
+				AnchorEventStatusStore: statusStore,
+			}
 
-		// test error for batch witness
-		err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
-		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"failed to resolve WebFinger resource[https://abc.com/vct]: received unexpected status code. URL [https://abc.com/.well-known/webfinger?resource=https://abc.com/vct], status code [500], response body [internal server error]") //nolint:lll
+			c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
+				testMaxWitnessDelay, signWithLocalWitness, nil, &mocks.MetricsProvider{})
+			require.NoError(t, err)
 
-		// test error for system witness (no batch witnesses)
-		err = c.postOfferActivity(anchorEvent, nil, []string{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			"failed to resolve WebFinger resource[http://orb.domain1.com/vct]: received unexpected status code. URL [http://orb.domain1.com/.well-known/webfinger?resource=http://orb.domain1.com/vct], status code [500], response body [internal server error]") //nolint:lll
-	})
+			// test error for batch witness
+			err = c.postOfferActivity(anchorEvent, nil, []string{"https://abc.com/services/orb"})
+			require.NoError(t, err)
+
+			// test error for system witness (no batch witnesses)
+			err = c.postOfferActivity(anchorEvent, nil, []string{})
+			require.NoError(t, err)
+		},
+	)
 
 	t.Run("error - activity store error", func(t *testing.T) {
 		providers := &Providers{
