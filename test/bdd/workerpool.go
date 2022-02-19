@@ -24,6 +24,8 @@ type Response struct {
 
 // WorkerPool manages a pool of workers that processes requests concurrently and, at the end, gathers the responses
 type WorkerPool struct {
+	*workerPoolOptions
+
 	workers   []*worker
 	reqChan   chan Request
 	respChan  chan *Response
@@ -32,8 +34,26 @@ type WorkerPool struct {
 	responses []*Response
 }
 
+type workerPoolOptions struct {
+	taskDescription string
+}
+
+type Opt func(*workerPoolOptions)
+
+func WithTaskDscription(desc string) Opt {
+	return func(options *workerPoolOptions) {
+		options.taskDescription = desc
+	}
+}
+
 // NewWorkerPool returns a new worker pool with the given number of workers
-func NewWorkerPool(num int) *WorkerPool {
+func NewWorkerPool(num int, opts ...Opt) *WorkerPool {
+	options := &workerPoolOptions{}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	reqChan := make(chan Request)
 	respChan := make(chan *Response)
 	workers := make([]*worker, num)
@@ -45,10 +65,11 @@ func NewWorkerPool(num int) *WorkerPool {
 	}
 
 	return &WorkerPool{
-		workers:  workers,
-		reqChan:  reqChan,
-		respChan: respChan,
-		wg:       wg,
+		workerPoolOptions: options,
+		workers:           workers,
+		reqChan:           reqChan,
+		respChan:          respChan,
+		wg:                wg,
 	}
 }
 
@@ -97,6 +118,14 @@ func (p *WorkerPool) Responses() []*Response {
 func (p *WorkerPool) listen() {
 	for resp := range p.respChan {
 		p.responses = append(p.responses, resp)
+
+		if len(p.responses)%100 == 0 {
+			if p.taskDescription != "" {
+				logger.Warnf("Got %d responses for task [%s]", len(p.responses), p.taskDescription)
+			} else {
+				logger.Warnf("Got %d responses", len(p.responses))
+			}
+		}
 	}
 
 	logger.Info("Exiting listener")
