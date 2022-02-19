@@ -7,7 +7,6 @@
 @did-versioning
 Feature:
   Background: Setup
-    Given host-meta document is uploaded to IPNS
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"
@@ -107,7 +106,6 @@ Feature:
     Then set environment variable "CURRENT_SIDETREE_VERSION" to the value "test"
 
     Then container "orb-domain1" is recreated
-    And container "orb2-domain1" is recreated
     And container "orb-domain3" is recreated
 
     And we wait 15 seconds
@@ -134,6 +132,8 @@ Feature:
     # Now domain 2 is finally upgraded (observer) but still accepts only version 1
     And container "orb-domain2" is recreated
 
+    And we wait 15 seconds
+
     # update document again - this time domain 2 is able to process it
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "anotherKey" to DID document
     Then check for request success
@@ -155,9 +155,3 @@ Feature:
     # version one protocol can handle adding 5 keys at once (it is withing maximum operation size for version 1)
     When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to add 5 public keys to DID document
     Then check for request success
-
-
-
-
-
-
