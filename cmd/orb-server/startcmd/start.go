@@ -140,6 +140,7 @@ const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
 	defaultMaxWitnessDelay                  = 10 * time.Minute
+	defaultWitnessStoreExpiryDelta          = 12 * time.Minute
 	defaultSyncTimeout                      = 1
 	defaulthttpSignaturesEnabled            = true
 	defaultDidDiscoveryEnabled              = false
@@ -562,7 +563,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create anchor event store: %s", err.Error())
 	}
 
-	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.maxWitnessDelay)
+	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.witnessStoreExpiryPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}

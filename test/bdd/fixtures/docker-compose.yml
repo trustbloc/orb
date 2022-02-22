@@ -670,6 +670,8 @@ services:
       - DATA_EXPIRY_CHECK_INTERVAL=15s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
       - ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD=3s
       - ANCHOR_STATUS_MONITORING_INTERVAL=2s
+      - MAX_WITNESS_DELAY=30s
+      - WITNESS_STORE_EXPIRY_PERIOD=32s
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #

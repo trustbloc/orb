@@ -27,9 +27,6 @@ const (
 
 	anchorIndex   = "anchorID"
 	expiryTagName = "ExpiryTime"
-
-	// adding time in order to avoid possible errors due to differences in server times.
-	defaultDelta = 5 * time.Minute
 )
 
 var logger = log.New("witness-store")
@@ -37,16 +34,15 @@ var logger = log.New("witness-store")
 type updateWitnessProofFnc func(wf *proof.WitnessProof)
 
 // New creates new anchor witness store.
-func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration) (*Store, error) {
+func New(provider storage.Provider, expiryService *expiry.Service, expiryPeriod time.Duration) (*Store, error) {
 	store, err := provider.OpenStore(namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open anchor witness store: %w", err)
 	}
 
 	s := &Store{
-		store:           store,
-		maxWitnessDelay: maxWitnessDelay,
-		delta:           defaultDelta,
+		store:        store,
+		expiryPeriod: expiryPeriod,
 	}
 
 	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{anchorIndex, expiryTagName}})
@@ -61,9 +57,8 @@ func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDel
 
 // Store is db implementation of anchor witness store.
 type Store struct {
-	store           storage.Store
-	maxWitnessDelay time.Duration
-	delta           time.Duration
+	store        storage.Store
+	expiryPeriod time.Duration
 }
 
 // Put saves witnesses into anchor witness store.
@@ -92,7 +87,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 				},
 				{
 					Name:  expiryTagName,
-					Value: fmt.Sprintf("%d", time.Now().Add(s.maxWitnessDelay+s.delta).Unix()),
+					Value: fmt.Sprintf("%d", time.Now().Add(s.expiryPeriod).Unix()),
 				},
 			},
 			PutOptions: putOptions,

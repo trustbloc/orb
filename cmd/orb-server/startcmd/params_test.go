@@ -261,6 +261,64 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid duration")
 	})
 
+	t.Run("test invalid witness store duration", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + maxWitnessDelayFlagName, "10s",
+			"--" + witnessStoreExpiryPeriodFlagName, "abc",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid duration")
+	})
+
+	t.Run("test invalid witness store duration - less than maximum witness delay", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + maxWitnessDelayFlagName, "10s",
+			"--" + witnessStoreExpiryPeriodFlagName, "5s",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "witness store expiry period must me greater than maximum witness delay")
+	})
+
 	t.Run("test invalid sign with local witness flag", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -1516,6 +1574,9 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err = os.Setenv(maxWitnessDelayEnvKey, "10m")
 	require.NoError(t, err)
 
+	err = os.Setenv(witnessStoreExpiryPeriodEnvKey, "12m")
+	require.NoError(t, err)
+
 	err = os.Setenv(signWithLocalWitnessEnvKey, "true")
 	require.NoError(t, err)
 
@@ -1616,6 +1677,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "1m",
+		"--" + witnessStoreExpiryPeriodFlagName, "2m",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + casTypeFlagName, casType,
 		"--" + didNamespaceFlagName, "namespace",
