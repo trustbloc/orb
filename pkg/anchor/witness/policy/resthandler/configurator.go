@@ -30,9 +30,8 @@ var logger = log.New("policy-rest-handler")
 
 // PolicyConfigurator updates witness policy in config store.
 type PolicyConfigurator struct {
-	VerifyActorInSignature bool
-	configStore            storage.Store
-	marshal                func(interface{}) ([]byte, error)
+	configStore storage.Store
+	marshal     func(interface{}) ([]byte, error)
 }
 
 // Path returns the HTTP REST endpoint for the PolicyConfigurator service.
@@ -105,6 +104,10 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 }
 
 func writeResponse(w http.ResponseWriter, status int, body []byte) {
+	if len(body) > 0 {
+		w.Header().Set("Content-Type", "text/plain")
+	}
+
 	w.WriteHeader(status)
 
 	if len(body) > 0 {

@@ -971,6 +971,7 @@ func startOrbServices(parameters *orbParameters) error {
 			apStore, apSigVerifier, coreCASClient, authTokenManager,
 		),
 		auth.NewHandlerWrapper(policyhandler.New(configStore), authTokenManager),
+		auth.NewHandlerWrapper(policyhandler.NewRetriever(configStore), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
