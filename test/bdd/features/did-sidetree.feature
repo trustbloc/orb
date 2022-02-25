@@ -227,6 +227,72 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"
 
+    @did_retrieve_by_version_id
+    Scenario: retrieve document by version ID
+        Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+        And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+        Then check success response contains "#interimDID"
+        Then we wait 2 seconds
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+        Then check success response contains "canonicalId"
+        Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v0"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${v0}"
+        Then check success response contains "createKey"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "firstKey" to DID document
+        Then check for request success
+        Then we wait 2 seconds
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+        Then check success response contains "firstKey"
+        Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v1"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
+        Then check for request success
+        Then we wait 2 seconds
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+        Then check success response contains "secondKey"
+        Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v2"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "thirdKey" to DID document
+        Then check for request success
+        Then we wait 2 seconds
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+        Then check success response contains "thirdKey"
+        Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v3"
+
+        # start version queries
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${v0}"
+        Then check success response contains "createKey"
+        Then check success response does NOT contain "firstKey"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${v1}"
+        Then check success response contains "createKey"
+        Then check success response contains "firstKey"
+        Then check success response does NOT contain "secondKey"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${v2}"
+        Then check success response contains "createKey"
+        Then check success response contains "firstKey"
+        Then check success response contains "secondKey"
+        Then check success response does NOT contain "thirdKey"
+
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${v3}"
+        Then check success response contains "createKey"
+        Then check success response contains "firstKey"
+        Then check success response contains "secondKey"
+        Then check success response contains "thirdKey"
+
+        Given variable "invalidVer" is assigned the value "invalid"
+        When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version "${invalidVer}"
+        Then check error response contains "'invalid' is not a valid versionId"
+
   @did_sidetree_auth
   Scenario: Sidetree endpoint authorization
     Given client discover orb endpoints
@@ -241,3 +307,4 @@ Feature:
     # Domain3 is open for reads
     When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:orb:QmSvg9rNRDGADLoTsNVt56vCuyYxuf1uernuAWoPcm5oiS:EiDahnXxu4l4iSUXgZKW6nUnSF7_y6QIaY4ePuWEE4bz0Q" and the returned status code is 404
     When an HTTP GET is sent to "https://orb.domain3.com/cas/bafkreiatkubvbkdidscmqynkyls3iqawdqvthi7e6nbky2amuw3inxsi3y" and the returned status code is 404
+

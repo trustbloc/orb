@@ -4,16 +4,16 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 )
 
 type OperationProcessor struct {
-	ResolveStub        func(string, ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
+	ResolveStub        func(string, ...document.ResolutionOption) (*protocol.ResolutionModel, error)
 	resolveMutex       sync.RWMutex
 	resolveArgsForCall []struct {
 		arg1 string
-		arg2 []*operation.AnchoredOperation
+		arg2 []document.ResolutionOption
 	}
 	resolveReturns struct {
 		result1 *protocol.ResolutionModel
@@ -27,12 +27,12 @@ type OperationProcessor struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *OperationProcessor) Resolve(arg1 string, arg2 ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error) {
+func (fake *OperationProcessor) Resolve(arg1 string, arg2 ...document.ResolutionOption) (*protocol.ResolutionModel, error) {
 	fake.resolveMutex.Lock()
 	ret, specificReturn := fake.resolveReturnsOnCall[len(fake.resolveArgsForCall)]
 	fake.resolveArgsForCall = append(fake.resolveArgsForCall, struct {
 		arg1 string
-		arg2 []*operation.AnchoredOperation
+		arg2 []document.ResolutionOption
 	}{arg1, arg2})
 	fake.recordInvocation("Resolve", []interface{}{arg1, arg2})
 	fake.resolveMutex.Unlock()
@@ -52,13 +52,13 @@ func (fake *OperationProcessor) ResolveCallCount() int {
 	return len(fake.resolveArgsForCall)
 }
 
-func (fake *OperationProcessor) ResolveCalls(stub func(string, ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)) {
+func (fake *OperationProcessor) ResolveCalls(stub func(string, ...document.ResolutionOption) (*protocol.ResolutionModel, error)) {
 	fake.resolveMutex.Lock()
 	defer fake.resolveMutex.Unlock()
 	fake.ResolveStub = stub
 }
 
-func (fake *OperationProcessor) ResolveArgsForCall(i int) (string, []*operation.AnchoredOperation) {
+func (fake *OperationProcessor) ResolveArgsForCall(i int) (string, []document.ResolutionOption) {
 	fake.resolveMutex.RLock()
 	defer fake.resolveMutex.RUnlock()
 	argsForCall := fake.resolveArgsForCall[i]

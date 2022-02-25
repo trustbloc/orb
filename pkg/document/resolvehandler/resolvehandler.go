@@ -53,7 +53,7 @@ type ResolveHandler struct {
 
 // Resolver resolves documents.
 type coreResolver interface {
-	ResolveDocument(idOrDocument string, additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error)
+	ResolveDocument(idOrDocument string, opts ...document.ResolutionOption) (*document.ResolutionResult, error)
 }
 
 // did discovery service.
@@ -129,26 +129,26 @@ func NewResolveHandler(namespace string, resolver coreResolver, discovery discov
 }
 
 // ResolveDocument resolves a document.
-func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult, error) {
+func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll
 	startTime := time.Now()
 
 	defer func() {
 		r.metrics.DocumentResolveTime(time.Since(startTime))
 	}()
 
-	localResponse, err := r.resolveDocumentLocally(id)
+	localResponse, err := r.resolveDocumentLocally(id, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	if r.enableResolutionFromAnchorOrigin && !strings.Contains(id, r.unpublishedDIDLabel) {
-		return r.resolveDocumentFromAnchorOriginAndCombineWithLocal(id, localResponse)
+		return r.resolveDocumentFromAnchorOriginAndCombineWithLocal(id, localResponse, opts...)
 	}
 
 	return localResponse, nil
 }
 
-func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(id string, localResponse *document.ResolutionResult) (*document.ResolutionResult, error) { //nolint:lll,funlen
+func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(id string, localResponse *document.ResolutionResult, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll,funlen
 	localAnchorOrigin, err := util.GetAnchorOrigin(localResponse.DocumentMetadata)
 	if err != nil {
 		logger.Debugf("resolving locally since there was an error while getting anchor origin from local response[%s]: %s", id, err.Error()) //nolint:lll
@@ -207,7 +207,10 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(id s
 
 	// apply unpublished and additional published operations to local response
 	// unpublished/additional published operations will be included in document metadata
-	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, anchorOriginOps...)
+
+	opts = append(opts, document.WithAdditionalOperations(anchorOriginOps))
+
+	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, opts...)
 	if err != nil {
 		logger.Debugf("resolving locally due to error in resolve doc locally with unpublished/additional published ops for id[%s]: %s", id, err.Error()) //nolint:lll
 
@@ -372,14 +375,14 @@ func (r *ResolveHandler) getAnchorOriginEndpoint(anchorOrigin string) (*models.E
 	return endpoint, nil
 }
 
-func (r *ResolveHandler) resolveDocumentLocally(id string, additionalOps ...*operation.AnchoredOperation) (*document.ResolutionResult, error) { //nolint:lll
+func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll
 	resolveDocumentLocallyStartTime := time.Now()
 
 	defer func() {
 		r.metrics.ResolveDocumentLocallyTime(time.Since(resolveDocumentLocallyStartTime))
 	}()
 
-	response, err := r.coreResolver.ResolveDocument(id, additionalOps...)
+	response, err := r.coreResolver.ResolveDocument(id, opts...)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") &&
 			!strings.Contains(id, r.unpublishedDIDLabel) &&
