@@ -446,9 +446,11 @@ Feature:
     # Set the witness policy to require no external proofs since this is a stand-alone domain where
     # no witnesses or followers are configured.
     When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(0,system)" of type "text/plain"
+    Then an HTTP GET is sent to "https://orb.domain5.com/policy"
+    And the response equals "OutOf(0,system)"
 
-    When client sends request to "https://orb.domain5.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+    And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
   @local_cas
   @create_followed_by_immediate_update
