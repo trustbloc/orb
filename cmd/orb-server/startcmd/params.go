@@ -125,6 +125,10 @@ const (
 		" For example,  key1=privatekeyBase64Value,key2=privatekeyBase64Value" +
 		" Alternatively, this can be set with the following environment variable: " + privateKeysEnvKey
 
+	keysIDFlagName  = "keys-id"
+	keysIDEnvKey    = "ORB_KEYS_ID"
+	keysIDFlagUsage = "Keys id in kms. " + commonEnvVarUsageText + keysIDEnvKey
+
 	secretLockKeyPathFlagName  = "secret-lock-key-path"
 	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
 	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
@@ -600,6 +604,7 @@ type orbParameters struct {
 	vctURL                                  string
 	activeKeyID                             string
 	privateKeys                             map[string]string
+	keysID                                  []string
 	secretLockKeyPath                       string
 	kmsEndpoint                             string
 	kmsStoreEndpoint                        string
@@ -1189,6 +1194,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
 
+	keysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, keysIDFlagName, keysIDEnvKey)
+
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
@@ -1196,6 +1203,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		kmsEndpoint:                             kmsEndpoint,
 		activeKeyID:                             activeKeyID,
 		privateKeys:                             privateKeys,
+		keysID:                                  keysID,
 		secretLockKeyPath:                       secretLockKeyPath,
 		kmsStoreEndpoint:                        kmsStoreEndpoint,
 		discoveryDomain:                         discoveryDomain,
@@ -1878,4 +1886,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
+	startCmd.Flags().StringArray(keysIDFlagName, []string{}, keysIDFlagUsage)
 }

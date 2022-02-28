@@ -635,6 +635,17 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
+	if len(parameters.keysID) > 0 {
+		for _, keyID := range parameters.keysID {
+			pubKey, err := km.ExportPubKeyBytes(keyID)
+			if err != nil {
+				return fmt.Errorf("failed to export pub key: %w", err)
+			}
+
+			pubKeys[keyID] = pubKey
+		}
+	}
+
 	activePublicKey, err := getActivityPubPublicKey(activePubKey, apServiceIRI, apServicePublicKeyIRI)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
