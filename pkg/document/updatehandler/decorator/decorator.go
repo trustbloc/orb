@@ -52,7 +52,7 @@ type OperationDecorator struct {
 
 // operationProcessor is an interface which resolves the document based on the unique suffix.
 type operationProcessor interface {
-	Resolve(uniqueSuffix string, additionalOps ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
+	Resolve(uniqueSuffix string, opts ...document.ResolutionOption) (*protocol.ResolutionModel, error)
 }
 
 type endpointClient interface {

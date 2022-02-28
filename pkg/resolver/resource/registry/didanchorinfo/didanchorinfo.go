@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
 	"github.com/trustbloc/orb/pkg/didanchor"
@@ -41,7 +41,7 @@ type didAnchorProvider interface {
 
 // operationProcessor is an interface which resolves the document based on the suffix.
 type operationProcessor interface {
-	Resolve(uniqueSuffix string, additionalOps ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
+	Resolve(uniqueSuffix string, opts ...document.ResolutionOption) (*protocol.ResolutionModel, error)
 }
 
 // New returns a new DidAnchorInfo.

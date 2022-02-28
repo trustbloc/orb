@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -1716,7 +1717,7 @@ type mockOpProcessor struct {
 	Map map[string]*protocol.ResolutionModel
 }
 
-func (m *mockOpProcessor) Resolve(uniqueSuffix string, _ ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error) { //nolint:lll
+func (m *mockOpProcessor) Resolve(uniqueSuffix string, _ ...document.ResolutionOption) (*protocol.ResolutionModel, error) { //nolint:lll
 	if m.Err != nil {
 		return nil, m.Err
 	}

@@ -39,7 +39,7 @@ type ResolutionVerifier struct {
 
 // operationProcessor is an interface which resolves the document based on operations provided.
 type operationProcessor interface {
-	Resolve(suffix string, ops ...*operation.AnchoredOperation) (*protocol.ResolutionModel, error)
+	Resolve(suffix string, opts ...document.ResolutionOption) (*protocol.ResolutionModel, error)
 }
 
 // Option is an option for document verifier.
@@ -160,7 +160,7 @@ func (r *ResolutionVerifier) resolveDocument(id string,
 		return nil, err
 	}
 
-	internalResult, err := r.processor.Resolve(suffix, ops...)
+	internalResult, err := r.processor.Resolve(suffix, document.WithAdditionalOperations(ops))
 	if err != nil {
 		return nil, err
 	}
