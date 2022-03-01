@@ -821,14 +821,28 @@ func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDID(url string) error {
 	return d.resolveDIDDocumentWithID(url, d.canonicalDID)
 }
 
-func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDIDAndVersion(url, version string) error {
-	logger.Infof("resolving did document with canonical did %s and version %s", d.canonicalDID, version)
+func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDIDAndVersionID(url, versionID string) error {
+	logger.Infof("resolving did document with canonical did %s and version ID %s", d.canonicalDID, versionID)
 
-	if err := d.state.resolveVarsInExpression(&version); err != nil {
+	if err := d.state.resolveVarsInExpression(&versionID); err != nil {
 		return err
 	}
 
-	didWithParam := d.canonicalDID + "?versionId=" + version
+	didWithParam := d.canonicalDID + "?versionId=" + versionID
+
+	d.retryDID = didWithParam
+
+	return d.resolveDIDDocumentWithID(url, didWithParam)
+}
+
+func (d *DIDOrbSteps) resolveDIDDocumentWithCanonicalDIDAndVersionTime(url, versionTime string) error {
+	logger.Infof("resolving did document with canonical did %s and version time %s", d.canonicalDID, versionTime)
+
+	if err := d.state.resolveVarsInExpression(&versionTime); err != nil {
+		return err
+	}
+
+	didWithParam := d.canonicalDID + "?versionTime=" + versionTime
 
 	d.retryDID = didWithParam
 
@@ -1918,7 +1932,8 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did$`, d.resolveDIDDocumentWithCanonicalDID)
-	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did and version "([^"]*)"$`, d.resolveDIDDocumentWithCanonicalDIDAndVersion)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did and version ID "([^"]*)"$`, d.resolveDIDDocumentWithCanonicalDIDAndVersionID)
+	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did and version time "([^"]*)"$`, d.resolveDIDDocumentWithCanonicalDIDAndVersionTime)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with canonical did and resets keys to last successful$`, d.resetKeysToLastSuccessful)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with previous canonical did$`, d.resolveDIDDocumentWithPreviousCanonicalDID)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with invalid CID in canonical did$`, d.resolveDIDDocumentWithInvalidCIDInDID)
