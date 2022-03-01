@@ -118,6 +118,16 @@ func (d *CommonSteps) setVariable(varName, value string) error {
 	return nil
 }
 
+func (d *CommonSteps) setVariableToCurrentTime(varName string) error {
+	value := time.Now().UTC().Format(time.RFC3339)
+
+	logger.Infof("Setting var [%s] to current time[%s]", varName, value)
+
+	d.state.setVar(varName, value)
+
+	return nil
+}
+
 func (d *CommonSteps) setJSONVariable(varName, value string) error {
 	m := make(map[string]interface{})
 	var bytes []byte
@@ -1005,6 +1015,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
 	s.Step(`^the value "([^"]*)" does not equal "([^"]*)"$`, d.valuesNotEqual)
 	s.Step(`^variable "([^"]*)" is assigned the value "([^"]*)"$`, d.setVariable)
+	s.Step(`^variable "([^"]*)" is assigned the current time$`, d.setVariableToCurrentTime)
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
 	s.Step(`^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$`, d.setVariable)
 	s.Step(`^set environment variable "([^"]*)" to the value "([^"]*)"$`, d.setEnvVariable)
