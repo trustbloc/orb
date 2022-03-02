@@ -246,6 +246,8 @@ Feature:
         Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v0"
         Then variable "t0" is assigned the current time
 
+        Then client verifies resolved document
+
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${v0}"
         Then check success response contains "createKey"
 
@@ -266,6 +268,8 @@ Feature:
         Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v1"
         Then variable "t1" is assigned the current time
 
+        Then client verifies resolved document
+
         Then we wait 1 seconds
 
         When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "secondKey" to DID document
@@ -276,6 +280,8 @@ Feature:
         Then check success response contains "secondKey"
         Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v2"
         Then variable "t2" is assigned the current time
+
+        Then client verifies resolved document
 
         Then we wait 1 seconds
 
@@ -288,15 +294,21 @@ Feature:
         Then the JSON path 'didDocumentMetadata.versionId' of the response is saved to variable "v3"
         Then variable "t3" is assigned the current time
 
+        Then client verifies resolved document
+
         # start version time queries
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version time "${t0}"
         Then check success response contains "createKey"
         Then check success response does NOT contain "firstKey"
 
+        Then client verifies resolved document
+
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version time "${t1}"
         Then check success response contains "createKey"
         Then check success response contains "firstKey"
         Then check success response does NOT contain "secondKey"
+
+        Then client verifies resolved document
 
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version time "${t2}"
         Then check success response contains "createKey"
@@ -304,13 +316,17 @@ Feature:
         Then check success response contains "secondKey"
         Then check success response does NOT contain "thirdKey"
 
+        Then client verifies resolved document
+
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version time "${t3}"
         Then check success response contains "createKey"
         Then check success response contains "firstKey"
         Then check success response contains "secondKey"
         Then check success response contains "thirdKey"
 
-        Given variable "invalidVerTime" is assigned the value "invalid"
+        Then client verifies resolved document
+
+       Given variable "invalidVerTime" is assigned the value "invalid"
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version time "${invalidVerTime}"
         Then check error response contains "failed to parse version time"
 
@@ -319,10 +335,14 @@ Feature:
         Then check success response contains "createKey"
         Then check success response does NOT contain "firstKey"
 
+        Then client verifies resolved document
+
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${v1}"
         Then check success response contains "createKey"
         Then check success response contains "firstKey"
         Then check success response does NOT contain "secondKey"
+
+        Then client verifies resolved document
 
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${v2}"
         Then check success response contains "createKey"
@@ -330,11 +350,15 @@ Feature:
         Then check success response contains "secondKey"
         Then check success response does NOT contain "thirdKey"
 
+        Then client verifies resolved document
+
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${v3}"
         Then check success response contains "createKey"
         Then check success response contains "firstKey"
         Then check success response contains "secondKey"
         Then check success response contains "thirdKey"
+
+        Then client verifies resolved document
 
         Given variable "invalidVer" is assigned the value "invalid"
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${invalidVer}"

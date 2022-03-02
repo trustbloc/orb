@@ -12,7 +12,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
 	github.com/trustbloc/orb v0.1.4-0.20220201200943-513f238cd9ed
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220301145427-cbf282624543
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220302221451-205719c617be
 )
 
 require (
