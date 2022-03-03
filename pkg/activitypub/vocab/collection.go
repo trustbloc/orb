@@ -55,7 +55,7 @@ func (t *CollectionType) Current() *url.URL {
 		return nil
 	}
 
-	return t.coll.Current.u
+	return t.coll.Current.URL()
 }
 
 // First returns a URL that may be used to retrieve the first item in the collection.
@@ -64,7 +64,7 @@ func (t *CollectionType) First() *url.URL {
 		return nil
 	}
 
-	return t.coll.First.u
+	return t.coll.First.URL()
 }
 
 // Last returns a URL that may be used to retrieve the last item in the collection.
@@ -73,7 +73,7 @@ func (t *CollectionType) Last() *url.URL {
 		return nil
 	}
 
-	return t.coll.Last.u
+	return t.coll.Last.URL()
 }
 
 // NewCollection returns a new collection.

@@ -66,6 +66,17 @@ func GetCanonical(t *testing.T, raw string) string {
 	return string(bytes)
 }
 
+// MarshalCanonical marshals the given object to a canonical JSON.
+func MarshalCanonical(t *testing.T, i interface{}) []byte {
+	t.Helper()
+
+	bytes, err := canonicalizer.MarshalCanonical(i)
+
+	require.NoError(t, err)
+
+	return bytes
+}
+
 type provider struct {
 	ContextStore        ldstore.ContextStore
 	RemoteProviderStore ldstore.RemoteProviderStore
