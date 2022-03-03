@@ -79,7 +79,7 @@ func (p *ObjectProperty) IRI() *url.URL {
 		return nil
 	}
 
-	return p.iri.u
+	return p.iri.URL()
 }
 
 // Object returns the object or nil if the object is not set.

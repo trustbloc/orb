@@ -112,10 +112,10 @@ func (t *ObjectType) URL() Urls {
 		return nil
 	}
 
-	urls := make([]*url.URL, len(t.object.URL.urls))
+	urls := make([]*url.URL, len(t.object.URL.URLs()))
 
-	for i, u := range t.object.URL.urls {
-		urls[i] = u.u
+	for i, u := range t.object.URL.URLs() {
+		urls[i] = u
 	}
 
 	return urls
@@ -247,10 +247,10 @@ func (t *ObjectType) To() Urls {
 		return nil
 	}
 
-	urls := make([]*url.URL, len(t.object.To.urls))
+	urls := make([]*url.URL, len(t.object.To.URLs()))
 
-	for i, u := range t.object.To.urls {
-		urls[i] = u.u
+	for i, u := range t.object.To.URLs() {
+		urls[i] = u
 	}
 
 	return urls
