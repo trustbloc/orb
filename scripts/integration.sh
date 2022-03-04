@@ -26,8 +26,10 @@ go test -run all -count=1 -v -cover . -p 1 -timeout=30m -race
 
 export CAS_TYPE=local
 
+export VERSION_TEST=true
 export DOCKER_COMPOSE_FILE=docker-compose-testver.yml
-go test -run sidetree_protocol_versions -count=1 -v -cover . -p 1 -timeout=30m -race
+
+go test -tags "testver" -run sidetree_protocol_versions -count=1 -v -cover . -p 1 -timeout=30m -race
 
 cd $PWD
 

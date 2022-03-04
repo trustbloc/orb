@@ -77,6 +77,8 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
     Then check success response contains "canonicalId"
 
+    Then client verifies resolved document
+
     When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "canonicalId"
 
@@ -117,6 +119,8 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "testKey"
 
+    Then client verifies resolved document
+
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "testKey"
 
@@ -144,7 +148,7 @@ Feature:
     When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "anotherKey"
 
-    When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "anotherKey"
 
     When client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to resolve DID document with canonical did

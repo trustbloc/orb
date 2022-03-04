@@ -28,6 +28,43 @@ import (
 
 const testDID = "did"
 
+func TestNew(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+			WithPublicKeyFetcher(pubKeyFetcherFnc),
+			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+	t.Run("success - with protocol versions", func(t *testing.T) {
+		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+			WithPublicKeyFetcher(pubKeyFetcherFnc),
+			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			WithProtocolVersions([]string{v1}),
+			WithCurrentProtocolVersion(v1))
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+	t.Run("error - protocol version not supported", func(t *testing.T) {
+		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+			WithPublicKeyFetcher(pubKeyFetcherFnc),
+			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			WithProtocolVersions([]string{"0.1"}))
+		require.Error(t, err)
+		require.Nil(t, client)
+		require.Contains(t, err.Error(), "client version factory for version [0.1] not found")
+	})
+	t.Run("error - protocol versions not provided", func(t *testing.T) {
+		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+			WithPublicKeyFetcher(pubKeyFetcherFnc),
+			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			WithProtocolVersions([]string{}))
+		require.Error(t, err)
+		require.Nil(t, client)
+		require.Contains(t, err.Error(), "must provide at least one client version")
+	})
+}
+
 func TestGetAnchorOrigin(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		previousDIDTxns := []*subject.SuffixAnchor{

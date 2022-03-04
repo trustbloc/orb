@@ -26,6 +26,42 @@ const (
 	anchorOriginDomain = "https://anchor-origin.domain.com"
 )
 
+func TestNew(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		handler, err := New("did:orb",
+			WithAnchorOrigins(nil),
+			WithMethodContext(nil),
+			WithEnableBase(false),
+			WithProtocolVersions([]string{v1}),
+			WithCurrentProtocolVersion(v1),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, handler)
+	})
+	t.Run("error - protocol versions", func(t *testing.T) {
+		handler, err := New("did:orb",
+			WithAnchorOrigins(nil),
+			WithMethodContext(nil),
+			WithEnableBase(false),
+			WithProtocolVersions([]string{"0.1"}),
+		)
+		require.Error(t, err)
+		require.Nil(t, handler)
+		require.Contains(t, err.Error(), "client version factory for version [0.1] not found")
+	})
+	t.Run("error - protocol versions not provided", func(t *testing.T) {
+		handler, err := New("did:orb",
+			WithAnchorOrigins(nil),
+			WithMethodContext(nil),
+			WithEnableBase(false),
+			WithProtocolVersions([]string{}),
+		)
+		require.Error(t, err)
+		require.Nil(t, handler)
+		require.Contains(t, err.Error(), "must provide at least one client version")
+	})
+}
+
 func TestResolveVerifier_Verify(t *testing.T) {
 	t.Run("success - unpublished document", func(t *testing.T) {
 		var rr document.ResolutionResult
@@ -35,7 +71,10 @@ func TestResolveVerifier_Verify(t *testing.T) {
 		handler, err := New("did:orb",
 			WithAnchorOrigins(nil),
 			WithMethodContext(nil),
-			WithEnableBase(false))
+			WithEnableBase(false),
+			WithProtocolVersions([]string{v1}),
+			WithCurrentProtocolVersion(v1),
+		)
 		require.NoError(t, err)
 
 		err = handler.Verify(&rr)

@@ -30,9 +30,14 @@ import (
 
 var logger = log.New("orb-client")
 
+const v1 = "1.0"
+
 // OrbClient implements Orb client.
 type OrbClient struct {
-	nsProvider        namespaceProvider
+	nsProvider     namespaceProvider
+	versions       []string
+	currentVersion string
+
 	publicKeyFetcher  verifiable.PublicKeyFetcher
 	docLoader         ld.DocumentLoader
 	casReader         common.CASReader
@@ -67,15 +72,38 @@ func WithDisableProofCheck(disableProofCheck bool) Option {
 	}
 }
 
+// WithProtocolVersions sets optional client protocol versions.
+func WithProtocolVersions(versions []string) Option {
+	return func(opts *OrbClient) {
+		opts.versions = versions
+	}
+}
+
+// WithCurrentProtocolVersion sets optional current protocol versions.
+// Defaults to the latest in the protocol versions list.
+func WithCurrentProtocolVersion(version string) Option {
+	return func(opts *OrbClient) {
+		opts.currentVersion = version
+	}
+}
+
 // New creates new Orb client.
 func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, error) {
-	versions := []string{"1.0"}
+	orbClient := &OrbClient{
+		casReader: cas,
+		versions:  []string{v1},
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(orbClient)
+	}
 
 	registry := clientregistry.New()
 
 	var clientVersions []protocol.Version
 
-	for _, version := range versions {
+	for _, version := range orbClient.versions {
 		cv, err := registry.CreateClientVersion(version, cas, &config.Sidetree{})
 		if err != nil {
 			return nil, fmt.Errorf("error creating client version [%s]: %w", version, err)
@@ -84,18 +112,15 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 		clientVersions = append(clientVersions, cv)
 	}
 
+	verProvider, err := verprovider.New(clientVersions, verprovider.WithCurrentProtocolVersion(orbClient.currentVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	nsProvider := nsprovider.New()
-	nsProvider.Add(namespace, verprovider.New(clientVersions))
+	nsProvider.Add(namespace, verProvider)
 
-	orbClient := &OrbClient{
-		nsProvider: nsProvider,
-		casReader:  cas,
-	}
-
-	// apply options
-	for _, opt := range opts {
-		opt(orbClient)
-	}
+	orbClient.nsProvider = nsProvider
 
 	return orbClient, nil
 }

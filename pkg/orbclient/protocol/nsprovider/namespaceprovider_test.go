@@ -38,7 +38,10 @@ func TestClientProvider_ForNamespace(t *testing.T) {
 	p := New()
 	require.NotNil(t, p)
 
-	p.Add(ns, verprovider.New(versions))
+	verProvider, err := verprovider.New(versions)
+	require.NoError(t, err)
+
+	p.Add(ns, verProvider)
 
 	t.Run("success", func(t *testing.T) {
 		vp, err := p.ForNamespace(ns)
