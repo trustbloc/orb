@@ -172,7 +172,8 @@ const (
 	verificationMethodType = "Ed25519VerificationKey2018"
 
 	webKeyStoreKey = "web-key-store"
-	kidKey         = "kid"
+	vcKidKey       = "vckid"
+	httpKidKey     = "httpkid"
 )
 
 type pubSub interface {
@@ -283,17 +284,35 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 	return km, cr, nil
 }
 
-func createKID(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
-	return getOrInit(cfg, kidKey, &parameters.activeKeyID, func() (interface{}, error) {
+func createKID(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
+	activeKeyID := &parameters.vcSignActiveKeyID
+	kidKey := vcKidKey
+
+	if httpSignKeyType {
+		activeKeyID = &parameters.httpSignActiveKeyID
+		kidKey = httpKidKey
+	}
+
+	return getOrInit(cfg, kidKey, activeKeyID, func() (interface{}, error) {
 		keyID, _, err := km.Create(kmsKeyType)
 
 		return keyID, err
 	}, parameters.syncTimeout)
 }
 
-func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.Store) error {
-	return getOrInit(cfg, kidKey, &parameters.activeKeyID, func() (interface{}, error) {
-		for keyID, value := range parameters.privateKeys {
+func importPrivateKey(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
+	activeKeyID := &parameters.vcSignActiveKeyID
+	privateKeys := parameters.vcSignPrivateKeys
+	kidKey := vcKidKey
+
+	if httpSignKeyType {
+		activeKeyID = &parameters.httpSignActiveKeyID
+		privateKeys = parameters.httpSignPrivateKey
+		kidKey = httpKidKey
+	}
+
+	return getOrInit(cfg, kidKey, activeKeyID, func() (interface{}, error) {
+		for keyID, value := range privateKeys {
 			keyBytes, err := base64.RawStdEncoding.DecodeString(value)
 			if err != nil {
 				return nil, err
@@ -304,7 +323,7 @@ func importPrivateKey(km kms.KeyManager, parameters *orbParameters, cfg storage.
 				return nil, errors.New("import private key: keyID is empty")
 			}
 		}
-		return parameters.activeKeyID, nil
+		return activeKeyID, nil
 	}, parameters.syncTimeout)
 }
 
@@ -441,14 +460,26 @@ func startOrbServices(parameters *orbParameters) error {
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New(), useHTTPOpt: useHTTPOpt}),
 	)
 
-	if parameters.activeKeyID == "" {
-		if err = createKID(km, parameters, configStore); err != nil {
+	if parameters.vcSignActiveKeyID == "" {
+		if err = createKID(km, false, parameters, configStore); err != nil {
 			return fmt.Errorf("create kid: %w", err)
 		}
 	}
 
-	if parameters.activeKeyID != "" && len(parameters.privateKeys) > 0 {
-		if err = importPrivateKey(km, parameters, configStore); err != nil {
+	if parameters.httpSignActiveKeyID == "" {
+		if err = createKID(km, true, parameters, configStore); err != nil {
+			return fmt.Errorf("create kid: %w", err)
+		}
+	}
+
+	if parameters.vcSignActiveKeyID != "" && len(parameters.vcSignPrivateKeys) > 0 {
+		if err = importPrivateKey(km, false, parameters, configStore); err != nil {
+			return fmt.Errorf("import kid: %w", err)
+		}
+	}
+
+	if parameters.httpSignActiveKeyID != "" && len(parameters.httpSignPrivateKey) > 0 {
+		if err = importPrivateKey(km, true, parameters, configStore); err != nil {
 			return fmt.Errorf("import kid: %w", err)
 		}
 	}
@@ -531,7 +562,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:" + u.Host + "#" + parameters.activeKeyID,
+		VerificationMethod: "did:web:" + u.Host + "#" + parameters.vcSignActiveKeyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
 	}
@@ -616,16 +647,16 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	activePubKey, err := km.ExportPubKeyBytes(parameters.activeKeyID)
+	vcActivePubKey, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
 
 	pubKeys := make(map[string][]byte)
-	pubKeys[parameters.activeKeyID] = activePubKey
+	pubKeys[parameters.vcSignActiveKeyID] = vcActivePubKey
 
-	if len(parameters.privateKeys) > 0 {
-		for keyID := range parameters.privateKeys {
+	if len(parameters.vcSignPrivateKeys) > 0 {
+		for keyID := range parameters.vcSignPrivateKeys {
 			pubKey, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
@@ -635,8 +666,8 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	if len(parameters.keysID) > 0 {
-		for _, keyID := range parameters.keysID {
+	if len(parameters.vcSignKeysID) > 0 {
+		for _, keyID := range parameters.vcSignKeysID {
 			pubKey, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
@@ -646,7 +677,12 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	activePublicKey, err := getActivityPubPublicKey(activePubKey, apServiceIRI, apServicePublicKeyIRI)
+	httpSignActivePubKey, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
+	if err != nil {
+		return fmt.Errorf("failed to export pub key: %w", err)
+	}
+
+	httpSignActivePublicKey, err := getActivityPubPublicKey(httpSignActivePubKey, apServiceIRI, apServicePublicKeyIRI)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
@@ -960,8 +996,8 @@ func startOrbServices(parameters *orbParameters) error {
 			apStore, apSigVerifier, authTokenManager,
 		),
 		activityPubService.InboxHTTPHandler(),
-		aphandler.NewServices(apEndpointCfg, apStore, activePublicKey, authTokenManager),
-		aphandler.NewPublicKeys(apEndpointCfg, apStore, activePublicKey, authTokenManager),
+		aphandler.NewServices(apEndpointCfg, apStore, httpSignActivePublicKey, authTokenManager),
+		aphandler.NewPublicKeys(apEndpointCfg, apStore, httpSignActivePublicKey, authTokenManager),
 		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
 		aphandler.NewFollowing(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
 		aphandler.NewOutbox(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
@@ -1341,8 +1377,8 @@ type signatureVerifier interface {
 func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
 	cr acrypto.Crypto) (getSigner signer, postSigner signer) {
 	if parameters.httpSignaturesEnabled {
-		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.activeKeyID)
-		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.activeKeyID)
+		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.httpSignActiveKeyID)
+		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.httpSignActiveKeyID)
 	} else {
 		getSigner = &transport.NoOpSigner{}
 		postSigner = &transport.NoOpSigner{}

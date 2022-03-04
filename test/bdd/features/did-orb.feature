@@ -304,7 +304,7 @@ Feature:
     Then container "orb-domain2" is started
     Then container "ipfs" is started
 
-    Then we wait 5 seconds
+    Then we wait 10 seconds
 
      # now that servers re-started we should check for DIDs that were created before shutdowns
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created

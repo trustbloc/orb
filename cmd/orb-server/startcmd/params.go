@@ -114,20 +114,31 @@ const (
 	kmsEndpointFlagUsage = "Remote KMS URL." +
 		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
 
-	activeKeyIDFlagName  = "active-key-id"
-	activeKeyIDEnvKey    = "ORB_ACTIVE_KEY_ID"
-	activeKeyIDFlagUsage = "Active Key ID (ED25519Type)." +
-		" Alternatively, this can be set with the following environment variable: " + activeKeyIDEnvKey
+	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
+	vcSignActiveKeyIDEnvKey    = "ORB_VC_SIGN_ACTIVE_KEY_ID"
+	vcSignActiveKeyIDFlagUsage = "VC Sign Active Key ID (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + vcSignActiveKeyIDEnvKey
 
-	privateKeysFlagName  = "private-keys"
-	privateKeysEnvKey    = "ORB_PRIVATE_KEYS"
-	privateKeysFlagUsage = "Private Keys base64 (ED25519Type)." +
+	vcSignPrivateKeysFlagName  = "vc-sign-private-keys"
+	vcSignPrivateKeysEnvKey    = "ORB_VC_SIGN_PRIVATE_KEYS"
+	vcSignPrivateKeysFlagUsage = "VC Sign Private Keys base64 (ED25519Type)." +
 		" For example,  key1=privatekeyBase64Value,key2=privatekeyBase64Value" +
-		" Alternatively, this can be set with the following environment variable: " + privateKeysEnvKey
+		" Alternatively, this can be set with the following environment variable: " + vcSignPrivateKeysEnvKey
 
-	keysIDFlagName  = "keys-id"
-	keysIDEnvKey    = "ORB_KEYS_ID"
-	keysIDFlagUsage = "Keys id in kms. " + commonEnvVarUsageText + keysIDEnvKey
+	vcSignKeysIDFlagName  = "vc-sign-keys-id"
+	vcSignKeysIDEnvKey    = "ORB_VC_SIGN_KEYS_ID"
+	vcSignKeysIDFlagUsage = "VC Sign Keys id in kms. " + commonEnvVarUsageText + vcSignKeysIDEnvKey
+
+	httpSignActiveKeyIDFlagName  = "http-sign-active-key-id"
+	httpSignActiveKeyIDEnvKey    = "ORB_HTTP_SIGN_ACTIVE_KEY_ID"
+	httpSignActiveKeyIDFlagUsage = "HTTP Sign Active Key ID (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + httpSignActiveKeyIDEnvKey
+
+	httpSignPrivateKeyFlagName  = "http-sign-private-key"
+	httpSignPrivateKeyEnvKey    = "ORB_HTTP_SIGN_PRIVATE_KEY"
+	httpSignPrivateKeyFlagUsage = "HTTP Sign Private Key base64 (ED25519Type)." +
+		" For example,  key1=privatekeyBase64Value" +
+		" Alternatively, this can be set with the following environment variable: " + httpSignPrivateKeyEnvKey
 
 	secretLockKeyPathFlagName  = "secret-lock-key-path"
 	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
@@ -602,9 +613,11 @@ type orbParameters struct {
 	hostURL                                 string
 	hostMetricsURL                          string
 	vctURL                                  string
-	activeKeyID                             string
-	privateKeys                             map[string]string
-	keysID                                  []string
+	vcSignActiveKeyID                       string
+	vcSignPrivateKeys                       map[string]string
+	vcSignKeysID                            []string
+	httpSignActiveKeyID                     string
+	httpSignPrivateKey                      map[string]string
 	secretLockKeyPath                       string
 	kmsEndpoint                             string
 	kmsStoreEndpoint                        string
@@ -707,25 +720,33 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	vctURL, _ := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, true)
 	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true) // nolint: errcheck,lll
 	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                // nolint: errcheck,lll
-	activeKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, activeKeyIDFlagName, activeKeyIDEnvKey)
+	vcSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, vcSignActiveKeyIDFlagName, vcSignActiveKeyIDEnvKey)
 
-	privateKeys, err := getPrivateKeys(cmd, privateKeysFlagName, privateKeysEnvKey, activeKeyID == "")
+	vcSignPrivateKeys, err := getPrivateKeys(cmd, vcSignPrivateKeysFlagName, vcSignPrivateKeysEnvKey)
 	if err != nil {
-		return nil, fmt.Errorf("private keys: %w", err)
+		return nil, fmt.Errorf("vc sign private keys: %w", err)
 	}
 
-	if len(privateKeys) > 0 {
-		activeKeyIDExist := false
-		for keyID := range privateKeys {
-			if keyID == activeKeyID {
-				activeKeyIDExist = true
+	if len(vcSignPrivateKeys) > 0 {
+		if _, ok := vcSignPrivateKeys[vcSignActiveKeyID]; !ok {
+			return nil, fmt.Errorf("vc sign active key id %s not exist in vc private keys", vcSignActiveKeyID)
+		}
+	}
 
-				break
-			}
+	httpSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, httpSignActiveKeyIDFlagName, httpSignActiveKeyIDEnvKey)
+
+	httpSignPrivateKey, err := getPrivateKeys(cmd, httpSignPrivateKeyFlagName, httpSignPrivateKeyEnvKey)
+	if err != nil {
+		return nil, fmt.Errorf("http sign private keys: %w", err)
+	}
+
+	if len(httpSignPrivateKey) > 0 {
+		if len(httpSignPrivateKey) > 1 {
+			return nil, fmt.Errorf("http sign private key include more than one key")
 		}
 
-		if !activeKeyIDExist {
-			return nil, fmt.Errorf("active key id %s not exist in private keys", activeKeyID)
+		if _, ok := httpSignPrivateKey[httpSignActiveKeyID]; !ok {
+			return nil, fmt.Errorf("http sign active key id %s not exist in http private key", httpSignActiveKeyID)
 		}
 	}
 
@@ -1194,16 +1215,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
 
-	keysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, keysIDFlagName, keysIDEnvKey)
+	vcSignKeysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, vcSignKeysIDFlagName, vcSignKeysIDEnvKey)
 
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
 		vctURL:                                  vctURL,
 		kmsEndpoint:                             kmsEndpoint,
-		activeKeyID:                             activeKeyID,
-		privateKeys:                             privateKeys,
-		keysID:                                  keysID,
+		vcSignActiveKeyID:                       vcSignActiveKeyID,
+		vcSignPrivateKeys:                       vcSignPrivateKeys,
+		vcSignKeysID:                            vcSignKeysID,
+		httpSignActiveKeyID:                     httpSignActiveKeyID,
+		httpSignPrivateKey:                      httpSignPrivateKey,
 		secretLockKeyPath:                       secretLockKeyPath,
 		kmsStoreEndpoint:                        kmsStoreEndpoint,
 		discoveryDomain:                         discoveryDomain,
@@ -1407,11 +1430,8 @@ func filterEmptyTokens(tokens []string) []string {
 	return nonEmptyTokens
 }
 
-func getPrivateKeys(cmd *cobra.Command, flagName, envKey string, isOptional bool) (map[string]string, error) {
-	privateKeyStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, flagName, envKey, isOptional)
-	if err != nil {
-		return nil, err
-	}
+func getPrivateKeys(cmd *cobra.Command, flagName, envKey string) (map[string]string, error) {
+	privateKeyStr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, flagName, envKey)
 
 	if len(privateKeyStr) == 0 {
 		return nil, nil
@@ -1423,7 +1443,7 @@ func getPrivateKeys(cmd *cobra.Command, flagName, envKey string, isOptional bool
 		keyVal := strings.Split(keyValStr, "=")
 
 		if len(keyVal) != 2 {
-			return nil, fmt.Errorf("invalid private key string [%s]", privateKeyStr)
+			return nil, fmt.Errorf("invalid private key string [%s]", keyValStr)
 		}
 
 		privateKeys[keyVal[0]] = keyVal[1]
@@ -1798,8 +1818,10 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
-	startCmd.Flags().StringP(activeKeyIDFlagName, "", "", activeKeyIDFlagUsage)
-	startCmd.Flags().StringArrayP(privateKeysFlagName, "", []string{}, privateKeysFlagUsage)
+	startCmd.Flags().StringP(vcSignActiveKeyIDFlagName, "", "", vcSignActiveKeyIDFlagUsage)
+	startCmd.Flags().StringArrayP(vcSignPrivateKeysFlagName, "", []string{}, vcSignPrivateKeysFlagUsage)
+	startCmd.Flags().String(httpSignActiveKeyIDFlagName, "", httpSignActiveKeyIDFlagUsage)
+	startCmd.Flags().StringArrayP(httpSignPrivateKeyFlagName, "", []string{}, httpSignPrivateKeyFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
@@ -1886,5 +1908,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
-	startCmd.Flags().StringArray(keysIDFlagName, []string{}, keysIDFlagUsage)
+	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)
 }

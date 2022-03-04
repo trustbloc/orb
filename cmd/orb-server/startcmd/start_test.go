@@ -127,17 +127,17 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
-			"--" + privateKeysFlagName, "k1=value",
-			"--" + activeKeyIDFlagName, "k2",
+			"--" + vcSignPrivateKeysFlagName, "k1=value",
+			"--" + vcSignActiveKeyIDFlagName, "k2",
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "active key id k2 not exist in private keys")
+		require.Contains(t, err.Error(), "vc sign active key id k2 not exist in vc private keys")
 	})
 
-	t.Run("private keys not optional if active key exist", func(t *testing.T) {
+	t.Run("http sign active key not exist in http private key", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
@@ -152,13 +152,40 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
-			"--" + activeKeyIDFlagName, "k2",
+			"--" + httpSignPrivateKeyFlagName, "k1=value",
+			"--" + httpSignActiveKeyIDFlagName, "k2",
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "Neither private-keys (command line flag) nor ORB_PRIVATE_KEYS (environment variable) have been set")
+		require.Contains(t, err.Error(), "http sign active key id k2 not exist in http private key")
+	})
+
+	t.Run("http private key include more than one key", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "local",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + httpSignPrivateKeyFlagName, "k1=value",
+			"--" + httpSignPrivateKeyFlagName, "k2=value2",
+			"--" + httpSignActiveKeyIDFlagName, "k2",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "http sign private key include more than one key")
 	})
 }
 
@@ -185,6 +212,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + secretLockKeyPathFlagName, "./key.file",
+			"--" + vcSignActiveKeyIDFlagName, "k1",
 		}
 		startCmd.SetArgs(args)
 
