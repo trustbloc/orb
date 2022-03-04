@@ -40,7 +40,7 @@ const (
 	configStoreID = "orb-config"
 
 	webKeyStoreKey = "web-key-store"
-	kidKey         = "kid"
+	kidKey         = "httpkid"
 
 	databaseTypeEnvVar = "DATABASE_TYPE"
 	databaseURLEnvVar  = "DATABASE_URL"
