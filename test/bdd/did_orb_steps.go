@@ -296,9 +296,15 @@ func (d *DIDOrbSteps) clientRequestsAnchorOrigin(url string) error {
 }
 
 func (d *DIDOrbSteps) clientVerifiesResolvedDocument() error {
-	logger.Info("verify resolved document (client)")
+	versions := []string{"1.0"}
 
-	verifier, err := resolutionverifier.New("did:orb")
+	if os.Getenv("VERSION_TEST") == "true" {
+		versions = append(versions, "test")
+	}
+
+	logger.Infof("verify resolved document (client) with versions: %s", versions)
+
+	verifier, err := resolutionverifier.New("did:orb", resolutionverifier.WithProtocolVersions(versions))
 	if err != nil {
 		return err
 	}

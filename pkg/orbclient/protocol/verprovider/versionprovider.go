@@ -19,10 +19,31 @@ var logger = log.New("client-version-provider")
 // ClientVersionProvider implements client versions.
 type ClientVersionProvider struct {
 	versions []protocol.Version
+	current  protocol.Version
+}
+
+// Option is an option for client.
+type Option func(opts *ClientVersionProvider)
+
+// WithCurrentProtocolVersion sets optional current client protocol version (defaults to last registered protocol).
+func WithCurrentProtocolVersion(version string) Option {
+	return func(opts *ClientVersionProvider) {
+		for _, p := range opts.versions {
+			if p.Version() == version {
+				opts.current = p
+
+				return
+			}
+		}
+	}
 }
 
 // New creates new client version provider.
-func New(clientVersions []protocol.Version) *ClientVersionProvider {
+func New(clientVersions []protocol.Version, opts ...Option) (*ClientVersionProvider, error) {
+	if len(clientVersions) == 0 {
+		return nil, fmt.Errorf("must provide at least one client version")
+	}
+
 	// Creating the list of the client versions
 	var versions []protocol.Version
 
@@ -33,16 +54,22 @@ func New(clientVersions []protocol.Version) *ClientVersionProvider {
 		return versions[j].Protocol().GenesisTime > versions[i].Protocol().GenesisTime
 	})
 
-	return &ClientVersionProvider{
+	client := &ClientVersionProvider{
 		versions: versions,
+		current:  versions[len(versions)-1],
 	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	return client, nil
 }
 
 // Current returns the latest version of client.
 func (c *ClientVersionProvider) Current() (protocol.Version, error) {
-	latest := len(c.versions) - 1
-
-	return c.versions[latest], nil
+	return c.current, nil
 }
 
 // Get gets client version based on version time.
@@ -55,7 +82,7 @@ func (c *ClientVersionProvider) Get(versionTime uint64) (protocol.Version, error
 
 		logger.Debugf("checking client version for version genesis time %d: %+v", versionTime, p)
 
-		if versionTime >= p.GenesisTime {
+		if versionTime == p.GenesisTime {
 			logger.Debugf("found client version for version genesis time %d: %+v", versionTime, p)
 
 			return cv, nil

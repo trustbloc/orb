@@ -25,12 +25,17 @@ import (
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
+const v1 = "1.0"
+
 // ResolutionVerifier verifies resolved documents.
 type ResolutionVerifier struct {
 	processor operationProcessor
-	protocol  protocol.Client
 
 	namespace string
+
+	protocol       protocol.Client
+	versions       []string
+	currentVersion string
 
 	methodContexts []string
 	anchorOrigins  []string
@@ -51,6 +56,7 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 
 	rv := &ResolutionVerifier{
 		namespace: namespace,
+		versions:  []string{v1},
 	}
 
 	// apply options
@@ -58,7 +64,8 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 		opt(rv)
 	}
 
-	pc, err := getProtocolClient(namespace, rv.anchorOrigins, rv.methodContexts, rv.enableBase)
+	pc, err := getProtocolClient(namespace, rv.versions, rv.currentVersion,
+		rv.anchorOrigins, rv.methodContexts, rv.enableBase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create protocol client provider: %w", err)
 	}
@@ -68,6 +75,21 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 	rv.processor = processor.New(namespace, opStore, pc)
 
 	return rv, nil
+}
+
+// WithProtocolVersions sets optional client protocol versions.
+func WithProtocolVersions(versions []string) Option {
+	return func(opts *ResolutionVerifier) {
+		opts.versions = versions
+	}
+}
+
+// WithCurrentProtocolVersion sets optional current protocol versions.
+// Defaults to the latest in the protocol versions list.
+func WithCurrentProtocolVersion(version string) Option {
+	return func(opts *ResolutionVerifier) {
+		opts.currentVersion = version
+	}
 }
 
 // WithMethodContext sets optional method contexts.
@@ -91,9 +113,7 @@ func WithEnableBase(enabled bool) Option {
 	}
 }
 
-func getProtocolClient(namespace string, anchorOrigins, methodContexts []string, enableBase bool) (protocol.Client, error) { //nolint:lll
-	versions := []string{"1.0"}
-
+func getProtocolClient(namespace string, versions []string, currentVersion string, anchorOrigins, methodContexts []string, enableBase bool) (protocol.Client, error) { //nolint:lll
 	registry := clientregistry.New()
 
 	var clientVersions []protocol.Version
@@ -113,8 +133,13 @@ func getProtocolClient(namespace string, anchorOrigins, methodContexts []string,
 		clientVersions = append(clientVersions, cv)
 	}
 
+	verProvider, err := verprovider.New(clientVersions, verprovider.WithCurrentProtocolVersion(currentVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	nsProvider := nsprovider.New()
-	nsProvider.Add(namespace, verprovider.New(clientVersions))
+	nsProvider.Add(namespace, verProvider)
 
 	pc, err := nsProvider.ForNamespace(namespace)
 	if err != nil {
@@ -124,7 +149,7 @@ func getProtocolClient(namespace string, anchorOrigins, methodContexts []string,
 	return pc, nil
 }
 
-// Verify will verify provided resolution result against resolution result that is assembled from
+// Verify will verify provided resolution result against resolution result that is assembled
 // from published and unpublished operations in provided resolution result.
 func (r *ResolutionVerifier) Verify(input *document.ResolutionResult) error {
 	// get operations from document metadata
