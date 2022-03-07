@@ -13,10 +13,10 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220303090836-f8d34037f4c1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20210909220549-ce3a2ee13e22
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211219215001-23cd75276fdc
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220201210414-141091195e94
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220304143456-9d4457ff86a5
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
@@ -24,7 +24,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
-	github.com/trustbloc/orb v0.1.4-0.20220201200943-513f238cd9ed
+	github.com/trustbloc/orb v0.1.4-0.20220303131131-e72a584079c7
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220302221451-205719c617be
 )
 
@@ -61,7 +61,7 @@ require (
 	github.com/google/certificate-transparency-go v1.1.2-0.20210512142713-bed466244fa6 // indirect
 	github.com/google/tink/go v1.6.1-0.20210519071714-58be99b3c4d0 // indirect
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620 // indirect
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.8 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect

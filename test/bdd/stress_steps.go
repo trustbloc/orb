@@ -24,6 +24,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/greenpau/go-calculator"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
+	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/api"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/primitive/bbs12381g2pub"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
@@ -34,6 +35,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
+	"github.com/trustbloc/sidetree-core-go/pkg/jws"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/pubkey"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 )
 
 const (
@@ -499,15 +505,15 @@ func (k *keyRetrieverMap) GetNextUpdatePublicKey(didID string, commitment string
 	return k.nextUpdatePublicKey[didID], nil
 }
 
-func (k *keyRetrieverMap) GetSigningKey(didID string, ot orb.OperationType,
-	commitment string) (crypto.PrivateKey, error) {
+func (k *keyRetrieverMap) GetSigner(didID string, ot orb.OperationType, commitment string) (api.Signer, error) {
 	k.RLock()
 	defer k.RUnlock()
+
 	if ot == orb.Update {
-		return k.updateKey[didID], nil
+		return newSignerMock(k.updateKey[didID]), nil
 	}
 
-	return k.recoverKey[didID], nil
+	return newSignerMock(k.recoverKey[didID]), nil
 }
 
 func (k *keyRetrieverMap) WriteKey(didID string, ot orb.OperationType, pk crypto.PrivateKey) {
@@ -832,4 +838,42 @@ func checkRetryError(err error) bool {
 	}
 
 	return false
+}
+
+type signerMock struct {
+	signer    client.Signer
+	publicKey *jws.JWK
+}
+
+func newSignerMock(signingkey crypto.PrivateKey) *signerMock {
+	switch key := signingkey.(type) {
+	case *ecdsa.PrivateKey:
+		updateKey, err := pubkey.GetPublicKeyJWK(key.Public())
+		if err != nil {
+			panic(err.Error())
+		}
+
+		return &signerMock{signer: ecsigner.New(key, "ES256", "k1"), publicKey: updateKey}
+	case ed25519.PrivateKey:
+		updateKey, err := pubkey.GetPublicKeyJWK(key.Public())
+		if err != nil {
+			panic(err.Error())
+		}
+
+		return &signerMock{signer: edsigner.New(key, "EdDSA", "k1"), publicKey: updateKey}
+	}
+
+	return nil
+}
+
+func (s *signerMock) Sign(data []byte) ([]byte, error) {
+	return s.signer.Sign(data)
+}
+
+func (s *signerMock) Headers() jws.Headers {
+	return s.signer.Headers()
+}
+
+func (s *signerMock) PublicKeyJWK() *jws.JWK {
+	return s.publicKey
 }

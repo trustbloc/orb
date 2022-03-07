@@ -15,6 +15,8 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
@@ -32,6 +34,11 @@ const (
 	sidetreeURLFlagUsage = "Comma-Separated list of sidetree url." +
 		" Alternatively, this can be set with the following environment variable: " + sidetreeURLEnvKey
 	sidetreeURLEnvKey = "ORB_CLI_SIDETREE_URL"
+
+	kmsStoreEndpointFlagName  = "kms-store-endpoint"
+	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
+	kmsStoreEndpointEnvKey = "ORB_CLI_KMS_STORE_ENDPOINT"
 
 	tlsSystemCertPoolFlagName  = "tls-systemcertpool"
 	tlsSystemCertPoolFlagUsage = "Use system certificate pool." +
@@ -69,6 +76,11 @@ const (
 	recoveryKeyFileFlagUsage = "The file that contains the public key PEM used for recovery of the document." +
 		" Alternatively, this can be set with the following environment variable: " + recoveryKeyFileEnvKey
 
+	recoveryKeyIDFlagName  = "recoverykey-id"
+	recoveryKeyIDEnvKey    = "ORB_CLI_RECOVERYKEY_ID"
+	recoveryKeyIDFlagUsage = "The key id in kms." +
+		" Alternatively, this can be set with the following environment variable: " + recoveryKeyIDEnvKey
+
 	updateKeyFlagName  = "updatekey"
 	updateKeyEnvKey    = "ORB_CLI_UPDATEKEY"
 	updateKeyFlagUsage = "The public key PEM used for validating the signature of the next update of the document." +
@@ -79,6 +91,12 @@ const (
 	updateKeyFileFlagUsage = "The file that contains the public key PEM used for" +
 		" validating the signature of the next update of the document." +
 		" Alternatively, this can be set with the following environment variable: " + updateKeyFileEnvKey
+
+	updateKeyIDFlagName  = "updatekey-id"
+	updateKeyIDEnvKey    = "ORB_CLI_UPDATEKEY_ID"
+	updateKeyIDFlagUsage = "The key id in kms used for" +
+		" validating the signature of the next update of the document." +
+		" Alternatively, this can be set with the following environment variable: " + updateKeyIDEnvKey
 
 	didAnchorOriginFlagName  = "did-anchor-origin"
 	didAnchorOriginEnvKey    = "ORB_CLI_DID_ANCHOR_ORIGIN"
@@ -118,13 +136,21 @@ func createDIDCmd() *cobra.Command {
 				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 			}}
 
+			kmsStoreURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
+				kmsStoreEndpointEnvKey)
+
+			var webKmsClient kms.KeyManager
+			if kmsStoreURL != "" {
+				webKmsClient = webkms.New(kmsStoreURL, &httpClient)
+			}
+
 			vdr, err := orb.New(nil, orb.WithAuthToken(sidetreeWriteToken), orb.WithDomain(domain),
 				orb.WithHTTPClient(&httpClient))
 			if err != nil {
 				return err
 			}
 
-			didDoc, opts, err := createDIDOption(cmd)
+			didDoc, opts, err := createDIDOption(cmd, webKmsClient)
 			if err != nil {
 				return err
 			}
@@ -159,7 +185,7 @@ func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	return opts
 }
 
-func createDIDOption(cmd *cobra.Command) (*did.Doc, []vdrapi.DIDMethodOption, error) {
+func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc, []vdrapi.DIDMethodOption, error) {
 	opts := getSidetreeURL(cmd)
 
 	didDoc, err := getPublicKeys(cmd)
@@ -167,21 +193,36 @@ func createDIDOption(cmd *cobra.Command) (*did.Doc, []vdrapi.DIDMethodOption, er
 		return nil, nil, err
 	}
 
-	recoveryKey, err := common.GetKey(cmd, recoveryKeyFlagName, recoveryKeyEnvKey, recoveryKeyFileFlagName,
-		recoveryKeyFileEnvKey, nil, false)
-	if err != nil {
-		return nil, nil, err
+	var recoveryKey interface{}
+
+	var updateKey interface{}
+
+	if webKmsClient == nil { //nolint: nestif
+		recoveryKey, err = common.GetKey(cmd, recoveryKeyFlagName, recoveryKeyEnvKey, recoveryKeyFileFlagName,
+			recoveryKeyFileEnvKey, nil, false)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		updateKey, err = common.GetKey(cmd, updateKeyFlagName, updateKeyEnvKey, updateKeyFileFlagName,
+			updateKeyFileEnvKey, nil, false)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		recoveryKey, err = common.GetPublicKeyFromKMS(cmd, recoveryKeyIDFlagName, recoveryKeyIDEnvKey, webKmsClient)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		updateKey, err = common.GetPublicKeyFromKMS(cmd, updateKeyIDFlagName, updateKeyIDEnvKey, webKmsClient)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	opts = append(opts, vdrapi.WithOption(orb.RecoveryPublicKeyOpt, recoveryKey))
-
-	updateKey, err := common.GetKey(cmd, updateKeyFlagName, updateKeyEnvKey, updateKeyFileFlagName,
-		updateKeyFileEnvKey, nil, false)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	opts = append(opts, vdrapi.WithOption(orb.UpdatePublicKeyOpt, updateKey))
+	opts = append(opts, vdrapi.WithOption(orb.RecoveryPublicKeyOpt, recoveryKey),
+		vdrapi.WithOption(orb.UpdatePublicKeyOpt, updateKey))
 
 	services, err := getServices(cmd)
 	if err != nil {
@@ -267,4 +308,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(updateKeyFileFlagName, "", "", updateKeyFileFlagUsage)
 	startCmd.Flags().StringArrayP(sidetreeURLFlagName, "", []string{}, sidetreeURLFlagUsage)
 	startCmd.Flags().StringP(didAnchorOriginFlagName, "", "", didAnchorOriginFlagUsage)
+	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
+	startCmd.Flags().String(updateKeyIDFlagName, "", updateKeyIDFlagUsage)
+	startCmd.Flags().String(recoveryKeyIDFlagName, "", recoveryKeyIDFlagUsage)
 }

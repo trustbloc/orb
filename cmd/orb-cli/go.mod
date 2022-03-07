@@ -8,16 +8,16 @@ go 1.17
 
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211217135421-f68d5698237a
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220201210414-141091195e94
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20211217171603-637696af6620
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220303090836-f8d34037f4c1
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220304143456-9d4457ff86a5
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/orb v0.1.4-0.20220201200943-513f238cd9ed
+	github.com/trustbloc/orb v0.1.4-0.20220303131131-e72a584079c7
 )
 
 require (
