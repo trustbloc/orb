@@ -53,9 +53,6 @@ func TestKeyRetriever(t *testing.T) {
 	_, err := kr.GetNextRecoveryPublicKey("", "")
 	require.NoError(t, err)
 
-	_, err = kr.GetSigningKey("", 1, "")
-	require.NoError(t, err)
-
 	_, err = kr.GetNextUpdatePublicKey("", "")
 	require.NoError(t, err)
 }

@@ -24,13 +24,21 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcutil/base58"
+	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/doc"
+	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	docdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	jwk2 "github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	"github.com/trustbloc/sidetree-core-go/pkg/jws"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/pubkey"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 )
 
 var logger = log.New("orb-cli")
@@ -155,6 +163,23 @@ func ParsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 	}
 
 	return nil, fmt.Errorf("failed to parse private key")
+}
+
+// GetPublicKeyFromKMS get publickey from kms.
+func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
+	webKmsClient kms.KeyManager) (interface{}, error) {
+	keyID, err := cmdutils.GetUserSetVarFromString(cmd, keyIDFlagName,
+		keyIDEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	keyBytes, err := webKmsClient.ExportPubKeyBytes(keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	return PublicKeyFromPEM(keyBytes)
 }
 
 // GetKey get key.
@@ -317,12 +342,12 @@ func SendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 
 // SendHTTPRequest sends the given HTTP request using the options provided on the command-line.
 func SendHTTPRequest(cmd *cobra.Command, reqBytes []byte, method, endpointURL string) ([]byte, error) {
-	client, err := newHTTPClient(cmd)
+	c, err := newHTTPClient(cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	return SendRequest(client, reqBytes, newAuthTokenHeader(cmd), method, endpointURL)
+	return SendRequest(c, reqBytes, newAuthTokenHeader(cmd), method, endpointURL)
 }
 
 func closeResponseBody(respBody io.Closer) {
@@ -405,4 +430,65 @@ func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(TLSSystemCertPoolFlagName, "", "", TLSSystemCertPoolFlagUsage)
 	cmd.Flags().StringArrayP(TLSCACertsFlagName, "", nil, TLSCACertsFlagUsage)
 	cmd.Flags().StringP(AuthTokenFlagName, "", "", AuthTokenFlagUsage)
+}
+
+// Signer operation.
+type Signer struct {
+	signer             client.Signer
+	signingKeyID       string
+	publicKey          *jws.JWK
+	webKmsCryptoClient webcrypto.Crypto
+}
+
+// NewSigner return new signer.
+func NewSigner(signingkey crypto.PrivateKey, signingKeyID string, webKmsCryptoClient webcrypto.Crypto,
+	signingKeyPK crypto.PublicKey) *Signer {
+	if webKmsCryptoClient == nil {
+		switch key := signingkey.(type) {
+		case *ecdsa.PrivateKey:
+			publicKey, err := pubkey.GetPublicKeyJWK(key.Public())
+			if err != nil {
+				panic(err.Error())
+			}
+
+			return &Signer{signer: ecsigner.New(key, "ES256", uuid.NewString()), publicKey: publicKey}
+		case ed25519.PrivateKey:
+			publicKey, err := pubkey.GetPublicKeyJWK(key.Public())
+			if err != nil {
+				panic(err.Error())
+			}
+
+			return &Signer{signer: edsigner.New(key, "EdDSA", uuid.NewString()), publicKey: publicKey}
+		}
+	}
+
+	publicKey, err := pubkey.GetPublicKeyJWK(signingKeyPK)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return &Signer{signingKeyID: signingKeyID, webKmsCryptoClient: webKmsCryptoClient, publicKey: publicKey}
+}
+
+// Sign data.
+func (s *Signer) Sign(data []byte) ([]byte, error) {
+	if s.webKmsCryptoClient == nil {
+		return s.signer.Sign(data)
+	}
+
+	return s.webKmsCryptoClient.Sign(data, s.signingKeyID)
+}
+
+// Headers return headers.
+func (s *Signer) Headers() jws.Headers {
+	if s.webKmsCryptoClient == nil {
+		return s.signer.Headers()
+	}
+
+	return nil
+}
+
+// PublicKeyJWK return public key JWK.
+func (s *Signer) PublicKeyJWK() *jws.JWK {
+	return s.publicKey
 }

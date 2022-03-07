@@ -6,7 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 package common
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -17,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
@@ -305,6 +308,72 @@ func TestSendRequest(t *testing.T) {
 		_, err := SendRequest(&http.Client{}, nil, map[string]string{"k1": "v1"}, http.MethodGet, serv.URL)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "got unexpected response from")
+	})
+}
+
+func TestSigner(t *testing.T) {
+	t.Run("test ed25519 key", func(t *testing.T) {
+		pk, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		require.NoError(t, err)
+		s := NewSigner(privateKey, "", nil, pk)
+
+		h := s.Headers()
+		require.NotNil(t, h)
+
+		pkJWK := s.PublicKeyJWK()
+		require.NotNil(t, pkJWK)
+
+		_, err = s.Sign([]byte("data"))
+		require.NoError(t, err)
+	})
+
+	t.Run("test ec key", func(t *testing.T) {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		s := NewSigner(key, "", nil, key.PublicKey)
+
+		h := s.Headers()
+		require.NotNil(t, h)
+
+		pkJWK := s.PublicKeyJWK()
+		require.NotNil(t, pkJWK)
+
+		_, err = s.Sign([]byte("data"))
+		require.NoError(t, err)
+	})
+}
+
+func TestGetPublicKeyFromKMS(t *testing.T) {
+	t.Run("test key empty", func(t *testing.T) {
+		os.Clearenv()
+
+		require.NoError(t, os.Setenv("key1", ""))
+
+		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1", nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "key1 value is empty")
+	})
+
+	t.Run("test error export public key", func(t *testing.T) {
+		os.Clearenv()
+
+		require.NoError(t, os.Setenv("key1", "value"))
+
+		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1",
+			&mockkms.KeyManager{ExportPubKeyBytesErr: fmt.Errorf("failed to export")})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to export")
+	})
+
+	t.Run("test success", func(t *testing.T) {
+		os.Clearenv()
+
+		require.NoError(t, os.Setenv("key1", "value"))
+
+		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1",
+			&mockkms.KeyManager{ExportPubKeyBytesValue: []byte(pkPEM)})
+		require.NoError(t, err)
 	})
 }
 

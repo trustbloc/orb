@@ -14,7 +14,12 @@ import (
 	"strconv"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
+	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/api"
+	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
+	webkmscrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
@@ -32,6 +37,11 @@ const (
 	domainFileEnvKey    = "ORB_CLI_DOMAIN"
 	domainFileFlagUsage = "URL to the did:orb domain. " +
 		" Alternatively, this can be set with the following environment variable: " + domainFileEnvKey
+
+	kmsStoreEndpointFlagName  = "kms-store-endpoint"
+	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
+	kmsStoreEndpointEnvKey = "ORB_CLI_KMS_STORE_ENDPOINT"
 
 	sidetreeURLOpsFlagName  = "sidetree-url-operation"
 	sidetreeURLOpsFlagUsage = "Comma-Separated list of sidetree url operation." +
@@ -74,6 +84,12 @@ const (
 	signingKeyPasswordEnvKey    = "ORB_CLI_SIGNINGKEY_PASSWORD" //nolint: gosec
 	signingKeyPasswordFlagUsage = "signing key pem password. " +
 		" Alternatively, this can be set with the following environment variable: " + signingKeyPasswordEnvKey
+
+	signingKeyIDFlagName  = "signingkey-id"
+	signingKeyIDEnvKey    = "ORB_CLI_SIGNINGKEY_ID"
+	signingKeyIDFlagUsage = "The key id in kms" +
+		" used for signing the deactivate of the document." +
+		" Alternatively, this can be set with the following environment variable: " + signingKeyIDEnvKey
 )
 
 // GetDeactivateDIDCmd returns the Cobra deactivate did command.
@@ -85,7 +101,7 @@ func GetDeactivateDIDCmd() *cobra.Command {
 	return deactivateDIDCmd
 }
 
-func deactivateDIDCmd() *cobra.Command {
+func deactivateDIDCmd() *cobra.Command { //nolint:funlen
 	return &cobra.Command{
 		Use:          "deactivate",
 		Short:        "Deactivate orb DID",
@@ -109,19 +125,53 @@ func deactivateDIDCmd() *cobra.Command {
 			domain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName,
 				domainFileEnvKey)
 
-			signingKey, err := common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
-				signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
-					signingKeyPasswordEnvKey)), true)
-			if err != nil {
-				return err
-			}
-
 			httpClient := http.Client{Transport: &http.Transport{
 				ForceAttemptHTTP2: true,
 				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 			}}
 
-			vdr, err := orb.New(&keyRetriever{signingKey: signingKey},
+			kmsStoreURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
+				kmsStoreEndpointEnvKey)
+
+			var webKmsClient kms.KeyManager
+			var webKmsCryptoClient webcrypto.Crypto
+
+			if kmsStoreURL != "" {
+				webKmsClient = webkms.New(kmsStoreURL, &httpClient)
+				webKmsCryptoClient = webkmscrypto.New(kmsStoreURL, &httpClient)
+			}
+
+			var signingKey interface{}
+			var signingKeyID string
+			var signingKeyPK interface{}
+
+			if webKmsClient == nil {
+				signingKey, err = common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
+					signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
+						signingKeyPasswordEnvKey)), true)
+				if err != nil {
+					return err
+				}
+			} else {
+				signingKeyID, err = cmdutils.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
+					signingKeyIDEnvKey, false)
+				if err != nil {
+					return err
+				}
+
+				signingKeyPK, err = common.GetPublicKeyFromKMS(cmd, signingKeyIDFlagName,
+					signingKeyIDEnvKey, webKmsClient)
+				if err != nil {
+					return err
+				}
+			}
+
+			vdr, err := orb.New(&keyRetriever{
+				signingKey:         signingKey,
+				signingKeyID:       signingKeyID,
+				webKmsCryptoClient: webKmsCryptoClient,
+				signingKeyPK:       signingKeyPK,
+			},
 				orb.WithAuthToken(sidetreeWriteToken), orb.WithDomain(domain),
 				orb.WithHTTPClient(&httpClient))
 			if err != nil {
@@ -197,10 +247,15 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(signingKeyFlagName, "", "", signingKeyFlagUsage)
 	startCmd.Flags().StringP(signingKeyFileFlagName, "", "", signingKeyFileFlagUsage)
 	startCmd.Flags().StringP(signingKeyPasswordFlagName, "", "", signingKeyPasswordFlagUsage)
+	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
+	startCmd.Flags().String(signingKeyIDFlagName, "", signingKeyIDFlagUsage)
 }
 
 type keyRetriever struct {
-	signingKey crypto.PublicKey
+	signingKey         crypto.PublicKey
+	signingKeyID       string
+	webKmsCryptoClient webcrypto.Crypto
+	signingKeyPK       crypto.PublicKey
 }
 
 func (k *keyRetriever) GetNextRecoveryPublicKey(didID, commitment string) (crypto.PublicKey, error) {
@@ -211,6 +266,6 @@ func (k *keyRetriever) GetNextUpdatePublicKey(didID, commitment string) (crypto.
 	return nil, nil
 }
 
-func (k *keyRetriever) GetSigningKey(didID string, ot orb.OperationType, commitment string) (crypto.PrivateKey, error) {
-	return k.signingKey, nil
+func (k *keyRetriever) GetSigner(didID string, ot orb.OperationType, commitment string) (api.Signer, error) {
+	return common.NewSigner(k.signingKey, k.signingKeyID, k.webKmsCryptoClient, k.signingKeyPK), nil
 }

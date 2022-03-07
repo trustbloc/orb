@@ -14,8 +14,13 @@ import (
 	"strconv"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
+	"github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree/api"
+	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
+	webkmscrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
+	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
@@ -33,6 +38,11 @@ const (
 	domainFileEnvKey    = "ORB_CLI_DOMAIN"
 	domainFileFlagUsage = "URL to the did:trustbloc consortium's domain. " +
 		" Alternatively, this can be set with the following environment variable: " + domainFileEnvKey
+
+	kmsStoreEndpointFlagName  = "kms-store-endpoint"
+	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
+	kmsStoreEndpointEnvKey = "ORB_CLI_KMS_STORE_ENDPOINT"
 
 	sidetreeURLOpsFlagName  = "sidetree-url-operation"
 	sidetreeURLOpsFlagUsage = "Comma-Separated list of sidetree url operation." +
@@ -86,6 +96,12 @@ const (
 	signingKeyPasswordFlagUsage = "signing key pem password. " +
 		" Alternatively, this can be set with the following environment variable: " + signingKeyPasswordEnvKey
 
+	signingKeyIDFlagName  = "signingkey-id"
+	signingKeyIDEnvKey    = "ORB_CLI_SIGNINGKEY_ID"
+	signingKeyIDFlagUsage = "The key id in kms" +
+		" used for signing the recovery request." +
+		" Alternatively, this can be set with the following environment variable: " + signingKeyIDEnvKey
+
 	nextUpdateKeyFlagName  = "nextupdatekey"
 	nextUpdateKeyEnvKey    = "ORB_CLI_NEXTUPDATEKEY"
 	nextUpdateKeyFlagUsage = "The public key PEM used for validating the signature of the next update of the document." +
@@ -96,6 +112,12 @@ const (
 	nextUpdateKeyFileFlagUsage = "The file that contains the public key" +
 		" PEM used for validating the signature of the next update of the document. " +
 		" Alternatively, this can be set with the following environment variable: " + nextUpdateKeyFileEnvKey
+
+	nextUpdateKeyIDFlagName  = "nextupdatekey-id"
+	nextUpdateKeyIDEnvKey    = "ORB_CLI_NEXTUPDATEKEY_ID"
+	nextUpdateKeyIDFlagUsage = "The key id in kms" +
+		" used for validating the signature of the next update of the document. " +
+		" Alternatively, this can be set with the following environment variable: " + nextUpdateKeyIDEnvKey
 
 	nextRecoveryKeyFlagName  = "nextrecoverykey"
 	nextRecoveryKeyEnvKey    = "ORB_CLI_NEXTRECOVERYKEY"
@@ -108,6 +130,12 @@ const (
 	nextRecoveryKeyFileFlagUsage = "The file that contains the public key" +
 		" PEM used for validating the signature of the next recovery of the document. " +
 		" Alternatively, this can be set with the following environment variable: " + nextRecoveryKeyFileEnvKey
+
+	nextRecoveryKeyIDFlagName  = "nextrecoverkey-id"
+	nextRecoveryKeyIDEnvKey    = "ORB_CLI_NEXTRECOVERYKEY_ID"
+	nextRecoveryKeyIDFlagUsage = "The key id in kms" +
+		" used for validating the signature of the next recovery of the document. " +
+		" Alternatively, this can be set with the following environment variable: " + nextRecoveryKeyIDEnvKey
 
 	didAnchorOriginFlagName  = "did-anchor-origin"
 	didAnchorOriginEnvKey    = "ORB_CLI_DID_ANCHOR_ORIGIN"
@@ -124,7 +152,7 @@ func GetRecoverDIDCmd() *cobra.Command {
 	return recoverDIDCmd
 }
 
-func recoverDIDCmd() *cobra.Command { //nolint: funlen
+func recoverDIDCmd() *cobra.Command { //nolint: funlen,gocognit,gocyclo,cyclop
 	return &cobra.Command{
 		Use:          "recover",
 		Short:        "Recover orb DID",
@@ -150,34 +178,80 @@ func recoverDIDCmd() *cobra.Command { //nolint: funlen
 				return err
 			}
 
-			signingKey, err := common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
-				signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
-					signingKeyPasswordEnvKey)), true)
-			if err != nil {
-				return err
-			}
-
-			nextUpdateKey, err := common.GetKey(cmd, nextUpdateKeyFlagName, nextUpdateKeyEnvKey, nextUpdateKeyFileFlagName,
-				nextUpdateKeyFileEnvKey, nil, false)
-			if err != nil {
-				return err
-			}
-
-			nextRecoveryKey, err := common.GetKey(cmd, nextRecoveryKeyFlagName, nextRecoveryKeyEnvKey,
-				nextRecoveryKeyFileFlagName, nextUpdateKeyFileEnvKey, nil, false)
-			if err != nil {
-				return err
-			}
-
 			httpClient := http.Client{Transport: &http.Transport{
 				ForceAttemptHTTP2: true,
 				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 			}}
 
+			kmsStoreURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
+				kmsStoreEndpointEnvKey)
+
+			var webKmsClient kms.KeyManager
+			var webKmsCryptoClient webcrypto.Crypto
+
+			if kmsStoreURL != "" {
+				webKmsClient = webkms.New(kmsStoreURL, &httpClient)
+				webKmsCryptoClient = webkmscrypto.New(kmsStoreURL, &httpClient)
+			}
+
+			var signingKey interface{}
+			var signingKeyID string
+			var signingKeyPK interface{}
+			var nextUpdateKey interface{}
+			var nextRecoveryKey interface{}
+
+			if webKmsClient == nil { //nolint: nestif
+				signingKey, err = common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
+					signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
+						signingKeyPasswordEnvKey)), true)
+				if err != nil {
+					return err
+				}
+
+				nextUpdateKey, err = common.GetKey(cmd, nextUpdateKeyFlagName, nextUpdateKeyEnvKey, nextUpdateKeyFileFlagName,
+					nextUpdateKeyFileEnvKey, nil, false)
+				if err != nil {
+					return err
+				}
+
+				nextRecoveryKey, err = common.GetKey(cmd, nextRecoveryKeyFlagName, nextRecoveryKeyEnvKey,
+					nextRecoveryKeyFileFlagName, nextUpdateKeyFileEnvKey, nil, false)
+				if err != nil {
+					return err
+				}
+			} else {
+				nextUpdateKey, err = common.GetPublicKeyFromKMS(cmd, nextUpdateKeyIDFlagName,
+					nextUpdateKeyIDEnvKey, webKmsClient)
+				if err != nil {
+					return err
+				}
+
+				nextRecoveryKey, err = common.GetPublicKeyFromKMS(cmd, nextRecoveryKeyIDFlagName,
+					nextRecoveryKeyIDEnvKey, webKmsClient)
+				if err != nil {
+					return err
+				}
+
+				signingKeyID, err = cmdutils.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
+					signingKeyIDEnvKey, false)
+				if err != nil {
+					return err
+				}
+
+				signingKeyPK, err = common.GetPublicKeyFromKMS(cmd, signingKeyIDFlagName,
+					signingKeyIDEnvKey, webKmsClient)
+				if err != nil {
+					return err
+				}
+			}
+
 			vdr, err := orb.New(&keyRetriever{
-				nextUpdateKey:   nextUpdateKey,
-				signingKey:      signingKey,
-				nextRecoveryKey: nextRecoveryKey,
+				nextUpdateKey:      nextUpdateKey,
+				nextRecoveryKey:    nextRecoveryKey,
+				signingKey:         signingKey,
+				signingKeyID:       signingKeyID,
+				webKmsCryptoClient: webKmsCryptoClient,
+				signingKeyPK:       signingKeyPK,
 			}, orb.WithAuthToken(sidetreeWriteToken),
 				orb.WithDomain(cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainFileEnvKey)),
 				orb.WithHTTPClient(&httpClient))
@@ -317,12 +391,19 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(nextRecoveryKeyFlagName, "", "", nextRecoveryKeyFlagUsage)
 	startCmd.Flags().StringP(nextRecoveryKeyFileFlagName, "", "", nextRecoveryKeyFileFlagUsage)
 	startCmd.Flags().StringP(didAnchorOriginFlagName, "", "", didAnchorOriginFlagUsage)
+	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
+	startCmd.Flags().String(signingKeyIDFlagName, "", signingKeyIDFlagUsage)
+	startCmd.Flags().String(nextUpdateKeyIDFlagName, "", nextUpdateKeyIDFlagUsage)
+	startCmd.Flags().String(nextRecoveryKeyIDFlagName, "", nextRecoveryKeyIDFlagUsage)
 }
 
 type keyRetriever struct {
-	nextUpdateKey   crypto.PublicKey
-	nextRecoveryKey crypto.PublicKey
-	signingKey      crypto.PublicKey
+	nextUpdateKey      crypto.PublicKey
+	nextRecoveryKey    crypto.PublicKey
+	signingKey         crypto.PublicKey
+	signingKeyID       string
+	webKmsCryptoClient webcrypto.Crypto
+	signingKeyPK       crypto.PublicKey
 }
 
 func (k *keyRetriever) GetNextRecoveryPublicKey(didID, commitment string) (crypto.PublicKey, error) {
@@ -333,6 +414,6 @@ func (k *keyRetriever) GetNextUpdatePublicKey(didID, commitment string) (crypto.
 	return k.nextUpdateKey, nil
 }
 
-func (k *keyRetriever) GetSigningKey(didID string, ot orb.OperationType, commitment string) (crypto.PrivateKey, error) {
-	return k.signingKey, nil
+func (k *keyRetriever) GetSigner(didID string, ot orb.OperationType, commitment string) (api.Signer, error) {
+	return common.NewSigner(k.signingKey, k.signingKeyID, k.webKmsCryptoClient, k.signingKeyPK), nil
 }
