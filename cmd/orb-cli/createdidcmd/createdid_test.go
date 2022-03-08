@@ -221,6 +221,26 @@ func TestCreateDID(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to create did")
 	})
 
+	t.Run("test kms key failed to export", func(t *testing.T) {
+		os.Clearenv()
+		cmd := GetCreateDIDCmd()
+
+		var args []string
+		args = append(args, sidetreeURLArg(serv.URL)...)
+		args = append(args, didAnchorOrigin("origin")...)
+		args = append(args, kmsStoreEndpointFlagNameArg("store")...)
+		args = append(args, recoveryKeyIDFlagNameArg("id")...)
+		args = append(args, updateKeyIDFlagNameArg("id")...)
+		args = append(args, servicesFileArg(servicesFile.Name())...)
+		args = append(args, publicKeyFileArg(publicKeyFile.Name())...)
+
+		cmd.SetArgs(args)
+		err = cmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ExportPubKeyBytes key failed")
+	})
+
 	t.Run("success", func(t *testing.T) {
 		os.Clearenv()
 		cmd := GetCreateDIDCmd()
@@ -283,6 +303,18 @@ func recoveryKeyFileFlagNameArg(value string) []string {
 
 func updateKeyFileFlagNameArg(value string) []string {
 	return []string{flag + updateKeyFileFlagName, value}
+}
+
+func updateKeyIDFlagNameArg(value string) []string {
+	return []string{flag + updateKeyIDFlagName, value}
+}
+
+func recoveryKeyIDFlagNameArg(value string) []string {
+	return []string{flag + recoveryKeyIDFlagName, value}
+}
+
+func kmsStoreEndpointFlagNameArg(value string) []string {
+	return []string{flag + kmsStoreEndpointFlagName, value}
 }
 
 func servicesFileArg(value string) []string {

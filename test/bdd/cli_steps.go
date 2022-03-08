@@ -7,7 +7,12 @@ package bdd
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -17,14 +22,38 @@ import (
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 )
 
+type createKeystoreReq struct {
+	Controller string `json:"controller"`
+}
+
+type createKeyStoreResp struct {
+	KeyStoreURL string `json:"key_store_url"`
+}
+
+type createKeyReq struct {
+	KeyType   string `json:"key_type"`
+	ExportKey bool   `json:"export"`
+}
+
+type createKeyResp struct {
+	KeyURL    string `json:"key_url"`
+	PublicKey []byte `json:"public_key"`
+}
+
 // Steps is steps for cli BDD tests.
 type Steps struct {
 	bddContext *BDDContext
 	state      *state
 
-	cliValue   string
-	createdDID *ariesdid.Doc
-	httpClient *httpClient
+	cliValue      string
+	createdDID    *ariesdid.Doc
+	httpClient    *httpClient
+	keyStoreURL   string
+	updateKeyID   string
+	recoverKeyID  string
+	recover2KeyID string
+	update2KeyID  string
+	update3KeyID  string
 }
 
 // NewCLISteps returns new agent from client SDK.
@@ -38,6 +67,7 @@ func NewCLISteps(ctx *BDDContext, state *state) *Steps {
 
 // RegisterSteps registers agent steps.
 func (e *Steps) RegisterSteps(s *godog.Suite) {
+	s.Step(`^Create keys in kms$`, e.setupKeys)
 	s.Step(`^Orb DID is created through cli$`, e.createDID)
 	s.Step(`^Orb DID is resolved through cli$`, e.cliResolveDID)
 	s.Step(`^Orb DID is updated through cli$`, e.updateDID)
@@ -50,6 +80,68 @@ func (e *Steps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check cli updated DID$`, e.checkUpdatedDID)
 	s.Step(`^user create "([^"]*)" activity with outbox-url "([^"]*)" actor "([^"]*)" to "([^"]*)" action "([^"]*)"$`, e.createActivity)
 	s.Step(`^orb-cli is executed with args '([^']*)'$`, e.execute)
+}
+
+func (e *Steps) setupKeys() error {
+	request := &createKeystoreReq{
+		Controller: "did:example:123456",
+	}
+
+	response := &createKeyStoreResp{}
+
+	err := sendHTTPRequest(e.httpClient.client, request, nil, http.MethodPost,
+		"http://localhost:7878/v1/keystores", response)
+	if err != nil {
+		return err
+	}
+
+	e.keyStoreURL = strings.ReplaceAll(response.KeyStoreURL, "orb.kms", "localhost")
+
+	e.updateKeyID, err = e.createKey()
+	if err != nil {
+		return err
+	}
+
+	e.recoverKeyID, err = e.createKey()
+	if err != nil {
+		return err
+	}
+
+	e.update2KeyID, err = e.createKey()
+	if err != nil {
+		return err
+	}
+
+	e.recover2KeyID, err = e.createKey()
+	if err != nil {
+		return err
+	}
+
+	e.update3KeyID, err = e.createKey()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Steps) createKey() (string, error) {
+	createKeyR := &createKeyReq{
+		KeyType:   "ED25519",
+		ExportKey: true,
+	}
+
+	createKeyRes := &createKeyResp{}
+
+	err := sendHTTPRequest(e.httpClient.client, createKeyR, nil, http.MethodPost,
+		fmt.Sprintf("%s/%s", e.keyStoreURL, "keys"), createKeyRes)
+	if err != nil {
+		return "", err
+	}
+
+	parts := strings.Split(createKeyRes.KeyURL, "/")
+
+	return parts[len(parts)-1], nil
 }
 
 func (e *Steps) checkCreatedDID() error {
@@ -359,10 +451,11 @@ func (e *Steps) updateDID() error {
 	args = append(args, "did", "update",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
+		"--kms-store-endpoint", e.keyStoreURL,
 		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--add-publickey-file", "fixtures/did-keys/update/publickeys.json",
-		"--sidetree-write-token", "ADMIN_TOKEN", "--signingkey-file", "./fixtures/keys/update/key_encrypted.pem",
-		"--signingkey-password", "123", "--nextupdatekey-file", "./fixtures/keys/update2/public.pem",
+		"--sidetree-write-token", "ADMIN_TOKEN", "--signingkey-id", e.updateKeyID,
+		"--nextupdatekey-id", e.update2KeyID,
 		"--add-service-file", "fixtures/did-services/update/services.json")
 
 	value, err := execCMD(args...)
@@ -382,13 +475,12 @@ func (e *Steps) recoverDID() error {
 		"did", "recover",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
-		"--did-anchor-origin", "https://orb.domain1.com",
-		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
-		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
+		"--did-anchor-origin", "https://orb.domain1.com", "--kms-store-endpoint", e.keyStoreURL,
+		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "ADMIN_TOKEN",
 		"--service-file", "fixtures/did-services/recover/services.json",
-		"--nextrecoverkey-file", "./fixtures/keys/recover2/public.pem", "--nextupdatekey-file",
-		"./fixtures/keys/update3/public.pem", "--signingkey-file", "./fixtures/keys/recover/key_encrypted.pem")
+		"--nextrecoverkey-id", e.recover2KeyID, "--nextupdatekey-id",
+		e.update3KeyID, "--signingkey-id", e.recoverKeyID)
 
 	value, err := execCMD(args...)
 	if err != nil {
@@ -406,9 +498,9 @@ func (e *Steps) deactivateDID() error {
 	args = append(args, "did", "deactivate",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
-		"--did-uri", e.createdDID.ID, "--signingkey-password", "123",
+		"--did-uri", e.createdDID.ID, "--kms-store-endpoint", e.keyStoreURL,
 		"--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem", "--sidetree-write-token", "ADMIN_TOKEN",
-		"--signingkey-file", "./fixtures/keys/recover2/key_encrypted.pem")
+		"--signingkey-id", e.recover2KeyID)
 
 	value, err := execCMD(args...)
 	if err != nil {
@@ -424,10 +516,11 @@ func (e *Steps) createDID() error {
 	var args []string
 
 	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain1.com",
+		"--kms-store-endpoint", e.keyStoreURL,
 		"--sidetree-url", "https://localhost:48326/sidetree/v1/operations", "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/create/publickeys.json",
 		"--sidetree-write-token", "ADMIN_TOKEN", "--service-file", "fixtures/did-services/create/services.json",
-		"--recoverykey-file", "./fixtures/keys/recover/public.pem", "--updatekey-file", "./fixtures/keys/update/public.pem")
+		"--recoverykey-id", e.recoverKeyID, "--updatekey-id", e.updateKeyID)
 
 	value, err := execCMD(args...)
 	if err != nil {
@@ -473,4 +566,70 @@ func execCMD(args ...string) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+func sendRequest(httpClient *http.Client, req []byte, headers map[string]string, method,
+	endpointURL string) ([]byte, error) {
+	var httpReq *http.Request
+
+	var err error
+
+	if len(req) == 0 {
+		httpReq, err = http.NewRequestWithContext(context.Background(),
+			method, endpointURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create http request: %w", err)
+		}
+	} else {
+		httpReq, err = http.NewRequestWithContext(context.Background(),
+			method, endpointURL, bytes.NewBuffer(req))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create http request: %w", err)
+		}
+	}
+
+	for k, v := range headers {
+		httpReq.Header.Add(k, v)
+	}
+
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	defer closeResponseBody(resp.Body)
+
+	responseBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response : %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("got unexpected response from %s status '%d' body %s",
+			endpointURL, resp.StatusCode, responseBytes)
+	}
+
+	return responseBytes, nil
+}
+
+func closeResponseBody(respBody io.Closer) {
+	if err := respBody.Close(); err != nil {
+		logger.Errorf("Failed to close response body: %v", err)
+	}
+}
+
+// SendHTTPRequest send http request.
+func sendHTTPRequest(httpClient *http.Client, request interface{}, headers map[string]string, method,
+	endpointURL string, response interface{}) error {
+	reqBytes, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	responseBytes, err := sendRequest(httpClient, reqBytes, headers, method, endpointURL)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(responseBytes, response)
 }

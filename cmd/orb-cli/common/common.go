@@ -179,7 +179,7 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 		return nil, err
 	}
 
-	return PublicKeyFromPEM(keyBytes)
+	return ed25519.PublicKey(keyBytes), nil
 }
 
 // GetKey get key.
@@ -485,7 +485,15 @@ func (s *Signer) Headers() jws.Headers {
 		return s.signer.Headers()
 	}
 
-	return nil
+	headers := make(jws.Headers)
+
+	headers[jws.HeaderKeyID] = uuid.NewString()
+
+	if s.publicKey.Crv == "Ed25519" {
+		headers[jws.HeaderAlgorithm] = "EdDSA"
+	}
+
+	return headers
 }
 
 // PublicKeyJWK return public key JWK.

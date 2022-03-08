@@ -87,6 +87,24 @@ func TestDeactivateDID(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to deactivate did")
 	})
+
+	t.Run("test failed to export public key", func(t *testing.T) {
+		os.Clearenv()
+		cmd := GetDeactivateDIDCmd()
+
+		var args []string
+		args = append(args, didURIArg()...)
+		args = append(args, sidetreeURLArg(serv.URL)...)
+		args = append(args, signingKeyPasswordArg()...)
+		args = append(args, signingKeyIDFlagNameArg("id")...)
+		args = append(args, kmsStoreEndpointFlagNameArg("kms")...)
+
+		cmd.SetArgs(args)
+		err := cmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ExportPubKeyBytes key failed")
+	})
 }
 
 func TestKeys(t *testing.T) {
@@ -132,6 +150,14 @@ func sidetreeURLArg(value string) []string {
 
 func signingKeyFileFlagNameArg(value string) []string {
 	return []string{flag + signingKeyFileFlagName, value}
+}
+
+func signingKeyIDFlagNameArg(value string) []string {
+	return []string{flag + signingKeyIDFlagName, value}
+}
+
+func kmsStoreEndpointFlagNameArg(value string) []string {
+	return []string{flag + kmsStoreEndpointFlagName, value}
 }
 
 func signingKeyPasswordArg() []string {

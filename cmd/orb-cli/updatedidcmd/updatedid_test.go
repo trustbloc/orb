@@ -264,6 +264,26 @@ func TestUpdateDID(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to update did")
 	})
+
+	t.Run("test failed to export public key", func(t *testing.T) {
+		os.Clearenv()
+		cmd := GetUpdateDIDCmd()
+
+		var args []string
+		args = append(args, didURIArg()...)
+		args = append(args, sidetreeURLArg("wrongurl")...)
+		args = append(args, nextUpdateKeyIDFlagNameArg("id")...)
+		args = append(args, kmsStoreEndpointFlagNameArg("store")...)
+		args = append(args, addServicesFileArg(servicesFile.Name())...)
+		args = append(args, signingKeyPasswordArg()...)
+		args = append(args, addPublicKeyFileArg(file.Name())...)
+
+		cmd.SetArgs(args)
+		err = cmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ExportPubKeyBytes key failed")
+	})
 }
 
 func TestGetPublicKeys(t *testing.T) {
@@ -324,10 +344,18 @@ func nextUpdateKeyFlagNameArg(value string) []string {
 	return []string{flag + nextUpdateKeyFlagName, value}
 }
 
+func nextUpdateKeyIDFlagNameArg(value string) []string {
+	return []string{flag + nextUpdateKeyIDFlagName, value}
+}
+
 func nextUpdateKeyFileFlagNameArg(value string) []string {
 	return []string{flag + nextUpdateKeyFileFlagName, value}
 }
 
 func addServicesFileArg(value string) []string {
 	return []string{flag + addServiceFileFlagName, value}
+}
+
+func kmsStoreEndpointFlagNameArg(value string) []string {
+	return []string{flag + kmsStoreEndpointFlagName, value}
 }
