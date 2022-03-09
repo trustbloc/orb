@@ -20,6 +20,7 @@ Feature: Using Orb CLI
     # domain1 invites domain2 to be a witness
     When user create "witness" activity with outbox-url "https://localhost:48326/services/orb/outbox" actor "https://orb.domain1.com/services/orb" to "https://orb.domain2.com/services/orb" action "InviteWitness"
     Then we wait 3 seconds
+    When Create keys in kms
     When Orb DID is created through cli
     Then check cli created valid DID
     Then Orb DID is resolved through cli

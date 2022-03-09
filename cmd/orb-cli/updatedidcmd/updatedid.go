@@ -204,6 +204,8 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 					return err
 				}
 
+				signingKeyID = fmt.Sprintf("%s/keys/%s", kmsStoreURL, signingKeyID)
+
 				signingKeyPK, err = common.GetPublicKeyFromKMS(cmd, signingKeyIDFlagName,
 					signingKeyIDEnvKey, webKmsClient)
 				if err != nil {

@@ -176,6 +176,26 @@ func TestRecoverDID(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to recover did")
 	})
+
+	t.Run("test failed to export public key", func(t *testing.T) {
+		os.Clearenv()
+		cmd := GetRecoverDIDCmd()
+
+		var args []string
+		args = append(args, didURIArg()...)
+		args = append(args, sidetreeURLArg("wrongurl")...)
+		args = append(args, nextUpdateKeyIDFlagNameArg("id")...)
+		args = append(args, kmsStoreEndpointFlagNameArg("store")...)
+		args = append(args, servicesFileArg(servicesFile.Name())...)
+		args = append(args, publicKeyFileArg(publicKeyFile.Name())...)
+		args = append(args, didAnchorOrigin()...)
+
+		cmd.SetArgs(args)
+		err = cmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "ExportPubKeyBytes key failed")
+	})
 }
 
 func TestKeyRetriever(t *testing.T) {
@@ -365,6 +385,10 @@ func nextUpdateKeyFileFlagNameArg(value string) []string {
 	return []string{flag + nextUpdateKeyFileFlagName, value}
 }
 
+func nextUpdateKeyIDFlagNameArg(value string) []string {
+	return []string{flag + nextUpdateKeyIDFlagName, value}
+}
+
 func nextRecoveryKeyFileFlagNameArg(value string) []string {
 	return []string{flag + nextRecoveryKeyFileFlagName, value}
 }
@@ -375,4 +399,8 @@ func signingKeyFileFlagNameArg(value string) []string {
 
 func signingKeyPasswordArg() []string {
 	return []string{flag + signingKeyPasswordFlagName, "123"}
+}
+
+func kmsStoreEndpointFlagNameArg(value string) []string {
+	return []string{flag + kmsStoreEndpointFlagName, value}
 }
