@@ -126,7 +126,7 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 
 	opts := []vcsigner.Opt{
 		vcsigner.WithCreated(time.Unix(0, timestamp)),
-		vcsigner.WithSignatureRepresentation(verifiable.SignatureJWS),
+		vcsigner.WithSignatureRepresentation(verifiable.SignatureProofValue),
 	}
 
 	if c.endpoint != "" {

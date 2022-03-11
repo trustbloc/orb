@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/mr-tron/base58"
+	"github.com/multiformats/go-multibase"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
@@ -189,11 +189,16 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	for keyID, value := range o.pubKeys {
+		multibaseEncode, err := multibase.Encode(multibase.Base58BTC, value)
+		if err != nil {
+			writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+		}
+
 		rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, verificationMethod{
-			ID:              ID + "#" + keyID,
-			Controller:      ID,
-			Type:            o.verificationMethodType,
-			PublicKeyBase58: base58.Encode(value),
+			ID:                 ID + "#" + keyID,
+			Controller:         ID,
+			Type:               o.verificationMethodType,
+			PublicKeyMultibase: multibaseEncode,
 		})
 
 		rawDoc.Authentication = append(rawDoc.Authentication, ID+"#"+keyID)

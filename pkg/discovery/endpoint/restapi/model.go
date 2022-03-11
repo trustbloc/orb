@@ -46,8 +46,8 @@ type RawDoc struct {
 }
 
 type verificationMethod struct {
-	ID              string `json:"id"`
-	Controller      string `json:"controller"`
-	Type            string `json:"type"`
-	PublicKeyBase58 string `json:"publicKeyBase58"`
+	ID                 string `json:"id"`
+	Controller         string `json:"controller"`
+	Type               string `json:"type"`
+	PublicKeyMultibase string `json:"publicKeyMultibase"`
 }

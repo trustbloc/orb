@@ -153,7 +153,7 @@ Each parameter has a description. It should not be hard to start a service.
 
 Minimal configuration to run a service is:
 
-```./.build/bin/orb start --host-url="0.0.0.0:7890" --cas-type=local --external-endpoint=http://localhost:7890 --did-namespace=test --database-type=mem --kms-secrets-database-type=mem --anchor-credential-domain=http://localhost:7890 --anchor-credential-issuer=http://localhost:7890 --anchor-credential-url=http://localhost:7890/vc --anchor-credential-signature-suite=Ed25519Signature2018```
+```./.build/bin/orb start --host-url="0.0.0.0:7890" --cas-type=local --external-endpoint=http://localhost:7890 --did-namespace=test --database-type=mem --kms-secrets-database-type=mem --anchor-credential-domain=http://localhost:7890 --anchor-credential-issuer=http://localhost:7890 --anchor-credential-url=http://localhost:7890/vc --anchor-credential-signature-suite=Ed25519Signature2020```
 
 ## Databases
 
