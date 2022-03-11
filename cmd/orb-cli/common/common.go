@@ -174,7 +174,7 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 		return nil, err
 	}
 
-	keyBytes, err := webKmsClient.ExportPubKeyBytes(keyID)
+	keyBytes, _, err := webKmsClient.ExportPubKeyBytes(keyID)
 	if err != nil {
 		return nil, err
 	}

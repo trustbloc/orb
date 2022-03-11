@@ -15,14 +15,13 @@ require (
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20211203093644-b7d189cc06f4
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20211219215001-23cd75276fdc
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210910143505-343c246c837c
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20211206182816-9cdcbcd09dc2
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220311181400-584f96318d6d
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21
 	github.com/igor-pavlenko/httpsignatures-go v0.0.21
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
-	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/ory/dockertest/v3 v3.7.0
@@ -32,8 +31,8 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.7
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220302221451-205719c617be
-	github.com/trustbloc/vct v0.1.3
+	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220310161146-ec2da78ea973
+	github.com/trustbloc/vct v0.1.4-0.20220311095043-9804a0520090
 	go.mongodb.org/mongo-driver v1.8.0
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 )
@@ -84,6 +83,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
+	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.0.3 // indirect
 	github.com/multiformats/go-base36 v0.1.0 // indirect
 	github.com/multiformats/go-multiaddr v0.3.0 // indirect

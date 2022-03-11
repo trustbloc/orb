@@ -58,7 +58,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain1.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=mongodb
@@ -196,7 +196,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=https://orb2.domain1.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=mongodb
@@ -333,7 +333,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
       - DATABASE_TYPE=mongodb
@@ -435,7 +435,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
       - DATABASE_TYPE=mongodb
@@ -540,7 +540,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain3.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain3.com
       - DATABASE_TYPE=mongodb
@@ -657,7 +657,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN4}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain4.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain4.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
       - DATABASE_TYPE=mongodb
@@ -772,7 +772,7 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN4}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain5.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain5.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain5.com
       - DATABASE_TYPE=mongodb
@@ -977,7 +977,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-d815fdb
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-ceab63d
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077

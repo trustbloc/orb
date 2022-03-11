@@ -169,7 +169,7 @@ const (
 	casPath = "/cas"
 
 	kmsKeyType             = kms.ED25519Type
-	verificationMethodType = "Ed25519VerificationKey2018"
+	verificationMethodType = "Ed25519VerificationKey2020"
 
 	webKeyStoreKey = "web-key-store"
 	vcKidKey       = "vckid"
@@ -647,7 +647,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	vcActivePubKey, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
+	vcActivePubKey, _, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
@@ -657,7 +657,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	if len(parameters.vcSignPrivateKeys) > 0 {
 		for keyID := range parameters.vcSignPrivateKeys {
-			pubKey, err := km.ExportPubKeyBytes(keyID)
+			pubKey, _, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
@@ -668,7 +668,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	if len(parameters.vcSignKeysID) > 0 {
 		for _, keyID := range parameters.vcSignKeysID {
-			pubKey, err := km.ExportPubKeyBytes(keyID)
+			pubKey, _, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
@@ -677,7 +677,7 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	httpSignActivePubKey, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
+	httpSignActivePubKey, _, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}

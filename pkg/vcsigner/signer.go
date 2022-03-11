@@ -17,6 +17,7 @@ import (
 	ariessigner "github.com/hyperledger/aries-framework-go/pkg/doc/signature/signer"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2018"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2020"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/jsonwebsignature2020"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -158,6 +159,8 @@ func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataP
 	switch s.params.SignatureSuite {
 	case Ed25519Signature2018:
 		signatureSuite = ed25519signature2018.New(suite.WithSigner(kmsSigner))
+	case Ed25519Signature2020:
+		signatureSuite = ed25519signature2020.New(suite.WithSigner(kmsSigner))
 	case JSONWebSignature2020:
 		signatureSuite = jsonwebsignature2020.New(suite.WithSigner(kmsSigner))
 	default:
@@ -169,7 +172,7 @@ func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataP
 	signingCtx := &verifiable.LinkedDataProofContext{
 		Domain:                  s.params.Domain,
 		VerificationMethod:      s.params.VerificationMethod,
-		SignatureRepresentation: verifiable.SignatureJWS,
+		SignatureRepresentation: verifiable.SignatureProofValue,
 		SignatureType:           s.params.SignatureSuite,
 		Suite:                   signatureSuite,
 		Purpose:                 AssertionMethod,
