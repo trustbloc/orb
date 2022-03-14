@@ -1,7 +1,7 @@
 [
  {
   "id": "key-recover-id",
-  "type": "Ed25519VerificationKey2018",
+  "type": "Ed25519VerificationKey2020",
   "purposes": ["authentication"],
   "jwkPath": "./fixtures/did-keys/recover/key1_jwk.json"
  }
