@@ -930,7 +930,7 @@ services:
   orb.kms:
     container_name: orb.kms
     restart: always
-    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-2dff373
+    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-a876dc2
     environment:
       - KMS_BASE_URL=http://orb.kms:7878
       - KMS_HOST=172.20.0.13:7878

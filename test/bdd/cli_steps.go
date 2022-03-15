@@ -97,27 +97,27 @@ func (e *Steps) setupKeys() error {
 
 	e.keyStoreURL = strings.ReplaceAll(response.KeyStoreURL, "orb.kms", "localhost")
 
-	e.updateKeyID, err = e.createKey()
+	e.updateKeyID, err = e.createKey("ED25519")
 	if err != nil {
 		return err
 	}
 
-	e.recoverKeyID, err = e.createKey()
+	e.recoverKeyID, err = e.createKey("ECDSAP256IEEEP1363")
 	if err != nil {
 		return err
 	}
 
-	e.update2KeyID, err = e.createKey()
+	e.update2KeyID, err = e.createKey("ED25519")
 	if err != nil {
 		return err
 	}
 
-	e.recover2KeyID, err = e.createKey()
+	e.recover2KeyID, err = e.createKey("ED25519")
 	if err != nil {
 		return err
 	}
 
-	e.update3KeyID, err = e.createKey()
+	e.update3KeyID, err = e.createKey("ED25519")
 	if err != nil {
 		return err
 	}
@@ -125,9 +125,9 @@ func (e *Steps) setupKeys() error {
 	return nil
 }
 
-func (e *Steps) createKey() (string, error) {
+func (e *Steps) createKey(keyType string) (string, error) {
 	createKeyR := &createKeyReq{
-		KeyType:   "ED25519",
+		KeyType:   keyType,
 		ExportKey: true,
 	}
 

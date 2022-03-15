@@ -11,6 +11,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -174,12 +175,38 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 		return nil, err
 	}
 
-	keyBytes, _, err := webKmsClient.ExportPubKeyBytes(keyID)
+	keyBytes, kt, err := webKmsClient.ExportPubKeyBytes(keyID)
 	if err != nil {
 		return nil, err
 	}
 
-	return ed25519.PublicKey(keyBytes), nil
+	switch kt { // nolint:exhaustive // default catch-all
+	case kms.ECDSAP256TypeDER, kms.ECDSAP384TypeDER, kms.ECDSAP521TypeDER:
+		pubKey, err := x509.ParsePKIXPublicKey(keyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ecdsa key in DER format: %w", err)
+		}
+
+		return pubKey, nil
+	case kms.ECDSAP256TypeIEEEP1363, kms.ECDSAP384TypeIEEEP1363, kms.ECDSAP521TypeIEEEP1363:
+		curves := map[kms.KeyType]elliptic.Curve{
+			kms.ECDSAP256TypeIEEEP1363: elliptic.P256(),
+			kms.ECDSAP384TypeIEEEP1363: elliptic.P384(),
+			kms.ECDSAP521TypeIEEEP1363: elliptic.P521(),
+		}
+		crv := curves[kt]
+		x, y := elliptic.Unmarshal(crv, keyBytes)
+
+		return &ecdsa.PublicKey{
+			Curve: crv,
+			X:     x,
+			Y:     y,
+		}, nil
+	case kms.ED25519Type:
+		return ed25519.PublicKey(keyBytes), nil
+	}
+
+	return nil, fmt.Errorf("                                                                               : %s", kt)
 }
 
 // GetKey get key.
@@ -491,6 +518,10 @@ func (s *Signer) Headers() jws.Headers {
 
 	if s.publicKey.Crv == "Ed25519" {
 		headers[jws.HeaderAlgorithm] = "EdDSA"
+	}
+
+	if s.publicKey.Crv == "P-256" || s.publicKey.Crv == "P-384" || s.publicKey.Crv == "P-521" {
+		headers[jws.HeaderAlgorithm] = "ES256"
 	}
 
 	return headers

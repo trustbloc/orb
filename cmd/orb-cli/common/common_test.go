@@ -19,6 +19,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -372,7 +373,36 @@ func TestGetPublicKeyFromKMS(t *testing.T) {
 		require.NoError(t, os.Setenv("key1", "value"))
 
 		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1",
-			&mockkms.KeyManager{ExportPubKeyBytesValue: []byte(pkPEM)})
+			&mockkms.KeyManager{
+				ExportPubKeyBytesValue: []byte(pkPEM),
+				ExportPubKeyTypeValue:  kms.ED25519,
+			})
+		require.NoError(t, err)
+	})
+
+	t.Run("test key not supportted ", func(t *testing.T) {
+		os.Clearenv()
+
+		require.NoError(t, os.Setenv("key1", "value"))
+
+		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1",
+			&mockkms.KeyManager{
+				ExportPubKeyBytesValue: []byte(pkPEM),
+			})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "")
+	})
+
+	t.Run("test key not p-256 ", func(t *testing.T) {
+		os.Clearenv()
+
+		require.NoError(t, os.Setenv("key1", "value"))
+
+		_, err := GetPublicKeyFromKMS(&cobra.Command{}, "key1", "key1",
+			&mockkms.KeyManager{
+				ExportPubKeyBytesValue: []byte(pkPEM),
+				ExportPubKeyTypeValue:  kms.ECDSAP256TypeIEEEP1363,
+			})
 		require.NoError(t, err)
 	})
 }
