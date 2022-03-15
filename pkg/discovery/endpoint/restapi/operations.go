@@ -13,6 +13,9 @@ import (
 	"net/url"
 	"strings"
 
+	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/multiformats/go-multibase"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -89,7 +92,6 @@ func New(c *Config, p *Providers) (*Operation, error) {
 	return &Operation{
 		pubKeys:                   c.PubKeys,
 		host:                      u.Host,
-		verificationMethodType:    c.VerificationMethodType,
 		resolutionPath:            c.ResolutionPath,
 		operationPath:             c.OperationPath,
 		webCASPath:                c.WebCASPath,
@@ -105,13 +107,19 @@ func New(c *Config, p *Providers) (*Operation, error) {
 	}, nil
 }
 
+// PublicKey public key.
+type PublicKey struct {
+	ID    string
+	Value []byte
+	Type  kms.KeyType
+}
+
 // Operation defines handlers for discovery operations.
 type Operation struct {
 	anchorInfoRetriever
 
-	pubKeys                   map[string][]byte
+	pubKeys                   []PublicKey
 	host                      string
-	verificationMethodType    string
 	resolutionPath            string
 	operationPath             string
 	webCASPath                string
@@ -127,7 +135,7 @@ type Operation struct {
 
 // Config defines configuration for discovery operations.
 type Config struct {
-	PubKeys                   map[string][]byte
+	PubKeys                   []PublicKey
 	VerificationMethodType    string
 	ResolutionPath            string
 	OperationPath             string
@@ -183,31 +191,59 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 	ID := "did:web:" + o.host
 
-	rawDoc := &RawDoc{
-		Context: context,
+	rawDoc := &ariesdid.Doc{
+		Context: []string{context},
 		ID:      ID,
 	}
 
-	for keyID, value := range o.pubKeys {
-		multibaseEncode, err := multibase.Encode(multibase.Base58BTC, value)
-		if err != nil {
-			writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+	for _, key := range o.pubKeys {
+		var vm *ariesdid.VerificationMethod
+
+		switch {
+		case key.Type == kms.ED25519:
+			vm = ariesdid.NewVerificationMethodFromBytesWithMultibase(ID+"#"+key.ID,
+				"Ed25519VerificationKey2020", ID, key.Value, multibase.Base58BTC)
+		case key.Type == kms.ECDSAP256IEEEP1363 || key.Type == kms.ECDSAP384IEEEP1363 ||
+			key.Type == kms.ECDSAP521IEEEP1363:
+			jwk, err := jwksupport.PubKeyBytesToJWK(key.Value, key.Type)
+			if err != nil {
+				writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+
+				return
+			}
+
+			vm, err = ariesdid.NewVerificationMethodFromJWK(ID+"#"+key.ID, "JsonWebKey2020", ID, jwk)
+			if err != nil {
+				writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+
+				return
+			}
 		}
 
-		rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, verificationMethod{
-			ID:                 ID + "#" + keyID,
-			Controller:         ID,
-			Type:               o.verificationMethodType,
-			PublicKeyMultibase: multibaseEncode,
-		})
-
-		rawDoc.Authentication = append(rawDoc.Authentication, ID+"#"+keyID)
-		rawDoc.AssertionMethod = append(rawDoc.AssertionMethod, ID+"#"+keyID)
-		rawDoc.CapabilityDelegation = append(rawDoc.CapabilityDelegation, ID+"#"+keyID)
-		rawDoc.CapabilityInvocation = append(rawDoc.CapabilityInvocation, ID+"#"+keyID)
+		rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, *vm)
+		rawDoc.Authentication = append(rawDoc.Authentication,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.Authentication))
+		rawDoc.AssertionMethod = append(rawDoc.AssertionMethod,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.AssertionMethod))
+		rawDoc.CapabilityDelegation = append(rawDoc.CapabilityDelegation,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityDelegation))
+		rawDoc.CapabilityInvocation = append(rawDoc.CapabilityInvocation,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityInvocation))
 	}
 
-	writeResponse(rw, rawDoc, http.StatusOK)
+	bytes, err := rawDoc.JSONBytes()
+	if err != nil {
+		writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+
+		return
+	}
+
+	rw.Header().Add("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+
+	if _, err = rw.Write(bytes); err != nil {
+		logger.Errorf("unable to send a response: %v", err)
+	}
 }
 
 // webFingerHandler swagger:route Get /.well-known/webfinger discovery webFingerReq

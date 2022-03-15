@@ -179,32 +179,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			err.Error())
 	})
 
-	t.Run("test missing anchor credential signature suite arg", func(t *testing.T) {
-		startCmd := GetStartCmd()
-
-		args := []string{
-			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
-			"--" + casTypeFlagName, "ipfs",
-			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + didNamespaceFlagName, "namespace",
-			"--" + vctURLFlagName, "localhost:8081",
-			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
-		}
-		startCmd.SetArgs(args)
-
-		err := startCmd.Execute()
-
-		require.Error(t, err)
-		require.Equal(t,
-			"Neither anchor-credential-signature-suite (command line flag) nor ANCHOR_CREDENTIAL_SIGNATURE_SUITE (environment variable) have been set.",
-			err.Error())
-	})
-
 	t.Run("test invalid batch writer timeout", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -218,7 +192,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + batchWriterTimeoutFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -246,7 +219,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + maxWitnessDelayFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -275,7 +247,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + witnessStoreExpiryPeriodFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -304,7 +275,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + witnessStoreExpiryPeriodFlagName, "5s",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -333,7 +303,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + signWithLocalWitnessFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -361,7 +330,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + syncTimeoutFlagName, "abc",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -387,7 +355,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -415,7 +382,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -443,7 +409,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -471,7 +436,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -499,7 +463,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -527,7 +490,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -555,7 +517,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -835,7 +796,6 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
-		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + anchorCredentialURLFlagName, "peer.com",
@@ -860,7 +820,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -883,7 +842,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -906,7 +864,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
-			"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
@@ -1589,9 +1546,6 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err = os.Setenv(kmsSecretsDatabaseTypeEnvKey, databaseTypeMemOption)
 	require.NoError(t, err)
 
-	err = os.Setenv(anchorCredentialSignatureSuiteEnvKey, "suite")
-	require.NoError(t, err)
-
 	err = os.Setenv(anchorCredentialIssuerEnvKey, "issuer")
 	require.NoError(t, err)
 
@@ -1683,7 +1637,6 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + didNamespaceFlagName, "namespace",
 		"--" + databaseTypeFlagName, databaseType,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseType,
-		"--" + anchorCredentialSignatureSuiteFlagName, "suite",
 		"--" + anchorCredentialDomainFlagName, "domain.com",
 		"--" + anchorCredentialIssuerFlagName, "issuer.com",
 		"--" + anchorCredentialURLFlagName, "peer.com",

@@ -17,7 +17,7 @@ import (
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 )
 
-const orbHTTPSigAlgorithm = "Ed25519"
+const orbHTTPSigAlgorithm = "Sign"
 
 type kmsSigner struct {
 	client *http.Client

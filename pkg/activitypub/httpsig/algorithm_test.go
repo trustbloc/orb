@@ -7,17 +7,21 @@ SPDX-License-Identifier: Apache-2.0
 package httpsig
 
 import (
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	verifier2 "github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 
 	"github.com/trustbloc/orb/pkg/activitypub/mocks"
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
@@ -92,19 +96,31 @@ func TestSignatureHashAlgorithm_Verify(t *testing.T) {
 		KeyID: pubKeyID,
 	}
 
-	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	data := []byte("data")
+	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+	s := ecsigner.New(privKey, "ES256", uuid.NewString())
 
-	signature := ed25519.Sign(privKey, data)
+	signature, err := s.Sign(data)
+	require.NoError(t, err)
 
 	t.Run("Success", func(t *testing.T) {
 		resolver.ResolveReturns(&verifier2.PublicKey{
 			Value: pubKey,
+			Type:  "P-256",
 		}, nil)
 
 		require.NoError(t, algo.Verify(secret, data, signature))
+	})
+
+	t.Run("Key not supported", func(t *testing.T) {
+		resolver.ResolveReturns(&verifier2.PublicKey{
+			Value: pubKey,
+		}, nil)
+
+		require.Error(t, algo.Verify(secret, data, signature))
 	})
 
 	t.Run("Invalid signature", func(t *testing.T) {
@@ -114,7 +130,6 @@ func TestSignatureHashAlgorithm_Verify(t *testing.T) {
 
 		err := algo.Verify(secret, data, []byte("invalid signature"))
 		require.Error(t, err)
-		require.True(t, errors.Is(err, ErrInvalidSignature))
 	})
 
 	t.Run("ResolveKey error", func(t *testing.T) {
@@ -169,22 +184,6 @@ func TestKeyResolver_Resolve(t *testing.T) {
 		pk, err := resolver.Resolve(pubKeyIRI.String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieve public key")
-		require.Nil(t, pk)
-	})
-
-	t.Run("Invalid public key", func(t *testing.T) {
-		pubKeyRetriever := servicemocks.NewActivitPubClient().
-			WithPublicKey(vocab.NewPublicKey(
-				vocab.WithID(pubKeyIRI),
-				vocab.WithPublicKeyPem("invalid key"),
-			))
-
-		resolver := NewKeyResolver(pubKeyRetriever)
-		require.NotNil(t, resolver)
-
-		pk, err := resolver.Resolve(pubKeyIRI.String())
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid public key")
 		require.Nil(t, pk)
 	})
 }

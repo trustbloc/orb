@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -168,8 +167,9 @@ const (
 
 	casPath = "/cas"
 
-	kmsKeyType             = kms.ED25519Type
-	verificationMethodType = "Ed25519VerificationKey2020"
+	kmsKeyType           = kms.ED25519
+	jsonWebSignature2020 = "JsonWebSignature2020"
+	ed25519Signature2020 = "Ed25519Signature2020"
 
 	webKeyStoreKey = "web-key-store"
 	vcKidKey       = "vckid"
@@ -561,10 +561,21 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("parse external endpoint: %w", err)
 	}
 
+	vcActivePubKey, vcActiveKeyType, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
+	if err != nil {
+		return fmt.Errorf("failed to export pub key: %w", err)
+	}
+
+	signatureSuiteType := jsonWebSignature2020
+
+	if vcActiveKeyType == kms.ED25519 {
+		signatureSuiteType = ed25519Signature2020
+	}
+
 	signingParams := vcsigner.SigningParams{
 		VerificationMethod: "did:web:" + u.Host + "#" + parameters.vcSignActiveKeyID,
 		Domain:             parameters.anchorCredentialParams.domain,
-		SignatureSuite:     parameters.anchorCredentialParams.signatureSuite,
+		SignatureSuite:     signatureSuiteType,
 	}
 
 	signingProviders := &vcsigner.Providers{
@@ -647,42 +658,41 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	vcActivePubKey, _, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
-	if err != nil {
-		return fmt.Errorf("failed to export pub key: %w", err)
-	}
+	pubKeys := make([]discoveryrest.PublicKey, 0)
 
-	pubKeys := make(map[string][]byte)
-	pubKeys[parameters.vcSignActiveKeyID] = vcActivePubKey
+	pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: parameters.vcSignActiveKeyID,
+		Type: vcActiveKeyType, Value: vcActivePubKey})
 
 	if len(parameters.vcSignPrivateKeys) > 0 {
 		for keyID := range parameters.vcSignPrivateKeys {
-			pubKey, _, err := km.ExportPubKeyBytes(keyID)
+			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
 
-			pubKeys[keyID] = pubKey
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: keyID,
+				Type: pubKeyType, Value: pubKey})
 		}
 	}
 
 	if len(parameters.vcSignKeysID) > 0 {
 		for _, keyID := range parameters.vcSignKeysID {
-			pubKey, _, err := km.ExportPubKeyBytes(keyID)
+			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
 
-			pubKeys[keyID] = pubKey
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: keyID,
+				Type: pubKeyType, Value: pubKey})
 		}
 	}
 
-	httpSignActivePubKey, _, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
+	httpSignActivePubKey, httpSignKeyType, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
 
-	httpSignActivePublicKey, err := getActivityPubPublicKey(httpSignActivePubKey, apServiceIRI, apServicePublicKeyIRI)
+	httpSignActivePublicKey, err := getActivityPubPublicKey(httpSignActivePubKey, httpSignKeyType, apServiceIRI, apServicePublicKeyIRI)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
@@ -946,7 +956,6 @@ func startOrbServices(parameters *orbParameters) error {
 	endpointDiscoveryOp, err := discoveryrest.New(
 		&discoveryrest.Config{
 			PubKeys:                   pubKeys,
-			VerificationMethodType:    verificationMethodType,
 			ResolutionPath:            baseResolvePath,
 			OperationPath:             baseUpdatePath,
 			WebCASPath:                casPath,
@@ -1348,15 +1357,25 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 	return u
 }
 
-func getActivityPubPublicKey(pubKey []byte, apServiceIRI, apServicePublicKeyIRI *url.URL) (*vocab.PublicKeyType, error) {
-	pubDerKey, err := x509.MarshalPKIXPublicKey(ed25519.PublicKey(pubKey))
-	if err != nil {
-		return nil, fmt.Errorf("marshal pub key: %w", err)
+func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceIRI,
+	apServicePublicKeyIRI *url.URL) (*vocab.PublicKeyType, error) {
+
+	pemKeyType := ""
+
+	switch keyType {
+	case kms.ED25519:
+		pemKeyType = "Ed25519"
+	case kms.ECDSAP256IEEEP1363:
+		pemKeyType = "P-256"
+	case kms.ECDSAP384IEEEP1363:
+		pemKeyType = "P-384"
+	case kms.ECDSAP521IEEEP1363:
+		pemKeyType = "P-521"
 	}
 
 	pemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubDerKey,
+		Type:  pemKeyType,
+		Bytes: pubKeyBytes,
 	})
 
 	return vocab.NewPublicKey(

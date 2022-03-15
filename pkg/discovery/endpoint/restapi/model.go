@@ -33,21 +33,3 @@ type Link struct {
 	Href     string `json:"href,omitempty"`
 	Template string `json:"template,omitempty"`
 }
-
-// RawDoc did document.
-type RawDoc struct {
-	Context              string               `json:"@context"`
-	ID                   string               `json:"id"`
-	VerificationMethod   []verificationMethod `json:"verificationMethod"`
-	Authentication       []string             `json:"authentication"`
-	AssertionMethod      []string             `json:"assertionMethod"`
-	CapabilityDelegation []string             `json:"capabilityDelegation"`
-	CapabilityInvocation []string             `json:"capabilityInvocation"`
-}
-
-type verificationMethod struct {
-	ID                 string `json:"id"`
-	Controller         string `json:"controller"`
-	Type               string `json:"type"`
-	PublicKeyMultibase string `json:"publicKeyMultibase"`
-}

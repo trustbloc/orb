@@ -8,10 +8,9 @@ package service
 
 import (
 	"context"
-	"crypto"
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -20,11 +19,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	mockcrypto "github.com/hyperledger/aries-framework-go/pkg/mock/crypto"
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 
 	clientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -958,11 +959,15 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		anchorEventAckHandler: mocks.NewAnchorEventAcknowledgementHandler(),
 	}
 
-	pubKeyBytes, privKey, err := ed25519.GenerateKey(rand.Reader)
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	pemBytes, err := publicKeyToPEM(pubKeyBytes)
-	require.NoError(t, err)
+	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+
+	pemBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "P-256",
+		Bytes: pubKey,
+	})
 
 	publicKey := vocab.NewPublicKey(
 		vocab.WithID(testutil.NewMockID(serviceIRI, "/keys/main-key")),
@@ -971,7 +976,9 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	)
 
 	cr := &mockcrypto.Crypto{SignFn: func(bytes []byte, i interface{}) ([]byte, error) {
-		return ed25519.Sign(privKey, bytes), nil
+		s := ecsigner.New(privKey, "ES256", uuid.NewString())
+
+		return s.Sign(bytes)
 	}}
 
 	km := &mockkms.KeyManager{}
@@ -1037,21 +1044,6 @@ func containsActivity(activities []*vocab.ActivityType, iri fmt.Stringer) bool {
 	}
 
 	return false
-}
-
-func publicKeyToPEM(publicKey crypto.PublicKey) ([]byte, error) {
-	keyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	block := pem.Block{
-		Type:    "PUBLIC KEY",
-		Headers: nil,
-		Bytes:   keyBytes,
-	}
-
-	return pem.EncodeToMemory(&block), nil
 }
 
 const proof = `{
