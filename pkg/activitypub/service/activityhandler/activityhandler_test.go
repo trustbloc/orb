@@ -30,6 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 func TestNewInbox(t *testing.T) {
@@ -131,7 +132,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 
 	t.Run("With anchor event", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			anchorEvent := aptestutil.NewMockAnchorEvent(t)
+			anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 			anchorEventURL := anchorEvent.URL()[0]
 
@@ -148,7 +149,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			require.True(t, exists)
 			require.True(t, len(ob.Activities().QueryByType(vocab.TypeAnnounce)) > 0)
 
-			it, err := activityStore.QueryReferences(store.AnchorEvent,
+			it, err := activityStore.QueryReferences(store.AnchorLinkset,
 				store.NewCriteria(store.WithObjectIRI(anchorEventURL)))
 			require.NoError(t, err)
 
@@ -158,7 +159,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 		})
 
 		t.Run("Handler error", func(t *testing.T) {
-			anchorEvent := aptestutil.NewMockAnchorEvent(t)
+			anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 			create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 				vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)))
@@ -198,7 +199,7 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, refs)
 
-			it, err = activityStore.QueryReferences(store.AnchorEvent,
+			it, err = activityStore.QueryReferences(store.AnchorLinkset,
 				store.NewCriteria(store.WithObjectIRI(anchorEventURL)))
 			require.NoError(t, err)
 
@@ -249,7 +250,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 	defer h.Stop()
 
 	t.Run("Embedded anchor event", func(t *testing.T) {
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
@@ -260,7 +261,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			require.NoError(t, h.HandleActivity(nil, create))
 
-			it, err := activityStore.QueryReferences(store.AnchorEvent,
+			it, err := activityStore.QueryReferences(store.AnchorLinkset,
 				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 			require.NoError(t, err)
 
@@ -271,7 +272,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor event reference", func(t *testing.T) {
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
@@ -282,7 +283,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
 			require.NoError(t, h.HandleActivity(nil, create))
 
-			it, err := activityStore.QueryReferences(store.AnchorEvent,
+			it, err := activityStore.QueryReferences(store.AnchorLinkset,
 				store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 			require.NoError(t, err)
 
@@ -312,7 +313,7 @@ func TestHandler_OutboxHandleCreateActivity(t *testing.T) {
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					aptestutil.NewMockAnchorEvent(t),
+					aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t)),
 				),
 			),
 		)
@@ -1241,7 +1242,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		spi.WithAnchorEventHandler(anchorEventHandler))
 	require.NotNil(t, h)
 
-	require.NoError(t, h.store.AddReference(store.AnchorEvent, target2ID, h.ServiceIRI))
+	require.NoError(t, h.store.AddReference(store.AnchorLinkset, target2ID, h.ServiceIRI))
 
 	h.Start()
 	defer h.Stop()
@@ -1281,7 +1282,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(announce.ID()))
 
-		it, err := h.store.QueryReferences(store.AnchorEvent,
+		it, err := h.store.QueryReferences(store.AnchorLinkset,
 			store.NewCriteria(store.WithObjectIRI(anchorEvent.URL()[0])))
 		require.NoError(t, err)
 
@@ -1335,7 +1336,7 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 	})
 
 	t.Run("Anchor credential ref (with embedded object)", func(t *testing.T) {
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -1510,6 +1511,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
+	anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(aptestutil.NewMockAnchorLink(t)))
+	require.NoError(t, err)
+
 	t.Run("Success", func(t *testing.T) {
 		witness.WithProof([]byte(proof))
 
@@ -1517,7 +1521,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1541,7 +1545,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1565,7 +1569,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1580,7 +1584,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := time.Now().Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1597,7 +1601,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		startTime := time.Now()
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
@@ -1607,25 +1611,6 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "endTime is required")
-	})
-
-	t.Run("Invalid object type", func(t *testing.T) {
-		startTime := time.Now()
-		endTime := startTime.Add(time.Hour)
-
-		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithObject(vocab.NewObject(vocab.WithType(vocab.TypeAnnounce)))),
-			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
-			vocab.WithActor(service1IRI),
-			vocab.WithTo(service2IRI),
-			vocab.WithStartTime(&startTime),
-			vocab.WithEndTime(&endTime),
-			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
-		)
-
-		err := h.HandleActivity(nil, offer)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor event is required")
 	})
 
 	t.Run("No object", func(t *testing.T) {
@@ -1644,7 +1629,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 
 		err := h.HandleActivity(nil, offer)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor event is required")
+		require.Contains(t, err.Error(), "object is required")
 	})
 
 	t.Run("Not witnessing actor", func(t *testing.T) {
@@ -1654,7 +1639,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithID(aptestutil.NewActivityID(service3IRI)),
 			vocab.WithActor(service3IRI),
 			vocab.WithTo(service2IRI),
@@ -1674,7 +1659,7 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 		endTime := startTime.Add(time.Hour)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 			vocab.WithActor(service1IRI),
 			vocab.WithTo(service2IRI),
@@ -1711,15 +1696,15 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	subscriber := newMockActivitySubscriber(h.Subscribe())
 	go subscriber.Listen()
 
-	anchorEvent := aptestutil.NewMockAnchorEvent(t)
-
-	anchorEventURL := anchorEvent.URL()[0]
+	anchorLink := aptestutil.NewMockAnchorLink(t)
+	anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(anchorLink))
+	require.NoError(t, err)
 
 	startTime := time.Now()
 	endTime := startTime.Add(time.Hour)
 
 	offer := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
+		vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 		vocab.WithID(aptestutil.NewActivityID(service1IRI)),
 		vocab.WithActor(service1IRI),
 		vocab.WithTo(service2IRI),
@@ -1736,7 +1721,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	objProp := vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Index())),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorLink.Anchor())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -1750,7 +1735,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		vocab.WithResult(vocab.NewObjectProperty(
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(anchorEvent.Index()),
+				vocab.WithInReplyTo(anchorLink.Anchor()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
 				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -1769,7 +1754,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 
 		require.NotNil(t, subscriber.Activity(acceptOffer.ID()))
 
-		require.NotEmpty(t, proofHandler.Proof(anchorEvent.Index().String()))
+		require.NotEmpty(t, proofHandler.Proof(anchorLink.Anchor().String()))
 	})
 
 	t.Run("HandleProof error", func(t *testing.T) {
@@ -1800,7 +1785,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 		e := h.handleAcceptActivity(a)
 		require.Error(t, e)
 		require.Contains(t, e.Error(),
-			"the anchors URL of the anchor event in the original 'Offer' does not match the IRI in the 'inReplyTo' field")
+			"the anchor URI of the anchor Linkset in the original 'Offer' does not match the URI in the 'inReplyTo' field")
 	})
 
 	t.Run("No object", func(t *testing.T) {
@@ -1811,7 +1796,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
@@ -1838,7 +1823,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
@@ -1871,7 +1856,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithEndTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
@@ -1891,7 +1876,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
@@ -1906,7 +1891,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Run("Invalid object type", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewFollowActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(anchorEventURL)),
+				vocab.NewObjectProperty(vocab.WithIRI(anchorLink.Anchor())),
 				vocab.WithID(offer.ID().URL()),
 				vocab.WithActor(offer.Actor()),
 				vocab.WithTo(offer.To()...),
@@ -1918,7 +1903,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
 				),
@@ -1939,7 +1924,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
 				)),
@@ -1954,7 +1939,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	t.Run("Invalid target", func(t *testing.T) {
 		a := vocab.NewAcceptActivity(
 			vocab.NewObjectProperty(vocab.WithActivity(vocab.NewOfferActivity(
-				vocab.NewObjectProperty(vocab.WithIRI(anchorEventURL)),
+				vocab.NewObjectProperty(vocab.WithIRI(anchorLink.Anchor())),
 				vocab.WithID(offer.ID().URL()),
 				vocab.WithActor(offer.Actor()),
 				vocab.WithTo(offer.To()...),
@@ -1965,7 +1950,7 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 			vocab.WithResult(vocab.NewObjectProperty(
 				vocab.WithObject(vocab.NewObject(
 					vocab.WithType(vocab.TypeAnchorReceipt),
-					vocab.WithInReplyTo(anchorEventURL),
+					vocab.WithInReplyTo(anchorLink.Anchor()),
 					vocab.WithStartTime(&endTime),
 					vocab.WithEndTime(&endTime),
 					vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result)))),
@@ -2142,7 +2127,7 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 		require.True(t, orberrors.IsTransient(err))
 
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t)))),
 		)
 
 		err = inboxHandler.announceAnchorEvent(create)
@@ -2603,7 +2588,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(
 			vocab.WithAnchorEvent(
-				vocab.NewAnchorEvent(vocab.WithURL(ref))),
+				vocab.NewAnchorEvent(nil, vocab.WithURL(ref))),
 		),
 		vocab.WithID(aptestutil.NewActivityID(service2IRI)),
 		vocab.WithActor(service2IRI),
@@ -2612,7 +2597,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 		vocab.WithResult(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2))),
+					vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1, additionalRef2))),
 			),
 		),
 	)
@@ -2664,7 +2649,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 			likeNoURL := vocab.NewLikeActivity(
 				vocab.NewObjectProperty(
 					vocab.WithAnchorEvent(
-						vocab.NewAnchorEvent()),
+						vocab.NewAnchorEvent(nil)),
 				),
 				vocab.WithID(like.ID().URL()),
 				vocab.WithActor(service2IRI),
@@ -2673,7 +2658,7 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 				vocab.WithResult(
 					vocab.NewObjectProperty(
 						vocab.WithAnchorEvent(
-							vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2))),
+							vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1))),
 					),
 				),
 			)
@@ -2745,7 +2730,7 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 
 	t.Run("Anchor credential", func(t *testing.T) {
 		create := aptestutil.NewMockCreateActivity(service1IRI, service2IRI,
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t))),
+			vocab.NewObjectProperty(vocab.WithAnchorEvent(aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t)))),
 		)
 
 		t.Run("Success", func(t *testing.T) {
@@ -2890,7 +2875,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		vocab.WithResult(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
+					vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1, additionalRef2)))),
 		),
 	)
 
@@ -2940,7 +2925,7 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 		invalidLike := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent())),
+					vocab.NewAnchorEvent(nil))),
 			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 			vocab.WithActor(actor),
 			vocab.WithTo(service1IRI, vocab.PublicIRI),
@@ -2948,13 +2933,13 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 			vocab.WithResult(
 				vocab.NewObjectProperty(
 					vocab.WithAnchorEvent(
-						vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
+						vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1)))),
 			),
 		)
 
 		err := h.HandleActivity(nil, invalidLike)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor reference URL is required")
+		require.Contains(t, err.Error(), "anchor event: url is required")
 	})
 
 	t.Run("Handler error", func(t *testing.T) {
@@ -3036,7 +3021,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 		vocab.WithResult(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
+					vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1, additionalRef2)))),
 		),
 	)
 
@@ -3057,7 +3042,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 		invalidLike := vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent())),
+					vocab.NewAnchorEvent(nil))),
 			vocab.WithID(testutil.NewMockID(service2IRI, "/activities")),
 			vocab.WithActor(actor),
 			vocab.WithTo(service1IRI, vocab.PublicIRI),
@@ -3065,7 +3050,7 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 			vocab.WithResult(
 				vocab.NewObjectProperty(
 					vocab.WithAnchorEvent(
-						vocab.NewAnchorEvent(vocab.WithURL(additionalRef1, additionalRef2)))),
+						vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef1, additionalRef2)))),
 			),
 		)
 
@@ -3186,7 +3171,7 @@ func TestNoOpAnchorEventAcknowledgementHandler(t *testing.T) {
 		testutil.MustParseURL("https://domain1.com"), // Invalid hashlink
 	}
 
-	h := &noOpAnchorEventAcknowledgementHandler{}
+	h := &noOpAnchorAcknowledgementHandler{}
 
 	require.NoError(t, h.AnchorEventAcknowledged(actor, ref, additionalRefs))
 }

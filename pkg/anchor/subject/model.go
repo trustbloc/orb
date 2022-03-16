@@ -6,10 +6,6 @@ SPDX-License-Identifier: Apache-2.0
 
 package subject
 
-import (
-	"time"
-)
-
 // Payload defines orb anchor details.
 type Payload struct {
 	OperationCount  uint64
@@ -18,7 +14,6 @@ type Payload struct {
 	Namespace       string
 	Version         uint64
 	AnchorOrigin    string
-	Published       *time.Time
 	PreviousAnchors []*SuffixAnchor
 }
 

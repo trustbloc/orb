@@ -19,8 +19,9 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
-	anchoreventstore "github.com/trustbloc/orb/pkg/store/anchorevent"
+	anchorlinkstore "github.com/trustbloc/orb/pkg/store/anchorlink"
 	"github.com/trustbloc/orb/pkg/store/witness"
 )
 
@@ -33,11 +34,11 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 	require.NoError(t, err)
 
 	providers := &Providers{
-		AnchorEventStore: anchorEventStore,
+		AnchorLinkStore: anchorLinkStore,
 	}
 
 	t.Run("Success", func(t *testing.T) {
@@ -51,14 +52,17 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	anchorEvent := &vocab.AnchorEventType{}
-	require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
+	anchorLinkset := &linkset.Linkset{}
+	require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
+
+	anchorLink := anchorLinkset.Link()
+	require.NotNil(t, anchorLink)
 
 	t.Run("success", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = anchorEventStore.Put(anchorEvent)
+		err = anchorLinkStore.Put(anchorLink)
 		require.NoError(t, err)
 
 		selectedWitnessURL, err := url.Parse("http://domain.com/service")
@@ -72,28 +76,28 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = witnessStore.Put(anchorEvent.Index().String(), []*proof.Witness{
+		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
 			{URI: selectedWitnessURL, Selected: true},
 			{URI: notSelectedWitnessURL, Selected: false},
 		})
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{} },
-			WitnessStore:     witnessStore,
-			WitnessPolicy:    &mockWitnessPolicy{},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{} },
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   &mockWitnessPolicy{},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.NoError(t, err)
 	})
 
 	t.Run("error - get anchor event error", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		selectedWitnessURL, err := url.Parse("http://domain.com/service")
@@ -107,32 +111,32 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = witnessStore.Put(anchorEvent.Index().String(), []*proof.Witness{
+		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
 			{URI: selectedWitnessURL, Selected: true},
 			{URI: notSelectedWitnessURL, Selected: false},
 		})
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{} },
-			WitnessStore:     witnessStore,
-			WitnessPolicy:    &mockWitnessPolicy{},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{} },
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   &mockWitnessPolicy{},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get anchor event: content not found")
 	})
 
 	t.Run("error - post offer to outbox error", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = anchorEventStore.Put(anchorEvent)
+		err = anchorLinkStore.Put(anchorLink)
 		require.NoError(t, err)
 
 		selectedWitnessURL, err := url.Parse("http://domain.com/service")
@@ -146,32 +150,32 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = witnessStore.Put(anchorEvent.Index().String(), []*proof.Witness{
+		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
 			{URI: selectedWitnessURL, Selected: true},
 			{URI: notSelectedWitnessURL, Selected: false},
 		})
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{Err: fmt.Errorf("outbox error")} },
-			WitnessStore:     witnessStore,
-			WitnessPolicy:    &mockWitnessPolicy{},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{Err: fmt.Errorf("outbox error")} },
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   &mockWitnessPolicy{},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
 	})
 
 	t.Run("error - no additional witnesses selected", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = anchorEventStore.Put(anchorEvent)
+		err = anchorLinkStore.Put(anchorLink)
 		require.NoError(t, err)
 
 		selectedWitnessURL, err := url.Parse("http://domain.com/service")
@@ -185,23 +189,23 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = witnessStore.Put(anchorEvent.Index().String(), []*proof.Witness{
+		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
 			{URI: selectedWitnessURL, Selected: true},
 			{URI: notSelectedWitnessURL, Selected: false},
 		})
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{} },
-			WitnessStore:     witnessStore,
-			WitnessPolicy:    &mockWitnessPolicy{Witnesses: []*proof.Witness{{URI: selectedWitnessURL}}},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{} },
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   &mockWitnessPolicy{Witnesses: []*proof.Witness{{URI: selectedWitnessURL}}},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get additional witnesses: unable to select additional witnesses "+
 			"from newly selected witnesses[[http://domain.com/service]] "+
@@ -209,45 +213,45 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - witness store error", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = anchorEventStore.Put(anchorEvent)
+		err = anchorLinkStore.Put(anchorLink)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{} },
-			WitnessStore:     &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
-			WitnessPolicy:    &mockWitnessPolicy{},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{} },
+			WitnessStore:    &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
+			WitnessPolicy:   &mockWitnessPolicy{},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
 
 	t.Run("error - witness policy selection error", func(t *testing.T) {
-		anchorEventStore, err := anchoreventstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = anchorEventStore.Put(anchorEvent)
+		err = anchorLinkStore.Put(anchorLink)
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorEventStore: anchorEventStore,
-			Outbox:           func() Outbox { return &mockOutbox{} },
-			WitnessStore:     &mockWitnessStore{},
-			WitnessPolicy:    &mockWitnessPolicy{Err: fmt.Errorf("witness selection error")},
+			AnchorLinkStore: anchorLinkStore,
+			Outbox:          func() Outbox { return &mockOutbox{} },
+			WitnessStore:    &mockWitnessStore{},
+			WitnessPolicy:   &mockWitnessPolicy{Err: fmt.Errorf("witness selection error")},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.CheckPolicy(anchorEvent.Index().String())
+		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get additional witnesses: select witnesses: witness selection error")
 	})
@@ -260,8 +264,11 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	testWitnessURL, err := url.Parse(testWitnessURL)
 	require.NoError(t, err)
 
-	anchorEvent := &vocab.AnchorEventType{}
-	require.NoError(t, json.Unmarshal([]byte(jsonAnchorEvent), anchorEvent))
+	anchorLinkset := &linkset.Linkset{}
+	require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
+
+	anchorLink := anchorLinkset.Link()
+	require.NotNil(t, anchorLink)
 
 	t.Run("success", func(t *testing.T) {
 		providers := &Providers{
@@ -273,7 +280,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []*url.URL{testWitnessURL})
+		err = c.postOfferActivity(anchorLink, []*url.URL{testWitnessURL})
 		require.NoError(t, err)
 	})
 
@@ -287,7 +294,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorEvent, []*url.URL{testWitnessURL})
+		err = c.postOfferActivity(anchorLink, []*url.URL{testWitnessURL})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
 	})
@@ -344,36 +351,30 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 }
 
 //nolint: lll
-const jsonAnchorEvent = `{
-  "@context": "https://w3id.org/activityanchors/v1",
-  "attachment": [
+const jsonAnchorLinkset = `{
+  "linkset": [
     {
-      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "tag": [
+      "anchor": "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
         {
-          "href": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA",
-          "rel": [
-            "witness"
-          ],
-          "type": "Link"
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiC6PTR6rRVbrvx2g06lYRwBDwWvO-8ZZdqBuvXUvYgBWg%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiBASbC8BstzmFwGyFVPY4ToGh_75G74WHKpqNNXwQ7RaA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDXvAb7xkkj8QleSnrt1sWah5lGT7MlGIYLNOmeILCoNA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDljSIyFmQfONMeWRuXaAK7Veh0FDUsqtMu_FuWRes72g%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDJ0RDNSlRAe-X00jInBus3srtOwKDjkPhBScsCocAomQ%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiAcIEwYOvzu9JeDgi3tZPDvx4NOH5mgRKDax1o199_9QA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AEiB9lWJFoXkUFyak38-hhjp8DK3ceNVtkhdTm_PvoR8JdA%22%2C%22previous%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDfKmNhXjZBT9pi_ddpLRSp85p8jCTgMcHwEsW8C6xBVQ%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiBVjbmP2rO3zo0Dha94KivlGuBUINdyWvrpwHdC3xgGAA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%3AEiBK9-TmD1pxSCBNfBYV5Ww6YZbQHH1ZZo5go2WpQ2_2GA%22%2C%22previous%22%3A%22hl%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AEiBS7BB7sgLlHkgX1wSQVYShaOPumObH2xieRnYA3CpIjA%22%2C%22previous%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiCmKxvTAtorz91jOPl-jCHMdCU2C_C96fqgc5nR3bbS4g%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
         }
       ],
-      "type": "AnchorObject",
-      "url": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA"
-    },
-    {
-      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA\",\"id\":\"https://orb.domain2.com/vc/1636951e-9117-4134-904a-e0cd177517a1\",\"issuanceDate\":\"2022-02-10T18:50:48.682168399Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-10T18:50:48.682348236Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..fqgLBKohg962_3GNbH-QXklA89KBMHev95-Pk1XcGa47jq0TbFUeZi3DBGLgc-pDBisqkh0U3bUSvKY_edBAAw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:48.729Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..xlI19T5KT-Sy1CJuCQLIhgGHdlaK0dIjoctRwzJUz6-TpiluluGEa69aCuDjx426TgHvGXJDn8jHi5aDqGuTDA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "type": "AnchorObject",
-      "url": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA"
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzNRNFNGM2JQLXFiMGk5TUl6X2tfbi1yS2ktQmhTZ2NPazhxb0tWY0pxcmd4QmlwZnM6Ly9iYWZrcmVpZnhpb2NpbHhudDcydTMyaXh1eWl6NzR0N2g3a3prZjZheWtrYTRoamhzdmlmZmxxdGt2eQ%22%7D%2C%7B%22href%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ1dLTTZxMWZHcWxwVzRIanBYWVA1S2JNOGJMUlF2X3daa0R3eVZfcnBfSlE%22%7D%2C%7B%22href%22%3A%22hl%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ18xN0I3d0dHUTYxU1ppMlFEUU1wUWNCLWNxTFp6MW1kQk9QY1QzY0FaQkE%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiC6PTR6rRVbrvx2g06lYRwBDwWvO-8ZZdqBuvXUvYgBWg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzZQVFI2clJWYnJ2eDJnMDZsWVJ3QkR3V3ZPLThaWmRxQnV2WFV2WWdCV2d4QmlwZnM6Ly9iYWZrcmVpZjJodTJodmxpdmxveHB5NXVkajJzd2NoYWJiNGMyNm83cGRmczV2YW4yNnhrbDNjYWJsaQ%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+        {
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw%22%2C%22id%22%3A%22https%3A%2F%2Forb.domain1.com%2Fvc%2Fd53b1df9-1acf-4389-a006-0f88496afe46%22%2C%22issuanceDate%22%3A%222022-03-15T21%3A21%3A54.62437567Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-15T21%3A21%3A54.631Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22gRPF8XAA4iYMwl26RmFGUoN99wuUnD_igmvIlzzDpPRLVDtmA8wrNbUdJIAKKhyMJFju8OjciSGYMY_bDRjBAw%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-15T21%3A21%3A54.744899145Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22FX58osRrwU11IrUfhVTi0ucrNEq05Cv94CQNvd8SdoY66fAjwU2--m8plvxwVnXmxnlV23i6htkq4qI8qrDgAA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+          "type": "application/ld+json"
+        }
+      ]
     }
-  ],
-  "attributedTo": "https://orb.domain2.com/services/orb",
-  "index": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA",
-  "parent": "hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWswQ1V1SUlWT3hsYWxZSDZKVTdnc0l3dm81ekdOY01fellvMmpYd3pCenc",
-  "published": "2022-02-10T18:50:48.681998572Z",
-  "type": "AnchorEvent"
+  ]
 }`

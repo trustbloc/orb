@@ -7,21 +7,19 @@ SPDX-License-Identifier: Apache-2.0
 package util
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
-	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 const defVCContext = "https://www.w3.org/2018/credentials/v1"
@@ -34,42 +32,28 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 
 		payload := &subject.Payload{
 			OperationCount:  1,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw",
 			Namespace:       "did:orb",
 			Version:         0,
 			PreviousAnchors: previousAnchors,
 		}
 
-		contentObj, err := anchorevent.BuildContentObject(payload)
-		require.NoError(t, err)
-
-		contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
-		require.NoError(t, err)
-
-		hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
-		require.NoError(t, err)
-
-		vc := &verifiable.Credential{
-			Types:   []string{"VerifiableCredential"},
-			Context: []string{defVCContext},
-			Subject: &builder.CredentialSubject{ID: hl},
-			Issuer: verifiable.Issuer{
-				ID: "http://peer1.com",
+		al, vcBytes, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+			func(anchorHashlink string) (*verifiable.Credential, error) {
+				return &verifiable.Credential{
+					Types:   []string{"VerifiableCredential"},
+					Context: []string{defVCContext},
+					Subject: &builder.CredentialSubject{ID: anchorHashlink},
+					Issuer: verifiable.Issuer{
+						ID: "http://peer1.com",
+					},
+					Issued: &util.TimeWrapper{Time: time.Now()},
+				}, nil
 			},
-			Issued: &util.TimeWrapper{Time: time.Now()},
-		}
-
-		vcDoc, err := vocab.MarshalToDoc(vc)
+		)
 		require.NoError(t, err)
 
-		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-			vcDoc, vocab.GzipMediaType)
-		require.NoError(t, err)
-
-		vcBytes, err := vc.MarshalJSON()
-		require.NoError(t, err)
-
-		vc2, err := VerifiableCredentialFromAnchorEvent(act, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		vc2, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
 		vc2Bytes, err := vc2.MarshalJSON()
@@ -78,156 +62,51 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 		require.Equal(t, vcBytes, vc2Bytes)
 	})
 
-	t.Run("Invalid anchor event", func(t *testing.T) {
-		act := vocab.NewAnchorEvent()
+	t.Run("Invalid anchor", func(t *testing.T) {
+		al := &linkset.Link{}
 
-		vc, err := VerifiableCredentialFromAnchorEvent(act, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		vc, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid anchor event")
+		require.Contains(t, err.Error(), "invalid anchor")
 		require.Nil(t, vc)
 	})
 
-	t.Run("GetWitness error", func(t *testing.T) {
-		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
-		require.NoError(t, err)
-
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType)
-		require.NoError(t, err)
-
-		act := vocab.NewAnchorEvent(
-			vocab.WithIndex(indexAnchorObj.URL()[0]),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
-		)
-
-		_, err = VerifiableCredentialFromAnchorEvent(act, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "does not contain a 'tag' field")
-	})
-}
-
-func TestGetWitnessDoc(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		previousAnchors := []*subject.SuffixAnchor{
-			{Suffix: "suffix"},
-		}
-
-		payload := &subject.Payload{
-			OperationCount:  1,
-			CoreIndex:       "coreIndex",
-			Namespace:       "did:orb",
-			Version:         0,
-			PreviousAnchors: previousAnchors,
-		}
-
-		contentObj, err := anchorevent.BuildContentObject(payload)
-		require.NoError(t, err)
-
-		contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
-		require.NoError(t, err)
-
-		hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
-		require.NoError(t, err)
-
-		vc := &verifiable.Credential{
-			Types:   []string{"VerifiableCredential"},
-			Context: []string{defVCContext},
-			Subject: &builder.CredentialSubject{ID: hl},
-			Issuer: verifiable.Issuer{
-				ID: "http://peer1.com",
-			},
-			Issued: &util.TimeWrapper{Time: time.Now()},
-		}
-
-		vcDoc, err := vocab.MarshalToDoc(vc)
-		require.NoError(t, err)
-
-		act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-			vcDoc, vocab.GzipMediaType)
-		require.NoError(t, err)
-
-		vcDoc, err = GetWitnessDoc(act)
-		require.NoError(t, err)
-
-		vc2Bytes, err := json.Marshal(vcDoc)
-		require.NoError(t, err)
-
-		vcBytes, err := vc.MarshalJSON()
-		require.NoError(t, err)
-
-		require.Equal(t, vcBytes, vc2Bytes)
+	t.Run("no replies", func(t *testing.T) {
+		al := linkset.NewLink(
+			testutil.MustParseURL("hl:sddsdsw"),
+			testutil.MustParseURL("https://serice.domain1.com"),
+			testutil.MustParseURL("https://profile.domain1.com"),
+			nil, nil, nil)
+		_, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		require.EqualError(t, err, "no replies in anchor link")
 	})
 
-	t.Run("No tag in index anchor object", func(t *testing.T) {
-		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
-		require.NoError(t, err)
-
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType)
-		require.NoError(t, err)
-
-		ae := vocab.NewAnchorEvent(
-			vocab.WithIndex(indexAnchorObj.URL()[0]),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
+	t.Run("invalid 'replies' data URI error", func(t *testing.T) {
+		al := linkset.NewLink(
+			testutil.MustParseURL("hl:sddsdsw"),
+			testutil.MustParseURL("https://serice.domain1.com"),
+			testutil.MustParseURL("https://profile.domain1.com"),
+			nil, nil,
+			linkset.NewReference(testutil.MustParseURL("https://somecontent"), linkset.TypeLinkset),
 		)
-
-		_, err = GetWitnessDoc(ae)
+		_, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "does not contain a 'tag' field")
+		require.Contains(t, err.Error(), "unsupported protocol")
 	})
 
-	t.Run("No tag field of type witness", func(t *testing.T) {
-		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
+	t.Run("unmarshal VC from 'replies' error", func(t *testing.T) {
+		replyDataURI, err := datauri.New([]byte("invalid"), datauri.MediaTypeDataURIJSON)
 		require.NoError(t, err)
 
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
-			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
-				"some-relationship")))
-		require.NoError(t, err)
-
-		ae := vocab.NewAnchorEvent(
-			vocab.WithIndex(indexAnchorObj.URL()[0]),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
+		al := linkset.NewLink(
+			testutil.MustParseURL("hl:sddsdsw"),
+			testutil.MustParseURL("https://serice.domain1.com"),
+			testutil.MustParseURL("https://profile.domain1.com"),
+			nil, nil,
+			linkset.NewReference(replyDataURI, linkset.TypeLinkset),
 		)
-
-		_, err = GetWitnessDoc(ae)
+		_, err = VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "does not contain a tag of type 'Link' and 'rel' 'witness'")
-	})
-
-	t.Run("Index not found", func(t *testing.T) {
-		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
-		require.NoError(t, err)
-
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
-			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
-				vocab.RelationshipWitness)))
-		require.NoError(t, err)
-
-		ae := vocab.NewAnchorEvent(
-			vocab.WithIndex(testutil.MustParseURL("hl:uEiB7dnp4KR_LmSO_IqXMUquZzXuOEov9UzML-YoRWTZrrw")),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
-		)
-
-		_, err = GetWitnessDoc(ae)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "content not found")
-	})
-
-	t.Run("Witness not found", func(t *testing.T) {
-		doc, err := vocab.UnmarshalToDoc([]byte(`{}`))
-		require.NoError(t, err)
-
-		indexAnchorObj, err := vocab.NewAnchorObject("some-generator", doc, vocab.GzipMediaType,
-			vocab.WithLink(vocab.NewLink(testutil.MustParseURL("hl:uEiCYs2XYno8FGuqzbiQ6gBrg_hqpELV9pJaUA75Y0mATRw"),
-				vocab.RelationshipWitness)))
-		require.NoError(t, err)
-
-		ae := vocab.NewAnchorEvent(
-			vocab.WithIndex(indexAnchorObj.URL()[0]),
-			vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithAnchorObject(indexAnchorObj))),
-		)
-
-		_, err = GetWitnessDoc(ae)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "not found in anchor event")
+		require.Contains(t, err.Error(), "embedded proof is not JSON")
 	})
 }

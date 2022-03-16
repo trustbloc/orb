@@ -4,29 +4,16 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 type AnchorGraph struct {
-	ReadStub        func(hl string) (*vocab.AnchorEventType, error)
-	readMutex       sync.RWMutex
-	readArgsForCall []struct {
-		hl string
-	}
-	readReturns struct {
-		result1 *vocab.AnchorEventType
-		result2 error
-	}
-	readReturnsOnCall map[int]struct {
-		result1 *vocab.AnchorEventType
-		result2 error
-	}
-	GetDidAnchorsStub        func(cid, suffix string) ([]graph.Anchor, error)
+	GetDidAnchorsStub        func(string, string) ([]graph.Anchor, error)
 	getDidAnchorsMutex       sync.RWMutex
 	getDidAnchorsArgsForCall []struct {
-		cid    string
-		suffix string
+		arg1 string
+		arg2 string
 	}
 	getDidAnchorsReturns struct {
 		result1 []graph.Anchor
@@ -36,77 +23,41 @@ type AnchorGraph struct {
 		result1 []graph.Anchor
 		result2 error
 	}
+	ReadStub        func(string) (*linkset.Linkset, error)
+	readMutex       sync.RWMutex
+	readArgsForCall []struct {
+		arg1 string
+	}
+	readReturns struct {
+		result1 *linkset.Linkset
+		result2 error
+	}
+	readReturnsOnCall map[int]struct {
+		result1 *linkset.Linkset
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *AnchorGraph) Read(hl string) (*vocab.AnchorEventType, error) {
-	fake.readMutex.Lock()
-	ret, specificReturn := fake.readReturnsOnCall[len(fake.readArgsForCall)]
-	fake.readArgsForCall = append(fake.readArgsForCall, struct {
-		hl string
-	}{hl})
-	fake.recordInvocation("Read", []interface{}{hl})
-	fake.readMutex.Unlock()
-	if fake.ReadStub != nil {
-		return fake.ReadStub(hl)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.readReturns.result1, fake.readReturns.result2
-}
-
-func (fake *AnchorGraph) ReadCallCount() int {
-	fake.readMutex.RLock()
-	defer fake.readMutex.RUnlock()
-	return len(fake.readArgsForCall)
-}
-
-func (fake *AnchorGraph) ReadArgsForCall(i int) string {
-	fake.readMutex.RLock()
-	defer fake.readMutex.RUnlock()
-	return fake.readArgsForCall[i].hl
-}
-
-func (fake *AnchorGraph) ReadReturns(result1 *vocab.AnchorEventType, result2 error) {
-	fake.ReadStub = nil
-	fake.readReturns = struct {
-		result1 *vocab.AnchorEventType
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *AnchorGraph) ReadReturnsOnCall(i int, result1 *vocab.AnchorEventType, result2 error) {
-	fake.ReadStub = nil
-	if fake.readReturnsOnCall == nil {
-		fake.readReturnsOnCall = make(map[int]struct {
-			result1 *vocab.AnchorEventType
-			result2 error
-		})
-	}
-	fake.readReturnsOnCall[i] = struct {
-		result1 *vocab.AnchorEventType
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *AnchorGraph) GetDidAnchors(cid string, suffix string) ([]graph.Anchor, error) {
+func (fake *AnchorGraph) GetDidAnchors(arg1 string, arg2 string) ([]graph.Anchor, error) {
 	fake.getDidAnchorsMutex.Lock()
 	ret, specificReturn := fake.getDidAnchorsReturnsOnCall[len(fake.getDidAnchorsArgsForCall)]
 	fake.getDidAnchorsArgsForCall = append(fake.getDidAnchorsArgsForCall, struct {
-		cid    string
-		suffix string
-	}{cid, suffix})
-	fake.recordInvocation("GetDidAnchors", []interface{}{cid, suffix})
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.GetDidAnchorsStub
+	fakeReturns := fake.getDidAnchorsReturns
+	fake.recordInvocation("GetDidAnchors", []interface{}{arg1, arg2})
 	fake.getDidAnchorsMutex.Unlock()
-	if fake.GetDidAnchorsStub != nil {
-		return fake.GetDidAnchorsStub(cid, suffix)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.getDidAnchorsReturns.result1, fake.getDidAnchorsReturns.result2
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *AnchorGraph) GetDidAnchorsCallCount() int {
@@ -115,13 +66,22 @@ func (fake *AnchorGraph) GetDidAnchorsCallCount() int {
 	return len(fake.getDidAnchorsArgsForCall)
 }
 
+func (fake *AnchorGraph) GetDidAnchorsCalls(stub func(string, string) ([]graph.Anchor, error)) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
+	fake.GetDidAnchorsStub = stub
+}
+
 func (fake *AnchorGraph) GetDidAnchorsArgsForCall(i int) (string, string) {
 	fake.getDidAnchorsMutex.RLock()
 	defer fake.getDidAnchorsMutex.RUnlock()
-	return fake.getDidAnchorsArgsForCall[i].cid, fake.getDidAnchorsArgsForCall[i].suffix
+	argsForCall := fake.getDidAnchorsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *AnchorGraph) GetDidAnchorsReturns(result1 []graph.Anchor, result2 error) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
 	fake.GetDidAnchorsStub = nil
 	fake.getDidAnchorsReturns = struct {
 		result1 []graph.Anchor
@@ -130,6 +90,8 @@ func (fake *AnchorGraph) GetDidAnchorsReturns(result1 []graph.Anchor, result2 er
 }
 
 func (fake *AnchorGraph) GetDidAnchorsReturnsOnCall(i int, result1 []graph.Anchor, result2 error) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
 	fake.GetDidAnchorsStub = nil
 	if fake.getDidAnchorsReturnsOnCall == nil {
 		fake.getDidAnchorsReturnsOnCall = make(map[int]struct {
@@ -143,13 +105,77 @@ func (fake *AnchorGraph) GetDidAnchorsReturnsOnCall(i int, result1 []graph.Ancho
 	}{result1, result2}
 }
 
+func (fake *AnchorGraph) Read(arg1 string) (*linkset.Linkset, error) {
+	fake.readMutex.Lock()
+	ret, specificReturn := fake.readReturnsOnCall[len(fake.readArgsForCall)]
+	fake.readArgsForCall = append(fake.readArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.ReadStub
+	fakeReturns := fake.readReturns
+	fake.recordInvocation("Read", []interface{}{arg1})
+	fake.readMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *AnchorGraph) ReadCallCount() int {
+	fake.readMutex.RLock()
+	defer fake.readMutex.RUnlock()
+	return len(fake.readArgsForCall)
+}
+
+func (fake *AnchorGraph) ReadCalls(stub func(string) (*linkset.Linkset, error)) {
+	fake.readMutex.Lock()
+	defer fake.readMutex.Unlock()
+	fake.ReadStub = stub
+}
+
+func (fake *AnchorGraph) ReadArgsForCall(i int) string {
+	fake.readMutex.RLock()
+	defer fake.readMutex.RUnlock()
+	argsForCall := fake.readArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *AnchorGraph) ReadReturns(result1 *linkset.Linkset, result2 error) {
+	fake.readMutex.Lock()
+	defer fake.readMutex.Unlock()
+	fake.ReadStub = nil
+	fake.readReturns = struct {
+		result1 *linkset.Linkset
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *AnchorGraph) ReadReturnsOnCall(i int, result1 *linkset.Linkset, result2 error) {
+	fake.readMutex.Lock()
+	defer fake.readMutex.Unlock()
+	fake.ReadStub = nil
+	if fake.readReturnsOnCall == nil {
+		fake.readReturnsOnCall = make(map[int]struct {
+			result1 *linkset.Linkset
+			result2 error
+		})
+	}
+	fake.readReturnsOnCall[i] = struct {
+		result1 *linkset.Linkset
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *AnchorGraph) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.readMutex.RLock()
-	defer fake.readMutex.RUnlock()
 	fake.getDidAnchorsMutex.RLock()
 	defer fake.getDidAnchorsMutex.RUnlock()
+	fake.readMutex.RLock()
+	defer fake.readMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

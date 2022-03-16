@@ -7,13 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package vocab
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
@@ -25,45 +22,32 @@ type AnchorEventType struct {
 }
 
 type anchorEventType struct {
-	Index  *URLProperty           `json:"index,omitempty"`
-	Parent *URLCollectionProperty `json:"parent,omitempty"`
+	Object *ObjectProperty `json:"object,omitempty"`
 }
 
-// NewAnchorEvent returns a new Info type.
-func NewAnchorEvent(opts ...Opt) *AnchorEventType {
+// NewAnchorEvent returns a new AnchorEvent type.
+func NewAnchorEvent(obj *ObjectProperty, opts ...Opt) *AnchorEventType {
 	options := NewOptions(opts...)
 
 	return &AnchorEventType{
 		ObjectType: NewObject(
 			WithContext(getContexts(options, ContextActivityAnchors)...),
 			WithType(TypeAnchorEvent),
-			WithPublishedTime(options.Published),
 			WithURL(options.URL...),
-			WithAttributedTo(options.AttributedTo),
-			WithAttachment(options.Attachment...)),
+		),
 		anchorEvent: &anchorEventType{
-			Index:  NewURLProperty(options.Index),
-			Parent: NewURLCollectionProperty(options.Parent...),
+			Object: obj,
 		},
 	}
 }
 
-// Index returns the index URL.
-func (t *AnchorEventType) Index() *url.URL {
+// Object returns the Object property.
+func (t *AnchorEventType) Object() *ObjectProperty {
 	if t == nil || t.anchorEvent == nil {
 		return nil
 	}
 
-	return t.anchorEvent.Index.URL()
-}
-
-// Parent returns the parent URLs.
-func (t *AnchorEventType) Parent() Urls {
-	if t == nil || t.anchorEvent == nil {
-		return nil
-	}
-
-	return t.anchorEvent.Parent.URLs()
+	return t.anchorEvent.Object
 }
 
 // Validate validates the anchor event.
@@ -72,96 +56,40 @@ func (t *AnchorEventType) Validate() error {
 		return fmt.Errorf("nil anchor event")
 	}
 
-	if t.Index() == nil {
-		if len(t.URL()) > 0 {
-			// This is an anchor event reference.
-			return nil
-		}
-
-		return fmt.Errorf("either anchors or URL is required on anchor event")
+	if len(t.URL()) != 1 {
+		return fmt.Errorf("url is required")
 	}
 
-	// Validate all attachments and find the attachment that matches the anchor URL.
-
-	var anchorObj *AnchorObjectType
-
-	for _, attachment := range t.Attachment() {
-		if !attachment.Type().Is(TypeAnchorObject) {
-			return fmt.Errorf("unsupported attachment type [%s] in anchor event", attachment.Type())
-		}
-
-		ao := attachment.AnchorObject()
-
-		err := validateAnchorObject(ao)
-		if err != nil {
-			return fmt.Errorf("invalid anchor object: %w", err)
-		}
-
-		if ao.URL()[0].String() == t.Index().String() {
-			anchorObj = ao
-
-			break
-		}
+	if t.Object() == nil {
+		// Object is optional.
+		return nil
 	}
 
-	if anchorObj == nil {
-		return fmt.Errorf("unable to find the attachment that matches the anchors URL in the anchor event [%s]",
-			t.Index())
+	doc := t.Object().Document()
+
+	docBytes, err := canonicalizer.MarshalCanonical(doc)
+	if err != nil {
+		return fmt.Errorf("marshal document: %w", err)
+	}
+
+	hlClient := hashlink.New()
+
+	hlInfo, err := hlClient.ParseHashLink(t.URL()[0].String())
+	if err != nil {
+		return fmt.Errorf("parse hashlink: %w", err)
+	}
+
+	hash, err := hlClient.CreateResourceHash(docBytes)
+	if err != nil {
+		return fmt.Errorf("create resource hash: %w", err)
+	}
+
+	if hlInfo.ResourceHash != hash {
+		return fmt.Errorf("hash or URL [%s] does not match the hash of the object [%s]",
+			hlInfo.ResourceHash, hash)
 	}
 
 	return nil
-}
-
-func validateAnchorObject(anchorObj *AnchorObjectType) error {
-	if len(anchorObj.URL()) != 1 {
-		return fmt.Errorf("anchor object must have exactly one URL")
-	}
-
-	anchorObjURL := anchorObj.URL()[0]
-
-	if anchorObj.Generator() == "" {
-		return fmt.Errorf("generator is required in anchor event")
-	}
-
-	if anchorObj.ContentObject() == nil {
-		return fmt.Errorf("content object is required in anchor event")
-	}
-
-	if anchorObj.MediaType() == "" {
-		return fmt.Errorf("media type is required in anchor event")
-	}
-
-	contentObjBytes, err := canonicalizer.MarshalCanonical(anchorObj.ContentObject())
-	if err != nil {
-		return fmt.Errorf("marshal content object: %w", err)
-	}
-
-	hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
-	if err != nil {
-		return fmt.Errorf("create hashlink from content object: %w", err)
-	}
-
-	if hl != anchorObjURL.String() {
-		return fmt.Errorf("hashlink of content object [%s] does not match the anchor object URL %s",
-			hl, anchorObjURL)
-	}
-
-	return nil
-}
-
-// AnchorObject returns the AnchorObject for the given AnchorObject URL.
-func (t *AnchorEventType) AnchorObject(u *url.URL) (*AnchorObjectType, error) {
-	if t == nil || u == nil {
-		return nil, orberrors.ErrContentNotFound
-	}
-
-	for _, attachment := range t.Attachment() {
-		if attachment.AnchorObject().URL().Contains(u) {
-			return attachment.AnchorObject(), nil
-		}
-	}
-
-	return nil, orberrors.ErrContentNotFound
 }
 
 // MarshalJSON marshals the object to JSON.
@@ -175,115 +103,4 @@ func (t *AnchorEventType) UnmarshalJSON(bytes []byte) error {
 	t.anchorEvent = &anchorEventType{}
 
 	return UnmarshalJSON(bytes, t.ObjectType, t.anchorEvent)
-}
-
-// AnchorObjectType defines an "AnchorReference" type.
-type AnchorObjectType struct {
-	*ObjectType
-
-	content   Document
-	mediaType string
-}
-
-type anchorObjectType struct {
-	Content   string `json:"content,omitempty"`
-	MediaType string `json:"mediaType,omitempty"`
-}
-
-// NewAnchorObject returns a new AnchorObject type.
-func NewAnchorObject(generator string, contentObject Document, mediaType MediaType,
-	opts ...Opt) (*AnchorObjectType, error) {
-	options := NewOptions(opts...)
-
-	contentObjBytes, err := json.Marshal(contentObject)
-	if err != nil {
-		return nil, fmt.Errorf("marshal content object: %w", err)
-	}
-
-	hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create hashlink to content object: %w", err)
-	}
-
-	hlURL, err := url.Parse(hl)
-	if err != nil {
-		return nil, fmt.Errorf("create hashlink URL to content object: %w", err)
-	}
-
-	var tag *TagProperty
-
-	if options.Link != nil {
-		tag = NewTagProperty(WithLink(options.Link))
-	}
-
-	return &AnchorObjectType{
-		ObjectType: NewObject(
-			WithContext(getContexts(options)...),
-			WithType(TypeAnchorObject),
-			WithGenerator(generator),
-			WithURL(hlURL),
-			WithTag(tag),
-		),
-		content:   contentObject,
-		mediaType: mediaType,
-	}, nil
-}
-
-// ContentObject returns the content object.
-func (t *AnchorObjectType) ContentObject() Document {
-	if t == nil {
-		return nil
-	}
-
-	return t.content
-}
-
-// MediaType returns the media type of the content in the anchor object.
-func (t *AnchorObjectType) MediaType() MediaType {
-	if t == nil {
-		return ""
-	}
-
-	return t.mediaType
-}
-
-// MarshalJSON marshals the object to JSON.
-func (t *AnchorObjectType) MarshalJSON() ([]byte, error) {
-	ao := &anchorObjectType{
-		MediaType: t.mediaType,
-	}
-
-	var err error
-
-	ao.Content, err = EncodeDocument(t.ContentObject(), t.mediaType)
-	if err != nil {
-		return nil, fmt.Errorf("encode content: %w", err)
-	}
-
-	return MarshalJSON(t.ObjectType, ao)
-}
-
-// UnmarshalJSON unmarshals the object from JSON.
-func (t *AnchorObjectType) UnmarshalJSON(bytes []byte) error {
-	t.ObjectType = NewObject()
-
-	ao := &anchorObjectType{}
-
-	err := UnmarshalJSON(bytes, t.ObjectType, ao)
-	if err != nil {
-		return fmt.Errorf("marshal anchor object: %w", err)
-	}
-
-	t.mediaType = ao.MediaType
-
-	if ao.Content == "" {
-		return nil
-	}
-
-	t.content, err = DecodeToDocument(ao.Content, t.mediaType)
-	if err != nil {
-		return fmt.Errorf("decode content: %w", err)
-	}
-
-	return nil
 }

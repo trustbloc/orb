@@ -21,6 +21,7 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("anchor-credential-handler")
@@ -98,40 +99,48 @@ func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
 }
 
 // HandleAnchorEvent handles an anchor event.
-// nolint:funlen
-func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef, source *url.URL,
+// nolint:funlen,gocyclo,cyclop
+func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
-	logger.Debugf("Received request from [%s] for anchor event URL [%s]", actor, anchorEventRef)
+	logger.Debugf("Received request from [%s] for anchor [%s]", actor, anchorRef)
 
-	var anchorEventBytes []byte
+	var anchorLinksetBytes []byte
 
 	if anchorEvent != nil {
 		var err error
 
-		anchorEventBytes, err = canonicalizer.MarshalCanonical(anchorEvent)
+		anchorLinksetBytes, err = canonicalizer.MarshalCanonical(anchorEvent.Object().Document())
 		if err != nil {
-			return fmt.Errorf("marshal anchor event: %w", err)
+			return fmt.Errorf("marshal anchor linkset: %w", err)
 		}
 	}
 
-	anchorEventBytes, localHL, err := h.casResolver.Resolve(nil, anchorEventRef.String(), anchorEventBytes)
+	anchorLinksetBytes, localHL, err := h.casResolver.Resolve(nil, anchorRef.String(), anchorLinksetBytes)
 	if err != nil {
-		return fmt.Errorf("failed to resolve anchor event [%s]: %w", anchorEventRef, err)
+		return fmt.Errorf("failed to resolve anchor [%s]: %w", anchorRef, err)
 	}
 
-	if anchorEvent == nil {
-		anchorEvent = &vocab.AnchorEventType{}
+	anchorLinkset := &linkset.Linkset{}
 
-		err = h.unmarshal(anchorEventBytes, anchorEvent)
-		if err != nil {
-			return fmt.Errorf("unmarshal anchor event: %w", err)
-		}
+	err = h.unmarshal(anchorLinksetBytes, anchorLinkset)
+	if err != nil {
+		return fmt.Errorf("unmarshal anchor: %w", err)
+	}
+
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return fmt.Errorf("anchor Linkset [%s] is empty", anchorRef)
+	}
+
+	err = anchorLink.Validate()
+	if err != nil {
+		return fmt.Errorf("validate anchor link: %w", err)
 	}
 
 	// Make sure that all parents/grandparents of this anchor event are processed.
-	err = h.ensureParentAnchorsAreProcessed(anchorEventRef, anchorEvent)
+	err = h.ensureParentAnchorsAreProcessed(anchorRef, anchorLink)
 	if err != nil {
-		return fmt.Errorf("ensure unprocessed parents are processed for %s: %w", anchorEventRef, err)
+		return fmt.Errorf("ensure unprocessed parents are processed for %s: %w", anchorRef, err)
 	}
 
 	var attributedTo string
@@ -139,7 +148,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef, source *ur
 		attributedTo = actor.String()
 	}
 
-	logger.Infof("Processing anchor event [%s]", anchorEventRef)
+	logger.Infof("Processing anchor [%s]", anchorRef)
 
 	var alternateSources []string
 
@@ -152,23 +161,23 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorEventRef, source *ur
 
 	// Now process the latest anchor event.
 	err = h.processAnchorEvent(&anchorInfo{
-		anchorEvent: anchorEvent,
+		anchorLink: anchorLink,
 		AnchorInfo: &anchorinfo.AnchorInfo{
-			Hashlink:         anchorEventRef.String(),
+			Hashlink:         anchorRef.String(),
 			LocalHashlink:    localHL,
 			AttributedTo:     attributedTo,
 			AlternateSources: alternateSources,
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("process anchor event %s: %w", anchorEventRef, err)
+		return fmt.Errorf("process anchor %s: %w", anchorRef, err)
 	}
 
 	return nil
 }
 
 func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
-	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorInfo.anchorEvent,
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorInfo.anchorLink,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithJSONLDDocumentLoader(h.documentLoader),
 	)
@@ -197,104 +206,142 @@ func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
 
 // ensureParentAnchorsAreProcessed checks all ancestors (parents, grandparents, etc.) of the given anchor event
 // and processes all that have not yet been processed.
-func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorEventRef *url.URL,
-	anchorEvent *vocab.AnchorEventType) error {
-	unprocessedParents, err := h.getUnprocessedParentAnchorEvents(anchorEventRef.String(), anchorEvent)
+func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL, anchorLink *linkset.Link) error {
+	unprocessedParents, err := h.getUnprocessedParentAnchors(anchorRef.String(), anchorLink)
 	if err != nil {
-		return fmt.Errorf("get unprocessed parent anchor events for %s: %w", anchorEventRef, err)
+		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
 	}
 
-	logger.Debugf("Processing %d parents of anchor event %s: %s",
-		len(unprocessedParents), anchorEventRef, unprocessedParents)
+	logger.Debugf("Processing %d parents of anchor [%s]: %s",
+		len(unprocessedParents), anchorRef, unprocessedParents)
 
 	for _, parentAnchorInfo := range unprocessedParents {
-		logger.Infof("Processing parent of anchor event [%s]: [%s]",
-			anchorEventRef, parentAnchorInfo.Hashlink)
+		logger.Infof("Processing parent of anchor [%s]: [%s]", anchorRef, parentAnchorInfo.Hashlink)
 
 		err = h.processAnchorEvent(parentAnchorInfo)
 		if err != nil {
-			return fmt.Errorf("process anchor event %s: %w", parentAnchorInfo.Hashlink, err)
+			return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
 		}
 	}
 
 	return nil
 }
 
-// getUnprocessedParentAnchorEvents returns all unprocessed ancestors (parents, grandparents, etc.) of the given
+// getUnprocessedParentAnchors returns all unprocessed ancestors (parents, grandparents, etc.) of the given
 // anchor event, sorted by oldest to newest.
-func (h *AnchorEventHandler) getUnprocessedParentAnchorEvents(
-	hl string, anchorEvent *vocab.AnchorEventType) (anchorInfoSlice, error) {
-	logger.Debugf("Getting unprocessed parents of anchor event [%s]", hl)
+//nolint:gocyclo,cyclop
+func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *linkset.Link) (anchorInfoSlice, error) {
+	logger.Debugf("Getting unprocessed parents of anchor [%s]", hl)
+
+	if anchorLink.Related() == nil {
+		return nil, nil
+	}
+
+	relatedLinkset, err := anchorLink.Related().Linkset()
+	if err != nil {
+		return nil, fmt.Errorf("invalid related Linkset: %w", err)
+	}
+
+	relatedLink := relatedLinkset.Link()
+	if relatedLink == nil {
+		return nil, fmt.Errorf("related Linkset is empty")
+	}
+
+	if relatedLink.Anchor() == nil || relatedLink.Anchor().String() != anchorLink.Anchor().String() {
+		return nil, fmt.Errorf("anchor of related Linkset [%s] is not equal to the expected anchor [%s]",
+			relatedLink.Anchor(), hl)
+	}
 
 	var unprocessed []*anchorInfo
 
-	for _, parentHL := range anchorEvent.Parent() {
-		if containsAnchorEvent(unprocessed, parentHL.String()) {
-			logger.Debugf("Not adding parent of anchor event [%s] to the unprocessed list since it has already been added: [%s]",
+	for _, parentHL := range relatedLink.Up() {
+		if containsAnchor(unprocessed, parentHL.String()) {
+			logger.Debugf("Not adding parent of anchor [%s] to the unprocessed list since it has already been added: [%s]",
 				hl, parentHL)
 
 			continue
 		}
 
-		logger.Debugf("Checking parent of anchor event [%s] to see if it has been processed [%s]", hl, parentHL)
-
-		isProcessed, err := h.isAnchorEventProcessed(parentHL)
+		info, err := h.getUnprocessedParentAnchor(hl, parentHL)
 		if err != nil {
-			return nil, fmt.Errorf("is anchor event processed [%s]: %w", parentHL, err)
+			return nil, err
 		}
 
-		if isProcessed {
-			logger.Debugf("Parent of anchor event [%s] was already processed [%s]", hl, parentHL)
-
+		if info == nil {
 			continue
-		}
-
-		anchorEventBytes, localHL, err := h.casResolver.Resolve(nil, parentHL.String(), nil)
-		if err != nil {
-			return nil, fmt.Errorf("resolve anchor event [%s]: %w", parentHL, err)
-		}
-
-		parentAnchorEvent := &vocab.AnchorEventType{}
-
-		err = h.unmarshal(anchorEventBytes, parentAnchorEvent)
-		if err != nil {
-			return nil, fmt.Errorf("unmarshal anchor event: %w", err)
 		}
 
 		logger.Debugf("Adding parent of anchor event [%s] to the unprocessed list [%s]", hl, parentHL)
 
 		// Add the parent to the head of the list since it needs to be processed first.
-		unprocessed = append([]*anchorInfo{
-			{
-				anchorEvent: parentAnchorEvent,
-				AnchorInfo: &anchorinfo.AnchorInfo{
-					Hashlink:      parentHL.String(),
-					LocalHashlink: localHL,
-				},
-			},
-		}, unprocessed...)
+		unprocessed = append([]*anchorInfo{info}, unprocessed...)
 
-		ancestorAnchorEvents, err := h.getUnprocessedParentAnchorEvents(parentHL.String(), parentAnchorEvent)
+		ancestorAnchors, err := h.getUnprocessedParentAnchors(parentHL.String(), info.anchorLink)
 		if err != nil {
-			return nil, fmt.Errorf("get unprocessed anchor events for parent [%s]: %w", parentHL, err)
+			return nil, fmt.Errorf("get unprocessed anchors for parent [%s]: %w", parentHL, err)
 		}
 
-		prependAnchorEvents(unprocessed, ancestorAnchorEvents)
+		unprocessed = prependAnchors(unprocessed, ancestorAnchors)
 	}
 
 	return unprocessed, nil
 }
 
-func prependAnchorEvents(existingAnchors, newAnchors []*anchorInfo) {
-	for _, anchor := range newAnchors {
-		if !containsAnchorEvent(existingAnchors, anchor.Hashlink) {
-			// Add the ancestor to the head of the list since it needs to be processed first.
-			existingAnchors = append([]*anchorInfo{anchor}, existingAnchors...)
-		}
+func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url.URL) (*anchorInfo, error) {
+	logger.Debugf("Checking parent of anchor [%s] to see if it has been processed [%s]", hl, parentHL)
+
+	isProcessed, err := h.isAnchorProcessed(parentHL)
+	if err != nil {
+		return nil, fmt.Errorf("is anchor processed [%s]: %w", parentHL, err)
 	}
+
+	if isProcessed {
+		logger.Debugf("Parent of anchor [%s] was already processed [%s]", hl, parentHL)
+
+		return nil, nil
+	}
+
+	anchorLinksetBytes, localHL, err := h.casResolver.Resolve(nil, parentHL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("resolve anchor [%s]: %w", parentHL, err)
+	}
+
+	parentAnchorLinkset := &linkset.Linkset{}
+
+	err = h.unmarshal(anchorLinksetBytes, parentAnchorLinkset)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal anchor Linkset: %w", err)
+	}
+
+	parentAnchorLink := parentAnchorLinkset.Link()
+
+	if parentAnchorLink == nil {
+		return nil, fmt.Errorf("parent Linkset [%s] is empty", parentHL)
+	}
+
+	return &anchorInfo{
+		anchorLink: parentAnchorLink,
+		AnchorInfo: &anchorinfo.AnchorInfo{
+			Hashlink:      parentHL.String(),
+			LocalHashlink: localHL,
+		},
+	}, nil
 }
 
-func containsAnchorEvent(existingAnchors []*anchorInfo, hl string) bool {
+func prependAnchors(existingAnchors, newAnchors []*anchorInfo) []*anchorInfo {
+	resultingAnchors := existingAnchors
+
+	for _, anchor := range newAnchors {
+		if !containsAnchor(resultingAnchors, anchor.Hashlink) {
+			// Add the ancestor to the head of the list since it needs to be processed first.
+			resultingAnchors = append([]*anchorInfo{anchor}, resultingAnchors...)
+		}
+	}
+
+	return resultingAnchors
+}
+
+func containsAnchor(existingAnchors []*anchorInfo, hl string) bool {
 	for _, anchor := range existingAnchors {
 		if anchor.Hashlink == hl {
 			return true
@@ -304,7 +351,7 @@ func containsAnchorEvent(existingAnchors []*anchorInfo, hl string) bool {
 	return false
 }
 
-func (h *AnchorEventHandler) isAnchorEventProcessed(hl *url.URL) (bool, error) {
+func (h *AnchorEventHandler) isAnchorProcessed(hl *url.URL) (bool, error) {
 	hash, err := hashlink.GetResourceHashFromHashLink(hl.String())
 	if err != nil {
 		return false, fmt.Errorf("parse hashlink: %w", err)
@@ -320,7 +367,7 @@ func (h *AnchorEventHandler) isAnchorEventProcessed(hl *url.URL) (bool, error) {
 
 type anchorInfo struct {
 	*anchorinfo.AnchorInfo
-	anchorEvent *vocab.AnchorEventType
+	anchorLink *linkset.Link
 }
 
 type anchorInfoSlice []*anchorInfo

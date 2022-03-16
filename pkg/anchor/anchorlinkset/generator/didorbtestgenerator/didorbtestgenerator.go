@@ -7,8 +7,10 @@ SPDX-License-Identifier: Apache-2.0
 package didorbtestgenerator
 
 import (
+	"net/url"
+
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent/generator/didorbgenerator"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator/didorbgenerator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 )
 
@@ -33,13 +35,13 @@ type Generator struct {
 // New returns a new generator.
 func New() *Generator {
 	gen := didorbgenerator.New(didorbgenerator.WithNamespace(Namespace),
-		didorbgenerator.WithID(ID), didorbgenerator.WithVersion(Version))
+		didorbgenerator.WithID(vocab.MustParseURL(ID)), didorbgenerator.WithVersion(Version))
 
 	return &Generator{orbGenerator: gen}
 }
 
 // ID returns the ID of the generator.
-func (g *Generator) ID() string {
+func (g *Generator) ID() *url.URL {
 	return g.orbGenerator.ID()
 }
 
@@ -59,6 +61,7 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 }
 
 // CreatePayload creates a payload from the given anchor event.
-func (g *Generator) CreatePayload(anchorEvent *vocab.AnchorEventType) (*subject.Payload, error) {
-	return g.orbGenerator.CreatePayload(anchorEvent)
+func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
+	anchors []*url.URL) (*subject.Payload, error) {
+	return g.orbGenerator.CreatePayload(doc, coreIndexURI, anchors)
 }

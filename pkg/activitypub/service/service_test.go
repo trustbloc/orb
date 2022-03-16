@@ -41,6 +41,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/linkset"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
@@ -119,7 +120,7 @@ func TestService_Create(t *testing.T) {
 	defer service1.Stop()
 	defer service2.Stop()
 
-	anchorEvent := aptestutil.NewMockAnchorEvent(t)
+	anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 	create := vocab.NewCreateActivity(
 		vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
@@ -428,7 +429,7 @@ func TestService_Announce(t *testing.T) {
 	defer service3.Stop()
 
 	t.Run("Announce - anchor credential ref (no embedded object)", func(t *testing.T) {
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 		items := []*vocab.ObjectProperty{
 			vocab.NewObjectProperty(
@@ -573,7 +574,7 @@ func TestService_Announce(t *testing.T) {
 		require.Truef(t, containsIRI(followers, service3IRI), "expecting %s to have %s as a follower",
 			service2IRI, service3IRI)
 
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorEvent := aptestutil.NewMockAnchorEvent(t, aptestutil.NewMockAnchorLink(t))
 
 		// Service1 posts a 'Create' to Service2
 		create := vocab.NewCreateActivity(
@@ -684,10 +685,13 @@ func TestService_Offer(t *testing.T) {
 		startTime := time.Now()
 		endTime := startTime.Add(time.Hour)
 
-		anchorEvent := aptestutil.NewMockAnchorEvent(t)
+		anchorLink := aptestutil.NewMockAnchorLink(t)
+
+		anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(anchorLink))
+		require.NoError(t, err)
 
 		offer := vocab.NewOfferActivity(
-			vocab.NewObjectProperty(vocab.WithAnchorEvent(anchorEvent)),
+			vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 			vocab.WithTo(service2IRI),
 			vocab.WithStartTime(&startTime),
 			vocab.WithEndTime(&endTime),
@@ -726,7 +730,7 @@ func TestService_Offer(t *testing.T) {
 
 		require.NotEmpty(t, subscriber2.Activities())
 		require.NotEmpty(t, mockProviders2.witnessHandler.AnchorCreds())
-		require.NotNil(t, mockProviders1.proofHandler.Proof(anchorEvent.Index().String()))
+		require.NotNil(t, mockProviders1.proofHandler.Proof(anchorLink.Anchor().String()))
 	})
 }
 

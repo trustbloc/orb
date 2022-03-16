@@ -16,6 +16,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("policy-inspector")
@@ -27,16 +28,16 @@ type Inspector struct {
 	maxWitnessDelay time.Duration
 }
 
-type anchorEventStore interface {
-	Get(id string) (*vocab.AnchorEventType, error)
+type anchorLinkStore interface {
+	Get(id string) (*linkset.Link, error)
 }
 
 // Providers contains all of the providers required by the client.
 type Providers struct {
-	AnchorEventStore anchorEventStore
-	Outbox           outboxProvider
-	WitnessStore     witnessStore
-	WitnessPolicy    witnessPolicy
+	AnchorLinkStore anchorLinkStore
+	Outbox          outboxProvider
+	WitnessStore    witnessStore
+	WitnessPolicy   witnessPolicy
 }
 
 type witnessStore interface {
@@ -67,12 +68,12 @@ func New(providers *Providers, maxWitnessDelay time.Duration) (*Inspector, error
 
 // CheckPolicy will look into which witness did not provide proof and reselect different set of witnesses.
 func (c *Inspector) CheckPolicy(anchorID string) error {
-	anchorEvent, err := c.AnchorEventStore.Get(anchorID)
+	anchorLink, err := c.AnchorLinkStore.Get(anchorID)
 	if err != nil {
 		return fmt.Errorf("get anchor event: %w", err)
 	}
 
-	witnessesIRI, err := c.getAdditionalWitnesses(anchorEvent.Index().String())
+	witnessesIRI, err := c.getAdditionalWitnesses(anchorLink.Anchor().String())
 	if err != nil {
 		return fmt.Errorf("failed to get additional witnesses: %w", err)
 	}
@@ -80,25 +81,30 @@ func (c *Inspector) CheckPolicy(anchorID string) error {
 	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
 
 	// send an offer activity to additional witnesses
-	err = c.postOfferActivity(anchorEvent, witnessesIRI)
+	err = c.postOfferActivity(anchorLink, witnessesIRI)
 	if err != nil {
-		return fmt.Errorf("failed to post new offer activity to additional witnesses for anchor event %s: %w",
-			anchorEvent.Index(), err)
+		return fmt.Errorf("failed to post new offer activity to additional witnesses for anchor %s: %w",
+			anchorLink.Anchor(), err)
 	}
 
 	return nil
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Inspector) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnessesIRI []*url.URL) error {
-	logger.Debugf("sending anchor event[%s] to additional witnesses: %s", anchorEvent.Index(), witnessesIRI)
+func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*url.URL) error {
+	logger.Debugf("sending anchor[%s] to additional witnesses: %s", anchorLink.Anchor(), witnessesIRI)
+
+	anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(anchorLink))
+	if err != nil {
+		return fmt.Errorf("marshal anchor linkset: %w", err)
+	}
 
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
 
 	offer := vocab.NewOfferActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorEvent(anchorEvent),
+			vocab.WithDocument(anchorLinksetDoc),
 		),
 		vocab.WithTo(witnessesIRI...),
 		vocab.WithStartTime(&startTime),
@@ -108,11 +114,11 @@ func (c *Inspector) postOfferActivity(anchorEvent *vocab.AnchorEventType, witnes
 
 	postID, err := c.Outbox().Post(offer)
 	if err != nil {
-		return fmt.Errorf("failed to post additional offer for anchor event[%s]: %w", anchorEvent.Index(), err)
+		return fmt.Errorf("failed to post additional offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Infof("created additional pre-announce activity for anchor event[%s], post id[%s], to%s",
-		anchorEvent.Index(), postID, witnessesIRI)
+	logger.Infof("created additional pre-announce activity for anchor[%s], post id[%s], to%s",
+		anchorLink.Anchor(), postID, witnessesIRI)
 
 	return nil
 }

@@ -186,7 +186,7 @@ Feature:
     # A 'Create' activity should have been posted to domain1's followers (domain2).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/55a9f656-7ce1-4d5b-8f38-966cfdcbc155"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/292c7239-74a6-4837-93af-5103f37c3999"
 
     # An 'Announce' activity should have been posted to domain2's followers (domain3).
     When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
@@ -210,12 +210,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3IRI}"
 
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiD7JriribW6HzEZujSP6Q4V2BoB0BQUvMaU1xR-cEtueg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRDdKcmlyaWJXNkh6RVp1alNQNlE0VjJCb0IwQlFVdk1hVTF4Ui1jRXR1ZWd4QmlwZnM6Ly9iYWZrcmVpaDNlMjRreGNudnhpcHRjZ24yZ3NoNnNkcXYzYW5hZHVhdWNzNm1uZmd4Y3I3aGFzM29waQ"
+    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiD7JriribW6HzEZujSP6Q4V2BoB0BQUvMaU1xR-cEtueg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRDdKcmlyaWJXNkh6RVp1alNQNlE0VjJCb0IwQlFVdk1hVTF4Ui1jRXR1ZWd4QmlwZnM6Ly9iYWZrcmVpaDNlMjRreGNudnhpcHRjZ24yZ3NoNnNkcXYzYW5hZHVhdWNzNm1uZmd4Y3I3aGFzM29waQ"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo
@@ -305,7 +305,7 @@ Feature:
     # The 'Offer' activity should be in the inbox of domain1.
     When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/018c5944-5201-4af4-bce0-ea2cb143ee2b"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/cbc4ebd2-d30d-4cc3-80d4-dcd770904f1c"
 
     And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}","type":"Invite"}}'
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"

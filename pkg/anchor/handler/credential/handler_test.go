@@ -34,6 +34,7 @@ import (
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	mocks2 "github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/store/cas"
@@ -52,23 +53,18 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 	actor := testutil.MustParseURL("https://domain1.com/services/orb")
 
-	t.Run("Success - embedded anchor event", func(t *testing.T) {
+	t.Run("Success - embedded anchor Linkset", func(t *testing.T) {
 		handler := newAnchorEventHandler(t, createInMemoryCAS(t))
 
 		anchorEvent := &vocab.AnchorEventType{}
-		require.NoError(t, json.Unmarshal([]byte(sampleAnchorEvent), anchorEvent))
-
-		hl, err := hashlink.New().CreateHashLink([]byte(testutil.GetCanonical(t, sampleAnchorEvent)), nil)
-		require.NoError(t, err)
-
-		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), actor, anchorEvent)
-		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorEvent), anchorEvent))
+		require.NoError(t, handler.HandleAnchorEvent(actor, anchorEvent.URL()[0], actor, anchorEvent))
 	})
 
-	t.Run("Success - no embedded anchor event", func(t *testing.T) {
+	t.Run("Success - no embedded anchor Linkset", func(t *testing.T) {
 		casStore := createInMemoryCAS(t)
 
-		hl, err := casStore.Write([]byte(testutil.GetCanonical(t, sampleAnchorEvent)))
+		hl, err := casStore.Write([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorLinkset)))
 		require.NoError(t, err)
 
 		handler := newAnchorEventHandler(t, casStore)
@@ -78,13 +74,18 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Parse created time (error)", func(t *testing.T) {
-		cred := strings.Replace(sampleAnchorEvent, "2022-02-10T18:50:48.682348236Z", "2021-27T09:30:00Z", 1)
+		anchorLinksetBytes := strings.Replace(sampleGrandparentAnchorLinkset, "35.629Z", "35X629Z", 1)
 
-		anchorEvent := &vocab.AnchorEventType{}
-		require.NoError(t, json.Unmarshal([]byte(cred), anchorEvent))
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(anchorLinksetBytes), anchorLinkset))
 
-		hl, err := hashlink.New().CreateHashLink([]byte(testutil.GetCanonical(t, cred)), nil)
+		hl, err := hashlink.New().CreateHashLink(testutil.MarshalCanonical(t, anchorLinkset), nil)
 		require.NoError(t, err)
+
+		anchorEvent := vocab.NewAnchorEvent(
+			vocab.NewObjectProperty(vocab.WithDocument(vocab.MustMarshalToDoc(anchorLinkset))),
+			vocab.WithURL(testutil.MustParseURL(hl)),
+		)
 
 		err = newAnchorEventHandler(t, createInMemoryCAS(t)).
 			HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, anchorEvent)
@@ -93,14 +94,14 @@ func TestAnchorCredentialHandler(t *testing.T) {
 	})
 
 	t.Run("Ignore time and domain", func(t *testing.T) {
-		cred := strings.Replace(strings.Replace(
-			sampleAnchorEvent, `"2021-01-27T09:30:00Z"`, "null", 1,
-		), `"https://witness1.example.com/ledgers/maple2021"`, "null", 1)
-
 		anchorEvent := &vocab.AnchorEventType{}
-		require.NoError(t, json.Unmarshal([]byte(cred), anchorEvent))
+		require.NoError(t, json.Unmarshal([]byte(sampleAnchorEventNoTimeOrDomain), anchorEvent))
+		require.NotNil(t, anchorEvent.Object().Document())
 
-		hl, err := hashlink.New().CreateHashLink([]byte(testutil.GetCanonical(t, cred)), nil)
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, vocab.UnmarshalFromDoc(anchorEvent.Object().Document(), anchorLinkset), anchorLinkset)
+
+		hl, err := hashlink.New().CreateHashLink(testutil.MarshalCanonical(t, anchorLinkset), nil)
 		require.NoError(t, err)
 
 		require.NoError(t, newAnchorEventHandler(t, createInMemoryCAS(t)).
@@ -124,7 +125,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		// the remote Orb server for it. The remote Orb server's CAS also won't have the data we need.
 		anchorCredentialHandler := newAnchorEventHandler(t, createInMemoryCAS(t))
 
-		hl, err := hashlink.New().CreateHashLink([]byte(sampleAnchorEvent), nil)
+		hl, err := hashlink.New().CreateHashLink([]byte(sampleGrandparentAnchorEvent), nil)
 		require.NoError(t, err)
 
 		err = anchorCredentialHandler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
@@ -135,8 +136,9 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 	const (
-		parentHL      = "hl:uEiCQhpLcjhOV_tDVibUfPbkhjJM_FUYwQ9AuAHahoAGxyg:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1FocExjamhPVl90RFZpYlVmUGJraGpKTV9GVVl3UTlBdUFIYWhvQUd4eWc" //nolint:lll
-		grandparentHL = "hl:uEiCQhpLcjhOV_tDVibUfPbkhjJM_FUYwQ9AuAHahoAGxyg:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1FocExjamhPVl90RFZpYlVmUGJraGpKTV9GVVl3UTlBdUFIYWhvQUd4eWc" //nolint:lll
+		hl            = "hl:uEiCZCOxPantSTVJRTndP0yIO9PTgk5pRL1eYHD2R-c_quA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1pDT3hQYW50U1RWSlJUbmRQMHlJTzlQVGdrNXBSTDFlWUhEMlItY19xdUF4QmlwZnM6Ly9iYWZrcmVpZXpiZHdlNjJ0M2tqZ3ZldWtvbzVoNWdpcW82dDJvYmU0MmtleHZwZ2E0aHdpN3R0N2t4YQ" //nolint:lll
+		parentHL      = "hl:uEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmRDeFA4ZmgyUjg0S0JMNG4tR1ZPNVRiaklQVHhkLWg1NVhGc3c2UVpiRkF4QmlwZnM6Ly9iYWZrcmVpYzVibWo3eTdxNXNoenlmYWpwcmg3YnN1NXpqdzRtcXBqNGx4NWI0Nms0bG15b3NiczNjcQ" //nolint:lll
+		grandparentHL = "hl:uEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ" //nolint:lll
 	)
 
 	t.Run("All parents processed -> Success", func(t *testing.T) {
@@ -153,14 +155,28 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 		anchorLinkStore.GetLinksReturns([]*url.URL{vocab.MustParseURL(grandparentHL)}, nil)
 
-		parents, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		anchorLinksetDoc := anchorEvent.Object().Document()
+		require.NotNil(t, anchorLinksetDoc)
+
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, vocab.UnmarshalFromDoc(anchorLinksetDoc, anchorLinkset))
+		require.NotNil(t, anchorLinkset.Link())
+
+		parents, err := handler.getUnprocessedParentAnchors(hl, anchorLinkset.Link())
 		require.NoError(t, err)
 		require.Empty(t, parents)
 	})
 
-	t.Run("One parent unprocessed -> Success", func(t *testing.T) {
+	t.Run("Two parents unprocessed -> Success", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+
+		anchorLinkStore.GetLinksReturns(nil, nil)
+
+		casResolver.ResolveReturnsOnCall(0, []byte(testutil.GetCanonical(t, sampleParentAnchorLinkset)),
+			parentHL, nil)
+		casResolver.ResolveReturnsOnCall(1, []byte(testutil.GetCanonical(t, sampleGrandparentAnchorLinkset)),
+			grandparentHL, nil)
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
@@ -168,15 +184,20 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 		anchorEvent := &vocab.AnchorEventType{}
 
-		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorEvent), anchorEvent))
+		require.NoError(t, json.Unmarshal([]byte(sampleAnchorEvent), anchorEvent))
 
-		anchorLinkStore.GetLinksReturns(nil, nil)
+		anchorLinksetDoc := anchorEvent.Object().Document()
+		require.NotNil(t, anchorLinksetDoc)
 
-		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorEvent)), grandparentHL, nil)
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, vocab.UnmarshalFromDoc(anchorLinksetDoc, anchorLinkset))
+		require.NotNil(t, anchorLinkset.Link())
 
-		parents, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		parents, err := handler.getUnprocessedParentAnchors(hl, anchorLinkset.Link())
 		require.NoError(t, err)
-		require.Len(t, parents, 1)
+		require.Len(t, parents, 2)
+		require.Equal(t, grandparentHL, parents[0].Hashlink)
+		require.Equal(t, parentHL, parents[1].Hashlink)
 	})
 
 	t.Run("Duplicate parents -> Success", func(t *testing.T) {
@@ -187,15 +208,14 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
-		anchorEvent := vocab.NewAnchorEvent(
-			vocab.WithParent(vocab.MustParseURL(grandparentHL), vocab.MustParseURL(grandparentHL)),
-		)
-
 		anchorLinkStore.GetLinksReturns(nil, nil)
 
-		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorEvent)), grandparentHL, nil)
+		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorLinkset)), grandparentHL, nil)
 
-		parents, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleAnchorLinksetDuplicateParents), anchorLinkset))
+
+		parents, err := handler.getUnprocessedParentAnchors(hl, anchorLinkset.Link())
 		require.NoError(t, err)
 		require.Len(t, parents, 1)
 	})
@@ -217,12 +237,19 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorEvent := &vocab.AnchorEventType{}
 
 		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorEvent), anchorEvent))
+		require.NotNil(t, anchorEvent.Object().Document())
+
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, vocab.UnmarshalFromDoc(anchorEvent.Object().Document(), anchorLinkset))
+
+		anchorLink := anchorLinkset.Link()
+		require.NotNil(t, anchorLink)
 
 		anchorLinkStore.GetLinksReturns(nil, nil)
 
-		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorEvent)), grandparentHL, nil)
+		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleAnchorEvent)), grandparentHL, nil)
 
-		_, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		_, err := handler.getUnprocessedParentAnchors(hl, anchorLink)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -235,11 +262,12 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
-		anchorEvent := vocab.NewAnchorEvent(vocab.WithParent(vocab.MustParseURL("udp://invalid")))
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleAnchorLinksetInvalidParent), anchorLinkset))
 
 		anchorLinkStore.GetLinksReturns(nil, nil)
 
-		_, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		_, err := handler.getUnprocessedParentAnchors(parentHL, anchorLinkset.Link())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "must start with 'hl:' prefix")
 	})
@@ -252,13 +280,14 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
-		anchorEvent := vocab.NewAnchorEvent(vocab.WithParent(vocab.MustParseURL(grandparentHL)))
-
 		errExpected := errors.New("injected GetLinks error")
 
 		anchorLinkStore.GetLinksReturns(nil, errExpected)
 
-		_, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorLinkset), anchorLinkset))
+
+		_, err := handler.getUnprocessedParentAnchors(parentHL, anchorLinkset.Link())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -271,13 +300,14 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
-		anchorEvent := vocab.NewAnchorEvent(vocab.WithParent(vocab.MustParseURL(grandparentHL)))
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorLinkset), anchorLinkset))
 
 		errExpected := errors.New("injected Resolve error")
 
 		casResolver.ResolveReturns(nil, "", errExpected)
 
-		_, err := handler.getUnprocessedParentAnchorEvents(parentHL, anchorEvent)
+		_, err := handler.getUnprocessedParentAnchors(parentHL, anchorLinkset.Link())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -315,7 +345,7 @@ func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 
 	t.Logf("Stored parent anchor: %s", resourceHash)
 
-	resourceHash, err = casClient.Write([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorEvent)))
+	resourceHash, err = casClient.Write([]byte(testutil.GetCanonical(t, sampleAnchorEvent)))
 	require.NoError(t, err)
 
 	t.Logf("Stored grandparent anchor: %s", resourceHash)
@@ -325,104 +355,252 @@ func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 
 //nolint:lll
 const sampleAnchorEvent = `{
-  "@context": "https://w3id.org/activityanchors/v1",
-  "attachment": [
-    {
-      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "tag": [
+    "@context": "https://w3id.org/activityanchors/v1",
+    "object": {
+      "linkset": [
         {
-          "href": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA",
-          "rel": [
-            "witness"
+          "anchor": "hl:uEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw",
+          "author": "https://orb.domain1.com/services/orb",
+          "original": [
+            {
+              "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAOVteziujP52prEAQrRuE5CXGQ1XR6xwDP86SMPWTOPw%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%2C%22previous%22%3A%22hl%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%2C%22previous%22%3A%22hl%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+              "type": "application/linkset+json"
+            }
           ],
-          "type": "Link"
+          "profile": "https://w3id.org/orb#v0",
+          "related": [
+            {
+              "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmRDeFA4ZmgyUjg0S0JMNG4tR1ZPNVRiaklQVHhkLWg1NVhGc3c2UVpiRkF4QmlwZnM6Ly9iYWZrcmVpYzVibWo3eTdxNXNoenlmYWpwcmg3YnN1NXpqdzRtcXBqNGx4NWI0Nms0bG15b3NiczNjcQ%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAOVteziujP52prEAQrRuE5CXGQ1XR6xwDP86SMPWTOPw%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQU9WdGV6aXVqUDUycHJFQVFyUnVFNUNYR1ExWFI2eHdEUDg2U01QV1RPUHd4QmlwZnM6Ly9iYWZrcmVpYW9rM2wzaGN4aXo3dHd1MnlxYXF2dW55anpiZnl6YnZsdXBsZHFidDd0dXNnZDJ6Z29oNA%22%7D%5D%7D%5D%7D",
+              "type": "application/linkset+json"
+            }
+          ],
+          "replies": [
+            {
+              "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2F01331215-0839-4679-baa2-ba4481bac47b%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A43.675143863Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A43.686Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22h7wjce2r6fH8ygSJGkm1yRZ_AvubDiodzn22osuCbYb5RCQaXoEmDtOf1oZMosO1vdeTcobi-CeW77J8_xYrAg%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A43.787088993Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%229griFoChmta0rOXdHJ6WJjoXuxR8efjg9TeqzIyZqP986I9CU9I3a9wf-xVKusNa4ql7NCcvTLCXTUnQbMh2Cg%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+              "type": "application/ld+json"
+            }
+          ]
         }
-      ],
-      "type": "AnchorObject",
-      "url": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA"
+      ]
     },
-    {
-      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA\",\"id\":\"https://orb.domain2.com/vc/1636951e-9117-4134-904a-e0cd177517a1\",\"issuanceDate\":\"2022-02-10T18:50:48.682168399Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-10T18:50:48.682348236Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..fqgLBKohg962_3GNbH-QXklA89KBMHev95-Pk1XcGa47jq0TbFUeZi3DBGLgc-pDBisqkh0U3bUSvKY_edBAAw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:48.729Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..xlI19T5KT-Sy1CJuCQLIhgGHdlaK0dIjoctRwzJUz6-TpiluluGEa69aCuDjx426TgHvGXJDn8jHi5aDqGuTDA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "type": "AnchorObject",
-      "url": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA"
-    }
-  ],
-  "attributedTo": "https://orb.domain2.com/services/orb",
-  "index": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA",
-  "parent": "hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWswQ1V1SUlWT3hsYWxZSDZKVTdnc0l3dm81ekdOY01fellvMmpYd3pCenc",
-  "published": "2022-02-10T18:50:48.681998572Z",
-  "type": "AnchorEvent"
-}`
+    "type": "AnchorEvent",
+    "url": "hl:uEiCZCOxPantSTVJRTndP0yIO9PTgk5pRL1eYHD2R-c_quA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1pDT3hQYW50U1RWSlJUbmRQMHlJTzlQVGdrNXBSTDFlWUhEMlItY19xdUF4QmlwZnM6Ly9iYWZrcmVpZXpiZHdlNjJ0M2tqZ3ZldWtvbzVoNWdpcW82dDJvYmU0MmtleHZwZ2E0aHdpN3R0N2t4YQ"
+  }`
 
 //nolint:lll
 const sampleParentAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "attachment": [
+  "object": {
+    "linkset": [
+      {
+        "anchor": "hl:uEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q",
+        "author": "https://orb.domain1.com/services/orb",
+        "original": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "profile": "https://w3id.org/orb#v0",
+        "related": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQlJlLTctZFA5QnVhck1nc25oME9SbkdXaTZtb2M0R21RZXQtcFFVZUpqTFF4QmlwZnM6Ly9iYWZrcmVpY3JwcHhwNDVoN2lnNDJ2dGVjemhxNWJ6ZGhkZnVsdmd1aGhhbmdpaHZ4NWppZmR5dGRmdQ%22%7D%5D%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "replies": [
+          {
+            "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2F9e24fe54-097b-418b-8a3f-e948a15bbfb6%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A38.703155915Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A38.712Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22aHF4OpYMArTIJLupKMumfXzu_CHgGx40p9haG6N__6bRVNEyFvWEmXvykcQ3DkTy1LVTi6pL3FQfMiCGyfvzCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A38.788086226Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22IMbTYbfpwColUBcD2uzqdTBmuCbauVTmYykPs_ozmf77rN6AEouTZvXmmL8vd-NJuZhQvnG-Vx6RVhrS7DPoBw%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+            "type": "application/ld+json"
+          }
+        ]
+      }
+    ]
+  },
+  "type": "AnchorEvent",
+  "url": "hl:uEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmRDeFA4ZmgyUjg0S0JMNG4tR1ZPNVRiaklQVHhkLWg1NVhGc3c2UVpiRkF4QmlwZnM6Ly9iYWZrcmVpYzVibWo3eTdxNXNoenlmYWpwcmg3YnN1NXpqdzRtcXBqNGx4NWI0Nms0bG15b3NiczNjcQ"
+}`
+
+//nolint:lll
+const sampleParentAnchorLinkset = `{
+  "linkset": [
     {
-      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\",\"previousAnchor\":\"hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw\"}]},\"subject\":\"hl:uEiC0arCOQrIDw2F2Zca10gEutIrHWgIUaC1jPDRRBLADUQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQzBhckNPUXJJRHcyRjJaY2ExMGdFdXRJckhXZ0lVYUMxalBEUlJCTEFEVVE\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "tag": [
+      "anchor": "hl:uEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
         {
-          "href": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA",
-          "rel": [
-            "witness"
-          ],
-          "type": "Link"
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
         }
       ],
-      "type": "AnchorObject",
-      "url": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA"
-    },
-    {
-      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA\",\"id\":\"https://orb.domain2.com/vc/1636951e-9117-4134-904a-e0cd177517a1\",\"issuanceDate\":\"2022-02-10T18:50:48.682168399Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-10T18:50:48.682348236Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..fqgLBKohg962_3GNbH-QXklA89KBMHev95-Pk1XcGa47jq0TbFUeZi3DBGLgc-pDBisqkh0U3bUSvKY_edBAAw\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:48.729Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..xlI19T5KT-Sy1CJuCQLIhgGHdlaK0dIjoctRwzJUz6-TpiluluGEa69aCuDjx426TgHvGXJDn8jHi5aDqGuTDA\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "type": "AnchorObject",
-      "url": "hl:uEiB_22mkkq3lIOkoZXayxavsGnJ2HP8xR0ke_fGCKqQpyA"
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQlJlLTctZFA5QnVhck1nc25oME9SbkdXaTZtb2M0R21RZXQtcFFVZUpqTFF4QmlwZnM6Ly9iYWZrcmVpY3JwcHhwNDVoN2lnNDJ2dGVjemhxNWJ6ZGhkZnVsdmd1aGhhbmdpaHZ4NWppZmR5dGRmdQ%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+        {
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2F9e24fe54-097b-418b-8a3f-e948a15bbfb6%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A38.703155915Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A38.712Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22aHF4OpYMArTIJLupKMumfXzu_CHgGx40p9haG6N__6bRVNEyFvWEmXvykcQ3DkTy1LVTi6pL3FQfMiCGyfvzCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A38.788086226Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22IMbTYbfpwColUBcD2uzqdTBmuCbauVTmYykPs_ozmf77rN6AEouTZvXmmL8vd-NJuZhQvnG-Vx6RVhrS7DPoBw%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+          "type": "application/ld+json"
+        }
+      ]
     }
-  ],
-  "attributedTo": "https://orb.domain2.com/services/orb",
-  "index": "hl:uEiB5sZH1-ZEY0QDRbFgOrGQZqb95A95q5VWNVBBzxAJMCA",
-  "parent": "hl:uEiAk0CUuIIVOxlalYH6JU7gsIwvo5zGNcM_zYo2jXwzBzw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQWswQ1V1SUlWT3hsYWxZSDZKVTdnc0l3dm81ekdOY01fellvMmpYd3pCenc",
-  "published": "2022-02-10T18:50:48.681998572Z",
-  "type": "AnchorEvent"
+  ]
 }`
 
 //nolint:lll
 const sampleGrandparentAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
-  "attachment": [
+  "object": {
+    "linkset": [
+      {
+        "anchor": "hl:uEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA",
+        "author": "https://orb.domain1.com/services/orb",
+        "original": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "profile": "https://w3id.org/orb#v0",
+        "related": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQWF2RE9tUXlsbVBHVEdCdWpnX0VzYkVMYmRVWDlKMDBpOTNDRUxLeXRZVFF4QmlwZnM6Ly9iYWZrcmVpYTJ4cXoybXF6am15NmdqcnFnNWRxcHlzeTNjYzNuMnVsN2poanVycG80ZWVmc3drMnlqdQ%22%7D%5D%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "replies": [
+          {
+            "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2Fc3f5d2a1-3af5-4752-9643-8720bb4add87%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A35.61714467Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A35.629Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22esrGz5b_OzMF9YbZzIsu_T9DCWhcq-f63zzDQ36sEESeuyRWAAhsE_z_0N_lWSwSMmrmwPJEP0Fo-X1jNCUKCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A35.74959555Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22U4rJ4ei2mSp99UW44tRDZscuwvoWV56rxVK7Z9cYo6tTwisIIhnd6hqYp8vy-MfzUH85yhvbZBZuLNL-ue51DQ%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+            "type": "application/ld+json"
+          }
+        ]
+      }
+    ]
+  },
+  "type": "AnchorEvent",
+  "url": "hl:uEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ"
+}`
+
+//nolint:lll
+const sampleGrandparentAnchorLinkset = `{
+  "linkset": [
     {
-      "content": "{\"properties\":{\"https://w3id.org/activityanchors#generator\":\"https://w3id.org/orb#v0\",\"https://w3id.org/activityanchors#resources\":[{\"id\":\"did:orb:uAAA:EiCIZ19PGWe_65JLcIp_bmOu_ZrPOerFPXAoXAcdWW7iCg\"}]},\"subject\":\"hl:uEiB_EO3wonWIqC-2qzI730l3IQhYCzNxWtdNynBJi_O-uw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQl9FTzN3b25XSXFDLTJxekk3MzBsM0lRaFlDek54V3RkTnluQkppX08tdXc\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "tag": [
+      "anchor": "hl:uEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
         {
-          "href": "hl:uEiB-dxzjTbnnyxGyLYFqZof9YahIFO-JHR-u6pZIcbFiAg",
-          "rel": [
-            "witness"
-          ],
-          "type": "Link"
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
         }
       ],
-      "type": "AnchorObject",
-      "url": "hl:uEiBOxwW4jVeoEXk-D2GK1rVfLDxqiKBNK1aPxhtDq-4WUw"
-    },
-    {
-      "content": "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\"],\"credentialSubject\":\"hl:uEiBOxwW4jVeoEXk-D2GK1rVfLDxqiKBNK1aPxhtDq-4WUw\",\"id\":\"https://orb.domain2.com/vc/525b6a6d-b288-47ed-bf5f-1cc7a5c161f1\",\"issuanceDate\":\"2022-02-10T18:50:45.695225137Z\",\"issuer\":\"https://orb.domain2.com\",\"proof\":[{\"created\":\"2022-02-10T18:50:45.695532436Z\",\"domain\":\"https://orb.domain2.com\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..uWopymt6qTIyXFAN3cETf7XXkTCcqSNA7Cqw9GALcq-Ax19tjAMpcAT_VPoM3Kf-RUb8s5lDgsozMCwWXakZBg\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain2.com#orb2key\"},{\"created\":\"2022-02-10T18:50:45.784Z\",\"domain\":\"http://orb.vct:8077/maple2020\",\"jws\":\"eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..61LDooN6Lg71-YX3R371O9z7m15M2iG30QBDxNDWG3psg50HXiA7JJOn245nBaV9_pee_lzB0kjBD1CYg7Y_BQ\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2018\",\"verificationMethod\":\"did:web:orb.domain1.com#orb1key2\"}],\"type\":\"VerifiableCredential\"}",
-      "generator": "https://w3id.org/orb#v0",
-      "mediaType": "application/json",
-      "type": "AnchorObject",
-      "url": "hl:uEiB-dxzjTbnnyxGyLYFqZof9YahIFO-JHR-u6pZIcbFiAg"
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQWF2RE9tUXlsbVBHVEdCdWpnX0VzYkVMYmRVWDlKMDBpOTNDRUxLeXRZVFF4QmlwZnM6Ly9iYWZrcmVpYTJ4cXoybXF6am15NmdqcnFnNWRxcHlzeTNjYzNuMnVsN2poanVycG80ZWVmc3drMnlqdQ%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+        {
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2Fc3f5d2a1-3af5-4752-9643-8720bb4add87%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A35.61714467Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A35.629Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22esrGz5b_OzMF9YbZzIsu_T9DCWhcq-f63zzDQ36sEESeuyRWAAhsE_z_0N_lWSwSMmrmwPJEP0Fo-X1jNCUKCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A35.74959555Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22U4rJ4ei2mSp99UW44tRDZscuwvoWV56rxVK7Z9cYo6tTwisIIhnd6hqYp8vy-MfzUH85yhvbZBZuLNL-ue51DQ%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+          "type": "application/ld+json"
+        }
+      ]
     }
-  ],
-  "attributedTo": "https://orb.domain2.com/services/orb",
-  "index": "hl:uEiBOxwW4jVeoEXk-D2GK1rVfLDxqiKBNK1aPxhtDq-4WUw",
-  "published": "2022-02-10T18:50:45.692283508Z",
-  "type": "AnchorEvent"
+  ]
+}`
+
+//nolint:lll
+const sampleAnchorEventNoTimeOrDomain = `{
+  "@context": "https://w3id.org/activityanchors/v1",
+  "object": {
+    "linkset": [
+      {
+        "anchor": "hl:uEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA",
+        "author": "https://orb.domain1.com/services/orb",
+        "original": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "profile": "https://w3id.org/orb#v0",
+        "related": [
+          {
+            "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAavDOmQylmPGTGBujg_EsbELbdUX9J00i93CELKytYTQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQWF2RE9tUXlsbVBHVEdCdWpnX0VzYkVMYmRVWDlKMDBpOTNDRUxLeXRZVFF4QmlwZnM6Ly9iYWZrcmVpYTJ4cXoybXF6am15NmdqcnFnNWRxcHlzeTNjYzNuMnVsN2poanVycG80ZWVmc3drMnlqdQ%22%7D%5D%7D%5D%7D",
+            "type": "application/linkset+json"
+          }
+        ],
+        "replies": [
+          {
+            "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiCE4J4UpuWwXKb25jDyoVGCQ8F0v1NPTsxz4QMzADBxYA%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2Fc3f5d2a1-3af5-4752-9643-8720bb4add87%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A35.61714467Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22esrGz5b_OzMF9YbZzIsu_T9DCWhcq-f63zzDQ36sEESeuyRWAAhsE_z_0N_lWSwSMmrmwPJEP0Fo-X1jNCUKCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+            "type": "application/ld+json"
+          }
+        ]
+      }
+    ]
+  },
+  "type": "AnchorEvent",
+  "url": "hl:uEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ"
+}`
+
+//nolint:lll
+const sampleAnchorLinksetDuplicateParents = `{
+  "linkset": [
+    {
+      "anchor": "hl:uEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%2C%22previous%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ%22%7D%2C%7B%22href%22%3A%22hl%3AuEiDB-Nh4kxP2UIzjC-oLbEaW4bHCYaFC9WgvPtbtMtvMuA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpREItTmg0a3hQMlVJempDLW9MYkVhVzRiSENZYUZDOVdndlB0YnRNdHZNdUF4QmlwZnM6Ly9iYWZrcmVpZ2I3ZG1ocmV5dDZ6aWl6eXlsNWlmd3lydXc0Z3k0ZXluYmlsMndxbHo2MjN3dGZ3Nm14YQ%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiBRe-7-dP9BuarMgsnh0ORnGWi6moc4GmQet-pQUeJjLQ%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQlJlLTctZFA5QnVhck1nc25oME9SbkdXaTZtb2M0R21RZXQtcFFVZUpqTFF4QmlwZnM6Ly9iYWZrcmVpY3JwcHhwNDVoN2lnNDJ2dGVjemhxNWJ6ZGhkZnVsdmd1aGhhbmdpaHZ4NWppZmR5dGRmdQ%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+        {
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiBpFIScGjmr9GEs2-WIQ-SYZZdfsN_iePnO4kxtRR9A5Q%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2F9e24fe54-097b-418b-8a3f-e948a15bbfb6%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A38.703155915Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A38.712Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22aHF4OpYMArTIJLupKMumfXzu_CHgGx40p9haG6N__6bRVNEyFvWEmXvykcQ3DkTy1LVTi6pL3FQfMiCGyfvzCA%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A38.788086226Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22IMbTYbfpwColUBcD2uzqdTBmuCbauVTmYykPs_ozmf77rN6AEouTZvXmmL8vd-NJuZhQvnG-Vx6RVhrS7DPoBw%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+          "type": "application/ld+json"
+        }
+      ]
+    }
+  ]
+}`
+
+//nolint:lll
+const sampleAnchorLinksetInvalidParent = `{
+  "linkset": [
+    {
+      "anchor": "hl:uEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAOVteziujP52prEAQrRuE5CXGQ1XR6xwDP86SMPWTOPw%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%3AEiDSqf8owKb84KDjRbIemw-Sv-UoyPcsyPNFEQ9rzT-Uag%22%2C%22previous%22%3A%22hl%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%3AEiApcqrvEntohzA1NGNYO9l3N7yyR-dfvotjxTTAzGlTUQ%22%2C%22previous%22%3A%22hl%3AuEiBdCxP8fh2R84KBL4n-GVO5TbjIPTxd-h55XFsw6QZbFA%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22http%3A%2F%2Fdomain1.com%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAOVteziujP52prEAQrRuE5CXGQ1XR6xwDP86SMPWTOPw%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQU9WdGV6aXVqUDUycHJFQVFyUnVFNUNYR1ExWFI2eHdEUDg2U01QV1RPUHd4QmlwZnM6Ly9iYWZrcmVpYW9rM2wzaGN4aXo3dHd1MnlxYXF2dW55anpiZnl6YnZsdXBsZHFidDd0dXNnZDJ6Z29oNA%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+        {
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiDhi1oX6K76A1ch5WPu2wdNLcizCx08EypO0taw9KHOGw%22%2C%22id%22%3A%22https%3A%2F%2Forb2.domain1.com%2Fvc%2F01331215-0839-4679-baa2-ba4481bac47b%22%2C%22issuanceDate%22%3A%222022-03-16T18%3A20%3A43.675143863Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb2.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-16T18%3A20%3A43.686Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22h7wjce2r6fH8ygSJGkm1yRZ_AvubDiodzn22osuCbYb5RCQaXoEmDtOf1oZMosO1vdeTcobi-CeW77J8_xYrAg%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-16T18%3A20%3A43.787088993Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%229griFoChmta0rOXdHJ6WJjoXuxR8efjg9TeqzIyZqP986I9CU9I3a9wf-xVKusNa4ql7NCcvTLCXTUnQbMh2Cg%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+          "type": "application/ld+json"
+        }
+      ]
+    }
+  ]
 }`

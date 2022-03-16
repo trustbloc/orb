@@ -21,10 +21,10 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/metadata"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/mocks"
+	"github.com/trustbloc/orb/pkg/linkset"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
@@ -54,7 +54,7 @@ const (
 
 func TestResolveHandler_Resolve(t *testing.T) {
 	anchorGraph := &orbmocks.AnchorGraph{}
-	anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}}}, nil)
+	anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}}}, nil)
 
 	const localID = "local-id"
 
@@ -906,7 +906,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 func TestResolveHandler_VerifyCID(t *testing.T) {
 	t.Run("success - CID in DID matches resolved document CID", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -920,8 +920,8 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 	t.Run("success - CID in DID matches document's previous CID", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
 		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{
-			{Info: &vocab.AnchorEventType{}, CID: "first-cid"},
-			{Info: &vocab.AnchorEventType{}, CID: "second-cid"},
+			{Info: &linkset.Link{}, CID: "first-cid"},
+			{Info: &linkset.Link{}, CID: "second-cid"},
 		}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
@@ -935,7 +935,7 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 	t.Run("success - no canonical id (ignore)", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -945,7 +945,7 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 	t.Run("error - canonical ID not a string", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -959,7 +959,7 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 	t.Run("error - canonical ID invalid (wrong number of parts)", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -973,7 +973,7 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 	t.Run("error - DID invalid (wrong number of parts)", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -987,7 +987,7 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 
 	t.Run("error - resolved create document CID doesn't matches CID in DID", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
-		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &vocab.AnchorEventType{}, CID: "cid2"}}, nil)
+		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}, CID: "cid2"}}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})
 
@@ -1002,8 +1002,8 @@ func TestResolveHandler_VerifyCID(t *testing.T) {
 	t.Run("error - CID in DID doesn't match any of document's previous CIDs", func(t *testing.T) {
 		anchorGraph := &orbmocks.AnchorGraph{}
 		anchorGraph.GetDidAnchorsReturns([]graph.Anchor{
-			{Info: &vocab.AnchorEventType{}, CID: "first-cid"},
-			{Info: &vocab.AnchorEventType{}, CID: "second-cid"},
+			{Info: &linkset.Link{}, CID: "first-cid"},
+			{Info: &linkset.Link{}, CID: "second-cid"},
 		}, nil)
 
 		handler := NewResolveHandler(testNS, nil, nil, "", nil, nil, anchorGraph, &orbmocks.MetricsProvider{})

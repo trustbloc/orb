@@ -15,13 +15,13 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("anchor")
 
-const anchorEventTopic = "orb.anchor_event"
+const anchorTopic = "orb.anchor_linkset"
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error
@@ -43,17 +43,17 @@ func NewPublisher(pubSub pubSub) *Publisher {
 }
 
 // Publish publishes a verifiable credential to a message queue for processing.
-func (h *Publisher) Publish(anchorEvent *vocab.AnchorEventType) error {
-	payload, err := h.jsonMarshal(anchorEvent)
+func (h *Publisher) Publish(anchorLinkset *linkset.Linkset) error {
+	payload, err := h.jsonMarshal(anchorLinkset)
 	if err != nil {
-		return fmt.Errorf("publish anchor event: %w", err)
+		return fmt.Errorf("marshal anchor link: %w", err)
 	}
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debugf("Publishing anchor event to topic [%s]: %s", anchorEventTopic, anchorEvent)
+	logger.Debugf("Publishing anchor link to topic [%s]: %s", anchorTopic, anchorLinkset)
 
-	err = h.pubSub.Publish(anchorEventTopic, msg)
+	err = h.pubSub.Publish(anchorTopic, msg)
 	if err != nil {
 		return errors.NewTransient(err)
 	}

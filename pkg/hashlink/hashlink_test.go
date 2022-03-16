@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcutil/base58"
-	cbor "github.com/fxamacker/cbor/v2"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -114,7 +114,7 @@ func TestHashLink_GetLinksFromMetadata(t *testing.T) {
 		mdLinks, err := hl.GetLinksFromMetadata("invalid")
 		require.Error(t, err)
 		require.Nil(t, mdLinks)
-		require.Contains(t, err.Error(), "failed to cbor.unmarshal metadata")
+		require.Contains(t, err.Error(), "invalid hashlink")
 	})
 
 	t.Run("error - links is not array", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestHashLink_ParseHashLink(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, hlInfo)
 		require.Contains(t, err.Error(),
-			"resource hash[abc] for hashlink[hl:abc] is not a valid multihash: failed to decode multihash")
+			"resource hash[abc] for hashlink[hl:abc] is not a valid multihash: failed to decode encoded multihash")
 	})
 
 	t.Run("error - multi hash not supported", func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestHashLink_ParseHashLink(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, hlInfo)
 		require.Contains(t, err.Error(),
-			"failed to get links from metadata: failed to cbor.unmarshal metadata: unexpected EOF")
+			"failed to get links from metadata: failed to decode metadata: invalid hashlink")
 	})
 }
 

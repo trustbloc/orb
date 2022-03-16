@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package anchorevent
+package anchorlink
 
 import (
 	"errors"
@@ -16,9 +16,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var anchorIndexURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mMPPC778OtklPa-w")
@@ -45,7 +45,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.NoError(t, err)
 	})
 
@@ -57,7 +57,7 @@ func TestStore_Put(t *testing.T) {
 		s, err := New(storeProvider, testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "error put")
 	})
@@ -68,33 +68,33 @@ func TestStore_Get(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.NoError(t, err)
 
-		ae, err := s.Get(anchorIndexURL.String())
+		al, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
+		require.Equal(t, al.Anchor().String(), anchorIndexURL.String())
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.NoError(t, err)
 
 		ae, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
+		require.Equal(t, ae.Anchor().String(), anchorIndexURL.String())
 	})
 
 	t.Run("error - nil anchors URL", func(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent())
+		err = s.Put(&linkset.Link{})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to save anchor event: Index is empty")
+		require.Contains(t, err.Error(), "failed to save anchor link: Anchor is empty")
 	})
 
 	t.Run("test error from store get", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestStore_Get(t *testing.T) {
 			return nil, errExpected
 		}
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -149,7 +149,7 @@ func TestStore_Get(t *testing.T) {
 			return errExpected
 		}
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.NoError(t, err)
 
 		ae, err := s.Get(anchorIndexURL.String())
@@ -164,16 +164,16 @@ func TestStore_Delete(t *testing.T) {
 		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
 		require.NoError(t, err)
 
-		err = s.Put(vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL)))
+		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
 		require.NoError(t, err)
 
 		ae, err := s.Get(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
+		require.Equal(t, ae.Anchor().String(), anchorIndexURL.String())
 
 		err = s.Delete(anchorIndexURL.String())
 		require.NoError(t, err)
-		require.Equal(t, ae.Index().String(), anchorIndexURL.String())
+		require.Equal(t, ae.Anchor().String(), anchorIndexURL.String())
 	})
 
 	t.Run("test error from store delete", func(t *testing.T) {

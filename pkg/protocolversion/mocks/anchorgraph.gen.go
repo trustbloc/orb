@@ -9,11 +9,11 @@ import (
 )
 
 type AnchorGraph struct {
-	GetDidAnchorsStub        func(cid, suffix string) ([]graph.Anchor, error)
+	GetDidAnchorsStub        func(string, string) ([]graph.Anchor, error)
 	getDidAnchorsMutex       sync.RWMutex
 	getDidAnchorsArgsForCall []struct {
-		cid    string
-		suffix string
+		arg1 string
+		arg2 string
 	}
 	getDidAnchorsReturns struct {
 		result1 []graph.Anchor
@@ -27,22 +27,24 @@ type AnchorGraph struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *AnchorGraph) GetDidAnchors(cid string, suffix string) ([]graph.Anchor, error) {
+func (fake *AnchorGraph) GetDidAnchors(arg1 string, arg2 string) ([]graph.Anchor, error) {
 	fake.getDidAnchorsMutex.Lock()
 	ret, specificReturn := fake.getDidAnchorsReturnsOnCall[len(fake.getDidAnchorsArgsForCall)]
 	fake.getDidAnchorsArgsForCall = append(fake.getDidAnchorsArgsForCall, struct {
-		cid    string
-		suffix string
-	}{cid, suffix})
-	fake.recordInvocation("GetDidAnchors", []interface{}{cid, suffix})
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.GetDidAnchorsStub
+	fakeReturns := fake.getDidAnchorsReturns
+	fake.recordInvocation("GetDidAnchors", []interface{}{arg1, arg2})
 	fake.getDidAnchorsMutex.Unlock()
-	if fake.GetDidAnchorsStub != nil {
-		return fake.GetDidAnchorsStub(cid, suffix)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.getDidAnchorsReturns.result1, fake.getDidAnchorsReturns.result2
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *AnchorGraph) GetDidAnchorsCallCount() int {
@@ -51,13 +53,22 @@ func (fake *AnchorGraph) GetDidAnchorsCallCount() int {
 	return len(fake.getDidAnchorsArgsForCall)
 }
 
+func (fake *AnchorGraph) GetDidAnchorsCalls(stub func(string, string) ([]graph.Anchor, error)) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
+	fake.GetDidAnchorsStub = stub
+}
+
 func (fake *AnchorGraph) GetDidAnchorsArgsForCall(i int) (string, string) {
 	fake.getDidAnchorsMutex.RLock()
 	defer fake.getDidAnchorsMutex.RUnlock()
-	return fake.getDidAnchorsArgsForCall[i].cid, fake.getDidAnchorsArgsForCall[i].suffix
+	argsForCall := fake.getDidAnchorsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *AnchorGraph) GetDidAnchorsReturns(result1 []graph.Anchor, result2 error) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
 	fake.GetDidAnchorsStub = nil
 	fake.getDidAnchorsReturns = struct {
 		result1 []graph.Anchor
@@ -66,6 +77,8 @@ func (fake *AnchorGraph) GetDidAnchorsReturns(result1 []graph.Anchor, result2 er
 }
 
 func (fake *AnchorGraph) GetDidAnchorsReturnsOnCall(i int, result1 []graph.Anchor, result2 error) {
+	fake.getDidAnchorsMutex.Lock()
+	defer fake.getDidAnchorsMutex.Unlock()
 	fake.GetDidAnchorsStub = nil
 	if fake.getDidAnchorsReturnsOnCall == nil {
 		fake.getDidAnchorsReturnsOnCall = make(map[int]struct {

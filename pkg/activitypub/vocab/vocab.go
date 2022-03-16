@@ -65,12 +65,9 @@ const (
 	// TypeVerifiableCredential specifies the "VerifiableCredential" object type.
 	TypeVerifiableCredential Type = "VerifiableCredential"
 
-	// TypeContentAddressedStorage specifies the "ContentAddressedStorage" object type.
-	TypeContentAddressedStorage Type = "ContentAddressedStorage"
 	// TypeAnchorEvent specifies the "AnchorEvent" object type.
 	TypeAnchorEvent Type = "AnchorEvent"
-	// TypeAnchorObject specifies the "AnchorObject" object type.
-	TypeAnchorObject Type = "AnchorObject"
+
 	// TypeAnchorReceipt specifies the "AnchorReceipt" object type.
 	TypeAnchorReceipt Type = "AnchorReceipt"
 	// TypeOffer specifies the "Offer" activity type.

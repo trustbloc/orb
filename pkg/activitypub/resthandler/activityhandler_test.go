@@ -1000,7 +1000,7 @@ func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityT
 		return vocab.NewLikeActivity(
 			vocab.NewObjectProperty(
 				vocab.WithAnchorEvent(
-					vocab.NewAnchorEvent(vocab.WithURL(ref)),
+					vocab.NewAnchorEvent(nil, vocab.WithURL(ref)),
 				),
 			),
 			vocab.WithID(id),
@@ -1010,7 +1010,7 @@ func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityT
 			vocab.WithResult(
 				vocab.NewObjectProperty(
 					vocab.WithAnchorEvent(
-						vocab.NewAnchorEvent(vocab.WithURL(additionalRef)),
+						vocab.NewAnchorEvent(nil, vocab.WithURL(additionalRef)),
 					),
 				),
 			),

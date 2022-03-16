@@ -72,13 +72,6 @@ func WithURL(u ...*url.URL) Opt {
 	}
 }
 
-// WithCID sets the 'cid' property on the object.
-func WithCID(cid string) Opt {
-	return func(opts *Options) {
-		opts.CID = cid
-	}
-}
-
 // WithTo sets the "to" property on the object.
 func WithTo(to ...*url.URL) Opt {
 	return func(opts *Options) {
@@ -128,20 +121,6 @@ func WithAttachment(obj ...*ObjectProperty) Opt {
 	}
 }
 
-// WithAttributedTo sets the 'attributedTo' property on the object.
-func WithAttributedTo(u *url.URL) Opt {
-	return func(opts *Options) {
-		opts.AttributedTo = u
-	}
-}
-
-// WithGenerator sets the 'generator' property on the object.
-func WithGenerator(generator string) Opt {
-	return func(opts *Options) {
-		opts.Generator = generator
-	}
-}
-
 // WithTag sets the 'tag' property on the object.
 func WithTag(tag *TagProperty) Opt {
 	return func(opts *Options) {
@@ -155,6 +134,13 @@ func WithTag(tag *TagProperty) Opt {
 func WithLink(link *LinkType) Opt {
 	return func(opts *Options) {
 		opts.Link = link
+	}
+}
+
+// WithDocument sets a raw document.
+func WithDocument(doc Document) Opt {
+	return func(opts *Options) {
+		opts.Document = doc
 	}
 }
 
@@ -225,6 +211,7 @@ type ObjectPropertyOptions struct {
 	Collection        *CollectionType
 	OrderedCollection *OrderedCollectionType
 	Activity          *ActivityType
+	Document          Document
 }
 
 // WithIRI sets the 'object' property to an IRI.
@@ -400,36 +387,12 @@ func getContexts(options *Options, contexts ...Context) []Context {
 
 // AnchorEventOptions holds the options for an AnchorEvent.
 type AnchorEventOptions struct {
-	Index        *url.URL
-	Parent       []*url.URL
-	AnchorObject *AnchorObjectType
-	AnchorEvent  *AnchorEventType
-}
-
-// WithIndex sets the 'index' property.
-func WithIndex(anchors *url.URL) Opt {
-	return func(opts *Options) {
-		opts.Index = anchors
-	}
-}
-
-// WithParent sets the 'parent' property.
-func WithParent(parent ...*url.URL) Opt {
-	return func(opts *Options) {
-		opts.Parent = parent
-	}
+	AnchorEvent *AnchorEventType
 }
 
 // WithAnchorEvent sets the 'object' property.
 func WithAnchorEvent(anchorEvt *AnchorEventType) Opt {
 	return func(opts *Options) {
 		opts.AnchorEvent = anchorEvt
-	}
-}
-
-// WithAnchorObject sets the 'object' property to an AnchorObject.
-func WithAnchorObject(anchorObj *AnchorObjectType) Opt {
-	return func(opts *Options) {
-		opts.AnchorObject = anchorObj
 	}
 }

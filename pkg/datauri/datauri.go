@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package vocab
+package datauri
 
 import (
 	"bytes"
@@ -15,6 +15,8 @@ import (
 	"io/ioutil"
 	"net/url"
 	"strings"
+
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 )
 
 // MediaType defines a type of encoding for content embedded within a data URI.
@@ -29,10 +31,10 @@ const (
 
 const numDataURISegments = 2
 
-// NewDataURI encodes the given content using the given media type and returns
-// a data URL with the encoded data. For example: 'data:application/gzip;base64,H4sIAAAAAAAA...'.
-func NewDataURI(content []byte, dataType MediaType) (*url.URL, error) {
-	encodedData, err := Encode(content, dataType)
+// New encodes the given content using the given media type and returns
+// a data URI with the encoded data. For example: 'data:application/gzip;base64,H4sIAbAAvAAA...'.
+func New(content []byte, dataType MediaType) (*url.URL, error) {
+	encodedData, err := encode(content, dataType)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +47,19 @@ func NewDataURI(content []byte, dataType MediaType) (*url.URL, error) {
 	return u, nil
 }
 
-// DecodeDataURI decodes the given data URI and returns the decoded bytes.
-func DecodeDataURI(u *url.URL) ([]byte, error) {
+// MarshalCanonical marshals and encodes the given object using the given media type and returns
+// a data URI with the encoded data. For example: 'data:application/gzip;base64,H4sIAbAAvAAA...'.
+func MarshalCanonical(obj interface{}, dataType MediaType) (*url.URL, error) {
+	content, err := canonicalizer.MarshalCanonical(obj)
+	if err != nil {
+		return nil, fmt.Errorf("marshal canonical: %w", err)
+	}
+
+	return New(content, dataType)
+}
+
+// Decode decodes the given data URI and returns the decoded bytes.
+func Decode(u *url.URL) ([]byte, error) {
 	if u.Scheme != "data" {
 		return nil, errors.New("invalid scheme for data URI")
 	}
@@ -57,12 +70,12 @@ func DecodeDataURI(u *url.URL) ([]byte, error) {
 		return nil, fmt.Errorf("no content in data URI: %s", u)
 	}
 
-	return Decode(segments[1], segments[0])
+	return decode(segments[1], segments[0])
 }
 
-// Encode encodes the given content using the given media type and returns
+// encode encodes the given content using the given media type and returns
 // a string with the encoded data.
-func Encode(content []byte, mediaType MediaType) (string, error) {
+func encode(content []byte, mediaType MediaType) (string, error) {
 	switch mediaType {
 	case MediaTypeDataURIGzipBase64:
 		return GzipCompress(content)
@@ -75,8 +88,8 @@ func Encode(content []byte, mediaType MediaType) (string, error) {
 	}
 }
 
-// Decode decodes the given string using the given media type and returns the decoded bytes.
-func Decode(content string, mediaType MediaType) ([]byte, error) {
+// decode decodes the given string using the given media type and returns the decoded bytes.
+func decode(content string, mediaType MediaType) ([]byte, error) {
 	switch mediaType {
 	case MediaTypeDataURIGzipBase64:
 		return GzipDecompress(content)

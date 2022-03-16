@@ -17,12 +17,12 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/verprovider"
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
@@ -128,26 +128,31 @@ func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, er
 // GetAnchorOrigin will retrieve anchor credential based on CID, parse Sidetree core index file referenced in anchor
 // credential and return anchor origin.
 func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
-	anchorEventBytes, err := c.casReader.Read(cid)
+	anchorLinksetBytes, err := c.casReader.Read(cid)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read CID[%s] from CAS: %w", cid, err)
+		return nil, fmt.Errorf("unable to read anchor[%s] from CAS: %w", cid, err)
 	}
 
-	logger.Debugf("read anchor[%s]: %s", cid, string(anchorEventBytes))
+	logger.Debugf("read anchor[%s]: %s", cid, string(anchorLinksetBytes))
 
-	anchorEvent := &vocab.AnchorEventType{}
+	anchorLinkset := &linkset.Linkset{}
 
-	err = json.Unmarshal(anchorEventBytes, anchorEvent)
+	err = json.Unmarshal(anchorLinksetBytes, anchorLinkset)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor event from CID[%s] from CAS: %w", cid, err)
+		return nil, fmt.Errorf("unmarshal anchor from CID[%s] from CAS: %w", cid, err)
 	}
 
-	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent, c.getParseCredentialOpts()...)
-	if err != nil {
-		return nil, fmt.Errorf("get verifiable credential from anchor event for CID[%s]: %w", cid, err)
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return nil, fmt.Errorf("empty anchor Linkset [%s]", cid)
 	}
 
-	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{Hashlink: cid}, anchorEvent, vc, suffix)
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink, c.getParseCredentialOpts()...)
+	if err != nil {
+		return nil, fmt.Errorf("get verifiable credential from anchor for CID[%s]: %w", cid, err)
+	}
+
+	suffixOp, err := c.getAnchoredOperation(anchorinfo.AnchorInfo{Hashlink: cid}, anchorLink, vc, suffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get anchored operation for suffix[%s] in anchor[%s]: %w", suffix, cid, err)
 	}
@@ -176,8 +181,8 @@ func (c *OrbClient) getParseCredentialOpts() []verifiable.CredentialOpt {
 	return opts
 }
 
-func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorEvent *vocab.AnchorEventType, vc *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
-	anchorPayload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
+func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorLink *linkset.Link, vc *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
+	anchorPayload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
