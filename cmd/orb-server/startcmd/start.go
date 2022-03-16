@@ -77,6 +77,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct/monitor"
 	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -694,11 +695,27 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
-	monitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
+	proofMonitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
 		httpClient, taskMgr, parameters.vctMonitoringInterval)
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
+
+	// TODO: Configure this, for now follow local VCT(issue-1176)
+	var followVCTDomains []string
+	if parameters.vctURL != "" {
+		followVCTDomains = append(followVCTDomains, parameters.vctURL)
+	}
+
+	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
+	followVCTDomainsInterval := parameters.vctMonitoringInterval
+
+	vctConsistencyMonitoringSvc, err := monitor.New(followVCTDomains, storeProviders.provider, httpClient)
+	if err != nil {
+		return fmt.Errorf("new VCT conistency monitoring service: %w", err)
+	}
+
+	taskMgr.RegisterTask("vct-consistency-monitor", followVCTDomainsInterval, vctConsistencyMonitoringSvc.CheckVCTConsistency)
 
 	witnessPolicy, err := policy.New(configStore, parameters.witnessPolicyCacheExpiration)
 	if err != nil {
@@ -732,7 +749,7 @@ func startOrbServices(parameters *orbParameters) error {
 		&proof.Providers{
 			AnchorEventStore: anchorEventStore,
 			StatusStore:      anchorEventStatusStore,
-			MonitoringSvc:    monitoringSvc,
+			MonitoringSvc:    proofMonitoringSvc,
 			DocLoader:        orbDocumentLoader,
 			WitnessStore:     witnessProofStore,
 			WitnessPolicy:    witnessPolicy,
@@ -797,7 +814,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			o.Publisher(), casResolver, orbDocumentLoader, monitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
+			o.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
 		)),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
@@ -829,7 +846,7 @@ func startOrbServices(parameters *orbParameters) error {
 		ProofHandler:           proofHandler,
 		Witness:                witness,
 		Signer:                 vcSigner,
-		MonitoringSvc:          monitoringSvc,
+		MonitoringSvc:          proofMonitoringSvc,
 		ActivityStore:          apStore,
 		WitnessStore:           witnessProofStore,
 		WitnessPolicy:          witnessPolicy,
