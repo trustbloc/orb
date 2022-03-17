@@ -88,7 +88,8 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
 			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName,
-			"namespace", "--" + databaseTypeFlagName, "",
+			"namespace", "--" + databaseTypeFlagName, "", "--" + kmsTypeFlagName, "local",
+			"--" + kmsSecretsDatabaseTypeFlagName, "mem",
 		}
 		startCmd.SetArgs(args)
 
@@ -824,12 +825,38 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsSecretsDatabaseURLFlagName, "badURL",
+			"--" + kmsTypeFlagName, "local",
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB")
+	})
+
+	t.Run("KMS wrong mode", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8080",
+			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + vctURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace",
+			"--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + kmsSecretsDatabaseURLFlagName, "badURL",
+			"--" + kmsTypeFlagName, "wrong",
+		}
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "unsupported kms type: wrong")
 	})
 
 	t.Run("KMS fails (create kid)", func(t *testing.T) {
@@ -845,13 +872,13 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
-			"--" + kmsStoreEndpointFlagName, "https://vct.example.com",
+			"--" + kmsTypeFlagName, "web",
 		}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "create kid: init config value for")
+		require.Contains(t, err.Error(), "init config value for")
 	})
 
 	t.Run("KMS fails (create remote store)", func(t *testing.T) {
@@ -868,6 +895,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + anchorCredentialIssuerFlagName, "issuer.com",
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsEndpointFlagName, "https://vct.example.com",
+			"--" + kmsTypeFlagName, "web",
 		}
 		startCmd.SetArgs(args)
 
@@ -1563,6 +1591,12 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 
 	err = os.Setenv(currentSidetreeProtocolVersionEnvKey, "1.0")
 	require.NoError(t, err)
+
+	err = os.Setenv(kmsTypeEnvKey, "local")
+	require.NoError(t, err)
+
+	err = os.Setenv(kmsSecretsDatabaseTypeFlagName, "mem")
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -1650,6 +1684,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + verifyLatestFromAnchorOriginFlagName, "true",
 		"--" + sidetreeProtocolVersionsFlagName, "1.0",
 		"--" + currentSidetreeProtocolVersionFlagName, "1.0",
+		"--" + kmsTypeFlagName, "local",
 	}
 
 	if databaseURL != "" {

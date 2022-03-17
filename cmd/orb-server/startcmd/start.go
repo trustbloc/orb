@@ -242,15 +242,37 @@ func BuildKMSURL(base, uri string) string {
 
 func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 	store storage.Provider, cfg storage.Store) (kms.KeyManager, acrypto.Crypto, error) {
-	if parameters.kmsEndpoint != "" || parameters.kmsStoreEndpoint != "" {
-		if parameters.kmsStoreEndpoint != "" {
-			return webkms.New(parameters.kmsStoreEndpoint, client), webcrypto.New(parameters.kmsStoreEndpoint, client), nil
+	switch parameters.kmsParams.kmsType {
+	case kmsLocal:
+		secretLockService, err := prepareKeyLock(parameters.kmsParams.secretLockKeyPath)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		km, err := localkms.New(masterKeyURI, &kmsProvider{
+			storageProvider:   store,
+			secretLockService: secretLockService,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("create kms: %w", err)
+		}
+
+		cr, err := tinkcrypto.New()
+		if err != nil {
+			return nil, nil, fmt.Errorf("create crypto: %w", err)
+		}
+
+		return km, cr, nil
+	case kmsWeb:
+		if strings.Contains(parameters.kmsParams.kmsEndpoint, "keystores") {
+			return webkms.New(parameters.kmsParams.kmsEndpoint, client),
+				webcrypto.New(parameters.kmsParams.kmsEndpoint, client), nil
 		}
 
 		var keystoreURL string
 
 		err := getOrInit(cfg, webKeyStoreKey, &keystoreURL, func() (interface{}, error) {
-			location, _, err := webkms.CreateKeyStore(client, parameters.kmsEndpoint, uuid.New().String(), "", nil)
+			location, _, err := webkms.CreateKeyStore(client, parameters.kmsParams.kmsEndpoint, uuid.New().String(), "", nil)
 
 			return location, err
 		}, parameters.syncTimeout)
@@ -258,39 +280,20 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			return nil, nil, fmt.Errorf("get or init: %w", err)
 		}
 
-		keystoreURL = BuildKMSURL(parameters.kmsEndpoint, keystoreURL)
-		parameters.kmsStoreEndpoint = keystoreURL
+		keystoreURL = BuildKMSURL(parameters.kmsParams.kmsEndpoint, keystoreURL)
 
 		return webkms.New(keystoreURL, client), webcrypto.New(keystoreURL, client), nil
 	}
 
-	secretLockService, err := prepareKeyLock(parameters.secretLockKeyPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	km, err := localkms.New(masterKeyURI, &kmsProvider{
-		storageProvider:   store,
-		secretLockService: secretLockService,
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("create kms: %w", err)
-	}
-
-	cr, err := tinkcrypto.New()
-	if err != nil {
-		return nil, nil, fmt.Errorf("create crypto: %w", err)
-	}
-
-	return km, cr, nil
+	return nil, nil, fmt.Errorf("unsupported kms type: %s", parameters.kmsParams.kmsType)
 }
 
 func createKID(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
-	activeKeyID := &parameters.vcSignActiveKeyID
+	activeKeyID := &parameters.kmsParams.vcSignActiveKeyID
 	kidKey := vcKidKey
 
 	if httpSignKeyType {
-		activeKeyID = &parameters.httpSignActiveKeyID
+		activeKeyID = &parameters.kmsParams.httpSignActiveKeyID
 		kidKey = httpKidKey
 	}
 
@@ -302,13 +305,13 @@ func createKID(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameter
 }
 
 func importPrivateKey(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
-	activeKeyID := &parameters.vcSignActiveKeyID
-	privateKeys := parameters.vcSignPrivateKeys
+	activeKeyID := &parameters.kmsParams.vcSignActiveKeyID
+	privateKeys := parameters.kmsParams.vcSignPrivateKeys
 	kidKey := vcKidKey
 
 	if httpSignKeyType {
-		activeKeyID = &parameters.httpSignActiveKeyID
-		privateKeys = parameters.httpSignPrivateKey
+		activeKeyID = &parameters.kmsParams.httpSignActiveKeyID
+		privateKeys = parameters.kmsParams.httpSignPrivateKey
 		kidKey = httpKidKey
 	}
 
@@ -461,25 +464,25 @@ func startOrbServices(parameters *orbParameters) error {
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New(), useHTTPOpt: useHTTPOpt}),
 	)
 
-	if parameters.vcSignActiveKeyID == "" {
+	if parameters.kmsParams.vcSignActiveKeyID == "" {
 		if err = createKID(km, false, parameters, configStore); err != nil {
 			return fmt.Errorf("create kid: %w", err)
 		}
 	}
 
-	if parameters.httpSignActiveKeyID == "" {
+	if parameters.kmsParams.httpSignActiveKeyID == "" {
 		if err = createKID(km, true, parameters, configStore); err != nil {
 			return fmt.Errorf("create kid: %w", err)
 		}
 	}
 
-	if parameters.vcSignActiveKeyID != "" && len(parameters.vcSignPrivateKeys) > 0 {
+	if parameters.kmsParams.vcSignActiveKeyID != "" && len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
 		if err = importPrivateKey(km, false, parameters, configStore); err != nil {
 			return fmt.Errorf("import kid: %w", err)
 		}
 	}
 
-	if parameters.httpSignActiveKeyID != "" && len(parameters.httpSignPrivateKey) > 0 {
+	if parameters.kmsParams.httpSignActiveKeyID != "" && len(parameters.kmsParams.httpSignPrivateKey) > 0 {
 		if err = importPrivateKey(km, true, parameters, configStore); err != nil {
 			return fmt.Errorf("import kid: %w", err)
 		}
@@ -562,7 +565,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("parse external endpoint: %w", err)
 	}
 
-	vcActivePubKey, vcActiveKeyType, err := km.ExportPubKeyBytes(parameters.vcSignActiveKeyID)
+	vcActivePubKey, vcActiveKeyType, err := km.ExportPubKeyBytes(parameters.kmsParams.vcSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
@@ -574,7 +577,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:" + u.Host + "#" + parameters.vcSignActiveKeyID,
+		VerificationMethod: "did:web:" + u.Host + "#" + parameters.kmsParams.vcSignActiveKeyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     signatureSuiteType,
 	}
@@ -661,11 +664,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	pubKeys := make([]discoveryrest.PublicKey, 0)
 
-	pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: parameters.vcSignActiveKeyID,
+	pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: parameters.kmsParams.vcSignActiveKeyID,
 		Type: vcActiveKeyType, Value: vcActivePubKey})
 
-	if len(parameters.vcSignPrivateKeys) > 0 {
-		for keyID := range parameters.vcSignPrivateKeys {
+	if len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
+		for keyID := range parameters.kmsParams.vcSignPrivateKeys {
 			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
@@ -676,8 +679,8 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	if len(parameters.vcSignKeysID) > 0 {
-		for _, keyID := range parameters.vcSignKeysID {
+	if len(parameters.kmsParams.vcSignKeysID) > 0 {
+		for _, keyID := range parameters.kmsParams.vcSignKeysID {
 			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
 			if err != nil {
 				return fmt.Errorf("failed to export pub key: %w", err)
@@ -688,7 +691,7 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	httpSignActivePubKey, httpSignKeyType, err := km.ExportPubKeyBytes(parameters.httpSignActiveKeyID)
+	httpSignActivePubKey, httpSignKeyType, err := km.ExportPubKeyBytes(parameters.kmsParams.httpSignActiveKeyID)
 	if err != nil {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
@@ -1270,25 +1273,25 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			" run start --help to see the available options")
 	}
 
-	if parameters.kmsStoreEndpoint != "" || parameters.kmsEndpoint != "" {
+	if parameters.kmsParams.kmsType != kmsLocal {
 		return &edgeServiceProvs, nil
 	}
 
 	switch { //nolint: dupl
-	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMemOption):
+	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeMemOption):
 		edgeServiceProvs.kmsSecretsProvider = ariesmemstorage.NewProvider()
-	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeCouchDBOption):
+	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeCouchDBOption):
 		couchDBProvider, err :=
-			ariescouchdbstorage.NewProvider(parameters.dbParameters.kmsSecretsDatabaseURL,
-				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.kmsSecretsDatabasePrefix))
+			ariescouchdbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
+				ariescouchdbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix))
 		if err != nil {
 			return &storageProviders{}, err
 		}
 
 		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
-	case strings.EqualFold(parameters.dbParameters.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
-		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
-			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
+	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
+		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
+			ariesmongodbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix),
 			ariesmongodbstorage.WithLogger(logger),
 			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
@@ -1413,8 +1416,8 @@ type signatureVerifier interface {
 func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
 	cr acrypto.Crypto) (getSigner signer, postSigner signer) {
 	if parameters.httpSignaturesEnabled {
-		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.httpSignActiveKeyID)
-		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.httpSignActiveKeyID)
+		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
+		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
 	} else {
 		getSigner = &transport.NoOpSigner{}
 		postSigner = &transport.NoOpSigner{}

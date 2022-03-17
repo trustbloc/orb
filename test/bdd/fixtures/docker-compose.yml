@@ -13,6 +13,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
@@ -146,6 +147,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
@@ -294,6 +296,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.4:80
@@ -393,6 +396,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.5:80
@@ -492,6 +496,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.6:443
@@ -606,6 +611,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.7:443
@@ -718,6 +724,7 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
+      - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb5.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.31:443

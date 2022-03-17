@@ -27,9 +27,12 @@ func TestCreateProviders(t *testing.T) {
 	})
 	t.Run("test error from create new kms secrets couchdb", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
-			dbParameters: &dbParameters{
-				databaseType:           databaseTypeMemOption,
+			kmsParams: &kmsParameters{
 				kmsSecretsDatabaseType: databaseTypeCouchDBOption,
+				kmsType:                kmsLocal,
+			},
+			dbParameters: &dbParameters{
+				databaseType: databaseTypeMemOption,
 			},
 		})
 		require.Error(t, err)
@@ -42,9 +45,12 @@ func TestCreateProviders(t *testing.T) {
 	})
 	t.Run("test invalid kms secrets database type", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
-			dbParameters: &dbParameters{
-				databaseType:           databaseTypeMemOption,
+			kmsParams: &kmsParameters{
 				kmsSecretsDatabaseType: "data1",
+				kmsType:                kmsLocal,
+			},
+			dbParameters: &dbParameters{
+				databaseType: databaseTypeMemOption,
 			},
 		})
 		require.Error(t, err)
@@ -55,7 +61,10 @@ func TestCreateProviders(t *testing.T) {
 func TestCreateKMSAndCrypto(t *testing.T) {
 	t.Run("Success (webkms)", func(t *testing.T) {
 		km, cr, err := createKMSAndCrypto(&orbParameters{
-			kmsStoreEndpoint: "https://example.com",
+			kmsParams: &kmsParameters{
+				kmsEndpoint: "https://example.com/keystores",
+				kmsType:     kmsWeb,
+			},
 		}, nil, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, km)
@@ -66,7 +75,12 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 		cfgStore, err := mem.NewProvider().OpenStore("cfg")
 		require.NoError(t, err)
 
-		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, mem.NewProvider(), cfgStore)
+		km, cr, err := createKMSAndCrypto(&orbParameters{
+			kmsParams: &kmsParameters{
+				kmsSecretsDatabaseType: "mem",
+				kmsType:                kmsLocal,
+			},
+		}, nil, mem.NewProvider(), cfgStore)
 		require.NoError(t, err)
 		require.NotNil(t, km)
 		require.NotNil(t, cr)
@@ -76,7 +90,12 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 		masterKeyStore, err := mem.NewProvider().OpenStore("masterkeystore")
 		require.NoError(t, err)
 
-		km, cr, err := createKMSAndCrypto(&orbParameters{}, nil, &ariesmockstorage.Provider{
+		km, cr, err := createKMSAndCrypto(&orbParameters{
+			kmsParams: &kmsParameters{
+				kmsSecretsDatabaseType: "mem",
+				kmsType:                kmsLocal,
+			},
+		}, nil, &ariesmockstorage.Provider{
 			ErrOpenStore: errors.New("test error"),
 		}, masterKeyStore)
 		require.EqualError(t, err, "create kms: new: failed to ceate local kms: test error")
@@ -128,6 +147,8 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + vcSignPrivateKeysFlagName, "k1=value",
 			"--" + vcSignActiveKeyIDFlagName, "k2",
+			"--" + kmsTypeFlagName, "local",
+			"--" + kmsSecretsDatabaseTypeFlagName, "local",
 		}
 		startCmd.SetArgs(args)
 
@@ -152,6 +173,8 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + httpSignPrivateKeyFlagName, "k1=value",
 			"--" + httpSignActiveKeyIDFlagName, "k2",
+			"--" + kmsTypeFlagName, "local",
+			"--" + kmsSecretsDatabaseTypeFlagName, "local",
 		}
 		startCmd.SetArgs(args)
 
@@ -177,6 +200,8 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + httpSignPrivateKeyFlagName, "k1=value",
 			"--" + httpSignPrivateKeyFlagName, "k2=value2",
 			"--" + httpSignActiveKeyIDFlagName, "k2",
+			"--" + kmsTypeFlagName, "local",
+			"--" + kmsSecretsDatabaseTypeFlagName, "local",
 		}
 		startCmd.SetArgs(args)
 
@@ -209,6 +234,8 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + secretLockKeyPathFlagName, "./key.file",
 			"--" + vcSignActiveKeyIDFlagName, "k1",
+			"--" + kmsTypeFlagName, "local",
+			"--" + kmsSecretsDatabaseTypeFlagName, "mem",
 		}
 		startCmd.SetArgs(args)
 
