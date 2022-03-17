@@ -7,10 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package httpsig
 
 import (
-	"crypto/ed25519"
-	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"net/url"
 
@@ -20,10 +17,7 @@ import (
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 )
 
-const orbHTTPSigAlgorithm = "Ed25519"
-
-// ErrInvalidSignature indicates that the signature is not valid for the given data.
-var ErrInvalidSignature = errors.New("invalid HTTP signature")
+const orbHTTPSigAlgorithm = "Sign"
 
 type keyResolver interface {
 	// Resolve returns the public key bytes and the type of public key for the given key ID.
@@ -90,15 +84,18 @@ func (a *SignatureHashAlgorithm) Verify(secret httpsig.Secret, data, signature [
 
 	logger.Debugf("Got key %+v from keyID [%s]", pubKey, secret.KeyID)
 
-	if !ed25519.Verify(pubKey.Value, data, signature) {
-		logger.Infof("Signature verification failed using keyID [%s]", secret.KeyID)
-
-		return ErrInvalidSignature
+	switch pubKey.Type {
+	case "Ed25519":
+		return ariesverifier.NewEd25519SignatureVerifier().Verify(pubKey, data, signature)
+	case "P-256":
+		return ariesverifier.NewECDSAES256SignatureVerifier().Verify(pubKey, data, signature)
+	case "P-384":
+		return ariesverifier.NewECDSAES384SignatureVerifier().Verify(pubKey, data, signature)
+	case "P-512":
+		return ariesverifier.NewECDSAES521SignatureVerifier().Verify(pubKey, data, signature)
 	}
 
-	logger.Debugf("Successfully verified signature using keyID [%s]", secret.KeyID)
-
-	return nil
+	return fmt.Errorf("key not supported %s", pubKey.Type)
 }
 
 // KeyResolver resolves the public key for an ActivityPub actor.
@@ -136,14 +133,9 @@ func (r *KeyResolver) Resolve(keyID string) (*ariesverifier.PublicKey, error) {
 		return nil, fmt.Errorf("invalid public key for ID [%s]: nil block", keyID)
 	}
 
-	pk, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse public key for ID [%s]: %w", keyID, err)
-	}
-
 	return &ariesverifier.PublicKey{
-		Type:  kms.ED25519, // TODO: Support other algorithms?
-		Value: pk.(ed25519.PublicKey),
+		Type:  block.Type,
+		Value: block.Bytes,
 	}, nil
 }
 

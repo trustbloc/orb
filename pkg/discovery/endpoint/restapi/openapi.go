@@ -51,8 +51,6 @@ type wellKnownDIDReq struct{} // nolint: unused,deadcode
 //
 // swagger:response wellKnownDIDResp
 type wellKnownDIDResp struct { // nolint: unused,deadcode
-	// in: body
-	Body *RawDoc
 }
 
 // wellKnownNodeInfoReq model

@@ -16,6 +16,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
@@ -681,7 +683,7 @@ func TestWellKnownDID(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
 		BaseURL:    "https://example.com",
 		WebCASPath: "/cas",
-		PubKeys:    map[string][]byte{"k1": []byte("value")},
+		PubKeys:    []restapi.PublicKey{{ID: "key1", Value: []byte("value"), Type: kms.ED25519}},
 	}, &restapi.Providers{})
 	require.NoError(t, err)
 
@@ -689,7 +691,7 @@ func TestWellKnownDID(t *testing.T) {
 
 	rr := serveHTTP(t, handler.Handler(), http.MethodGet, webDIDEndpoint, nil, nil, false)
 
-	var w restapi.RawDoc
+	var w ariesdid.Doc
 
 	require.Equal(t, http.StatusOK, rr.Code)
 

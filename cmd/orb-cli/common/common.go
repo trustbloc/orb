@@ -181,18 +181,18 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 	}
 
 	switch kt { // nolint:exhaustive // default catch-all
-	case kms.ECDSAP256TypeDER, kms.ECDSAP384TypeDER, kms.ECDSAP521TypeDER:
+	case kms.ECDSAP256DER, kms.ECDSAP384DER, kms.ECDSAP521DER:
 		pubKey, err := x509.ParsePKIXPublicKey(keyBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ecdsa key in DER format: %w", err)
 		}
 
 		return pubKey, nil
-	case kms.ECDSAP256TypeIEEEP1363, kms.ECDSAP384TypeIEEEP1363, kms.ECDSAP521TypeIEEEP1363:
+	case kms.ECDSAP256IEEEP1363, kms.ECDSAP384IEEEP1363, kms.ECDSAP521IEEEP1363:
 		curves := map[kms.KeyType]elliptic.Curve{
-			kms.ECDSAP256TypeIEEEP1363: elliptic.P256(),
-			kms.ECDSAP384TypeIEEEP1363: elliptic.P384(),
-			kms.ECDSAP521TypeIEEEP1363: elliptic.P521(),
+			kms.ECDSAP256IEEEP1363: elliptic.P256(),
+			kms.ECDSAP384IEEEP1363: elliptic.P384(),
+			kms.ECDSAP521IEEEP1363: elliptic.P521(),
 		}
 		crv := curves[kt]
 		x, y := elliptic.Unmarshal(crv, keyBytes)
@@ -202,7 +202,7 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 			X:     x,
 			Y:     y,
 		}, nil
-	case kms.ED25519Type:
+	case kms.ED25519:
 		return ed25519.PublicKey(keyBytes), nil
 	}
 
@@ -467,6 +467,14 @@ type Signer struct {
 	webKmsCryptoClient webcrypto.Crypto
 }
 
+// nolint: gochecknoglobals
+var headerAlgorithm = map[string]string{
+	"Ed25519": "EdDSA",
+	"P-256":   "ES256",
+	"P-384":   "ES384",
+	"P-521":   "ES521",
+}
+
 // NewSigner return new signer.
 func NewSigner(signingkey crypto.PrivateKey, signingKeyID string, webKmsCryptoClient webcrypto.Crypto,
 	signingKeyPK crypto.PublicKey) *Signer {
@@ -515,14 +523,7 @@ func (s *Signer) Headers() jws.Headers {
 	headers := make(jws.Headers)
 
 	headers[jws.HeaderKeyID] = uuid.NewString()
-
-	if s.publicKey.Crv == "Ed25519" {
-		headers[jws.HeaderAlgorithm] = "EdDSA"
-	}
-
-	if s.publicKey.Crv == "P-256" || s.publicKey.Crv == "P-384" || s.publicKey.Crv == "P-521" {
-		headers[jws.HeaderAlgorithm] = "ES256"
-	}
+	headers[jws.HeaderAlgorithm] = headerAlgorithm[s.publicKey.Crv]
 
 	return headers
 }

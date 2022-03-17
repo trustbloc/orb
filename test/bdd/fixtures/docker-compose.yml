@@ -18,8 +18,6 @@ services:
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=172.20.0.23:443
       - ORB_HOST_METRICS_URL=172.20.0.23:48327
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb1key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg,orb1key2=bwpFhQXFhhPQCkAt3fmj9t05hnuwVqiUkBjaXV9QBeisrjoFhUEcIzVOH6QoIXNptWZtOZNdEvlLAf6bZa8opg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb1key2
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -58,7 +56,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain1.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=mongodb
@@ -154,8 +151,6 @@ services:
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=172.20.0.2:443
       - ORB_HOST_METRICS_URL=172.20.0.2:48527
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb1key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg,orb1key2=bwpFhQXFhhPQCkAt3fmj9t05hnuwVqiUkBjaXV9QBeisrjoFhUEcIzVOH6QoIXNptWZtOZNdEvlLAf6bZa8opg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb1key2
       # add delay for starting additional servers within same domain (in seconds)
       - ORB_STARTUP_DELAY=5
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -196,7 +191,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb2.domain1.com
       - ANCHOR_CREDENTIAL_URL=https://orb2.domain1.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain1.com
       - DATABASE_TYPE=mongodb
@@ -304,8 +298,6 @@ services:
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.4:80
       - ORB_HOST_METRICS_URL=172.20.0.4:48827
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb2key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb2key
       - ORB_TLS_SYSTEMCERTPOOL=true
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -333,7 +325,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
       - DATABASE_TYPE=mongodb
@@ -406,8 +397,6 @@ services:
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.5:80
       - ORB_HOST_METRICS_URL=172.20.0.5:48927
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb2key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb2key
       - ORB_TLS_SYSTEMCERTPOOL=true
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -435,7 +424,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain2.com
       - DATABASE_TYPE=mongodb
@@ -506,8 +494,6 @@ services:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb3key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb3key
       - ORB_HOST_URL=172.20.0.6:443
       - ORB_HOST_METRICS_URL=172.20.0.6:48627
       - ORB_VCT_URL=http://orb.vct:8077/maple2020
@@ -540,7 +526,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain3.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain3.com
       - DATABASE_TYPE=mongodb
@@ -625,8 +610,6 @@ services:
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.7:443
       - ORB_HOST_METRICS_URL=172.20.0.7:48727
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb4key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb4key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -657,7 +640,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN4}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain4.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain4.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain4.com
       - DATABASE_TYPE=mongodb
@@ -740,8 +722,6 @@ services:
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.31:443
       - ORB_HOST_METRICS_URL=172.20.0.31:48727
-      - ORB_VC_SIGN_PRIVATE_KEYS=orb5key=9kRTh70Ut0MKPeHY3Gdv/pi8SACx6dFjaEiIHf7JDugPpXBnCHVvRbgdzYbWfCGsXdvh/Zct+AldKG4bExjHXg
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=orb5key
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -772,7 +752,6 @@ services:
       - CID_VERSION=${CID_VERSION_DOMAIN4}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain5.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain5.com/vc
-      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2020
       # used in case that orb server signs anchor credential (there is no local witness log)
       - ANCHOR_CREDENTIAL_DOMAIN=https://orb.domain5.com
       - DATABASE_TYPE=mongodb
@@ -954,7 +933,7 @@ services:
   orb5.kms:
     container_name: orb5.kms
     restart: always
-    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-2dff373
+    image: ghcr.io/trustbloc-cicd/kms:v0.1.8-snapshot-a876dc2
     environment:
       - KMS_BASE_URL=http://orb5.kms:7878
       - KMS_HOST=172.20.0.27:7878
