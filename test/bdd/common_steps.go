@@ -29,7 +29,7 @@ import (
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/tidwall/gjson"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/datauri"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
@@ -903,21 +903,26 @@ func (d *CommonSteps) executeCommand(cmd string) error {
 	return nil
 }
 
-func (d *CommonSteps) decodeStringAndSaveToVar(content, contentType, varName string) error {
-	if err := d.state.resolveVarsInExpression(&content, &contentType); err != nil {
+func (d *CommonSteps) resolveDataURIAndSaveToVar(dataURI, varName string) error {
+	if err := d.state.resolveVarsInExpression(&dataURI); err != nil {
 		return err
 	}
 
-	logger.Infof("Using content type [%s] to decode %s", contentType, content)
+	logger.Infof("Resolving data URI [%s]", dataURI)
 
-	decodedContent, err := vocab.Decode(content, contentType)
+	u, err := url.Parse(dataURI)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse data URI [%s]: %w", dataURI, err)
 	}
 
-	logger.Infof("Decoded content saved to variable [%s]: %s", varName, decodedContent)
+	content, err := datauri.Decode(u)
+	if err != nil {
+		return fmt.Errorf("decode data URI [%s]: %w", u, err)
+	}
 
-	d.state.setVar(varName, string(decodedContent))
+	logger.Infof("Content saved to variable [%s]: %s", varName, content)
+
+	d.state.setVar(varName, string(content))
 
 	return nil
 }
@@ -1058,5 +1063,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
 	s.Step(`^host-meta document is uploaded to IPNS$`, d.hostMetaDocumentIsUploadedToIPNS)
 	s.Step(`^command "([^"]*)" is executed$`, d.executeCommand)
-	s.Step(`^the content "([^"]*)" of type "([^"]*)" is decoded and saved to variable "([^"]*)"$`, d.decodeStringAndSaveToVar)
+	s.Step(`^the data URI "([^"]*)" is resolved and saved to variable "([^"]*)"$`, d.resolveDataURIAndSaveToVar)
 }

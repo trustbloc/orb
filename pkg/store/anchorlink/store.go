@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package anchorevent
+package anchorlink
 
 import (
 	"encoding/json"
@@ -15,13 +15,13 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-const nameSpace = "anchor-event"
+const nameSpace = "anchor-link"
 
-var logger = log.New("anchor-event-store")
+var logger = log.New("anchor-link-store")
 
 // New returns new instance of anchor event store.
 func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
@@ -47,53 +47,53 @@ type Store struct {
 }
 
 // Put saves an anchor event. If it already exists it will be overwritten.
-func (s *Store) Put(anchorEvent *vocab.AnchorEventType) error {
-	if anchorEvent.Index() == nil {
-		return fmt.Errorf("failed to save anchor event: Index is empty")
+func (s *Store) Put(anchorLink *linkset.Link) error {
+	if anchorLink.Anchor() == nil {
+		return fmt.Errorf("failed to save anchor link: Anchor is empty")
 	}
 
-	anchorEventBytes, err := s.marshal(anchorEvent)
+	anchorLinkBytes, err := s.marshal(anchorLink)
 	if err != nil {
-		return fmt.Errorf("failed to marshal anchor event: %w", err)
+		return fmt.Errorf("failed to marshal anchor link: %w", err)
 	}
 
-	logger.Debugf("storing anchor event: %s", string(anchorEventBytes))
+	logger.Debugf("storing anchor link: %s", string(anchorLinkBytes))
 
-	if e := s.store.Put(anchorEvent.Index().String(), anchorEventBytes); e != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to put anchor event: %w", e))
+	if e := s.store.Put(anchorLink.Anchor().String(), anchorLinkBytes); e != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to put anchor link: %w", e))
 	}
 
 	return nil
 }
 
 // Get retrieves anchor event by id.
-func (s *Store) Get(id string) (*vocab.AnchorEventType, error) {
-	anchorEventBytes, err := s.store.Get(id)
+func (s *Store) Get(id string) (*linkset.Link, error) {
+	anchorLinkBytes, err := s.store.Get(id)
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
 			return nil, orberrors.ErrContentNotFound
 		}
 
-		return nil, orberrors.NewTransient(fmt.Errorf("failed to get anchor event: %w", err))
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get anchor link: %w", err))
 	}
 
-	anchorEvent := &vocab.AnchorEventType{}
+	anchorLink := &linkset.Link{}
 
-	err = s.unmarshal(anchorEventBytes, &anchorEvent)
+	err = s.unmarshal(anchorLinkBytes, &anchorLink)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor event: %w", err)
+		return nil, fmt.Errorf("unmarshal anchor link: %w", err)
 	}
 
-	return anchorEvent, nil
+	return anchorLink, nil
 }
 
 // Delete deletes anchor event by id.
 func (s *Store) Delete(id string) error {
 	if err := s.store.Delete(id); err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to delete anchor event id[%s]: %w", id, err))
+		return orberrors.NewTransient(fmt.Errorf("failed to delete anchor link id[%s]: %w", id, err))
 	}
 
-	logger.Debugf("deleted anchor event id[%s]", id)
+	logger.Debugf("deleted anchor link id[%s]", id)
 
 	return nil
 }

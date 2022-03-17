@@ -7,7 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package samplegenerator
 
 import (
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent/generator/didorbgenerator"
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator/didorbgenerator"
 )
 
 const (
@@ -31,7 +32,7 @@ type Generator struct {
 func New() *Generator {
 	return &Generator{
 		Generator: didorbgenerator.New(
-			didorbgenerator.WithID(ID),
+			didorbgenerator.WithID(vocab.MustParseURL(ID)),
 			didorbgenerator.WithNamespace(Namespace),
 			didorbgenerator.WithVersion(Version),
 		),

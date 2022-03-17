@@ -13,40 +13,40 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 type (
-	anchorEventProcessor func(*vocab.AnchorEventType) error
+	anchorProcessor func(*linkset.Linkset) error
 )
 
 // Subscriber implements a subscriber that processes witnessed verifiable credentials from a message queue.
 type Subscriber struct {
 	*lifecycle.Lifecycle
 
-	vcChan             <-chan *message.Message
-	processAnchorEvent anchorEventProcessor
-	jsonUnmarshal      func(data []byte, v interface{}) error
+	vcChan        <-chan *message.Message
+	processAnchor anchorProcessor
+	jsonUnmarshal func(data []byte, v interface{}) error
 }
 
 // NewSubscriber returns a new verifiable credential subscriber.
-func NewSubscriber(pubSub pubSub, processor anchorEventProcessor) (*Subscriber, error) {
+func NewSubscriber(pubSub pubSub, processor anchorProcessor) (*Subscriber, error) {
 	h := &Subscriber{
-		processAnchorEvent: processor,
-		jsonUnmarshal:      json.Unmarshal,
+		processAnchor: processor,
+		jsonUnmarshal: json.Unmarshal,
 	}
 
 	h.Lifecycle = lifecycle.New("anchoreventsubscriber",
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Debugf("Subscribing to topic [%s]", anchorEventTopic)
+	logger.Debugf("Subscribing to topic [%s]", anchorTopic)
 
-	vcChan, err := pubSub.Subscribe(context.Background(), anchorEventTopic)
+	vcChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
 	if err != nil {
-		return nil, fmt.Errorf("subscribe to topic [%s]: %w", anchorEventTopic, err)
+		return nil, fmt.Errorf("subscribe to topic [%s]: %w", anchorTopic, err)
 	}
 
 	h.vcChan = vcChan
@@ -65,20 +65,20 @@ func (h *Subscriber) listen() {
 	for msg := range h.vcChan {
 		logger.Debugf("Got new anchor event message: %s: %s", msg.UUID, msg.Payload)
 
-		h.handleAnchorEventMessage(msg)
+		h.handleAnchorMessage(msg)
 	}
 
 	logger.Debugf("Listener stopped.")
 }
 
-func (h *Subscriber) handleAnchorEventMessage(msg *message.Message) {
+func (h *Subscriber) handleAnchorMessage(msg *message.Message) {
 	logger.Debugf("Handling message [%s]: %s", msg.UUID, msg.Payload)
 
-	anchorEvent := &vocab.AnchorEventType{}
+	anchorLinkset := &linkset.Linkset{}
 
-	err := h.jsonUnmarshal(msg.Payload, &anchorEvent)
+	err := h.jsonUnmarshal(msg.Payload, &anchorLinkset)
 	if err != nil {
-		logger.Errorf("Error parsing anchor event [%s]: %s", msg.UUID, err)
+		logger.Errorf("Error parsing anchor Linkset [%s]: %s", msg.UUID, err)
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -86,23 +86,23 @@ func (h *Subscriber) handleAnchorEventMessage(msg *message.Message) {
 		return
 	}
 
-	err = h.processAnchorEvent(anchorEvent)
+	err = h.processAnchor(anchorLinkset)
 
 	switch {
 	case err == nil:
-		logger.Debugf("Acking anchor event message. MsgID [%s], VC ID [%s]", msg.UUID, anchorEvent.ID)
+		logger.Debugf("Acking anchor Linkset message. MsgID [%s]", msg.UUID)
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warnf("Nacking anchor event message since it could not be processed due "+
-			"to a transient error. MsgID [%s], VC ID [%s]: %s", msg.UUID, anchorEvent.ID, err)
+		logger.Warnf("Nacking anchor Linkset message since it could not be processed due "+
+			"to a transient error. MsgID [%s]: %s", msg.UUID, err)
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warnf("Acking anchor event message since it could not be processed due "+
-			"to a persistent error. MsgID [%s], VC ID [%s]: %s", msg.UUID, anchorEvent.ID, err)
+		logger.Warnf("Acking anchor link message since it could not be processed due "+
+			"to a persistent error. MsgID [%s]: %s", msg.UUID, err)
 
 		msg.Ack()
 	}

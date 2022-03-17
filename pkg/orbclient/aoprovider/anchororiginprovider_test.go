@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package aoprovider
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -17,11 +18,12 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
+	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/orbclient/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
 )
@@ -73,18 +75,18 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		payload := subject.Payload{
 			OperationCount:  2,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiCHyWu0mRjSGe1OH6y545ALCHakBKr6E5vdVk4Re4qgdg",
 			Namespace:       "did:orb",
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		aeBytes, err := newMockAnchorEvent(t, &payload).MarshalJSON()
+		linksetBytes, err := json.Marshal(newMockAnchorLinkset(t, &payload))
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(aeBytes)
+		cid, err := casClient.Write(linksetBytes)
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
@@ -126,18 +128,18 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		payload := subject.Payload{
 			OperationCount:  2,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiCHyWu0mRjSGe1OH6y545ALCHakBKr6E5vdVk4Re4qgdg",
 			Namespace:       "did:orb",
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		vcBytes, err := newMockAnchorEvent(t, &payload).MarshalJSON()
+		linksetBytes, err := json.Marshal(newMockAnchorLinkset(t, &payload))
 		require.NoError(t, err)
 
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(vcBytes)
+		cid, err := casClient.Write(linksetBytes)
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
@@ -180,18 +182,15 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		payload := subject.Payload{
 			OperationCount:  2,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiCHyWu0mRjSGe1OH6y545ALCHakBKr6E5vdVk4Re4qgdg",
 			Namespace:       "did:orb",
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		aeBytes, err := newMockAnchorEvent(t, &payload).MarshalJSON()
-		require.NoError(t, err)
-
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(aeBytes)
+		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
@@ -223,18 +222,15 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		payload := subject.Payload{
 			OperationCount:  2,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiCHyWu0mRjSGe1OH6y545ALCHakBKr6E5vdVk4Re4qgdg",
 			Namespace:       "did:orb",
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		aeBytes, err := newMockAnchorEvent(t, &payload).MarshalJSON()
-		require.NoError(t, err)
-
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(aeBytes)
+		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
@@ -255,18 +251,15 @@ func TestGetAnchorOrigin(t *testing.T) {
 
 		payload := subject.Payload{
 			OperationCount:  2,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiCHyWu0mRjSGe1OH6y545ALCHakBKr6E5vdVk4Re4qgdg",
 			Namespace:       "did:test",
 			Version:         1,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		aeBytes, err := newMockAnchorEvent(t, &payload).MarshalJSON()
-		require.NoError(t, err)
-
 		casClient := coremocks.NewMockCasClient(nil)
 
-		cid, err := casClient.Write(aeBytes)
+		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
 
 		client, err := New("did:orb", casClient,
@@ -289,31 +282,29 @@ func TestGetAnchorOrigin(t *testing.T) {
 		origin, err := client.GetAnchorOrigin("non-existent", testDID)
 		require.Error(t, err)
 		require.Empty(t, origin)
-		require.Contains(t, err.Error(), "unable to read CID[non-existent] from CAS: not found")
+		require.Contains(t, err.Error(), "unable to read anchor[non-existent] from CAS: not found")
 	})
 }
 
-func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEventType {
+func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Linkset {
 	t.Helper()
-
-	contentObj, err := anchorevent.BuildContentObject(payload)
-	require.NoError(t, err)
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
 		Context: []string{"https://www.w3.org/2018/credentials/v1"},
 		Subject: &builder.CredentialSubject{},
-		Issuer: verifiable.Issuer{
-			ID: "http://orb.domain.com",
-		},
-		Issued: &util.TimeWrapper{Time: time.Now()},
+		Issuer:  verifiable.Issuer{ID: "http://orb.domain.com"},
+		Issued:  &util.TimeWrapper{Time: time.Now()},
 	}
 
-	act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-		vocab.MustMarshalToDoc(vc), vocab.GzipMediaType)
+	link, _, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+		func(anchorHashlink string) (*verifiable.Credential, error) {
+			return vc, nil
+		},
+	)
 	require.NoError(t, err)
 
-	return act
+	return linkset.New(link)
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {

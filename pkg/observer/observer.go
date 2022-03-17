@@ -23,7 +23,7 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -31,6 +31,7 @@ import (
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
@@ -40,7 +41,7 @@ const defaultSubscriberPoolSize = 5
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
-	Read(hl string) (*vocab.AnchorEventType, error)
+	Read(hl string) (*linkset.Linkset, error)
 	GetDidAnchors(cid, suffix string) ([]graph.Anchor, error)
 }
 
@@ -202,19 +203,21 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 		o.Metrics.ProcessAnchorTime(time.Since(startTime))
 	}()
 
-	anchorEvent, err := o.AnchorGraph.Read(anchor.Hashlink)
+	anchorLinkset, err := o.AnchorGraph.Read(anchor.Hashlink)
 	if err != nil {
-		logger.Warnf("Failed to get anchor event[%s] node from anchor graph: %s", anchor.Hashlink, err.Error())
+		logger.Warnf("Failed to get anchor Linkset [%s] from anchor graph: %s", anchor.Hashlink, err.Error())
 
 		return err
 	}
 
-	logger.Debugf("successfully read anchor event[%s] from anchor graph", anchor.Hashlink)
+	logger.Debugf("successfully read anchor Linkset [%s] from anchor graph", anchor.Hashlink)
 
-	if err := o.processAnchor(anchor, anchorEvent); err != nil {
-		logger.Warnf(err.Error())
+	for _, anchorLink := range anchorLinkset.Linkset {
+		if err := o.processAnchor(anchor, anchorLink); err != nil {
+			logger.Warnf(err.Error())
 
-		return err
+			return err
+		}
 	}
 
 	return nil
@@ -278,10 +281,10 @@ func getDidParts(did string) (cid, suffix string, err error) {
 
 //nolint:funlen,gocyclo,cyclop
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
-	anchorEvent *vocab.AnchorEventType, suffixes ...string) error {
+	anchorLink *linkset.Link, suffixes ...string) error {
 	logger.Debugf("processing anchor[%s] from [%s], suffixes: %s", anchor.Hashlink, anchor.AttributedTo, suffixes)
 
-	anchorPayload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
+	anchorPayload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
 	if err != nil {
 		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}
@@ -310,7 +313,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		equivalentRefs = append(equivalentRefs, "https:"+o.discoveryDomain+":"+canonicalID)
 	}
 
-	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
 		verifiable.WithPublicKeyFetcher(o.Pkf),
 		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
 	)
@@ -438,7 +441,7 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 
 	like := vocab.NewLikeActivity(
 		vocab.NewObjectProperty(vocab.WithAnchorEvent(
-			vocab.NewAnchorEvent(vocab.WithURL(refURL)),
+			vocab.NewAnchorEvent(nil, vocab.WithURL(refURL)),
 		)),
 		vocab.WithTo(append(to, vocab.PublicIRI)...),
 		vocab.WithPublishedTime(&publishedTime),
@@ -455,24 +458,29 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 }
 
 func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
-	anchorEventBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
+	anchorLinksetBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
 	if err != nil {
-		return nil, fmt.Errorf("resolve anchor event: %w", err)
+		return nil, fmt.Errorf("resolve anchor: %w", err)
 	}
 
-	logger.Debugf("Retrieved anchor event from [%s]: %s", hl, anchorEventBytes)
+	logger.Debugf("Retrieved anchor from [%s]: %s", hl, anchorLinksetBytes)
 
-	anchorEvent := &vocab.AnchorEventType{}
+	anchorLinkset := &linkset.Linkset{}
 
-	err = json.Unmarshal(anchorEventBytes, anchorEvent)
+	err = json.Unmarshal(anchorLinksetBytes, anchorLinkset)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor event for [%s]: %w", hl, err)
+		return nil, fmt.Errorf("unmarshal anchor Linkset for [%s]: %w", hl, err)
 	}
 
-	hml, err := o.WebFingerResolver.ResolveHostMetaLink(anchorEvent.AttributedTo().String(),
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return nil, fmt.Errorf("empty anchor Linkset [%s]", hl)
+	}
+
+	hml, err := o.WebFingerResolver.ResolveHostMetaLink(anchorLink.Author().String(),
 		discoveryrest.ActivityJSONType)
 	if err != nil {
-		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", anchorEvent.AttributedTo(), err)
+		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", anchorLink.Author(), err)
 	}
 
 	actor, err := url.Parse(hml)
@@ -548,6 +556,6 @@ func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {
 	}
 
 	return vocab.NewObjectProperty(vocab.WithAnchorEvent(
-		vocab.NewAnchorEvent(vocab.WithURL(u))),
+		vocab.NewAnchorEvent(nil, vocab.WithURL(u))),
 	), nil
 }

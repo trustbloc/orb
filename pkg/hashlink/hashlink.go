@@ -8,11 +8,12 @@ package hashlink
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 
-	cbor "github.com/fxamacker/cbor/v2"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/multiformats/go-multihash"
 	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 )
@@ -46,6 +47,14 @@ func New(opts ...Option) *HashLink {
 			return "u" + base64.RawURLEncoding.EncodeToString(data)
 		},
 		decoder: func(enc string) ([]byte, error) {
+			if enc == "" {
+				return nil, nil
+			}
+
+			if enc[0] != 'u' {
+				return nil, errors.New("invalid hashlink")
+			}
+
 			return base64.RawURLEncoding.DecodeString(enc[1:])
 		},
 	}

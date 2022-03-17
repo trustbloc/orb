@@ -38,8 +38,8 @@ type Inbox interface {
 	ServiceLifecycle
 }
 
-// AnchorEventHandler handles a new, published anchor event.
-type AnchorEventHandler interface {
+// AnchorHandler handles a new, published anchor event.
+type AnchorHandler interface {
 	HandleAnchorEvent(actor, anchorEventRef, source *url.URL, anchorEvent *vocab.AnchorEventType) error
 }
 
@@ -95,12 +95,12 @@ type UndeliverableActivityHandler interface {
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
 	UndeliverableHandler  UndeliverableActivityHandler
-	AnchorEventHandler    AnchorEventHandler
+	AnchorHandler         AnchorHandler
 	FollowerAuth          ActorAuth
 	WitnessInvitationAuth ActorAuth
 	Witness               WitnessHandler
 	ProofHandler          ProofHandler
-	AnchorEventAckHandler AnchorEventAcknowledgementHandler
+	AnchorAckHandler      AnchorEventAcknowledgementHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -114,9 +114,9 @@ func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
 }
 
 // WithAnchorEventHandler sets the handler for the published anchor event.
-func WithAnchorEventHandler(handler AnchorEventHandler) HandlerOpt {
+func WithAnchorEventHandler(handler AnchorHandler) HandlerOpt {
 	return func(options *Handlers) {
-		options.AnchorEventHandler = handler
+		options.AnchorHandler = handler
 	}
 }
 
@@ -152,7 +152,7 @@ func WithProofHandler(handler ProofHandler) HandlerOpt {
 // that was processed by another Orb server.
 func WithAnchorEventAcknowledgementHandler(handler AnchorEventAcknowledgementHandler) HandlerOpt {
 	return func(options *Handlers) {
-		options.AnchorEventAckHandler = handler
+		options.AnchorAckHandler = handler
 	}
 }
 

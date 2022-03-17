@@ -18,8 +18,8 @@ import (
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/context/opqueue"
+	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -136,7 +136,7 @@ const (
 	defaultFollowAuthType                   = acceptAllPolicy
 	defaultInviteWitnessAuthType            = acceptAllPolicy
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
-	defaultAnchorAttachmentMediaType        = vocab.GzipMediaType
+	defaultDataURIMediaType                 = datauri.MediaTypeDataURIGzipBase64
 
 	opQueueDefaultPoolSize                = 5
 	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
@@ -589,13 +589,13 @@ const (
 	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
 		commonEnvVarUsageText + witnessPolicyCacheExpirationEnvKey
 
-	anchorAttachmentMediaTypeFlagName  = "anchor-attachment-media-type"
-	anchorAttachmentMediaTypeEnvKey    = "ANCHOR_ATTACHMENT_MEDIA_TYPE"
-	anchorAttachmentMediaTypeFlagUsage = "The media type for attachments in an AnchorEvent. Possible values are " +
-		"'application/json' and 'application/gzip'. If 'application/json' is specified then the content of the attachments " +
-		"in the AnchorEvent are encoded as an escaped JSON string. If 'application/gzip' is specified then the content is " +
-		"compressed with gzip and base64 encoded (default is 'application/json')." +
-		commonEnvVarUsageText + anchorAttachmentMediaTypeEnvKey
+	dataURIMediaTypeFlagName  = "anchor-data-uri-media-type"
+	dataURIMediaTypeEnvKey    = "ANCHOR_DATA_URI_MEDIA_TYPE"
+	dataURIMediaTypeFlagUsage = "The media type for data URIs in an anchor Linkset. Possible values are " +
+		"'application/json' and 'application/gzip;base64'. If 'application/json' is specified then the content of the data URIs " +
+		"in the anchor LInkset are encoded as an escaped JSON string. If 'application/gzip;base64' is specified then the content is " +
+		"compressed with gzip and base64 encoded (default is 'application/gzip;base64')." +
+		commonEnvVarUsageText + dataURIMediaTypeEnvKey
 
 	sidetreeProtocolVersionsFlagName = "sidetree-protocol-versions"
 	sidetreeProtocolVersionsEnvKey   = "SIDETREE_PROTOCOL_VERSIONS"
@@ -631,7 +631,7 @@ type orbParameters struct {
 	discoveryDomain                         string
 	didNamespace                            string
 	didAliases                              []string
-	anchorAttachmentMediaType               vocab.MediaType
+	dataURIMediaType                        datauri.MediaType
 	batchWriterTimeout                      time.Duration
 	casType                                 string
 	ipfsURL                                 string
@@ -1122,13 +1122,13 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	anchorAttachmentMediaType, err := cmdutils.GetUserSetVarFromString(cmd, anchorAttachmentMediaTypeFlagName, anchorAttachmentMediaTypeEnvKey, true)
+	dataURIMediaType, err := cmdutils.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	if anchorAttachmentMediaType == "" {
-		anchorAttachmentMediaType = defaultAnchorAttachmentMediaType
+	if dataURIMediaType == "" {
+		dataURIMediaType = defaultDataURIMediaType
 	}
 
 	discoveryDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
@@ -1349,7 +1349,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		apIRICacheSize:                          apIRICacheSize,
 		apIRICacheExpiration:                    apIRICacheExpiration,
 		serverIdleTimeout:                       serverIdleTimeout,
-		anchorAttachmentMediaType:               anchorAttachmentMediaType,
+		dataURIMediaType:                        dataURIMediaType,
 		sidetreeProtocolVersions:                sidetreeProtocolVersions,
 		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
 		kmsParams:                               kmsParams,
@@ -1939,7 +1939,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
-	startCmd.Flags().StringP(anchorAttachmentMediaTypeFlagName, "", "", anchorAttachmentMediaTypeFlagUsage)
+	startCmd.Flags().StringP(dataURIMediaTypeFlagName, "", "", dataURIMediaTypeFlagUsage)
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
 	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)

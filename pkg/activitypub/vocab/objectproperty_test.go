@@ -35,7 +35,6 @@ func TestNewObjectProperty(t *testing.T) {
 		require.Nil(t, p.OrderedCollection())
 		require.Nil(t, p.Activity())
 		require.Nil(t, p.AnchorEvent())
-		require.Nil(t, p.AnchorObject())
 	})
 
 	t.Run("Empty", func(t *testing.T) {

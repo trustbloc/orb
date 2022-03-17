@@ -15,10 +15,10 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("anchor-graph")
@@ -52,10 +52,10 @@ type casWriter interface {
 
 // Add adds an anchor to the anchor graph.
 // Returns hl that contains anchor information.
-func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //nolint:interfacer
-	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorEvent)
+func (g *Graph) Add(anchorLinkset *linkset.Linkset) (string, error) { //nolint:interfacer
+	canonicalBytes, err := canonicalizer.MarshalCanonical(anchorLinkset)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal anchor event: %w", err)
+		return "", fmt.Errorf("failed to marshal anchor: %w", err)
 	}
 
 	hl, err := g.CasWriter.Write(canonicalBytes)
@@ -63,33 +63,33 @@ func (g *Graph) Add(anchorEvent *vocab.AnchorEventType) (string, error) { //noli
 		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debugf("added anchor event[%s]: %s", hl, string(canonicalBytes))
+	logger.Debugf("added anchor[%s]: %s", hl, string(canonicalBytes))
 
 	return hl, nil
 }
 
 // Read reads anchor.
-func (g *Graph) Read(hl string) (*vocab.AnchorEventType, error) {
-	anchorEventBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
+func (g *Graph) Read(hl string) (*linkset.Linkset, error) {
+	anchorLinksetBytes, _, err := g.CasResolver.Resolve(nil, hl, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debugf("read anchor event [%s]: %s", hl, string(anchorEventBytes))
+	logger.Debugf("read anchor Linkset [%s]: %s", hl, string(anchorLinksetBytes))
 
-	anchorEvent := &vocab.AnchorEventType{}
+	anchorLinkset := &linkset.Linkset{}
 
-	err = json.Unmarshal(anchorEventBytes, anchorEvent)
+	err = json.Unmarshal(anchorLinksetBytes, anchorLinkset)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor event: %w", err)
+		return nil, fmt.Errorf("unmarshal anchor Linkset: %w", err)
 	}
 
-	return anchorEvent, nil
+	return anchorLinkset, nil
 }
 
 // Anchor contains anchor info plus corresponding hl.
 type Anchor struct {
-	Info *vocab.AnchorEventType
+	Info *linkset.Link
 	CID  string
 }
 
@@ -97,30 +97,33 @@ type Anchor struct {
 func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 	var refs []Anchor
 
-	logger.Debugf("getting did anchors for hl[%s], suffix[%s]", hl, suffix)
-
 	cur := hl
 	ok := true
 
 	for ok {
-		anchorEvent, err := g.Read(cur)
+		logger.Debugf("getting did anchors for hl[%s], suffix[%s]", cur, suffix)
+
+		anchorLinkset, err := g.Read(cur)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read anchor event[%s] for did[%s]: %w", cur, suffix, err)
+			return nil, fmt.Errorf("failed to read anchor[%s] for did[%s]: %w", cur, suffix, err)
+		}
+
+		anchorLink := anchorLinkset.Link()
+		if anchorLink == nil {
+			return nil, fmt.Errorf("empty anchor Linkset [%s]", cur)
 		}
 
 		refs = append(refs, Anchor{
 			CID:  cur,
-			Info: anchorEvent,
+			Info: anchorLink,
 		})
 
-		payload, err := anchorevent.GetPayloadFromAnchorEvent(anchorEvent)
+		payload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get payload from anchor link: %w", err)
 		}
 
-		previousAnchors := payload.PreviousAnchors
-
-		cur, ok = contains(suffix, previousAnchors)
+		cur, ok = contains(suffix, payload.PreviousAnchors)
 		if ok && cur == "" { // create
 			break
 		}

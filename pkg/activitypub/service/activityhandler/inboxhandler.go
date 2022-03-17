@@ -18,9 +18,9 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 // Inbox handles activities posted to the inbox.
@@ -116,7 +116,7 @@ func (h *Inbox) HandleCreateActivity(source *url.URL, create *vocab.ActivityType
 		return fmt.Errorf("invalid anchor event: %w", err)
 	}
 
-	if anchorEvent.Index() != nil {
+	if anchorEvent.Object() != nil {
 		err = h.handleEmbeddedAnchorEvent(source, create, anchorEvent, announce)
 	} else {
 		err = h.handleAnchorEventRef(source, create, anchorEvent.URL()[0], announce)
@@ -134,7 +134,7 @@ func (h *Inbox) HandleCreateActivity(source *url.URL, create *vocab.ActivityType
 func (h *Inbox) handleEmbeddedAnchorEvent(source *url.URL, create *vocab.ActivityType,
 	anchorEvent *vocab.AnchorEventType, announce bool) error {
 	if len(anchorEvent.URL()) == 0 {
-		return errors.New("missing anchor event URL")
+		return errors.New("missing anchor URL")
 	}
 
 	if err := h.handleAnchorEvent(create.Actor(), source, anchorEvent); err != nil {
@@ -482,23 +482,17 @@ func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.Activity
 func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 	logger.Debugf("[%s] Handling 'Offer' activity: %s", h.ServiceName, offer.ID())
 
-	err := h.validateOfferActivity(offer)
+	anchorLink, err := h.validateAndUnmarshalOfferActivity(offer)
 	if err != nil {
-		return fmt.Errorf("invalid 'Offer' activity [%s]: %w", offer.ID(), err)
+		return fmt.Errorf("validate 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
 
-	if time.Now().After(*offer.EndTime()) {
-		return fmt.Errorf("offer [%s] has expired", offer.ID())
-	}
-
-	anchorEvent := offer.Object().AnchorEvent()
-
-	witnessDoc, err := util.GetWitnessDoc(anchorEvent)
+	vcBytes, err := anchorLink.Replies().Content()
 	if err != nil {
-		return fmt.Errorf("get witness document for 'Offer' activity [%s]: %w", offer.ID(), err)
+		return fmt.Errorf("get content from 'replies' of anchor Linkset: %w", err)
 	}
 
-	result, err := h.witnessAnchorCredential(witnessDoc)
+	result, err := h.witnessAnchorCredential(vcBytes)
 	if err != nil {
 		return fmt.Errorf("error creating result for 'Offer' activity [%s]: %w", offer.ID(), err)
 	}
@@ -508,7 +502,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 
 	// Create a new offer activity with only the bare essentials to return in the 'Accept'.
 	oa := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(vocab.WithIRI(anchorEvent.Index())),
+		vocab.NewObjectProperty(vocab.WithIRI(anchorLink.Anchor())),
 		vocab.WithID(offer.ID().URL()),
 		vocab.WithActor(offer.Actor()),
 		vocab.WithTo(offer.To()...),
@@ -522,7 +516,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 			vocab.WithObject(vocab.NewObject(
 				vocab.WithContext(vocab.ContextActivityAnchors),
 				vocab.WithType(vocab.TypeAnchorReceipt),
-				vocab.WithInReplyTo(anchorEvent.Index()),
+				vocab.WithInReplyTo(anchorLink.Anchor()),
 				vocab.WithStartTime(&startTime),
 				vocab.WithEndTime(&endTime),
 				vocab.WithAttachment(vocab.NewObjectProperty(vocab.WithObject(result))),
@@ -554,15 +548,26 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 
 	inReplyTo := result.InReplyTo()
 
-	anchorEvent := offer.Object().AnchorEvent()
+	anchorLinkset := &linkset.Linkset{}
 
-	if anchorEvent.Index() == nil {
-		return errors.New("the anchor event in the original 'Offer' is empty")
+	err = vocab.UnmarshalFromDoc(offer.Object().Document(), anchorLinkset)
+	if err != nil {
+		return fmt.Errorf("unmarshal anchor Linkset in original offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	if anchorEvent.Index().String() != inReplyTo.String() {
+	if len(anchorLinkset.Linkset) == 0 {
+		return fmt.Errorf("anchor Linkset in original offer activity is empty [%s]", accept.ID())
+	}
+
+	anchorLink := anchorLinkset.Linkset[0]
+
+	if anchorLink.Anchor() == nil {
+		return errors.New("anchor in the anchor Linkset in the original 'Offer' is empty")
+	}
+
+	if anchorLink.Anchor().String() != inReplyTo.String() {
 		return errors.New(
-			"the anchors URL of the anchor event in the original 'Offer' does not match the IRI in the 'inReplyTo' field",
+			"the anchor URI of the anchor Linkset in the original 'Offer' does not match the URI in the 'inReplyTo' field",
 		)
 	}
 
@@ -571,7 +576,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 		return fmt.Errorf("marshal error of attachment in 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(accept.Actor(), anchorEvent.Index().String(), *result.EndTime(), attachmentBytes)
+	err = h.ProofHandler.HandleProof(accept.Actor(), anchorLink.Anchor().String(), *result.EndTime(), attachmentBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
@@ -582,63 +587,51 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 }
 
 func (h *Inbox) handleAnchorEvent(actor, source *url.URL, anchorEvent *vocab.AnchorEventType) error {
-	anchorEventRef := anchorEvent.URL()[0]
+	anchorRef := anchorEvent.URL()[0]
 
-	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
+	ok, err := h.hasReference(anchorRef, h.ServiceIRI, store.AnchorLinkset)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("has anchor event reference [%s]: %w",
-			anchorEventRef, err))
+		return orberrors.NewTransient(fmt.Errorf("has anchor reference [%s]: %w", anchorRef, err))
 	}
 
 	if ok {
-		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, service.ErrDuplicateAnchorEvent)
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorRef, service.ErrDuplicateAnchorEvent)
 	}
 
-	// Create a new anchor event without the URL property since this data is an add-on that's only used by
-	// ActivityPub in the 'Create" and "Announce" activities.
-	ae := vocab.NewAnchorEvent(
-		vocab.WithContext(vocab.ContextActivityStreams),
-		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithIndex(anchorEvent.Index()),
-		vocab.WithPublishedTime(anchorEvent.Published()),
-		vocab.WithParent(anchorEvent.Parent()...),
-		vocab.WithAttachment(anchorEvent.Attachment()...),
-	)
-
-	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, source, ae)
+	err = h.AnchorHandler.HandleAnchorEvent(actor, anchorRef, source, anchorEvent)
 	if err != nil {
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEventRef)
+	logger.Debugf("[%s] Storing anchor reference [%s]", h.ServiceName, anchorRef)
 
-	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
+	err = h.store.AddReference(store.AnchorLinkset, anchorRef, h.ServiceIRI)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("store anchor reference: %w", err))
 	}
 
 	return nil
 }
 
-func (h *Inbox) handleAnchorEventReference(actor, anchorEventRef, source *url.URL) error {
-	ok, err := h.hasReference(anchorEventRef, h.ServiceIRI, store.AnchorEvent)
+func (h *Inbox) handleAnchorEventReference(actor, anchorRef, source *url.URL) error {
+	ok, err := h.hasReference(anchorRef, h.ServiceIRI, store.AnchorLinkset)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("has anchor event reference [%s]: %w",
-			anchorEventRef, err))
+			anchorRef, err))
 	}
 
 	if ok {
-		return fmt.Errorf("handle anchor event [%s]: %w", anchorEventRef, service.ErrDuplicateAnchorEvent)
+		return fmt.Errorf("handle anchor event [%s]: %w", anchorRef, service.ErrDuplicateAnchorEvent)
 	}
 
-	err = h.AnchorEventHandler.HandleAnchorEvent(actor, anchorEventRef, source, nil)
+	err = h.AnchorHandler.HandleAnchorEvent(actor, anchorRef, source, nil)
 	if err != nil {
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEventRef)
+	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorRef)
 
-	err = h.store.AddReference(store.AnchorEvent, anchorEventRef, h.ServiceIRI)
+	err = h.store.AddReference(store.AnchorLinkset, anchorRef, h.ServiceIRI)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
 	}
@@ -651,7 +644,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 	items []*vocab.ObjectProperty) (int, error) {
 	logger.Debugf("[%s] Handling announce collection. Items: %+v\n", h.ServiceIRI, items)
 
-	var anchorEventIDs []*url.URL
+	var anchorURIs []*url.URL
 
 	for _, item := range items {
 		if !item.Type().Is(vocab.TypeAnchorEvent) {
@@ -667,7 +660,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 			continue
 		}
 
-		if anchorEvent.Index() != nil { //nolint:nestif
+		if anchorEvent.Object() != nil { //nolint:nestif
 			if err := h.handleAnchorEvent(announce.Actor(), source, anchorEvent); err != nil {
 				// Continue processing other anchor events on duplicate error.
 				if !errors.Is(err, service.ErrDuplicateAnchorEvent) {
@@ -676,7 +669,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 
 				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
 			} else {
-				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
+				anchorURIs = append(anchorURIs, anchorEvent.URL()[0])
 			}
 		} else {
 			if err := h.handleAnchorEventReference(announce.Actor(), anchorEvent.URL()[0], source); err != nil {
@@ -687,24 +680,24 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 
 				logger.Debugf("[%s] Ignoring duplicate anchor event %s", h.ServiceIRI, anchorEvent.URL())
 			} else {
-				anchorEventIDs = append(anchorEventIDs, anchorEvent.URL()[0])
+				anchorURIs = append(anchorURIs, anchorEvent.URL()[0])
 			}
 		}
 	}
 
-	for _, anchorEventID := range anchorEventIDs {
-		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor event [%s]",
-			h.ServiceIRI, announce.ID(), anchorEventID)
+	for _, anchorURI := range anchorURIs {
+		logger.Debugf("[%s] Adding 'Announce' [%s] to shares of anchor [%s]",
+			h.ServiceIRI, announce.ID(), anchorURI)
 
-		err := h.store.AddReference(store.Share, anchorEventID, announce.ID().URL())
+		err := h.store.AddReference(store.Share, anchorURI, announce.ID().URL())
 		if err != nil {
 			// This isn't a fatal error so just log a warning.
-			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor event %s: %s",
-				h.ServiceIRI, announce.ID(), anchorEventID, err)
+			logger.Warnf("[%s] Error adding 'Announce' activity %s to 'shares' of anchor %s: %s",
+				h.ServiceIRI, announce.ID(), anchorURI, err)
 		}
 	}
 
-	return len(anchorEventIDs), nil
+	return len(anchorURIs), nil
 }
 
 func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
@@ -723,7 +716,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		additionalRefs = like.Result().AnchorEvent().URL()
 	}
 
-	if err := h.AnchorEventAckHandler.AnchorEventAcknowledged(like.Actor(), refURL, additionalRefs); err != nil {
+	if err := h.AnchorAckHandler.AnchorEventAcknowledged(like.Actor(), refURL, additionalRefs); err != nil {
 		return fmt.Errorf("error creating result for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
@@ -808,34 +801,55 @@ func (h *Inbox) announceAnchorEventRef(create *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Inbox) validateOfferActivity(offer *vocab.ActivityType) error {
+//nolint:gocyclo,cyclop
+func (h *Inbox) validateAndUnmarshalOfferActivity(offer *vocab.ActivityType) (*linkset.Link, error) {
 	if offer.StartTime() == nil {
-		return fmt.Errorf("startTime is required")
+		return nil, fmt.Errorf("startTime is required")
 	}
 
 	if offer.EndTime() == nil {
-		return fmt.Errorf("endTime is required")
+		return nil, fmt.Errorf("endTime is required")
+	}
+
+	if time.Now().After(*offer.EndTime()) {
+		return nil, fmt.Errorf("offer [%s] has expired", offer.ID())
 	}
 
 	if offer.Target().IRI() == nil || offer.Target().IRI().String() != vocab.AnchorWitnessTargetIRI.String() {
-		return fmt.Errorf("object target IRI must be set to %s", vocab.AnchorWitnessTargetIRI)
+		return nil, fmt.Errorf("object target IRI must be set to %s", vocab.AnchorWitnessTargetIRI)
 	}
 
-	anchorEvent := offer.Object().AnchorEvent()
-	if anchorEvent == nil {
-		return fmt.Errorf("anchor event is required")
+	anchorLinksetDoc := offer.Object().Document()
+	if anchorLinksetDoc == nil {
+		return nil, fmt.Errorf("object is required")
 	}
 
-	err := anchorEvent.Validate()
-	if err != nil {
-		return fmt.Errorf("invalid anchor event: %w", err)
+	anchorLinkset := &linkset.Linkset{}
+
+	if err := vocab.UnmarshalFromDoc(anchorLinksetDoc, anchorLinkset); err != nil {
+		return nil, fmt.Errorf("unmarshal anchor Linkset: %w", err)
 	}
 
-	if anchorEvent.Index() == nil {
-		return fmt.Errorf("anchors URL is required in anchor event: %w", err)
+	if len(anchorLinkset.Linkset) == 0 {
+		return nil, fmt.Errorf("empty anchor Linkset")
 	}
 
-	return nil
+	anchorLink := anchorLinkset.Linkset[0]
+
+	if err := anchorLink.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed for anchor link: %w", err)
+	}
+
+	replies := anchorLink.Replies()
+	if replies == nil {
+		return nil, fmt.Errorf("no replies in anchor Linkset")
+	}
+
+	if replies.Type() != linkset.TypeJSONLD {
+		return nil, fmt.Errorf("unsupport reply type in anchor Linkset: %s", replies.Type())
+	}
+
+	return anchorLink, nil
 }
 
 func (h *Inbox) validateAcceptOfferActivity(accept *vocab.ActivityType) error {
@@ -883,22 +897,15 @@ func (h *Inbox) validateLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("actor is required")
 	}
 
-	ref := like.Object().AnchorEvent()
-
-	if len(ref.URL()) == 0 {
-		return fmt.Errorf("anchor reference URL is required")
+	if err := like.Object().AnchorEvent().Validate(); err != nil {
+		return fmt.Errorf("validate anchor event: %w", err)
 	}
 
 	return nil
 }
 
-func (h *Inbox) witnessAnchorCredential(vc vocab.Document) (*vocab.ObjectType, error) {
-	bytes, err := json.Marshal(vc)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal object in 'Offer' activity: %w", err)
-	}
-
-	response, err := h.Witness.Witness(bytes)
+func (h *Inbox) witnessAnchorCredential(vcBytes []byte) (*vocab.ObjectType, error) {
+	response, err := h.Witness.Witness(vcBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -969,7 +976,7 @@ func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
 		additionalRefs = like.Result().AnchorEvent().URL()
 	}
 
-	if err := h.AnchorEventAckHandler.UndoAnchorEventAcknowledgement(like.Actor(), refURL, additionalRefs); err != nil {
+	if err := h.AnchorAckHandler.UndoAnchorEventAcknowledgement(like.Actor(), refURL, additionalRefs); err != nil {
 		return fmt.Errorf("error undoing 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
@@ -1031,7 +1038,8 @@ func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 
 type noOpAnchorCredentialPublisher struct{}
 
-func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_, _, _ *url.URL, _ *vocab.AnchorEventType) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(actor, anchorEventRef, source *url.URL,
+	anchorEvent *vocab.AnchorEventType) error {
 	return nil
 }
 
@@ -1050,9 +1058,9 @@ func (p *noOpProofHandler) HandleProof(witness *url.URL, anchorCredID string,
 	return nil
 }
 
-type noOpAnchorEventAcknowledgementHandler struct{}
+type noOpAnchorAcknowledgementHandler struct{}
 
-func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
+func (p *noOpAnchorAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Debugf("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
 		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
@@ -1060,7 +1068,7 @@ func (p *noOpAnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, a
 	return nil
 }
 
-func (p *noOpAnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
+func (p *noOpAnchorAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Debugf("Anchor event was undone by [%s] for anchor %s. Additional anchors: %s",
 		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))

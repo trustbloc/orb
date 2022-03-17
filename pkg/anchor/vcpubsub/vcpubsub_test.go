@@ -14,9 +14,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 )
@@ -52,12 +52,12 @@ func TestPubSub(t *testing.T) {
 
 	var mutex sync.RWMutex
 
-	var gotAnchorEvents []*vocab.AnchorEventType
+	var gotLinksets []*linkset.Linkset
 
 	s, err := NewSubscriber(ps,
-		func(vc *vocab.AnchorEventType) error {
+		func(ls *linkset.Linkset) error {
 			mutex.Lock()
-			gotAnchorEvents = append(gotAnchorEvents, vc)
+			gotLinksets = append(gotLinksets, ls)
 			mutex.Unlock()
 
 			return nil
@@ -68,20 +68,20 @@ func TestPubSub(t *testing.T) {
 
 	s.Start()
 
-	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
+	al := linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil)
 
-	require.NoError(t, p.Publish(ae))
+	require.NoError(t, p.Publish(linkset.New(al)))
 
 	time.Sleep(100 * time.Millisecond)
 
 	mutex.RLock()
-	require.Len(t, gotAnchorEvents, 1)
-	require.Equal(t, ae.Index().String(), gotAnchorEvents[0].Index().String())
+	require.Len(t, gotLinksets, 1)
+	require.Equal(t, al.Anchor().String(), gotLinksets[0].Link().Anchor().String())
 	mutex.RUnlock()
 }
 
 func TestPublisherError(t *testing.T) {
-	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
+	al := linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil)
 
 	t.Run("Marshal error", func(t *testing.T) {
 		p := NewPublisher(&mocks.PubSub{})
@@ -93,7 +93,7 @@ func TestPublisherError(t *testing.T) {
 			return nil, errExpected
 		}
 
-		err := p.Publish(ae)
+		err := p.Publish(linkset.New(al))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -107,7 +107,7 @@ func TestPublisherError(t *testing.T) {
 		p := NewPublisher(ps)
 		require.NotNil(t, p)
 
-		err := p.Publish(ae)
+		err := p.Publish(linkset.New(al))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.True(t, orberrors.IsTransient(err))
@@ -115,7 +115,7 @@ func TestPublisherError(t *testing.T) {
 }
 
 func TestSubscriberError(t *testing.T) {
-	ae := vocab.NewAnchorEvent(vocab.WithIndex(anchorIndexURL))
+	al := linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil)
 
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
@@ -126,12 +126,12 @@ func TestSubscriberError(t *testing.T) {
 	t.Run("Invalid anchor event", func(t *testing.T) {
 		var mutex sync.RWMutex
 
-		var gotAnchorEvents []*vocab.AnchorEventType
+		var gotAnchorLinksets []*linkset.Linkset
 
 		s, err := NewSubscriber(ps,
-			func(vc *vocab.AnchorEventType) error {
+			func(ls *linkset.Linkset) error {
 				mutex.Lock()
-				gotAnchorEvents = append(gotAnchorEvents, vc)
+				gotAnchorLinksets = append(gotAnchorLinksets, ls)
 				mutex.Unlock()
 
 				return nil
@@ -146,12 +146,12 @@ func TestSubscriberError(t *testing.T) {
 
 		s.Start()
 
-		require.NoError(t, p.Publish(ae))
+		require.NoError(t, p.Publish(linkset.New(al)))
 
 		time.Sleep(100 * time.Millisecond)
 
 		mutex.RLock()
-		require.Empty(t, gotAnchorEvents)
+		require.Empty(t, gotAnchorLinksets)
 		mutex.RUnlock()
 	})
 
@@ -159,12 +159,12 @@ func TestSubscriberError(t *testing.T) {
 		t.Run("Transient error", func(t *testing.T) {
 			var mutex sync.RWMutex
 
-			var gotAnchorEvents []*vocab.AnchorEventType
+			var gotAnchorLinksets []*linkset.Linkset
 
 			s, err := NewSubscriber(ps,
-				func(vc *vocab.AnchorEventType) error {
+				func(ls *linkset.Linkset) error {
 					mutex.Lock()
-					gotAnchorEvents = append(gotAnchorEvents, vc)
+					gotAnchorLinksets = append(gotAnchorLinksets, ls)
 					mutex.Unlock()
 
 					return orberrors.NewTransient(errors.New("injected transient error"))
@@ -175,24 +175,24 @@ func TestSubscriberError(t *testing.T) {
 
 			s.Start()
 
-			require.NoError(t, p.Publish(ae))
+			require.NoError(t, p.Publish(linkset.New(al)))
 
 			time.Sleep(100 * time.Millisecond)
 
 			mutex.RLock()
-			require.Len(t, gotAnchorEvents, 1)
+			require.Len(t, gotAnchorLinksets, 1)
 			mutex.RUnlock()
 		})
 
 		t.Run("Persistent error", func(t *testing.T) {
 			var mutex sync.RWMutex
 
-			var gotAnchorEvents []*vocab.AnchorEventType
+			var gotAnchorLinksets []*linkset.Linkset
 
 			s, err := NewSubscriber(ps,
-				func(vc *vocab.AnchorEventType) error {
+				func(ls *linkset.Linkset) error {
 					mutex.Lock()
-					gotAnchorEvents = append(gotAnchorEvents, vc)
+					gotAnchorLinksets = append(gotAnchorLinksets, ls)
 					mutex.Unlock()
 
 					return errors.New("injected persistent error")
@@ -203,12 +203,12 @@ func TestSubscriberError(t *testing.T) {
 
 			s.Start()
 
-			require.NoError(t, p.Publish(ae))
+			require.NoError(t, p.Publish(linkset.New(al)))
 
 			time.Sleep(100 * time.Millisecond)
 
 			mutex.RLock()
-			require.Len(t, gotAnchorEvents, 1)
+			require.Len(t, gotAnchorLinksets, 1)
 			mutex.RUnlock()
 		})
 	})

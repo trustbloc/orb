@@ -15,13 +15,13 @@ import (
 // ObjectProperty defines an 'object' property. The property may be a simple IRI or
 // an embedded object such as 'Collection', 'OrderedCollection', 'Activity', etc.
 type ObjectProperty struct {
-	iri          *URLProperty
-	obj          *ObjectType
-	coll         *CollectionType
-	orderedColl  *OrderedCollectionType
-	activity     *ActivityType
-	anchorObject *AnchorObjectType
-	anchorEvent  *AnchorEventType
+	iri         *URLProperty
+	obj         *ObjectType
+	coll        *CollectionType
+	orderedColl *OrderedCollectionType
+	activity    *ActivityType
+	doc         Document
+	anchorEvent *AnchorEventType
 }
 
 // NewObjectProperty returns a new 'object' property with the given options.
@@ -29,13 +29,13 @@ func NewObjectProperty(opts ...Opt) *ObjectProperty {
 	options := NewOptions(opts...)
 
 	return &ObjectProperty{
-		iri:          NewURLProperty(options.Iri),
-		obj:          options.Object,
-		coll:         options.Collection,
-		orderedColl:  options.OrderedCollection,
-		activity:     options.Activity,
-		anchorObject: options.AnchorObject,
-		anchorEvent:  options.AnchorEvent,
+		iri:         NewURLProperty(options.Iri),
+		obj:         options.Object,
+		coll:        options.Collection,
+		orderedColl: options.OrderedCollection,
+		activity:    options.Activity,
+		anchorEvent: options.AnchorEvent,
+		doc:         options.Document,
 	}
 }
 
@@ -60,10 +60,6 @@ func (p *ObjectProperty) Type() *TypeProperty {
 
 	if p.activity != nil {
 		return p.activity.Type()
-	}
-
-	if p.anchorObject != nil {
-		return p.anchorObject.Type()
 	}
 
 	if p.anchorEvent != nil {
@@ -91,6 +87,15 @@ func (p *ObjectProperty) Object() *ObjectType {
 	return p.obj
 }
 
+// Document returns a document or nil if no document was set.
+func (p *ObjectProperty) Document() Document {
+	if p == nil {
+		return nil
+	}
+
+	return p.doc
+}
+
 // Collection returns the collection or nil if the collection is not set.
 func (p *ObjectProperty) Collection() *CollectionType {
 	if p == nil {
@@ -116,16 +121,6 @@ func (p *ObjectProperty) Activity() *ActivityType {
 	}
 
 	return p.activity
-}
-
-// AnchorObject returns the anchor object or nil if
-// the anchor object is not set.
-func (p *ObjectProperty) AnchorObject() *AnchorObjectType {
-	if p == nil {
-		return nil
-	}
-
-	return p.anchorObject
 }
 
 // AnchorEvent returns the anchor event or nil if
@@ -160,12 +155,12 @@ func (p *ObjectProperty) MarshalJSON() ([]byte, error) {
 		return json.Marshal(p.activity)
 	}
 
-	if p.anchorObject != nil {
-		return json.Marshal(p.anchorObject)
-	}
-
 	if p.anchorEvent != nil {
 		return json.Marshal(p.anchorEvent)
+	}
+
+	if p.doc != nil {
+		return json.Marshal(p.doc)
 	}
 
 	return nil, fmt.Errorf("nil object property")
@@ -190,7 +185,12 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 	}
 
 	if obj.object.Type == nil {
-		p.obj = obj
+		doc, e := UnmarshalToDoc(bytes)
+		if e != nil {
+			return e
+		}
+
+		p.doc = doc
 
 		return nil
 	}
@@ -204,9 +204,6 @@ func (p *ObjectProperty) UnmarshalJSON(bytes []byte) error {
 
 	case obj.object.Type.IsActivity():
 		err = p.unmarshalActivity(bytes)
-
-	case obj.object.Type.Is(TypeAnchorObject):
-		err = p.unmarshalAnchorObject(bytes)
 
 	case obj.object.Type.Is(TypeAnchorEvent):
 		err = p.unmarshalAnchorEvent(bytes)
@@ -250,18 +247,6 @@ func (p *ObjectProperty) unmarshalActivity(bytes []byte) error {
 	}
 
 	p.activity = a
-
-	return nil
-}
-
-func (p *ObjectProperty) unmarshalAnchorObject(bytes []byte) error {
-	ao := &AnchorObjectType{}
-
-	if err := json.Unmarshal(bytes, &ao); err != nil {
-		return err
-	}
-
-	p.anchorObject = ao
 
 	return nil
 }

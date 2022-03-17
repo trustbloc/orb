@@ -63,14 +63,7 @@ func TestNewOptions(t *testing.T) {
 		iri: NewURLProperty(testutil.MustParseURL("https://property_result")),
 	}
 
-	anchorEvent := NewAnchorEvent(WithURL(testutil.MustParseURL("https://example.com/anchor_cred_ref_id")))
-
-	anchorObj, err := NewAnchorObject(
-		sampleGenerator,
-		MustMarshalToDoc(&sampleContentObj{Field1: "value1", Field2: "value2"}), JSONMediaType,
-	)
-	require.NoError(t, err)
-	require.Len(t, anchorObj.URL(), 1)
+	anchorEvent := NewAnchorEvent(nil, WithURL(testutil.MustParseURL("https://example.com/anchor_cred_ref_id")))
 
 	opts := NewOptions(
 		WithID(id),
@@ -106,7 +99,6 @@ func TestNewOptions(t *testing.T) {
 		WithWitnessing(witnessing),
 		WithInReplyTo(id),
 		WithAttachment(NewObjectProperty(WithObject(NewObject()))),
-		WithAnchorObject(anchorObj),
 		WithTag(NewTagProperty(WithLink(NewLink(linkURL)))),
 	)
 
@@ -162,6 +154,4 @@ func TestNewOptions(t *testing.T) {
 	require.Equal(t, liked.String(), opts.Liked.String())
 	require.Equal(t, witnesses.String(), opts.Witnesses.String())
 	require.Equal(t, witnessing.String(), opts.Witnessing.String())
-
-	require.NotNil(t, opts.AnchorObject)
 }

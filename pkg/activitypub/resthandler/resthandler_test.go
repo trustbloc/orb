@@ -360,6 +360,7 @@ func newMockCreateActivity(id string) *vocab.ActivityType {
 		vocab.NewObjectProperty(
 			vocab.WithAnchorEvent(
 				vocab.NewAnchorEvent(
+					nil,
 					vocab.WithURL(testutil.MustParseURL(
 						"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
 					)),

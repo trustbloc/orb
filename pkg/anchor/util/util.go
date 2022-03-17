@@ -7,31 +7,29 @@ SPDX-License-Identifier: Apache-2.0
 package util
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-// VerifiableCredentialFromAnchorEvent validates the AnchorEvent and returns the embedded verifiable credential.
-func VerifiableCredentialFromAnchorEvent(anchorEvent *vocab.AnchorEventType,
+// VerifiableCredentialFromAnchorLink validates the AnchorEvent and returns the embedded verifiable credential.
+func VerifiableCredentialFromAnchorLink(anchorLink *linkset.Link,
 	opts ...verifiable.CredentialOpt) (*verifiable.Credential, error) {
-	if err := anchorEvent.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid anchor event: %w", err)
+	if err := anchorLink.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid anchor link: %w", err)
 	}
 
-	witnessDoc, err := GetWitnessDoc(anchorEvent)
-	if err != nil {
-		return nil, fmt.Errorf("get witness from anchor event: %w", err)
+	if anchorLink.Replies() == nil {
+		return nil, fmt.Errorf("no replies in anchor link")
 	}
 
-	vcBytes, err := json.Marshal(witnessDoc)
+	vcBytes, err := anchorLink.Replies().Content()
 	if err != nil {
-		return nil, fmt.Errorf("marshal witness: %w", err)
+		return nil, fmt.Errorf("unmarshal reply: %w", err)
 	}
 
 	vc, err := verifiable.ParseCredential(vcBytes, opts...)
@@ -45,31 +43,4 @@ func VerifiableCredentialFromAnchorEvent(anchorEvent *vocab.AnchorEventType,
 	}
 
 	return vc, nil
-}
-
-// GetWitnessDoc returns the 'witness' content object in the given anchor event.
-func GetWitnessDoc(anchorEvent *vocab.AnchorEventType) (vocab.Document, error) {
-	indexAnchorObj, err := anchorEvent.AnchorObject(anchorEvent.Index())
-	if err != nil {
-		return nil, fmt.Errorf("get anchor object for index [%s]: %w", anchorEvent.Index(), err)
-	}
-
-	tags := indexAnchorObj.Tag()
-
-	if len(tags) == 0 {
-		return nil, fmt.Errorf("anchor object [%s] does not contain a 'tag' field", anchorEvent.Index())
-	}
-
-	link := indexAnchorObj.Tag()[0].Link()
-	if link == nil || !link.Rel().Is(vocab.RelationshipWitness) {
-		return nil, fmt.Errorf("anchor object [%s] does not contain a tag of type 'Link' and 'rel' 'witness'",
-			anchorEvent.Index())
-	}
-
-	witnessAnchorObj, err := anchorEvent.AnchorObject(link.HRef())
-	if err != nil {
-		return nil, fmt.Errorf("witness [%s] not found in anchor event", link.HRef())
-	}
-
-	return witnessAnchorObj.ContentObject(), nil
 }

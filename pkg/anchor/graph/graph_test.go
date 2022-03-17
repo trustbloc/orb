@@ -16,12 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
+	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/store/cas"
 	webfingerclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
@@ -83,10 +84,11 @@ func TestGraph_Read(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
-		vc, err := graph.Read(hl)
+		als, err := graph.Read(hl)
 		require.NoError(t, err)
+		require.NotNil(t, als.Link())
 
-		payloadFromVC, err := anchorevent.GetPayloadFromAnchorEvent(vc)
+		payloadFromVC, err := anchorlinkset.GetPayloadFromAnchorLink(als.Link())
 		require.NoError(t, err)
 
 		require.Equal(t, testNS, payloadFromVC.Namespace)
@@ -136,13 +138,13 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		payload := &subject.Payload{
 			OperationCount:  1,
-			CoreIndex:       "coreIndex-1",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw",
 			Namespace:       testNS,
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		anchor1HL, err := graph.Add(newMockAnchorEvent(t, payload))
+		anchor1HL, err := graph.Add(newMockAnchorLinkset(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, anchor1HL)
 
@@ -152,13 +154,13 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		payload = &subject.Payload{
 			OperationCount:  1,
-			CoreIndex:       "coreIndex-2",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLe",
 			Namespace:       testNS,
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		hl, err := graph.Add(newMockAnchorEvent(t, payload))
+		hl, err := graph.Add(newMockAnchorLinkset(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -177,13 +179,13 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 
 		payload := &subject.Payload{
 			OperationCount:  1,
-			CoreIndex:       "coreIndex",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLl",
 			Namespace:       testNS,
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		hl, err := graph.Add(newMockAnchorEvent(t, payload))
+		hl, err := graph.Add(newMockAnchorLinkset(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -203,20 +205,20 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		}
 
 		payload := &subject.Payload{
-			CoreIndex:       "coreIndex-2",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLe",
 			Namespace:       testNS,
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		hl, err := graph.Add(newMockAnchorEvent(t, payload))
+		hl, err := graph.Add(newMockAnchorLinkset(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
 		didAnchors, err := graph.GetDidAnchors(hl, testDID)
 		require.Error(t, err)
 		require.Nil(t, didAnchors)
-		require.Contains(t, err.Error(), "failed to read anchor event")
+		require.Contains(t, err.Error(), "failed to read anchor")
 	})
 
 	t.Run("error - cid referenced in previous anchor is invalid", func(t *testing.T) {
@@ -230,13 +232,13 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 		}
 
 		payload := &subject.Payload{
-			CoreIndex:       "coreIndex-2",
+			CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLe",
 			Namespace:       testNS,
 			Version:         0,
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		hl, err := graph.Add(newMockAnchorEvent(t, payload))
+		hl, err := graph.Add(newMockAnchorLinkset(t, payload))
 		require.NoError(t, err)
 		require.NotEmpty(t, hl)
 
@@ -256,7 +258,7 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 	})
 }
 
-func newDefaultMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
+func newDefaultMockAnchorEvent(t *testing.T) *linkset.Linkset {
 	t.Helper()
 
 	previousAnchors := []*subject.SuffixAnchor{
@@ -265,20 +267,17 @@ func newDefaultMockAnchorEvent(t *testing.T) *vocab.AnchorEventType {
 
 	payload := &subject.Payload{
 		OperationCount:  1,
-		CoreIndex:       "coreIndex",
+		CoreIndex:       "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw",
 		Namespace:       testNS,
 		Version:         0,
 		PreviousAnchors: previousAnchors,
 	}
 
-	return newMockAnchorEvent(t, payload)
+	return newMockAnchorLinkset(t, payload)
 }
 
-func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEventType {
+func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Linkset {
 	t.Helper()
-
-	contentObj, err := anchorevent.BuildContentObject(payload)
-	require.NoError(t, err)
 
 	vc := &verifiable.Credential{
 		Types:   []string{"VerifiableCredential"},
@@ -290,11 +289,14 @@ func newMockAnchorEvent(t *testing.T, payload *subject.Payload) *vocab.AnchorEve
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	act, err := anchorevent.BuildAnchorEvent(payload, contentObj.GeneratorID, contentObj.Payload,
-		vocab.MustMarshalToDoc(vc), vocab.GzipMediaType)
+	al, _, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+		func(anchorHashlink string) (*verifiable.Credential, error) {
+			return vc, nil
+		},
+	)
 	require.NoError(t, err)
 
-	return act
+	return linkset.New(al)
 }
 
 type metricsProvider struct{}

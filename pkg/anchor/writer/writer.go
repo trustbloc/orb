@@ -22,7 +22,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -30,14 +29,14 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorevent"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/linkset"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 )
@@ -68,15 +67,15 @@ type proofHandler interface {
 // Writer implements writing anchors.
 type Writer struct {
 	*Providers
-	namespace                 string
-	anchorPublisher           anchorPublisher
-	apServiceIRI              *url.URL
-	casIRI                    *url.URL
-	anchorAttachmentMediaType vocab.MediaType
-	maxWitnessDelay           time.Duration
-	signWithLocalWitness      bool
-	resourceResolver          *resourceresolver.Resolver
-	metrics                   metricsProvider
+	namespace            string
+	anchorPublisher      anchorPublisher
+	apServiceIRI         *url.URL
+	casIRI               *url.URL
+	dataURIMediaType     vocab.MediaType
+	maxWitnessDelay      time.Duration
+	signWithLocalWitness bool
+	resourceResolver     *resourceresolver.Resolver
+	metrics              metricsProvider
 }
 
 // Providers contains all of the providers required by the client.
@@ -84,7 +83,7 @@ type Providers struct {
 	AnchorGraph            anchorGraph
 	DidAnchors             didAnchors
 	AnchorBuilder          anchorBuilder
-	AnchorEventStore       anchorEventStore
+	AnchorLinkStore        anchorStore
 	AnchorEventStatusStore statusStore
 	OpProcessor            opProcessor
 	Outbox                 outbox
@@ -139,7 +138,7 @@ type opProcessor interface {
 }
 
 type anchorGraph interface {
-	Add(anchorEvent *vocab.AnchorEventType) (string, error)
+	Add(anchorLink *linkset.Linkset) (string, error)
 }
 
 type anchorBuilder interface {
@@ -150,8 +149,8 @@ type didAnchors interface {
 	GetBulk(did []string) ([]string, error)
 }
 
-type anchorEventStore interface {
-	Put(anchorEvent *vocab.AnchorEventType) error
+type anchorStore interface {
+	Put(anchorLink *linkset.Link) error
 	Delete(id string) error
 }
 
@@ -169,22 +168,22 @@ type pubSub interface {
 }
 
 // New returns a new anchor writer.
-func New(namespace string, apServiceIRI, casURL *url.URL, anchorAttachmentMediaType vocab.MediaType,
+func New(namespace string, apServiceIRI, casURL *url.URL, dataURIMediaType vocab.MediaType,
 	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
 	resourceResolver *resourceresolver.Resolver,
 	metrics metricsProvider) (*Writer, error) {
 	w := &Writer{
-		Providers:                 providers,
-		anchorPublisher:           anchorPublisher,
-		namespace:                 namespace,
-		apServiceIRI:              apServiceIRI,
-		casIRI:                    casURL,
-		maxWitnessDelay:           maxWitnessDelay,
-		signWithLocalWitness:      signWithLocalWitness,
-		resourceResolver:          resourceResolver,
-		metrics:                   metrics,
-		anchorAttachmentMediaType: anchorAttachmentMediaType,
+		Providers:            providers,
+		anchorPublisher:      anchorPublisher,
+		namespace:            namespace,
+		apServiceIRI:         apServiceIRI,
+		casIRI:               casURL,
+		maxWitnessDelay:      maxWitnessDelay,
+		signWithLocalWitness: signWithLocalWitness,
+		resourceResolver:     resourceResolver,
+		metrics:              metrics,
+		dataURIMediaType:     dataURIMediaType,
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle)
@@ -215,8 +214,6 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("parse anchor string [%s]: %w", anchor, err)
 	}
 
-	now := time.Now()
-
 	payload := &subject.Payload{
 		OperationCount:  ad.OperationCount,
 		CoreIndex:       ad.CoreIndexFileURI,
@@ -225,7 +222,6 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		PreviousAnchors: previousAnchors,
 		Attachments:     getAttachmentURIs(attachments),
 		AnchorOrigin:    c.apServiceIRI.String(),
-		Published:       &now,
 	}
 
 	// figure out witness list for this anchor file
@@ -234,62 +230,54 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		return fmt.Errorf("failed to create witness list: %w", err)
 	}
 
-	anchorEvent, vc, err := c.buildAnchorEvent(payload, batchWitnesses, c.anchorAttachmentMediaType)
+	anchorLink, vcBytes, err := c.buildAnchorLink(payload, batchWitnesses)
 	if err != nil {
-		return fmt.Errorf("build anchor event for anchor [%s]: %w", anchor, err)
+		return fmt.Errorf("build anchor linkset for core index [%s]: %w", payload.CoreIndex, err)
 	}
 
 	storeStartTime := time.Now()
 
-	err = c.AnchorEventStore.Put(anchorEvent)
+	err = c.AnchorLinkStore.Put(anchorLink)
 	if err != nil {
 		return fmt.Errorf("store anchor event: %w", err)
 	}
 
 	c.metrics.WriteAnchorStoreTime(time.Since(storeStartTime))
 
-	logger.Debugf("signed and stored anchor event %s for anchor: %s", anchorEvent.Index(), anchor)
+	logger.Debugf("signed and stored anchor object - Core Index[%s], Anchor: %s", payload.CoreIndex, anchor)
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(anchorEvent, vc, batchWitnesses)
+	err = c.postOfferActivity(anchorLink, vcBytes, batchWitnesses)
 	if err != nil {
-		return fmt.Errorf("failed to post new offer activity for anchor event %s: %w",
-			anchorEvent.Index(), err)
+		return fmt.Errorf("failed to post new offer activity for core index[%s]: %w",
+			payload.CoreIndex, err)
 	}
 
 	return nil
 }
 
-func (c *Writer) buildAnchorEvent(payload *subject.Payload, witnesses []string,
-	attachmentMediaType vocab.MediaType) (*vocab.AnchorEventType, vocab.Document, error) {
-	indexContentObj, err := anchorevent.BuildContentObject(payload)
-	if err != nil {
-		return nil, nil, fmt.Errorf("build content object: %w", err)
-	}
+func (c *Writer) buildAnchorLink(payload *subject.Payload,
+	witnesses []string) (anchorLink *linkset.Link, vcBytes []byte, err error) {
+	return anchorlinkset.BuildAnchorLink(payload, c.dataURIMediaType,
+		func(anchorHashlink string) (*verifiable.Credential, error) {
+			buildCredStartTime := time.Now()
 
-	vc, err := c.buildCredential(indexContentObj.Payload, c.Signer.Context())
-	if err != nil {
-		return nil, nil, fmt.Errorf("build credential: %w", err)
-	}
+			defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
 
-	// sign credential using local witness log or server public key
-	vc, err = c.signCredential(vc, witnesses)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sign credential: %w", err)
-	}
+			vc, err := c.AnchorBuilder.Build(anchorHashlink, c.Signer.Context())
+			if err != nil {
+				return nil, fmt.Errorf("build anchor credential: %w", err)
+			}
 
-	witnessContentObj, err := vocab.MarshalToDoc(vc)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unmarshal verifiable credential to doc: %w", err)
-	}
+			// sign credential using local witness log or server public key
+			vc, err = c.signCredential(vc, witnesses)
+			if err != nil {
+				return nil, fmt.Errorf("sign credential: %w", err)
+			}
 
-	anchorEvent, err := anchorevent.BuildAnchorEvent(payload, indexContentObj.GeneratorID,
-		indexContentObj.Payload, witnessContentObj, attachmentMediaType)
-	if err != nil {
-		return nil, nil, fmt.Errorf("build anchor event: %w", err)
-	}
-
-	return anchorEvent, witnessContentObj, nil
+			return vc, nil
+		},
+	)
 }
 
 func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.SuffixAnchor, error) {
@@ -334,30 +322,6 @@ func getSuffixes(refs []*operation.Reference) []string {
 	}
 
 	return suffixes
-}
-
-// buildCredential builds and signs anchor credential.
-func (c *Writer) buildCredential(contentObj vocab.Document, ctx []string) (*verifiable.Credential, error) {
-	buildCredStartTime := time.Now()
-
-	defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
-
-	contentObjBytes, err := canonicalizer.MarshalCanonical(contentObj)
-	if err != nil {
-		return nil, fmt.Errorf("marshal content object: %w", err)
-	}
-
-	hl, err := hashlink.New().CreateHashLink(contentObjBytes, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create hashlink for content object: %w", err)
-	}
-
-	vc, err := c.AnchorBuilder.Build(hl, ctx)
-	if err != nil {
-		return nil, fmt.Errorf("build anchor credential: %w", err)
-	}
-
-	return vc, nil
 }
 
 func getAttachmentURIs(attachments []*protocol.AnchorDocument) []string {
@@ -461,8 +425,13 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
-	logger.Debugf("handling witnessed anchor event: %s", anchorEvent.Index())
+func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return fmt.Errorf("anchor Linkset is empty")
+	}
+
+	logger.Debugf("handling witnessed anchor: %s", anchorLink.Anchor())
 
 	startTime := time.Now()
 
@@ -470,61 +439,56 @@ func (c *Writer) handle(anchorEvent *vocab.AnchorEventType) error {
 		c.metrics.ProcessWitnessedAnchorCredentialTime(time.Since(startTime))
 	}()
 
-	err := c.storeVC(anchorEvent)
+	err := c.storeVC(anchorLink)
 	if err != nil {
-		logger.Errorf("failed to store verifiable credential from anchor event[%s]: %s", anchorEvent.Index(), err.Error())
-
-		return fmt.Errorf("store verifiable credential from anchor event[%s]: %w", anchorEvent.Index(), err)
+		return fmt.Errorf("store verifiable credential from anchor event[%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	anchorEventRef, err := c.AnchorGraph.Add(anchorEvent)
+	anchorLinksetHL, err := c.AnchorGraph.Add(anchorLinkset)
 	if err != nil {
-		logger.Errorf("failed to add witnessed anchor event[%s] to anchor graph: %s", anchorEvent.Index(), err.Error())
-
-		return fmt.Errorf("add witnessed anchor event[%s] to anchor graph: %w", anchorEvent.Index(), err)
+		return fmt.Errorf("add witnessed anchor[%s] to anchor graph: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Debugf("Publishing anchor event[%s] ref[%s]", anchorEvent.Index(), anchorEventRef)
+	logger.Debugf("Publishing anchor[%s] ref[%s]", anchorLink.Anchor(), anchorLinksetHL)
 
-	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorEventRef})
+	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorLinksetHL})
 	if err != nil {
-		logger.Warnf("failed to publish anchor event[%s] ref[%s]: %s",
-			anchorEvent.Index(), anchorEventRef, err.Error())
-
-		return fmt.Errorf("publish anchor event[%s] ref [%s]: %w", anchorEvent.Index(), anchorEventRef, err)
+		return fmt.Errorf("publish anchor[%s] ref [%s]: %w", anchorLink.Anchor(), anchorLinksetHL, err)
 	}
 
-	err = c.WitnessStore.Delete(anchorEvent.Index().String())
+	err = c.deleteTransientData(anchorLink)
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
-		logger.Warnf("failed to delete witnesses for anchor event[%s] ref[%s]: %s",
-			anchorEvent.Index(), anchorEventRef, err.Error())
+		logger.Warnf("delete transient data for ref[%s]: %s", anchorLinksetHL, err.Error())
 	}
 
-	err = c.AnchorEventStore.Delete(anchorEvent.Index().String())
-	if err != nil {
-		// this is a clean-up task so no harm if there was an error
-		logger.Warnf("failed to delete anchor event[%s]: %s", anchorEvent.Index(), err.Error())
-	}
-
-	logger.Debugf("Posting anchor event[%s] ref[%s] to my followers.", anchorEvent.Index(), anchorEventRef)
+	logger.Debugf("Posting anchor[%s] ref[%s] to my followers.", anchorLink.Anchor(), anchorLinksetHL)
 
 	// announce anchor credential activity to followers
-	err = c.postCreateActivity(anchorEvent, anchorEventRef)
+	err = c.postCreateActivity(anchorLinkset, anchorLinksetHL)
 	if err != nil {
-		logger.Warnf("failed to post new create activity for anchor event[%s] ref[%s]: %s",
-			anchorEvent.Index(), anchorEventRef, err.Error())
-
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
-		return fmt.Errorf("post create activity for anchor event[%s] ref[%s]: %w",
-			anchorEvent.Index(), anchorEventRef, err)
+		return fmt.Errorf("post create activity for anchor[%s] ref[%s]: %w",
+			anchorLink.Anchor(), anchorLinksetHL, err)
 	}
 
 	return nil
 }
 
-func (c *Writer) storeVC(anchorEvent *vocab.AnchorEventType) error {
-	vc, err := util.VerifiableCredentialFromAnchorEvent(anchorEvent,
+func (c *Writer) deleteTransientData(anchorLink *linkset.Link) error {
+	if err := c.WitnessStore.Delete(anchorLink.Anchor().String()); err != nil {
+		return fmt.Errorf("failed to delete witnesses for anchor[%s]: %w", anchorLink.Anchor(), err)
+	}
+
+	if err := c.AnchorLinkStore.Delete(anchorLink.Anchor().String()); err != nil {
+		return fmt.Errorf("failed to delete anchor[%s]: %w", anchorLink.Anchor(), err)
+	}
+
+	return nil
+}
+
+func (c *Writer) storeVC(anchorLink *linkset.Link) error {
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithJSONLDDocumentLoader(c.DocumentLoader),
 	)
@@ -549,7 +513,7 @@ func (c *Writer) storeVC(anchorEvent *vocab.AnchorEventType) error {
 }
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).
-func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl string) error { //nolint: interfacer
+func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) error { //nolint: interfacer
 	systemFollowers, err := url.Parse(c.apServiceIRI.String() + resthandler.FollowersPath)
 	if err != nil {
 		return fmt.Errorf("failed to create new object with document: %w", err)
@@ -560,15 +524,16 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 		return fmt.Errorf("parse hashlink: %w", err)
 	}
 
-	// Create a new Info that includes the hashlink of where this activity is stored,
-	// so that a server that's processing this event may resolve the Info from the hashlink.
-	anchorEvent = vocab.NewAnchorEvent(
+	anchorLinksetDoc, err := vocab.MarshalToDoc(anchorLinkset)
+	if err != nil {
+		return fmt.Errorf("marshal anchor Linkset: %w", err)
+	}
+
+	// Create an AnchorEvent that includes the hashlink of where the anchor linkset is stored
+	// so that a server processing this activity may resolve the anchor link from the hashlink.
+	anchorEvent := vocab.NewAnchorEvent(
+		vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
 		vocab.WithURL(hlURL),
-		vocab.WithAttributedTo(anchorEvent.AttributedTo().URL()),
-		vocab.WithIndex(anchorEvent.Index()),
-		vocab.WithPublishedTime(anchorEvent.Published()),
-		vocab.WithParent(anchorEvent.Parent()...),
-		vocab.WithAttachment(anchorEvent.Attachment()...),
 	)
 
 	now := time.Now()
@@ -590,15 +555,15 @@ func (c *Writer) postCreateActivity(anchorEvent *vocab.AnchorEventType, hl strin
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, localProof vocab.Document,
+func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []byte,
 	batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
-	logger.Debugf("sending anchor event[%s] to system witnesses plus: %s", anchorEvent.Index(), batchWitnesses)
+	logger.Debugf("sending anchor linkset[%s] to system witnesses plus: %s", anchorLink.Anchor(), batchWitnesses)
 
-	witnessesIRI, err := c.getWitnesses(anchorEvent.Index().String(), batchWitnesses)
+	witnessesIRI, err := c.getWitnesses(anchorLink.Anchor(), batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to get witnesses: %w", err)
 	}
@@ -608,9 +573,14 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, localProo
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
 
+	anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(anchorLink))
+	if err != nil {
+		return fmt.Errorf("marshal anchor linkset: %w", err)
+	}
+
 	offer := vocab.NewOfferActivity(
 		vocab.NewObjectProperty(
-			vocab.WithAnchorEvent(anchorEvent),
+			vocab.WithDocument(anchorLinksetDoc),
 		),
 		vocab.WithTo(witnessesIRI...),
 		vocab.WithStartTime(&startTime),
@@ -620,25 +590,24 @@ func (c *Writer) postOfferActivity(anchorEvent *vocab.AnchorEventType, localProo
 
 	postID, err := c.Outbox.Post(offer)
 	if err != nil {
-		return fmt.Errorf("failed to post offer for anchor index[%s]: %w", anchorEvent.Index(), err)
+		return fmt.Errorf("failed to post offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Debugf("created pre-announce activity for anchor index[%s], post id[%s]", anchorEvent.Index(), postID)
+	logger.Debugf("created pre-announce activity for anchor[%s], post id[%s]", anchorLink.Anchor(), postID)
 
 	if len(witnessesIRI) == 1 {
 		// The Offer was posted only to the public IRI. This means that it will be persisted
 		// in the ActivityPub Outbox (to be viewed by anyone) but won't be sent to any service.
 		// In this case we can handle the anchor event immediately.
-		logger.Debugf("According to witness policy, no witnesses are required for anchor index[%s]. "+
-			"Processing the anchor immediately.", anchorEvent.Index())
+		logger.Debugf("According to witness policy, no witnesses are required for anchor[%s]. "+
+			"Processing the anchor immediately.", anchorLink.Anchor())
 
-		localProofBytes, e := json.Marshal(localProof)
-		if err != nil {
-			return fmt.Errorf("marshal localProof: %w", e)
+		if len(localProofBytes) == 0 {
+			return fmt.Errorf("no local proof for anchor [%s]", anchorLink.Anchor())
 		}
 
 		// Handle the anchor event by providing this service's proof.
-		e = c.ProofHandler.HandleProof(c.apServiceIRI, anchorEvent.Index().String(), endTime, localProofBytes)
+		e := c.ProofHandler.HandleProof(c.apServiceIRI, anchorLink.Anchor().String(), endTime, localProofBytes)
 		if e != nil {
 			return fmt.Errorf("handle offer with no witnesses: %w", e)
 		}
@@ -734,7 +703,7 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	return false, nil
 }
 
-func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*url.URL, error) {
+func (c *Writer) getWitnesses(anchorURI *url.URL, batchOpsWitnesses []string) ([]*url.URL, error) {
 	batchWitnesses, err := c.getBatchWitnesses(batchOpsWitnesses)
 	if err != nil {
 		return nil, err
@@ -776,7 +745,7 @@ func (c *Writer) getWitnesses(anchorID string, batchOpsWitnesses []string) ([]*u
 	}
 
 	// store witnesses before posting offers
-	err = c.storeWitnesses(anchorID, updateWitnessSelectionFlag(witnesses, selectedWitnessesMap))
+	err = c.storeWitnesses(anchorURI.String(), updateWitnessSelectionFlag(witnesses, selectedWitnessesMap))
 	if err != nil {
 		return nil, fmt.Errorf("store witnesses: %w", err)
 	}
@@ -815,12 +784,12 @@ func getUniqueWitnesses(witnesses []*proof.Witness) ([]*url.URL, map[string]bool
 func (c *Writer) storeWitnesses(anchorID string, witnesses []*proof.Witness) error {
 	err := c.WitnessStore.Put(anchorID, witnesses)
 	if err != nil {
-		return fmt.Errorf("failed to store witnesses for anchor event[%s]: %w", anchorID, err)
+		return fmt.Errorf("failed to store witnesses for anchor[%s]: %w", anchorID, err)
 	}
 
 	err = c.AnchorEventStatusStore.AddStatus(anchorID, proof.AnchorIndexStatusInProcess)
 	if err != nil {
-		return fmt.Errorf("failed to set 'in-process' status for anchor event[%s]: %w", anchorID, err)
+		return fmt.Errorf("failed to set 'in-process' status for anchor[%s]: %w", anchorID, err)
 	}
 
 	return nil

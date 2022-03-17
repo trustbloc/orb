@@ -14,6 +14,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 // Outbox handles activities posted to the outbox.
@@ -74,18 +75,32 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 
 	anchorEvent := obj.AnchorEvent()
 
-	if err := anchorEvent.Validate(); err != nil {
-		return fmt.Errorf("invalid anchor event: %w", err)
+	err := anchorEvent.Validate()
+	if err != nil {
+		return fmt.Errorf("validate anchor event: %w", err)
 	}
 
-	if len(anchorEvent.URL()) == 0 {
-		return errors.New("missing anchor event URL")
+	anchorLinkset := &linkset.Linkset{}
+
+	err = vocab.UnmarshalFromDoc(anchorEvent.Object().Document(), anchorLinkset)
+	if err != nil {
+		return fmt.Errorf("unmarshal linkset: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor event reference [%s]", h.ServiceName, anchorEvent.URL())
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return fmt.Errorf("empty Linkset")
+	}
 
-	if err := h.store.AddReference(store.AnchorEvent, anchorEvent.URL()[0], h.ServiceIRI); err != nil {
-		return orberrors.NewTransient(fmt.Errorf("store anchor event reference: %w", err))
+	err = anchorLink.Validate()
+	if err != nil {
+		return fmt.Errorf("invalid anchor link: %w", err)
+	}
+
+	logger.Debugf("[%s] Storing anchor reference [%s]", h.ServiceName, anchorLink.Anchor())
+
+	if err := h.store.AddReference(store.AnchorLinkset, anchorEvent.URL()[0], h.ServiceIRI); err != nil {
+		return orberrors.NewTransient(fmt.Errorf("store anchor reference: %w", err))
 	}
 
 	return nil
