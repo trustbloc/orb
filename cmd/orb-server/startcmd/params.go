@@ -23,6 +23,86 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
+// kmsMode kms mode
+type kmsMode string
+
+// kms params
+const (
+	kmsLocal kmsMode = "local"
+	kmsWeb   kmsMode = "web"
+	kmsAWS   kmsMode = "aws"
+
+	kmsTypeFlagName  = "kms-type"
+	kmsTypeEnvKey    = "ORB_KMS_TYPE"
+	kmsTypeFlagUsage = "KMS type (local,web,aws)." +
+		" Alternatively, this can be set with the following environment variable: " + kmsTypeEnvKey
+
+	kmsEndpointFlagName  = "kms-endpoint"
+	kmsEndpointEnvKey    = "ORB_KMS_ENDPOINT"
+	kmsEndpointFlagUsage = "KMS URL." +
+		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
+
+	kmsAccessKeyIDFlagName  = "kms-access-key-id"
+	kmsAccessKeyIDEnvKey    = "ORB_KMS_ACCESS_KEY_ID"
+	kmsAccessKeyIDFlagUsage = "KMS access key id." +
+		" Alternatively, this can be set with the following environment variable: " + kmsAccessKeyIDEnvKey
+
+	kmsAccessKeySecretFlagName  = "kms-access-key-secret"
+	kmsAccessKeySecretEnvKey    = "ORB_KMS_ACCESS_KEY_SECRET"
+	kmsAccessKeySecretFlagUsage = "KMS access key secret." +
+		" Alternatively, this can be set with the following environment variable: " + kmsAccessKeySecretEnvKey
+
+	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
+	vcSignActiveKeyIDEnvKey    = "ORB_VC_SIGN_ACTIVE_KEY_ID"
+	vcSignActiveKeyIDFlagUsage = "VC Sign Active Key ID (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + vcSignActiveKeyIDEnvKey
+
+	vcSignPrivateKeysFlagName  = "vc-sign-private-keys"
+	vcSignPrivateKeysEnvKey    = "ORB_VC_SIGN_PRIVATE_KEYS"
+	vcSignPrivateKeysFlagUsage = "VC Sign Private Keys base64 (ED25519Type)." +
+		" For example,  key1=privatekeyBase64Value,key2=privatekeyBase64Value" +
+		" Alternatively, this can be set with the following environment variable: " + vcSignPrivateKeysEnvKey
+
+	vcSignKeysIDFlagName  = "vc-sign-keys-id"
+	vcSignKeysIDEnvKey    = "ORB_VC_SIGN_KEYS_ID"
+	vcSignKeysIDFlagUsage = "VC Sign Keys id in kms. " + commonEnvVarUsageText + vcSignKeysIDEnvKey
+
+	httpSignActiveKeyIDFlagName  = "http-sign-active-key-id"
+	httpSignActiveKeyIDEnvKey    = "ORB_HTTP_SIGN_ACTIVE_KEY_ID"
+	httpSignActiveKeyIDFlagUsage = "HTTP Sign Active Key ID (ED25519Type)." +
+		" Alternatively, this can be set with the following environment variable: " + httpSignActiveKeyIDEnvKey
+
+	httpSignPrivateKeyFlagName  = "http-sign-private-key"
+	httpSignPrivateKeyEnvKey    = "ORB_HTTP_SIGN_PRIVATE_KEY"
+	httpSignPrivateKeyFlagUsage = "HTTP Sign Private Key base64 (ED25519Type)." +
+		" For example,  key1=privatekeyBase64Value" +
+		" Alternatively, this can be set with the following environment variable: " + httpSignPrivateKeyEnvKey
+
+	secretLockKeyPathFlagName  = "secret-lock-key-path"
+	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
+	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
+		"service lock is used. " + commonEnvVarUsageText + secretLockKeyPathEnvKey
+
+	// Linter gosec flags these as "potential hardcoded credentials". They are not, hence the nolint annotations.
+	kmsSecretsDatabaseTypeFlagName      = "kms-secrets-database-type" //nolint: gosec
+	kmsSecretsDatabaseTypeEnvKey        = "KMSSECRETS_DATABASE_TYPE"  //nolint: gosec
+	kmsSecretsDatabaseTypeFlagShorthand = "k"
+	kmsSecretsDatabaseTypeFlagUsage     = "The type of database to use for storage of KMS secrets. " +
+		"Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
+
+	kmsSecretsDatabaseURLFlagName      = "kms-secrets-database-url" //nolint: gosec
+	kmsSecretsDatabaseURLEnvKey        = "KMSSECRETS_DATABASE_URL"  //nolint: gosec
+	kmsSecretsDatabaseURLFlagShorthand = "s"
+	kmsSecretsDatabaseURLFlagUsage     = "The URL (or connection string) of the database. Not needed if using memstore. For CouchDB, " +
+		"include the username:password@ text if required. " +
+		commonEnvVarUsageText + databaseURLEnvKey
+
+	kmsSecretsDatabasePrefixFlagName  = "kms-secrets-database-prefix" //nolint: gosec
+	kmsSecretsDatabasePrefixEnvKey    = "KMSSECRETS_DATABASE_PREFIX"  //nolint: gosec
+	kmsSecretsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving " +
+		"the underlying KMS secrets database. " + commonEnvVarUsageText + kmsSecretsDatabasePrefixEnvKey
+)
+
 const (
 	defaultBatchWriterTimeout               = 60000 * time.Millisecond
 	defaultDiscoveryMinimumResolvers        = 1
@@ -103,47 +183,6 @@ const (
 	anchorStatusInProcessGracePeriodFlagUsage = "The period in which witnesses will not be re-selected for 'in-process' anchors." +
 		"Defaults to 1m if not set. " +
 		commonEnvVarUsageText + anchorStatusInProcessGracePeriodEnvKey
-
-	kmsStoreEndpointFlagName  = "kms-store-endpoint"
-	kmsStoreEndpointEnvKey    = "ORB_KMS_STORE_ENDPOINT"
-	kmsStoreEndpointFlagUsage = "Remote KMS URL." +
-		" Alternatively, this can be set with the following environment variable: " + kmsStoreEndpointEnvKey
-
-	kmsEndpointFlagName  = "kms-endpoint"
-	kmsEndpointEnvKey    = "ORB_KMS_ENDPOINT"
-	kmsEndpointFlagUsage = "Remote KMS URL." +
-		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
-
-	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
-	vcSignActiveKeyIDEnvKey    = "ORB_VC_SIGN_ACTIVE_KEY_ID"
-	vcSignActiveKeyIDFlagUsage = "VC Sign Active Key ID (ED25519Type)." +
-		" Alternatively, this can be set with the following environment variable: " + vcSignActiveKeyIDEnvKey
-
-	vcSignPrivateKeysFlagName  = "vc-sign-private-keys"
-	vcSignPrivateKeysEnvKey    = "ORB_VC_SIGN_PRIVATE_KEYS"
-	vcSignPrivateKeysFlagUsage = "VC Sign Private Keys base64 (ED25519Type)." +
-		" For example,  key1=privatekeyBase64Value,key2=privatekeyBase64Value" +
-		" Alternatively, this can be set with the following environment variable: " + vcSignPrivateKeysEnvKey
-
-	vcSignKeysIDFlagName  = "vc-sign-keys-id"
-	vcSignKeysIDEnvKey    = "ORB_VC_SIGN_KEYS_ID"
-	vcSignKeysIDFlagUsage = "VC Sign Keys id in kms. " + commonEnvVarUsageText + vcSignKeysIDEnvKey
-
-	httpSignActiveKeyIDFlagName  = "http-sign-active-key-id"
-	httpSignActiveKeyIDEnvKey    = "ORB_HTTP_SIGN_ACTIVE_KEY_ID"
-	httpSignActiveKeyIDFlagUsage = "HTTP Sign Active Key ID (ED25519Type)." +
-		" Alternatively, this can be set with the following environment variable: " + httpSignActiveKeyIDEnvKey
-
-	httpSignPrivateKeyFlagName  = "http-sign-private-key"
-	httpSignPrivateKeyEnvKey    = "ORB_HTTP_SIGN_PRIVATE_KEY"
-	httpSignPrivateKeyFlagUsage = "HTTP Sign Private Key base64 (ED25519Type)." +
-		" For example,  key1=privatekeyBase64Value" +
-		" Alternatively, this can be set with the following environment variable: " + httpSignPrivateKeyEnvKey
-
-	secretLockKeyPathFlagName  = "secret-lock-key-path"
-	secretLockKeyPathEnvKey    = "ORB_SECRET_LOCK_KEY_PATH"
-	secretLockKeyPathFlagUsage = "The path to the file with key to be used by local secret lock. If missing noop " +
-		"service lock is used. " + commonEnvVarUsageText + secretLockKeyPathEnvKey
 
 	externalEndpointFlagName      = "external-endpoint"
 	externalEndpointFlagShorthand = "e"
@@ -310,25 +349,6 @@ const (
 	databasePrefixEnvKey    = "DATABASE_PREFIX"
 	databasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving underlying databases. " +
 		commonEnvVarUsageText + databasePrefixEnvKey
-
-	// Linter gosec flags these as "potential hardcoded credentials". They are not, hence the nolint annotations.
-	kmsSecretsDatabaseTypeFlagName      = "kms-secrets-database-type" //nolint: gosec
-	kmsSecretsDatabaseTypeEnvKey        = "KMSSECRETS_DATABASE_TYPE"  //nolint: gosec
-	kmsSecretsDatabaseTypeFlagShorthand = "k"
-	kmsSecretsDatabaseTypeFlagUsage     = "The type of database to use for storage of KMS secrets. " +
-		"Supported options: mem, couchdb, mongodb. " + commonEnvVarUsageText + kmsSecretsDatabaseTypeEnvKey
-
-	kmsSecretsDatabaseURLFlagName      = "kms-secrets-database-url" //nolint: gosec
-	kmsSecretsDatabaseURLEnvKey        = "KMSSECRETS_DATABASE_URL"  //nolint: gosec
-	kmsSecretsDatabaseURLFlagShorthand = "s"
-	kmsSecretsDatabaseURLFlagUsage     = "The URL (or connection string) of the database. Not needed if using memstore. For CouchDB, " +
-		"include the username:password@ text if required. " +
-		commonEnvVarUsageText + databaseURLEnvKey
-
-	kmsSecretsDatabasePrefixFlagName  = "kms-secrets-database-prefix" //nolint: gosec
-	kmsSecretsDatabasePrefixEnvKey    = "KMSSECRETS_DATABASE_PREFIX"  //nolint: gosec
-	kmsSecretsDatabasePrefixFlagUsage = "An optional prefix to be used when creating and retrieving " +
-		"the underlying KMS secrets database. " + commonEnvVarUsageText + kmsSecretsDatabasePrefixEnvKey
 
 	databaseTimeoutFlagName  = "database-timeout"
 	databaseTimeoutEnvKey    = "DATABASE_TIMEOUT"
@@ -607,14 +627,6 @@ type orbParameters struct {
 	hostURL                                 string
 	hostMetricsURL                          string
 	vctURL                                  string
-	vcSignActiveKeyID                       string
-	vcSignPrivateKeys                       map[string]string
-	vcSignKeysID                            []string
-	httpSignActiveKeyID                     string
-	httpSignPrivateKey                      map[string]string
-	secretLockKeyPath                       string
-	kmsEndpoint                             string
-	kmsStoreEndpoint                        string
 	externalEndpoint                        string
 	discoveryDomain                         string
 	didNamespace                            string
@@ -679,6 +691,7 @@ type orbParameters struct {
 	witnessPolicyCacheExpiration            time.Duration
 	sidetreeProtocolVersions                []string
 	currentSidetreeProtocolVersion          string
+	kmsParams                               *kmsParameters
 }
 
 type anchorCredentialParams struct {
@@ -689,12 +702,105 @@ type anchorCredentialParams struct {
 }
 
 type dbParameters struct {
-	databaseType             string
-	databaseURL              string
-	databasePrefix           string
+	databaseType   string
+	databaseURL    string
+	databasePrefix string
+}
+
+type kmsParameters struct {
+	kmsType                  kmsMode
+	kmsEndpoint              string
 	kmsSecretsDatabaseType   string
 	kmsSecretsDatabaseURL    string
 	kmsSecretsDatabasePrefix string
+	vcSignActiveKeyID        string
+	vcSignPrivateKeys        map[string]string
+	vcSignKeysID             []string
+	httpSignActiveKeyID      string
+	httpSignPrivateKey       map[string]string
+	secretLockKeyPath        string
+	kmsKeyURI                string
+	kmsAccessKeyID           string
+	kmsAccessKeySecret       string
+}
+
+func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
+	kmsTypeStr, err := cmdutils.GetUserSetVarFromString(cmd, kmsTypeFlagName, kmsTypeEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	kmsType := kmsMode(kmsTypeStr)
+
+	if !supportedKmsType(kmsType) {
+		return nil, fmt.Errorf("unsupported kms type: %s", kmsType)
+	}
+
+	kmsEndpoint := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey)
+	kmsAccessKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsAccessKeyIDFlagName, kmsAccessKeyIDEnvKey)
+	kmsAccessKeySecret := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsAccessKeySecretFlagName, kmsAccessKeySecretEnvKey)
+
+	secretLockKeyPath := cmdutils.GetUserSetOptionalVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey)
+	keyDatabaseType, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
+		kmsSecretsDatabaseTypeEnvKey, kmsType != kmsLocal)
+	if err != nil {
+		return nil, err
+	}
+	keyDatabaseURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabaseURLFlagName,
+		kmsSecretsDatabaseURLEnvKey)
+	keyDatabasePrefix := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabasePrefixFlagName,
+		kmsSecretsDatabasePrefixEnvKey)
+
+	vcSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, vcSignActiveKeyIDFlagName, vcSignActiveKeyIDEnvKey)
+	vcSignPrivateKeys, err := getPrivateKeys(cmd, vcSignPrivateKeysFlagName, vcSignPrivateKeysEnvKey)
+	if err != nil {
+		return nil, fmt.Errorf("vc sign private keys: %w", err)
+	}
+	if len(vcSignPrivateKeys) > 0 {
+		if _, ok := vcSignPrivateKeys[vcSignActiveKeyID]; !ok {
+			return nil, fmt.Errorf("vc sign active key id %s not exist in vc private keys", vcSignActiveKeyID)
+		}
+	}
+	vcSignKeysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, vcSignKeysIDFlagName, vcSignKeysIDEnvKey)
+
+	httpSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, httpSignActiveKeyIDFlagName, httpSignActiveKeyIDEnvKey)
+	httpSignPrivateKey, err := getPrivateKeys(cmd, httpSignPrivateKeyFlagName, httpSignPrivateKeyEnvKey)
+	if err != nil {
+		return nil, fmt.Errorf("http sign private keys: %w", err)
+	}
+	if len(httpSignPrivateKey) > 0 {
+		if len(httpSignPrivateKey) > 1 {
+			return nil, fmt.Errorf("http sign private key include more than one key")
+		}
+
+		if _, ok := httpSignPrivateKey[httpSignActiveKeyID]; !ok {
+			return nil, fmt.Errorf("http sign active key id %s not exist in http private key", httpSignActiveKeyID)
+		}
+	}
+
+	return &kmsParameters{
+		kmsType:                  kmsType,
+		kmsEndpoint:              kmsEndpoint,
+		vcSignActiveKeyID:        vcSignActiveKeyID,
+		vcSignPrivateKeys:        vcSignPrivateKeys,
+		vcSignKeysID:             vcSignKeysID,
+		httpSignActiveKeyID:      httpSignActiveKeyID,
+		httpSignPrivateKey:       httpSignPrivateKey,
+		secretLockKeyPath:        secretLockKeyPath,
+		kmsAccessKeyID:           kmsAccessKeyID,
+		kmsAccessKeySecret:       kmsAccessKeySecret,
+		kmsSecretsDatabaseType:   keyDatabaseType,
+		kmsSecretsDatabaseURL:    keyDatabaseURL,
+		kmsSecretsDatabasePrefix: keyDatabasePrefix,
+	}, nil
+}
+
+func supportedKmsType(kmsType kmsMode) bool {
+	if kmsType != kmsLocal && kmsType != kmsWeb && kmsType != kmsAWS {
+		return false
+	}
+
+	return true
 }
 
 // nolint: gocyclo,funlen
@@ -711,39 +817,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	// no need to check errors for optional flags
 	vctURL, _ := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, true)
-	kmsStoreEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsStoreEndpointFlagName, kmsStoreEndpointEnvKey, true) // nolint: errcheck,lll
-	kmsEndpoint, _ := cmdutils.GetUserSetVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey, true)                // nolint: errcheck,lll
-	vcSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, vcSignActiveKeyIDFlagName, vcSignActiveKeyIDEnvKey)
-
-	vcSignPrivateKeys, err := getPrivateKeys(cmd, vcSignPrivateKeysFlagName, vcSignPrivateKeysEnvKey)
-	if err != nil {
-		return nil, fmt.Errorf("vc sign private keys: %w", err)
-	}
-
-	if len(vcSignPrivateKeys) > 0 {
-		if _, ok := vcSignPrivateKeys[vcSignActiveKeyID]; !ok {
-			return nil, fmt.Errorf("vc sign active key id %s not exist in vc private keys", vcSignActiveKeyID)
-		}
-	}
-
-	httpSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, httpSignActiveKeyIDFlagName, httpSignActiveKeyIDEnvKey)
-
-	httpSignPrivateKey, err := getPrivateKeys(cmd, httpSignPrivateKeyFlagName, httpSignPrivateKeyEnvKey)
-	if err != nil {
-		return nil, fmt.Errorf("http sign private keys: %w", err)
-	}
-
-	if len(httpSignPrivateKey) > 0 {
-		if len(httpSignPrivateKey) > 1 {
-			return nil, fmt.Errorf("http sign private key include more than one key")
-		}
-
-		if _, ok := httpSignPrivateKey[httpSignActiveKeyID]; !ok {
-			return nil, fmt.Errorf("http sign active key id %s not exist in http private key", httpSignActiveKeyID)
-		}
-	}
-
-	secretLockKeyPath, _ := cmdutils.GetUserSetVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey, true) // nolint: errcheck,lll
 
 	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
 	if err != nil {
@@ -1024,7 +1097,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	didAliases := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
 
-	dbParams, err := getDBParameters(cmd, kmsStoreEndpoint != "" || kmsEndpoint != "")
+	kmsParams, err := getKmsParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	dbParams, err := getDBParameters(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -1208,20 +1286,10 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
 
-	vcSignKeysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, vcSignKeysIDFlagName, vcSignKeysIDEnvKey)
-
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
 		vctURL:                                  vctURL,
-		kmsEndpoint:                             kmsEndpoint,
-		vcSignActiveKeyID:                       vcSignActiveKeyID,
-		vcSignPrivateKeys:                       vcSignPrivateKeys,
-		vcSignKeysID:                            vcSignKeysID,
-		httpSignActiveKeyID:                     httpSignActiveKeyID,
-		httpSignPrivateKey:                      httpSignPrivateKey,
-		secretLockKeyPath:                       secretLockKeyPath,
-		kmsStoreEndpoint:                        kmsStoreEndpoint,
 		discoveryDomain:                         discoveryDomain,
 		externalEndpoint:                        externalEndpoint,
 		tlsParams:                               tlsParams,
@@ -1284,6 +1352,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		anchorAttachmentMediaType:               anchorAttachmentMediaType,
 		sidetreeProtocolVersions:                sidetreeProtocolVersions,
 		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
+		kmsParams:                               kmsParams,
 	}, nil
 }
 
@@ -1310,7 +1379,7 @@ func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint string) 
 	}, nil
 }
 
-func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error) {
+func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 	databaseType, err := cmdutils.GetUserSetVarFromString(cmd, databaseTypeFlagName,
 		databaseTypeEnvKey, false)
 	if err != nil {
@@ -1329,31 +1398,10 @@ func getDBParameters(cmd *cobra.Command, kmOptional bool) (*dbParameters, error)
 		return nil, err
 	}
 
-	keyDatabaseType, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
-		kmsSecretsDatabaseTypeEnvKey, kmOptional)
-	if err != nil {
-		return nil, err
-	}
-
-	keyDatabaseURL, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseURLFlagName,
-		kmsSecretsDatabaseURLEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	keyDatabasePrefix, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabasePrefixFlagName,
-		kmsSecretsDatabasePrefixEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
 	return &dbParameters{
-		databaseType:             databaseType,
-		databaseURL:              databaseURL,
-		databasePrefix:           databasePrefix,
-		kmsSecretsDatabaseType:   keyDatabaseType,
-		kmsSecretsDatabaseURL:    keyDatabaseURL,
-		kmsSecretsDatabasePrefix: keyDatabasePrefix,
+		databaseType:   databaseType,
+		databaseURL:    databaseURL,
+		databasePrefix: databasePrefix,
 	}, nil
 }
 
@@ -1801,13 +1849,15 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
 	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
-	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
 	startCmd.Flags().StringP(vcSignActiveKeyIDFlagName, "", "", vcSignActiveKeyIDFlagUsage)
 	startCmd.Flags().StringArrayP(vcSignPrivateKeysFlagName, "", []string{}, vcSignPrivateKeysFlagUsage)
 	startCmd.Flags().String(httpSignActiveKeyIDFlagName, "", httpSignActiveKeyIDFlagUsage)
 	startCmd.Flags().StringArrayP(httpSignPrivateKeyFlagName, "", []string{}, httpSignPrivateKeyFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
+	startCmd.Flags().String(kmsTypeFlagName, "", kmsTypeFlagUsage)
+	startCmd.Flags().String(kmsAccessKeyIDFlagName, "", kmsAccessKeyIDFlagUsage)
+	startCmd.Flags().String(kmsAccessKeySecretFlagName, "", kmsAccessKeySecretFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
