@@ -20,17 +20,17 @@ import (
 )
 
 const (
-	storeName = "anchorlink"
+	storeName = "anchor-ref"
 	hashTag   = "anchorHash"
 )
 
-var logger = log.New("anchorlinkstore")
+var logger = log.New("anchor-ref-store")
 
 // New creates a new anchor link store.
 func New(provider storage.Provider) (*Store, error) {
 	store, err := provider.OpenStore(storeName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open anchor link store: %w", err)
+		return nil, fmt.Errorf("failed to open anchor ref store: %w", err)
 	}
 
 	err = provider.SetStoreConfig(storeName, storage.StoreConfiguration{TagNames: []string{hashTag}})
@@ -64,10 +64,10 @@ func (s *Store) PutLinks(links []*url.URL) error {
 
 		linkBytes, err := s.marshal(link.String())
 		if err != nil {
-			return fmt.Errorf("marshal anchor link [%s]: %w", link, err)
+			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
 
-		logger.Debugf("Storing anchor link for hash [%s]: [%s]", anchorHash, linkBytes)
+		logger.Debugf("Storing anchor ref for hash [%s]: [%s]", anchorHash, linkBytes)
 
 		operations[i] = storage.Operation{
 			Key:   getID(link),
@@ -83,7 +83,7 @@ func (s *Store) PutLinks(links []*url.URL) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("store anchor links: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("store anchor refs: %w", err))
 	}
 
 	return nil
@@ -101,10 +101,10 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 
 		linkBytes, err := s.marshal(link.String())
 		if err != nil {
-			return fmt.Errorf("marshal anchor link [%s]: %w", link, err)
+			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
 
-		logger.Debugf("Deleting anchor link for hash [%s]: [%s]", anchorHash, linkBytes)
+		logger.Debugf("Deleting anchor ref for hash [%s]: [%s]", anchorHash, linkBytes)
 
 		operations[i] = storage.Operation{
 			Key: getID(link),
@@ -113,7 +113,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 
 	err := s.store.Batch(operations)
 	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("delete anchor links: %w", err))
+		return orberrors.NewTransient(fmt.Errorf("delete anchor refs: %w", err))
 	}
 
 	return nil
@@ -121,7 +121,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 
 // GetLinks returns the links for the given anchor hash.
 func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
-	logger.Debugf("Retrieving anchor links for hash [%s]...", anchorHash)
+	logger.Debugf("Retrieving anchor refs for hash [%s]...", anchorHash)
 
 	var err error
 
@@ -129,7 +129,7 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, orberrors.NewTransient(fmt.Errorf("failed to get links for anchor [%s] query[%s]: %w",
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to get refs for anchor [%s] query[%s]: %w",
 			anchorHash, query, err))
 	}
 
@@ -167,7 +167,7 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 		}
 	}
 
-	logger.Debugf("Returning anchor links for hash [%s]: %s", anchorHash, links)
+	logger.Debugf("Returning anchor refs for hash [%s]: %s", anchorHash, links)
 
 	return links, nil
 }

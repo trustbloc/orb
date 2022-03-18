@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	storeName           = "activitypub-ref"
+	storeName           = "activity-ref"
 	activityTag         = "Activity"
 	objectIRITagName    = "ObjectIRI"
 	refTypeTagName      = "RefType"

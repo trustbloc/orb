@@ -53,7 +53,7 @@ type CAS struct {
 // If no CID version is specified, then v1 will be used by default.
 func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client,
 	metrics metricsProvider, cacheSize int, opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
-	cas, err := provider.OpenStore("cas_store")
+	cas, err := provider.OpenStore("cas")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
 	}

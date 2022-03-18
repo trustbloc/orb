@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	namespace = "anchor-event-status"
+	namespace = "anchor-status"
 
 	index = "anchorID"
 
@@ -38,7 +38,7 @@ const (
 	defaultCheckStatusAfterTimePeriod = 10 * time.Second
 )
 
-var logger = log.New("anchor-event-status")
+var logger = log.New("anchor-status")
 
 // Option is an option for registered store.
 type Option func(opts *Store)
