@@ -611,8 +611,13 @@ services:
     restart: always
     environment:
       - ORB_SYNC_TIMEOUT=3
-      - ORB_KMS_TYPE=web
-      - ORB_KMS_ENDPOINT=http://orb.kms:7878
+      - ORB_KMS_TYPE=aws
+      - ORB_KMS_ENDPOINT=http://aws-kms:8020
+      - ORB_VC_SIGN_KEYS_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147
+      - ORB_VC_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147
+      - ORB_HTTP_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c148
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.7:443
       - ORB_HOST_METRICS_URL=172.20.0.7:48727
@@ -963,7 +968,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-ceab63d
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-0886cdd
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
@@ -1122,6 +1127,24 @@ services:
     networks:
       orb_net:
         ipv4_address: 172.20.0.22
+
+
+  aws-kms:
+    container_name: aws-kms
+    image: nsmithuk/local-kms:latest
+    environment:
+      - PORT=8020
+      - KMS_SEED_PATH=/init/seed.yaml
+      - KMS_REGION=ca-central-1
+      - KMS_ACCOUNT_ID=111122223333
+    ports:
+      - 8020:8020
+    entrypoint: "local-kms"
+    volumes:
+      - ./aws-config/init:/init/
+    networks:
+      orb_net:
+        ipv4_address: 172.20.0.24
 
 networks:
   orb_net:

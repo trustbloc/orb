@@ -8,8 +8,11 @@ package startcmd
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -21,11 +24,14 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
@@ -33,7 +39,6 @@ import (
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest"
 	ldrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest/ld"
-	acrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
@@ -64,6 +69,7 @@ import (
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
+	awssvc "github.com/trustbloc/kms/pkg/aws"
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -168,7 +174,7 @@ const (
 
 	casPath = "/cas"
 
-	kmsKeyType           = kms.ED25519
+	kmsKeyType           = kms.ED25519Type
 	jsonWebSignature2020 = "JsonWebSignature2020"
 	ed25519Signature2020 = "Ed25519Signature2020"
 
@@ -182,6 +188,18 @@ type pubSub interface {
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
+}
+
+type keyManager interface {
+	Create(kt kms.KeyType) (string, interface{}, error)
+	Get(keyID string) (interface{}, error)
+	ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error)
+	ImportPrivateKey(privKey interface{}, kt kms.KeyType, opts ...kms.PrivateKeyOpts) (string, interface{}, error)
+}
+
+type crypto interface {
+	Sign(msg []byte, kh interface{}) ([]byte, error)
+	Verify(signature, msg []byte, kh interface{}) error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
@@ -241,7 +259,7 @@ func BuildKMSURL(base, uri string) string {
 }
 
 func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
-	store storage.Provider, cfg storage.Store) (kms.KeyManager, acrypto.Crypto, error) {
+	store storage.Provider, cfg storage.Store) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
 	case kmsLocal:
 		secretLockService, err := prepareKeyLock(parameters.kmsParams.secretLockKeyPath)
@@ -283,12 +301,46 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 		keystoreURL = BuildKMSURL(parameters.kmsParams.kmsEndpoint, keystoreURL)
 
 		return webkms.New(keystoreURL, client), webcrypto.New(keystoreURL, client), nil
+	case kmsAWS:
+		region, err := getRegion(parameters.kmsParams.vcSignActiveKeyID)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		awsSession, err := session.NewSession(&aws.Config{
+			Endpoint:                      &parameters.kmsParams.kmsEndpoint,
+			Region:                        aws.String(region),
+			CredentialsChainVerboseErrors: aws.Bool(true),
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		awsSvc := awssvc.New(awsSession)
+
+		return awsSvc, awsSvc, nil
 	}
 
 	return nil, nil, fmt.Errorf("unsupported kms type: %s", parameters.kmsParams.kmsType)
 }
 
-func createKID(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
+func getRegion(keyURI string) (string, error) {
+	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
+	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
+	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):`)
+
+	r := re1.FindStringSubmatch(keyURI)
+
+	const subStringCount = 3
+
+	if len(r) != subStringCount {
+		return "", fmt.Errorf("extracting region from URI failed")
+	}
+
+	return r[2], nil
+}
+
+func createKID(km keyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
 	activeKeyID := &parameters.kmsParams.vcSignActiveKeyID
 	kidKey := vcKidKey
 
@@ -304,7 +356,7 @@ func createKID(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameter
 	}, parameters.syncTimeout)
 }
 
-func importPrivateKey(km kms.KeyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
+func importPrivateKey(km keyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
 	activeKeyID := &parameters.kmsParams.vcSignActiveKeyID
 	privateKeys := parameters.kmsParams.vcSignPrivateKeys
 	kidKey := vcKidKey
@@ -1381,21 +1433,37 @@ func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceI
 	apServicePublicKeyIRI *url.URL) (*vocab.PublicKeyType, error) {
 
 	pemKeyType := ""
+	keyBytes := pubKeyBytes
 
-	switch keyType {
-	case kms.ED25519:
+	switch {
+	case keyType == kms.ED25519:
 		pemKeyType = "Ed25519"
-	case kms.ECDSAP256IEEEP1363:
+	case keyType == kms.ECDSAP256IEEEP1363 || keyType == kms.ECDSAP256DER:
 		pemKeyType = "P-256"
-	case kms.ECDSAP384IEEEP1363:
+	case keyType == kms.ECDSAP384IEEEP1363 || keyType == kms.ECDSAP384DER:
 		pemKeyType = "P-384"
-	case kms.ECDSAP521IEEEP1363:
+	case keyType == kms.ECDSAP521IEEEP1363 || keyType == kms.ECDSAP521DER:
 		pemKeyType = "P-521"
+	}
+
+	if keyType == kms.ECDSAP256DER || keyType == kms.ECDSAP384DER || keyType == kms.ECDSAP521DER {
+		curveMap := map[string]elliptic.Curve{
+			"P-256": elliptic.P256(),
+			"P-384": elliptic.P384(),
+			"P-521": elliptic.P521(),
+		}
+
+		key, err := x509.ParsePKIXPublicKey(pubKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		keyBytes = elliptic.Marshal(curveMap[pemKeyType], key.(*ecdsa.PublicKey).X, key.(*ecdsa.PublicKey).Y)
 	}
 
 	pemBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  pemKeyType,
-		Bytes: pubKeyBytes,
+		Bytes: keyBytes,
 	})
 
 	return vocab.NewPublicKey(
@@ -1413,8 +1481,8 @@ type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
-func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
-	cr acrypto.Crypto) (getSigner signer, postSigner signer) {
+func getActivityPubSigners(parameters *orbParameters, km keyManager,
+	cr crypto) (getSigner signer, postSigner signer) {
 	if parameters.httpSignaturesEnabled {
 		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
 		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
@@ -1426,8 +1494,8 @@ func getActivityPubSigners(parameters *orbParameters, km kms.KeyManager,
 	return
 }
 
-func getActivityPubVerifier(parameters *orbParameters, km kms.KeyManager,
-	cr acrypto.Crypto, apClient *client.Client) signatureVerifier {
+func getActivityPubVerifier(parameters *orbParameters, km keyManager,
+	cr crypto, apClient *client.Client) signatureVerifier {
 	if parameters.httpSignaturesEnabled {
 		return httpsig.NewVerifier(apClient, cr, km)
 	}

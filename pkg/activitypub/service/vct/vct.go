@@ -135,6 +135,22 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 
 	signStartTime := time.Now()
 
+	for _, signerCtx := range c.signer.Context() {
+		exist := false
+
+		for _, vcCtx := range vc.Context {
+			if vcCtx == signerCtx {
+				exist = true
+
+				break
+			}
+		}
+
+		if !exist {
+			vc.Context = append(vc.Context, signerCtx)
+		}
+	}
+
 	// adds linked data proof
 	vc, err = c.signer.Sign(vc, opts...) // sets created time from the VCT.
 

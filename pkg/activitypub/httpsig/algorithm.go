@@ -11,9 +11,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/hyperledger/aries-framework-go/pkg/crypto"
 	ariesverifier "github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 )
 
@@ -26,14 +24,14 @@ type keyResolver interface {
 
 // SignatureHashAlgorithm is a custom httpsignatures.SignatureHashAlgorithm that uses KMS to sign HTTP requests.
 type SignatureHashAlgorithm struct {
-	Crypto      crypto.Crypto
-	KMS         kms.KeyManager
+	Crypto      crypto
+	KMS         keyManager
 	keyResolver keyResolver
 	keyID       string
 }
 
 // NewSignerAlgorithm returns a new SignatureHashAlgorithm which uses KMS to sign HTTP requests.
-func NewSignerAlgorithm(c crypto.Crypto, km kms.KeyManager, keyID string) *SignatureHashAlgorithm {
+func NewSignerAlgorithm(c crypto, km keyManager, keyID string) *SignatureHashAlgorithm {
 	return &SignatureHashAlgorithm{
 		Crypto: c,
 		KMS:    km,
@@ -43,7 +41,7 @@ func NewSignerAlgorithm(c crypto.Crypto, km kms.KeyManager, keyID string) *Signa
 
 // NewVerifierAlgorithm returns a new SignatureHashAlgorithm which is used to verify the signature
 // in the HTTP request header.
-func NewVerifierAlgorithm(c crypto.Crypto, km kms.KeyManager, keyResolver keyResolver) *SignatureHashAlgorithm {
+func NewVerifierAlgorithm(c crypto, km keyManager, keyResolver keyResolver) *SignatureHashAlgorithm {
 	return &SignatureHashAlgorithm{
 		Crypto:      c,
 		KMS:         km,
@@ -91,7 +89,7 @@ func (a *SignatureHashAlgorithm) Verify(secret httpsig.Secret, data, signature [
 		return ariesverifier.NewECDSAES256SignatureVerifier().Verify(pubKey, data, signature)
 	case "P-384":
 		return ariesverifier.NewECDSAES384SignatureVerifier().Verify(pubKey, data, signature)
-	case "P-512":
+	case "P-521x":
 		return ariesverifier.NewECDSAES521SignatureVerifier().Verify(pubKey, data, signature)
 	}
 
