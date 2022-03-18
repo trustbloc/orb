@@ -76,18 +76,18 @@ func TestNew(t *testing.T) {
 	})
 	t.Run("Failed to open inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
-			openStoreNameToFailOn: "activitypub-ref",
+			openStoreNameToFailOn: "activity-ref",
 		}, true)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to open activitypub-ref store: open store error")
+			"failed to open activity-ref store: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
-			setStoreConfigNameToFailOn: "activitypub-ref",
+			setStoreConfigNameToFailOn: "activity-ref",
 		}, true)
 		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to set store configuration on activitypub-ref store: set store config error")
+			"failed to set store configuration on activity-ref store: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open actor store", func(t *testing.T) {
