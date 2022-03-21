@@ -181,7 +181,9 @@ const (
         },
         {
           "href": "did:orb:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw",
-          "previous": "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA"
+          "previous": [
+            "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA"
+          ]
         }
       ],
       "profile": "https://w3id.org/orb#v0"
@@ -197,11 +199,15 @@ const (
       "item": [
         {
           "href": "did:orb:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA:EiCy2r_iTGOyQ83z_sTRF9rqdCFGU5sDV923tg2R_gI9CQ",
-          "previous": "hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA"
+          "previous": [
+            "hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA"
+          ]
         },
         {
           "href": "did:orb:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA:EiC80po42xkPwvw_AgECOF-qey3PjkfQ2VaaCVaPmIsjjg",
-          "previous": "hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA"
+          "previous": [
+            "hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA"
+          ]
         }
       ],
       "profile": "https://w3id.org/orb#v0"
