@@ -10,7 +10,7 @@ Feature:
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "${ORB_BACKUP_READ_TOKEN}"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "${ORB_BACKUP_WRITE_TOKEN}"
 
-    Then client sends request to domains "${ORB_BACKUP_DID_DOMAINS}" to create "${ORB_BACKUP_NUM_DIDS}" DID documents using "${ORB_BACKUP_CONCURRENCY}" concurrent requests storing the dids to file "${ORB_BACKUP_CREATED_DIDS_FILE}"
+    Then client sends request to domains "${ORB_BACKUP_DID_DOMAINS}" to create "${ORB_BACKUP_NUM_DIDS}" DID documents using "${ORB_BACKUP_CONCURRENCY}" concurrent requests and a maximum of "${ORB_BACKUP_CREATE_ATTEMPTS}" attempts, storing the dids to file "${ORB_BACKUP_CREATED_DIDS_FILE}"
 
   @verify_created_dids_from_file
   Scenario: Verify the DIDs in the given file. (Uses environment variables.)
@@ -39,5 +39,5 @@ Feature:
     And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
     When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
-    Then client sends request to domains "https://orb.domain1.com" to create "50" DID documents using "5" concurrent requests storing the dids to file "./fixtures/dids.txt"
+    Then client sends request to domains "https://orb.domain1.com" to create "50" DID documents using "5" concurrent requests and a maximum of "2" attempts, storing the dids to file "./fixtures/dids.txt"
     And client sends request to domains "https://orb.domain1.com" to verify the DID documents that were created from file "./fixtures/dids.txt" with a maximum of "25" attempts
