@@ -47,7 +47,6 @@ const (
 	// Share indicates that the reference is an 'Announce' activity that was shared.
 	Share ReferenceType = "SHARE"
 	// AnchorLinkset indicates that the reference is an anchor Linkset.
-	// FIXME: Is this the right name?
 	AnchorLinkset ReferenceType = "ANCHOR_LINKSET"
 )
 

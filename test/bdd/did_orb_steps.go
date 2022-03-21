@@ -1291,10 +1291,10 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 		localUrls[i] = localURL
 	}
 
-	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
+	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 0)
 }
 
-func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurrency int) error {
+func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, attempts int) error {
 	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
 
 	d.createResponses = nil
@@ -1304,10 +1304,18 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurren
 	p.Start()
 
 	for i := 0; i < num; i++ {
-		p.Submit(&createDIDRequest{
-			url:        urls[mrand.Intn(len(urls))],
-			httpClient: d.httpClient,
-		})
+		p.Submit(
+			newCreateDIDRequest(d.httpClient, urls[mrand.Intn(len(urls))], attempts,
+				func(resp *httpResponse, err error) bool {
+					if err != nil {
+						return strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) ||
+							strings.Contains(strings.ToLower(err.Error()), strings.ToLower("connection refused"))
+					}
+
+					return resp.StatusCode >= 500
+				},
+			),
+		)
 	}
 
 	p.Stop()
@@ -1336,7 +1344,11 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num int, concurren
 }
 
 func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strConcurrency string, file string) error {
-	if err := d.state.resolveVarsInExpression(&strURLs, &file, &strNum, &strConcurrency); err != nil {
+	return d.createDIDDocumentsWithRetriesAndStoreDIDsToFile(strURLs, strNum, strConcurrency, "30", file)
+}
+
+func (d *DIDOrbSteps) createDIDDocumentsWithRetriesAndStoreDIDsToFile(strURLs, strNum, strConcurrency string, strMaxAttempts string, file string) error {
+	if err := d.state.resolveVarsInExpression(&strURLs, &file, &strNum, &strConcurrency, &strMaxAttempts); err != nil {
 		return err
 	}
 
@@ -1348,6 +1360,15 @@ func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strC
 	concurrency, err := strconv.Atoi(strConcurrency)
 	if err != nil {
 		return fmt.Errorf("invalid value for concurrency: %w", err)
+	}
+
+	if strMaxAttempts == "" {
+		strMaxAttempts = "1"
+	}
+
+	maxAttempts, err := strconv.Atoi(strMaxAttempts)
+	if err != nil {
+		return fmt.Errorf("invalid value for maximum attempts: %w", err)
 	}
 
 	urls := strings.Split(strURLs, ",")
@@ -1363,10 +1384,14 @@ func (d *DIDOrbSteps) createDIDDocumentsAndStoreDIDsToFile(strURLs, strNum, strC
 		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", localURL)
 	}
 
-	logger.Warnf("creating %d DID document(s) at %s using a concurrency of %d and storing to file [%s]",
-		num, urls, concurrency, file)
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
 
-	err = d.createDIDDocumentsAtURLs(localUrls, num, concurrency)
+	logger.Warnf("creating %d DID document(s) at %s using a concurrency of %d and a maximum of %d attempt(s) and storing to file [%s]",
+		num, urls, concurrency, maxAttempts, file)
+
+	err = d.createDIDDocumentsAtURLs(localUrls, num, concurrency, maxAttempts)
 	if err != nil {
 		return err
 	}
@@ -1837,8 +1862,11 @@ func (d *DIDOrbSteps) newReader(file string) (io.Reader, error) {
 }
 
 type createDIDRequest struct {
-	url        string
-	httpClient *httpClient
+	url         string
+	httpClient  *httpClient
+	shouldRetry func(*httpResponse, error) bool
+	maxAttempts int
+	backoff     time.Duration
 }
 
 type createDIDResponse struct {
@@ -1846,6 +1874,16 @@ type createDIDResponse struct {
 	recoveryKey *ecdsa.PrivateKey
 	updateKey   *ecdsa.PrivateKey
 	reqBytes    []byte
+}
+
+func newCreateDIDRequest(httpClient *httpClient, url string, attempts int, shouldRetry func(*httpResponse, error) bool) *createDIDRequest {
+	return &createDIDRequest{
+		url:         url,
+		httpClient:  httpClient,
+		shouldRetry: shouldRetry,
+		maxAttempts: attempts,
+		backoff:     3 * time.Second,
+	}
 }
 
 func (r *createDIDRequest) Invoke() (interface{}, error) {
@@ -1861,9 +1899,50 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		return nil, err
 	}
 
-	resp, err := r.httpClient.Post(r.url, reqBytes, "application/json")
-	if err != nil {
-		return "", err
+	var resp *httpResponse
+
+	var respErr error
+
+	maxAttempts := r.maxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+
+	for i := 0; i < maxAttempts; i++ {
+		logger.Infof("Posting request to [%s] on attempt #%d", r.url, i+1)
+
+		resp, respErr = r.httpClient.Post(r.url, reqBytes, "application/json")
+		if respErr != nil {
+			if r.shouldRetry(nil, respErr) {
+				logger.Infof("Error posting request to [%s]: %s. Retrying in %s", r.url, respErr, r.backoff)
+
+				time.Sleep(r.backoff)
+
+				continue
+			}
+
+			logger.Infof("Error posting request to [%s]: %s. Not retrying.", r.url, respErr)
+
+			return "", respErr
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			respErr = nil
+
+			break
+		}
+
+		if !r.shouldRetry(resp, nil) {
+			logger.Infof("Got HTTP response from [%s]: %d:%s. Not retrying.", r.url, resp.StatusCode, resp.ErrorMsg)
+
+			return "", respErr
+		}
+
+		logger.Infof("Got HTTP response from [%s]: %d:%s. Retrying in %s", r.url, resp.StatusCode, resp.ErrorMsg, r.backoff)
+	}
+
+	if respErr != nil {
+		return "", respErr
 	}
 
 	logger.Infof("... got DID document: %s", resp.Payload)
@@ -1958,6 +2037,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
+	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests and a maximum of "([^"]*)" attempts, storing the dids to file "([^"]*)"$`, d.createDIDDocumentsWithRetriesAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
 	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)" with a maximum of "([^"]*)" attempts$`, d.verifyDIDDocumentsFromFile)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)

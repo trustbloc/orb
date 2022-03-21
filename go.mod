@@ -8,7 +8,6 @@ require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
 	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.3
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
-	github.com/aws/aws-sdk-go v1.37.0
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/cenkalti/backoff v2.2.1+incompatible
@@ -71,7 +70,6 @@ require (
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.8 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.1-0.20210503002446-7b7597926c69 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect

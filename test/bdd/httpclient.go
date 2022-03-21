@@ -204,7 +204,7 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 
 	payload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		logger.Infof("Error reading response body from [%s]: %s", url, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
