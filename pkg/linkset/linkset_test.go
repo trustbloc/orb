@@ -53,6 +53,20 @@ func TestNil(t *testing.T) {
 		require.Nil(t, item.Previous())
 	})
 
+	t.Run("empty item", func(t *testing.T) {
+		item := &Item{}
+
+		require.Nil(t, item.HRef())
+		require.Nil(t, item.Previous())
+	})
+
+	t.Run("no URLs in item", func(t *testing.T) {
+		item := NewItem(nil, nil)
+
+		require.Nil(t, item.HRef())
+		require.Nil(t, item.Previous())
+	})
+
 	t.Run("nil reference", func(t *testing.T) {
 		var ref *Reference
 
@@ -521,7 +535,9 @@ const (
       "item": [
         {
           "href": "did:orb:uAAA:EiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA",
-          "previous": "hl:uEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw"
+          "previous": [
+            "hl:uEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw"
+          ]
         },
         {
           "href": "did:orb:uAAA:EiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB"
@@ -566,18 +582,18 @@ const (
 	linksetGZIPBase64JSON = `{
   "linkset": [
     {
-      "anchor": "hl:uEiBproTeqsh-dh3Fx236NS8fMsmqvOalzUCDi6Puc2nvyg",
+      "anchor": "hl:uEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA",
       "author": "https://orb.domain2.com/services/orb",
       "original": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/6TQUW+6MBQF8O9y/6+o+F9mYt/KJA4z1IyJY4tZoC1QpVTaUtwM331hWZa97/nm5vzOuULF65NmBtDrFdKalFIBgrJCrc/v4jga1W53cTc585+9cH4ky/WGhD5WSbLfBpfT7eKtms/eowIcSFvz/W3MWaPJRKpsTKVIef1/TKSYaKYsJ0wPB3CAGya+YkvFckBAOUVSZajFGCOfe/m+YXiV+2t2/4A9nQSJ0EFjTqNMC7sS8nEWFEFEZy8EgwNnxSyXrf7R4xhvyyPrwp1Nu4VbVKMwCT/s0zZud3i6OG+mkfAassxK20Hv/JmBqQf9YYDInFfs1w7dDadjqYqh9z/rQn/oPwMAAP//jfanTXgBAAA=",
+          "href": "data:application/gzip;base64,H4sIAAAAAAAA/6TQUW+CMBQF4P9y94qKW2Zi38okDjPUjIljxizQFqhSqm0pbob/vrD4sPc939yc75wrVLw+amYA7a6Q1qSUChCUFWp8/hTH0aB224u7ypn/7oXTA5kvVyT0sUqS7Tq4HB9nn9V08hUV4EDamNu3MSeNRiOpsiGVIuX1/ZBIMdJMWU6Y7g/gADdM/MaWiuWAgHKKpMpQgzFGPvfy7ZnhRe4v2fML9nQSJEIHZ3McZFrYhZCvk6AIIjr5IBgcOClmuWw0oN2Nj2O8Lg+sDTc2bWduUQ3CJPy2b+u42eDx7LQaR8I7k3lW2hb2nfNvCKYedPueInNesT9LtA+cDqUq+uZ31oVu3/0EAAD//25CM696AQAA",
           "type": "application/linkset+json"
         }
       ],
       "profile": "https://w3id.org/orb#v0",
       "related": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/8zQ3ZKaMADF8XdJb7Uidl3hTlZ02zEIYrJCx+lgEgiIhM8E3OHdO+1FZzr7AvsAZ/6/Oe8gT4tbw1pg/nwHUUG4qIEJeG52dmqVtTixquFTyhfbXl8sHX8Vw+ZeyUOUP9DLJl26HdELOSRgAspaxGnO/szbtmzM2UwtUvpV1MlM1NcvUgMT0JV/Q7xm8b/MGq9dnjEFkYzURkvyKQzgQ55c3KH1fFMe5v7dqsjuyqUyO+FNLWa3gr4eFXkIudeNIUifbld9zqO3b8P+7sirb2TBGUqKcOnh0EI7XoVn6uBzyKnmqVBX7QnnDitChLbhHCO7P75aLsRO6xXb7Kj/ELQgYJx8pHr/U/efhXqZAJlGH999wdifFprqtUPM7LMFjYzsnAOB9roOgjf3e3972vzKjeXgJyYlLKaMsJXBumdj9QzGy3gZfwcAAP//zjdupiUCAAA=",
+          "href": "data:application/gzip;base64,H4sIAAAAAAAA/8zQ226bMADG8XfxbpOFHNrG3MFC0nXBQBK7wBRVYBvMoZhSsJNWvPu03UxTXmAP8On/0/cJ6qKp3nkPzJ+fIGmokB0wgajNwSks6IXbJ7/2kD2caLGcOj9872XV2HlQeTFEcIWX6+x+j9YbC0xA28msqPnved+37+ZsppcF+yq7fCa79IsywAQM7Z+Q6Hj2N0MsX5Rcu1glemPk9dSN3A918smArfmm9ebHV/uN7lKhtDnIYGpzp5fs8aDph1T7BbxGxV2VLuYieV5d969IpUdYRqGrGCZtQGIb78RbHDJEwlgwI9DxQvcnUiPexBhv4znBzuXwaPsuQX3QbMvD4kmyhoJxcksN/qXu/xfqeQJUkdy++42Q47Qx9MXwMu6EtgtLukMedR2ri6Jn//ulutu81PD+esxNRnnGOOVryIcHuH4A43k8j78CAAD//7QLA0AlAgAA",
           "type": "application/linkset+json"
         }
       ],
@@ -595,18 +611,18 @@ const (
 	linksetURLEncodedJSON = `{
   "linkset": [
     {
-      "anchor": "hl:uEiBproTeqsh-dh3Fx236NS8fMsmqvOalzUCDi6Puc2nvyg",
+      "anchor": "hl:uEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA",
       "author": "https://orb.domain2.com/services/orb",
       "original": [
         {
-          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain2.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA%22%2C%22previous%22%3A%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain2.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA%22%2C%22previous%22%3A%5B%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%22%5D%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],
       "profile": "https://w3id.org/orb#v0",
       "related": [
         {
-          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBproTeqsh-dh3Fx236NS8fMsmqvOalzUCDi6Puc2nvyg%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%2C%7B%22href%22%3A%22hl%3AuEiAVAQhjewMUvawD0gl-LYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%3Adcefdece89eu7987%22%7D%5D%7D%5D%7D",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%2C%7B%22href%22%3A%22hl%3AuEiAVAQhjewMUvawD0gl-LYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%3Adcefdece89eu7987%22%7D%5D%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],

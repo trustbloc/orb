@@ -394,8 +394,8 @@ type Item struct {
 }
 
 type item struct {
-	HRef     *vocab.URLProperty `json:"href"`
-	Previous *vocab.URLProperty `json:"previous,omitempty"`
+	HRef     *vocab.URLProperty     `json:"href"`
+	Previous *urlCollectionProperty `json:"previous,omitempty"`
 }
 
 // NewItem returns a new Item.
@@ -403,14 +403,14 @@ func NewItem(href, previous *url.URL) *Item {
 	return &Item{
 		item: &item{
 			HRef:     vocab.NewURLProperty(href),
-			Previous: vocab.NewURLProperty(previous),
+			Previous: newURLCollectionProperty(previous),
 		},
 	}
 }
 
 // HRef returns the DID (as a URI).
 func (i *Item) HRef() *url.URL {
-	if i == nil {
+	if i == nil || i.item == nil {
 		return nil
 	}
 
@@ -419,11 +419,17 @@ func (i *Item) HRef() *url.URL {
 
 // Previous returns the previous anchor or nil (for create operations).
 func (i *Item) Previous() *url.URL {
-	if i == nil {
+	if i == nil || i.item == nil {
 		return nil
 	}
 
-	return i.item.Previous.URL()
+	urls := i.item.Previous.URLs()
+
+	if len(urls) == 0 {
+		return nil
+	}
+
+	return urls[0]
 }
 
 // MarshalJSON marshals the object to JSON.
@@ -481,6 +487,64 @@ func validateReplies(replies []*Reference) error {
 	if _, err := replies[0].Content(); err != nil {
 		return fmt.Errorf("invalid 'replies' content: %w", err)
 	}
+
+	return nil
+}
+
+type urlCollectionProperty struct {
+	urls []*vocab.URLProperty
+}
+
+func newURLCollectionProperty(urls ...*url.URL) *urlCollectionProperty {
+	if len(urls) == 0 {
+		return nil
+	}
+
+	p := &urlCollectionProperty{}
+
+	for _, u := range urls {
+		if u != nil {
+			p.urls = append(p.urls, vocab.NewURLProperty(u))
+		}
+	}
+
+	if len(p.urls) == 0 {
+		return nil
+	}
+
+	return p
+}
+
+func (p *urlCollectionProperty) URLs() []*url.URL {
+	if p == nil || len(p.urls) == 0 {
+		return nil
+	}
+
+	urls := make([]*url.URL, len(p.urls))
+
+	for i, p := range p.urls {
+		urls[i] = p.URL()
+	}
+
+	return urls
+}
+
+func (p *urlCollectionProperty) MarshalJSON() ([]byte, error) {
+	if len(p.urls) == 0 {
+		return nil, nil
+	}
+
+	return json.Marshal(p.urls)
+}
+
+func (p *urlCollectionProperty) UnmarshalJSON(bytes []byte) error {
+	var iris []*vocab.URLProperty
+
+	if err := json.Unmarshal(bytes, &iris); err != nil {
+		return err
+	}
+
+	p.urls = iris
 
 	return nil
 }
