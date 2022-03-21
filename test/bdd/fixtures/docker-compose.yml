@@ -613,9 +613,9 @@ services:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_TYPE=aws
       - ORB_KMS_ENDPOINT=http://aws-kms:8020
-      - ORB_VC_SIGN_KEYS_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c147
-      - ORB_HTTP_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/800d5768-3fd7-4edd-a4b8-4c81c3e4c148
+      - ORB_VC_SIGN_KEYS_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/alias/vc-sign
+      - ORB_VC_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/alias/vc-sign
+      - ORB_HTTP_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:key/alias/http-sign
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
