@@ -32,7 +32,7 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220311181400-584f96318d6d // indirect
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220318173919-cda9678168f3 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee // indirect
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21 // indirect
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21 // indirect

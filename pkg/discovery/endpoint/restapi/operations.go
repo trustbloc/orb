@@ -188,7 +188,7 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 // Responses:
 //    default: genericError
 //        200: wellKnownDIDResp
-func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
+func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop
 	ID := "did:web:" + o.host
 
 	rawDoc := &ariesdid.Doc{
@@ -204,7 +204,8 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 			vm = ariesdid.NewVerificationMethodFromBytesWithMultibase(ID+"#"+key.ID,
 				"Ed25519VerificationKey2020", ID, key.Value, multibase.Base58BTC)
 		case key.Type == kms.ECDSAP256IEEEP1363 || key.Type == kms.ECDSAP384IEEEP1363 ||
-			key.Type == kms.ECDSAP521IEEEP1363:
+			key.Type == kms.ECDSAP521IEEEP1363 || key.Type == kms.ECDSAP256DER ||
+			key.Type == kms.ECDSAP384TypeDER || key.Type == kms.ECDSAP521TypeDER:
 			jwk, err := jwksupport.PubKeyBytesToJWK(key.Value, key.Type)
 			if err != nil {
 				writeErrorResponse(rw, http.StatusInternalServerError, err.Error())

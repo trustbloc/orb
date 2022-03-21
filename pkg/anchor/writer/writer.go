@@ -360,6 +360,22 @@ func (c *Writer) signCredentialWithServerKey(vc *verifiable.Credential) (*verifi
 	startTime := time.Now()
 	defer func() { c.metrics.WriteAnchorSignWithServerKeyTime(time.Since(startTime)) }()
 
+	for _, signerCtx := range c.Signer.Context() {
+		exist := false
+
+		for _, vcCtx := range vc.Context {
+			if vcCtx == signerCtx {
+				exist = true
+
+				break
+			}
+		}
+
+		if !exist {
+			vc.Context = append(vc.Context, signerCtx)
+		}
+	}
+
 	signedVC, err := c.Signer.Sign(vc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign anchor credential[%s]: %w", vc.ID, err)

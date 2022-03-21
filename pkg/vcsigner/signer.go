@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	ariescrypto "github.com/hyperledger/aries-framework-go/pkg/crypto"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/jsonld"
 	ariessigner "github.com/hyperledger/aries-framework-go/pkg/doc/signature/signer"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite"
@@ -20,7 +19,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/ed25519signature2020"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/suite/jsonwebsignature2020"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -45,6 +43,14 @@ type metricsProvider interface {
 	SignerAddLinkedDataProof(value time.Duration)
 }
 
+type keyManager interface {
+	Get(keyID string) (interface{}, error)
+}
+
+type crypto interface {
+	Sign(msg []byte, kh interface{}) ([]byte, error)
+}
+
 // SigningParams contains required parameters for signing anchored credential.
 type SigningParams struct {
 	VerificationMethod string
@@ -55,8 +61,8 @@ type SigningParams struct {
 // Providers contains all of the providers required by verifiable credential signer.
 type Providers struct {
 	DocLoader  ld.DocumentLoader
-	KeyManager kms.KeyManager
-	Crypto     ariescrypto.Crypto
+	KeyManager keyManager
+	Crypto     crypto
 	Metrics    metricsProvider
 }
 
@@ -140,9 +146,9 @@ func (s *Signer) Sign(vc *verifiable.Credential, opts ...Opt) (*verifiable.Crede
 // Context return context.
 func (s *Signer) Context() []string {
 	if s.params.SignatureSuite == JSONWebSignature2020 {
-		return []string{ctxJWS}
+		return []string{ctxJWS, ctxEd25519Signature2020}
 	} else if s.params.SignatureSuite == Ed25519Signature2020 {
-		return []string{ctxEd25519Signature2020}
+		return []string{ctxJWS, ctxEd25519Signature2020}
 	}
 
 	return []string{}
@@ -216,11 +222,11 @@ type signer interface {
 
 type kmsSigner struct {
 	keyHandle interface{}
-	crypto    ariescrypto.Crypto
+	crypto    crypto
 	metrics   metricsProvider
 }
 
-func newKMSSigner(keyManager kms.KeyManager, c ariescrypto.Crypto, verificationMethod string,
+func newKMSSigner(keyManager keyManager, c crypto, verificationMethod string,
 	metrics metricsProvider) (*kmsSigner, error) {
 	// verification will contain did key ID
 	keyID, err := getKeyIDFromVerificationMethod(verificationMethod)

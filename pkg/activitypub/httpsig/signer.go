@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/trustbloc/edge-core/pkg/log"
 )
@@ -46,6 +44,14 @@ type signer interface {
 	Sign(secretKeyID string, r *http.Request) error
 }
 
+type keyManager interface {
+	Get(keyID string) (interface{}, error)
+}
+
+type crypto interface {
+	Sign(msg []byte, kh interface{}) ([]byte, error)
+}
+
 // Signer signs HTTP requests.
 type Signer struct {
 	SignerConfig
@@ -53,7 +59,7 @@ type Signer struct {
 }
 
 // NewSigner returns a new signer.
-func NewSigner(cfg SignerConfig, cr crypto.Crypto, km kms.KeyManager, keyID string) *Signer {
+func NewSigner(cfg SignerConfig, cr crypto, km keyManager, keyID string) *Signer {
 	algo := NewSignerAlgorithm(cr, km, keyID)
 	secretRetriever := &SecretRetriever{}
 

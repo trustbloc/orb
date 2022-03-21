@@ -1,0 +1,23 @@
+Keys:
+  Asymmetric:
+    Ecc:
+      - Metadata:
+          KeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c147
+          KeyUsage: SIGN_VERIFY
+          Description: ECC key with curve p256
+        PrivateKeyPem: |
+          -----BEGIN EC PRIVATE KEY-----
+          MHcCAQEEIHgnqP6pOtH2kRlTJRWwMY3Hm/R7dSUUdxCTQOaWvbUZoAoGCCqGSM49
+          AwEHoUQDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya
+          5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA==
+          -----END EC PRIVATE KEY-----
+      - Metadata:
+          KeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c148
+          KeyUsage: SIGN_VERIFY
+          Description: ECC key with curve p256
+        PrivateKeyPem: |
+          -----BEGIN EC PRIVATE KEY-----
+          MHcCAQEEIBT16F5ICzCgLqFXwa3sD8CznDaEBNXyYw6S1tW7b6OLoAoGCCqGSM49
+          AwEHoUQDQgAEYH7+MO+X0YPnGkvK1Nmy/4/r9HpgPPku9gjw3k3zOl+PTbu7iEL2
+          gsiH/KHaFbeMoMcj5Tv0OkA/EKfuzd0imQ==
+          -----END EC PRIVATE KEY-----

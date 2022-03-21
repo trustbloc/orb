@@ -42,16 +42,6 @@ const (
 	kmsEndpointFlagUsage = "KMS URL." +
 		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
 
-	kmsAccessKeyIDFlagName  = "kms-access-key-id"
-	kmsAccessKeyIDEnvKey    = "ORB_KMS_ACCESS_KEY_ID"
-	kmsAccessKeyIDFlagUsage = "KMS access key id." +
-		" Alternatively, this can be set with the following environment variable: " + kmsAccessKeyIDEnvKey
-
-	kmsAccessKeySecretFlagName  = "kms-access-key-secret"
-	kmsAccessKeySecretEnvKey    = "ORB_KMS_ACCESS_KEY_SECRET"
-	kmsAccessKeySecretFlagUsage = "KMS access key secret." +
-		" Alternatively, this can be set with the following environment variable: " + kmsAccessKeySecretEnvKey
-
 	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
 	vcSignActiveKeyIDEnvKey    = "ORB_VC_SIGN_ACTIVE_KEY_ID"
 	vcSignActiveKeyIDFlagUsage = "VC Sign Active Key ID (ED25519Type)." +
@@ -719,9 +709,6 @@ type kmsParameters struct {
 	httpSignActiveKeyID      string
 	httpSignPrivateKey       map[string]string
 	secretLockKeyPath        string
-	kmsKeyURI                string
-	kmsAccessKeyID           string
-	kmsAccessKeySecret       string
 }
 
 func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
@@ -737,8 +724,6 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 	}
 
 	kmsEndpoint := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey)
-	kmsAccessKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsAccessKeyIDFlagName, kmsAccessKeyIDEnvKey)
-	kmsAccessKeySecret := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsAccessKeySecretFlagName, kmsAccessKeySecretEnvKey)
 
 	secretLockKeyPath := cmdutils.GetUserSetOptionalVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey)
 	keyDatabaseType, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
@@ -787,8 +772,6 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 		httpSignActiveKeyID:      httpSignActiveKeyID,
 		httpSignPrivateKey:       httpSignPrivateKey,
 		secretLockKeyPath:        secretLockKeyPath,
-		kmsAccessKeyID:           kmsAccessKeyID,
-		kmsAccessKeySecret:       kmsAccessKeySecret,
 		kmsSecretsDatabaseType:   keyDatabaseType,
 		kmsSecretsDatabaseURL:    keyDatabaseURL,
 		kmsSecretsDatabasePrefix: keyDatabasePrefix,
@@ -1856,8 +1839,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(httpSignPrivateKeyFlagName, "", []string{}, httpSignPrivateKeyFlagUsage)
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().String(kmsTypeFlagName, "", kmsTypeFlagUsage)
-	startCmd.Flags().String(kmsAccessKeyIDFlagName, "", kmsAccessKeyIDFlagUsage)
-	startCmd.Flags().String(kmsAccessKeySecretFlagName, "", kmsAccessKeySecretFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)

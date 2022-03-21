@@ -12,8 +12,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/hyperledger/aries-framework-go/pkg/crypto"
-	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -40,7 +38,7 @@ type Verifier struct {
 }
 
 // NewVerifier returns a new HTTP signature verifier.
-func NewVerifier(actorRetriever actorRetriever, cr crypto.Crypto, km kms.KeyManager) *Verifier {
+func NewVerifier(actorRetriever actorRetriever, cr crypto, km keyManager) *Verifier {
 	algo := NewVerifierAlgorithm(cr, km, NewKeyResolver(actorRetriever))
 	secretRetriever := &SecretRetriever{}
 

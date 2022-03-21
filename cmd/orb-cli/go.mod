@@ -9,7 +9,7 @@ go 1.17
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220311181400-584f96318d6d
+	github.com/hyperledger/aries-framework-go v0.1.8-0.20220318173919-cda9678168f3
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220314131033-2c80f2db01c9
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee
 	github.com/ipfs/go-ipfs-api v0.2.0
