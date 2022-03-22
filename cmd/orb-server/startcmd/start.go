@@ -242,7 +242,7 @@ func createStartCmd() *cobra.Command {
 				return err
 			}
 
-			logger.Infof("Orb parameters: %+v", parameters)
+			logger.Debugf("Orb parameters: %+v", parameters)
 
 			return startOrbServices(parameters)
 		},
