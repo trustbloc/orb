@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package monitoring_test
+package proofmonitoring_test
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	. "github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
+	. "github.com/trustbloc/orb/pkg/activitypub/service/vct/proofmonitoring"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )

@@ -55,10 +55,12 @@ type Store struct {
 
 // LogMonitor provides information about log monitor.
 type LogMonitor struct {
-	Log        string
+	Log    string
+	STH    *command.GetSTHResponse
+	PubKey []byte
+
 	Active     bool
 	Processing bool
-	STH        *command.GetSTHResponse
 }
 
 // Activate stores a log to be monitored. If it already exists active flag will be set to true.
