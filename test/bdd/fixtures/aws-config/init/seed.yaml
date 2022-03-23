@@ -21,9 +21,22 @@ Keys:
           AwEHoUQDQgAEYH7+MO+X0YPnGkvK1Nmy/4/r9HpgPPku9gjw3k3zOl+PTbu7iEL2
           gsiH/KHaFbeMoMcj5Tv0OkA/EKfuzd0imQ==
           -----END EC PRIVATE KEY-----
+      - Metadata:
+          KeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c149
+          KeyUsage: SIGN_VERIFY
+          Description: ECC key with curve p256
+        PrivateKeyPem: |
+          -----BEGIN EC PRIVATE KEY-----
+          MHcCAQEEIP2oNkt4/j9iyLS/zPmuINXBW2LuFs1e/6vp18rElQzToAoGCCqGSM49
+          AwEHoUQDQgAEfCc/5CT+K59Dv7+r+MiVX+ARfMeFK9CwdLlicTyjoNJdhFfP4/wn
+          VfXg+vLjrqBYFsYzgokTSTZBSk72WF1RrQ==
+          -----END EC PRIVATE KEY-----
 Aliases:
   - AliasName: alias/vc-sign
     TargetKeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c147
 
   - AliasName: alias/http-sign
     TargetKeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c148
+
+  - AliasName: alias/log-sign
+    TargetKeyId: 800d5768-3fd7-4edd-a4b8-4c81c3e4c149
