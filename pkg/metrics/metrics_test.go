@@ -93,6 +93,12 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.GetCreateOperationResultTime(time.Second) })
 		require.NotPanics(t, func() { m.HTTPCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.HTTPResolveTime(time.Second) })
+		require.NotPanics(t, func() { m.SignCount() })
+		require.NotPanics(t, func() { m.SignTime(time.Second) })
+		require.NotPanics(t, func() { m.ExportPublicKeyCount() })
+		require.NotPanics(t, func() { m.ExportPublicKeyTime(time.Second) })
+		require.NotPanics(t, func() { m.VerifyCount() })
+		require.NotPanics(t, func() { m.VerifyTime(time.Second) })
 	})
 }
 
