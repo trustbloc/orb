@@ -199,7 +199,6 @@ type keyManager interface {
 
 type crypto interface {
 	Sign(msg []byte, kh interface{}) ([]byte, error)
-	Verify(signature, msg []byte, kh interface{}) error
 }
 
 // HTTPServer represents an actual HTTP server implementation.
@@ -316,7 +315,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			return nil, nil, err
 		}
 
-		awsSvc := awssvc.New(awsSession)
+		awsSvc := awssvc.New(awsSession, metrics.Get())
 
 		return awsSvc, awsSvc, nil
 	}

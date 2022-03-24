@@ -133,6 +133,15 @@ const (
 	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
 	coreHTTPCreateUpdateTimeMetrics       = "http_create_update_seconds"
 	coreHTTPResolveTimeMetrics            = "http_resolve_seconds"
+
+	// AWS kms.
+	aws                           = "aws"
+	awsSignCountMetric            = "sign_count"
+	awsSignTimeMetric             = "sign_seconds"
+	awsExportPublicKeyCountMetric = "export_publickey_count"
+	awsExportPublicKeyTimeMetric  = "export_publickey_seconds"
+	awsVerifyCountMetric          = "Verify_count"
+	awsVerifyTimeMetric           = "Verify_seconds"
 )
 
 var logger = log.New("metrics")
@@ -228,6 +237,13 @@ type Metrics struct {
 	coreGetCreateOperationResultTime prometheus.Histogram
 	coreHTTPCreateUpdateTime         prometheus.Histogram
 	coreHTTPResolveTime              prometheus.Histogram
+
+	awsSignCount            prometheus.Counter
+	awsSignTime             prometheus.Histogram
+	awsExportPublicKeyCount prometheus.Counter
+	awsExportPublicKeyTime  prometheus.Histogram
+	awsVerifyCount          prometheus.Counter
+	awsVerifyTime           prometheus.Histogram
 }
 
 // Get returns an Orb metrics provider.
@@ -317,6 +333,12 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		coreGetCreateOperationResultTime:             newCoreGetCreateOperationResultTime(),
 		coreHTTPCreateUpdateTime:                     newCoreHTTPCreateUpdateTime(),
 		coreHTTPResolveTime:                          newCoreHTTPResolveTime(),
+		awsSignCount:                                 newAWSSignCount(),
+		awsSignTime:                                  newAWSSignTime(),
+		awsExportPublicKeyCount:                      newAWSExportPublicKeyCount(),
+		awsExportPublicKeyTime:                       newAWSExportPublicKeyTime(),
+		awsVerifyCount:                               newAWSVerifyCount(),
+		awsVerifyTime:                                newAWSVerifyTime(),
 	}
 
 	prometheus.MustRegister(
@@ -344,7 +366,8 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
 		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
 		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
-		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime,
+		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime, m.awsSignCount, m.awsSignTime, m.awsExportPublicKeyCount,
+		m.awsExportPublicKeyTime, m.awsVerifyTime, m.awsVerifyCount,
 	)
 
 	for _, c := range m.apInboxHandlerTimes {
@@ -900,6 +923,42 @@ func (m *Metrics) HTTPResolveTime(value time.Duration) {
 	m.coreHTTPResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("core http resolve: %s", value)
+}
+
+// SignCount increments the number of sign hits.
+func (m *Metrics) SignCount() {
+	m.awsSignCount.Inc()
+}
+
+// SignTime records the time for sign.
+func (m *Metrics) SignTime(value time.Duration) {
+	m.awsSignTime.Observe(value.Seconds())
+
+	logger.Debugf("aws sign time: %s", value)
+}
+
+// ExportPublicKeyCount increments the number of export public key hits.
+func (m *Metrics) ExportPublicKeyCount() {
+	m.awsExportPublicKeyCount.Inc()
+}
+
+// ExportPublicKeyTime records the time for export public key.
+func (m *Metrics) ExportPublicKeyTime(value time.Duration) {
+	m.awsExportPublicKeyTime.Observe(value.Seconds())
+
+	logger.Debugf("aws export public key time: %s", value)
+}
+
+// VerifyCount increments the number of verify hits.
+func (m *Metrics) VerifyCount() {
+	m.awsVerifyCount.Inc()
+}
+
+// VerifyTime records the time for verify.
+func (m *Metrics) VerifyTime(value time.Duration) {
+	m.awsVerifyTime.Observe(value.Seconds())
+
+	logger.Debugf("aws verify time: %s", value)
 }
 
 // SignerSign records sign.
@@ -1582,6 +1641,54 @@ func newCoreHTTPResolveTime() prometheus.Histogram {
 	return newHistogram(
 		coreOperations, coreHTTPResolveTimeMetrics,
 		"The time (in seconds) it takes for resolve http call.",
+		nil,
+	)
+}
+
+func newAWSSignCount() prometheus.Counter {
+	return newCounter(
+		aws, awsSignCountMetric,
+		"The number of times sign called.",
+		nil,
+	)
+}
+
+func newAWSSignTime() prometheus.Histogram {
+	return newHistogram(
+		aws, awsSignTimeMetric,
+		"The time (in seconds) it takes for sign.",
+		nil,
+	)
+}
+
+func newAWSExportPublicKeyCount() prometheus.Counter {
+	return newCounter(
+		aws, awsExportPublicKeyCountMetric,
+		"The number of times export public key called.",
+		nil,
+	)
+}
+
+func newAWSExportPublicKeyTime() prometheus.Histogram {
+	return newHistogram(
+		aws, awsExportPublicKeyTimeMetric,
+		"The time (in seconds) it takes for export public key.",
+		nil,
+	)
+}
+
+func newAWSVerifyCount() prometheus.Counter {
+	return newCounter(
+		aws, awsVerifyCountMetric,
+		"The number of times verify called.",
+		nil,
+	)
+}
+
+func newAWSVerifyTime() prometheus.Histogram {
+	return newHistogram(
+		aws, awsVerifyTimeMetric,
+		"The time (in seconds) it takes for verify.",
 		nil,
 	)
 }

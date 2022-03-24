@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
-	github.com/trustbloc/kms v0.1.8-0.20220321210202-3d48c5db2955
+	github.com/trustbloc/kms v0.1.8-0.20220323192214-3f3ef0548eba
 	github.com/trustbloc/orb v0.1.3
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220314104818-0ae9fc89df5b
 )

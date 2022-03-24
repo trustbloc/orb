@@ -1426,8 +1426,9 @@ github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoi
 github.com/trustbloc/edge-core v0.1.7/go.mod h1:nQnH3CcEHTRXsWZe/vgj+J0JxxjwFK9IvY3u0Sr/2XY=
 github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98 h1:HVVzRDPGixWjNWBbjhq+TCDJlRiTZsTjOI3JfXhEFEU=
 github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98/go.mod h1:Ll2W6cS3AdCIyoFTip59ereNNl/dYgvD+0sEQGOs77U=
-github.com/trustbloc/kms v0.1.8-0.20220321210202-3d48c5db2955 h1:CqkxKp4iHxQmywf12ruGpXosMFP3LdvBBo2XkMDnGHc=
 github.com/trustbloc/kms v0.1.8-0.20220321210202-3d48c5db2955/go.mod h1:SPmdo1HV2LbWvd58eYlXL86C3y/mPq1GSQH3Qm4ZSTE=
+github.com/trustbloc/kms v0.1.8-0.20220323192214-3f3ef0548eba h1:17fxpYrLVWdKh64MbbjLJq3aGGECzv7d1c8OumrE8kc=
+github.com/trustbloc/kms v0.1.8-0.20220323192214-3f3ef0548eba/go.mod h1:SPmdo1HV2LbWvd58eYlXL86C3y/mPq1GSQH3Qm4ZSTE=
 github.com/trustbloc/sidetree-core-go v0.7.1-0.20220314104818-0ae9fc89df5b h1:GIKLpaFLfC8DVpoD+DI6o7NDDVTuD1BFSSAOHaOXO+M=
 github.com/trustbloc/sidetree-core-go v0.7.1-0.20220314104818-0ae9fc89df5b/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
 github.com/trustbloc/vct v0.1.4-0.20220323131744-81cc21c7b61a h1:GzhzjAX710Yw2t9MM9SUgWEgNPUwwkGCr67qq+bVMq8=
