@@ -79,10 +79,10 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/acceptlist"
 	"github.com/trustbloc/orb/pkg/activitypub/service/activityhandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/anchorsynctask"
-	"github.com/trustbloc/orb/pkg/activitypub/service/monitoring"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct/monitor"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct/proofmonitoring"
 	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -132,6 +132,7 @@ import (
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/expiry"
+	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
@@ -760,27 +761,34 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
-	proofMonitoringSvc, err := monitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
+	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
 		httpClient, taskMgr, parameters.vctMonitoringInterval)
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
 
+	logMonitorStore, err := logmonitor.New(storeProviders.provider)
+	if err != nil {
+		return fmt.Errorf("failed to create log monitor store: %w", err)
+	}
+
 	// TODO: Configure this, for now follow local VCT(issue-1176)
-	var followVCTDomains []string
 	if parameters.vctURL != "" {
-		followVCTDomains = append(followVCTDomains, parameters.vctURL)
+		err := logMonitorStore.Activate(parameters.vctURL)
+		if err != nil {
+			return fmt.Errorf("failed to activate log monitor[%s]: %w", parameters.vctURL, err)
+		}
 	}
 
 	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
 	followVCTDomainsInterval := parameters.vctMonitoringInterval
 
-	vctConsistencyMonitoringSvc, err := monitor.New(followVCTDomains, storeProviders.provider, httpClient)
+	logMonitoringSvc, err := monitor.New(logMonitorStore, httpClient)
 	if err != nil {
 		return fmt.Errorf("new VCT conistency monitoring service: %w", err)
 	}
 
-	taskMgr.RegisterTask("vct-consistency-monitor", followVCTDomainsInterval, vctConsistencyMonitoringSvc.CheckVCTConsistency)
+	taskMgr.RegisterTask("vct-consistency-monitor", followVCTDomainsInterval, logMonitoringSvc.MonitorLogs)
 
 	witnessPolicy, err := policy.New(configStore, parameters.witnessPolicyCacheExpiration)
 	if err != nil {

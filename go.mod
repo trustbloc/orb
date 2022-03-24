@@ -31,6 +31,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.2.0
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.7.0
+	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220314104818-0ae9fc89df5b
 	github.com/trustbloc/vct v0.1.4-0.20220323131744-81cc21c7b61a
