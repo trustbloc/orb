@@ -53,7 +53,6 @@ func TestStore_Activate(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testLog, rec.Log)
 		require.Equal(t, true, rec.Active)
-		require.Equal(t, false, rec.Processing)
 		require.Nil(t, rec.STH)
 	})
 
@@ -226,7 +225,6 @@ func TestStore_Get(t *testing.T) {
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
 		require.Equal(t, rec.Active, true)
-		require.Equal(t, rec.Processing, false)
 		require.Nil(t, rec.STH)
 	})
 
@@ -303,15 +301,13 @@ func TestStore_Update(t *testing.T) {
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
 		require.Equal(t, true, rec.Active)
-		require.Equal(t, false, rec.Processing)
 		require.Nil(t, rec.STH)
 
-		rec.Processing = true
+		rec.Active = false
 
 		err = s.Update(rec)
 		require.NoError(t, err)
-		require.Equal(t, true, rec.Active)
-		require.Equal(t, true, rec.Processing)
+		require.Equal(t, false, rec.Active)
 		require.Nil(t, rec.STH)
 	})
 
@@ -325,7 +321,7 @@ func TestStore_Update(t *testing.T) {
 			return nil, errExpected
 		}
 
-		rec := &LogMonitor{Log: testLog, Active: true, Processing: false}
+		rec := &LogMonitor{Log: testLog, Active: true}
 
 		err = s.Update(rec)
 		require.Error(t, err)
@@ -340,7 +336,7 @@ func TestStore_Update(t *testing.T) {
 		s, err := New(storeProvider)
 		require.NoError(t, err)
 
-		rec := &LogMonitor{Log: testLog, Active: true, Processing: false}
+		rec := &LogMonitor{Log: testLog, Active: true}
 
 		err = s.Update(rec)
 		require.Error(t, err)

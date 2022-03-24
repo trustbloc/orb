@@ -59,8 +59,7 @@ type LogMonitor struct {
 	STH    *command.GetSTHResponse
 	PubKey []byte
 
-	Active     bool
-	Processing bool
+	Active bool
 }
 
 // Activate stores a log to be monitored. If it already exists active flag will be set to true.
@@ -74,9 +73,8 @@ func (s *Store) Activate(logURL string) error {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
 			// create new log monitor
 			rec = &LogMonitor{
-				Log:        logURL,
-				Active:     true,
-				Processing: false,
+				Log:    logURL,
+				Active: true,
 			}
 		} else {
 			return fmt.Errorf("failed to get log monitor record: %w", err)

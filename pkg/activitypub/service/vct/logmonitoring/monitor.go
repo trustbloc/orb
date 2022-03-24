@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package monitor
+package logmonitoring
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/trillian/merkle/logverifier"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
@@ -112,7 +113,6 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 		return fmt.Errorf("failed to verify STH: %w", err)
 	}
 
-	logMonitor.Processing = false
 	logMonitor.STH = sth
 	logMonitor.PubKey = pubKey
 
@@ -328,6 +328,8 @@ func verifySTHSignature(sth *command.GetSTHResponse, pubKey []byte) error {
 
 // MonitorLogs will monitor logs for consistency.
 func (c *Client) MonitorLogs() {
+	logger.Debugf("start log monitoring...")
+
 	logs, err := c.store.GetActiveLogs()
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
@@ -339,39 +341,26 @@ func (c *Client) MonitorLogs() {
 		return
 	}
 
+	var wg sync.WaitGroup
+
 	for _, log := range logs {
+		wg.Add(1)
+
 		go func(log *logmonitor.LogMonitor) {
+			defer wg.Done()
+
 			c.processLog(log)
 		}(log)
 	}
+
+	wg.Wait()
+
+	logger.Debugf("completed log monitoring...")
 }
 
 func (c *Client) processLog(logMonitor *logmonitor.LogMonitor) {
-	if logMonitor.Processing {
-		logger.Debugf("log[%s]: previous run is still processing - waiting for next cycle", logMonitor.Log)
-
-		return
-	}
-
-	logMonitor.Processing = true
-
-	err := c.store.Update(logMonitor)
+	err := c.checkVCTConsistency(logMonitor)
 	if err != nil {
-		logger.Errorf("log[%s]: failed to update log monitor processing flag to true: %s", logMonitor.Log, err.Error())
-
-		return
-	}
-
-	if err := c.checkVCTConsistency(logMonitor); err != nil {
 		logger.Errorf("[%s] failed to check VCT consistency: %s", logMonitor.Log, err.Error())
-
-		logMonitor.Processing = false
-
-		err := c.store.Update(logMonitor)
-		if err != nil {
-			logger.Errorf("log[%s]: failed to update log monitor processing flag to false: %s", logMonitor.Log, err.Error())
-		}
-
-		return
 	}
 }
