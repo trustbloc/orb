@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package monitor
+package logmonitoring
 
 import (
 	"bytes"
@@ -220,27 +220,6 @@ func TestClient_processLog(t *testing.T) {
 		client.processLog(log)
 	})
 
-	t.Run("success - set processing to true error", func(t *testing.T) {
-		store := &storemocks.Store{}
-		store.PutReturns(fmt.Errorf("put error"))
-
-		db := &storemocks.Provider{}
-		db.OpenStoreReturns(store, nil)
-
-		logMonitorStore, err := logmonitor.New(db)
-		require.NoError(t, err)
-
-		client, err := New(logMonitorStore, httpMock(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				StatusCode: http.StatusInternalServerError,
-			}, nil
-		}))
-		require.NoError(t, err)
-
-		client.processLog(&logmonitor.LogMonitor{Log: testLog})
-	})
-
 	t.Run("error - invalid signature", func(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
 		require.NoError(t, err)
@@ -285,32 +264,6 @@ func TestClient_processLog(t *testing.T) {
 		require.NoError(t, err)
 
 		client.processLog(&logmonitor.LogMonitor{Log: testLog})
-	})
-
-	t.Run("success - previous run still processing", func(t *testing.T) {
-		store, err := logmonitor.New(mem.NewProvider())
-		require.NoError(t, err)
-
-		err = store.Activate(testLog)
-		require.NoError(t, err)
-
-		logMonitor, err := store.Get(testLog)
-		require.NoError(t, err)
-
-		logMonitor.Processing = true
-
-		err = store.Update(logMonitor)
-		require.NoError(t, err)
-
-		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
-				StatusCode: http.StatusInternalServerError,
-			}, nil
-		}))
-		require.NoError(t, err)
-
-		client.processLog(logMonitor)
 	})
 }
 

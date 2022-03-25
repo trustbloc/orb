@@ -81,7 +81,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/anchorsynctask"
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
-	"github.com/trustbloc/orb/pkg/activitypub/service/vct/monitor"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct/proofmonitoring"
 	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -782,7 +782,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
 	followVCTDomainsInterval := parameters.vctMonitoringInterval
 
-	logMonitoringSvc, err := monitor.New(logMonitorStore, httpClient)
+	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient)
 	if err != nil {
 		return fmt.Errorf("new VCT conistency monitoring service: %w", err)
 	}
