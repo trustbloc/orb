@@ -189,7 +189,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	resp, err := c.vct.AddVC(context.Background(), anchorCred)
 	if err != nil {
-		return nil, err
+		return nil, orberrors.NewTransientf("failed to add VC: %w", err)
 	}
 
 	c.metrics.WitnessAddVC(time.Since(addVCStartTime))

@@ -571,20 +571,19 @@ func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) e
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []byte,
-	batchWitnesses []string) error {
+func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []byte, batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
 	logger.Debugf("sending anchor linkset[%s] to system witnesses plus: %s", anchorLink.Anchor(), batchWitnesses)
 
-	witnessesIRI, err := c.getWitnesses(anchorLink.Anchor(), batchWitnesses)
+	selectedWitnessesIRIs, allWitnesses, err := c.getWitnesses(batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to get witnesses: %w", err)
 	}
 
-	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
+	selectedWitnessesIRIs = append(selectedWitnessesIRIs, vocab.PublicIRI)
 
 	startTime := time.Now()
 	endTime := startTime.Add(c.maxWitnessDelay)
@@ -595,10 +594,8 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 	}
 
 	offer := vocab.NewOfferActivity(
-		vocab.NewObjectProperty(
-			vocab.WithDocument(anchorLinksetDoc),
-		),
-		vocab.WithTo(witnessesIRI...),
+		vocab.NewObjectProperty(vocab.WithDocument(anchorLinksetDoc)),
+		vocab.WithTo(selectedWitnessesIRIs...),
 		vocab.WithStartTime(&startTime),
 		vocab.WithEndTime(&endTime),
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
@@ -609,9 +606,14 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 		return fmt.Errorf("failed to post offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
 
+	err = c.storeWitnesses(anchorLink.Anchor().String(), allWitnesses)
+	if err != nil {
+		return fmt.Errorf("store witnesses: %w", err)
+	}
+
 	logger.Debugf("created pre-announce activity for anchor[%s], post id[%s]", anchorLink.Anchor(), postID)
 
-	if len(witnessesIRI) == 1 {
+	if len(selectedWitnessesIRIs) == 1 {
 		// The Offer was posted only to the public IRI. This means that it will be persisted
 		// in the ActivityPub Outbox (to be viewed by anyone) but won't be sent to any service.
 		// In this case we can handle the anchor event immediately.
@@ -719,24 +721,24 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 	return false, nil
 }
 
-func (c *Writer) getWitnesses(anchorURI *url.URL, batchOpsWitnesses []string) ([]*url.URL, error) {
+func (c *Writer) getWitnesses(batchOpsWitnesses []string) (selectedWitnessesIRI []*url.URL,
+	witnesses []*proof.Witness, err error) {
 	batchWitnesses, err := c.getBatchWitnesses(batchOpsWitnesses)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	systemWitnesses, err := c.getSystemWitnesses()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var witnesses []*proof.Witness
 	witnesses = append(witnesses, batchWitnesses...)
 	witnesses = append(witnesses, systemWitnesses...)
 
 	selectedWitnesses, err := c.WitnessPolicy.Select(witnesses)
 	if err != nil {
-		return nil, fmt.Errorf("select witnesses: %w", err)
+		return nil, nil, fmt.Errorf("select witnesses: %w", err)
 	}
 
 	selectedWitnessesIRI, selectedWitnessesMap := getUniqueWitnesses(selectedWitnesses)
@@ -746,11 +748,11 @@ func (c *Writer) getWitnesses(anchorURI *url.URL, batchOpsWitnesses []string) ([
 
 		hasLog, e := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", c.apServiceIRI.Scheme, c.apServiceIRI.Host))
 		if e != nil {
-			return nil, e
+			return nil, nil, e
 		}
 
 		witness := &proof.Witness{
-			URI:      c.apServiceIRI,
+			URI:      vocab.NewURLProperty(c.apServiceIRI),
 			HasLog:   hasLog,
 			Selected: true,
 		}
@@ -760,15 +762,9 @@ func (c *Writer) getWitnesses(anchorURI *url.URL, batchOpsWitnesses []string) ([
 		_, selectedWitnessesMap = getUniqueWitnesses([]*proof.Witness{witness})
 	}
 
-	// store witnesses before posting offers
-	err = c.storeWitnesses(anchorURI.String(), updateWitnessSelectionFlag(witnesses, selectedWitnessesMap))
-	if err != nil {
-		return nil, fmt.Errorf("store witnesses: %w", err)
-	}
-
 	logger.Debugf("selected %d witnesses: %+v", len(selectedWitnessesIRI), selectedWitnessesIRI)
 
-	return selectedWitnessesIRI, nil
+	return selectedWitnessesIRI, updateWitnessSelectionFlag(witnesses, selectedWitnessesMap), nil
 }
 
 func updateWitnessSelectionFlag(witnesses []*proof.Witness, selectedWitnesses map[string]bool) []*proof.Witness {
@@ -789,7 +785,7 @@ func getUniqueWitnesses(witnesses []*proof.Witness) ([]*url.URL, map[string]bool
 	for _, w := range witnesses {
 		_, ok := uniqueWitnesses[w.URI.String()]
 		if !ok {
-			witnessesIRI = append(witnessesIRI, w.URI)
+			witnessesIRI = append(witnessesIRI, w.URI.URL())
 			uniqueWitnesses[w.URI.String()] = true
 		}
 	}
@@ -860,7 +856,7 @@ func (c *Writer) getSystemWitnesses() ([]*proof.Witness, error) {
 		witnesses = append(witnesses,
 			&proof.Witness{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessIRI,
+				URI:    vocab.NewURLProperty(systemWitnessIRI),
 				HasLog: hasLog,
 			})
 	}
@@ -896,7 +892,7 @@ func (c *Writer) getBatchWitnesses(batchWitnesses []string) ([]*proof.Witness, e
 			&proof.Witness{
 				Type:   proof.WitnessTypeBatch,
 				HasLog: hasLog,
-				URI:    batchWitnessIRI,
+				URI:    vocab.NewURLProperty(batchWitnessIRI),
 			})
 	}
 

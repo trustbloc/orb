@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 func Test(t *testing.T) {
@@ -18,7 +20,7 @@ func Test(t *testing.T) {
 		testURI, err := url.Parse("http://domain.com/service")
 		require.NoError(t, err)
 
-		w := &Witness{Type: WitnessTypeBatch, URI: testURI, HasLog: true}
+		w := &Witness{Type: WitnessTypeBatch, URI: vocab.NewURLProperty(testURI), HasLog: true}
 		require.Equal(t, w.String(), "{type:batch, witness:http://domain.com/service, log:true}")
 	})
 
@@ -26,7 +28,14 @@ func Test(t *testing.T) {
 		testURI, err := url.Parse("http://domain.com/service")
 		require.NoError(t, err)
 
-		wp := &WitnessProof{Type: WitnessTypeBatch, URI: testURI, HasLog: true, Proof: []byte("proof")}
+		wp := &WitnessProof{
+			Witness: &Witness{
+				Type:   WitnessTypeBatch,
+				URI:    vocab.NewURLProperty(testURI),
+				HasLog: true,
+			},
+			Proof: []byte("proof"),
+		}
 		require.Equal(t, wp.String(), "{type:batch, witness:http://domain.com/service, log:true, proof:proof}")
 	})
 }

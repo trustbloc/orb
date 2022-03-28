@@ -167,6 +167,10 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Subscriber) publish(msg *message.Message) error {
+	if s.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
+	}
+
 	select {
 	case s.msgChan <- msg:
 		logger.Debugf("[%s] Message [%s] was delivered to subscriber", s.ServiceEndpoint, msg.UUID)

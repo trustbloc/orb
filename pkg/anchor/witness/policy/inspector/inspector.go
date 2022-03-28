@@ -138,7 +138,7 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 	// exclude failed witnesses from the witness selection list
 	for _, w := range witnesses {
 		if w.Selected {
-			selectedWitnessesIRI = append(selectedWitnessesIRI, w.URI)
+			selectedWitnessesIRI = append(selectedWitnessesIRI, w.URI.URL())
 
 			if w.Proof == nil {
 				// something went wrong with this selected witness - no proof provided
@@ -200,7 +200,7 @@ func getUniqueWitnesses(witnesses []*proof.Witness) ([]*url.URL, map[string]bool
 	for _, w := range witnesses {
 		_, ok := uniqueWitnesses[w.URI.String()]
 		if !ok {
-			witnessesIRI = append(witnessesIRI, w.URI)
+			witnessesIRI = append(witnessesIRI, w.URI.URL())
 			uniqueWitnesses[w.URI.String()] = true
 		}
 	}

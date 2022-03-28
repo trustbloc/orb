@@ -298,6 +298,9 @@ func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
 		minSelection = int(math.Ceil(float64(minPercent)/maxPercent*float64(totalWitnesses))) - len(preferred)
 	}
 
+	logger.Debugf("Selecting %d witnesses from eligible %s and preferred %s",
+		minSelection, eligible, preferred)
+
 	selection, err := wp.selector.Select(difference(eligible, preferred), minSelection)
 	if err != nil {
 		return nil, err

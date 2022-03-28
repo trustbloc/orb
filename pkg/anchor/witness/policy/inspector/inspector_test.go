@@ -17,20 +17,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	policymocks "github.com/trustbloc/orb/pkg/anchor/witness/policy/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	anchorlinkstore "github.com/trustbloc/orb/pkg/store/anchorlink"
-	"github.com/trustbloc/orb/pkg/store/witness"
+	"github.com/trustbloc/orb/pkg/store/mocks"
 )
+
+//go:generate counterfeiter -o ../mocks/witnessstore.gen.go --fake-name WitnessStore . witnessStore
 
 const (
 	testWitnessURL = "http://localhost/services/orb"
 
 	testMaxWitnessDelay = 600 * time.Second
-
-	expiryTime = 10 * time.Second
 )
 
 func TestNew(t *testing.T) {
@@ -59,7 +60,16 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	require.NotNil(t, anchorLink)
 
 	t.Run("success", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkBytes, err := json.Marshal(anchorLink)
+		require.NoError(t, err)
+
+		s := &mocks.Store{}
+		s.GetReturns(anchorLinkBytes, nil)
+
+		p := &mocks.Provider{}
+		p.OpenStoreReturns(s, nil)
+
+		anchorLinkStore, err := anchorlinkstore.New(p, testutil.GetLoader(t))
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)
@@ -71,16 +81,11 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		notSelectedWitnessURL, err := url.Parse("http://other-domain.com/service")
 		require.NoError(t, err)
 
-		provider := mem.NewProvider()
-
-		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
-		require.NoError(t, err)
-
-		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
-			{URI: selectedWitnessURL, Selected: true},
-			{URI: notSelectedWitnessURL, Selected: false},
-		})
-		require.NoError(t, err)
+		witnessStore := &policymocks.WitnessStore{}
+		witnessStore.GetReturns([]*proof.WitnessProof{
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(selectedWitnessURL), Selected: true}},
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(notSelectedWitnessURL), Selected: false}},
+		}, nil)
 
 		providers := &Providers{
 			AnchorLinkStore: anchorLinkStore,
@@ -106,16 +111,11 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		notSelectedWitnessURL, err := url.Parse("http://other-domain.com/service")
 		require.NoError(t, err)
 
-		provider := mem.NewProvider()
-
-		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
-		require.NoError(t, err)
-
-		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
-			{URI: selectedWitnessURL, Selected: true},
-			{URI: notSelectedWitnessURL, Selected: false},
-		})
-		require.NoError(t, err)
+		witnessStore := &policymocks.WitnessStore{}
+		witnessStore.GetReturns([]*proof.WitnessProof{
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(selectedWitnessURL), Selected: true}},
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(notSelectedWitnessURL), Selected: false}},
+		}, nil)
 
 		providers := &Providers{
 			AnchorLinkStore: anchorLinkStore,
@@ -145,16 +145,11 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		notSelectedWitnessURL, err := url.Parse("http://other-domain.com/service")
 		require.NoError(t, err)
 
-		provider := mem.NewProvider()
-
-		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
-		require.NoError(t, err)
-
-		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
-			{URI: selectedWitnessURL, Selected: true},
-			{URI: notSelectedWitnessURL, Selected: false},
-		})
-		require.NoError(t, err)
+		witnessStore := &policymocks.WitnessStore{}
+		witnessStore.GetReturns([]*proof.WitnessProof{
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(selectedWitnessURL), Selected: true}},
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(notSelectedWitnessURL), Selected: false}},
+		}, nil)
 
 		providers := &Providers{
 			AnchorLinkStore: anchorLinkStore,
@@ -184,22 +179,17 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		notSelectedWitnessURL, err := url.Parse("http://other-domain.com/service")
 		require.NoError(t, err)
 
-		provider := mem.NewProvider()
-
-		witnessStore, err := witness.New(provider, testutil.GetExpiryService(t), expiryTime)
-		require.NoError(t, err)
-
-		err = witnessStore.Put(anchorLink.Anchor().String(), []*proof.Witness{
-			{URI: selectedWitnessURL, Selected: true},
-			{URI: notSelectedWitnessURL, Selected: false},
-		})
-		require.NoError(t, err)
+		witnessStore := &policymocks.WitnessStore{}
+		witnessStore.GetReturns([]*proof.WitnessProof{
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(selectedWitnessURL), Selected: true}},
+			{Witness: &proof.Witness{URI: vocab.NewURLProperty(notSelectedWitnessURL), Selected: false}},
+		}, nil)
 
 		providers := &Providers{
 			AnchorLinkStore: anchorLinkStore,
 			Outbox:          func() Outbox { return &mockOutbox{} },
 			WitnessStore:    witnessStore,
-			WitnessPolicy:   &mockWitnessPolicy{Witnesses: []*proof.Witness{{URI: selectedWitnessURL}}},
+			WitnessPolicy:   &mockWitnessPolicy{Witnesses: []*proof.Witness{{URI: vocab.NewURLProperty(selectedWitnessURL)}}},
 		}
 
 		c, err := New(providers, testMaxWitnessDelay)

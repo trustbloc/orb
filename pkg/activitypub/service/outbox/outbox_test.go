@@ -449,8 +449,10 @@ func TestOutbox_PostError(t *testing.T) {
 	t.Run("Redelivery unmarshal error", func(t *testing.T) {
 		pubSub := mocks.NewPubSub()
 
+		apClient := mocks.NewActivitPubClient().WithActor(aptestutil.NewMockService(service2URL))
+
 		ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-			&mocks.ActivityHandler{}, client.New(client.Config{}, transport.Default()), &mocks.WebFingerResolver{},
+			&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{},
 			&orbmocks.MetricsProvider{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
 		require.NoError(t, err)
 		require.NotNil(t, ob)
@@ -573,15 +575,20 @@ func TestResolveInboxes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
+	iri := testutil.NewMockID(service1URL, resthandler.FollowersPath)
+
 	t.Run("Transient error", func(t *testing.T) {
 		errTransient := orberrors.NewTransient(errors.New("injected transient error"))
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)}, nil)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), errTransient.Error())
-		require.Empty(t, inboxes)
+		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
+		require.Len(t, inboxes, 1)
+		require.Error(t, inboxes[0].err)
+		require.True(t, orberrors.IsTransient(inboxes[0].err))
+		require.EqualError(t, inboxes[0].err,
+			"error querying for references of type FOLLOWER from storage: injected transient error")
+		require.Equal(t, iri.String(), inboxes[0].iri.String())
 	})
 
 	t.Run("Persistent error -> ignore", func(t *testing.T) {
@@ -589,9 +596,13 @@ func TestResolveInboxes(t *testing.T) {
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes, err := ob.resolveInboxes([]*url.URL{testutil.NewMockID(service1URL, resthandler.FollowersPath)}, nil)
-		require.NoError(t, err)
-		require.Empty(t, inboxes)
+		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
+		require.Len(t, inboxes, 1)
+		require.Error(t, inboxes[0].err)
+		require.False(t, orberrors.IsTransient(inboxes[0].err))
+		require.EqualError(t, inboxes[0].err,
+			"error querying for references of type FOLLOWER from storage: injected persistent error")
+		require.Equal(t, iri.String(), inboxes[0].iri.String())
 	})
 }
 
