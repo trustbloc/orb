@@ -149,73 +149,73 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain2IRI}"
 
-  @activitypub_create
-  Scenario: create/announce
-    Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
-    And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
-
-    # domain1 adds domain2 to its 'follow' accept list.
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}"]}]'
-    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
-
-    # domain2 adds domain3 to its 'follow' accept list.
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain3IRI}"]}]'
-    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
-
-    # domain2 follows domain1
-    Given variable "followDomain1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followDomain1Activity}" of type "application/json"
-    Then the value of the JSON string response is saved to variable "follow1ID"
-
-    # domain3 follows domain2
-    And variable "followDomain2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${followDomain2Activity}" of type "application/json"
-    Then the value of the JSON string response is saved to variable "follow2ID"
-
-    Then we wait 2 seconds
-
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
-    Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response contains "${domain3IRI}"
-
-    # Post 'Create' activity to domain1's outbox
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content from file "./fixtures/testdata/create_activity.json"
-
-    Then we wait 2 seconds
-
-    # A 'Create' activity should have been posted to domain1's followers (domain2).
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/292c7239-74a6-4837-93af-5103f37c3999"
-
-    # An 'Announce' activity should have been posted to domain2's followers (domain3).
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.type" of the response contains "Announce"
-
-    # An 'Announce' activity should have been received by domain3 since it's a follower of domain2.
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/inbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.type" of the response contains "Announce"
-
-    And variable "undoFollow1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${follow1ID}","object":"${domain1IRI}","type":"Follow"}}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollow1Activity}" of type "application/json"
-
-    And variable "undoFollow2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain3IRI}","to":"${domain2IRI}","object":{"actor":"${domain3IRI}","id":"${follow2ID}","object":"${domain2IRI}","type":"Follow"}}'
-    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${undoFollow2Activity}" of type "application/json"
-
-    Then we wait 2 seconds
-
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
-    Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response does not contain "${domain3IRI}"
-
-    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
-    Then the JSON path "type" of the response equals "OrderedCollection"
-    Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
-    When an HTTP GET is sent to "${sharesFirstPage}"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
+#  @activitypub_create
+#  Scenario: create/announce
+#    Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
+#    And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
+#
+#    # domain1 adds domain2 to its 'follow' accept list.
+#    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}"]}]'
+#    When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
+#
+#    # domain2 adds domain3 to its 'follow' accept list.
+#    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain3IRI}"]}]'
+#    When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
+#
+#    # domain2 follows domain1
+#    Given variable "followDomain1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+#    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followDomain1Activity}" of type "application/json"
+#    Then the value of the JSON string response is saved to variable "follow1ID"
+#
+#    # domain3 follows domain2
+#    And variable "followDomain2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
+#    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${followDomain2Activity}" of type "application/json"
+#    Then the value of the JSON string response is saved to variable "follow2ID"
+#
+#    Then we wait 2 seconds
+#
+#    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
+#    Then the JSON path "type" of the response equals "CollectionPage"
+#    And the JSON path "items" of the response contains "${domain3IRI}"
+#
+#    # Post 'Create' activity to domain1's outbox
+#    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content from file "./fixtures/testdata/create_activity.json"
+#
+#    Then we wait 2 seconds
+#
+#    # A 'Create' activity should have been posted to domain1's followers (domain2).
+#    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/inbox?page=true"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/292c7239-74a6-4837-93af-5103f37c3999"
+#
+#    # An 'Announce' activity should have been posted to domain2's followers (domain3).
+#    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/outbox?page=true"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.#.type" of the response contains "Announce"
+#
+#    # An 'Announce' activity should have been received by domain3 since it's a follower of domain2.
+#    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/inbox?page=true"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.#.type" of the response contains "Announce"
+#
+#    And variable "undoFollow1Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${follow1ID}","object":"${domain1IRI}","type":"Follow"}}'
+#    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoFollow1Activity}" of type "application/json"
+#
+#    And variable "undoFollow2Activity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain3IRI}","to":"${domain2IRI}","object":{"actor":"${domain3IRI}","id":"${follow2ID}","object":"${domain2IRI}","type":"Follow"}}'
+#    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${undoFollow2Activity}" of type "application/json"
+#
+#    Then we wait 2 seconds
+#
+#    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/followers?page=true"
+#    Then the JSON path "type" of the response equals "CollectionPage"
+#    And the JSON path "items" of the response does not contain "${domain3IRI}"
+#
+#    When an HTTP GET is sent to "https://orb.domain3.com/services/orb/shares/hl%3AuEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
+#    Then the JSON path "type" of the response equals "OrderedCollection"
+#    Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
+#    When an HTTP GET is sent to "${sharesFirstPage}"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo
@@ -282,37 +282,37 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain1IRI}"
 
-  @activitypub_offer
-  Scenario: offer/like
-    Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
-    And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
-
-    # domain2 invites domain1 to be a witness
-    Given variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
-    Then the value of the JSON string response is saved to variable "inviteWitnessID"
-
-    Then we wait 2 seconds
-
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${inviteWitnessID}"
-
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content from file "./fixtures/testdata/offer_activity.json"
-
-    Then we wait 2 seconds
-
-    # The 'Offer' activity should be in the inbox of domain1.
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox?page=true"
-    Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/cbc4ebd2-d30d-4cc3-80d4-dcd770904f1c"
-
-    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}","type":"Invite"}}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
-
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/witnessing?page=true"
-    Then the JSON path "type" of the response equals "CollectionPage"
-    And the JSON path "items" of the response does not contain "${domain1IRI}"
+#  @activitypub_offer
+#  Scenario: offer/like
+#    Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
+#    And the authorization bearer token for "GET" requests to path "/services/orb" is set to "READ_TOKEN"
+#
+#    # domain2 invites domain1 to be a witness
+#    Given variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
+#    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+#    Then the value of the JSON string response is saved to variable "inviteWitnessID"
+#
+#    Then we wait 2 seconds
+#
+#    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox?page=true"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.#.id" of the response contains "${inviteWitnessID}"
+#
+#    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content from file "./fixtures/testdata/offer_activity.json"
+#
+#    Then we wait 2 seconds
+#
+#    # The 'Offer' activity should be in the inbox of domain1.
+#    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/inbox?page=true"
+#    Then the JSON path "type" of the response equals "OrderedCollectionPage"
+#    And the JSON path "orderedItems.#.id" of the response contains "${domain2IRI}/activities/cbc4ebd2-d30d-4cc3-80d4-dcd770904f1c"
+#
+#    And variable "undoInviteWitnessActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain2IRI}","to":"${domain1IRI}","object":{"actor":"${domain2IRI}","id":"${inviteWitnessID}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}","type":"Invite"}}'
+#    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${undoInviteWitnessActivity}" of type "application/json"
+#
+#    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/witnessing?page=true"
+#    Then the JSON path "type" of the response equals "CollectionPage"
+#    And the JSON path "items" of the response does not contain "${domain1IRI}"
 
 #  @activitypub_httpsig
 #  Scenario: Tests HTTP signature verification
