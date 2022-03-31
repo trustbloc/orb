@@ -77,6 +77,23 @@ jobs:
         timeout-minutes: 10
         run: make checks
 
+  sonarcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Disabling shallow clone is recommended for improving relevancy of reporting
+          fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        with:
+          args: >
+            -Dsonar.organization=trustbloc
+            -Dsonar.projectKey=trustbloc_orb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: 82580866f1b5a5040e9d015d26bed102e7ca42f3
+
   publish:
     name: Publish image
     if: github.event_name == 'push' && (github.repository == 'trustbloc/orb' && github.ref == 'refs/heads/main')
