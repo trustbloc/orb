@@ -22,6 +22,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("activitypub_client")
@@ -289,7 +290,7 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 	resp, err := c.Get(context.Background(), transport.NewRequest(iri,
 		transport.WithHeader(transport.AcceptHeader, transport.ActivityStreamsContentType)))
 	if err != nil {
-		return nil, fmt.Errorf("request to %s failed: %w", iri, err)
+		return nil, orberrors.NewTransientf("request to %s failed: %w", iri, err)
 	}
 
 	defer func() {
@@ -301,12 +302,18 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 	logger.Debugf("Got response from %s. Status: %d", iri, resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("request to %s returned status code %d", iri, resp.StatusCode)
+		e := fmt.Errorf("request to %s returned status code %d", iri, resp.StatusCode)
+
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return nil, orberrors.NewTransient(e)
+		}
+
+		return nil, e
 	}
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
+		return nil, orberrors.NewTransientf("error reading response body from %s: %w", iri, err)
 	}
 
 	return respBytes, nil
@@ -362,7 +369,7 @@ func (it *referenceIterator) getNextPage() error {
 
 	respBytes, err := it.get(it.nextPage)
 	if err != nil {
-		return fmt.Errorf("request to %s failed: %w", it.nextPage, err)
+		return fmt.Errorf("get references from %s: %w", it.nextPage, err)
 	}
 
 	logger.Debugf("Got response from %s: %s", it.nextPage, respBytes)
@@ -491,7 +498,7 @@ func (it *activityIterator) getNextPage() error {
 
 	respBytes, err := it.get(it.nextPage)
 	if err != nil {
-		return fmt.Errorf("request to %s failed: %w", it.nextPage, err)
+		return fmt.Errorf("get activities from %s: %w", it.nextPage, err)
 	}
 
 	logger.Debugf("Got response from %s: %s", it.nextPage, respBytes)

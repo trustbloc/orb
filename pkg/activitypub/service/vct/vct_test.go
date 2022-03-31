@@ -227,7 +227,7 @@ func TestClient_Witness(t *testing.T) {
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
-		require.EqualError(t, err, "add VC: error")
+		require.Contains(t, err.Error(), "add VC: error")
 	})
 }
 

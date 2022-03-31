@@ -1939,6 +1939,8 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		}
 
 		logger.Infof("Got HTTP response from [%s]: %d:%s. Retrying in %s", r.url, resp.StatusCode, resp.ErrorMsg, r.backoff)
+
+		time.Sleep(r.backoff)
 	}
 
 	if respErr != nil {

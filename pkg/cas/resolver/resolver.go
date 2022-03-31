@@ -365,7 +365,8 @@ func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]by
 	resp, err := w.httpClient.Get(context.Background(), transport.NewRequest(webCASEndpoint,
 		transport.WithHeader(transport.AcceptHeader, transport.LDPlusJSONContentType)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute GET call on %s: %w", webCASEndpoint.String(), err)
+		return nil, orberrors.NewTransientf("failed to execute GET call on %s: %w",
+			webCASEndpoint.String(), err)
 	}
 
 	defer func() {
@@ -377,12 +378,18 @@ func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]by
 
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body from remote WebCAS endpoint: %w", err)
+		return nil, orberrors.NewTransientf("failed to read response body from remote WebCAS endpoint: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to retrieve data from %s. Response status code: %d. Response body: %s",
-			webCASEndpoint.String(), resp.StatusCode, string(responseBody))
+		err := fmt.Errorf("failed to retrieve data from %s. Response status code: %d. Response body: %s",
+			webCASEndpoint.String(), resp.StatusCode, responseBody)
+
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return nil, orberrors.NewTransient(err)
+		}
+
+		return nil, err
 	}
 
 	return responseBody, nil

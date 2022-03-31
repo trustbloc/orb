@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
@@ -136,7 +137,7 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return restapi.JRD{}, fmt.Errorf("failed to get response (URL: %s): %w", webFingerURL, err)
+		return restapi.JRD{}, orberrors.NewTransientf("failed to get response (URL: %s): %w", webFingerURL, err)
 	}
 
 	defer func() {
@@ -148,14 +149,22 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return restapi.JRD{}, fmt.Errorf("failed to read response body: %w", err)
+		return restapi.JRD{}, orberrors.NewTransientf("failed to read response body: %w", err)
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return restapi.JRD{}, model.ErrResourceNotFound
-	} else if resp.StatusCode != http.StatusOK {
-		return restapi.JRD{}, fmt.Errorf("received unexpected status code. URL [%s], "+
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return restapi.JRD{}, model.ErrResourceNotFound
+		}
+
+		e := fmt.Errorf("received unexpected status code. URL [%s], "+
 			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
+
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return restapi.JRD{}, orberrors.NewTransient(e)
+		}
+
+		return restapi.JRD{}, e
 	}
 
 	webFingerResponse := restapi.JRD{}

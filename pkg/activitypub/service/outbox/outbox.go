@@ -156,7 +156,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return h.doResolveActorIRIs(i.(*url.URL))
+			return h.resolveActorIRIFromWebFinger(i.(*url.URL))
 		}).Build()
 
 	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
@@ -246,16 +246,17 @@ func (h *Outbox) Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.U
 		return nil, fmt.Errorf("handle activity: %w", err)
 	}
 
-	inboxes, err := h.resolveInboxes(activity.To(), exclude)
-	if err != nil {
-		return nil, fmt.Errorf("resolve inboxes: %w", err)
-	}
-
-	for _, actorInbox := range inboxes {
-		err = h.publish(activity.ID().String(), activityBytes, actorInbox)
-		if err != nil {
-			// TODO: Do we continue processing the rest?
-			return nil, fmt.Errorf("unable to publish activity to inbox %s: %w", actorInbox, err)
+	for _, r := range h.resolveInboxes(activity.To(), exclude) {
+		if r.err != nil {
+			// TODO: Retry the IRI if error is transient.
+			logger.Errorf("Error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
+		} else {
+			err = h.publish(activity.ID().String(), activityBytes, r.iri)
+			if err != nil {
+				// Return with an error since the only time publish returns an error is if
+				// there's something wrong with the local server. (Maybe it's being shut down.)
+				return nil, fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
+			}
 		}
 	}
 
@@ -351,29 +352,36 @@ func (h *Outbox) redeliver() {
 	}
 }
 
-func (h *Outbox) resolveInboxes(toIRIs, excludeIRIs []*url.URL) ([]*url.URL, error) {
+func (h *Outbox) resolveInboxes(toIRIs, excludeIRIs []*url.URL) []*resolveIRIResponse {
 	startTime := time.Now()
 
 	defer func() {
 		h.metrics.OutboxResolveInboxesTime(time.Since(startTime))
 	}()
 
-	toIRIs, err := h.resolveIRIs(toIRIs, h.resolveActorIRIs)
-	if err != nil {
-		return nil, err
+	var responses []*resolveIRIResponse
+
+	var actorIRIs []*url.URL
+
+	for _, r := range h.resolveIRIs(toIRIs, h.resolveActorIRIs) {
+		if r.err != nil {
+			responses = append(responses, r)
+		} else {
+			actorIRIs = append(actorIRIs, r.iri)
+		}
 	}
 
-	return h.resolveIRIs(
-		deduplicateAndFilter(toIRIs, excludeIRIs),
-		func(actorIRI *url.URL) ([]*url.URL, error) {
-			inboxIRI, err := h.resolveInbox(actorIRI)
+	return append(responses, h.resolveIRIs(
+		deduplicateAndFilter(actorIRIs, excludeIRIs),
+		func(iri *url.URL) []*resolveIRIResponse {
+			inboxIRI, err := h.resolveInbox(iri)
 			if err != nil {
-				return nil, err
+				return []*resolveIRIResponse{{iri: iri, err: err}}
 			}
 
-			return []*url.URL{inboxIRI}, nil
+			return []*resolveIRIResponse{{iri: inboxIRI}}
 		},
-	)
+	)...)
 }
 
 func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
@@ -387,14 +395,87 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 	return actor.Inbox(), nil
 }
 
-func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
+func (h *Outbox) resolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 	if iri.String() == vocab.PublicIRI.String() {
 		// Should not attempt to publish to the 'Public' URI.
 		logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, iri)
 
-		return nil, nil
+		return nil
 	}
 
+	return h.doResolveActorIRIs(iri)
+}
+
+func (h *Outbox) doResolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
+	logger.Debugf("[%s] Resolving IRI(s) for [%s]", h.ServiceName, iri)
+
+	if !strings.HasPrefix(iri.String(), h.ServiceIRI.String()) {
+		resolvedIRIs, err := h.doResolveActorIRI(iri)
+		if err != nil {
+			return []*resolveIRIResponse{{iri: iri, err: err}}
+		}
+
+		var responses []*resolveIRIResponse
+
+		for _, r := range resolvedIRIs {
+			responses = append(responses, &resolveIRIResponse{iri: r})
+		}
+
+		return responses
+	}
+
+	// This IRI is for the local service. The only valid paths are /followers and /witnesses.
+	switch {
+	case strings.HasSuffix(iri.Path, resthandler.FollowersPath):
+		responses, err := h.resolveReferences(store.Follower)
+		if err != nil {
+			return []*resolveIRIResponse{{iri: iri, err: err}}
+		}
+
+		return responses
+	case strings.HasSuffix(iri.Path, resthandler.WitnessesPath):
+		responses, err := h.resolveReferences(store.Witness)
+		if err != nil {
+			return []*resolveIRIResponse{{iri: iri, err: err}}
+		}
+
+		return responses
+	default:
+		logger.Warnf("[%s] Ignoring local IRI %s since it is not a valid recipient.", h.ServiceName, iri)
+
+		return nil
+	}
+}
+
+type resolveIRIResponse struct {
+	iri *url.URL
+	err error
+}
+
+func (h *Outbox) resolveReferences(refType store.ReferenceType) ([]*resolveIRIResponse, error) {
+	refs, err := h.loadReferences(refType)
+	if err != nil {
+		return nil, err
+	}
+
+	var responses []*resolveIRIResponse
+
+	// FIXME: Should do this concurrently.
+	for _, iri := range refs {
+		resolvedIRIs, err := h.doResolveActorIRI(iri)
+		if err != nil {
+			responses = append(responses, &resolveIRIResponse{iri: iri, err: err})
+		} else {
+			for _, r := range resolvedIRIs {
+				responses = append(responses, &resolveIRIResponse{iri: r})
+			}
+		}
+	}
+
+	return responses, nil
+}
+
+func (h *Outbox) doResolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 	result, err := h.iriCache.Get(iri)
 	if err != nil {
 		logger.Debugf("[%s] Got error resolving IRI from cache for actor [%s]: %s", h.ServiceName, iri, err)
@@ -405,23 +486,7 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 	return result.([]*url.URL), nil
 }
 
-func (h *Outbox) doResolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
-	logger.Debugf("[%s] Resolving IRI for actor [%s]", h.ServiceName, iri)
-
-	if strings.HasPrefix(iri.String(), h.ServiceIRI.String()) {
-		// This IRI is for the local service. The only valid paths are /followers and /witnesses.
-		switch {
-		case strings.HasSuffix(iri.Path, resthandler.FollowersPath):
-			return h.loadReferences(store.Follower)
-		case strings.HasSuffix(iri.Path, resthandler.WitnessesPath):
-			return h.loadReferences(store.Witness)
-		default:
-			logger.Warnf("[%s] Ignoring local IRI %s since it is not a valid recipient.", h.ServiceName, iri)
-
-			return nil, nil
-		}
-	}
-
+func (h *Outbox) resolveActorIRIFromWebFinger(iri *url.URL) ([]*url.URL, error) {
 	// Resolve the actor IRI from WebFinger.
 	resolvedActorIRI, err := h.resourceResolver.ResolveHostMetaLink(iri.String(), discoveryrest.ActivityJSONType)
 	if err != nil {
@@ -430,19 +495,24 @@ func (h *Outbox) doResolveActorIRIs(iri *url.URL) ([]*url.URL, error) {
 
 	logger.Debugf("[%s] Resolved IRI for actor [%s]: [%s]", h.ServiceName, iri, resolvedActorIRI)
 
-	actorURI, err := url.Parse(resolvedActorIRI)
+	actorIRI, err := url.Parse(resolvedActorIRI)
 	if err != nil {
 		return nil, fmt.Errorf("parse actor URI: %w", err)
 	}
 
-	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, actorURI)
+	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, actorIRI)
 
-	it, err := h.client.GetReferences(actorURI)
+	it, err := h.client.GetReferences(actorIRI)
 	if err != nil {
 		return nil, err
 	}
 
-	return client.ReadReferences(it, h.MaxRecipients)
+	iris, err := client.ReadReferences(it, h.MaxRecipients)
+	if err != nil {
+		return nil, fmt.Errorf("read references for actor [%s]: %w", actorIRI, err)
+	}
+
+	return iris, nil
 }
 
 func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error) {
@@ -465,12 +535,11 @@ func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error)
 
 // resolveIRIs resolves each of the given IRIs using the given resolve function. The requests are performed
 // in parallel, up to a maximum concurrent requests specified by parameter, MaxConcurrentRequests.
-func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*url.URL, error)) ([]*url.URL, error) {
+func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
+	resolve func(iri *url.URL) []*resolveIRIResponse) []*resolveIRIResponse {
 	var wg sync.WaitGroup
 
-	var recipients []*url.URL
-
-	var errResolve error
+	var recipients []*resolveIRIResponse
 
 	var mutex sync.Mutex
 
@@ -489,25 +558,11 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 			go func(toIRI *url.URL) {
 				defer wg.Done()
 
-				r, err := resolve(toIRI)
-				if err != nil {
-					// Check if transient. We can retry on transient errors, otherwise ignore the IRI.
-					if orberrors.IsTransient(err) {
-						logger.Warnf("[%s] Unable to resolve IRIs for %s due to transient error: %s",
-							h.ServiceName, toIRI, err)
+				response := resolve(toIRI)
 
-						mutex.Lock()
-						errResolve = err
-						mutex.Unlock()
-					} else {
-						logger.Warnf("[%s] Unable to resolve IRIs for %s due to persistent error: %s. The IRI will be ignored.",
-							h.ServiceName, toIRI, err)
-					}
-				} else {
-					mutex.Lock()
-					recipients = append(recipients, r...)
-					mutex.Unlock()
-				}
+				mutex.Lock()
+				recipients = append(recipients, response...)
+				mutex.Unlock()
 			}(reqIRI)
 		}
 	}()
@@ -516,11 +571,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) ([]*u
 
 	close(resolveChan)
 
-	if errResolve != nil {
-		return nil, errResolve
-	}
-
-	return recipients, nil
+	return recipients
 }
 
 func (h *Outbox) newActivityID() *url.URL {

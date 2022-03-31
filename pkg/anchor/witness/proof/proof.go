@@ -8,13 +8,14 @@ package proof
 
 import (
 	"fmt"
-	"net/url"
+
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 // Witness contains info about witness.
 type Witness struct {
 	Type     WitnessType
-	URI      *url.URL
+	URI      *vocab.URLProperty
 	HasLog   bool
 	Selected bool
 }
@@ -25,11 +26,8 @@ func (wf *Witness) String() string {
 
 // WitnessProof contains anchor index witness proof.
 type WitnessProof struct {
-	Type     WitnessType
-	URI      *url.URL
-	HasLog   bool
-	Selected bool
-	Proof    []byte
+	*Witness
+	Proof []byte
 }
 
 func (wf *WitnessProof) String() string {

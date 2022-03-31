@@ -15,6 +15,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
@@ -85,13 +86,17 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   witnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(witnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   witnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(witnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 		}
@@ -114,16 +119,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -145,16 +154,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -176,28 +189,36 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitness2URL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitness2URL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness2URL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -219,10 +240,12 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -244,16 +267,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -275,16 +302,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -306,16 +337,20 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: false,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeSystem,
+					URI:    vocab.NewURLProperty(systemWitnessURL),
+					HasLog: false,
+				},
+				Proof: []byte("proof"),
 			},
 			{
-				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
-				Proof:  []byte("proof"),
-				HasLog: true,
+				Witness: &proof.Witness{
+					Type:   proof.WitnessTypeBatch,
+					URI:    vocab.NewURLProperty(batchWitnessURL),
+					HasLog: true,
+				},
+				Proof: []byte("proof"),
 			},
 		}
 
@@ -334,20 +369,28 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -369,22 +412,30 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -406,23 +457,31 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -444,22 +503,30 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -481,21 +548,29 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -517,17 +592,23 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 			},
 		}
 
@@ -549,23 +630,31 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitness2URL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type: proof.WitnessTypeSystem,
-				URI:  systemWitness2URL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitness2URL),
+				},
 			},
 		}
 
@@ -587,8 +676,10 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 		}
@@ -611,8 +702,10 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 		}
@@ -635,12 +728,16 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type: proof.WitnessTypeBatch,
-				URI:  batchWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(batchWitnessURL),
+				},
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   systemWitnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(systemWitnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 		}
@@ -679,13 +776,17 @@ func TestEvaluate(t *testing.T) {
 
 		witnessProofs := []*proof.WitnessProof{
 			{
-				Type:  proof.WitnessTypeBatch,
-				URI:   witnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeBatch,
+					URI:  vocab.NewURLProperty(witnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 			{
-				Type:  proof.WitnessTypeSystem,
-				URI:   witnessURL,
+				Witness: &proof.Witness{
+					Type: proof.WitnessTypeSystem,
+					URI:  vocab.NewURLProperty(witnessURL),
+				},
 				Proof: []byte("proof"),
 			},
 		}
@@ -818,11 +919,11 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  batchWitnessURL,
+				URI:  vocab.NewURLProperty(batchWitnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				URI:  vocab.NewURLProperty(systemWitnessURL),
 			},
 		}
 
@@ -844,15 +945,15 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  batchWitnessURL,
+				URI:  vocab.NewURLProperty(batchWitnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				URI:  vocab.NewURLProperty(systemWitnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  batchWitnessURL,
+				URI:  vocab.NewURLProperty(batchWitnessURL),
 			},
 		}
 
@@ -872,7 +973,7 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				URI:  vocab.NewURLProperty(systemWitnessURL),
 			},
 		}
 
@@ -896,27 +997,27 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness2URL,
+				URI:    vocab.NewURLProperty(systemWitness2URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness3URL,
+				URI:    vocab.NewURLProperty(systemWitness3URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
+				URI:    vocab.NewURLProperty(batchWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitness2URL,
+				URI:    vocab.NewURLProperty(batchWitness2URL),
 				HasLog: false,
 			},
 		}
@@ -941,27 +1042,27 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness2URL,
+				URI:    vocab.NewURLProperty(systemWitness2URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness3URL,
+				URI:    vocab.NewURLProperty(systemWitness3URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
+				URI:    vocab.NewURLProperty(batchWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitness2URL,
+				URI:    vocab.NewURLProperty(batchWitness2URL),
 				HasLog: false,
 			},
 		}
@@ -986,27 +1087,27 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness2URL,
+				URI:    vocab.NewURLProperty(systemWitness2URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitness3URL,
+				URI:    vocab.NewURLProperty(systemWitness3URL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
+				URI:    vocab.NewURLProperty(batchWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitness2URL,
+				URI:    vocab.NewURLProperty(batchWitness2URL),
 				HasLog: false,
 			},
 		}
@@ -1031,7 +1132,7 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 		}
@@ -1052,12 +1153,12 @@ func TestSelect(t *testing.T) {
 
 		batchWitness := &proof.Witness{
 			Type: proof.WitnessTypeBatch,
-			URI:  batchWitnessURL,
+			URI:  vocab.NewURLProperty(batchWitnessURL),
 		}
 
 		systemWitness := &proof.Witness{
 			Type: proof.WitnessTypeSystem,
-			URI:  systemWitnessURL,
+			URI:  vocab.NewURLProperty(systemWitnessURL),
 		}
 
 		witnesses := []*proof.Witness{
@@ -1081,17 +1182,17 @@ func TestSelect(t *testing.T) {
 
 		batchWitness := &proof.Witness{
 			Type: proof.WitnessTypeBatch,
-			URI:  batchWitnessURL,
+			URI:  vocab.NewURLProperty(batchWitnessURL),
 		}
 
 		batchWitness2 := &proof.Witness{
 			Type: proof.WitnessTypeBatch,
-			URI:  batchWitness2URL,
+			URI:  vocab.NewURLProperty(batchWitness2URL),
 		}
 
 		systemWitness := &proof.Witness{
 			Type: proof.WitnessTypeSystem,
-			URI:  systemWitnessURL,
+			URI:  vocab.NewURLProperty(systemWitnessURL),
 		}
 
 		witnesses := []*proof.Witness{
@@ -1120,12 +1221,12 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
+				URI:    vocab.NewURLProperty(batchWitnessURL),
 				HasLog: true,
 			},
 		}
@@ -1150,12 +1251,12 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type:   proof.WitnessTypeSystem,
-				URI:    systemWitnessURL,
+				URI:    vocab.NewURLProperty(systemWitnessURL),
 				HasLog: true,
 			},
 			{
 				Type:   proof.WitnessTypeBatch,
-				URI:    batchWitnessURL,
+				URI:    vocab.NewURLProperty(batchWitnessURL),
 				HasLog: true,
 			},
 		}
@@ -1179,7 +1280,7 @@ func TestSelect(t *testing.T) {
 		witnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  systemWitnessURL,
+				URI:  vocab.NewURLProperty(systemWitnessURL),
 			},
 		}
 
@@ -1201,13 +1302,13 @@ func TestIntersection(t *testing.T) {
 		batchWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 		}
 		systemWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  otherWitnessURL,
+				URI:  vocab.NewURLProperty(otherWitnessURL),
 			},
 		}
 
@@ -1219,13 +1320,13 @@ func TestIntersection(t *testing.T) {
 		batchWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 		}
 		systemWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 		}
 
@@ -1237,17 +1338,17 @@ func TestIntersection(t *testing.T) {
 		batchWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 		}
 		systemWitnesses := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 		}
 
@@ -1267,18 +1368,18 @@ func TestDifference(t *testing.T) {
 		eligible := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  otherWitnessURL,
+				URI:  vocab.NewURLProperty(otherWitnessURL),
 			},
 		}
 
 		preferred := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  otherWitnessURL,
+				URI:  vocab.NewURLProperty(otherWitnessURL),
 			},
 		}
 
@@ -1291,11 +1392,11 @@ func TestDifference(t *testing.T) {
 		eligible := []*proof.Witness{
 			{
 				Type: proof.WitnessTypeBatch,
-				URI:  witnessURL,
+				URI:  vocab.NewURLProperty(witnessURL),
 			},
 			{
 				Type: proof.WitnessTypeSystem,
-				URI:  otherWitnessURL,
+				URI:  vocab.NewURLProperty(otherWitnessURL),
 			},
 		}
 

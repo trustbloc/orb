@@ -82,7 +82,7 @@ func (p *Publisher) publish(topic string, msg *message.Message) error {
 		return fmt.Errorf("marshal message %s: %w", msg.UUID, err)
 	}
 
-	logger.Debugf("[%s] Sending message [%s] to [%s] ", p.ServiceName, msg.UUID, req.URL)
+	logger.Debugf("[%s] Sending message [%s] to [%s]: %s", p.ServiceName, msg.UUID, req.URL, msg.Payload)
 
 	resp, err := p.httpTransport.Post(context.Background(), req, msg.Payload)
 	if err != nil {
