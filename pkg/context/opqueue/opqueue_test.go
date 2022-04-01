@@ -14,14 +14,13 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
-	dctest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	ctxmocks "github.com/trustbloc/orb/pkg/context/mocks"
+	"github.com/trustbloc/orb/pkg/internal/testutil/rabbitmqtestutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -31,11 +30,8 @@ import (
 
 //go:generate counterfeiter -o ../mocks/pubsub.gen.go --fake-name PubSub . pubSub
 
-const (
-	dockerImage = "rabbitmq"
-	dockerTag   = "3-management-alpine"
-	mqURI       = "amqp://guest:guest@localhost:5672/"
-)
+// mqURI will get set in the TestMain function.
+var mqURI = ""
 
 func TestQueue(t *testing.T) {
 	log.SetLevel("sidetree_context", log.DEBUG)
@@ -441,29 +437,10 @@ func TestMain(m *testing.M) {
 
 	defer func() { os.Exit(code) }()
 
-	pool, err := dctest.NewPool("")
-	if err != nil {
-		panic(fmt.Sprintf("pool: %v", err))
-	}
+	mqURIDocker, stopRabbitMQ := rabbitmqtestutil.StartRabbitMQ()
+	defer stopRabbitMQ()
 
-	resource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: dockerImage,
-		Tag:        dockerTag,
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"5672/tcp": {{HostIP: "", HostPort: "5672"}},
-		},
-	})
-	if err != nil {
-		logger.Errorf(`Failed to start RabbitMQ Docker image: %s`, err)
-
-		panic(fmt.Sprintf("run with options: %v", err))
-	}
-
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			panic(fmt.Sprintf("purge: %v", err))
-		}
-	}()
+	mqURI = mqURIDocker
 
 	code = m.Run()
 }
