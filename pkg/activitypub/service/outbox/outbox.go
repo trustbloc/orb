@@ -458,10 +458,9 @@ func (h *Outbox) resolveReferences(refType store.ReferenceType) ([]*resolveIRIRe
 		return nil, err
 	}
 
-	var responses []*resolveIRIResponse
+	return h.resolveIRIs(refs, func(iri *url.URL) []*resolveIRIResponse {
+		var responses []*resolveIRIResponse
 
-	// FIXME: Should do this concurrently.
-	for _, iri := range refs {
 		resolvedIRIs, err := h.doResolveActorIRI(iri)
 		if err != nil {
 			responses = append(responses, &resolveIRIResponse{iri: iri, err: err})
@@ -470,9 +469,9 @@ func (h *Outbox) resolveReferences(refType store.ReferenceType) ([]*resolveIRIRe
 				responses = append(responses, &resolveIRIResponse{iri: r})
 			}
 		}
-	}
 
-	return responses, nil
+		return responses
+	}), nil
 }
 
 func (h *Outbox) doResolveActorIRI(iri *url.URL) ([]*url.URL, error) {
@@ -539,7 +538,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
 	resolve func(iri *url.URL) []*resolveIRIResponse) []*resolveIRIResponse {
 	var wg sync.WaitGroup
 
-	var recipients []*resolveIRIResponse
+	var responses []*resolveIRIResponse
 
 	var mutex sync.Mutex
 
@@ -561,7 +560,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
 				response := resolve(toIRI)
 
 				mutex.Lock()
-				recipients = append(recipients, response...)
+				responses = append(responses, response...)
 				mutex.Unlock()
 			}(reqIRI)
 		}
@@ -571,7 +570,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
 
 	close(resolveChan)
 
-	return recipients
+	return responses
 }
 
 func (h *Outbox) newActivityID() *url.URL {

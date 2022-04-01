@@ -29,6 +29,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
+	storemocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -570,8 +571,10 @@ func TestResolveInboxes(t *testing.T) {
 
 	activityStore := &mocks.ActivityStore{}
 
+	wfResolver := &mocks.WebFingerResolver{}
+
 	ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-		&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+		&mocks.ActivityHandler{}, apClient, wfResolver, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -603,6 +606,29 @@ func TestResolveInboxes(t *testing.T) {
 		require.EqualError(t, inboxes[0].err,
 			"error querying for references of type FOLLOWER from storage: injected persistent error")
 		require.Equal(t, iri.String(), inboxes[0].iri.String())
+	})
+
+	t.Run("WebFinger error", func(t *testing.T) {
+		errExpected := orberrors.NewTransient(errors.New("injected WebFinger error"))
+		wfResolver.Err = errExpected
+
+		service2IRI := testutil.MustParseURL("http://orb.domain2.com/services/orb")
+
+		it := &storemocks.ReferenceIterator{}
+		it.NextReturnsOnCall(0, service2IRI, nil)
+		it.NextReturnsOnCall(1, nil, store.ErrNotFound)
+
+		activityStore.QueryReferencesReturns(it, nil)
+
+		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
+		require.Len(t, inboxes, 1)
+
+		inbox := inboxes[0]
+
+		require.Error(t, inbox.err)
+		require.Contains(t, inbox.err.Error(), errExpected.Error())
+		require.NotNil(t, inbox.iri)
+		require.Equal(t, service2IRI.String(), inbox.iri.String())
 	})
 }
 
