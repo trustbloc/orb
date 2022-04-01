@@ -284,7 +284,7 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 
 	switch {
 	case activity.Type().Is(vocab.TypeFollow):
-		if err := h.handleAccept(accept, store.Following); err != nil {
+		if err := h.handleAcceptFollow(accept); err != nil {
 			return fmt.Errorf("handle accept 'Follow' activity %s: %w", accept.ID(), err)
 		}
 
@@ -306,6 +306,15 @@ func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
 	h.notify(accept)
 
 	return nil
+}
+
+func (h *Inbox) handleAcceptFollow(accept *vocab.ActivityType) error {
+	err := h.AcceptFollowHandler.Accept(accept.Actor())
+	if err != nil {
+		return fmt.Errorf("accept follow for actor %s: %w", accept.Actor(), err)
+	}
+
+	return h.handleAccept(accept, store.Following)
 }
 
 func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.ReferenceType) error {

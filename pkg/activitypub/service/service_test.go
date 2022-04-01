@@ -932,6 +932,7 @@ type mockProviders struct {
 	proofHandler          *mocks.ProofHandler
 	witnessHandler        *mocks.WitnessHandler
 	anchorEventAckHandler *mocks.AnchorEventAcknowledgementHandler
+	acceptFollowHandler   *mocks.AcceptFollowHandler
 }
 
 func newServiceWithMocks(t *testing.T, endpoint string,
@@ -961,6 +962,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		proofHandler:          mocks.NewProofHandler(),
 		witnessHandler:        mocks.NewWitnessHandler(),
 		anchorEventAckHandler: mocks.NewAnchorEventAcknowledgementHandler(),
+		acceptFollowHandler:   mocks.NewAcceptFollowHandler(),
 	}
 
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -1012,6 +1014,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		service.WithWitness(providers.witnessHandler),
 		service.WithProofHandler(providers.proofHandler),
 		service.WithAnchorEventAcknowledgementHandler(providers.anchorEventAckHandler),
+		service.WithAcceptFollowHandler(providers.acceptFollowHandler),
 	)
 	require.NoError(t, err)
 

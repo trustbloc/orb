@@ -177,6 +177,39 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 	return webFingerResponse, nil
 }
 
+// ResolveLog returns VCT log for domain.
+func (c *Client) ResolveLog(domain string) (*url.URL, error) {
+	resource := fmt.Sprintf("%s/vct", domain)
+
+	jrd, err := c.ResolveWebFingerResource(domain, resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", resource, err)
+	}
+
+	logger.Debugf("jrd response for vct for domain[%s]: %+v", domain, jrd)
+
+	var logURL string
+
+	for _, link := range jrd.Links {
+		if link.Rel == "vct" {
+			logURL = link.Href
+
+			break
+		}
+	}
+
+	if logURL == "" {
+		return nil, orberrors.ErrContentNotFound
+	}
+
+	parsedURL, err := url.Parse(logURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse log URL: %w", err)
+	}
+
+	return parsedURL, nil
+}
+
 // GetWebCASURL gets the WebCAS URL for cid from domainWithScheme using WebFinger.
 func (c *Client) GetWebCASURL(domainWithScheme, cid string) (*url.URL, error) {
 	webFingerResponse, err := c.ResolveWebFingerResource(domainWithScheme,

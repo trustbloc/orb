@@ -66,6 +66,11 @@ type ProofHandler interface {
 	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
 }
 
+// AcceptFollowHandler handles accepting follow request.
+type AcceptFollowHandler interface {
+	Accept(actor *url.URL) error
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -101,6 +106,7 @@ type Handlers struct {
 	Witness               WitnessHandler
 	ProofHandler          ProofHandler
 	AnchorAckHandler      AnchorEventAcknowledgementHandler
+	AcceptFollowHandler   AcceptFollowHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -145,6 +151,13 @@ func WithWitness(handler WitnessHandler) HandlerOpt {
 func WithProofHandler(handler ProofHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.ProofHandler = handler
+	}
+}
+
+// WithAcceptFollowHandler sets accept follow handler.
+func WithAcceptFollowHandler(handler AcceptFollowHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.AcceptFollowHandler = handler
 	}
 }
 
