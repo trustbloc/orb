@@ -12,7 +12,7 @@ jobs:
   unitTest:
     name: Unit test
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 16
     strategy:
       matrix:
         os: [ubuntu-latest]
