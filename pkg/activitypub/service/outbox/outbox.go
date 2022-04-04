@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill"
+	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/bluele/gcache"
 	"github.com/google/uuid"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -26,7 +26,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
-	"github.com/trustbloc/orb/pkg/activitypub/service/outbox/httppublisher"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -34,28 +33,20 @@ import (
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
-	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
-	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 var logger = log.New("activitypub_service")
 
 const (
-	metadataEventType             = "event_type"
 	defaultConcurrentHTTPRequests = 10
 	defaultCacheSize              = 100
 	defaultCacheExpiration        = time.Minute
+	defaultSubscriberPoolSize     = 5
 )
 
-type redeliveryService interface {
-	service.ServiceLifecycle
-
-	Add(msg *message.Message) (time.Time, error)
-}
-
 type pubSub interface {
-	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
 }
@@ -65,11 +56,11 @@ type Config struct {
 	ServiceName           string
 	ServiceIRI            *url.URL
 	Topic                 string
-	RedeliveryConfig      *redelivery.Config
 	MaxRecipients         int
 	MaxConcurrentRequests int
 	CacheSize             int
 	CacheExpiration       time.Duration
+	SubscriberPoolSize    int
 }
 
 type activityPubClient interface {
@@ -86,21 +77,17 @@ type Outbox struct {
 	*Config
 	*lifecycle.Lifecycle
 
-	router               *message.Router
-	httpPublisher        message.Publisher
-	publisher            message.Publisher
-	activityHandler      service.ActivityHandler
-	undeliverableHandler service.UndeliverableActivityHandler
-	undeliverableChan    <-chan *message.Message
-	activityStore        store.Store
-	client               activityPubClient
-	resourceResolver     resourceResolver
-	redeliveryService    redeliveryService
-	redeliveryChan       chan *message.Message
-	jsonMarshal          func(v interface{}) ([]byte, error)
-	jsonUnmarshal        func(data []byte, v interface{}) error
-	iriCache             gcache.Cache
-	metrics              metricsProvider
+	httpTransport    httpTransport
+	publisher        message.Publisher
+	activityHandler  service.ActivityHandler
+	msgChan          <-chan *message.Message
+	activityStore    store.Store
+	client           activityPubClient
+	resourceResolver resourceResolver
+	jsonMarshal      func(v interface{}) ([]byte, error)
+	jsonUnmarshal    func(data []byte, v interface{}) error
+	iriCache         gcache.Cache
+	metrics          metricsProvider
 }
 
 type httpTransport interface {
@@ -115,35 +102,29 @@ type metricsProvider interface {
 }
 
 // New returns a new ActivityPub Outbox.
-//nolint:funlen
 func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
-	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider,
-	handlerOpts ...service.HandlerOpt) (*Outbox, error) {
-	options := newHandlerOptions(handlerOpts)
+	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider) (*Outbox, error) {
+	cfg := populateConfigDefaults(cnfg)
 
-	undeliverableChan, err := pubSub.Subscribe(context.Background(), spi.UndeliverableTopic)
+	logger.Debugf("Creating Outbox with config: %+v", cfg)
+
+	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), cfg.Topic, spi.WithPool(cfg.SubscriberPoolSize))
 	if err != nil {
 		return nil, err
 	}
 
-	cfg := populateConfigDefaults(cnfg)
-
-	redeliverChan := make(chan *message.Message, cfg.RedeliveryConfig.MaxMessages)
-
 	h := &Outbox{
-		Config:               &cfg,
-		activityHandler:      activityHandler,
-		undeliverableHandler: options.UndeliverableHandler,
-		activityStore:        s,
-		client:               apClient,
-		resourceResolver:     resourceResolver,
-		redeliveryChan:       redeliverChan,
-		publisher:            pubSub,
-		undeliverableChan:    undeliverableChan,
-		redeliveryService:    redelivery.NewService(cfg.ServiceName, cfg.RedeliveryConfig, redeliverChan),
-		jsonMarshal:          json.Marshal,
-		jsonUnmarshal:        json.Unmarshal,
-		metrics:              metrics,
+		Config:           &cfg,
+		activityHandler:  activityHandler,
+		activityStore:    s,
+		client:           apClient,
+		resourceResolver: resourceResolver,
+		publisher:        pubSub,
+		msgChan:          msgChan,
+		jsonMarshal:      json.Marshal,
+		jsonUnmarshal:    json.Unmarshal,
+		metrics:          metrics,
+		httpTransport:    t,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName,
@@ -159,53 +140,43 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 			return h.resolveActorIRIFromWebFinger(i.(*url.URL))
 		}).Build()
 
-	router, err := message.NewRouter(message.RouterConfig{}, wmlogger.New())
-	if err != nil {
-		panic(err)
-	}
-
-	httpPublisher := httppublisher.New(cfg.ServiceName, t)
-
-	router.AddHandler(
-		"outbox-"+cfg.ServiceName, cfg.Topic,
-		pubSub, "outbox", httpPublisher,
-		func(msg *message.Message) ([]*message.Message, error) {
-			return message.Messages{msg}, nil
-		},
-	)
-
-	h.router = router
-	h.httpPublisher = httpPublisher
-
 	return h, nil
 }
 
 func (h *Outbox) start() {
-	// Start the redelivery message listener
-	go h.handleRedelivery()
-
-	// Start the redeliver message listener
-	go h.redeliver()
-
-	// Start the router
-	go h.route()
-
-	h.redeliveryService.Start()
-
-	// Wait for router to start
-	<-h.router.Running()
+	go h.listen()
 }
 
 func (h *Outbox) stop() {
-	h.redeliveryService.Stop()
+	logger.Infof("[%s] Outbox stopped", h.ServiceName)
+}
 
-	close(h.redeliveryChan)
+func (h *Outbox) listen() {
+	logger.Debugf("[%s] Starting message listener", h.ServiceName)
 
-	if err := h.router.Close(); err != nil {
-		logger.Warnf("[%s] Error closing router: %s", h.ServiceName, err)
-	} else {
-		logger.Debugf("[%s] Closed router", h.ServiceName)
+	for msg := range h.msgChan {
+		logger.Debugf("[%s] Got new message: %s: %s", h.ServiceName, msg.UUID, msg.Payload)
+
+		h.handle(msg)
 	}
+
+	logger.Debugf("[%s] Message listener stopped", h.ServiceName)
+}
+
+type messageType string
+
+const (
+	activityType  messageType = "activity"
+	broadcastType messageType = "broadcast"
+	targetedType  messageType = "targeted"
+)
+
+type activityMessage struct {
+	Type        messageType                  `json:"type"`
+	Activity    *vocab.ActivityType          `json:"activity"`
+	TargetIRI   *vocab.URLProperty           `json:"target,omitempty"`
+	TargetIRIs  *vocab.URLCollectionProperty `json:"targets,omitempty"`
+	ExcludeIRIs *vocab.URLCollectionProperty `json:"exclude,omitempty"`
 }
 
 // Post posts an activity to the outbox and returns the ID of the activity that was posted.
@@ -229,38 +200,140 @@ func (h *Outbox) Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.U
 		return nil, err
 	}
 
-	activityBytes, err := h.jsonMarshal(activity)
+	err = h.publishActivityMessage(activity, exclude)
 	if err != nil {
-		return nil, orberrors.NewBadRequest(fmt.Errorf("marshal: %w", err))
-	}
-
-	logger.Debugf("[%s] Posting activity: %s", h.ServiceName, activityBytes)
-
-	err = h.storeActivity(activity)
-	if err != nil {
-		return nil, fmt.Errorf("store activity: %w", err)
-	}
-
-	err = h.activityHandler.HandleActivity(nil, activity)
-	if err != nil {
-		return nil, fmt.Errorf("handle activity: %w", err)
-	}
-
-	for _, r := range h.resolveInboxes(activity.To(), exclude) {
-		if r.err != nil {
-			// TODO: Retry the IRI if error is transient.
-			logger.Errorf("Error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
-		} else {
-			err = h.publish(activity.ID().String(), activityBytes, r.iri)
-			if err != nil {
-				// Return with an error since the only time publish returns an error is if
-				// there's something wrong with the local server. (Maybe it's being shut down.)
-				return nil, fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
-			}
-		}
+		return nil, fmt.Errorf("publish activity message [%s]: %w", activity.ID(), err)
 	}
 
 	return activity.ID().URL(), nil
+}
+
+func (h *Outbox) handle(msg *message.Message) {
+	activity, err := h.handleActivityMsg(msg)
+	if err != nil {
+		if orberrors.IsTransient(err) {
+			logger.Warnf("[%s] Transient error handling message [%s]: %s",
+				h.ServiceName, msg.UUID, err)
+
+			msg.Nack()
+		} else {
+			logger.Warnf("[%s] Persistent error handling message [%s]: %s",
+				h.ServiceName, msg.UUID, err)
+
+			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
+			msg.Ack()
+		}
+	} else {
+		logger.Infof("[%s] Acking message [%s] for activity [%s]", h.ServiceName, msg.UUID, activity.ID())
+
+		msg.Ack()
+	}
+}
+
+func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
+	logger.Debugf("[%s] Handling activity message [%s]", h.ServiceName, msg.UUID)
+
+	activityMsg := &activityMessage{}
+
+	if err := h.jsonUnmarshal(msg.Payload, activityMsg); err != nil {
+		return nil, fmt.Errorf("unmarshal activity message [%s]: %w", msg.UUID, err)
+	}
+
+	switch activityMsg.Type {
+	case activityType:
+		logger.Debugf("[%s] Handling activity message [%s], activity [%s]",
+			h.ServiceName, msg.UUID, activityMsg.Activity.ID())
+
+		if err := h.handleActivity(activityMsg.Activity, activityMsg.ExcludeIRIs.URLs()); err != nil {
+			return nil, fmt.Errorf("handle activity message for activity [%s]: %w",
+				activityMsg.Activity.ID(), err)
+		}
+
+		return activityMsg.Activity, nil
+
+	case broadcastType:
+		logger.Debugf("[%s] Handling broadcast activity message [%s], activity [%s], targets %s",
+			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRIs.URLs())
+
+		if err := h.broadcastActivity(activityMsg.Activity, activityMsg.TargetIRIs.URLs(),
+			activityMsg.ExcludeIRIs.URLs()); err != nil {
+			return nil, fmt.Errorf("handle broadcast message for activity [%s]: %w",
+				activityMsg.Activity.ID(), err)
+		}
+
+		return activityMsg.Activity, nil
+
+	case targetedType:
+		logger.Debugf("[%s] Handling targeted activity message [%s], activity [%s], target [%s]",
+			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
+
+		if err := h.sendActivity(activityMsg.Activity, activityMsg.TargetIRI.URL()); err != nil {
+			return nil, fmt.Errorf("handle targeted message for activity [%s] to [%s]: %w",
+				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
+		}
+
+		return activityMsg.Activity, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported activity message type [%s]", activityMsg.Type)
+	}
+}
+
+func (h *Outbox) handleActivity(activity *vocab.ActivityType, exclude []*url.URL) error {
+	logger.Debugf("[%s] Handling activity [%s]", h.ServiceName, activity.ID())
+
+	if err := h.storeActivity(activity); err != nil {
+		return fmt.Errorf("store activity: %w", err)
+	}
+
+	if err := h.activityHandler.HandleActivity(nil, activity); err != nil {
+		return fmt.Errorf("handle activity: %w", err)
+	}
+
+	if err := h.broadcastActivity(activity, activity.To(), exclude); err != nil {
+		return fmt.Errorf("resolve and publish: %w", err)
+	}
+
+	return nil
+}
+
+func (h *Outbox) broadcastActivity(activity *vocab.ActivityType, toIRIs, excludeIRIs []*url.URL) error {
+	logger.Debugf("[%s] Broadcasting activity [%s]", h.ServiceName, activity.ID())
+
+	for _, r := range h.resolveInboxes(toIRIs, excludeIRIs) {
+		if err := h.handleResolveResponse(activity, r, excludeIRIs); err != nil {
+			return fmt.Errorf("handle resolve response: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (h *Outbox) handleResolveResponse(activity *vocab.ActivityType,
+	r *resolveIRIResponse, excludeIRIs []*url.URL) error {
+	if r.err == nil {
+		if err := h.publishTargetedMessage(activity, r.iri); err != nil {
+			// Return with an error since the only time publishToTarget returns an error is if
+			// there's something wrong with the local server. (Maybe it's being shut down.)
+			return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
+		}
+
+		return nil
+	}
+
+	if orberrors.IsTransient(r.err) {
+		logger.Warnf("Transient error resolving inbox %s: %s. IRI will be retried.", r.iri, r.err)
+
+		if err := h.publishBroadcastMessage(activity, []*url.URL{r.iri}, excludeIRIs); err != nil {
+			return fmt.Errorf("unable to publish activity for retry %s: %w", r.iri, err)
+		}
+
+		return nil
+	}
+
+	logger.Errorf("Persistent error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
+
+	return nil
 }
 
 func (h *Outbox) storeActivity(activity *vocab.ActivityType) error {
@@ -283,73 +356,65 @@ func (h *Outbox) storeActivity(activity *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Outbox) publish(id string, activityBytes []byte, to fmt.Stringer) error {
-	msg := message.NewMessage(watermill.NewUUID(), activityBytes)
-	msg.Metadata.Set(metadataEventType, h.Topic)
-	msg.Metadata.Set(httppublisher.MetadataSendTo, to.String())
+func (h *Outbox) publishActivityMessage(activity *vocab.ActivityType, excludeIRIs []*url.URL) error {
+	activityMsg := &activityMessage{
+		Type:        activityType,
+		Activity:    activity,
+		ExcludeIRIs: vocab.NewURLCollectionProperty(excludeIRIs...),
+	}
 
-	middleware.SetCorrelationID(id, msg)
+	msgBytes, err := h.jsonMarshal(activityMsg)
+	if err != nil {
+		return orberrors.NewBadRequest(fmt.Errorf("marshal: %w", err))
+	}
 
-	logger.Debugf("[%s] Publishing %s", h.ServiceName, h.Topic)
+	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+	logger.Debugf("[%s] Publishing activity message [%s] for activity [%s] to queue [%s]",
+		h.ServiceName, msg.UUID, activity.ID(), h.Topic)
 
 	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) route() {
-	logger.Infof("Starting router")
-
-	if err := h.router.Run(context.Background()); err != nil {
-		// This happens on startup so the best thing to do is to panic
-		panic(err)
+func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, targetIRIs, excludeIRIs []*url.URL) error {
+	activityMsg := &activityMessage{
+		Type:        broadcastType,
+		Activity:    activity,
+		TargetIRIs:  vocab.NewURLCollectionProperty(targetIRIs...),
+		ExcludeIRIs: vocab.NewURLCollectionProperty(excludeIRIs...),
 	}
 
-	logger.Infof("Router is shutting down")
-}
-
-func (h *Outbox) handleRedelivery() {
-	for msg := range h.undeliverableChan {
-		msg.Ack()
-
-		logger.Warnf("[%s] Got undeliverable message [%s]", h.ServiceName, msg.UUID)
-
-		h.handleUndeliverableActivity(msg)
-	}
-}
-
-func (h *Outbox) handleUndeliverableActivity(msg *message.Message) {
-	toURL := msg.Metadata[httppublisher.MetadataSendTo]
-
-	redeliveryTime, err := h.redeliveryService.Add(msg)
+	msgBytes, err := h.jsonMarshal(activityMsg)
 	if err != nil {
-		activity := &vocab.ActivityType{}
-		if e := h.jsonUnmarshal(msg.Payload, activity); e != nil {
-			logger.Errorf("[%s] Error unmarshalling activity for message [%s]: %s", h.ServiceName, msg.UUID, e)
-
-			return
-		}
-
-		logger.Warnf("[%s] Will not attempt redelivery for message. Activity ID [%s], To: [%s]. Reason: %s",
-			h.ServiceName, activity.ID(), toURL, err)
-
-		h.undeliverableHandler.HandleUndeliverableActivity(activity, toURL)
-	} else {
-		activityID := msg.Metadata[middleware.CorrelationIDMetadataKey]
-
-		logger.Debugf("[%s] Will attempt to redeliver message at %s. Activity ID [%s], To: [%s]",
-			h.ServiceName, redeliveryTime, activityID, toURL)
+		return orberrors.NewBadRequest(fmt.Errorf("marshal: %w", err))
 	}
+
+	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+	logger.Debugf("[%s] Publishing broadcast message [%s] for activity [%s] to queue [%s]",
+		h.ServiceName, msg.UUID, activity.ID(), h.Topic)
+
+	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) redeliver() {
-	for msg := range h.redeliveryChan {
-		logger.Infof("[%s] Attempting to redeliver message [%s]", h.ServiceName, msg.UUID)
-
-		if err := h.publisher.Publish(h.Topic, msg); err != nil {
-			logger.Errorf("[%s] Error redelivering message [%s]: %s", h.ServiceName, msg.UUID, err)
-		} else {
-			logger.Infof("[%s] Message was delivered: %s", h.ServiceName, msg.UUID)
-		}
+func (h *Outbox) publishTargetedMessage(activity *vocab.ActivityType, target *url.URL) error {
+	activityMsg := &activityMessage{
+		Type:      targetedType,
+		Activity:  activity,
+		TargetIRI: vocab.NewURLProperty(target),
 	}
+
+	msgBytes, err := h.jsonMarshal(activityMsg)
+	if err != nil {
+		return orberrors.NewBadRequest(fmt.Errorf("marshal: %w", err))
+	}
+
+	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+	logger.Debugf("[%s] Publishing targeted message [%s] for activity [%s] to queue [%s] with target [%s]",
+		h.ServiceName, msg.UUID, activity.ID(), h.Topic, target)
+
+	return h.publisher.Publish(h.Topic, msg)
 }
 
 func (h *Outbox) resolveInboxes(toIRIs, excludeIRIs []*url.URL) []*resolveIRIResponse {
@@ -397,7 +462,7 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 
 func (h *Outbox) resolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 	if iri.String() == vocab.PublicIRI.String() {
-		// Should not attempt to publish to the 'Public' URI.
+		// Should not attempt to publishToTarget to the 'Public' URI.
 		logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, iri)
 
 		return nil
@@ -605,12 +670,53 @@ func (h *Outbox) incrementCount(types []vocab.Type) {
 	}
 }
 
+func (h *Outbox) sendActivity(activity *vocab.ActivityType, target *url.URL) error {
+	logger.Debugf("[%s] Sending activity [%s] to target [%s]", h.ServiceName, activity.ID(), target)
+
+	activityBytes, err := h.jsonMarshal(activity)
+	if err != nil {
+		return fmt.Errorf("marshal activity: %w", err)
+	}
+
+	msg := message.NewMessage(watermill.NewUUID(), activityBytes)
+
+	req := transport.NewRequest(target,
+		transport.WithHeader(transport.AcceptHeader, transport.ActivityStreamsContentType),
+		transport.WithHeader(wmhttp.HeaderUUID, msg.UUID),
+	)
+
+	logger.Debugf("[%s] Sending message [%s] to [%s]: %s", h.ServiceName, msg.UUID, req.URL, msg.Payload)
+
+	resp, err := h.httpTransport.Post(context.Background(), req, msg.Payload)
+	if err != nil {
+		return orberrors.NewTransientf("send message [%s]: %w", msg.UUID, err)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		logger.Warnf("[%s] Error closing response body: %s", h.ServiceName, err)
+	}
+
+	if resp.StatusCode >= http.StatusInternalServerError {
+		logger.Debugf("[%s] Error code %d received in response from [%s] for message [%s]",
+			h.ServiceName, resp.StatusCode, req.URL, msg.UUID)
+
+		return orberrors.NewTransientf("server responded with error %d - %s", resp.StatusCode, resp.Status)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		logger.Debugf("[%s] Error code %d received in response from [%s] for message [%s]",
+			h.ServiceName, resp.StatusCode, req.URL, msg.UUID)
+
+		return fmt.Errorf("server responded with error %d - %s", resp.StatusCode, resp.Status)
+	}
+
+	logger.Debugf("[%s] Message successfully sent [%s] to [%s] ", h.ServiceName, msg.UUID, req.URL)
+
+	return nil
+}
+
 func populateConfigDefaults(cnfg *Config) Config {
 	cfg := *cnfg
-
-	if cfg.RedeliveryConfig == nil {
-		cfg.RedeliveryConfig = redelivery.DefaultConfig()
-	}
 
 	if cfg.MaxConcurrentRequests <= 0 {
 		cfg.MaxConcurrentRequests = defaultConcurrentHTTPRequests
@@ -622,6 +728,10 @@ func populateConfigDefaults(cnfg *Config) Config {
 
 	if cfg.CacheExpiration == 0 {
 		cfg.CacheExpiration = defaultCacheExpiration
+	}
+
+	if cfg.SubscriberPoolSize == 0 {
+		cfg.SubscriberPoolSize = defaultSubscriberPoolSize
 	}
 
 	return cfg
@@ -642,27 +752,6 @@ func deduplicateAndFilter(toIRIs, excludeIRIs []*url.URL) []*url.URL {
 	}
 
 	return iris
-}
-
-type noOpUndeliverableHandler struct{}
-
-func (h *noOpUndeliverableHandler) HandleUndeliverableActivity(*vocab.ActivityType, string) {
-}
-
-func newHandlerOptions(opts []service.HandlerOpt) *service.Handlers {
-	options := defaultOptions()
-
-	for _, opt := range opts {
-		opt(options)
-	}
-
-	return options
-}
-
-func defaultOptions() *service.Handlers {
-	return &service.Handlers{
-		UndeliverableHandler: &noOpUndeliverableHandler{},
-	}
 }
 
 func contains(arr []*url.URL, u *url.URL) bool {

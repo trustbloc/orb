@@ -104,7 +104,6 @@ type UndeliverableActivityHandler interface {
 
 // Handlers contains handlers for various activity events, including undeliverable activities.
 type Handlers struct {
-	UndeliverableHandler  UndeliverableActivityHandler
 	AnchorHandler         AnchorHandler
 	FollowerAuth          ActorAuth
 	WitnessInvitationAuth ActorAuth
@@ -117,13 +116,6 @@ type Handlers struct {
 
 // HandlerOpt sets a specific handler.
 type HandlerOpt func(options *Handlers)
-
-// WithUndeliverableHandler sets the handler that's called when an activity can't be delivered.
-func WithUndeliverableHandler(handler UndeliverableActivityHandler) HandlerOpt {
-	return func(options *Handlers) {
-		options.UndeliverableHandler = handler
-	}
-}
 
 // WithAnchorEventHandler sets the handler for the published anchor event.
 func WithAnchorEventHandler(handler AnchorHandler) HandlerOpt {

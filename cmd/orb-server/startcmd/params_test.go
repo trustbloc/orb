@@ -1134,6 +1134,7 @@ func TestGetMQParameters(t *testing.T) {
 	t.Run("Valid env values -> error", func(t *testing.T) {
 		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
 		restoreObserverPoolEnv := setEnv(t, mqObserverPoolEnvKey, "3")
+		restoreOutboxPoolEnv := setEnv(t, mqOutboxPoolEnvKey, "4")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
 		restoreConnectionRetriesEnv := setEnv(t, mqConnectMaxRetriesEnvKey, "12")
@@ -1145,6 +1146,7 @@ func TestGetMQParameters(t *testing.T) {
 		defer func() {
 			restoreURLEnv()
 			restoreObserverPoolEnv()
+			restoreOutboxPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 			restoreChannelPoolEnv()
 			restoreConnectionRetriesEnv()
@@ -1160,6 +1162,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, u, mqParams.endpoint)
 		require.Equal(t, 3, mqParams.observerPoolSize)
+		require.Equal(t, 4, mqParams.outboxPoolSize)
 		require.Equal(t, 456, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
 		require.Equal(t, 12, mqParams.maxConnectRetries)
@@ -1182,6 +1185,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, u, mqParams.endpoint)
 		require.Equal(t, mqDefaultObserverPoolSize, mqParams.observerPoolSize)
+		require.Equal(t, mqDefaultOutboxPoolSize, mqParams.outboxPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
 		require.Equal(t, mqDefaultRedeliveryMaxInterval, mqParams.maxRedeliveryInterval)

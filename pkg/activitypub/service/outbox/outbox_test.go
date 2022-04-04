@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -27,7 +29,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	storemocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -38,7 +39,6 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
-	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 )
 
 //nolint:lll
@@ -49,7 +49,6 @@ const pageSize = 2
 func TestNewOutbox(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 
-	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 
 	t.Run("Success", func(t *testing.T) {
@@ -60,8 +59,7 @@ func TestNewOutbox(t *testing.T) {
 		}
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(undeliverableHandler))
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 	})
@@ -76,8 +74,7 @@ func TestNewOutbox(t *testing.T) {
 		errExpected := errors.New("injected PubSub error")
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub().WithError(errExpected), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(undeliverableHandler))
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
 		require.True(t, errors.Is(err, errExpected))
 		require.Nil(t, ob)
@@ -87,7 +84,6 @@ func TestNewOutbox(t *testing.T) {
 func TestOutbox_StartStop(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 
-	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 	pubSub := mocks.NewPubSub()
 
@@ -98,8 +94,7 @@ func TestOutbox_StartStop(t *testing.T) {
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-		&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-		spi.WithUndeliverableHandler(undeliverableHandler))
+		&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -183,7 +178,6 @@ func TestOutbox_Post(t *testing.T) {
 		require.NoError(t, httpServer.Stop(context.Background()))
 	}()
 
-	undeliverableHandler := mocks.NewUndeliverableHandler()
 	activityStore := memstore.New("service1")
 	pubSub := mocks.NewPubSub()
 
@@ -193,18 +187,11 @@ func TestOutbox_Post(t *testing.T) {
 		ServiceName: "service1",
 		ServiceIRI:  service1URL,
 		Topic:       "activities",
-		RedeliveryConfig: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 100 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.5,
-			MaxMessages:    20,
-		},
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
 		&mocks.ActivityHandler{}, client.New(client.Config{}, transport.Default()), &mocks.WebFingerResolver{},
-		&orbmocks.MetricsProvider{}, spi.WithUndeliverableHandler(undeliverableHandler))
+		&orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
@@ -283,21 +270,13 @@ func TestOutbox_PostError(t *testing.T) {
 		ServiceName: "service1",
 		ServiceIRI:  service1URL,
 		Topic:       "activities",
-		RedeliveryConfig: &redelivery.Config{
-			MaxRetries:     1,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.5,
-			MaxMessages:    20,
-		},
 	}
 
 	objIRI := testutil.MustParseURL("http://example.com/transactions/txn1")
 
 	t.Run("Not started", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -308,85 +287,9 @@ func TestOutbox_PostError(t *testing.T) {
 		require.Nil(t, activityID)
 	})
 
-	t.Run("AddActivity error", func(t *testing.T) {
-		errExpected := errors.New("injected store error")
-
-		activityStore := &mocks.ActivityStore{}
-		activityStore.AddActivityReturns(errExpected)
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		activity := vocab.NewCreateActivity(nil)
-
-		activityID, err := ob.Post(activity)
-		require.True(t, errors.Is(err, errExpected))
-		require.Nil(t, activityID)
-
-		time.Sleep(100 * time.Millisecond)
-
-		ob.Stop()
-	})
-
-	t.Run("AddReference error", func(t *testing.T) {
-		errExpected := errors.New("injected store error")
-
-		activityStore := &mocks.ActivityStore{}
-		activityStore.AddReferenceReturns(errExpected)
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		activity := vocab.NewCreateActivity(nil)
-
-		activityID, err := ob.Post(activity)
-		require.True(t, errors.Is(err, errExpected))
-		require.Nil(t, activityID)
-
-		time.Sleep(100 * time.Millisecond)
-
-		ob.Stop()
-	})
-
-	t.Run("Add public reference error", func(t *testing.T) {
-		errExpected := errors.New("injected store error")
-
-		activityStore := &mocks.ActivityStore{}
-		activityStore.AddReferenceReturnsOnCall(1, errExpected)
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		activity := vocab.NewCreateActivity(nil, vocab.WithTo(vocab.PublicIRI))
-
-		activityID, err := ob.Post(activity)
-		require.True(t, errors.Is(err, errExpected))
-		require.Nil(t, activityID)
-
-		time.Sleep(100 * time.Millisecond)
-
-		ob.Stop()
-	})
-
 	t.Run("Marshal error", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -408,120 +311,9 @@ func TestOutbox_PostError(t *testing.T) {
 		ob.Stop()
 	})
 
-	t.Run("Redelivery max retries reached", func(t *testing.T) {
-		undeliverableHandler := mocks.NewUndeliverableHandler()
-
-		apClient := mocks.NewActivitPubClient().WithActor(aptestutil.NewMockService(service2URL))
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(undeliverableHandler))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		activity := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(
-				vocab.WithObject(
-					vocab.NewObject(
-						vocab.WithIRI(objIRI),
-					),
-				),
-			),
-			vocab.WithTo(service2URL),
-		)
-
-		activityID, err := ob.Post(activity)
-		require.NoError(t, err)
-		require.NotNil(t, activityID)
-
-		time.Sleep(1000 * time.Millisecond)
-
-		undeliverableActivities := undeliverableHandler.Activities()
-		require.Len(t, undeliverableActivities, 1)
-		require.Equal(t, activity.ID(), undeliverableActivities[0].Activity.ID())
-
-		time.Sleep(100 * time.Millisecond)
-
-		ob.Stop()
-	})
-
-	t.Run("Redelivery unmarshal error", func(t *testing.T) {
-		pubSub := mocks.NewPubSub()
-
-		apClient := mocks.NewActivitPubClient().WithActor(aptestutil.NewMockService(service2URL))
-
-		ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-			&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{},
-			&orbmocks.MetricsProvider{}, spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		errExpected := errors.New("injected unmarshal error")
-
-		ob.jsonUnmarshal = func(data []byte, v interface{}) error { return errExpected }
-
-		activity := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(
-				vocab.WithObject(
-					vocab.NewObject(
-						vocab.WithIRI(objIRI),
-					),
-				),
-			),
-			vocab.WithTo(service2URL),
-		)
-
-		activityID, err := ob.Post(activity)
-		require.NoError(t, err)
-		require.NotNil(t, activityID)
-
-		time.Sleep(100 * time.Millisecond)
-
-		ob.Stop()
-	})
-
-	t.Run("Handler error", func(t *testing.T) {
-		errExpected := fmt.Errorf("injected handler error")
-
-		handler := &mocks.ActivityHandler{}
-		handler.HandleActivityReturns(errExpected)
-
-		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			handler, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
-		require.NoError(t, err)
-		require.NotNil(t, ob)
-
-		ob.Start()
-
-		activity := vocab.NewCreateActivity(
-			vocab.NewObjectProperty(
-				vocab.WithObject(
-					vocab.NewObject(
-						vocab.WithIRI(objIRI),
-					),
-				),
-			),
-			vocab.WithTo(service2URL),
-		)
-
-		activityID, err := ob.Post(activity)
-
-		require.Error(t, err)
-		require.Contains(t, err.Error(), errExpected.Error())
-		require.Nil(t, activityID)
-
-		ob.Stop()
-	})
-
 	t.Run("Invalid actor error", func(t *testing.T) {
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
-			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{},
-			spi.WithUndeliverableHandler(mocks.NewUndeliverableHandler()))
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, ob)
 
@@ -547,6 +339,330 @@ func TestOutbox_PostError(t *testing.T) {
 		require.Nil(t, activityID)
 
 		ob.Stop()
+	})
+}
+
+func TestOutbox_Handle(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://domain1.com/services/orb")
+	service2URL := testutil.MustParseURL("http://domain2.com/services/orb")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1URL,
+		Topic:       "outbox",
+	}
+
+	objIRI, err := url.Parse("http://example.com/transactions/txn1")
+	require.NoError(t, err)
+
+	activity := vocab.NewCreateActivity(
+		vocab.NewObjectProperty(
+			vocab.WithObject(
+				vocab.NewObject(
+					vocab.WithIRI(objIRI),
+				),
+			),
+		),
+		vocab.WithID(aptestutil.NewActivityID(service1URL)),
+		vocab.WithTo(
+			vocab.PublicIRI,
+			service2URL,
+		),
+	)
+
+	t.Run("activity message type", func(t *testing.T) {
+		activityMsg := &activityMessage{
+			Type:     activityType,
+			Activity: activity,
+		}
+
+		msgBytes, err := json.Marshal(activityMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+		t.Run("success", func(t *testing.T) {
+			ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			require.NotPanics(t, func() { ob.handle(msg) })
+		})
+
+		t.Run("persistent error", func(t *testing.T) {
+			errExpected := errors.New("injected persistent error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.AddActivityReturns(errExpected)
+
+			ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			require.NotPanics(t, func() { ob.handle(msg) })
+		})
+
+		t.Run("transient error", func(t *testing.T) {
+			errExpected := orberrors.NewTransientf("injected transient error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.AddActivityReturns(errExpected)
+
+			ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			require.NotPanics(t, func() { ob.handle(msg) })
+		})
+	})
+}
+
+func TestOutbox_HandleActivityMessage(t *testing.T) {
+	service1URL := testutil.MustParseURL("http://domain1.com/services/orb")
+	service2URL := testutil.MustParseURL("http://domain2.com/services/orb")
+
+	cfg := &Config{
+		ServiceName: "service1",
+		ServiceIRI:  service1URL,
+		Topic:       "outbox",
+	}
+
+	objIRI, err := url.Parse("http://example.com/transactions/txn1")
+	require.NoError(t, err)
+
+	activity := vocab.NewCreateActivity(
+		vocab.NewObjectProperty(
+			vocab.WithObject(
+				vocab.NewObject(
+					vocab.WithIRI(objIRI),
+				),
+			),
+		),
+		vocab.WithID(aptestutil.NewActivityID(service1URL)),
+		vocab.WithTo(
+			vocab.PublicIRI,
+			service2URL,
+		),
+	)
+
+	t.Run("unmarshal error", func(t *testing.T) {
+		msg := message.NewMessage(watermill.NewUUID(), []byte(`}`))
+
+		ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, ob)
+
+		a, err := ob.handleActivityMsg(msg)
+		require.Error(t, err)
+		require.Nil(t, a)
+		require.Contains(t, err.Error(), "invalid character")
+	})
+
+	t.Run("activity message type", func(t *testing.T) {
+		activityMsg := &activityMessage{
+			Type:     activityType,
+			Activity: activity,
+		}
+
+		msgBytes, err := json.Marshal(activityMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+		t.Run("success", func(t *testing.T) {
+			ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			a, err := ob.handleActivityMsg(msg)
+			require.NoError(t, err)
+			require.NotNil(t, a)
+			require.Equal(t, activity.ID().String(), a.ID().String())
+		})
+
+		t.Run("storage error", func(t *testing.T) {
+			errExpected := errors.New("injected storage error")
+
+			activityStore := &mocks.ActivityStore{}
+			activityStore.AddActivityReturns(errExpected)
+
+			ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			a, err := ob.handleActivityMsg(msg)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+			require.Nil(t, a)
+		})
+
+		t.Run("handler error", func(t *testing.T) {
+			errExpected := errors.New("injected handler error")
+
+			handler := &mocks.ActivityHandler{}
+			handler.HandleActivityReturns(errExpected)
+
+			ob, err := New(cfg, &mocks.ActivityStore{}, mocks.NewPubSub(), transport.Default(),
+				handler, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			a, err := ob.handleActivityMsg(msg)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+			require.Nil(t, a)
+		})
+
+		t.Run("resolve error", func(t *testing.T) {
+			t.Run("transient error", func(t *testing.T) {
+				errExpected := orberrors.NewTransientf("injected resolver transient error")
+
+				wfResolver := &mocks.WebFingerResolver{}
+				wfResolver.Err = errExpected
+
+				ob, err := New(cfg, &mocks.ActivityStore{}, mocks.NewPubSub(), transport.Default(),
+					&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), wfResolver, &orbmocks.MetricsProvider{})
+				require.NoError(t, err)
+				require.NotNil(t, ob)
+
+				a, err := ob.handleActivityMsg(msg)
+				require.NoError(t, err)
+				require.Equal(t, activity.ID().String(), a.ID().String())
+			})
+
+			t.Run("persistent error", func(t *testing.T) {
+				errExpected := fmt.Errorf("injected resolver persistent error")
+
+				wfResolver := &mocks.WebFingerResolver{}
+				wfResolver.Err = errExpected
+
+				ob, err := New(cfg, &mocks.ActivityStore{}, mocks.NewPubSub(), transport.Default(),
+					&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), wfResolver, &orbmocks.MetricsProvider{})
+				require.NoError(t, err)
+				require.NotNil(t, ob)
+
+				a, err := ob.handleActivityMsg(msg)
+				require.NoError(t, err)
+				require.Equal(t, activity.ID().String(), a.ID().String())
+			})
+		})
+	})
+
+	t.Run("broadcast message type", func(t *testing.T) {
+		activityMsg := &activityMessage{
+			Type:       broadcastType,
+			Activity:   activity,
+			TargetIRIs: vocab.NewURLCollectionProperty(service2URL),
+		}
+
+		msgBytes, err := json.Marshal(activityMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+		t.Run("success", func(t *testing.T) {
+			ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			a, err := ob.handleActivityMsg(msg)
+			require.NoError(t, err)
+			require.NotNil(t, a)
+			require.Equal(t, activity.ID().String(), a.ID().String())
+		})
+
+		t.Run("resolve error", func(t *testing.T) {
+			t.Run("transient error", func(t *testing.T) {
+				errExpected := orberrors.NewTransientf("injected resolver transient error")
+
+				wfResolver := &mocks.WebFingerResolver{}
+				wfResolver.Err = errExpected
+
+				ob, err := New(cfg, &mocks.ActivityStore{}, mocks.NewPubSub(), transport.Default(),
+					&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), wfResolver, &orbmocks.MetricsProvider{})
+				require.NoError(t, err)
+				require.NotNil(t, ob)
+
+				a, err := ob.handleActivityMsg(msg)
+				require.NoError(t, err)
+				require.Equal(t, activity.ID().String(), a.ID().String())
+			})
+
+			t.Run("persistent error", func(t *testing.T) {
+				errExpected := fmt.Errorf("injected resolver persistent error")
+
+				wfResolver := &mocks.WebFingerResolver{}
+				wfResolver.Err = errExpected
+
+				ob, err := New(cfg, &mocks.ActivityStore{}, mocks.NewPubSub(), transport.Default(),
+					&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), wfResolver, &orbmocks.MetricsProvider{})
+				require.NoError(t, err)
+				require.NotNil(t, ob)
+
+				a, err := ob.handleActivityMsg(msg)
+				require.NoError(t, err)
+				require.Equal(t, activity.ID().String(), a.ID().String())
+			})
+		})
+	})
+
+	t.Run("targeted message type", func(t *testing.T) {
+		activityMsg := &activityMessage{
+			Type:      targetedType,
+			Activity:  activity,
+			TargetIRI: vocab.NewURLProperty(service2URL),
+		}
+
+		msgBytes, err := json.Marshal(activityMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+		t.Run("marshal error", func(t *testing.T) {
+			ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+			require.NoError(t, err)
+			require.NotNil(t, ob)
+
+			errExpected := errors.New("injected marshal error")
+
+			ob.jsonMarshal = func(v interface{}) ([]byte, error) {
+				return nil, errExpected
+			}
+
+			a, err := ob.handleActivityMsg(msg)
+			require.Error(t, err)
+			require.Nil(t, a)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+	})
+
+	t.Run("unsupported message type", func(t *testing.T) {
+		activityMsg := &activityMessage{
+			Type: "unsupported",
+		}
+
+		msgBytes, err := json.Marshal(activityMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
+
+		ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
+			&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, ob)
+
+		a, err := ob.handleActivityMsg(msg)
+		require.Error(t, err)
+		require.Nil(t, a)
+		require.Contains(t, err.Error(), "unsupported activity message type [unsupported]")
 	})
 }
 
@@ -578,20 +694,28 @@ func TestResolveInboxes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ob)
 
-	iri := testutil.NewMockID(service1URL, resthandler.FollowersPath)
+	iri1 := testutil.NewMockID(service1URL, resthandler.FollowersPath)
+	iri2 := testutil.NewMockID(service1URL, resthandler.WitnessesPath)
+	iri3 := testutil.NewMockID(service1URL, "/unsupported")
 
 	t.Run("Transient error", func(t *testing.T) {
 		errTransient := orberrors.NewTransient(errors.New("injected transient error"))
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
-		require.Len(t, inboxes, 1)
+		inboxes := ob.resolveInboxes([]*url.URL{iri1, iri2, iri3}, nil)
+		require.Len(t, inboxes, 2)
 		require.Error(t, inboxes[0].err)
 		require.True(t, orberrors.IsTransient(inboxes[0].err))
 		require.EqualError(t, inboxes[0].err,
 			"error querying for references of type FOLLOWER from storage: injected transient error")
-		require.Equal(t, iri.String(), inboxes[0].iri.String())
+		require.Equal(t, iri1.String(), inboxes[0].iri.String())
+
+		require.Error(t, inboxes[1].err)
+		require.True(t, orberrors.IsTransient(inboxes[1].err))
+		require.EqualError(t, inboxes[1].err,
+			"error querying for references of type WITNESS from storage: injected transient error")
+		require.Equal(t, iri2.String(), inboxes[1].iri.String())
 	})
 
 	t.Run("Persistent error -> ignore", func(t *testing.T) {
@@ -599,13 +723,13 @@ func TestResolveInboxes(t *testing.T) {
 
 		activityStore.QueryReferencesReturns(nil, errTransient)
 
-		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
+		inboxes := ob.resolveInboxes([]*url.URL{iri1}, nil)
 		require.Len(t, inboxes, 1)
 		require.Error(t, inboxes[0].err)
 		require.False(t, orberrors.IsTransient(inboxes[0].err))
 		require.EqualError(t, inboxes[0].err,
 			"error querying for references of type FOLLOWER from storage: injected persistent error")
-		require.Equal(t, iri.String(), inboxes[0].iri.String())
+		require.Equal(t, iri1.String(), inboxes[0].iri.String())
 	})
 
 	t.Run("WebFinger error", func(t *testing.T) {
@@ -620,7 +744,7 @@ func TestResolveInboxes(t *testing.T) {
 
 		activityStore.QueryReferencesReturns(it, nil)
 
-		inboxes := ob.resolveInboxes([]*url.URL{iri}, nil)
+		inboxes := ob.resolveInboxes([]*url.URL{iri1}, nil)
 		require.Len(t, inboxes, 1)
 
 		inbox := inboxes[0]

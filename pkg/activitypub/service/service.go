@@ -26,7 +26,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/lifecycle"
-	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
+	pubsub "github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 const (
@@ -37,6 +37,7 @@ const (
 // PubSub defines the functions for a publisher/subscriber.
 type PubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...pubsub.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
 }
@@ -45,15 +46,15 @@ type PubSub interface {
 type Config struct {
 	ServiceEndpoint           string
 	ServiceIRI                *url.URL
-	RetryOpts                 *redelivery.Config
 	ActivityHandlerBufferSize int
 	VerifyActorInSignature    bool
 
 	// MaxWitnessDelay is the maximum delay that the witnessed transaction becomes included into the ledger.
 	MaxWitnessDelay time.Duration
 
-	IRICacheSize       int
-	IRICacheExpiration time.Duration
+	IRICacheSize             int
+	IRICacheExpiration       time.Duration
+	OutboxSubscriberPoolSize int
 }
 
 // Service implements an ActivityPub service which has an inbox, outbox, and
@@ -111,15 +112,15 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 
 	ob, err := outbox.New(
 		&outbox.Config{
-			ServiceName:      cfg.ServiceEndpoint,
-			ServiceIRI:       cfg.ServiceIRI,
-			Topic:            outboxActivitiesTopic,
-			RedeliveryConfig: cfg.RetryOpts,
-			CacheSize:        cfg.IRICacheSize,
-			CacheExpiration:  cfg.IRICacheExpiration,
+			ServiceName:        cfg.ServiceEndpoint,
+			ServiceIRI:         cfg.ServiceIRI,
+			Topic:              outboxActivitiesTopic,
+			CacheSize:          cfg.IRICacheSize,
+			CacheExpiration:    cfg.IRICacheExpiration,
+			SubscriberPoolSize: cfg.OutboxSubscriberPoolSize,
 		},
 		activityStore, pubSub,
-		t, outboxHandler, activityPubClient, resourceResolver, m, handlerOpts...,
+		t, outboxHandler, activityPubClient, resourceResolver, m,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create outbox failed: %w", err)

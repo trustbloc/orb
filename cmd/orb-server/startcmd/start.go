@@ -702,12 +702,13 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	apConfig := &apservice.Config{
-		ServiceEndpoint:        activityPubServicesPath,
-		ServiceIRI:             apServiceIRI,
-		VerifyActorInSignature: parameters.httpSignaturesEnabled,
-		MaxWitnessDelay:        parameters.maxWitnessDelay,
-		IRICacheSize:           parameters.apIRICacheSize,
-		IRICacheExpiration:     parameters.apIRICacheExpiration,
+		ServiceEndpoint:          activityPubServicesPath,
+		ServiceIRI:               apServiceIRI,
+		VerifyActorInSignature:   parameters.httpSignaturesEnabled,
+		MaxWitnessDelay:          parameters.maxWitnessDelay,
+		IRICacheSize:             parameters.apIRICacheSize,
+		IRICacheExpiration:       parameters.apIRICacheExpiration,
+		OutboxSubscriberPoolSize: parameters.mqParams.outboxPoolSize,
 	}
 
 	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServiceEndpoint)
