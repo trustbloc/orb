@@ -77,7 +77,7 @@ func (s *Store) Activate(logURL string) error {
 				Active: true,
 			}
 		} else {
-			return fmt.Errorf("failed to get log monitor record: %w", err)
+			return orberrors.NewTransientf("failed to get log monitor record: %w", err)
 		}
 	}
 
@@ -96,7 +96,7 @@ func (s *Store) Activate(logURL string) error {
 	}
 
 	if e := s.store.Put(logURL, recBytes, indexTag); e != nil {
-		return fmt.Errorf("failed to put log monitor: %w", e)
+		return orberrors.NewTransientf("failed to put log monitor: %w", e)
 	}
 
 	return nil
@@ -110,7 +110,11 @@ func (s *Store) Deactivate(logURL string) error {
 
 	rec, err := s.Get(logURL)
 	if err != nil {
-		return fmt.Errorf("failed to deactivate log[%s] monitor: %w", logURL, err)
+		if errors.Is(err, orberrors.ErrContentNotFound) {
+			return err
+		}
+
+		return orberrors.NewTransientf("failed to deactivate log[%s] monitor: %w", logURL, err)
 	}
 
 	rec.Active = false
@@ -128,7 +132,7 @@ func (s *Store) Deactivate(logURL string) error {
 	}
 
 	if e := s.store.Put(logURL, recBytes, indexTag); e != nil {
-		return fmt.Errorf("failed to deactivate log[%s] monitor: %w", logURL, e)
+		return orberrors.NewTransientf("failed to deactivate log[%s] monitor: %w", logURL, e)
 	}
 
 	return nil
@@ -142,7 +146,7 @@ func (s *Store) Get(logURL string) (*LogMonitor, error) {
 			return nil, orberrors.ErrContentNotFound
 		}
 
-		return nil, fmt.Errorf("failed to get log monitor: %w", err)
+		return nil, orberrors.NewTransientf("failed to get log monitor: %w", err)
 	}
 
 	var rec LogMonitor

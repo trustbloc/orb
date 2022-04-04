@@ -82,6 +82,7 @@ import (
 	apspi "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring"
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring/handler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/vct/proofmonitoring"
 	apariesstore "github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -771,14 +772,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create log monitor store: %w", err)
 	}
 
-	// TODO: Configure this, for now follow local VCT(issue-1176)
-	if parameters.vctURL != "" {
-		err := logMonitorStore.Activate(parameters.vctURL)
-		if err != nil {
-			return fmt.Errorf("failed to activate log monitor[%s]: %w", parameters.vctURL, err)
-		}
-	}
-
 	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
 	followVCTDomainsInterval := parameters.vctMonitoringInterval
 
@@ -836,6 +829,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	resourceResolver := resource.New(httpClient, ipfsReader)
 
+	logMonitorHandler := handler.New(logMonitorStore, wfClient)
+
 	anchorLinkStore, err := linkstore.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
@@ -884,6 +879,7 @@ func startOrbServices(parameters *orbParameters) error {
 	activityPubService, err = apservice.New(apConfig,
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
+		apspi.WithAcceptFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
 			o.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,

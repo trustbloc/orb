@@ -9,6 +9,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -18,9 +19,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
@@ -238,6 +241,114 @@ func TestHasSupportedLedgerType(t *testing.T) {
 		require.Error(t, err)
 		require.False(t, supported)
 		require.Contains(t, err.Error(), "status code [500], response body [internal server error]")
+	})
+}
+
+func TestClient_ResolveLog(t *testing.T) {
+	const (
+		logURL  = "https://vct.com/log"
+		domain  = "https://domain.com"
+		subject = "https://domain.com/vct"
+	)
+
+	t.Run("success", func(t *testing.T) {
+		resp := &discoveryrest.JRD{
+			Subject: subject,
+		}
+
+		resp.Links = append(resp.Links, discoveryrest.Link{
+			Rel:  "vct",
+			Type: "application/jrd+json",
+			Href: logURL,
+		})
+
+		resp.Properties = map[string]interface{}{
+			command.LedgerType: "vct-v1",
+		}
+
+		respBytes, err := json.Marshal(resp)
+		require.NoError(t, err)
+
+		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(string(respBytes)),
+				),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		c := New(WithHTTPClient(httpClient))
+
+		response, err := c.ResolveLog(domain)
+		require.NoError(t, err)
+		require.Equal(t, response.String(), logURL)
+	})
+
+	t.Run("error - invalid log URL", func(t *testing.T) {
+		resp := &discoveryrest.JRD{
+			Subject: subject,
+		}
+
+		resp.Links = append(resp.Links, discoveryrest.Link{
+			Rel:  "vct",
+			Type: "application/jrd+json",
+			Href: ":host",
+		})
+
+		resp.Properties = map[string]interface{}{
+			command.LedgerType: "vct-v1",
+		}
+
+		respBytes, err := json.Marshal(resp)
+		require.NoError(t, err)
+
+		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(string(respBytes)),
+				),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		c := New(WithHTTPClient(httpClient))
+
+		response, err := c.ResolveLog(domain)
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(), "failed to parse log URL")
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
+		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(`{}`),
+				),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		c := New(WithHTTPClient(httpClient))
+
+		response, err := c.ResolveLog(domain)
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
+	})
+
+	t.Run("error - http.Do() error", func(t *testing.T) {
+		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("http.Do() error")
+		})
+
+		c := New(WithHTTPClient(httpClient))
+
+		response, err := c.ResolveLog(domain)
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(), "http.Do() error")
 	})
 }
 

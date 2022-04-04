@@ -690,7 +690,9 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := memstore.New(cfg.ServiceName)
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
+	acceptFollowHandler := servicemocks.NewAcceptFollowHandler()
+
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient(), spi.WithAcceptFollowHandler(acceptFollowHandler))
 	require.NotNil(t, h)
 
 	h.Start()
@@ -736,6 +738,34 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 		err = h.HandleActivity(nil, accept)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "already in the 'FOLLOWING' collection")
+	})
+
+	t.Run("Accept Follow -> Log Monitor Error", func(t *testing.T) {
+		follow := vocab.NewFollowActivity(
+			vocab.NewObjectProperty(vocab.WithIRI(service1IRI)),
+			vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+			vocab.WithActor(service2IRI),
+			vocab.WithTo(service1IRI),
+		)
+
+		// Make sure the activity is in our outbox or else it will fail check.
+		require.NoError(t, as.AddActivity(follow))
+		require.NoError(t, as.AddReference(store.Outbox, h.ServiceIRI, follow.ID().URL()))
+
+		accept := vocab.NewAcceptActivity(
+			vocab.NewObjectProperty(vocab.WithActivity(follow)),
+			vocab.WithID(aptestutil.NewActivityID(service1IRI)),
+			vocab.WithActor(service1IRI),
+			vocab.WithTo(service2IRI),
+		)
+
+		errExpected := fmt.Errorf("injected log monitor error")
+
+		acceptFollowHandler.WithError(errExpected)
+		defer acceptFollowHandler.WithError(nil)
+
+		err := h.HandleActivity(nil, accept)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Accept Witness -> Success", func(t *testing.T) {
@@ -962,7 +992,8 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	ob := servicemocks.NewOutbox()
 	as := &servicemocks.ActivityStore{}
 
-	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient())
+	h := NewInbox(cfg, as, ob, servicemocks.NewActivitPubClient(),
+		spi.WithAcceptFollowHandler(servicemocks.NewAcceptFollowHandler()))
 	require.NotNil(t, h)
 
 	h.Start()
