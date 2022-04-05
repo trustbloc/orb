@@ -47,7 +47,7 @@ func startMongoDBContainer(t *testing.T) (*dctest.Pool, *dctest.Resource, string
 	pool, err := dctest.NewPool("")
 	require.NoError(t, err)
 
-	const maxAttempts = 3
+	const maxAttempts = 10
 
 	for i := 0; i < maxAttempts; i++ {
 		// Always use a new port since the tests periodically complain about port already in use.

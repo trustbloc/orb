@@ -9,7 +9,6 @@ package amqp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"os"
 	"sync"
@@ -20,24 +19,21 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
-	dctest "github.com/ory/dockertest/v3"
-	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/internal/testutil/rabbitmqtestutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
-const (
-	dockerImage = "rabbitmq"
-	dockerTag   = "3-management-alpine"
-)
+// mqURI will get set in the TestMain function.
+var mqURI = ""
 
 func TestAMQP(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		const topic = "some-topic"
 
-		p := New(Config{URI: "amqp://guest:guest@localhost:5672/"})
+		p := New(Config{URI: mqURI})
 		require.NotNil(t, p)
 
 		msgChan, err := p.Subscribe(context.Background(), topic)
@@ -77,7 +73,7 @@ func TestAMQP(t *testing.T) {
 		receivedMessages := &sync.Map{}
 
 		p := New(Config{
-			URI:                        "amqp://guest:guest@localhost:5672/",
+			URI:                        mqURI,
 			MaxConnectionSubscriptions: 5,
 		})
 		require.NotNil(t, p)
@@ -136,7 +132,7 @@ func TestAMQP(t *testing.T) {
 		const topic = "topic_redelivery"
 
 		p := New(Config{
-			URI:                        "amqp://guest:guest@localhost:5672/",
+			URI:                        mqURI,
 			MaxConnectionSubscriptions: 5,
 			MaxRedeliveryAttempts:      5,
 			MaxRedeliveryInterval:      200 * time.Millisecond,
@@ -289,29 +285,10 @@ func TestMain(m *testing.M) {
 
 	defer func() { os.Exit(code) }()
 
-	pool, err := dctest.NewPool("")
-	if err != nil {
-		panic(fmt.Sprintf("pool: %v", err))
-	}
+	mqURIDocker, stopRabbitMQ := rabbitmqtestutil.StartRabbitMQ()
+	defer stopRabbitMQ()
 
-	resource, err := pool.RunWithOptions(&dctest.RunOptions{
-		Repository: dockerImage,
-		Tag:        dockerTag,
-		PortBindings: map[dc.Port][]dc.PortBinding{
-			"5672/tcp": {{HostIP: "", HostPort: "5672"}},
-		},
-	})
-	if err != nil {
-		logger.Errorf(`Failed to start RabbitMQ Docker image: %s`, err)
-
-		panic(fmt.Sprintf("run with options: %v", err))
-	}
-
-	defer func() {
-		if err := pool.Purge(resource); err != nil {
-			panic(fmt.Sprintf("purge: %v", err))
-		}
-	}()
+	mqURI = mqURIDocker
 
 	code = m.Run()
 }
