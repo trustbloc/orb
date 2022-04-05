@@ -57,7 +57,7 @@ func TestProvider_Write_Read(t *testing.T) {
 	}()
 
 	t.Run("Success", func(t *testing.T) {
-		client := ipfs.New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		client := ipfs.New("localhost:5002", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0)
@@ -71,7 +71,7 @@ func TestProvider_Write_Read(t *testing.T) {
 			hl, errWrite = provider.WriteWithCIDFormat([]byte("content"))
 
 			return errWrite
-		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 10))
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Millisecond*500), 20))
 		require.NoError(t, err)
 
 		rs, err := hashlink.GetResourceHashFromHashLink(hl)
@@ -124,7 +124,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		})
 	})
 	t.Run("Invalid CID version", func(t *testing.T) {
-		client := ipfs.New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		client := ipfs.New("localhost:5002", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0, extendedcasclient.WithCIDVersion(2))
@@ -135,7 +135,7 @@ func TestProvider_Write_Read(t *testing.T) {
 		require.Equal(t, "", address)
 	})
 	t.Run("Fail to write to IPFS", func(t *testing.T) {
-		client := ipfs.New("InvalidURL", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		client := ipfs.New("InvalidURL", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 
 		provider, err := localcas.New(ariesmemstorage.NewProvider(), casLink, client,
 			&orbmocks.MetricsProvider{}, 0)
@@ -208,7 +208,7 @@ func startIPFSDockerContainer(t *testing.T) (*dctest.Pool, *dctest.Resource) {
 			Repository: "ipfs/go-ipfs",
 			Tag:        "master-2021-04-22-eea198f",
 			PortBindings: map[dc.Port][]dc.PortBinding{
-				"5001/tcp": {{HostIP: "", HostPort: "5001"}},
+				"5001/tcp": {{HostIP: "", HostPort: "5002"}},
 			},
 		})
 
