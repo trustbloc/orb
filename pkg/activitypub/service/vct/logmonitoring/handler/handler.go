@@ -34,6 +34,7 @@ type Handler struct {
 
 type logMonitorStore interface {
 	Activate(logURL string) error
+	Deactivate(logURL string) error
 }
 
 type logResolver interface {
@@ -41,7 +42,7 @@ type logResolver interface {
 }
 
 // Accept will get actor's log to the list of logs to be monitored by log monitoring service.
-func (h *Handler) Accept(actor *url.URL) error {
+func (h *Handler) Accept(actor *url.URL) error { //nolint:dupl
 	logger.Debugf("received request to add log for actor: %s", actor.String())
 
 	domainURL := fmt.Sprintf("%s://%s", actor.Scheme, actor.Host)
@@ -65,6 +66,36 @@ func (h *Handler) Accept(actor *url.URL) error {
 	}
 
 	logger.Debugf("added logURL[%s] for monitoring", logURL.String())
+
+	return nil
+}
+
+// Undo will deactivate actor's log. It will remove actor's log from the list of logs
+// to be monitored by log monitoring service.
+func (h *Handler) Undo(actor *url.URL) error { //nolint:dupl
+	logger.Debugf("received request to deactivate log for actor: %s", actor.String())
+
+	domainURL := fmt.Sprintf("%s://%s", actor.Scheme, actor.Host)
+
+	logURL, err := h.logResolver.ResolveLog(domainURL)
+	if err != nil {
+		if errors.Is(err, orberrors.ErrContentNotFound) {
+			logger.Infof("domain[%s] doesn't have log", domainURL)
+
+			return nil
+		}
+
+		return fmt.Errorf("failed to resolve log for domain[%s]: %w", domainURL, err)
+	}
+
+	logger.Debugf("retrieved logURL[%s] for domain[%s]", logURL.String(), domainURL)
+
+	err = h.store.Deactivate(logURL.String())
+	if err != nil {
+		return fmt.Errorf("failed to deactiveate logURL[%s] for monitoring: %w", logURL, err)
+	}
+
+	logger.Debugf("deactivated logURL[%s] for monitoring", logURL.String())
 
 	return nil
 }

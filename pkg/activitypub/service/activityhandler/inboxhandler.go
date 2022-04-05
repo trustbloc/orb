@@ -55,7 +55,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 
 	h.handler = newHandler(cfg, s, activityPubClient,
 		func(activity *vocab.ActivityType) error {
-			return h.undoAddReference(activity, store.Follower, func() *url.URL {
+			return h.undoFollowReference(activity, func() *url.URL {
 				return activity.Object().IRI()
 			})
 		},
@@ -930,6 +930,21 @@ func (h *Inbox) witnessAnchorCredential(vcBytes []byte) (*vocab.ObjectType, erro
 	}
 
 	return result, nil
+}
+
+func (h *Inbox) undoFollowReference(activity *vocab.ActivityType,
+	getTargetIRI func() *url.URL) error {
+	err := h.undoAddReference(activity, store.Follower, getTargetIRI)
+	if err != nil {
+		return err
+	}
+
+	err = h.UndoFollowHandler.Undo(activity.Actor())
+	if err != nil {
+		return fmt.Errorf("undo follow for actor %s: %w", activity.Actor(), err)
+	}
+
+	return nil
 }
 
 func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType,

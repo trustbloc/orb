@@ -2204,6 +2204,36 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 			require.False(t, containsIRI(followers, service2IRI))
 		})
 
+		t.Run("undo follow handler error", func(t *testing.T) {
+			require.NoError(t, ibHandler.store.AddReference(store.Follower, service1IRI, service2IRI))
+
+			it, err := ibHandler.store.QueryReferences(store.Follower,
+				store.NewCriteria(store.WithObjectIRI(ibHandler.ServiceIRI)))
+			require.NoError(t, err)
+
+			followers, err := storeutil.ReadReferences(it, -1)
+			require.NoError(t, err)
+
+			require.True(t, containsIRI(followers, service2IRI))
+
+			undo := vocab.NewUndoActivity(
+				vocab.NewObjectProperty(vocab.WithActivity(follow)),
+				vocab.WithID(aptestutil.NewActivityID(service2IRI)),
+				vocab.WithActor(service2IRI),
+				vocab.WithTo(service1IRI),
+			)
+
+			expectedErr := fmt.Errorf("undo follow handler error")
+
+			ibHandler.UndoFollowHandler = servicemocks.NewUndoFollowHandler().WithError(expectedErr)
+
+			err = ibHandler.HandleActivity(nil, undo)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), expectedErr.Error())
+
+			ibHandler.UndoFollowHandler = servicemocks.NewUndoFollowHandler()
+		})
+
 		t.Run("No IRI -> error", func(t *testing.T) {
 			undo := vocab.NewUndoActivity(
 				vocab.NewObjectProperty(vocab.WithActivity(followNoIRI)),
@@ -3151,7 +3181,8 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 
 	apClient := servicemocks.NewActivitPubClient()
 
-	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), servicemocks.NewOutbox(), apClient)
+	inboxHandler := NewInbox(inboxCfg, memstore.New(inboxCfg.ServiceName), servicemocks.NewOutbox(), apClient,
+		spi.WithUndoFollowHandler(servicemocks.NewUndoFollowHandler()))
 	require.NotNil(t, inboxHandler)
 
 	outboxHandler := NewOutbox(outboxCfg, memstore.New(outboxCfg.ServiceName), apClient)
