@@ -933,6 +933,7 @@ type mockProviders struct {
 	witnessHandler        *mocks.WitnessHandler
 	anchorEventAckHandler *mocks.AnchorEventAcknowledgementHandler
 	acceptFollowHandler   *mocks.AcceptFollowHandler
+	undoFollowHandler     *mocks.UndoFollowHandler
 }
 
 func newServiceWithMocks(t *testing.T, endpoint string,
@@ -1015,6 +1016,7 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		service.WithProofHandler(providers.proofHandler),
 		service.WithAnchorEventAcknowledgementHandler(providers.anchorEventAckHandler),
 		service.WithAcceptFollowHandler(providers.acceptFollowHandler),
+		service.WithUndoFollowHandler(providers.undoFollowHandler),
 	)
 	require.NoError(t, err)
 

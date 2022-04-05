@@ -71,6 +71,11 @@ type AcceptFollowHandler interface {
 	Accept(actor *url.URL) error
 }
 
+// UndoFollowHandler reverses follow request.
+type UndoFollowHandler interface {
+	Undo(actor *url.URL) error
+}
+
 // ActivityHandler defines the functions of an Activity handler.
 type ActivityHandler interface {
 	ServiceLifecycle
@@ -107,6 +112,7 @@ type Handlers struct {
 	ProofHandler          ProofHandler
 	AnchorAckHandler      AnchorEventAcknowledgementHandler
 	AcceptFollowHandler   AcceptFollowHandler
+	UndoFollowHandler     UndoFollowHandler
 }
 
 // HandlerOpt sets a specific handler.
@@ -158,6 +164,13 @@ func WithProofHandler(handler ProofHandler) HandlerOpt {
 func WithAcceptFollowHandler(handler AcceptFollowHandler) HandlerOpt {
 	return func(options *Handlers) {
 		options.AcceptFollowHandler = handler
+	}
+}
+
+// WithUndoFollowHandler sets undo follow handler.
+func WithUndoFollowHandler(handler UndoFollowHandler) HandlerOpt {
+	return func(options *Handlers) {
+		options.UndoFollowHandler = handler
 	}
 }
 

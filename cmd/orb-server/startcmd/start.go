@@ -880,6 +880,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics.Get(),
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithAcceptFollowHandler(logMonitorHandler),
+		apspi.WithUndoFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
 			o.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
