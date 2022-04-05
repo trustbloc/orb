@@ -31,7 +31,7 @@ import (
 //go:generate counterfeiter -o ./mocks/ipfsclient.gen.go --fake-name IPFSClient . ipfsClient
 
 func TestNew(t *testing.T) {
-	c := New("ipfs:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+	c := New("ipfs:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 	require.NotNil(t, c)
 }
 
@@ -46,7 +46,7 @@ func TestWrite(t *testing.T) {
 		}()
 
 		t.Run("v1 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+			cas := New("localhost:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 			require.NotNil(t, cas)
 
 			var cid string
@@ -67,7 +67,7 @@ func TestWrite(t *testing.T) {
 			require.Equal(t, "content", string(read))
 		})
 		t.Run("v0 CIDs", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+			cas := New("localhost:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{},
 				extendedcasclient.WithCIDVersion(0))
 			require.NotNil(t, cas)
 
@@ -90,7 +90,7 @@ func TestWrite(t *testing.T) {
 		})
 
 		t.Run("success - hashlink", func(t *testing.T) {
-			cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+			cas := New("localhost:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{},
 				extendedcasclient.WithCIDVersion(1))
 			require.NotNil(t, cas)
 
@@ -113,7 +113,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("error - invalid hashlink", func(t *testing.T) {
-		cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+		cas := New("localhost:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{},
 			extendedcasclient.WithCIDVersion(1))
 		require.NotNil(t, cas)
 
@@ -124,7 +124,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("error - hashlink (content not found)", func(t *testing.T) {
-		cas := New("localhost:5001", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+		cas := New("localhost:5001", 20*time.Second, 0, &orbmocks.MetricsProvider{},
 			extendedcasclient.WithCIDVersion(1))
 		require.NotNil(t, cas)
 
@@ -140,7 +140,7 @@ func TestWrite(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New(ipfs.URL, 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -149,7 +149,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("invalid CID version", func(t *testing.T) {
-		cas := New("IPFS URL", 5*time.Second, 0, &orbmocks.MetricsProvider{},
+		cas := New("IPFS URL", 20*time.Second, 0, &orbmocks.MetricsProvider{},
 			extendedcasclient.WithCIDVersion(2))
 		require.NotNil(t, cas)
 
@@ -159,7 +159,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("empty content", func(t *testing.T) {
-		cas := New("IPFS URL", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New("IPFS URL", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write(nil)
@@ -196,7 +196,7 @@ func TestWrite(t *testing.T) {
 	})
 
 	t.Run("fail to write since node (ipfs.io) doesn't support writes", func(t *testing.T) {
-		cas := New("https://ipfs.io", 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New("https://ipfs.io", 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Write([]byte("content"))
@@ -212,7 +212,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New(ipfs.URL, 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		read, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
@@ -226,7 +226,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New(ipfs.URL, 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("cid")
@@ -242,7 +242,7 @@ func TestRead(t *testing.T) {
 		}))
 		defer ipfs.Close()
 
-		cas := New(ipfs.URL, 5*time.Second, 0, &orbmocks.MetricsProvider{})
+		cas := New(ipfs.URL, 20*time.Second, 0, &orbmocks.MetricsProvider{})
 		require.NotNil(t, cas)
 
 		cid, err := cas.Read("uEiAWradITyYpRGT3pMhcKfPL8kpJBGePjFjZOlS0zqAUqw")
