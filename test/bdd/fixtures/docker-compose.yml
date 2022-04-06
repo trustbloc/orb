@@ -50,6 +50,8 @@ services:
       - OP_QUEUE_MAX_REPOSTS=12
       # MQ_OBSERVER_POOL specifies the number of subscribers that concurrently process messages from the observer queue (default 5).
       - MQ_OBSERVER_POOL=5
+      # MQ_OUTBOX_POOL specifies the number of subscribers that concurrently process messages from the outbox queue (default 5).
+      - MQ_OUTBOX_POOL=7
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=50

@@ -341,7 +341,7 @@ func (c *Client) MonitorLogs() {
 	logs, err := c.store.GetActiveLogs()
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Infof("no active log monitors found - nothing to do")
+			logger.Debugf("no active log monitors found - nothing to do")
 		} else {
 			logger.Errorf("failed to get active logs: %s", err.Error())
 		}

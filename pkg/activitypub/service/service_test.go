@@ -31,7 +31,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
-	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
@@ -44,7 +43,6 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/linkset"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
-	"github.com/trustbloc/orb/pkg/pubsub/redelivery"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
@@ -59,11 +57,9 @@ func TestNewService(t *testing.T) {
 	tm := &apmocks.AuthTokenMgr{}
 
 	store1 := memstore.New(cfg1.ServiceEndpoint)
-	undeliverableHandler1 := mocks.NewUndeliverableHandler()
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
-		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, tm, &orbmocks.MetricsProvider{},
-		service.WithUndeliverableHandler(undeliverableHandler1))
+		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, tm, &orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, service1.InboxHandler())
 
@@ -162,10 +158,6 @@ func TestService_Create(t *testing.T) {
 
 	_, exists := mockProviders2.anchorEventHandler.AnchorEvent(anchorEvent.URL()[0].String())
 	require.True(t, exists)
-
-	ua := mockProviders1.undeliverableHandler.Activities()
-	require.Len(t, ua, 1)
-	require.Equal(t, testutil.NewMockID(unavailableServiceIRI, resthandler.InboxPath).String(), ua[0].ToURL)
 }
 
 func TestService_Follow(t *testing.T) {
@@ -194,20 +186,11 @@ func TestService_Follow(t *testing.T) {
 	stop1 := startHTTPServer(t, ":8301", service1.InboxHTTPHandler())
 	defer stop1()
 
-	httpServer2 := httpserver.New(":8302", "", "", 1*time.Second, service2.InboxHTTPHandler())
-
-	defer func() {
-		require.NoError(t, httpServer2.Stop(context.Background()))
-	}()
+	stop2 := startHTTPServer(t, ":8302", service2.InboxHTTPHandler())
+	defer stop2()
 
 	service1.Start()
-
-	// delay the start of Service2 to test redelivery
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		service2.Start()
-		require.NoError(t, httpServer2.Start())
-	}()
+	service2.Start()
 
 	defer service1.Stop()
 	defer service2.Stop()
@@ -928,7 +911,6 @@ type mockProviders struct {
 	anchorEventHandler    *mocks.AnchorEventHandler
 	followerAuth          *mocks.ActorAuth
 	witnessInvitationAuth *mocks.ActorAuth
-	undeliverableHandler  *mocks.UndeliverableHandler
 	proofHandler          *mocks.ProofHandler
 	witnessHandler        *mocks.WitnessHandler
 	anchorEventAckHandler *mocks.AnchorEventAcknowledgementHandler
@@ -945,13 +927,6 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	cfg := &Config{
 		ServiceEndpoint: endpoint,
 		ServiceIRI:      serviceIRI,
-		RetryOpts: &redelivery.Config{
-			MaxRetries:     5,
-			InitialBackoff: 10 * time.Millisecond,
-			MaxBackoff:     time.Second,
-			BackoffFactor:  1.2,
-			MaxMessages:    20,
-		},
 	}
 
 	providers := &mockProviders{
@@ -959,7 +934,6 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 		anchorEventHandler:    mocks.NewAnchorEventHandler(),
 		followerAuth:          mocks.NewActorAuth(),
 		witnessInvitationAuth: mocks.NewActorAuth(),
-		undeliverableHandler:  mocks.NewUndeliverableHandler(),
 		proofHandler:          mocks.NewProofHandler(),
 		witnessHandler:        mocks.NewWitnessHandler(),
 		anchorEventAckHandler: mocks.NewAnchorEventAcknowledgementHandler(),
@@ -1008,7 +982,6 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
 		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{},
 		serverAuthTokenMgr, &orbmocks.MetricsProvider{},
-		service.WithUndeliverableHandler(providers.undeliverableHandler),
 		service.WithAnchorEventHandler(providers.anchorEventHandler),
 		service.WithFollowAuth(providers.followerAuth),
 		service.WithInviteWitnessAuth(providers.witnessInvitationAuth),
