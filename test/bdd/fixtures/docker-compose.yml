@@ -123,7 +123,7 @@ services:
       - WITNESS_POLICY_CACHE_EXPIRATION=10s
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/gzip;base64
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
-
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48326:443
       - 48327:48327
@@ -256,7 +256,7 @@ services:
       - ACTIVITYPUB_IRI_CACHE_EXPIRATION=90s
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/gzip;base64
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
-
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48526:443
       - 48527:48527
@@ -374,6 +374,7 @@ services:
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/json
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48826:80
       - 48827:48827
@@ -474,6 +475,7 @@ services:
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/json
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48926:80
       - 48927:48927
@@ -589,6 +591,7 @@ services:
       # only if its age is greater than this value.
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48626:443
       - 48627:48627
@@ -707,6 +710,7 @@ services:
       # only if its age is greater than this value.
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 48726:443
       - 48727:48727
@@ -818,6 +822,7 @@ services:
       # WITNESS_POLICY_CACHE_EXPIRATION sets the expiration time of witness policy cache.
       # Default value: 30s. Set the cache expiration very low since we're updating the policy frequently during the test.
       - WITNESS_POLICY_CACHE_EXPIRATION=500ms
+      - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
     ports:
       - 49026:443
       - 49027:49027
@@ -968,7 +973,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-81cc21c
+    image: ghcr.io/trustbloc-cicd/vct:v0.1.4-snapshot-222452d
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
@@ -981,6 +986,8 @@ services:
       - VCT_TLS_SYSTEMCERTPOOL=true
       - VCT_DSN=postgres://postgres:password@orb.postgres:5432
       - VCT_DATABASE_PREFIX=vct
+      - VCT_API_READ_TOKEN=vctread
+      - VCT_API_WRITE_TOKEN=vctwrite
       - VCT_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - VCT_CONTEXT_PROVIDER_URL=https://orb.file-server.com:12096/ld-contexts.json
     volumes:

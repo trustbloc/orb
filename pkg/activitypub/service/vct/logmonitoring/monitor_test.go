@@ -35,7 +35,7 @@ func TestNew(t *testing.T) {
 	store, err := logmonitor.New(mem.NewProvider())
 	require.NoError(t, err)
 
-	client, err := New(store, nil)
+	client, err := New(store, nil, map[string]string{})
 	require.NoError(t, err)
 	require.NotNil(t, client)
 }
@@ -81,7 +81,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.MonitorLogs()
@@ -96,7 +96,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.MonitorLogs()
@@ -117,7 +117,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.MonitorLogs()
@@ -163,7 +163,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.MonitorLogs()
@@ -214,7 +214,7 @@ func TestClient_processLog(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.processLog(log)
@@ -260,7 +260,7 @@ func TestClient_processLog(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		client.processLog(&logmonitor.LogMonitor{Log: testLog})
@@ -312,7 +312,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -371,7 +371,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -430,7 +430,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -461,7 +461,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -528,7 +528,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -595,7 +595,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -646,7 +646,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -676,7 +676,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -727,7 +727,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(&logmonitor.LogMonitor{Log: testLog})
@@ -779,7 +779,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)
@@ -847,7 +847,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}))
+		}), map[string]string{})
 		require.NoError(t, err)
 
 		err = client.checkVCTConsistency(logMonitor)

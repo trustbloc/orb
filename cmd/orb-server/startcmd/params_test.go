@@ -152,6 +152,21 @@ func TestAuthTokens(t *testing.T) {
 	require.Len(t, clientAuthTokens, len(authTokens))
 }
 
+func TestRequestTokens(t *testing.T) {
+	startCmd := GetStartCmd()
+
+	args := []string{
+		"--" + requestTokensFlagName, "tk1=value1",
+		"--" + requestTokensFlagName, "tk2=value2",
+	}
+	startCmd.SetArgs(args)
+
+	_ = startCmd.Execute()
+
+	reqTokens := getRequestTokens(startCmd)
+	require.Len(t, reqTokens, 2)
+}
+
 func TestStartCmdWithMissingArg(t *testing.T) {
 	t.Run("test missing host url arg", func(t *testing.T) {
 		startCmd := GetStartCmd()

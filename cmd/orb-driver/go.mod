@@ -35,7 +35,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee // indirect
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21 // indirect
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21 // indirect
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
@@ -58,7 +58,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/vct v0.1.4-0.20220323131744-81cc21c7b61a // indirect
+	github.com/trustbloc/vct v0.1.4-0.20220406092826-222452d04e9b // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
