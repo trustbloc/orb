@@ -762,7 +762,7 @@ func startOrbServices(parameters *orbParameters) error {
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
 	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
-		httpClient, taskMgr, parameters.vctMonitoringInterval)
+		httpClient, taskMgr, parameters.vctMonitoringInterval, parameters.requestTokens)
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
@@ -775,7 +775,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
 	followVCTDomainsInterval := parameters.vctMonitoringInterval
 
-	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient)
+	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens)
 	if err != nil {
 		return fmt.Errorf("new VCT conistency monitoring service: %w", err)
 	}
@@ -825,6 +825,8 @@ func startOrbServices(parameters *orbParameters) error {
 	witness := vct.New(parameters.vctURL, vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
+		vct.WithAuthReadToken(parameters.requestTokens[vctReadTokenKey]),
+		vct.WithAuthWriteToken(parameters.requestTokens[vctWriteTokenKey]),
 	)
 
 	resourceResolver := resource.New(httpClient, ipfsReader)

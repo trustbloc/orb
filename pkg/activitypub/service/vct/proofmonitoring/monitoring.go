@@ -26,10 +26,12 @@ import (
 var logger = log.New("vct_monitor")
 
 const (
-	taskID          = "vct-monitor"
-	storeName       = "monitoring"
-	keyPrefix       = "queue"
-	tagNotConfirmed = "not_confirmed"
+	taskID           = "vct-monitor"
+	storeName        = "monitoring"
+	keyPrefix        = "queue"
+	tagNotConfirmed  = "not_confirmed"
+	vctReadTokenKey  = "vct-read"
+	vctWriteTokenKey = "vct-write"
 )
 
 // httpClient represents HTTP client.
@@ -47,6 +49,7 @@ type Client struct {
 	store          storage.Store
 	http           httpClient
 	wfClient       webfingerClient
+	requestTokens  map[string]string
 }
 
 type taskManager interface {
@@ -55,7 +58,8 @@ type taskManager interface {
 
 // New returns monitoring client.
 func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient,
-	httpClient httpClient, taskMgr taskManager, interval time.Duration) (*Client, error) {
+	httpClient httpClient, taskMgr taskManager, interval time.Duration,
+	requestTokens map[string]string) (*Client, error) {
 	store, err := provider.OpenStore(storeName)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -71,6 +75,7 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 		store:          store,
 		http:           httpClient,
 		wfClient:       wfClient,
+		requestTokens:  requestTokens,
 	}
 
 	logger.Infof("Registering task [%s] to be run at intervals of %s", taskID, interval)
@@ -104,7 +109,8 @@ func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 	}
 
 	// creates new client based on domain
-	vctClient := vct.New(e.Domain, vct.WithHTTPClient(c.http))
+	vctClient := vct.New(e.Domain, vct.WithHTTPClient(c.http), vct.WithAuthReadToken(c.requestTokens[vctReadTokenKey]),
+		vct.WithAuthWriteToken(c.requestTokens[vctWriteTokenKey]))
 
 	// calculates leaf hash for given timestamp and initial credential to be able query proof by hash.
 	hash, err := vct.CalculateLeafHash(uint64(e.Created.UnixNano()/int64(time.Millisecond)), vc)

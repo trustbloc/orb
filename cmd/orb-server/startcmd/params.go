@@ -133,6 +133,9 @@ const (
 	opQueueDefaultTaskExpiration          = 30 * time.Second
 	opQueueDefaultMaxReposts              = 10
 	opQueueOperationExpirationGracePeriod = time.Minute
+	splitRequestTokenLength               = 2
+	vctReadTokenKey                       = "vct-read"
+	vctWriteTokenKey                      = "vct-write"
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -597,6 +600,11 @@ const (
 	currentSidetreeProtocolVersionUsage    = `One of available sidetree protocol versions.  ` +
 		`Defaults to latest Sidetree protocol version. ` +
 		commonEnvVarUsageText + currentSidetreeProtocolVersionEnvKey
+
+	requestTokensFlagName  = "request-tokens"
+	requestTokensEnvKey    = "ORB_REQUEST_TOKENS" //nolint: gosec
+	requestTokensFlagUsage = "Tokens used for http request supported tokens (vct-read and vct-write) " +
+		commonEnvVarUsageText + requestTokensEnvKey
 )
 
 type acceptRejectPolicy string
@@ -682,6 +690,7 @@ type orbParameters struct {
 	sidetreeProtocolVersions                []string
 	currentSidetreeProtocolVersion          string
 	kmsParams                               *kmsParameters
+	requestTokens                           map[string]string
 }
 
 type anchorCredentialParams struct {
@@ -1269,6 +1278,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
 
+	requestTokens := getRequestTokens(cmd)
+
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
@@ -1336,7 +1347,27 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		sidetreeProtocolVersions:                sidetreeProtocolVersions,
 		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
 		kmsParams:                               kmsParams,
+		requestTokens:                           requestTokens,
 	}, nil
+}
+
+func getRequestTokens(cmd *cobra.Command) map[string]string {
+	requestTokens := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, requestTokensFlagName,
+		requestTokensEnvKey)
+
+	tokens := make(map[string]string)
+
+	for _, token := range requestTokens {
+		split := strings.Split(token, "=")
+		switch len(split) {
+		case splitRequestTokenLength:
+			tokens[split[0]] = split[1]
+		default:
+			logger.Warnf("invalid token '%s'", token)
+		}
+	}
+
+	return tokens
 }
 
 func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint string) (*anchorCredentialParams, error) {
@@ -1924,4 +1955,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
 	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)
+	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
 }

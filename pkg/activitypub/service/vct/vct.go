@@ -64,6 +64,8 @@ type ClientOpt func(*clientOptions)
 type clientOptions struct {
 	http           HTTPClient
 	documentLoader ld.DocumentLoader
+	authReadToken  string
+	authWriteToken string
 }
 
 // WithHTTPClient allows providing HTTP client.
@@ -80,6 +82,20 @@ func WithDocumentLoader(loader ld.DocumentLoader) ClientOpt {
 	}
 }
 
+// WithAuthReadToken add auth token.
+func WithAuthReadToken(authToken string) ClientOpt {
+	return func(o *clientOptions) {
+		o.authReadToken = authToken
+	}
+}
+
+// WithAuthWriteToken add auth token.
+func WithAuthWriteToken(authToken string) ClientOpt {
+	return func(o *clientOptions) {
+		o.authWriteToken = authToken
+	}
+}
+
 // New returns the client.
 func New(endpoint string, signer signer, metrics metricsProvider, opts ...ClientOpt) *Client {
 	op := &clientOptions{http: &http.Client{
@@ -93,7 +109,8 @@ func New(endpoint string, signer signer, metrics metricsProvider, opts ...Client
 	var vctClient *vct.Client
 
 	if strings.TrimSpace(endpoint) != "" {
-		vctClient = vct.New(endpoint, vct.WithHTTPClient(op.http))
+		vctClient = vct.New(endpoint, vct.WithHTTPClient(op.http),
+			vct.WithAuthReadToken(op.authReadToken), vct.WithAuthWriteToken(op.authWriteToken))
 	}
 
 	return &Client{

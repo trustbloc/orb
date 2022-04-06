@@ -79,7 +79,8 @@ func TestClient_Witness(t *testing.T) {
 
 		const endpoint = "https://example.com"
 		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
-			WithDocumentLoader(testutil.GetLoader(t)))
+			WithDocumentLoader(testutil.GetLoader(t)), WithAuthWriteToken("write"),
+			WithAuthReadToken("read"))
 
 		resp, err := client.Witness([]byte(mockVC))
 		require.NoError(t, err)

@@ -31,8 +31,12 @@ import (
 
 var logger = log.New("vct-consistency-monitor")
 
-// VCT limits maximum number of entries to 1000.
-const maxGetEntriesRange = 1000
+const (
+	// VCT limits maximum number of entries to 1000.
+	maxGetEntriesRange = 1000
+	vctReadTokenKey    = "vct-read"
+	vctWriteTokenKey   = "vct-write"
+)
 
 // httpClient represents HTTP client.
 type httpClient interface {
@@ -67,15 +71,17 @@ type logMonitorStore interface {
 // Client implements periodical monitoring of VCT consistency
 // as per https://datatracker.ietf.org/doc/html/rfc6962#section-5.3.
 type Client struct {
-	store logMonitorStore
-	http  httpClient
+	store         logMonitorStore
+	http          httpClient
+	requestTokens map[string]string
 }
 
 // New returns VCT consistency monitoring client.
-func New(store logMonitorStore, httpClient httpClient) (*Client, error) {
+func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string) (*Client, error) {
 	client := &Client{
-		store: store,
-		http:  httpClient,
+		store:         store,
+		http:          httpClient,
+		requestTokens: requestTokens,
 	}
 
 	return client, nil
@@ -87,7 +93,9 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 	storedSTH := logMonitor.STH
 
 	// creates new client based on domain
-	vctClient := vct.New(logMonitor.Log, vct.WithHTTPClient(c.http))
+	vctClient := vct.New(logMonitor.Log, vct.WithHTTPClient(c.http),
+		vct.WithAuthWriteToken(c.requestTokens[vctWriteTokenKey]),
+		vct.WithAuthReadToken(c.requestTokens[vctReadTokenKey]))
 
 	// gets the latest signed tree head and compare to stored one
 	sth, err := vctClient.GetSTH(context.Background())

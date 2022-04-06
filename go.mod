@@ -19,7 +19,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220310104637-62fd90482e21
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-api v0.2.0
@@ -34,7 +34,7 @@ require (
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
 	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220314104818-0ae9fc89df5b
-	github.com/trustbloc/vct v0.1.4-0.20220323131744-81cc21c7b61a
+	github.com/trustbloc/vct v0.1.4-0.20220406092826-222452d04e9b
 	go.mongodb.org/mongo-driver v1.8.0
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 )
@@ -68,7 +68,7 @@ require (
 	github.com/google/tink/go v1.6.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220311181400-584f96318d6d // indirect
+	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220324201531-18c87667df19 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.8 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
