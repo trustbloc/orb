@@ -763,7 +763,7 @@ func startOrbServices(parameters *orbParameters) error {
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
 	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
-		httpClient, taskMgr, parameters.vctMonitoringInterval, parameters.requestTokens)
+		httpClient, taskMgr, parameters.vctProofMonitoringInterval, parameters.requestTokens)
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
@@ -773,15 +773,14 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create log monitor store: %w", err)
 	}
 
-	// TODO: Configure this, for now use proof monitoring interval(issue-1176)
-	followVCTDomainsInterval := parameters.vctMonitoringInterval
-
-	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens)
+	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens,
+		logmonitoring.WithMaxTreeSize(parameters.vctLogMonitoringTreeSize),
+		logmonitoring.WithMaxGetEntriesRange(parameters.vctLogMonitoringGetEntriesRange))
 	if err != nil {
-		return fmt.Errorf("new VCT conistency monitoring service: %w", err)
+		return fmt.Errorf("new VCT consistency monitoring service: %w", err)
 	}
 
-	taskMgr.RegisterTask("vct-consistency-monitor", followVCTDomainsInterval, logMonitoringSvc.MonitorLogs)
+	taskMgr.RegisterTask("vct-log-consistency-monitor", parameters.vctLogMonitoringInterval, logMonitoringSvc.MonitorLogs)
 
 	witnessPolicy, err := policy.New(configStore, parameters.witnessPolicyCacheExpiration)
 	if err != nil {

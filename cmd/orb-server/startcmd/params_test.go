@@ -678,8 +678,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "sync-interval: invalid value [xxx]")
 	})
 
-	t.Run("VCT monitoring interval", func(t *testing.T) {
-		restoreEnv := setEnv(t, vctMonitoringIntervalEnvKey, "xxx")
+	t.Run("VCT proof monitoring interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctProofMonitoringIntervalEnvKey, "xxx")
 		defer restoreEnv()
 
 		startCmd := GetStartCmd()
@@ -688,7 +688,46 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "vct-monitoring-interval: invalid value [xxx]")
+		require.Contains(t, err.Error(), "vct-proof-monitoring-interval: invalid value [xxx]")
+	})
+
+	t.Run("VCT log monitoring interval", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctLogMonitoringIntervalEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-log-monitoring-interval: invalid value [xxx]")
+	})
+
+	t.Run("VCT log monitoring max tree size", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctLogMonitoringMaxTreeSizeEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-log-monitoring-max-tree-size: strconv.ParseUint: parsing \"xxx\": invalid syntax")
+	})
+
+	t.Run("VCT log monitoring get entries range", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctLogMonitoringGetEntriesRangeEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-log-monitoring-get-entries-range: strconv.ParseUint: parsing \"xxx\": invalid syntax")
 	})
 
 	t.Run("anchor status monitoring interval", func(t *testing.T) {
