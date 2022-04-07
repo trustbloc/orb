@@ -1294,6 +1294,19 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 0)
 }
 
+func (d *DIDOrbSteps) createDIDDocumentsAsync(strURLs string, num int, concurrency int) error {
+	logger.Infof("started Go routine to create %d DID document(s) at %s using a concurrency of %d",
+		num, strURLs, concurrency)
+
+	go func() {
+		if err := d.createDIDDocuments(strURLs, num, concurrency); err != nil {
+			logger.Errorf("Error creating DID documents: %s", err)
+		}
+	}()
+
+	return nil
+}
+
 func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, attempts int) error {
 	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
 
@@ -1711,7 +1724,7 @@ func (d *DIDOrbSteps) verifyDID(url, did string, attempts int) (canonicalID stri
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				return false
+				return resp.StatusCode >= http.StatusInternalServerError
 			}
 
 			var rr document.ResolutionResult
@@ -2038,6 +2051,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)
 	s.Step(`^check for request success`, d.checkResponseIsSuccess)
 	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests$`, d.createDIDDocuments)
+	s.Step(`^client sends request to "([^"]*)" to create (\d+) DID documents using (\d+) concurrent requests in the background$`, d.createDIDDocumentsAsync)
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests and a maximum of "([^"]*)" attempts, storing the dids to file "([^"]*)"$`, d.createDIDDocumentsWithRetriesAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)

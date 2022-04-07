@@ -15,6 +15,7 @@ import (
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 type publicKeyRetriever interface {
@@ -66,10 +67,12 @@ func NewVerifier(actorRetriever actorRetriever, cr crypto, km keyManager) *Verif
 func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	logger.Debugf("Verifying request. Headers: %s", req.Header)
 
-	err := v.verifier().Verify(req)
+	verified, err := v.verify(req)
 	if err != nil {
-		logger.Infof("Signature verification failed for request %s: %s", req.URL, err)
+		return false, nil, err
+	}
 
+	if !verified {
 		return false, nil, nil
 	}
 
@@ -96,7 +99,7 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 
 	logger.Debugf("Retrieving actor for public key owner [%s]", publicKey.Owner)
 
-	// Ensure that the public key ID matches the key ID of the specified owner. Otherwise it could
+	// Ensure that the public key ID matches the key ID of the specified owner. Otherwise, it could
 	// be an attempt to impersonate an actor.
 	actor, err := v.actorRetriever.GetActor(publicKey.Owner.URL())
 	if err != nil {
@@ -119,6 +122,32 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	logger.Debugf("Successfully verified signature in header. Actor [%s]", actor.ID())
 
 	return true, actor.ID().URL(), nil
+}
+
+func (v *Verifier) verify(req *http.Request) (bool, error) {
+	err := v.verifier().Verify(req)
+	if err == nil {
+		return true, nil
+	}
+
+	if orberrors.IsTransient(err) {
+		logger.Errorf("Error in signature verification for request %s: %s", req.URL, err)
+
+		return false, err
+	}
+
+	if strings.Contains(err.Error(), "transient http error:") {
+		logger.Errorf("Error in signature verification for request %s: %s", req.URL, err)
+
+		// The http sig library does not wrap errors properly, so the ORB transient error is not in the
+		// chain of errors. Wrap the error with a transient error so that the request may be retried by
+		// the caller
+		return false, orberrors.NewTransient(err)
+	}
+
+	logger.Infof("Signature verification failed for request %s: %s", req.URL, err)
+
+	return false, nil
 }
 
 func getKeyIDFromSignatureHeader(req *http.Request) string {

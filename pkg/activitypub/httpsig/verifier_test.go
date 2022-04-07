@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -23,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/mocks"
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/aptestutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
@@ -226,6 +228,54 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)
 		require.False(t, ok)
+		require.Nil(t, actorID)
+	})
+
+	t.Run("Orb transient error -> error", func(t *testing.T) {
+		errExpected := orberrors.NewTransientf("injected transient error")
+
+		sigVerifier := &mocks.HTTPSignatureVerifier{}
+		sigVerifier.VerifyReturns(errExpected)
+
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return sigVerifier },
+		}
+
+		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
+		require.NoError(t, err)
+
+		require.NoError(t, signer.SignRequest("https://domainx/key1", req))
+
+		ok, actorID, err := v.VerifyRequest(req)
+		require.Error(t, err)
+		require.False(t, ok)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.True(t, orberrors.IsTransient(err))
+		require.Nil(t, actorID)
+	})
+
+	t.Run("HTTP transient error -> error", func(t *testing.T) {
+		errExpected := errors.New("transient http error: injected error")
+
+		sigVerifier := &mocks.HTTPSignatureVerifier{}
+		sigVerifier.VerifyReturns(errExpected)
+
+		v := &Verifier{
+			actorRetriever: retriever,
+			verifier:       func() verifier { return sigVerifier },
+		}
+
+		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
+		require.NoError(t, err)
+
+		require.NoError(t, signer.SignRequest("https://domainx/key1", req))
+
+		ok, actorID, err := v.VerifyRequest(req)
+		require.Error(t, err)
+		require.False(t, ok)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.True(t, orberrors.IsTransient(err))
 		require.Nil(t, actorID)
 	})
 }
