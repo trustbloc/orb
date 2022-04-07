@@ -364,6 +364,59 @@ Feature:
         When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did and version ID "${invalidVer}"
         Then check error response contains "'invalid' is not a valid versionId"
 
+  @did_doc_lifecycle
+  Scenario: various did doc operations
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
+    Then check for request success
+    Then we wait 5 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "newService"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to recover DID document
+    Then check for request success
+    Then we wait 5 seconds
+
+    # send request with previous canonical did - new canonical did will be returned
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "recoveryKey"
+    Then check success response contains "canonicalId"
+
+    # send request with new canonical did
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "#canonicalDID"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "newKey" to DID document
+    Then check for request success
+    Then we wait 5 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "newKey"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "anotherKey" to DID document
+    Then check for request success
+    Then we wait 5 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "anotherKey"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to deactivate DID document
+    Then check for request success
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "deactivated"
+
   @did_sidetree_auth
   Scenario: Sidetree endpoint authorization
     Given client discover orb endpoints
