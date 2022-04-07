@@ -108,7 +108,10 @@ const (
 	defaultDataExpiryCheckInterval          = time.Minute
 	defaultAnchorSyncInterval               = time.Minute
 	defaultAnchorSyncMinActivityAge         = time.Minute
-	defaultVCTMonitoringInterval            = 10 * time.Second
+	defaultVCTProofMonitoringInterval       = 10 * time.Second
+	defaultVCTLogMonitoringInterval         = 10 * time.Second
+	defaultVCTLogMonitoringMaxTreeSize      = 50000
+	defaultVCTLogMonitoringGetEntriesRange  = 1000
 	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
 	defaultAnchorStatusInProcessGracePeriod = 30 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
@@ -160,11 +163,29 @@ const (
 	vctURLFlagUsage = "Verifiable credential transparency URL."
 	vctURLEnvKey    = "ORB_VCT_URL"
 
-	vctMonitoringIntervalFlagName  = "vct-monitoring-interval"
-	vctMonitoringIntervalEnvKey    = "VCT_MONITORING_INTERVAL"
-	vctMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
+	vctProofMonitoringIntervalFlagName  = "vct-proof-monitoring-interval"
+	vctProofMonitoringIntervalEnvKey    = "VCT_PROOF_MONITORING_INTERVAL"
+	vctProofMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
 		"Defaults to 10s if not set. " +
-		commonEnvVarUsageText + vctMonitoringIntervalEnvKey
+		commonEnvVarUsageText + vctProofMonitoringIntervalEnvKey
+
+	vctLogMonitoringIntervalFlagName  = "vct-log-monitoring-interval"
+	vctLogMonitoringIntervalEnvKey    = "VCT_LOG_MONITORING_INTERVAL"
+	vctLogMonitoringIntervalFlagUsage = "The interval in which VCT logs are monitored to ensure that they are consistent. " +
+		"Defaults to 10s if not set. " +
+		commonEnvVarUsageText + vctLogMonitoringIntervalEnvKey
+
+	vctLogMonitoringMaxTreeSizeFlagName  = "vct-log-monitoring-max-tree-size"
+	vctLogMonitoringMaxTreeSizeEnvKey    = "VCT_LOG_MONITORING_MAX_TREE_SIZE"
+	vctLogMonitoringMaxTreeSizeFlagUsage = "The maximum tree size for which new VCT logs will be re-constructed in order to verify STH. " +
+		"Defaults to 50000 if not set. " +
+		commonEnvVarUsageText + vctLogMonitoringMaxTreeSizeEnvKey
+
+	vctLogMonitoringGetEntriesRangeFlagName  = "vct-log-monitoring-get-entries-range"
+	vctLogMonitoringGetEntriesRangeEnvKey    = "VCT_LOG_MONITORING_GET_ENTRIES_RANGE"
+	vctLogMonitoringGetEntriesRangeFlagUsage = "The maximum number of entries to be retrieved from VCT log in one attempt. " +
+		"Defaults to 1000 if not set. Has to be less or equal than 1000 due to VCT limitation." +
+		commonEnvVarUsageText + vctLogMonitoringGetEntriesRangeEnvKey
 
 	anchorStatusMonitoringIntervalFlagName  = "anchor-status-monitoring-interval"
 	anchorStatusMonitoringIntervalEnvKey    = "ANCHOR_STATUS_MONITORING_INTERVAL"
@@ -685,7 +706,10 @@ type orbParameters struct {
 	taskMgrCheckInterval                    time.Duration
 	anchorSyncPeriod                        time.Duration
 	anchorSyncMinActivityAge                time.Duration
-	vctMonitoringInterval                   time.Duration
+	vctProofMonitoringInterval              time.Duration
+	vctLogMonitoringInterval                time.Duration
+	vctLogMonitoringTreeSize                uint64
+	vctLogMonitoringGetEntriesRange         int
 	anchorStatusMonitoringInterval          time.Duration
 	anchorStatusInProcessGracePeriod        time.Duration
 	apClientCacheSize                       int
@@ -1238,10 +1262,40 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	vctMonitoringInterval, err := getDuration(cmd, vctMonitoringIntervalFlagName, vctMonitoringIntervalEnvKey,
-		defaultVCTMonitoringInterval)
+	vctProofMonitoringInterval, err := getDuration(cmd, vctProofMonitoringIntervalFlagName, vctProofMonitoringIntervalEnvKey,
+		defaultVCTProofMonitoringInterval)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", vctMonitoringIntervalFlagName, err)
+		return nil, fmt.Errorf("%s: %w", vctProofMonitoringIntervalFlagName, err)
+	}
+
+	vctLogMonitoringInterval, err := getDuration(cmd, vctLogMonitoringIntervalFlagName, vctLogMonitoringIntervalEnvKey,
+		defaultVCTLogMonitoringInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", vctLogMonitoringIntervalFlagName, err)
+	}
+
+	vctLogMonitoringMaxTreeSizeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringMaxTreeSizeFlagName,
+		vctLogMonitoringMaxTreeSizeEnvKey)
+
+	vctLogMonitoringMaxTreeSize := uint64(defaultVCTLogMonitoringMaxTreeSize)
+	if vctLogMonitoringMaxTreeSizeStr != "" {
+		vctLogMonitoringMaxTreeSize, err = strconv.ParseUint(vctLogMonitoringMaxTreeSizeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", vctLogMonitoringMaxTreeSizeFlagName, err)
+		}
+	}
+
+	vctLogMonitoringGetEntriesRangeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringGetEntriesRangeFlagName,
+		vctLogMonitoringGetEntriesRangeEnvKey)
+
+	vctLogMonitoringGetEntriesRange := defaultVCTLogMonitoringGetEntriesRange
+	if vctLogMonitoringGetEntriesRangeStr != "" {
+		getEntriesRange, err := strconv.ParseUint(vctLogMonitoringGetEntriesRangeStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", vctLogMonitoringGetEntriesRangeFlagName, err)
+		}
+
+		vctLogMonitoringGetEntriesRange = int(getEntriesRange)
 	}
 
 	anchorStatusMonitoringInterval, err := getDuration(cmd, anchorStatusMonitoringIntervalFlagName, anchorStatusMonitoringIntervalEnvKey,
@@ -1340,7 +1394,10 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpTimeout:                             httpTimeout,
 		anchorSyncPeriod:                        syncPeriod,
 		anchorSyncMinActivityAge:                minActivityAge,
-		vctMonitoringInterval:                   vctMonitoringInterval,
+		vctProofMonitoringInterval:              vctProofMonitoringInterval,
+		vctLogMonitoringInterval:                vctLogMonitoringInterval,
+		vctLogMonitoringTreeSize:                vctLogMonitoringMaxTreeSize,
+		vctLogMonitoringGetEntriesRange:         vctLogMonitoringGetEntriesRange,
 		anchorStatusMonitoringInterval:          anchorStatusMonitoringInterval,
 		anchorStatusInProcessGracePeriod:        anchorStatusInProcessGracePeriod,
 		witnessPolicyCacheExpiration:            witnessPolicyCacheExpiration,
@@ -1956,7 +2013,10 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(httpDialTimeoutFlagName, "", "", httpDialTimeoutFlagUsage)
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorSyncMinActivityAgeFlagName, "", "", anchorSyncMinActivityAgeFlagUsage)
-	startCmd.Flags().StringP(vctMonitoringIntervalFlagName, "", "", vctMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(vctProofMonitoringIntervalFlagName, "", "", vctProofMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(vctLogMonitoringIntervalFlagName, "", "", vctLogMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(vctLogMonitoringMaxTreeSizeFlagName, "", "", vctLogMonitoringMaxTreeSizeFlagUsage)
+	startCmd.Flags().StringP(vctLogMonitoringGetEntriesRangeFlagName, "", "", vctLogMonitoringGetEntriesRangeFlagUsage)
 	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
 	startCmd.Flags().StringP(witnessPolicyCacheExpirationFlagName, "", "", witnessPolicyCacheExpirationFlagUsage)

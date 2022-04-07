@@ -33,9 +33,13 @@ var logger = log.New("vct-consistency-monitor")
 
 const (
 	// VCT limits maximum number of entries to 1000.
-	maxGetEntriesRange = 1000
-	vctReadTokenKey    = "vct-read"
-	vctWriteTokenKey   = "vct-write"
+	defaultMaxGetEntriesRange = 1000
+
+	// maximum in-memory tree size.
+	defaultMaxTreeSize = 10000
+
+	vctReadTokenKey  = "vct-read"
+	vctWriteTokenKey = "vct-write"
 )
 
 // httpClient represents HTTP client.
@@ -71,17 +75,43 @@ type logMonitorStore interface {
 // Client implements periodical monitoring of VCT consistency
 // as per https://datatracker.ietf.org/doc/html/rfc6962#section-5.3.
 type Client struct {
-	store         logMonitorStore
-	http          httpClient
-	requestTokens map[string]string
+	store              logMonitorStore
+	http               httpClient
+	requestTokens      map[string]string
+	maxTreeSize        uint64
+	maxGetEntriesRange int
 }
 
-// New returns VCT consistency monitoring client.
-func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string) (*Client, error) {
+// Option is an option for resolve handler.
+type Option func(opts *Client)
+
+// WithMaxTreeSize sets optional maximum tree size for assembling tree in order to check new STH.
+func WithMaxTreeSize(maxTreeSize uint64) Option {
+	return func(opts *Client) {
+		opts.maxTreeSize = maxTreeSize
+	}
+}
+
+// WithMaxGetEntriesRange sets optional limit for number of entries retrieved.
+func WithMaxGetEntriesRange(max int) Option {
+	return func(opts *Client) {
+		opts.maxGetEntriesRange = max
+	}
+}
+
+// New returns new client for monitoring VCT log consistency.
+func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string, opts ...Option) (*Client, error) { //nolint:lll
 	client := &Client{
-		store:         store,
-		http:          httpClient,
-		requestTokens: requestTokens,
+		store:              store,
+		http:               httpClient,
+		requestTokens:      requestTokens,
+		maxTreeSize:        defaultMaxTreeSize,
+		maxGetEntriesRange: defaultMaxGetEntriesRange,
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(client)
 	}
 
 	return client, nil
@@ -116,7 +146,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 
 	logger.Debugf("log[%s]: verified STH signature", logMonitor.Log)
 
-	err = verifySTH(logMonitor.Log, storedSTH, sth, vctClient)
+	err = c.verifySTH(logMonitor.Log, storedSTH, sth, vctClient)
 	if err != nil {
 		return fmt.Errorf("failed to verify STH: %w", err)
 	}
@@ -135,7 +165,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 	return nil
 }
 
-func verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error {
+func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error {
 	var err error
 
 	if storedSTH == nil {
@@ -145,7 +175,14 @@ func verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient 
 			return nil
 		}
 
-		err = verifySTHTree(logURL, sth, vctClient)
+		if sth.TreeSize > c.maxTreeSize {
+			logger.Debugf("log[%s]: initial STH tree size[%d] is greater than max size[%d] - nothing to do",
+				logURL, sth.TreeSize, c.maxTreeSize)
+
+			return nil
+		}
+
+		err = c.verifySTHTree(logURL, sth, vctClient)
 		if err != nil {
 			return fmt.Errorf("failed to verify STH tree: %w", err)
 		}
@@ -171,10 +208,10 @@ func verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient 
 	return nil
 }
 
-func verifySTHTree(domain string, sth *command.GetSTHResponse, vctClient *vct.Client) error {
+func (c *Client) verifySTHTree(domain string, sth *command.GetSTHResponse, vctClient *vct.Client) error {
 	logger.Debugf("log[%s]: get STH tree[%d] and verify consistency", domain, sth.TreeSize)
 
-	entries, err := getEntries(domain, vctClient, sth.TreeSize, maxGetEntriesRange)
+	entries, err := getEntries(domain, vctClient, sth.TreeSize, c.maxGetEntriesRange)
 	if err != nil {
 		return fmt.Errorf("failed to get all entries: %w", err)
 	}

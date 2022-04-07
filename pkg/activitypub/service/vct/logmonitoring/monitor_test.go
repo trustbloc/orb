@@ -38,6 +38,16 @@ func TestNew(t *testing.T) {
 	client, err := New(store, nil, map[string]string{})
 	require.NoError(t, err)
 	require.NotNil(t, client)
+	require.Equal(t, uint64(defaultMaxTreeSize), client.maxTreeSize)
+	require.Equal(t, defaultMaxGetEntriesRange, client.maxGetEntriesRange)
+
+	client, err = New(store, nil, map[string]string{},
+		WithMaxGetEntriesRange(50),
+		WithMaxTreeSize(100))
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	require.Equal(t, uint64(100), client.maxTreeSize)
+	require.Equal(t, 50, client.maxGetEntriesRange)
 }
 
 func TestClient_MonitorLogs(t *testing.T) {
@@ -786,6 +796,73 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to verify STH tree: failed to get all entries: failed to get entries for range[0-3]")
+	})
+
+	t.Run("error - empty stored, new STH tree size > max tree size", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithMaxTreeSize(1))
+		require.NoError(t, err)
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
 	})
 
 	t.Run("error - empty stored, new STH tree size > 0 (STH != merkle tree entries hash)", func(t *testing.T) {
