@@ -57,13 +57,15 @@ Feature:
   @all
   @orb_domain_onboarding_recovery
   Scenario: Domain onboarding and recovery
-    # Create and update a bunch of DIDs.
-    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-    # Stop an instance in domain1 (orb2-domain1) and ensure that the pending operations in orb2-domain1's queue are reposted
-    # to the AMQP queue so that they are processed by the other instance (orb.domain1.com).
-    Then container "orb2-domain1" is stopped
+    # Create and update a bunch of DIDs in the background.
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 500 DID documents using 3 concurrent requests in the background
+    Then we wait 2 seconds
+
+    # Stop an instance in domain2 (orb-domain2) while DIDs are still being created to ensure that the pending operations in orb-domain2's queue are reposted
+    # to the AMQP queue so that they are processed by the other instance (orb1-domain2.com).
+    Then container "orb-domain2" is stopped
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
-    Then container "orb2-domain1" is started
+    Then container "orb-domain2" is started
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_1_1" using 10 concurrent requests
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_1_1"

@@ -34,7 +34,8 @@ func VerifiableCredentialFromAnchorLink(anchorLink *linkset.Link,
 
 	vc, err := verifiable.ParseCredential(vcBytes, opts...)
 	if err != nil {
-		if strings.Contains(err.Error(), "http request unsuccessful") {
+		if strings.Contains(err.Error(), "http request unsuccessful") ||
+			strings.Contains(err.Error(), "http server returned status code") {
 			// The server is probably down. Return a transient error so that it may be retried.
 			return nil, errors.NewTransient(fmt.Errorf("http error during parse credential: %w", err))
 		}
