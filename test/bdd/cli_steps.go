@@ -436,7 +436,8 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 	value, err := execCMD(args...)
 	if err != nil && !strings.Contains(err.Error(), "no such host") &&
 		!strings.Contains(err.Error(), "connection timed out") &&
-		!strings.Contains(err.Error(), "remote error") {
+		!strings.Contains(err.Error(), "remote error") &&
+		!strings.Contains(err.Error(), "certificate signed by unknown authority") {
 		return err
 	}
 
