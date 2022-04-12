@@ -13,20 +13,20 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220310013829-55b4443130f8
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220314131033-2c80f2db01c9
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220303174620-e3a8602acbee
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220412155039-c618d62571b8
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220330145438-233eb7999876
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
-	github.com/trustbloc/orb v0.1.4-0.20220314105645-15799999dd8b
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220411215804-6eb6023d9f62
+	github.com/trustbloc/orb v0.1.4-0.20220412070324-edc9187e0c3e
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1
 )
 
 require (
@@ -103,8 +103,8 @@ require (
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/tidwall/match v1.0.3 // indirect
 	github.com/tidwall/pretty v1.1.0 // indirect
-	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98 // indirect
-	github.com/trustbloc/vct v0.1.4-0.20220406092826-222452d04e9b // indirect
+	github.com/trustbloc/edge-core v0.1.8 // indirect
+	github.com/trustbloc/vct v1.0.0-rc.1 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

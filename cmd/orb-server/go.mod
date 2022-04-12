@@ -11,18 +11,18 @@ require (
 	github.com/aws/aws-sdk-go v1.42.33
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220310013829-55b4443130f8
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220310104637-62fd90482e21
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330133350-1c2d9d65aea4
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/piprate/json-gold v0.4.1
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
-	github.com/trustbloc/edge-core v0.1.8-0.20220113141450-e19ffd091d98
-	github.com/trustbloc/kms v0.1.8-0.20220323192214-3f3ef0548eba
+	github.com/trustbloc/edge-core v0.1.8
+	github.com/trustbloc/kms v0.1.8
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v0.7.1-0.20220411215804-6eb6023d9f62
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1
 )
 
 require (
@@ -98,7 +98,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 // indirect
-	github.com/trustbloc/vct v0.1.4-0.20220406092826-222452d04e9b // indirect
+	github.com/trustbloc/vct v1.0.0-rc.1 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
