@@ -372,7 +372,7 @@ func TestOutbox_Handle(t *testing.T) {
 
 	t.Run("activity message type", func(t *testing.T) {
 		activityMsg := &activityMessage{
-			Type:     activityType,
+			Type:     broadcastType,
 			Activity: activity,
 		}
 
@@ -464,7 +464,7 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 
 	t.Run("activity message type", func(t *testing.T) {
 		activityMsg := &activityMessage{
-			Type:     activityType,
+			Type:     broadcastType,
 			Activity: activity,
 		}
 
@@ -554,11 +554,11 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 		})
 	})
 
-	t.Run("broadcast message type", func(t *testing.T) {
+	t.Run("retry-resolve message type", func(t *testing.T) {
 		activityMsg := &activityMessage{
-			Type:       broadcastType,
-			Activity:   activity,
-			TargetIRIs: vocab.NewURLCollectionProperty(service2URL),
+			Type:      retryResolveType,
+			Activity:  activity,
+			TargetIRI: vocab.NewURLProperty(service2URL),
 		}
 
 		msgBytes, err := json.Marshal(activityMsg)
@@ -567,8 +567,10 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 		msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
 		t.Run("success", func(t *testing.T) {
+			apClient := mocks.NewActivitPubClient().WithActor(vocab.NewService(service2URL))
+
 			ob, err := New(cfg, memstore.New("service1"), mocks.NewPubSub(), transport.Default(),
-				&mocks.ActivityHandler{}, mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
+				&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{}, &orbmocks.MetricsProvider{})
 			require.NoError(t, err)
 			require.NotNil(t, ob)
 
@@ -591,8 +593,10 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 				require.NotNil(t, ob)
 
 				a, err := ob.handleActivityMsg(msg)
-				require.NoError(t, err)
-				require.Equal(t, activity.ID().String(), a.ID().String())
+				require.Error(t, err)
+				require.Contains(t, err.Error(), errExpected.Error())
+				require.True(t, orberrors.IsTransient(err))
+				require.Nil(t, a)
 			})
 
 			t.Run("persistent error", func(t *testing.T) {
@@ -607,8 +611,10 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 				require.NotNil(t, ob)
 
 				a, err := ob.handleActivityMsg(msg)
-				require.NoError(t, err)
-				require.Equal(t, activity.ID().String(), a.ID().String())
+				require.Error(t, err)
+				require.Contains(t, err.Error(), errExpected.Error())
+				require.True(t, !orberrors.IsTransient(err))
+				require.Nil(t, a)
 			})
 		})
 	})

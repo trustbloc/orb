@@ -197,7 +197,10 @@ func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
 
 		err = h.monitoringSvc.Watch(vc, time.Now().Add(h.maxDelay), domain, createdTime)
 		if err != nil {
-			return fmt.Errorf("failed to setup monitoring for anchor credential[%s]: %w", vc.ID, err)
+			// This shouldn't be a fatal error since the anchor being processed may have multiple
+			// witness proofs and, if one of the witness domains is down, it should not prevent the
+			// anchor from being processed.
+			logger.Errorf("Failed to setup monitoring for anchor credential[%s]: %w", vc.ID, err)
 		}
 	}
 
