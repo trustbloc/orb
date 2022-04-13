@@ -166,9 +166,9 @@ func (h *Outbox) listen() {
 type messageType string
 
 const (
-	activityType  messageType = "activity"
-	broadcastType messageType = "broadcast"
-	targetedType  messageType = "targeted"
+	broadcastType    messageType = "broadcast"
+	targetedType     messageType = "target"
+	retryResolveType messageType = "retry-resolve"
 )
 
 type activityMessage struct {
@@ -200,7 +200,7 @@ func (h *Outbox) Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.U
 		return nil, err
 	}
 
-	err = h.publishActivityMessage(activity, exclude)
+	err = h.publishBroadcastMessage(activity, exclude)
 	if err != nil {
 		return nil, fmt.Errorf("publish activity message [%s]: %w", activity.ID(), err)
 	}
@@ -240,25 +240,25 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 	}
 
 	switch activityMsg.Type {
-	case activityType:
-		logger.Debugf("[%s] Handling activity message [%s], activity [%s]",
+	case broadcastType:
+		logger.Debugf("[%s] Handling broadcast activity message [%s], activity [%s]",
 			h.ServiceName, msg.UUID, activityMsg.Activity.ID())
 
-		if err := h.handleActivity(activityMsg.Activity, activityMsg.ExcludeIRIs.URLs()); err != nil {
-			return nil, fmt.Errorf("handle activity message for activity [%s]: %w",
+		if err := h.handleBroadcast(activityMsg.Activity, activityMsg.ExcludeIRIs.URLs()); err != nil {
+			return nil, fmt.Errorf("handle broadcast message for activity [%s]: %w",
 				activityMsg.Activity.ID(), err)
 		}
 
 		return activityMsg.Activity, nil
 
-	case broadcastType:
-		logger.Debugf("[%s] Handling broadcast activity message [%s], activity [%s], targets %s",
-			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRIs.URLs())
+	case retryResolveType:
+		logger.Debugf("[%s] Handling retry-resolve message [%s], activity [%s], target %s",
+			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
 
-		if err := h.broadcastActivity(activityMsg.Activity, activityMsg.TargetIRIs.URLs(),
+		if err := h.handleRetryResolveIRIs(activityMsg.Activity, activityMsg.TargetIRI.URL(),
 			activityMsg.ExcludeIRIs.URLs()); err != nil {
-			return nil, fmt.Errorf("handle broadcast message for activity [%s]: %w",
-				activityMsg.Activity.ID(), err)
+			return nil, fmt.Errorf("handle retry-resolve message for activity [%s] to [%s]: %w",
+				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
 		}
 
 		return activityMsg.Activity, nil
@@ -279,8 +279,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 	}
 }
 
-func (h *Outbox) handleActivity(activity *vocab.ActivityType, exclude []*url.URL) error {
-	logger.Debugf("[%s] Handling activity [%s]", h.ServiceName, activity.ID())
+func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*url.URL) error {
+	logger.Debugf("[%s] Handling broadcast for activity [%s]", h.ServiceName, activity.ID())
 
 	if err := h.storeActivity(activity); err != nil {
 		return fmt.Errorf("store activity: %w", err)
@@ -290,48 +290,45 @@ func (h *Outbox) handleActivity(activity *vocab.ActivityType, exclude []*url.URL
 		return fmt.Errorf("handle activity: %w", err)
 	}
 
-	if err := h.broadcastActivity(activity, activity.To(), exclude); err != nil {
-		return fmt.Errorf("resolve and publish: %w", err)
-	}
+	for _, r := range h.resolveInboxes(activity.To(), excludeIRIs) {
+		switch {
+		case r.err == nil:
+			if err := h.publishTargetedMessage(activity, r.iri); err != nil {
+				// Return with an error since the only time publishToTarget returns an error is if
+				// there's something wrong with the local server. (Maybe it's being shut down.)
+				return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
+			}
+		case orberrors.IsTransient(r.err):
+			logger.Warnf("Transient error resolving inbox %s: %s. IRI will be retried.", r.iri, r.err)
 
-	return nil
-}
-
-func (h *Outbox) broadcastActivity(activity *vocab.ActivityType, toIRIs, excludeIRIs []*url.URL) error {
-	logger.Debugf("[%s] Broadcasting activity [%s]", h.ServiceName, activity.ID())
-
-	for _, r := range h.resolveInboxes(toIRIs, excludeIRIs) {
-		if err := h.handleResolveResponse(activity, r, excludeIRIs); err != nil {
-			return fmt.Errorf("handle resolve response: %w", err)
+			if err := h.publishRetryResolveMessage(activity, r.iri, excludeIRIs); err != nil {
+				return fmt.Errorf("unable to publish activity for retry %s: %w", r.iri, err)
+			}
+		default:
+			logger.Errorf("Persistent error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
 		}
 	}
 
 	return nil
 }
 
-func (h *Outbox) handleResolveResponse(activity *vocab.ActivityType,
-	r *resolveIRIResponse, excludeIRIs []*url.URL) error {
-	if r.err == nil {
+func (h *Outbox) handleRetryResolveIRIs(activity *vocab.ActivityType, toIRI *url.URL, excludeIRIs []*url.URL) error {
+	logger.Debugf("[%s] Retrying to resolve inboxes from [%s] for activity [%s]", h.ServiceName, toIRI, activity.ID())
+
+	for _, r := range h.resolveInboxes([]*url.URL{toIRI}, excludeIRIs) {
+		if r.err != nil {
+			logger.Warnf("Error resolving inbox %s: %s. Transient error: %t",
+				r.iri, r.err, orberrors.IsTransient(r.err))
+
+			return fmt.Errorf("resolve inbox [%s]: %w", r.iri, r.err)
+		}
+
 		if err := h.publishTargetedMessage(activity, r.iri); err != nil {
 			// Return with an error since the only time publishToTarget returns an error is if
 			// there's something wrong with the local server. (Maybe it's being shut down.)
 			return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
 		}
-
-		return nil
 	}
-
-	if orberrors.IsTransient(r.err) {
-		logger.Warnf("Transient error resolving inbox %s: %s. IRI will be retried.", r.iri, r.err)
-
-		if err := h.publishBroadcastMessage(activity, []*url.URL{r.iri}, excludeIRIs); err != nil {
-			return fmt.Errorf("unable to publish activity for retry %s: %w", r.iri, err)
-		}
-
-		return nil
-	}
-
-	logger.Errorf("Persistent error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
 
 	return nil
 }
@@ -356,9 +353,9 @@ func (h *Outbox) storeActivity(activity *vocab.ActivityType) error {
 	return nil
 }
 
-func (h *Outbox) publishActivityMessage(activity *vocab.ActivityType, excludeIRIs []*url.URL) error {
+func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, excludeIRIs []*url.URL) error {
 	activityMsg := &activityMessage{
-		Type:        activityType,
+		Type:        broadcastType,
 		Activity:    activity,
 		ExcludeIRIs: vocab.NewURLCollectionProperty(excludeIRIs...),
 	}
@@ -376,11 +373,12 @@ func (h *Outbox) publishActivityMessage(activity *vocab.ActivityType, excludeIRI
 	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, targetIRIs, excludeIRIs []*url.URL) error {
+func (h *Outbox) publishRetryResolveMessage(activity *vocab.ActivityType, targetIRI *url.URL,
+	excludeIRIs []*url.URL) error {
 	activityMsg := &activityMessage{
-		Type:        broadcastType,
+		Type:        retryResolveType,
 		Activity:    activity,
-		TargetIRIs:  vocab.NewURLCollectionProperty(targetIRIs...),
+		TargetIRI:   vocab.NewURLProperty(targetIRI),
 		ExcludeIRIs: vocab.NewURLCollectionProperty(excludeIRIs...),
 	}
 
