@@ -594,6 +594,7 @@ services:
       # Default value: 1m
       - ANCHOR_EVENT_SYNC_MIN_ACTIVITY_AGE=1m
       - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
+      - VCT_LOG_ENTRIES_STORE_ENABLED=true
     ports:
       - 48626:443
       - 48627:48627

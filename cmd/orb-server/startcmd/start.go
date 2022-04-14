@@ -133,6 +133,7 @@ import (
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
 	didanchorstore "github.com/trustbloc/orb/pkg/store/didanchor"
 	"github.com/trustbloc/orb/pkg/store/expiry"
+	"github.com/trustbloc/orb/pkg/store/logentry"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
@@ -773,9 +774,23 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create log monitor store: %w", err)
 	}
 
-	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens,
+	logMonitoringOpts := []logmonitoring.Option{
 		logmonitoring.WithMaxTreeSize(parameters.vctLogMonitoringTreeSize),
-		logmonitoring.WithMaxGetEntriesRange(parameters.vctLogMonitoringGetEntriesRange))
+		logmonitoring.WithMaxGetEntriesRange(parameters.vctLogMonitoringGetEntriesRange),
+	}
+
+	if parameters.vctLogEntriesStoreEnabled {
+		logEntryStore, err := logentry.New(storeProviders.provider)
+		if err != nil {
+			return fmt.Errorf("failed to create log entries store: %w", err)
+		}
+
+		logMonitoringOpts = append(logMonitoringOpts,
+			logmonitoring.WithLogEntriesStore(logEntryStore))
+	}
+
+	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens,
+		logMonitoringOpts...)
 	if err != nil {
 		return fmt.Errorf("new VCT consistency monitoring service: %w", err)
 	}
