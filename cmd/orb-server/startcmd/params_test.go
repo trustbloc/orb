@@ -730,6 +730,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "vct-log-monitoring-get-entries-range: strconv.ParseUint: parsing \"xxx\": invalid syntax")
 	})
 
+	t.Run("VCT log monitoring - log entries store enabled", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctLogEntriesStoreEnabledEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-log-entries-store-enabled: strconv.ParseBool: parsing \"xxx\": invalid syntax")
+	})
+
 	t.Run("anchor status monitoring interval", func(t *testing.T) {
 		restoreEnv := setEnv(t, anchorStatusMonitoringIntervalEnvKey, "xxx")
 		defer restoreEnv()

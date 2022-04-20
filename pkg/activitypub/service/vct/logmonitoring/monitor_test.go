@@ -26,9 +26,10 @@ import (
 const (
 	testLog = "vct.com"
 
-	sthURL        = "vct.com/v1/get-sth"
-	getEntriesURL = "vct.com/v1/get-entries"
-	webfingerURL  = "vct.com/.well-known/webfinger"
+	sthURL            = "vct.com/v1/get-sth"
+	getEntriesURL     = "vct.com/v1/get-entries"
+	sthConsistencyURL = "vct.com/v1/get-sth-consistency"
+	webfingerURL      = "vct.com/.well-known/webfinger"
 )
 
 func TestNew(t *testing.T) {
@@ -447,6 +448,234 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("success - stored and new STH are different tree sizes (stored > 0)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth4), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("success - empty stored, new STH tree size > 0", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth4), &sthResponse)
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{
+			RootHash: sthResponse.SHA256RootHash,
+		}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("error - stored > 0 and new STH are different tree sizes (get entries fails)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth4), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to verify STH consistency: get entries between trees: failed to get entries for range[4-4]")
+	})
+
 	t.Run("error - get STH error", func(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
 		require.NoError(t, err)
@@ -506,7 +735,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				}, nil
 			}
 
-			if req.URL.Path == "vct.com/v1/get-sth-consistency" {
+			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusInternalServerError,
@@ -573,7 +802,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				}, nil
 			}
 
-			if req.URL.Path == "vct.com/v1/get-sth-consistency" {
+			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
@@ -932,10 +1161,162 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		require.Contains(t, err.Error(),
 			"failed to verify STH tree: different root hash results from merkle tree building")
 	})
+
+	t.Run("error - empty stored, new STH tree size > 0 (get root hash from entries error)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{
+			GetRootHashFromEntriesErr: fmt.Errorf("custom get root hash error"),
+		}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed to get root hash from entries: custom get root hash error")
+	})
+
+	t.Run("success - empty stored, new STH tree size > 0", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth4), &sthResponse)
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{
+			RootHash: sthResponse.SHA256RootHash,
+		}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
 }
 
 func TestClient_getEntries(t *testing.T) {
 	t.Run("success - paging", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == getEntriesURL {
 				expected := command.GetEntriesResponse{
@@ -964,12 +1345,18 @@ func TestClient_getEntries(t *testing.T) {
 			}, nil
 		})))
 
-		entries, err := getEntries(testLog, vctClient, 4, 2)
+		entries, err := client.getAllEntries(testLog, vctClient, 4, 2)
 		require.NoError(t, err)
 		require.Equal(t, 4, len(entries))
 	})
 
 	t.Run("success - paging", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == getEntriesURL {
 				expected := command.GetEntriesResponse{
@@ -995,9 +1382,51 @@ func TestClient_getEntries(t *testing.T) {
 			}, nil
 		})))
 
-		entries, err := getEntries(testLog, vctClient, 3, 1)
+		entries, err := client.getAllEntries(testLog, vctClient, 3, 1)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(entries))
+	})
+
+	t.Run("error - log entries store error", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{},
+			WithLogEntriesStore(&mockLogEntryStore{Err: fmt.Errorf("log entries store error")}))
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		entries, err := client.getAllEntries(testLog, vctClient, 2, 2)
+		require.Error(t, err)
+		require.Empty(t, entries)
+		require.Contains(t, err.Error(), "failed to store entries for range[0-1]: log entries store error")
 	})
 }
 
@@ -1117,6 +1546,33 @@ type httpMock func(req *http.Request) (*http.Response, error)
 
 func (m httpMock) Do(req *http.Request) (*http.Response, error) {
 	return m(req)
+}
+
+type mockLogVerifier struct {
+	VerifyConsistencyProofErr error
+	GetRootHashFromEntriesErr error
+
+	RootHash []byte
+}
+
+func (v *mockLogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error { //nolint:lll
+	return v.VerifyConsistencyProofErr
+}
+
+func (v *mockLogVerifier) GetRootHashFromEntries(entries []*command.LeafEntry) ([]byte, error) {
+	if v.GetRootHashFromEntriesErr != nil {
+		return nil, v.GetRootHashFromEntriesErr
+	}
+
+	return v.RootHash, nil
+}
+
+type mockLogEntryStore struct {
+	Err error
+}
+
+func (s *mockLogEntryStore) StoreLogEntries(log string, start, end uint64, entries []command.LeafEntry) error {
+	return s.Err
 }
 
 //nolint:lll

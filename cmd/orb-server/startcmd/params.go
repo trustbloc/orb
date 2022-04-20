@@ -112,6 +112,7 @@ const (
 	defaultVCTLogMonitoringInterval         = 10 * time.Second
 	defaultVCTLogMonitoringMaxTreeSize      = 50000
 	defaultVCTLogMonitoringGetEntriesRange  = 1000
+	defaultVCTLogEntriesStoreEnabled        = false
 	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
 	defaultAnchorStatusInProcessGracePeriod = 30 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
@@ -186,6 +187,12 @@ const (
 	vctLogMonitoringGetEntriesRangeFlagUsage = "The maximum number of entries to be retrieved from VCT log in one attempt. " +
 		"Defaults to 1000 if not set. Has to be less or equal than 1000 due to VCT limitation." +
 		commonEnvVarUsageText + vctLogMonitoringGetEntriesRangeEnvKey
+
+	vctLogEntriesStoreEnabledFlagName  = "vct-log-entries-store-enabled"
+	vctLogEntriesStoreEnabledEnvKey    = "VCT_LOG_ENTRIES_STORE_ENABLED"
+	vctLogEntriesStoreEnabledFlagUsage = "Enables storing of log entries during log monitoring. " +
+		"Defaults to false if not set. " +
+		commonEnvVarUsageText + vctLogEntriesStoreEnabledEnvKey
 
 	anchorStatusMonitoringIntervalFlagName  = "anchor-status-monitoring-interval"
 	anchorStatusMonitoringIntervalEnvKey    = "ANCHOR_STATUS_MONITORING_INTERVAL"
@@ -710,6 +717,7 @@ type orbParameters struct {
 	vctLogMonitoringInterval                time.Duration
 	vctLogMonitoringTreeSize                uint64
 	vctLogMonitoringGetEntriesRange         int
+	vctLogEntriesStoreEnabled               bool
 	anchorStatusMonitoringInterval          time.Duration
 	anchorStatusInProcessGracePeriod        time.Duration
 	apClientCacheSize                       int
@@ -1298,6 +1306,21 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		vctLogMonitoringGetEntriesRange = int(getEntriesRange)
 	}
 
+	enableLogEntriesStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, vctLogEntriesStoreEnabledFlagName, vctLogEntriesStoreEnabledEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	vctLogEntriesStoreEnabled := defaultVCTLogEntriesStoreEnabled
+	if enableLogEntriesStoreStr != "" {
+		enable, parseErr := strconv.ParseBool(enableLogEntriesStoreStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", vctLogEntriesStoreEnabledFlagName, parseErr)
+		}
+
+		vctLogEntriesStoreEnabled = enable
+	}
+
 	anchorStatusMonitoringInterval, err := getDuration(cmd, anchorStatusMonitoringIntervalFlagName, anchorStatusMonitoringIntervalEnvKey,
 		defaultAnchorStatusMonitoringInterval)
 	if err != nil {
@@ -1398,6 +1421,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		vctLogMonitoringInterval:                vctLogMonitoringInterval,
 		vctLogMonitoringTreeSize:                vctLogMonitoringMaxTreeSize,
 		vctLogMonitoringGetEntriesRange:         vctLogMonitoringGetEntriesRange,
+		vctLogEntriesStoreEnabled:               vctLogEntriesStoreEnabled,
 		anchorStatusMonitoringInterval:          anchorStatusMonitoringInterval,
 		anchorStatusInProcessGracePeriod:        anchorStatusInProcessGracePeriod,
 		witnessPolicyCacheExpiration:            witnessPolicyCacheExpiration,
@@ -2017,6 +2041,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(vctLogMonitoringIntervalFlagName, "", "", vctLogMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringMaxTreeSizeFlagName, "", "", vctLogMonitoringMaxTreeSizeFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringGetEntriesRangeFlagName, "", "", vctLogMonitoringGetEntriesRangeFlagUsage)
+	startCmd.Flags().StringP(vctLogEntriesStoreEnabledFlagName, "", "", vctLogEntriesStoreEnabledFlagUsage)
 	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
 	startCmd.Flags().StringP(witnessPolicyCacheExpirationFlagName, "", "", witnessPolicyCacheExpirationFlagUsage)
