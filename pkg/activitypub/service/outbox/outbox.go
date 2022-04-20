@@ -166,9 +166,9 @@ func (h *Outbox) listen() {
 type messageType string
 
 const (
-	broadcastType    messageType = "broadcast"
-	targetedType     messageType = "target"
-	retryResolveType messageType = "retry-resolve"
+	broadcastType         messageType = "broadcast"
+	deliverType           messageType = "deliver"
+	resolveAndDeliverType messageType = "resolve-and-deliver"
 )
 
 type activityMessage struct {
@@ -241,34 +241,34 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 
 	switch activityMsg.Type {
 	case broadcastType:
-		logger.Debugf("[%s] Handling broadcast activity message [%s], activity [%s]",
+		logger.Debugf("[%s] Handling 'broadcast' activity message [%s], activity [%s]",
 			h.ServiceName, msg.UUID, activityMsg.Activity.ID())
 
 		if err := h.handleBroadcast(activityMsg.Activity, activityMsg.ExcludeIRIs.URLs()); err != nil {
-			return nil, fmt.Errorf("handle broadcast message for activity [%s]: %w",
+			return nil, fmt.Errorf("handle 'broadcast' message for activity [%s]: %w",
 				activityMsg.Activity.ID(), err)
 		}
 
 		return activityMsg.Activity, nil
 
-	case retryResolveType:
-		logger.Debugf("[%s] Handling retry-resolve message [%s], activity [%s], target %s",
+	case resolveAndDeliverType:
+		logger.Debugf("[%s] Handling 'resolve-and-deliver' message [%s], activity [%s], target %s",
 			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
 
-		if err := h.handleRetryResolveIRIs(activityMsg.Activity, activityMsg.TargetIRI.URL(),
+		if err := h.handleResolveIRIs(activityMsg.Activity, activityMsg.TargetIRI.URL(),
 			activityMsg.ExcludeIRIs.URLs()); err != nil {
-			return nil, fmt.Errorf("handle retry-resolve message for activity [%s] to [%s]: %w",
+			return nil, fmt.Errorf("handle 'resolve-and-deliver' message for activity [%s] to [%s]: %w",
 				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
 		}
 
 		return activityMsg.Activity, nil
 
-	case targetedType:
-		logger.Debugf("[%s] Handling targeted activity message [%s], activity [%s], target [%s]",
+	case deliverType:
+		logger.Debugf("[%s] Handling 'deliver' activity message [%s], activity [%s], target [%s]",
 			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
 
 		if err := h.sendActivity(activityMsg.Activity, activityMsg.TargetIRI.URL()); err != nil {
-			return nil, fmt.Errorf("handle targeted message for activity [%s] to [%s]: %w",
+			return nil, fmt.Errorf("handle 'deliver' message for activity [%s] to [%s]: %w",
 				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
 		}
 
@@ -293,7 +293,7 @@ func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*ur
 	for _, r := range h.resolveInboxes(activity.To(), excludeIRIs) {
 		switch {
 		case r.err == nil:
-			if err := h.publishTargetedMessage(activity, r.iri); err != nil {
+			if err := h.publishDeliverMessage(activity, r.iri); err != nil {
 				// Return with an error since the only time publishToTarget returns an error is if
 				// there's something wrong with the local server. (Maybe it's being shut down.)
 				return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
@@ -301,8 +301,8 @@ func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*ur
 		case orberrors.IsTransient(r.err):
 			logger.Warnf("Transient error resolving inbox %s: %s. IRI will be retried.", r.iri, r.err)
 
-			if err := h.publishRetryResolveMessage(activity, r.iri, excludeIRIs); err != nil {
-				return fmt.Errorf("unable to publish activity for retry %s: %w", r.iri, err)
+			if err := h.publishResolveAndDeliverMessage(activity, r.iri, excludeIRIs); err != nil {
+				return fmt.Errorf("unable to publish activity for resolve %s: %w", r.iri, err)
 			}
 		default:
 			logger.Errorf("Persistent error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
@@ -312,8 +312,8 @@ func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*ur
 	return nil
 }
 
-func (h *Outbox) handleRetryResolveIRIs(activity *vocab.ActivityType, toIRI *url.URL, excludeIRIs []*url.URL) error {
-	logger.Debugf("[%s] Retrying to resolve inboxes from [%s] for activity [%s]", h.ServiceName, toIRI, activity.ID())
+func (h *Outbox) handleResolveIRIs(activity *vocab.ActivityType, toIRI *url.URL, excludeIRIs []*url.URL) error {
+	logger.Debugf("[%s] Resolving inboxes from [%s] for activity [%s]", h.ServiceName, toIRI, activity.ID())
 
 	for _, r := range h.resolveInboxes([]*url.URL{toIRI}, excludeIRIs) {
 		if r.err != nil {
@@ -323,7 +323,7 @@ func (h *Outbox) handleRetryResolveIRIs(activity *vocab.ActivityType, toIRI *url
 			return fmt.Errorf("resolve inbox [%s]: %w", r.iri, r.err)
 		}
 
-		if err := h.publishTargetedMessage(activity, r.iri); err != nil {
+		if err := h.publishDeliverMessage(activity, r.iri); err != nil {
 			// Return with an error since the only time publishToTarget returns an error is if
 			// there's something wrong with the local server. (Maybe it's being shut down.)
 			return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
@@ -373,10 +373,10 @@ func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, excludeIR
 	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) publishRetryResolveMessage(activity *vocab.ActivityType, targetIRI *url.URL,
+func (h *Outbox) publishResolveAndDeliverMessage(activity *vocab.ActivityType, targetIRI *url.URL,
 	excludeIRIs []*url.URL) error {
 	activityMsg := &activityMessage{
-		Type:        retryResolveType,
+		Type:        resolveAndDeliverType,
 		Activity:    activity,
 		TargetIRI:   vocab.NewURLProperty(targetIRI),
 		ExcludeIRIs: vocab.NewURLCollectionProperty(excludeIRIs...),
@@ -389,15 +389,15 @@ func (h *Outbox) publishRetryResolveMessage(activity *vocab.ActivityType, target
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	logger.Debugf("[%s] Publishing broadcast message [%s] for activity [%s] to queue [%s]",
+	logger.Debugf("[%s] Publishing 'resolve-and-deliver' message [%s] for activity [%s] to queue [%s]",
 		h.ServiceName, msg.UUID, activity.ID(), h.Topic)
 
 	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) publishTargetedMessage(activity *vocab.ActivityType, target *url.URL) error {
+func (h *Outbox) publishDeliverMessage(activity *vocab.ActivityType, target *url.URL) error {
 	activityMsg := &activityMessage{
-		Type:      targetedType,
+		Type:      deliverType,
 		Activity:  activity,
 		TargetIRI: vocab.NewURLProperty(target),
 	}
@@ -409,7 +409,7 @@ func (h *Outbox) publishTargetedMessage(activity *vocab.ActivityType, target *ur
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	logger.Debugf("[%s] Publishing targeted message [%s] for activity [%s] to queue [%s] with target [%s]",
+	logger.Debugf("[%s] Publishing 'deliver' message [%s] for activity [%s] to queue [%s] with target [%s]",
 		h.ServiceName, msg.UUID, activity.ID(), h.Topic, target)
 
 	return h.publisher.Publish(h.Topic, msg)
