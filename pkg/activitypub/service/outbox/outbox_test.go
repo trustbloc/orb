@@ -704,6 +704,8 @@ func TestResolveInboxes(t *testing.T) {
 	iri2 := testutil.NewMockID(service1URL, resthandler.WitnessesPath)
 	iri3 := testutil.NewMockID(service1URL, "/unsupported")
 
+	const errFormat = "error querying for references of type %s from storage: %s"
+
 	t.Run("Transient error", func(t *testing.T) {
 		errTransient := orberrors.NewTransient(errors.New("injected transient error"))
 
@@ -711,35 +713,35 @@ func TestResolveInboxes(t *testing.T) {
 
 		inboxes := ob.resolveInboxes([]*url.URL{iri1, iri2, iri3}, nil)
 		require.Len(t, inboxes, 2)
-		require.Error(t, inboxes[0].err)
-		require.True(t, orberrors.IsTransient(inboxes[0].err))
-		require.EqualError(t, inboxes[0].err,
-			"error querying for references of type FOLLOWER from storage: injected transient error")
-		require.Equal(t, iri1.String(), inboxes[0].iri.String())
 
-		require.Error(t, inboxes[1].err)
-		require.True(t, orberrors.IsTransient(inboxes[1].err))
-		require.EqualError(t, inboxes[1].err,
-			"error querying for references of type WITNESS from storage: injected transient error")
-		require.Equal(t, iri2.String(), inboxes[1].iri.String())
+		for _, resp := range inboxes {
+			require.Error(t, resp.err)
+			require.True(t, orberrors.IsTransient(resp.err))
+
+			switch resp.iri.String() {
+			case iri1.String():
+				require.EqualError(t, resp.err, fmt.Sprintf(errFormat, "FOLLOWER", errTransient))
+			case iri2.String():
+				require.EqualError(t, resp.err, fmt.Sprintf(errFormat, "WITNESS", errTransient))
+			}
+		}
 	})
 
-	t.Run("Persistent error -> ignore", func(t *testing.T) {
-		errTransient := errors.New("injected persistent error")
+	t.Run("Persistent error", func(t *testing.T) {
+		errPersistent := errors.New("injected persistent error")
 
-		activityStore.QueryReferencesReturns(nil, errTransient)
+		activityStore.QueryReferencesReturns(nil, errPersistent)
 
 		inboxes := ob.resolveInboxes([]*url.URL{iri1}, nil)
 		require.Len(t, inboxes, 1)
 		require.Error(t, inboxes[0].err)
 		require.False(t, orberrors.IsTransient(inboxes[0].err))
-		require.EqualError(t, inboxes[0].err,
-			"error querying for references of type FOLLOWER from storage: injected persistent error")
+		require.EqualError(t, inboxes[0].err, fmt.Sprintf(errFormat, "FOLLOWER", errPersistent))
 		require.Equal(t, iri1.String(), inboxes[0].iri.String())
 	})
 
 	t.Run("WebFinger error", func(t *testing.T) {
-		errExpected := orberrors.NewTransient(errors.New("injected WebFinger error"))
+		errExpected := orberrors.NewTransientf("injected WebFinger error")
 		wfResolver.Err = errExpected
 
 		service2IRI := testutil.MustParseURL("http://orb.domain2.com/services/orb")
