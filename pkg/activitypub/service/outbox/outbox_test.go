@@ -554,9 +554,9 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 		})
 	})
 
-	t.Run("retry-resolve message type", func(t *testing.T) {
+	t.Run("resolve-and-deliver message type", func(t *testing.T) {
 		activityMsg := &activityMessage{
-			Type:      retryResolveType,
+			Type:      resolveAndDeliverType,
 			Activity:  activity,
 			TargetIRI: vocab.NewURLProperty(service2URL),
 		}
@@ -619,9 +619,9 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 		})
 	})
 
-	t.Run("targeted message type", func(t *testing.T) {
+	t.Run("deliver message type", func(t *testing.T) {
 		activityMsg := &activityMessage{
-			Type:      targetedType,
+			Type:      deliverType,
 			Activity:  activity,
 			TargetIRI: vocab.NewURLProperty(service2URL),
 		}
