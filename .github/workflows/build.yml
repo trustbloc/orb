@@ -107,7 +107,7 @@ jobs:
         with:
           current-version: "${{ env.CURRENT_SEMVER }}"
           # TODO: needs to be configurable https://github.com/christian-draeger/increment-semantic-version#input--output-examples
-          version-fragment: 'bug'
+          version-fragment: 'rc'
 
       - name: Set ENV vars
         run: |
