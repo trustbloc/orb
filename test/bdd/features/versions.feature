@@ -10,10 +10,12 @@ Feature:
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"
+    And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
     Given domain "orb.domain1.com" is mapped to "localhost:48326"
     And domain "orb.domain2.com" is mapped to "localhost:48426"
     And domain "orb.domain3.com" is mapped to "localhost:48626"
+    And domain "orb.domain4.com" is mapped to "localhost:48726"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -24,8 +26,8 @@ Feature:
     And the authorization bearer token for "GET" requests to path "/cas" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/vc" is set to "READ_TOKEN"
 
-    # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
+    # domain1 adds domain2, domain3 and domain4 to its 'follow' and 'invite-witness' accept lists.
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}","${domain4IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}","${domain4IRI}"]}]'
     When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
 
     # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
@@ -159,3 +161,21 @@ Feature:
     # version one protocol can handle adding 5 keys at once (it is withing maximum operation size for version 1)
     When client sends request to "https://orb.domain2.com/sidetree/v1/operations" to add 5 public keys to DID document
     Then check for request success
+
+    # domain4 server follows domain1 server
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain4IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "https://orb.domain4.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+
+    # wait for domain4 log monitor to verify consistency of existing domain1 log by getting domain1 log entries,
+    # assembling Merkle tree and verifying calculated signed tree head(STH) against the domain1 log STH response
+    Then we wait 10 seconds
+
+    # create new DID to increase domain1 log(tree) size
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check success response contains "canonicalId"
+
+    # wait for domain4 log monitor to verify domain1 log consistency proof between the two given log(tree) sizes
+    Then we wait 10 seconds
