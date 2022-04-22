@@ -7,13 +7,18 @@ SPDX-License-Identifier: Apache-2.0
 package logentry
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
+	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -136,5 +141,137 @@ func TestStore_StoreLogEntries(t *testing.T) {
 		err = s.StoreLogEntries(logURL, 0, 0, entries)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch error")
+	})
+}
+
+func TestStore_GetLogEntries(t *testing.T) {
+	t.Run("success - one entry", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider)
+		require.NoError(t, err)
+
+		testLeafInput := []byte("leafInput")
+
+		entries := []command.LeafEntry{{
+			LeafInput: testLeafInput,
+		}}
+
+		err = s.StoreLogEntries(logURL, 0, 0, entries)
+		require.NoError(t, err)
+
+		iter, err := s.GetLogEntries(logURL)
+		require.NoError(t, err)
+
+		n, err := iter.TotalItems()
+		require.NoError(t, err)
+		require.Equal(t, 1, n)
+
+		entry, err := iter.Next()
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(testLeafInput, entry.LeafInput))
+
+		err = iter.Close()
+		require.NoError(t, err)
+	})
+
+	t.Run("success - multiple entries", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider)
+		require.NoError(t, err)
+
+		test0 := []byte("leafInput-0")
+		test1 := []byte("leafInput-1")
+
+		entries := []command.LeafEntry{
+			{
+				LeafInput: test0,
+			},
+			{
+				LeafInput: test1,
+			},
+		}
+
+		err = s.StoreLogEntries(logURL, 0, 1, entries)
+		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		iter, err := s.GetLogEntries(logURL)
+		require.NoError(t, err)
+
+		n, err := iter.TotalItems()
+		require.NoError(t, err)
+		require.Equal(t, 2, n)
+
+		entry, err := iter.Next()
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(test0, entry.LeafInput))
+
+		entry, err = iter.Next()
+		require.NoError(t, err)
+		require.True(t, bytes.Equal(test1, entry.LeafInput))
+	})
+
+	t.Run("error - no entries", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider)
+		require.NoError(t, err)
+
+		iter, err := s.GetLogEntries(logURL)
+		require.NoError(t, err)
+
+		n, err := iter.TotalItems()
+		require.NoError(t, err)
+		require.Equal(t, 0, n)
+
+		entry, err := iter.Next()
+		require.Error(t, err)
+		require.Nil(t, entry)
+		require.Contains(t, err.Error(), "data not found")
+	})
+
+	t.Run("error - empty log URL", func(t *testing.T) {
+		provider := mem.NewProvider()
+
+		s, err := New(provider)
+		require.NoError(t, err)
+
+		iter, err := s.GetLogEntries("")
+		require.Error(t, err)
+		require.Nil(t, iter)
+		require.Contains(t, err.Error(), "missing log URL")
+	})
+}
+
+func TestEntryIterator(t *testing.T) {
+	t.Run("error - next fails", func(t *testing.T) {
+		iterator := entryIterator{ariesIterator: &mock.Iterator{ErrNext: fmt.Errorf("next error")}}
+
+		entry, err := iterator.Next()
+		require.EqualError(t, err, "failed to determine if there are more results: next error")
+		require.Nil(t, entry)
+
+		iterator = entryIterator{ariesIterator: &mock.Iterator{
+			NextReturn: true, ErrValue: fmt.Errorf("value error"),
+		}}
+
+		entry, err = iterator.Next()
+		require.EqualError(t, err, "failed to get value: value error")
+		require.Nil(t, entry)
 	})
 }

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package logentry
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,31 +26,58 @@ const (
 
 	logTagName   = "Log"
 	indexTagName = "Index"
+
+	defaultPageSize = 500
 )
 
 var logger = log.New("log-entry-store")
 
-// New creates db implementation of log entries.
-func New(provider storage.Provider) (*Store, error) {
-	store, err := provider.OpenStore(nameSpace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open log entry store: %w", err)
-	}
+// ErrDataNotFound is returned when data is not found.
+var ErrDataNotFound = errors.New("data not found")
 
-	return &Store{
-		store: store,
-	}, nil
-}
+// Option is an option for log entry store.
+type Option func(opts *Store)
 
 // Store is db implementation of log entry store.
 type Store struct {
 	store storage.Store
+
+	pageSize int
 }
 
 // LogEntry consists of index with log and leaf entry.
 type LogEntry struct {
 	Index     int
 	LeafEntry command.LeafEntry
+}
+
+// EntryIterator defines the query results iterator for log entry queries.
+type EntryIterator interface {
+	// TotalItems returns the total number of items as a result of the query.
+	TotalItems() (int, error)
+	// Next returns the next log entry or an ErrNotFound error if there are no more items.
+	Next() (*command.LeafEntry, error)
+	// Close closes the iterator.
+	Close() error
+}
+
+// New creates db implementation of log entries.
+func New(provider storage.Provider, opts ...Option) (*Store, error) {
+	store, err := provider.OpenStore(nameSpace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log entry store: %w", err)
+	}
+
+	logEntryStore := &Store{
+		pageSize: defaultPageSize,
+		store:    store,
+	}
+
+	for _, opt := range opts {
+		opt(logEntryStore)
+	}
+
+	return logEntryStore, nil
 }
 
 // StoreLogEntries stores log entries.
@@ -88,7 +116,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 
 		logTag := storage.Tag{
 			Name:  logTagName,
-			Value: logURL,
+			Value: base64.RawURLEncoding.EncodeToString([]byte(logURL)),
 		}
 
 		op := storage.Operation{
@@ -108,4 +136,62 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 	logger.Debugf("added %d entries for log: %s", len(entries), logURL)
 
 	return nil
+}
+
+// GetLogEntries retrieves log entries.
+func (s *Store) GetLogEntries(logURL string) (EntryIterator, error) {
+	if logURL == "" {
+		return nil, errors.New("missing log URL")
+	}
+
+	query := fmt.Sprintf("%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)))
+
+	iterator, err := s.store.Query(query,
+		storage.WithSortOrder(&storage.SortOptions{
+			Order:   storage.SortAscending,
+			TagName: indexTagName,
+		}),
+		storage.WithPageSize(s.pageSize))
+	if err != nil {
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to query log entry store: %w", err))
+	}
+
+	return &entryIterator{ariesIterator: iterator}, nil
+}
+
+type entryIterator struct {
+	ariesIterator storage.Iterator
+}
+
+func (e *entryIterator) TotalItems() (int, error) {
+	return e.ariesIterator.TotalItems()
+}
+
+func (e *entryIterator) Next() (*command.LeafEntry, error) {
+	exists, err := e.ariesIterator.Next()
+	if err != nil {
+		return nil, orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", err))
+	}
+
+	if exists {
+		entryBytes, err := e.ariesIterator.Value()
+		if err != nil {
+			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
+		}
+
+		var entry LogEntry
+
+		err = json.Unmarshal(entryBytes, &entry)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal entry bytes: %w", err)
+		}
+
+		return &entry.LeafEntry, nil
+	}
+
+	return nil, ErrDataNotFound
+}
+
+func (e *entryIterator) Close() error {
+	return e.ariesIterator.Close()
 }
