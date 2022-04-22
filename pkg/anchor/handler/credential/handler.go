@@ -182,7 +182,7 @@ func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
 		verifiable.WithJSONLDDocumentLoader(h.documentLoader),
 	)
 	if err != nil {
-		return fmt.Errorf("failed get verifiable credential from anchor event: %w", err)
+		return fmt.Errorf("failed get verifiable credential from anchor link: %w", err)
 	}
 
 	for _, proof := range getUniqueDomainCreated(vc.Proofs) {

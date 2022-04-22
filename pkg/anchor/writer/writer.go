@@ -509,7 +509,7 @@ func (c *Writer) storeVC(anchorLink *linkset.Link) error {
 		verifiable.WithJSONLDDocumentLoader(c.DocumentLoader),
 	)
 	if err != nil {
-		return fmt.Errorf("failed get verifiable credential from anchor event: %w", err)
+		return fmt.Errorf("failed get verifiable credential from anchor link: %w", err)
 	}
 
 	vcBytes, err := json.Marshal(vc)
