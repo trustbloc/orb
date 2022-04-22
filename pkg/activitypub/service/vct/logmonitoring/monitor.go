@@ -383,13 +383,9 @@ func verifySTHSignature(sth *command.GetSTHResponse, pubKey []byte) error {
 
 // MonitorLogs will monitor logs for consistency.
 func (c *Client) MonitorLogs() {
-	logger.Debugf("start log monitoring...")
-
 	logs, err := c.monitorStore.GetActiveLogs()
 	if err != nil {
-		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debugf("no active log monitors found - nothing to do")
-		} else {
+		if !errors.Is(err, orberrors.ErrContentNotFound) {
 			logger.Errorf("failed to get active logs: %s", err.Error())
 		}
 
@@ -409,8 +405,6 @@ func (c *Client) MonitorLogs() {
 	}
 
 	wg.Wait()
-
-	logger.Debugf("completed log monitoring...")
 }
 
 func (c *Client) processLog(logMonitor *logmonitor.LogMonitor) {

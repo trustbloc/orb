@@ -317,7 +317,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
 	)
 	if err != nil {
-		return fmt.Errorf("get verifiable credential from anchor event: %w", err)
+		return fmt.Errorf("get verifiable credential from anchor link: %w", err)
 	}
 
 	sidetreeTxn := txnapi.SidetreeTxn{

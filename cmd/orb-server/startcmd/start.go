@@ -204,22 +204,38 @@ type crypto interface {
 	Sign(msg []byte, kh interface{}) ([]byte, error)
 }
 
-// HTTPServer represents an actual HTTP server implementation.
-type HTTPServer struct{}
+type service interface {
+	Start()
+	Stop()
+}
 
-// Start starts the http server
-func (s *HTTPServer) Start(srv *httpserver.Server) error {
+// run starts the HTTP server along with the provided services. The HTTP server is started first and then the services
+// are started. When the server is stopped, the services are stopped in reverse order.
+func run(srv *httpserver.Server, services ...service) error {
 	if err := srv.Start(); err != nil {
 		return err
 	}
 
-	logger.Infof("started orb rest service")
+	logger.Infof("Started Orb REST service")
+
+	for _, service := range services {
+		service.Start()
+	}
+
+	logger.Infof("Started Orb services")
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	// Wait for interrupt
 	<-interrupt
+
+	// Stop the services in reverse order
+	for i := len(services) - 1; i >= 0; i-- {
+		services[i].Stop()
+	}
+
+	logger.Infof("Stopped Orb services")
 
 	return nil
 }
@@ -868,7 +884,7 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorLinkStore:        anchorLinkStore,
 	}
 
-	o, err := observer.New(apConfig.ServiceIRI, providers,
+	observer, err := observer.New(apConfig.ServiceIRI, providers,
 		observer.WithDiscoveryDomain(parameters.discoveryDomain),
 		observer.WithSubscriberPoolSize(parameters.mqParams.observerPoolSize),
 	)
@@ -900,21 +916,17 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithUndoFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			o.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
+			observer.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
 		)),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
 		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
-		// TODO: Define the following ActivityPub handlers.
-		// apspi.WithUndeliverableHandler(undeliverableHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create ActivityPub service: %s", err.Error())
 	}
 
 	go monitorActivities(activityPubService.Subscribe(), logger)
-
-	o.Start()
 
 	vcStore, err := storeProviders.provider.OpenStore("verifiable")
 	if err != nil {
@@ -945,7 +957,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apServiceIRI, casIRI,
 		parameters.dataURIMediaType,
 		anchorWriterProviders,
-		o.Publisher(), pubSub,
+		observer.Publisher(), pubSub,
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		resourceResolver,
@@ -960,8 +972,6 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
 	}
 
-	opQueue.Start()
-
 	// create new batch writer
 	batchWriter, err := batch.New(parameters.didNamespace,
 		sidetreecontext.New(pc, anchorWriter, opQueue),
@@ -969,14 +979,6 @@ func startOrbServices(parameters *orbParameters) error {
 	if err != nil {
 		return fmt.Errorf("failed to create batch writer: %s", err.Error())
 	}
-
-	// start routine for creating batches
-	batchWriter.Start()
-
-	logger.Infof("started batch writer")
-
-	// start the task manager
-	taskMgr.Start()
 
 	var didDocHandlerOpts []dochandler.Option
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
@@ -1029,7 +1031,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var updateHandlerOpts []updatehandler.Option
 
-	didDiscovery := localdiscovery.New(parameters.didNamespace, o.Publisher(), endpointClient)
+	didDiscovery := localdiscovery.New(parameters.didNamespace, observer.Publisher(), endpointClient)
 
 	orbDocResolveHandler := resolvehandler.NewResolveHandler(
 		parameters.didNamespace,
@@ -1163,36 +1165,14 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	activityPubService.Start()
-
-	nodeInfoService.Start()
-
-	srv := &HTTPServer{}
-
-	err = srv.Start(httpServer)
+	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr, nodeInfoService)
 	if err != nil {
 		return err
 	}
 
-	logger.Infof("Stopping Orb services ...")
-
-	nodeInfoService.Stop()
-
-	opQueue.Stop()
-
-	batchWriter.Stop()
-
-	o.Stop()
-
-	activityPubService.Stop()
-
-	taskMgr.Stop()
-
 	if err := pubSub.Close(); err != nil {
 		logger.Warnf("Error closing publisher/subscriber: %s", err)
 	}
-
-	logger.Infof("Stopped Orb services.")
 
 	return nil
 }
