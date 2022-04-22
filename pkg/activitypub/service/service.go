@@ -55,6 +55,7 @@ type Config struct {
 	IRICacheSize             int
 	IRICacheExpiration       time.Duration
 	OutboxSubscriberPoolSize int
+	InboxSubscriberPoolSize  int
 }
 
 // Service implements an ActivityPub service which has an inbox, outbox, and
@@ -141,6 +142,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 			ServiceIRI:             cfg.ServiceIRI,
 			Topic:                  inboxActivitiesTopic,
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
+			SubscriberPoolSize:     cfg.InboxSubscriberPoolSize,
 		},
 		activityStore, pubSub,
 		inboxHandler, sigVerifier, tm, m,
