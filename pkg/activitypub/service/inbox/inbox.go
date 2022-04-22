@@ -26,13 +26,16 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
 var logger = log.New("activitypub_service")
 
+const defaultSubscriberPoolSize = 5
+
 type pubSub interface {
-	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
 }
@@ -55,6 +58,7 @@ type Config struct {
 	ServiceIRI             *url.URL
 	Topic                  string
 	VerifyActorInSignature bool
+	SubscriberPoolSize     int
 }
 
 // Inbox implements the ActivityPub inbox.
@@ -73,10 +77,12 @@ type Inbox struct {
 }
 
 // New returns a new ActivityPub inbox.
-func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
+func New(cnfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
 	sigVerifier signatureVerifier, tm authTokenManager, metrics metricsProvider) (*Inbox, error) {
+	cfg := populateConfigDefaults(cnfg)
+
 	h := &Inbox{
-		Config:          cfg,
+		Config:          &cfg,
 		activityHandler: activityHandler,
 		activityStore:   s,
 		jsonUnmarshal:   json.Unmarshal,
@@ -88,7 +94,7 @@ func New(cfg *Config, s store.Store, pubSub pubSub, activityHandler service.Acti
 		lifecycle.WithStop(h.stop),
 	)
 
-	msgChan, err := pubSub.Subscribe(context.Background(), cfg.Topic)
+	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), cfg.Topic, spi.WithPool(cfg.SubscriberPoolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", cfg.Topic, err)
 	}
@@ -276,4 +282,14 @@ func (h *Inbox) unmarshalAndValidateActivity(msg *message.Message) (*vocab.Activ
 	}
 
 	return activity, nil
+}
+
+func populateConfigDefaults(cnfg *Config) Config {
+	cfg := *cnfg
+
+	if cfg.SubscriberPoolSize == 0 {
+		cfg.SubscriberPoolSize = defaultSubscriberPoolSize
+	}
+
+	return cfg
 }

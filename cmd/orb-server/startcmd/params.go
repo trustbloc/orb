@@ -119,6 +119,7 @@ const (
 	mqDefaultPublisherChannelPoolSize       = 25
 	mqDefaultObserverPoolSize               = 5
 	mqDefaultOutboxPoolSize                 = 5
+	mqDefaultInboxPoolSize                  = 5
 	mqDefaultConnectMaxRetries              = 25
 	mqDefaultRedeliveryMaxAttempts          = 10
 	mqDefaultRedeliveryMultiplier           = 1.5
@@ -286,6 +287,11 @@ const (
 	mqOutboxPoolEnvKey    = "MQ_OUTBOX_POOL"
 	mqOutboxPoolFlagUsage = "The size of the outbox queue subscriber pool. If not specified then the default size is used. " +
 		commonEnvVarUsageText + mqOutboxPoolEnvKey
+
+	mqInboxPoolFlagName  = "mq-inbox-pool"
+	mqInboxPoolEnvKey    = "MQ_INBOX_POOL"
+	mqInboxPoolFlagUsage = "The size of the inbox queue subscriber pool. If not specified then the default size is used. " +
+		commonEnvVarUsageText + mqInboxPoolEnvKey
 
 	mqMaxConnectionSubscriptionsFlagName      = "mq-max-connection-subscriptions"
 	mqMaxConnectionSubscriptionsFlagShorthand = "C"
@@ -1694,6 +1700,7 @@ type mqParams struct {
 	endpoint                   string
 	observerPoolSize           int
 	outboxPoolSize             int
+	inboxPoolSize              int
 	maxConnectionSubscriptions int
 	publisherChannelPoolSize   int
 	maxConnectRetries          int
@@ -1715,6 +1722,11 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	}
 
 	mqOutboxPoolSize, err := getInt(cmd, mqOutboxPoolFlagName, mqOutboxPoolEnvKey, mqDefaultOutboxPoolSize)
+	if err != nil {
+		return nil, err
+	}
+
+	mqInboxPoolSize, err := getInt(cmd, mqInboxPoolFlagName, mqInboxPoolEnvKey, mqDefaultInboxPoolSize)
 	if err != nil {
 		return nil, err
 	}
@@ -1765,6 +1777,7 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		endpoint:                   mqURL,
 		observerPoolSize:           mqObserverPoolSize,
 		outboxPoolSize:             mqOutboxPoolSize,
+		inboxPoolSize:              mqInboxPoolSize,
 		maxConnectionSubscriptions: mqMaxConnectionSubscriptions,
 		publisherChannelPoolSize:   mqPublisherChannelPoolSize,
 		maxConnectRetries:          mqMaxConnectRetries,
@@ -1988,6 +2001,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqURLFlagName, mqURLFlagShorthand, "", mqURLFlagUsage)
 	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqOutboxPoolFlagName, "", "", mqOutboxPoolFlagUsage)
+	startCmd.Flags().StringP(mqInboxPoolFlagName, "", "", mqInboxPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
 	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
 	startCmd.Flags().StringP(mqConnectMaxRetriesFlagName, "", "", mqConnectMaxRetriesFlagUsage)

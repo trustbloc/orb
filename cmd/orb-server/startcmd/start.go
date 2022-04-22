@@ -726,6 +726,7 @@ func startOrbServices(parameters *orbParameters) error {
 		IRICacheSize:             parameters.apIRICacheSize,
 		IRICacheExpiration:       parameters.apIRICacheExpiration,
 		OutboxSubscriberPoolSize: parameters.mqParams.outboxPoolSize,
+		InboxSubscriberPoolSize:  parameters.mqParams.inboxPoolSize,
 	}
 
 	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServiceEndpoint)
