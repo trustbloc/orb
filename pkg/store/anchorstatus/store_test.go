@@ -619,7 +619,7 @@ func TestStore_processIndex(t *testing.T) {
 
 		err = s.processIndex(encoder.EncodeToString([]byte(vcID)))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to re-evalue policy for anchorID[vcID]: policy error")
+		require.Contains(t, err.Error(), "failed to re-evaluate policy for anchorID[vcID]: policy error")
 	})
 
 	t.Run("error - status not found", func(t *testing.T) {

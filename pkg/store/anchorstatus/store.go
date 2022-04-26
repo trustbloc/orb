@@ -364,7 +364,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 
 	err = s.policyHandler.CheckPolicy(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to re-evalue policy for anchorID[%s]: %w", anchorID, err)
+		return fmt.Errorf("failed to re-evaluate policy for anchorID[%s]: %w", anchorID, err)
 	}
 
 	logger.Debugf("successfully re-evaluated policy for anchorID[%s]", anchorID)

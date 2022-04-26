@@ -1291,7 +1291,7 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 		localUrls[i] = localURL
 	}
 
-	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 0)
+	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 1)
 }
 
 func (d *DIDOrbSteps) createDIDDocumentsAsync(strURLs string, num int, concurrency int) error {
@@ -1318,7 +1318,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, 
 
 	for i := 0; i < num; i++ {
 		p.Submit(
-			newCreateDIDRequest(d.httpClient, urls[mrand.Intn(len(urls))], attempts,
+			newCreateDIDRequest(d.httpClient, urls, attempts, 10*time.Second,
 				func(resp *httpResponse, err error) bool {
 					if err != nil {
 						return strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) ||
@@ -1875,11 +1875,13 @@ func (d *DIDOrbSteps) newReader(file string) (io.Reader, error) {
 }
 
 type createDIDRequest struct {
+	urls        []string
 	url         string
 	httpClient  *httpClient
 	shouldRetry func(*httpResponse, error) bool
 	maxAttempts int
 	backoff     time.Duration
+	greylist    *greylist
 }
 
 type createDIDResponse struct {
@@ -1889,52 +1891,77 @@ type createDIDResponse struct {
 	reqBytes    []byte
 }
 
-func newCreateDIDRequest(httpClient *httpClient, url string, attempts int, shouldRetry func(*httpResponse, error) bool) *createDIDRequest {
+func newCreateDIDRequest(httpClient *httpClient, urls []string, attempts int, greylistDuration time.Duration,
+	shouldRetry func(*httpResponse, error) bool) *createDIDRequest {
+
 	return &createDIDRequest{
-		url:         url,
+		urls:        urls,
 		httpClient:  httpClient,
 		shouldRetry: shouldRetry,
 		maxAttempts: attempts,
 		backoff:     3 * time.Second,
+		greylist:    newGreylist(greylistDuration),
 	}
 }
 
 func (r *createDIDRequest) Invoke() (interface{}, error) {
-	logger.Infof("creating DID document at %s", r.url)
-
-	opaqueDoc, err := getOpaqueDocument("key1")
-	if err != nil {
-		return nil, err
-	}
-
-	recoveryKey, updateKey, reqBytes, err := getCreateRequest(r.url, opaqueDoc, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp *httpResponse
-
-	var respErr error
+	var (
+		resp                   *httpResponse
+		respErr                error
+		recoveryKey, updateKey *ecdsa.PrivateKey
+		reqBytes               []byte
+	)
 
 	maxAttempts := r.maxAttempts
 	if maxAttempts <= 0 {
 		maxAttempts = 1
 	}
 
-	for i := 0; i < maxAttempts; i++ {
-		logger.Infof("Posting request to [%s] on attempt #%d", r.url, i+1)
+	index := mrand.Intn(len(r.urls))
 
-		resp, respErr = r.httpClient.Post(r.url, reqBytes, "application/json")
+	for i := 0; i < maxAttempts; i++ {
+		if index >= len(r.urls) {
+			index = 0
+		}
+
+		u := r.urls[index]
+
+		if len(r.urls) > 0 && r.greylist.IsGreylisted(u) {
+			continue
+		}
+
+		r.url = u
+
+		// A retry will be performed on a different URL.
+		index++
+
+		logger.Infof("creating DID document at %s", u)
+
+		opaqueDoc, err := getOpaqueDocument("key1")
+		if err != nil {
+			return nil, err
+		}
+
+		recoveryKey, updateKey, reqBytes, err = getCreateRequest(u, opaqueDoc, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Infof("Posting request to [%s] on attempt #%d", u, i+1)
+
+		resp, respErr = r.httpClient.Post(u, reqBytes, "application/json")
 		if respErr != nil {
 			if r.shouldRetry(nil, respErr) {
-				logger.Infof("Error posting request to [%s]: %s. Retrying in %s", r.url, respErr, r.backoff)
+				logger.Infof("Error posting request to [%s]: %s. Retrying in %s", u, respErr, r.backoff)
+
+				r.greylist.Add(u)
 
 				time.Sleep(r.backoff)
 
 				continue
 			}
 
-			logger.Infof("Error posting request to [%s]: %s. Not retrying.", r.url, respErr)
+			logger.Infof("Error posting request to [%s]: %s. Not retrying.", u, respErr)
 
 			return "", respErr
 		}
@@ -1946,12 +1973,12 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		}
 
 		if !r.shouldRetry(resp, nil) {
-			logger.Infof("Got HTTP response from [%s]: %d:%s. Not retrying.", r.url, resp.StatusCode, resp.ErrorMsg)
+			logger.Infof("Got HTTP response from [%s]: %d:%s. Not retrying.", u, resp.StatusCode, resp.ErrorMsg)
 
 			return "", respErr
 		}
 
-		logger.Infof("Got HTTP response from [%s]: %d:%s. Retrying in %s", r.url, resp.StatusCode, resp.ErrorMsg, r.backoff)
+		logger.Infof("Got HTTP response from [%s]: %d:%s. Retrying in %s", u, resp.StatusCode, resp.ErrorMsg, r.backoff)
 
 		time.Sleep(r.backoff)
 	}
@@ -1963,7 +1990,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 	logger.Infof("... got DID document: %s", resp.Payload)
 
 	var rr document.ResolutionResult
-	err = json.Unmarshal(resp.Payload, &rr)
+	err := json.Unmarshal(resp.Payload, &rr)
 	if err != nil {
 		return "", err
 	}

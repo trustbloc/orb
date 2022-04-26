@@ -44,6 +44,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ldcontext/remote"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -61,6 +62,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+	awssvc "github.com/trustbloc/kms/pkg/aws"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -69,7 +71,6 @@ import (
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 
-	awssvc "github.com/trustbloc/kms/pkg/aws"
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -137,6 +138,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	opstore "github.com/trustbloc/orb/pkg/store/operation"
 	unpublishedopstore "github.com/trustbloc/orb/pkg/store/operation/unpublished"
+	"github.com/trustbloc/orb/pkg/store/publickey"
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/store/wrapper"
 	"github.com/trustbloc/orb/pkg/taskmgr"
@@ -870,6 +872,15 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 
+	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher())
+	if err != nil {
+		return fmt.Errorf("create public key storage: %w", err)
+	}
+
+	publicKeyFetcher := func(issuerID, keyID string) (*verifier.PublicKey, error) {
+		return pkStore.GetPublicKey(issuerID, keyID)
+	}
+
 	// create new observer and start it
 	providers := &observer.Providers{
 		ProtocolClientProvider: pcp,
@@ -881,7 +892,7 @@ func startOrbServices(parameters *orbParameters) error {
 		WebFingerResolver:      resourceResolver,
 		CASResolver:            casResolver,
 		DocLoader:              orbDocumentLoader,
-		Pkf:                    verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher(),
+		Pkf:                    publicKeyFetcher,
 		AnchorLinkStore:        anchorLinkStore,
 	}
 
@@ -994,6 +1005,7 @@ func startOrbServices(parameters *orbParameters) error {
 		discoveryclient.WithNamespace(parameters.didNamespace),
 		discoveryclient.WithHTTPClient(httpClient),
 		discoveryclient.WithDIDWebHTTP(parameters.enableDevMode),
+		discoveryclient.WithPublicKeyFetcher(publicKeyFetcher),
 	)
 
 	if parameters.verifyLatestFromAnchorOrigin {

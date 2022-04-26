@@ -68,6 +68,7 @@ type Client struct {
 	casReader         casReader
 	authToken         string
 	disableProofCheck bool
+	publicKeyFetcher  verifiable.PublicKeyFetcher
 	didWebHTTP        bool
 	docLoader         ld.DocumentLoader
 	orbClient         orbClient
@@ -108,13 +109,16 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 	if configService.disableProofCheck {
 		orbClientOpts = append(orbClientOpts, aoprovider.WithDisableProofCheck(configService.disableProofCheck))
 	} else {
-		orbClientOpts = append(orbClientOpts, aoprovider.WithPublicKeyFetcher(
-			verifiable.NewVDRKeyResolver(vdr.New(vdr.WithVDR(&webVDR{
+		if configService.publicKeyFetcher == nil {
+			configService.publicKeyFetcher = verifiable.NewVDRKeyResolver(vdr.New(vdr.WithVDR(&webVDR{
 				http:    configService.httpClient,
 				useHTTP: configService.didWebHTTP,
 				VDR:     web.New(),
 			}),
-			)).PublicKeyFetcher()))
+			)).PublicKeyFetcher()
+		}
+
+		orbClientOpts = append(orbClientOpts, aoprovider.WithPublicKeyFetcher(configService.publicKeyFetcher))
 	}
 
 	orbClient, err := aoprovider.New(configService.namespace, configService.casReader, orbClientOpts...)
@@ -495,6 +499,14 @@ func WithAuthToken(authToken string) Option {
 func WithDisableProofCheck(disable bool) Option {
 	return func(opts *Client) {
 		opts.disableProofCheck = disable
+	}
+}
+
+// WithPublicKeyFetcher sets the public key fetcher. If not set then
+// the default fetcher is used.
+func WithPublicKeyFetcher(pkf verifiable.PublicKeyFetcher) Option {
+	return func(opts *Client) {
+		opts.publicKeyFetcher = pkf
 	}
 }
 
