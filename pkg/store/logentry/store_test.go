@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring/verifier"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
@@ -273,5 +274,57 @@ func TestEntryIterator(t *testing.T) {
 		entry, err = iterator.Next()
 		require.EqualError(t, err, "failed to get value: value error")
 		require.Nil(t, entry)
+	})
+}
+
+func TestGetRootHashFromEntries(t *testing.T) {
+	t.Run("success - calculate root hash from retrieved multiple entries", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider)
+		require.NoError(t, err)
+
+		test0 := []byte("leafInput-0")
+		test1 := []byte("leafInput-1")
+
+		entries := []command.LeafEntry{
+			{
+				LeafInput: test0,
+			},
+			{
+				LeafInput: test1,
+			},
+		}
+
+		err = s.StoreLogEntries(logURL, 0, 1, entries)
+		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		iter, err := s.GetLogEntries(logURL)
+		require.NoError(t, err)
+
+		n, err := iter.TotalItems()
+		require.NoError(t, err)
+		require.Equal(t, 2, n)
+
+		var retrievedEntries []*command.LeafEntry
+
+		for i := 0; i < n; i++ {
+			val, e := iter.Next()
+			require.NoError(t, e)
+
+			retrievedEntries = append(retrievedEntries, val)
+		}
+
+		v := verifier.New()
+
+		sth, err := v.GetRootHashFromEntries(retrievedEntries)
+		require.NoError(t, err)
+		require.NotNil(t, sth)
 	})
 }
