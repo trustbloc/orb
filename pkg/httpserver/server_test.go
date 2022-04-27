@@ -32,6 +32,9 @@ func TestServer_Start(t *testing.T) {
 		"",
 		"",
 		1*time.Second,
+		&mockService{},
+		&mockService{},
+		&mockService{},
 		&mockUpdateHandler{},
 		&mockResolveHandler{},
 	)
@@ -55,9 +58,26 @@ func TestServer_Start(t *testing.T) {
 
 	t.Run("success - health check", func(t *testing.T) {
 		b := &httptest.ResponseRecorder{}
-		healthCheckHandler(b, nil)
+		s.healthCheckHandler(b, nil)
 
 		require.Equal(t, http.StatusOK, b.Code)
+	})
+
+	t.Run("error - health check", func(t *testing.T) {
+		b := &httptest.ResponseRecorder{}
+		s1 := New(url,
+			"",
+			"",
+			1*time.Second,
+			&mockService{isConnectedErr: fmt.Errorf("failed")},
+			&mockService{healthCheckErr: fmt.Errorf("failed")},
+			&mockService{pingErr: fmt.Errorf("failed")},
+			&mockUpdateHandler{},
+			&mockResolveHandler{},
+		)
+		s1.healthCheckHandler(b, nil)
+
+		require.Equal(t, http.StatusServiceUnavailable, b.Code)
 	})
 
 	t.Run("Stop", func(t *testing.T) {
@@ -172,4 +192,22 @@ func (h *mockResolveHandler) Method() string {
 func (h *mockResolveHandler) Handler() common.HTTPRequestHandler {
 	return func(writer http.ResponseWriter, request *http.Request) {
 	}
+}
+
+type mockService struct {
+	isConnectedErr error
+	healthCheckErr error
+	pingErr        error
+}
+
+func (m *mockService) IsConnected() error {
+	return m.isConnectedErr
+}
+
+func (m *mockService) HealthCheck() error {
+	return m.healthCheckErr
+}
+
+func (m *mockService) Ping() error {
+	return m.pingErr
 }

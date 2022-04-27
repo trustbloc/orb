@@ -9,13 +9,12 @@ package wrapper
 import (
 	"testing"
 
-	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProvider(t *testing.T) {
-	s := NewProvider(&ariesmockstorage.Provider{}, "CouchDB")
+	s := NewProvider(&mockProvider{}, "CouchDB")
 	require.NotNil(t, s)
 
 	t.Run("open store", func(t *testing.T) {
@@ -39,4 +38,41 @@ func TestProvider(t *testing.T) {
 	t.Run("close", func(t *testing.T) {
 		require.NoError(t, s.Close())
 	})
+
+	t.Run("ping", func(t *testing.T) {
+		require.NoError(t, s.Ping())
+	})
+}
+
+// mockProvider is a mocked implementation of spi.Provider.
+type mockProvider struct{}
+
+// OpenStore returns mocked results.
+func (p *mockProvider) OpenStore(string) (storage.Store, error) {
+	return nil, nil
+}
+
+// SetStoreConfig returns mocked results.
+func (p *mockProvider) SetStoreConfig(string, storage.StoreConfiguration) error {
+	return nil
+}
+
+// GetStoreConfig returns mocked results.
+func (p *mockProvider) GetStoreConfig(string) (storage.StoreConfiguration, error) {
+	return storage.StoreConfiguration{}, nil
+}
+
+// GetOpenStores returns mocked results.
+func (p *mockProvider) GetOpenStores() []storage.Store {
+	return nil
+}
+
+// Close returns mocked results.
+func (p *mockProvider) Close() error {
+	return nil
+}
+
+// Ping returns mocked results.
+func (p *mockProvider) Ping() error {
+	return nil
 }

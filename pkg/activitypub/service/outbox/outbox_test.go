@@ -135,6 +135,7 @@ func TestOutbox_Post(t *testing.T) {
 	}
 
 	httpServer := httpserver.New(":8003", "", "", 1*time.Second,
+		&mockService{}, &mockService{}, &mockService{},
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
 		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),
@@ -919,4 +920,22 @@ func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
 
 	_, err = w.Write(respBytes)
 	require.NoError(t, err)
+}
+
+type mockService struct {
+	isConnectedErr error
+	healthCheckErr error
+	pingErr        error
+}
+
+func (m *mockService) IsConnected() error {
+	return m.isConnectedErr
+}
+
+func (m *mockService) HealthCheck() error {
+	return m.healthCheckErr
+}
+
+func (m *mockService) Ping() error {
+	return m.pingErr
 }

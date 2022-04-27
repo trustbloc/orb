@@ -192,6 +192,7 @@ type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
+	IsConnected() error
 	Close() error
 }
 
@@ -1163,13 +1164,16 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.tlsParams.serveCertPath,
 		parameters.tlsParams.serveKeyPath,
 		parameters.serverIdleTimeout,
+		pubSub,
+		witness,
+		storeProviders.provider,
 		handlers...,
 	)
 
 	if parameters.hostMetricsURL != "" {
 		metricsHttpServer := httpserver.New(
 			parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
-			metrics.NewHandler(),
+			pubSub, witness, storeProviders.provider, metrics.NewHandler(),
 		)
 
 		err = metricsHttpServer.Start()
@@ -1294,8 +1298,17 @@ func (k kmsProvider) SecretLock() secretlock.Service {
 	return k.secretLockService
 }
 
+type provider interface {
+	OpenStore(name string) (storage.Store, error)
+	SetStoreConfig(name string, config storage.StoreConfiguration) error
+	GetStoreConfig(name string) (storage.StoreConfiguration, error)
+	GetOpenStores() []storage.Store
+	Close() error
+	Ping() error
+}
+
 type storageProvider struct {
-	storage.Provider
+	provider
 	dbType string
 }
 

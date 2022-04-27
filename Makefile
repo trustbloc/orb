@@ -21,11 +21,6 @@ DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* 
 ARCH               = $(shell go env GOARCH)
 GO_VER             = 1.17
 
-# defined in github.com/trustbloc/orb/pkg/nodeinfo/metadata.go
-METADATA_VAR = OrbVersion=0.1.2
-
-GO_LDFLAGS ?= $(METADATA_VAR:%=-X 'github.com/trustbloc/orb/pkg/nodeinfo.%')
-
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
 ORB_IMAGE_NAME  ?= trustbloc/orb

@@ -180,6 +180,11 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 	return vc, nil
 }
 
+// HealthCheck check health.
+func (c *Client) HealthCheck() error {
+	return c.vct.HealthCheck(context.Background())
+}
+
 // Witness credentials.
 func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
 	if c.vct == nil {

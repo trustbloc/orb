@@ -136,6 +136,7 @@ jobs:
           build-args: |
             ALPINE_VER=3.15
             GO_VER=1.17
+            GO_LDFLAGS=-X 'github.com/trustbloc/orb/pkg/nodeinfo.OrbVersion=${{ env.IMAGE_TAG }}' -X 'github.com/trustbloc/orb/pkg/httpserver.BuildVersion=${{ env.IMAGE_TAG }}'
           push: true
           tags: |
             ${{ env.ORB_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}

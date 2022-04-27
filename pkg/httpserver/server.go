@@ -23,9 +23,17 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var logger = log.New("httpserver")
+var (
+	logger = log.New("httpserver")
+	// BuildVersion contains the version of the Orb build.
+	//nolint:gochecknoglobals
+	BuildVersion string
+)
 
-const healthCheckEndpoint = "/healthcheck"
+const (
+	healthCheckEndpoint = "/healthcheck"
+	success             = "success"
+)
 
 // Server implements an HTTP server.
 type Server struct {
@@ -33,10 +41,34 @@ type Server struct {
 	started    uint32
 	certFile   string
 	keyFile    string
+	pubSub     pubSub
+	vct        vct
+	db         db
+}
+
+type pubSub interface {
+	IsConnected() error
+}
+
+type vct interface {
+	HealthCheck() error
+}
+
+type db interface {
+	Ping() error
 }
 
 // New returns a new HTTP server.
-func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, handlers ...common.HTTPHandler) *Server {
+func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub pubSub, vct vct, db db,
+	handlers ...common.HTTPHandler) *Server {
+	s := &Server{
+		certFile: certFile,
+		keyFile:  keyFile,
+		pubSub:   pubSub,
+		vct:      vct,
+		db:       db,
+	}
+
 	router := mux.NewRouter()
 
 	for _, handler := range handlers {
@@ -47,7 +79,7 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, handler
 	}
 
 	// add health check endpoint
-	router.HandleFunc(healthCheckEndpoint, healthCheckHandler).Methods(http.MethodGet)
+	router.HandleFunc(healthCheckEndpoint, s.healthCheckHandler).Methods(http.MethodGet)
 
 	handler := cors.New(
 		cors.Options{
@@ -71,11 +103,9 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, handler
 		IdleTimeout: serverIdleTimeout,
 	}
 
-	return &Server{
-		httpServer: httpServ,
-		certFile:   certFile,
-		keyFile:    keyFile,
-	}
+	s.httpServer = httpServ
+
+	return s
 }
 
 // Start starts the HTTP server in a separate Go routine.
@@ -115,16 +145,54 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 type healthCheckResp struct {
-	Status      string    `json:"status"`
-	CurrentTime time.Time `json:"currentTime"`
+	MQStatus    string    `json:"mqStatus,omitempty"`
+	VCTStatus   string    `json:"vctStatus,omitempty"`
+	DBStatus    string    `json:"dbStatus,omitempty"`
+	CurrentTime time.Time `json:"currentTime,omitempty"`
+	Version     string    `json:"version,omitempty"`
 }
 
-func healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
-	rw.WriteHeader(http.StatusOK)
+func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop
+	mqStatus := ""
+	vctStatus := ""
+	dbStatus := ""
+
+	if s.pubSub != nil {
+		mqStatus = success
+
+		if err := s.pubSub.IsConnected(); err != nil {
+			mqStatus = err.Error()
+		}
+	}
+
+	if s.vct != nil {
+		vctStatus = success
+
+		if err := s.vct.HealthCheck(); err != nil {
+			vctStatus = err.Error()
+		}
+	}
+
+	if s.db != nil {
+		dbStatus = success
+
+		if err := s.db.Ping(); err != nil {
+			dbStatus = err.Error()
+		}
+	}
+
+	if mqStatus != success || vctStatus != success || dbStatus != success {
+		rw.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		rw.WriteHeader(http.StatusOK)
+	}
 
 	err := json.NewEncoder(rw).Encode(&healthCheckResp{
-		Status:      "success",
+		MQStatus:    mqStatus,
+		VCTStatus:   vctStatus,
+		DBStatus:    dbStatus,
 		CurrentTime: time.Now(),
+		Version:     BuildVersion,
 	})
 	if err != nil {
 		logger.Errorf("healthcheck response failure, %s", err)

@@ -95,6 +95,11 @@ func (p *PubSub) Close() error {
 	return nil
 }
 
+// IsConnected return true is connected.
+func (p *PubSub) IsConnected() error {
+	return nil
+}
+
 func (p *PubSub) stop() {
 	logger.Infof("Stopping publisher/subscriber...")
 

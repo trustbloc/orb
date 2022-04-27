@@ -16,9 +16,9 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220310013829-55b4443130f8
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330133350-1c2d9d65aea4
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220425190801-5d239d542d7d
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220425190739-5c1b81a74df6
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220425190801-5d239d542d7d
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/ipfs/go-cid v0.0.7
@@ -34,7 +34,7 @@ require (
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1
-	github.com/trustbloc/vct v1.0.0-rc.1
+	github.com/trustbloc/vct v1.0.0-rc1.0.20220426133750-e02ec33d2826
 	go.mongodb.org/mongo-driver v1.8.0
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 )
@@ -68,7 +68,6 @@ require (
 	github.com/google/tink/go v1.6.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220330140627-07042d78580c // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/ipfs/go-ipfs-files v0.0.8 // indirect
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a // indirect
@@ -118,7 +117,7 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
+	golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf // indirect
 	google.golang.org/grpc v1.44.0 // indirect
