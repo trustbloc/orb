@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
+	"time"
 )
 
 // generateUUID returns a UUID based on RFC 4122
@@ -67,4 +68,35 @@ func readZipFile(zf *zip.File) ([]byte, error) {
 	}
 	defer f.Close()
 	return ioutil.ReadAll(f)
+}
+
+type greylist struct {
+	entries map[string]time.Time
+	backoff time.Duration
+}
+
+func newGreylist(backoff time.Duration) *greylist {
+	return &greylist{
+		entries: make(map[string]time.Time),
+		backoff: backoff,
+	}
+}
+
+func (g *greylist) Add(u string) {
+	g.entries[u] = time.Now().Add(g.backoff)
+}
+
+func (g *greylist) IsGreylisted(u string) bool {
+	t, ok := g.entries[u]
+	if !ok {
+		return false
+	}
+
+	if time.Now().Before(t) {
+		return true
+	}
+
+	delete(g.entries, u)
+
+	return false
 }

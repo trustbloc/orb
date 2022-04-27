@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -47,6 +48,20 @@ func TestNew(t *testing.T) {
 
 		require.Equal(t, time.Minute, cs.cacheLifetime)
 		require.Equal(t, 500, cs.cacheSize)
+	})
+
+	t.Run("success - with public key fetcher", func(t *testing.T) {
+		cs, err := New(nil, &referenceCASReaderImplementation{},
+			WithAuthToken("t1"),
+			WithPublicKeyFetcher(func(issuerID, keyID string) (*verifier.PublicKey, error) {
+				return &verifier.PublicKey{}, nil
+			}),
+		)
+		require.NoError(t, err)
+		require.NotNil(t, cs)
+
+		require.Equal(t, defaultCacheLifetime, cs.cacheLifetime)
+		require.Equal(t, defaultCacheSize, cs.cacheSize)
 	})
 }
 
