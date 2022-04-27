@@ -230,6 +230,21 @@ func TestClient_Witness(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "add VC: error")
 	})
+
+	t.Run("Check Health (error)", func(t *testing.T) {
+		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"message":"vct error"}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})
+
+		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+
+		err := client.HealthCheck()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct error")
+	})
 }
 
 type mockSigner struct {

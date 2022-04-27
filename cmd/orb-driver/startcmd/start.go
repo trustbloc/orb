@@ -249,6 +249,9 @@ func startDriver(parameters *parameters) error {
 		parameters.tlsCertificate,
 		parameters.tlsKey,
 		20*time.Second, //nolint: gomnd
+		nil,
+		nil,
+		nil,
 		handlers...,
 	)
 

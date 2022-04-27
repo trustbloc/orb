@@ -172,6 +172,20 @@ func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.M
 	return p.SubscribeWithOpts(ctx, topic)
 }
 
+// IsConnected return error if not connected.
+func (p *PubSub) IsConnected() error {
+	connMgr, err := p.connMgr.getConnection(false)
+	if err != nil {
+		return err
+	}
+
+	if !connMgr.amqpConnection().IsConnected() {
+		return fmt.Errorf("mq not connected")
+	}
+
+	return nil
+}
+
 // SubscribeWithOpts subscribes to a topic using the given options, and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
 func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,

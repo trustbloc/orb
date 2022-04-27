@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
+	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -1392,7 +1392,7 @@ func TestCreateActivityPubStore(t *testing.T) {
 	t.Run("Fail to create CouchDB provider", func(t *testing.T) {
 		errExpected := errors.New("injected open store error")
 
-		p := storage.NewMockStoreProvider()
+		p := &mockStoreProvider{}
 		p.ErrOpenStoreHandle = errExpected
 
 		activityPubStore, err := createActivityPubStore(
@@ -1405,7 +1405,7 @@ func TestCreateActivityPubStore(t *testing.T) {
 	t.Run("Fail to create ActivityPub store using MongoDB", func(t *testing.T) {
 		errExpected := errors.New("injected open store error")
 
-		p := storage.NewMockStoreProvider()
+		p := &mockStoreProvider{}
 		p.ErrOpenStoreHandle = errExpected
 
 		activityPubStore, err := createActivityPubStore(
@@ -1767,4 +1767,47 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 	}
 
 	return args
+}
+
+type mockStoreProvider struct {
+	ErrOpenStoreHandle error
+	ErrSetStoreConfig  error
+	ErrClose           error
+	ErrCloseStore      error
+	FailNamespace      string
+}
+
+// OpenStore opens and returns a store for given name space.
+func (s *mockStoreProvider) OpenStore(name string) (storage.Store, error) {
+	return nil, s.ErrOpenStoreHandle
+}
+
+// SetStoreConfig always return a nil error.
+func (s *mockStoreProvider) SetStoreConfig(name string, config storage.StoreConfiguration) error {
+	return s.ErrSetStoreConfig
+}
+
+// GetStoreConfig is not implemented.
+func (s *mockStoreProvider) GetStoreConfig(name string) (storage.StoreConfiguration, error) {
+	panic("implement me")
+}
+
+// GetOpenStores is not implemented.
+func (s *mockStoreProvider) GetOpenStores() []storage.Store {
+	panic("implement me")
+}
+
+// Close closes all stores created under this store provider.
+func (s *mockStoreProvider) Close() error {
+	return s.ErrClose
+}
+
+// CloseStore closes store for given name space.
+func (s *mockStoreProvider) CloseStore(name string) error {
+	return s.ErrCloseStore
+}
+
+// Ping db.
+func (s *mockStoreProvider) Ping() error {
+	return nil
 }
