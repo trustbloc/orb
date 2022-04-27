@@ -1056,7 +1056,6 @@ func startOrbServices(parameters *orbParameters) error {
 			DiscoveryDomains:          parameters.discoveryDomains,
 			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
 			VctURL:                    parameters.vctURL,
-			DiscoveryVctDomains:       parameters.discoveryVctDomains,
 		},
 		&discoveryrest.Providers{
 			ResourceRegistry: resourceRegistry,

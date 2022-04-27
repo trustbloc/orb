@@ -223,10 +223,9 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:              "http://vct.com",
-			WebCASPath:          "/cas",
-			BaseURL:             "http://base",
-			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+			VctURL:     "http://vct.com",
+			WebCASPath: "/cas",
+			BaseURL:    "http://base",
 		},
 			&restapi.Providers{WebfingerClient: wfClient})
 		require.NoError(t, err)
@@ -260,10 +259,9 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:              "http://vct.com",
-			WebCASPath:          "/cas",
-			BaseURL:             "http://base",
-			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+			VctURL:     "http://vct.com",
+			WebCASPath: "/cas",
+			BaseURL:    "http://base",
 		},
 			&restapi.Providers{WebfingerClient: wfClient})
 		require.NoError(t, err)
@@ -295,10 +293,9 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:              "http://vct.com",
-			WebCASPath:          "/cas",
-			BaseURL:             "http://base",
-			DiscoveryVctDomains: []string{"http://vct.com/maple2020"},
+			VctURL:     "http://vct.com",
+			WebCASPath: "/cas",
+			BaseURL:    "http://base",
 		},
 			&restapi.Providers{WebfingerClient: wfClient})
 		require.NoError(t, err)
@@ -451,7 +448,6 @@ func TestWebFinger(t *testing.T) {
 			WebCASPath:                "/cas",
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
-			DiscoveryVctDomains:       []string{"http://vct.com/maple2019"},
 			DiscoveryMinimumResolvers: 2,
 			VctURL:                    "http://vct.com/maple2020",
 		}, &restapi.Providers{
