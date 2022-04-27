@@ -99,7 +99,6 @@ func New(c *Config, p *Providers) (*Operation, error) {
 		vctURL:                    c.VctURL,
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
-		discoveryVctDomains:       c.DiscoveryVctDomains,
 		anchorInfoRetriever:       NewAnchorInfoRetriever(p.ResourceRegistry),
 		cas:                       p.CAS,
 		anchorStore:               p.AnchorLinkStore,
@@ -126,7 +125,6 @@ type Operation struct {
 	baseURL                   string
 	vctURL                    string
 	discoveryDomains          []string
-	discoveryVctDomains       []string
 	discoveryMinimumResolvers int
 	cas                       cas
 	anchorStore               anchorLinkStore
@@ -143,7 +141,6 @@ type Config struct {
 	BaseURL                   string
 	VctURL                    string
 	DiscoveryDomains          []string
-	DiscoveryVctDomains       []string
 	DiscoveryMinimumResolvers int
 }
 
