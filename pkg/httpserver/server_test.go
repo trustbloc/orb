@@ -35,6 +35,7 @@ func TestServer_Start(t *testing.T) {
 		&mockService{},
 		&mockService{},
 		&mockService{},
+		&mockService{},
 		&mockUpdateHandler{},
 		&mockResolveHandler{},
 	)
@@ -71,6 +72,7 @@ func TestServer_Start(t *testing.T) {
 			1*time.Second,
 			&mockService{isConnectedErr: fmt.Errorf("failed")},
 			&mockService{healthCheckErr: fmt.Errorf("failed")},
+			&mockService{pingErr: fmt.Errorf("failed")},
 			&mockService{pingErr: fmt.Errorf("failed")},
 			&mockUpdateHandler{},
 			&mockResolveHandler{},

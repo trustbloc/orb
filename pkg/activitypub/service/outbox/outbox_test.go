@@ -135,7 +135,7 @@ func TestOutbox_Post(t *testing.T) {
 	}
 
 	httpServer := httpserver.New(":8003", "", "", 1*time.Second,
-		&mockService{}, &mockService{}, &mockService{},
+		&mockService{}, &mockService{}, &mockService{}, &mockService{},
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
 		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),

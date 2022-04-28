@@ -201,6 +201,7 @@ type keyManager interface {
 	Get(keyID string) (interface{}, error)
 	ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error)
 	ImportPrivateKey(privKey interface{}, kt kms.KeyType, opts ...kms.PrivateKeyOpts) (string, interface{}, error)
+	HealthCheck() error
 }
 
 type crypto interface {
@@ -1166,13 +1167,14 @@ func startOrbServices(parameters *orbParameters) error {
 		pubSub,
 		witness,
 		storeProviders.provider,
+		km,
 		handlers...,
 	)
 
 	if parameters.hostMetricsURL != "" {
 		metricsHttpServer := httpserver.New(
 			parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
-			pubSub, witness, storeProviders.provider, metrics.NewHandler(),
+			pubSub, witness, storeProviders.provider, km, metrics.NewHandler(),
 		)
 
 		err = metricsHttpServer.Start()
