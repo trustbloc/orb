@@ -22,9 +22,9 @@ import (
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring/verifier"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
+	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
 )
 
 var logger = log.New("vct-consistency-monitor")

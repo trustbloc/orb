@@ -25,7 +25,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
-	"github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -39,6 +38,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	"github.com/trustbloc/orb/pkg/vct"
 )
 
 var logger = log.New("anchor-writer")
