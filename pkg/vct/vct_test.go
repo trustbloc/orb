@@ -18,10 +18,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/trustbloc/orb/pkg/activitypub/service/vct"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/vcsigner"
+	. "github.com/trustbloc/orb/pkg/vct"
 )
 
 // nolint: lll

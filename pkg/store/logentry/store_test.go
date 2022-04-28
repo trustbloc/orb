@@ -18,9 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/pkg/activitypub/service/vct/logmonitoring/verifier"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/store/mocks"
+	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
 )
 
 const logURL = "https://vct.com/log"

@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/service/mocks"
-	. "github.com/trustbloc/orb/pkg/activitypub/service/vct/proofmonitoring"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	. "github.com/trustbloc/orb/pkg/vct/proofmonitoring"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
 
