@@ -22,7 +22,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/kms v0.1.8
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1.0.20220428193233-a1567c33db3e
 )
 
 require (
