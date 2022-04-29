@@ -44,6 +44,7 @@ type Server struct {
 	pubSub     pubSub
 	vct        vct
 	db         db
+	keyManager keyManager
 }
 
 type pubSub interface {
@@ -58,15 +59,20 @@ type db interface {
 	Ping() error
 }
 
+type keyManager interface {
+	HealthCheck() error
+}
+
 // New returns a new HTTP server.
 func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub pubSub, vct vct, db db,
-	handlers ...common.HTTPHandler) *Server {
+	keyManager keyManager, handlers ...common.HTTPHandler) *Server {
 	s := &Server{
-		certFile: certFile,
-		keyFile:  keyFile,
-		pubSub:   pubSub,
-		vct:      vct,
-		db:       db,
+		certFile:   certFile,
+		keyFile:    keyFile,
+		pubSub:     pubSub,
+		vct:        vct,
+		db:         db,
+		keyManager: keyManager,
 	}
 
 	router := mux.NewRouter()
@@ -148,6 +154,7 @@ type healthCheckResp struct {
 	MQStatus    string    `json:"mqStatus,omitempty"`
 	VCTStatus   string    `json:"vctStatus,omitempty"`
 	DBStatus    string    `json:"dbStatus,omitempty"`
+	KMSStatus   string    `json:"kmsStatus,omitempty"`
 	CurrentTime time.Time `json:"currentTime,omitempty"`
 	Version     string    `json:"version,omitempty"`
 }
@@ -156,6 +163,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 	mqStatus := ""
 	vctStatus := ""
 	dbStatus := ""
+	kmsStatus := ""
 
 	if s.pubSub != nil {
 		mqStatus = success
@@ -181,7 +189,15 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		}
 	}
 
-	if mqStatus != success || vctStatus != success || dbStatus != success {
+	if s.keyManager != nil {
+		kmsStatus = success
+
+		if err := s.keyManager.HealthCheck(); err != nil {
+			kmsStatus = err.Error()
+		}
+	}
+
+	if mqStatus != success || vctStatus != success || dbStatus != success || kmsStatus != success {
 		rw.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		rw.WriteHeader(http.StatusOK)
@@ -191,6 +207,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		MQStatus:    mqStatus,
 		VCTStatus:   vctStatus,
 		DBStatus:    dbStatus,
+		KMSStatus:   kmsStatus,
 		CurrentTime: time.Now(),
 		Version:     BuildVersion,
 	})

@@ -9,16 +9,16 @@ go 1.17
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220425190801-5d239d542d7d
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v0.1.4-0.20220412155039-c618d62571b8
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v0.0.0-20220412155039-c618d62571b8
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220428145156-7e6cf9acbc9e
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1.0.20220428163625-96d8261511e1
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220428154356-41d198a5fade
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/trustbloc/edge-core v0.1.8
-	github.com/trustbloc/orb v0.1.4-0.20220412070324-edc9187e0c3e
+	github.com/trustbloc/orb v1.0.0-rc.1
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc.1.0.20220428193233-a1567c33db3e
 )
 

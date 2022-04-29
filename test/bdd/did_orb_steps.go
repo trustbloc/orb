@@ -129,9 +129,10 @@ const docTemplate = `{
 	{
 	   "id": "didcomm",
 	   "type": "did-communication",
-	   "serviceEndpoint": "https://hub.example.com/.identity/did:example:0123456789abcdef/",
 	   "recipientKeys": ["%s"],
-	   "routingKeys": ["%s"],
+	   "serviceEndpoint": {
+          "uri": "https://hub.example.com/.identity/did:example:0123456789abcdef/"
+       },
 	   "priority": 0
 	}
   ]
@@ -1230,14 +1231,9 @@ func getOpaqueDocument(keyID string) ([]byte, error) {
 		return nil, err
 	}
 
-	routingKey, _, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-
 	data := fmt.Sprintf(
 		docTemplate,
-		keyID, jwsPubKey, ed25519PubKey, base58.Encode(recipientKey), base58.Encode(routingKey))
+		keyID, jwsPubKey, ed25519PubKey, base58.Encode(recipientKey))
 
 	doc, err := document.FromBytes([]byte(data))
 	if err != nil {

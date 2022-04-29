@@ -252,6 +252,7 @@ func startDriver(parameters *parameters) error {
 		nil,
 		nil,
 		nil,
+		nil,
 		handlers...,
 	)
 

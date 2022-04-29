@@ -69,17 +69,21 @@ Q7UGQKWNHeITH8NQlkmcySEKnaI9uyOkcb6TIvklapHCAF8cUf1kCHU10Eo0RTMI
     "id": "svc1",
     "type": "type1",
     "priority": 1,
-    "routingKeys": ["key1"],
     "recipientKeys": ["key1"],
-    "serviceEndpoint": "http://www.example.com"
+    "serviceEndpoint": {
+        "uri": "https://example.com",
+        "routingKeys": ["key1"]
+    }
   },
   {
     "id": "svc2",
     "type": "type2",
     "priority": 2,
-    "routingKeys": ["key2"],
     "recipientKeys": ["key2"],
-    "serviceEndpoint": "http://www.example.com"
+    "serviceEndpoint": {
+        "uri": "https://example.com",
+        "routingKeys": ["key2"]
+    }
   }
 ]`
 )

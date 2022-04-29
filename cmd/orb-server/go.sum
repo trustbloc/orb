@@ -795,8 +795,8 @@ github.com/hyperledger/aries-framework-go v0.1.8-0.20220217153004-1622c70e5767/g
 github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b/go.mod h1:bqeLa1s8fQ7YueGOOk0Q+r48FGF7sd8GEaS/CyEo/iY=
 github.com/hyperledger/aries-framework-go v0.1.8/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
 github.com/hyperledger/aries-framework-go v0.1.9-0.20220412155017-81442062e607/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220425190801-5d239d542d7d h1:pALpYFnI90F+NjRC9ji+tD4jhAL+XXH7kkiLNqJ7ETA=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220425190801-5d239d542d7d/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220428145156-7e6cf9acbc9e h1:yjmnwJxu1Z2yeNXYrcyBMJGt+BZnUD5z3HoCT07nu6o=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220428145156-7e6cf9acbc9e/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220310013829-55b4443130f8/go.mod h1:FtlFhPHMyLORgrPpvWSmEQSNhLiwAQ4V6rqNPfuDj0o=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220425190739-5c1b81a74df6 h1:B82qyX90VuebnyljJcC8/Fx2kYPzg1eJjl8QqjnXCd4=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220425190739-5c1b81a74df6/go.mod h1:q8qjsQpYo7AYG0pqQg1zgEoIVc+Hrpf5S0WciiwPDQA=
@@ -1439,8 +1439,9 @@ github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344/go.mod h1:
 github.com/trustbloc/edge-core v0.1.7/go.mod h1:nQnH3CcEHTRXsWZe/vgj+J0JxxjwFK9IvY3u0Sr/2XY=
 github.com/trustbloc/edge-core v0.1.8 h1:m4X5XNDwiHJjGf8gHnpo6aLkBYuqDyNRq+npjxLc5cY=
 github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHYn+87f+TBQ8M=
-github.com/trustbloc/kms v0.1.8 h1:RR9+XABtjyuSzJeqYstjDYqc4CPE7IPt6eGjwDPI4t0=
 github.com/trustbloc/kms v0.1.8/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
+github.com/trustbloc/kms v0.1.9-0.20220428130704-bf9a56fab158 h1:YcGWGhbF5otbgCB1sH6sz21hgPfDCUBFAiHOnPzbf4Y=
+github.com/trustbloc/kms v0.1.9-0.20220428130704-bf9a56fab158/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc.1.0.20220428193233-a1567c33db3e h1:1ZSS6F71xuq3NmyZYRDu2wUeep3D7lwc5c+RsPDxiAQ=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc.1.0.20220428193233-a1567c33db3e/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
 github.com/trustbloc/vct v1.0.0-rc1.0.20220426133750-e02ec33d2826 h1:QmpPeWee/b1TbTHjKIGWyFT+tWWWEEcqXWHP7jwUOkQ=

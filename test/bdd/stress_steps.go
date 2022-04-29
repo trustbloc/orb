@@ -20,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/common/model"
+
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	"github.com/greenpau/go-calculator"
@@ -430,7 +432,10 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 			ariesdid.Authentication))
 	}
 
-	didDoc.Service = []ariesdid.Service{{ID: serviceID, Type: "type", ServiceEndpoint: svcEndpoint}}
+	didDoc.Service = []ariesdid.Service{{
+		ID: serviceID, Type: "type",
+		ServiceEndpoint: model.Endpoint{URI: svcEndpoint},
+	}}
 
 	startTime := time.Now()
 
@@ -453,7 +458,11 @@ func (e *StressSteps) updateDID(didID string, svcEndpoint string, vdr *orb.VDR,
 	verMethodsCreate []*ariesdid.VerificationMethod, verMethodsUpdate []*ariesdid.VerificationMethod) error {
 	didDoc := &ariesdid.Doc{ID: didID}
 
-	didDoc.Service = []ariesdid.Service{{ID: serviceID, Type: "type", ServiceEndpoint: svcEndpoint}}
+	didDoc.Service = []ariesdid.Service{{
+		ID:              serviceID,
+		Type:            "type",
+		ServiceEndpoint: model.Endpoint{URI: svcEndpoint}},
+	}
 
 	for _, vm := range verMethodsCreate {
 		didDoc.Authentication = append(didDoc.Authentication, *ariesdid.NewReferencedVerification(vm,
@@ -802,7 +811,7 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		resolveUpdateHTTPTime = append(resolveUpdateHTTPTime, endTimeMS)
 
-		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint == r.svcEndpoint {
+		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint.URI == r.svcEndpoint {
 			break
 		}
 

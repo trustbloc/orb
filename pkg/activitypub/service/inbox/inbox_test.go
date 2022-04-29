@@ -742,7 +742,7 @@ func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTP
 	t.Helper()
 
 	httpServer := httpserver.New(listenAddress, "", "", 1*time.Second,
-		&mockService{}, &mockService{}, &mockService{}, handlers...)
+		&mockService{}, &mockService{}, &mockService{}, &mockService{}, handlers...)
 
 	require.NoError(t, httpServer.Start())
 
