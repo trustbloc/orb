@@ -143,6 +143,7 @@ import (
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring"
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring/handler"
 	"github.com/trustbloc/orb/pkg/vct/proofmonitoring"
+	vcthandler "github.com/trustbloc/orb/pkg/vct/resthandler"
 	"github.com/trustbloc/orb/pkg/webcas"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
@@ -1137,6 +1138,7 @@ func startOrbServices(parameters *orbParameters) error {
 		),
 		auth.NewHandlerWrapper(policyhandler.New(configStore), authTokenManager),
 		auth.NewHandlerWrapper(policyhandler.NewRetriever(configStore), authTokenManager),
+		auth.NewHandlerWrapper(vcthandler.New(configStore, logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),

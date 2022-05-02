@@ -83,6 +83,15 @@ Feature:
 
     Then we wait 3 seconds
 
+  @vct_log_rotation_test
+  Scenario: various did doc operations
+    Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
+
+    Then we wait 2 seconds
+
+    # domain1 will start following 2022 VCT log
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2022" of type "text/plain"
+
   @all
   @discover_did_hashlink
   Scenario: discover did (hashlink)
