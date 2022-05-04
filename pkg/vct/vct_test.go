@@ -9,6 +9,7 @@ package vct_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -59,9 +60,14 @@ type httpMock func(req *http.Request) (*http.Response, error)
 func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) }
 
 func TestClient_Witness(t *testing.T) {
+	const webfingerURL = "/.well-known/webfinger"
+
+	endpointRetriever := &mockLogEndpointProvider{LogURL: "https://example.com"}
+	emptyEndpointRetriever := &mockLogEndpointProvider{LogURL: ""}
+
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/.well-known/webfinger" {
+			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
 					`"BL0zrdTbR4mc1ZBuaXOh52IYeYKd9hlXrB3eZ+GR9WsHHGhrNaJJB9bpEXvM4zo2vnm34nQezBJ1/a/cQS/j+Q0="}}`
 
@@ -77,8 +83,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)), WithAuthWriteToken("write"),
 			WithAuthReadToken("read"))
 
@@ -94,8 +99,39 @@ func TestClient_Witness(t *testing.T) {
 
 		require.Equal(t, int64(1627462750739000000), timestampTime.UnixNano())
 	})
+
+	t.Run("Error - endpoint retriever error", func(t *testing.T) {
+		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == webfingerURL {
+				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
+					`"BL0zrdTbR4mc1ZBuaXOh52IYeYKd9hlXrB3eZ+GR9WsHHGhrNaJJB9bpEXvM4zo2vnm34nQezBJ1/a/cQS/j+Q0="}}`
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(mockResponse)),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		client := New(&mockLogEndpointProvider{Err: fmt.Errorf("endpoint error")}, &mockSigner{},
+			&mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+			WithDocumentLoader(testutil.GetLoader(t)), WithAuthWriteToken("write"),
+			WithAuthReadToken("read"))
+
+		resp, err := client.Witness([]byte(mockVC))
+		require.Error(t, err)
+		require.Nil(t, resp)
+		require.Contains(t, err.Error(), "failed to get log endpoint for witness: endpoint error")
+	})
+
 	t.Run("Success (no vct)", func(t *testing.T) {
-		client := New("", &mockSigner{}, &mocks.MetricsProvider{}, WithDocumentLoader(testutil.GetLoader(t)))
+		client := New(emptyEndpointRetriever, &mockSigner{}, &mocks.MetricsProvider{},
+			WithDocumentLoader(testutil.GetLoader(t)))
 
 		resp, err := client.Witness([]byte(mockVC))
 		require.NoError(t, err)
@@ -111,7 +147,7 @@ func TestClient_Witness(t *testing.T) {
 		require.NotEmpty(t, timestampTime.UnixNano())
 	})
 	t.Run("Parse credential (error)", func(t *testing.T) {
-		client := New("", &mockSigner{}, &mocks.MetricsProvider{})
+		client := New(emptyEndpointRetriever, &mockSigner{}, &mocks.MetricsProvider{})
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -119,7 +155,7 @@ func TestClient_Witness(t *testing.T) {
 	})
 	t.Run("Bad signature", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path == "/.well-known/webfinger" {
+			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
 					`"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="}}`
 
@@ -137,8 +173,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -156,8 +191,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -175,8 +209,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		const endpoint = "https://example.com"
-		client := New(endpoint, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -192,7 +225,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{},
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{},
 			WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)),
 		)
@@ -209,7 +242,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -224,7 +257,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -239,11 +272,20 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New("https://example.com", &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		err := client.HealthCheck()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "vct error")
+	})
+
+	t.Run("Check Health (endpoint retriever error)", func(t *testing.T) {
+		client := New(&mockLogEndpointProvider{Err: fmt.Errorf("log retriever error")}, &mockSigner{},
+			&mocks.MetricsProvider{})
+
+		err := client.HealthCheck()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "log retriever error")
 	})
 }
 
@@ -272,4 +314,17 @@ func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*ver
 
 func (m *mockSigner) Context() []string {
 	return []string{}
+}
+
+type mockLogEndpointProvider struct {
+	LogURL string
+	Err    error
+}
+
+func (mle *mockLogEndpointProvider) GetLogEndpoint() (string, error) {
+	if mle.Err != nil {
+		return "", mle.Err
+	}
+
+	return mle.LogURL, nil
 }

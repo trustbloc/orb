@@ -161,10 +161,6 @@ const (
 	syncTimeoutFlagUsage = "Total time in seconds to resolve config values." +
 		" Alternatively, this can be set with the following environment variable: " + syncTimeoutEnvKey
 
-	vctURLFlagName  = "vct-url"
-	vctURLFlagUsage = "Verifiable credential transparency URL."
-	vctURLEnvKey    = "ORB_VCT_URL"
-
 	vctProofMonitoringIntervalFlagName  = "vct-proof-monitoring-interval"
 	vctProofMonitoringIntervalEnvKey    = "VCT_PROOF_MONITORING_INTERVAL"
 	vctProofMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
@@ -660,7 +656,6 @@ type tlsParameters struct {
 type orbParameters struct {
 	hostURL                                 string
 	hostMetricsURL                          string
-	vctURL                                  string
 	externalEndpoint                        string
 	discoveryDomain                         string
 	didNamespace                            string
@@ -845,9 +840,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// no need to check errors for optional flags
-	vctURL, _ := cmdutils.GetUserSetVarFromString(cmd, vctURLFlagName, vctURLEnvKey, true)
 
 	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
 	if err != nil {
@@ -1365,7 +1357,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
-		vctURL:                                  vctURL,
 		discoveryDomain:                         discoveryDomain,
 		externalEndpoint:                        externalEndpoint,
 		tlsParams:                               tlsParams,
@@ -1961,7 +1952,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
-	startCmd.Flags().String(vctURLFlagName, "", vctURLFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
 	startCmd.Flags().StringP(vcSignActiveKeyIDFlagName, "", "", vcSignActiveKeyIDFlagUsage)
 	startCmd.Flags().StringArrayP(vcSignPrivateKeysFlagName, "", []string{}, vcSignPrivateKeysFlagUsage)

@@ -77,6 +77,10 @@ type webfingerClient interface {
 	GetLedgerType(domain string) (string, error)
 }
 
+type logEndpointRetriever interface {
+	GetLogEndpoint() (string, error)
+}
+
 // New returns discovery operations.
 func New(c *Config, p *Providers) (*Operation, error) {
 	u, err := url.Parse(c.BaseURL)
@@ -96,10 +100,10 @@ func New(c *Config, p *Providers) (*Operation, error) {
 		operationPath:             c.OperationPath,
 		webCASPath:                c.WebCASPath,
 		baseURL:                   c.BaseURL,
-		vctURL:                    c.VctURL,
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
 		anchorInfoRetriever:       NewAnchorInfoRetriever(p.ResourceRegistry),
+		logEndpointRetriever:      p.LogEndpointRetriever,
 		cas:                       p.CAS,
 		anchorStore:               p.AnchorLinkStore,
 		wfClient:                  p.WebfingerClient,
@@ -116,6 +120,7 @@ type PublicKey struct {
 // Operation defines handlers for discovery operations.
 type Operation struct {
 	anchorInfoRetriever
+	logEndpointRetriever
 
 	pubKeys                   []PublicKey
 	host                      string
@@ -123,7 +128,6 @@ type Operation struct {
 	operationPath             string
 	webCASPath                string
 	baseURL                   string
-	vctURL                    string
 	discoveryDomains          []string
 	discoveryMinimumResolvers int
 	cas                       cas
@@ -139,17 +143,17 @@ type Config struct {
 	OperationPath             string
 	WebCASPath                string
 	BaseURL                   string
-	VctURL                    string
 	DiscoveryDomains          []string
 	DiscoveryMinimumResolvers int
 }
 
 // Providers defines the providers for discovery operations.
 type Providers struct {
-	ResourceRegistry *registry.Registry
-	CAS              cas
-	AnchorLinkStore  anchorLinkStore
-	WebfingerClient  webfingerClient
+	ResourceRegistry     *registry.Registry
+	CAS                  cas
+	AnchorLinkStore      anchorLinkStore
+	WebfingerClient      webfingerClient
+	LogEndpointRetriever logEndpointRetriever
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
@@ -384,19 +388,26 @@ func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
 		Subject: resource,
 	}
 
-	if o.vctURL != "" {
+	logURL, err := o.logEndpointRetriever.GetLogEndpoint()
+	if err != nil {
+		logger.Warnf("Error retrieving log endpoint: %s", err)
+
+		writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving log endpoint")
+	}
+
+	if logURL != "" {
 		resp.Links = append(resp.Links, Link{
 			Rel:  vctRelation,
 			Type: jrdJSONType,
-			Href: o.vctURL,
+			Href: logURL,
 		})
 
-		lt, err := o.wfClient.GetLedgerType(o.vctURL)
+		lt, err := o.wfClient.GetLedgerType(logURL)
 		if err != nil {
 			if errors.Is(err, model.ErrResourceNotFound) {
 				writeResponse(rw, resp, http.StatusOK)
 			} else {
-				logger.Warnf("Error retrieving ledger type from VCT[%s]: %s", o.vctURL, err)
+				logger.Warnf("Error retrieving ledger type from VCT[%s]: %s", logURL, err)
 
 				writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving ledger type from VCT")
 			}

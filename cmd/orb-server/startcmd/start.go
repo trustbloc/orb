@@ -100,6 +100,7 @@ import (
 	ipfscas "github.com/trustbloc/orb/pkg/cas/ipfs"
 	"github.com/trustbloc/orb/pkg/cas/resolver"
 	"github.com/trustbloc/orb/pkg/config"
+	configclient "github.com/trustbloc/orb/pkg/config/client"
 	sidetreecontext "github.com/trustbloc/orb/pkg/context"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/context/opqueue"
@@ -858,7 +859,9 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		pubSub, parameters.dataURIMediaType)
 
-	witness := vct.New(parameters.vctURL, vcSigner, metrics.Get(),
+	logEndpointRetriever := configclient.New(configStore)
+
+	witness := vct.New(logEndpointRetriever, vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 		vct.WithAuthReadToken(parameters.requestTokens[vctReadTokenKey]),
@@ -1072,13 +1075,13 @@ func startOrbServices(parameters *orbParameters) error {
 			BaseURL:                   parameters.externalEndpoint,
 			DiscoveryDomains:          parameters.discoveryDomains,
 			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
-			VctURL:                    parameters.vctURL,
 		},
 		&discoveryrest.Providers{
-			ResourceRegistry: resourceRegistry,
-			CAS:              coreCASClient,
-			AnchorLinkStore:  anchorLinkStore,
-			WebfingerClient:  wfClient,
+			ResourceRegistry:     resourceRegistry,
+			CAS:                  coreCASClient,
+			AnchorLinkStore:      anchorLinkStore,
+			WebfingerClient:      wfClient,
+			LogEndpointRetriever: logEndpointRetriever,
 		})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)

@@ -27,6 +27,16 @@ Feature:
     And the authorization bearer token for "POST" requests to path "/policy" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "GET" requests to path "/cas" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/vc" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
+
+    # set up logs for domains
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain2.com/log" with content "" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain3.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain4.com/log" with content "" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain5.com/log" with content "" of type "text/plain"
+
+    Then we wait 1 seconds
 
     # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
     Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
@@ -676,7 +686,5 @@ Feature:
     Then check success response contains "canonicalId"
 
     Then container "orb-domain3" is started
-    Then we wait 5 seconds
-
-
+    Then we wait 10 seconds
 

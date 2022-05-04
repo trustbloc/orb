@@ -223,11 +223,13 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:     "http://vct.com",
 			WebCASPath: "/cas",
 			BaseURL:    "http://base",
 		},
-			&restapi.Providers{WebfingerClient: wfClient})
+			&restapi.Providers{
+				WebfingerClient:      wfClient,
+				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com"},
+			})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -259,11 +261,13 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:     "http://vct.com",
 			WebCASPath: "/cas",
 			BaseURL:    "http://base",
 		},
-			&restapi.Providers{WebfingerClient: wfClient})
+			&restapi.Providers{
+				WebfingerClient:      wfClient,
+				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com"},
+			})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -293,11 +297,13 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			VctURL:     "http://vct.com",
 			WebCASPath: "/cas",
 			BaseURL:    "http://base",
 		},
-			&restapi.Providers{WebfingerClient: wfClient})
+			&restapi.Providers{
+				WebfingerClient:      wfClient,
+				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com"},
+			})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
@@ -449,10 +455,10 @@ func TestWebFinger(t *testing.T) {
 			BaseURL:                   "http://base",
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
-			VctURL:                    "http://vct.com/maple2020",
 		}, &restapi.Providers{
-			ResourceRegistry: registry.New(registry.WithResourceInfoProvider(resourceInfoProvider)),
-			AnchorLinkStore:  linkStore,
+			ResourceRegistry:     registry.New(registry.WithResourceInfoProvider(resourceInfoProvider)),
+			AnchorLinkStore:      linkStore,
+			LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com/maple2020"},
 		})
 		require.NoError(t, err)
 
@@ -574,9 +580,8 @@ func TestHostMeta(t *testing.T) {
 				BaseURL:                   "http://base",
 				WebCASPath:                "/cas",
 				DiscoveryDomains:          []string{"http://domain1"},
-				VctURL:                    "http://vct",
 				DiscoveryMinimumResolvers: 2,
-			}, &restapi.Providers{})
+			}, &restapi.Providers{LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct"}})
 			require.NoError(t, err)
 
 			handler := getHandler(t, c, hostMetaEndpoint)
@@ -613,9 +618,8 @@ func TestHostMeta(t *testing.T) {
 				BaseURL:                   "http://base",
 				WebCASPath:                "/cas",
 				DiscoveryDomains:          []string{"http://domain1"},
-				VctURL:                    "http://vct",
 				DiscoveryMinimumResolvers: 2,
-			}, &restapi.Providers{})
+			}, &restapi.Providers{LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct"}})
 			require.NoError(t, err)
 
 			handler := getHandler(t, c, restapi.HostMetaJSONEndpoint)
@@ -653,9 +657,8 @@ func TestHostMeta(t *testing.T) {
 			BaseURL:                   "http://base",
 			WebCASPath:                "/cas",
 			DiscoveryDomains:          []string{"http://domain1"},
-			VctURL:                    "http://vct",
 			DiscoveryMinimumResolvers: 2,
-		}, &restapi.Providers{})
+		}, &restapi.Providers{LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct"}})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, hostMetaEndpoint)
@@ -802,4 +805,17 @@ type httpMock func(req *http.Request) (*http.Response, error)
 
 func (m httpMock) Do(req *http.Request) (*http.Response, error) {
 	return m(req)
+}
+
+type mockLogEndpointProvider struct {
+	LogURL string
+	Err    error
+}
+
+func (mle *mockLogEndpointProvider) GetLogEndpoint() (string, error) {
+	if mle.Err != nil {
+		return "", mle.Err
+	}
+
+	return mle.LogURL, nil
 }
