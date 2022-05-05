@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
@@ -59,7 +59,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test",
-			"--" + casTypeFlagName, "", "--" + vctURLFlagName, "test",
+			"--" + casTypeFlagName, "",
 		}
 		startCmd.SetArgs(args)
 
@@ -73,7 +73,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
-			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName, "",
+			"local", "--" + didNamespaceFlagName, "",
 		}
 		startCmd.SetArgs(args)
 
@@ -87,7 +87,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
-			"local", "--" + vctURLFlagName, "test", "--" + didNamespaceFlagName,
+			"local", "--" + didNamespaceFlagName,
 			"namespace", "--" + databaseTypeFlagName, "", "--" + kmsTypeFlagName, "local",
 			"--" + kmsSecretsDatabaseTypeFlagName, "mem",
 		}
@@ -183,7 +183,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080", "--" + hostMetricsURLFlagName,
-			"localhost:8081", "--" + vctURLFlagName, "test",
+			"localhost:8081",
 		}
 		startCmd.SetArgs(args)
 
@@ -202,7 +202,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
 			"--" + casTypeFlagName, "ipfs",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + batchWriterTimeoutFlagName, "abc",
@@ -228,7 +227,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -255,7 +253,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -283,7 +280,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -311,7 +307,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -339,7 +334,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -365,7 +359,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -392,7 +385,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -419,7 +411,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -446,7 +437,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -473,7 +463,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -500,7 +489,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -527,7 +515,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + hostMetricsURLFlagName, "localhost:8248",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -830,15 +817,11 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err = os.Setenv(hostMetricsURLEnvKey, "localhost:8081")
 		require.NoError(t, err)
 
-		err = os.Setenv(vctURLEnvKey, "localhost:8080")
-		require.NoError(t, err)
-
 		err = os.Setenv(casTypeEnvKey, "")
 		require.NoError(t, err)
 
 		defer func() {
 			require.NoError(t, os.Unsetenv(hostURLEnvKey))
-			require.NoError(t, os.Unsetenv(vctURLEnvKey))
 			require.NoError(t, os.Unsetenv(casTypeEnvKey))
 		}()
 
@@ -857,7 +840,6 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + casTypeFlagName, "ipfs",
-		"--" + vctURLFlagName, "localhost:8081",
 		"--" + cidVersionFlagName, "-1",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "1m",
@@ -884,7 +866,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
@@ -909,7 +890,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
@@ -933,7 +913,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
@@ -955,7 +934,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + hostMetricsURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
-			"--" + vctURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",

@@ -49,80 +49,71 @@ type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type endpointRetriever interface {
+	GetLogEndpoint() (string, error)
+}
+
 // Client represents VCT client.
 type Client struct {
-	signer         signer
-	endpoint       string
-	documentLoader ld.DocumentLoader
-	vct            *vct.Client
-	metrics        metricsProvider
+	signer            signer
+	http              HTTPClient
+	documentLoader    ld.DocumentLoader
+	endpointRetriever endpointRetriever
+	authReadToken     string
+	authWriteToken    string
+	metrics           metricsProvider
 }
 
-// ClientOpt represents client option func.
-type ClientOpt func(*clientOptions)
-
-type clientOptions struct {
-	http           HTTPClient
-	documentLoader ld.DocumentLoader
-	authReadToken  string
-	authWriteToken string
-}
+// Option is a config client instance option.
+type Option func(opts *Client)
 
 // WithHTTPClient allows providing HTTP client.
-func WithHTTPClient(client HTTPClient) ClientOpt {
-	return func(o *clientOptions) {
+func WithHTTPClient(client HTTPClient) Option {
+	return func(o *Client) {
 		o.http = client
 	}
 }
 
 // WithDocumentLoader allows providing document loader.
-func WithDocumentLoader(loader ld.DocumentLoader) ClientOpt {
-	return func(o *clientOptions) {
+func WithDocumentLoader(loader ld.DocumentLoader) Option {
+	return func(o *Client) {
 		o.documentLoader = loader
 	}
 }
 
 // WithAuthReadToken add auth token.
-func WithAuthReadToken(authToken string) ClientOpt {
-	return func(o *clientOptions) {
+func WithAuthReadToken(authToken string) Option {
+	return func(o *Client) {
 		o.authReadToken = authToken
 	}
 }
 
 // WithAuthWriteToken add auth token.
-func WithAuthWriteToken(authToken string) ClientOpt {
-	return func(o *clientOptions) {
+func WithAuthWriteToken(authToken string) Option {
+	return func(o *Client) {
 		o.authWriteToken = authToken
 	}
 }
 
 // New returns the client.
-func New(endpoint string, signer signer, metrics metricsProvider, opts ...ClientOpt) *Client {
-	op := &clientOptions{http: &http.Client{
-		Timeout: time.Minute,
-	}}
-
-	for _, fn := range opts {
-		fn(op)
+func New(endpointRetriever endpointRetriever, signer signer, metrics metricsProvider, opts ...Option) *Client {
+	client := &Client{
+		endpointRetriever: endpointRetriever,
+		signer:            signer,
+		metrics:           metrics,
+		http: &http.Client{
+			Timeout: time.Minute,
+		},
 	}
 
-	var vctClient *vct.Client
-
-	if strings.TrimSpace(endpoint) != "" {
-		vctClient = vct.New(endpoint, vct.WithHTTPClient(op.http),
-			vct.WithAuthReadToken(op.authReadToken), vct.WithAuthWriteToken(op.authWriteToken))
+	for _, opt := range opts {
+		opt(client)
 	}
 
-	return &Client{
-		signer:         signer,
-		endpoint:       endpoint,
-		documentLoader: op.documentLoader,
-		vct:            vctClient,
-		metrics:        metrics,
-	}
+	return client
 }
 
-func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Credential, error) {
+func (c *Client) addProof(endpoint string, anchorCred []byte, timestamp int64) (*verifiable.Credential, error) {
 	parseCredentialStartTime := time.Now()
 
 	vc, err := verifiable.ParseCredential(anchorCred,
@@ -146,8 +137,8 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 		vcsigner.WithSignatureRepresentation(verifiable.SignatureProofValue),
 	}
 
-	if c.endpoint != "" {
-		opts = append(opts, vcsigner.WithDomain(c.endpoint))
+	if endpoint != "" {
+		opts = append(opts, vcsigner.WithDomain(endpoint))
 	}
 
 	signStartTime := time.Now()
@@ -182,17 +173,30 @@ func (c *Client) addProof(anchorCred []byte, timestamp int64) (*verifiable.Crede
 
 // HealthCheck check health.
 func (c *Client) HealthCheck() error {
-	return c.vct.HealthCheck(context.Background())
+	endpoint, err := c.endpointRetriever.GetLogEndpoint()
+	if err != nil {
+		return fmt.Errorf("failed to get log endpoint: %w", err)
+	}
+
+	vctClient := vct.New(endpoint, vct.WithHTTPClient(c.http),
+		vct.WithAuthReadToken(c.authReadToken), vct.WithAuthWriteToken(c.authWriteToken))
+
+	return vctClient.HealthCheck(context.Background())
 }
 
 // Witness credentials.
 func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
-	if c.vct == nil {
+	endpoint, err := c.endpointRetriever.GetLogEndpoint()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get log endpoint for witness: %w", err)
+	}
+
+	if endpoint == "" {
 		addProofStartTime := time.Now()
 
-		vc, err := c.addProof(anchorCred, time.Now().UnixNano())
-		if err != nil {
-			return nil, fmt.Errorf("add proof: %w", err)
+		vc, innnerErr := c.addProof(endpoint, anchorCred, time.Now().UnixNano())
+		if innnerErr != nil {
+			return nil, fmt.Errorf("add proof: %w", innnerErr)
 		}
 
 		ctx := []string{ctxSecurity}
@@ -209,7 +213,10 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	addVCStartTime := time.Now()
 
-	resp, err := c.vct.AddVC(context.Background(), anchorCred)
+	vctClient := vct.New(endpoint, vct.WithHTTPClient(c.http),
+		vct.WithAuthReadToken(c.authReadToken), vct.WithAuthWriteToken(c.authWriteToken))
+
+	resp, err := vctClient.AddVC(context.Background(), anchorCred)
 	if err != nil {
 		return nil, orberrors.NewTransientf("failed to add VC: %w", err)
 	}
@@ -218,7 +225,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	addProofStartTime := time.Now()
 
-	vc, err := c.addProof(anchorCred, int64(resp.Timestamp)*int64(time.Millisecond))
+	vc, err := c.addProof(endpoint, anchorCred, int64(resp.Timestamp)*int64(time.Millisecond))
 	if err != nil {
 		return nil, fmt.Errorf("add proof: %w", err)
 	}
@@ -227,7 +234,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	webFingerStartTime := time.Now()
 
-	webResp, err := c.vct.Webfinger(context.Background())
+	webResp, err := vctClient.Webfinger(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("webfinger: %w", err)
 	}
