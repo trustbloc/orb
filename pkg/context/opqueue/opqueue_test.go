@@ -7,12 +7,15 @@ SPDX-License-Identifier: Apache-2.0
 package opqueue
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -302,10 +305,10 @@ func TestQueue_Error(t *testing.T) {
 	})
 
 	t.Run("Query DB error", func(t *testing.T) {
-		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+		mgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
 
-		taskMgr.Start()
-		defer taskMgr.Stop()
+		mgr.Start()
+		defer mgr.Stop()
 
 		p := storage.NewMockStoreProvider()
 
@@ -317,7 +320,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrQuery = errExpected
 
 		q, err := New(Config{}, ps, p,
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -328,10 +331,10 @@ func TestQueue_Error(t *testing.T) {
 	})
 
 	t.Run("NextTask iterator error", func(t *testing.T) {
-		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+		mgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
 
-		taskMgr.Start()
-		defer taskMgr.Stop()
+		mgr.Start()
+		defer mgr.Stop()
 
 		p := storage.NewMockStoreProvider()
 
@@ -343,7 +346,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrNext = errExpected
 
 		q, err := New(Config{}, ps, p,
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -354,13 +357,13 @@ func TestQueue_Error(t *testing.T) {
 	})
 
 	t.Run("NextTask unmarshal error", func(t *testing.T) {
-		taskMgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
+		mgr := servicemocks.NewTaskManager("taskmgr1").WithInterval(100 * time.Millisecond)
 
-		taskMgr.Start()
-		defer taskMgr.Stop()
+		mgr.Start()
+		defer mgr.Stop()
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, expirySvc, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -374,6 +377,54 @@ func TestQueue_Error(t *testing.T) {
 		defer q.Stop()
 
 		time.Sleep(time.Second)
+	})
+
+	t.Run("Re-post publish error", func(t *testing.T) {
+		errExpected := errors.New("injected publish error")
+
+		ps := &ctxmocks.PubSub{}
+		ps.PublishReturnsOnCall(0, errExpected)
+
+		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+			taskMgr, expirySvc, &mocks.MetricsProvider{})
+		require.NoError(t, err)
+		require.NotNil(t, q)
+
+		q.Start()
+		defer q.Stop()
+
+		op := &operation.QueuedOperation{
+			OperationRequest: []byte("request"),
+			UniqueSuffix:     "suffix1",
+			Namespace:        "ns1",
+		}
+
+		opMsg := &operationMessage{
+			ID: uuid.New().String(),
+			Operation: &operation.QueuedOperationAtTime{
+				QueuedOperation: *op,
+				ProtocolVersion: 1,
+			},
+		}
+
+		opBytes, err := json.Marshal(opMsg)
+		require.NoError(t, err)
+
+		msg := message.NewMessage(uuid.New().String(), opBytes)
+
+		q.handleMessage(msg)
+
+		time.Sleep(100 * time.Millisecond)
+
+		ops, _, nack, err := q.Remove(1)
+		require.NoError(t, err)
+		require.Len(t, ops, 1)
+
+		nack()
+
+		ops, _, _, err = q.Remove(1)
+		require.NoError(t, err)
+		require.Empty(t, ops)
 	})
 }
 
