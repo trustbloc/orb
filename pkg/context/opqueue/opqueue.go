@@ -28,12 +28,13 @@ import (
 var logger = log.New("sidetree_context")
 
 const (
-	topic          = "orb.operation"
-	taskID         = "op-queue-monitor"
-	storeName      = "op-queue"
-	tagOpExpiry    = "ExpiryTime"
-	tagOpQueueTask = "Task"
-	tagServerID    = "ServerID"
+	topic            = "orb.operation"
+	taskID           = "op-queue-monitor"
+	storeName        = "op-queue"
+	tagOpExpiry      = "ExpiryTime"
+	tagOpQueueTask   = "Task"
+	tagServerID      = "ServerID"
+	detachedServerID = "detached"
 
 	defaultInterval             = 10 * time.Second
 	defaultTaskExpirationFactor = 2
@@ -167,7 +168,12 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 
 	logger.Infof("[%s] Storing new operation queue task.", q.serverInstanceID)
 
-	err = q.updateTaskTime()
+	err = q.updateTaskTime(q.serverInstanceID)
+	if err != nil {
+		return nil, fmt.Errorf("update operation queue task time: %w", err)
+	}
+
+	err = q.updateTaskTime(detachedServerID)
 	if err != nil {
 		return nil, fmt.Errorf("update operation queue task time: %w", err)
 	}
@@ -177,7 +183,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 
 // Add publishes the given operation.
 func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
-	return q.post(
+	return q.publish(
 		&operationMessage{
 			ID: uuid.New().String(),
 			Operation: &operation.QueuedOperationAtTime{
@@ -188,7 +194,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 	)
 }
 
-func (q *Queue) post(op *operationMessage) (uint, error) {
+func (q *Queue) publish(op *operationMessage) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -211,7 +217,7 @@ func (q *Queue) post(op *operationMessage) (uint, error) {
 
 	err = q.pubSub.Publish(topic, msg)
 	if err != nil {
-		return 0, fmt.Errorf("publish queued operation: %w", err)
+		return 0, fmt.Errorf("publish queued operation [%s]: %w", op.ID, err)
 	}
 
 	return 0, nil
@@ -307,7 +313,7 @@ func (q *Queue) listen() {
 
 		case <-ticker.C:
 			// Update the task time so that other instances don't think I'm down.
-			if err := q.updateTaskTime(); err != nil {
+			if err := q.updateTaskTime(q.serverInstanceID); err != nil {
 				logger.Warnf("Error updating time on operation queue task: %w", err)
 			}
 		}
@@ -321,7 +327,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	err := q.unmarshal(msg.Payload, op)
 	if err != nil {
-		logger.Errorf("Error unmarshalling operation: %s", err)
+		logger.Errorf("Error unmarshalling operation for message [%s]: %s", msg.UUID, err)
 
 		// Send an Ack so that the message is not retried.
 		msg.Ack()
@@ -342,7 +348,8 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		},
 	)
 	if err != nil {
-		logger.Warnf("Error storing operation info. The message will be nacked and retried: %w", err)
+		logger.Warnf("Error storing operation info for [%s]. Message [%s] will be nacked and retried: %w",
+			op.ID, msg.UUID, err)
 
 		msg.Nack()
 
@@ -390,6 +397,8 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 	return func() {
 		logger.Infof("%d operations were rolled back. Re-posting...", len(items))
 
+		var operationsToDelete []*queuedOperation
+
 		for _, op := range items {
 			if op.Retries >= q.maxRetries {
 				logger.Warnf("... not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
@@ -403,17 +412,27 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 			logger.Infof("... re-posting operation [%s] for suffix [%s], retries [%d]",
 				op.ID, op.Operation.UniqueSuffix, op.Retries)
 
-			if _, err := q.post(op.operationMessage); err != nil {
-				logger.Errorf("Error re-posting operation [%s]", op.ID)
+			if _, err := q.publish(op.operationMessage); err != nil {
+				logger.Errorf("Error re-posting operation [%s]. Operation will be detached from this server instance: %s",
+					op.ID, err)
 
-				return
+				if e := q.detachOperation(op); e != nil {
+					logger.Errorf("Failed to detach operation [%s] from this server instance: %s", op.ID, e)
+				} else {
+					logger.Infof("Operation [%s] was detached from this server instance since it could not be "+
+						"published to the queue. It will be retried at a later time.", op.ID)
+				}
+			} else {
+				operationsToDelete = append(operationsToDelete, op)
 			}
 		}
 
-		if err := q.deleteOperations(items); err != nil {
-			logger.Errorf("Error deleting operations: %s. Some (or all) of the operations "+
-				"will be left in the database and potentially reprocessed (which should be harmless). "+
-				"The operations should be deleted (at some point) by the data expiry service.", err)
+		if len(operationsToDelete) > 0 {
+			if err := q.deleteOperations(operationsToDelete); err != nil {
+				logger.Errorf("Error deleting operations: %s. Some (or all) of the operations "+
+					"will be left in the database and potentially reprocessed (which should be harmless). "+
+					"The operations should be deleted (at some point) by the data expiry service.", err)
+			}
 		}
 
 		// Batch rollback time is the time since the first operation was added (which is the
@@ -449,22 +468,36 @@ func (q *Queue) monitorOtherServers() {
 			continue
 		}
 
-		// This is not our task. Check to see if the server is still alive.
-		timeSinceLastUpdate := time.Since(time.Unix(task.UpdatedTime, 0)).Truncate(time.Second)
+		q.repostOperationsForTask(task)
+	}
+}
 
-		if timeSinceLastUpdate > q.taskExpiration {
-			logger.Warnf("[%s] Operation queue task [%s] was last updated %s ago which is longer than the expiry %s. "+
-				"Assuming the server is dead and re-posting any outstanding operations to the queue.",
-				q.serverInstanceID, task.ServerID, timeSinceLastUpdate, q.taskExpiration)
-
-			err = q.repostOperations(task.ServerID)
-			if err != nil {
-				logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
-					q.serverInstanceID, task.ServerID, err)
-
-				return
-			}
+func (q *Queue) repostOperationsForTask(task *opQueueTask) {
+	if task.ServerID == detachedServerID {
+		// Operations associated with the "detached" server ID are in error, most likely because the message
+		// queue service is unavailable and the operations could not be re-published. Try to repost the operations.
+		if err := q.repostOperations(task.ServerID); err != nil {
+			logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
+				q.serverInstanceID, task.ServerID, err)
 		}
+
+		return
+	}
+
+	// This is not our task. Check to see if the server is still alive.
+	timeSinceLastUpdate := time.Since(time.Unix(task.UpdatedTime, 0)).Truncate(time.Second)
+
+	if timeSinceLastUpdate <= q.taskExpiration {
+		return
+	}
+
+	logger.Warnf("[%s] Operation queue task [%s] was last updated %s ago which is longer than the expiry %s. "+
+		"Assuming the server is dead and re-posting any outstanding operations to the queue.",
+		q.serverInstanceID, task.ServerID, timeSinceLastUpdate, q.taskExpiration)
+
+	if err := q.repostOperations(task.ServerID); err != nil {
+		logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
+			q.serverInstanceID, task.ServerID, err)
 	}
 }
 
@@ -498,9 +531,9 @@ func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.Queue
 	return ops
 }
 
-func (q *Queue) updateTaskTime() error {
+func (q *Queue) updateTaskTime(instanceID string) error {
 	task := &opQueueTask{
-		ServerID:    q.serverInstanceID,
+		ServerID:    instanceID,
 		UpdatedTime: time.Now().Unix(),
 	}
 
@@ -509,7 +542,7 @@ func (q *Queue) updateTaskTime() error {
 		return fmt.Errorf("marshal operation queue task: %w", err)
 	}
 
-	err = q.store.Put(q.serverInstanceID, taskBytes, storage.Tag{Name: tagOpQueueTask})
+	err = q.store.Put(instanceID, taskBytes, storage.Tag{Name: tagOpQueueTask})
 	if err != nil {
 		return fmt.Errorf("store operation queue task: %w", err)
 	}
@@ -517,7 +550,7 @@ func (q *Queue) updateTaskTime() error {
 	return nil
 }
 
-func (q *Queue) repostOperations(serverID string) error {
+func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclop
 	it, err := q.store.Query(fmt.Sprintf("%s:%s", tagServerID, serverID))
 	if err != nil {
 		return fmt.Errorf("query operations with tag [%s]: %w", serverID, err)
@@ -546,18 +579,15 @@ func (q *Queue) repostOperations(serverID string) error {
 
 		op.Retries++
 
-		logger.Debugf("[%s] Re-posting operation [%s] for suffix [%s]",
+		logger.Infof("[%s] Re-posting operation [%s] for suffix [%s]",
 			q.serverInstanceID, op.ID, op.Operation.UniqueSuffix)
 
-		_, e = q.post(op)
-		if e != nil {
-			return fmt.Errorf("unmarshal operation [%s]: %w", op.ID, e)
+		if _, e = q.publish(op); e != nil {
+			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
 		}
 
 		batchOperations = append(batchOperations, storage.Operation{Key: key})
 	}
-
-	logger.Infof("[%s] Deleting operation queue task [%s]", q.serverInstanceID, serverID)
 
 	if len(batchOperations) > 0 {
 		logger.Infof("[%s] Deleting %d operations for queue task [%s]",
@@ -569,9 +599,13 @@ func (q *Queue) repostOperations(serverID string) error {
 		}
 	}
 
-	err = q.store.Delete(serverID)
-	if err != nil {
-		return fmt.Errorf("delete operation queue task [%s]: %w", q.serverInstanceID, err)
+	if serverID != detachedServerID {
+		logger.Infof("[%s] Deleting operation queue task [%s]", q.serverInstanceID, serverID)
+
+		err = q.store.Delete(serverID)
+		if err != nil {
+			return fmt.Errorf("delete operation queue task [%s]: %w", q.serverInstanceID, err)
+		}
 	}
 
 	return nil
@@ -630,6 +664,24 @@ func (q *Queue) nextOperation(it storage.Iterator) (string, *operationMessage, b
 	}
 
 	return key, op, true, nil
+}
+
+func (q *Queue) detachOperation(op *queuedOperation) error {
+	opBytes, err := q.marshal(op)
+	if err != nil {
+		return fmt.Errorf("marshal operation [%s]: %w", op.ID, err)
+	}
+
+	return q.store.Put(op.key, opBytes,
+		storage.Tag{
+			Name:  tagServerID,
+			Value: detachedServerID,
+		},
+		storage.Tag{
+			Name:  tagOpExpiry,
+			Value: fmt.Sprintf("%d", time.Now().Add(q.opExpiration).Unix()),
+		},
+	)
 }
 
 func resolveConfig(cfg Config) Config {
