@@ -16,7 +16,6 @@ services:
       - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
-      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=172.20.0.23:443
       - ORB_HOST_METRICS_URL=172.20.0.23:48327
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -85,7 +84,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
@@ -154,7 +153,6 @@ services:
       - ORB_KMS_TYPE=web
       - ORB_KMS_ENDPOINT=http://orb.kms:7878
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
-      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       - ORB_HOST_URL=172.20.0.2:443
       - ORB_HOST_METRICS_URL=172.20.0.2:48527
       # add delay for starting additional servers within same domain (in seconds)
@@ -221,7 +219,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
@@ -356,7 +354,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
@@ -457,7 +455,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)
@@ -507,7 +505,6 @@ services:
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
       - ORB_HOST_URL=172.20.0.6:443
       - ORB_HOST_METRICS_URL=172.20.0.6:48627
-      - ORB_VCT_URL=http://orb.vct:8077/maple2020
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -567,7 +564,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/outbox||admin,/services/orb/inbox||admin,/sidetree/.*/operations||admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/outbox||admin,/services/orb/inbox||admin,/sidetree/.*/operations||admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN
       # ORB_CLIENT_AUTH_TOKENS_DEF follows the same rules as ORB_AUTH_TOKENS_DEF but is used by the Orb client transport to
@@ -694,7 +691,7 @@ services:
       # - The client requires a 'read' or 'admin' token in order to view the outbox's contents
       # - The client requires an 'admin' token in order to post to the outbox
       # - The client requires a 'read' or 'admin' token in order to perform a GET on any endpoint starting with /services/orb/
-      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log||admin,/policy||admin
+      - ORB_AUTH_TOKENS_DEF=/services/orb/keys,/services/orb/outbox|admin&read|admin,/services/orb/inbox|admin&read|admin,/services/orb/acceptlist|admin&read|admin,/services/orb/.*|read&admin,/transactions|read&admin,/sidetree/.*/identifiers|read&admin,/sidetree/.*/operations|read&admin|admin,/cas|read&admin,/log-monitor||admin,/log||admin,/policy||admin
       # ORB_AUTH_TOKENS specifies the actual values of the tokens defined in ORB_AUTH_TOKENS_DEF.
       - ORB_AUTH_TOKENS=admin=ADMIN_TOKEN,read=READ_TOKEN
       # FOLLOW_AUTH_POLICY indicates whether a 'Follow' request is automatically accepted by this service (accept-all policy)

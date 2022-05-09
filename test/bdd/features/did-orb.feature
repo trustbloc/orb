@@ -101,11 +101,19 @@ Feature:
   @vct_log_rotation_test
   Scenario: various did doc operations
     Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/log-monitor" is set to "ADMIN_TOKEN"
 
     Then we wait 2 seconds
 
     # domain1 will start following 2022 VCT log
     When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2022" of type "text/plain"
+
+    And variable "activateLog" is assigned the JSON value '{"activate":["http://orb.vct:8077/maple2022"]}'
+    And variable "deactivateLog" is assigned the JSON value '{"deactivate":["http://orb.vct:8077/maple2022"]}'
+
+    # next step would be to provide endpoint for listing active and inactive logs in order to check the following two steps
+    When an HTTP POST is sent to "https://orb.domain1.com/log-monitor" with content "${deactivateLog}" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain1.com/log-monitor" with content "${activateLog}" of type "text/plain"
 
   @all
   @discover_did_hashlink
