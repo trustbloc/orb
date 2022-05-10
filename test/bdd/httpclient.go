@@ -153,7 +153,7 @@ func (c *httpClient) GetWithRetryFunc(url string, attempts int, shouldRetry func
 			break
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	return resp, nil

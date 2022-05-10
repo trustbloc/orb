@@ -9,6 +9,7 @@ package bdd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -24,6 +25,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cucumber/godog"
@@ -158,10 +160,51 @@ type DIDOrbSteps struct {
 	resolutionEndpoint string
 	operationEndpoint  string
 	sidetreeURL        string
-	createResponses    []*createDIDResponse
+	createResponses    *createResponses
 	updateResponses    []*updateDIDResponse
 	httpClient         *httpClient
 	didPrintEnabled    bool
+}
+
+type createResponses struct {
+	responses []*createDIDResponse
+	mutex     sync.RWMutex
+}
+
+func newCreateResponses() *createResponses {
+	return &createResponses{}
+}
+
+func (r *createResponses) Add(response *createDIDResponse) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	r.responses = append(r.responses, response)
+}
+
+func (r *createResponses) GetAll() []*createDIDResponse {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	return r.responses
+}
+
+func (r *createResponses) Get(ctx context.Context, n int) ([]*createDIDResponse, error) {
+	for {
+		select {
+		case <-time.After(100 * time.Millisecond):
+			r.mutex.RLock()
+			responses := r.responses
+			r.mutex.RUnlock()
+
+			if len(r.responses) >= n {
+				return responses[0:n], nil
+			}
+
+		case <-ctx.Done():
+			return nil, fmt.Errorf("wait for responses: %w", ctx.Err())
+		}
+	}
 }
 
 // NewDIDSideSteps
@@ -172,6 +215,7 @@ func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOr
 		namespace:       namespace,
 		httpClient:      newHTTPClient(state, context),
 		didPrintEnabled: true,
+		createResponses: newCreateResponses(),
 	}
 }
 
@@ -1287,7 +1331,7 @@ func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency in
 		localUrls[i] = localURL
 	}
 
-	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 1)
+	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 30)
 }
 
 func (d *DIDOrbSteps) createDIDDocumentsAsync(strURLs string, num int, concurrency int) error {
@@ -1306,7 +1350,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAsync(strURLs string, num int, concurren
 func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, attempts int) error {
 	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
 
-	d.createResponses = nil
+	d.createResponses = newCreateResponses()
 
 	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Create %d DID documents", num)))
 
@@ -1338,7 +1382,8 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, 
 	for _, resp := range p.responses {
 		req := resp.Request.(*createDIDRequest)
 		if resp.Err != nil {
-			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Create DID documents got error from [%s]: %s", req.url, resp.Err)
+
 			return resp.Err
 		}
 
@@ -1346,7 +1391,7 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, 
 
 		logger.Infof("got DID from [%s]: %s", req.url, createResp.did)
 
-		d.createResponses = append(d.createResponses, createResp)
+		d.createResponses.Add(createResp)
 	}
 
 	return nil
@@ -1416,7 +1461,9 @@ func (d *DIDOrbSteps) createDIDDocumentsWithRetriesAndStoreDIDsToFile(strURLs, s
 		}
 	}()
 
-	for _, resp := range d.createResponses {
+	responses := d.createResponses.GetAll()
+
+	for _, resp := range responses {
 		_, e := f.WriteString(fmt.Sprintf("%s\n", resp.did))
 		if e != nil {
 			return e
@@ -1428,13 +1475,38 @@ func (d *DIDOrbSteps) createDIDDocumentsWithRetriesAndStoreDIDsToFile(strURLs, s
 		return err
 	}
 
-	logger.Warnf("Wrote %d DIDs to file [%s]", len(d.createResponses), file)
+	logger.Warnf("Wrote %d DIDs to file [%s]", len(responses), file)
+
+	return nil
+}
+
+func (d *DIDOrbSteps) waitForCreateDIDDocuments(waitDuration string, num int) error {
+	wd, err := time.ParseDuration(waitDuration)
+	if err != nil {
+		return fmt.Errorf("invalid wait duration [%s]: %w", waitDuration, err)
+	}
+
+	logger.Infof("Waiting up to %s for %d DID documents to be created ...", wd, num)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(wd))
+	defer cancel()
+
+	startTime := time.Now()
+
+	_, err = d.createResponses.Get(ctx, num)
+	if err != nil {
+		return fmt.Errorf("failed to get %d DIDs after %s: %w", num, wd, err)
+	}
+
+	logger.Infof("... %d DID documents were successfully created after %s", num, time.Since(startTime))
 
 	return nil
 }
 
 func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurrency int) error {
-	num := len(d.createResponses)
+	responses := d.createResponses.GetAll()
+
+	num := len(responses)
 
 	logger.Infof("updating %d DID document(s) at %s using a concurrency of %d", num, strURLs, concurrency)
 
@@ -1459,7 +1531,7 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 			return err
 		}
 
-		createResp := d.createResponses[i]
+		createResp := responses[i]
 
 		createReq := &model.CreateRequest{}
 		if err := json.Unmarshal(createResp.reqBytes, createReq); err != nil {
@@ -1493,7 +1565,7 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 	for _, resp := range p.responses {
 		req := resp.Request.(*updateDIDRequest)
 		if resp.Err != nil {
-			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Update DID documents got error from [%s]: %s", req.url, resp.Err)
 			return resp.Err
 		}
 
@@ -1561,7 +1633,7 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 	for _, resp := range p.responses {
 		req := resp.Request.(*updateDIDRequest)
 		if resp.Err != nil {
-			logger.Infof("got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Update DID documents again got error from [%s]: %s", req.url, resp.Err)
 			return resp.Err
 		}
 
@@ -1572,11 +1644,13 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 }
 
 func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
-	logger.Infof("Verifying the %d DID document(s) that were created", len(d.createResponses))
+	responses := d.createResponses.GetAll()
+
+	logger.Infof("Verifying the %d DID document(s) that were created", len(responses))
 
 	urls := strings.Split(strURLs, ",")
 
-	for i, resp := range d.createResponses {
+	for i, resp := range responses {
 		randomURL := urls[mrand.Intn(len(urls))]
 
 		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
@@ -1584,14 +1658,14 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 			return err
 		}
 
-		canonicalID, err := d.verifyDID(localURL, resp.did, 25)
+		canonicalID, err := d.verifyDID(localURL, resp.did, 50)
 		if err != nil {
 			return err
 		}
 
-		d.createResponses[i].did = canonicalID
+		responses[i].did = canonicalID
 
-		logger.Infof("... verified %d out of %d DIDs", i+1, len(d.createResponses))
+		logger.Infof("... verified %d out of %d DIDs", i+1, len(responses))
 	}
 
 	return nil
@@ -1670,7 +1744,7 @@ func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) er
 		for attempt := 0; attempt < maxAttempts; attempt++ {
 			err = d.doVerifyUpdatedDIDContainsKeyID(urls, resp.did, keyID)
 			if err != nil {
-				logger.Infof("... updated DID %s not verified on attempt %d: %s", resp.did, attempt, err)
+				logger.Infof("... updated DID %s not verified on attempt %d: %s", resp.did, attempt+1, err)
 
 				time.Sleep(5 * time.Second)
 
@@ -1948,7 +2022,8 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		resp, respErr = r.httpClient.Post(u, reqBytes, "application/json")
 		if respErr != nil {
 			if r.shouldRetry(nil, respErr) {
-				logger.Infof("Error posting request to [%s]: %s. Retrying in %s", u, respErr, r.backoff)
+				logger.Infof("Error posting request to [%s] on attempt %d: %s. Retrying in %s",
+					u, i+1, respErr, r.backoff)
 
 				r.greylist.Add(u)
 
@@ -2078,6 +2153,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests storing the dids to file "([^"]*)"$`, d.createDIDDocumentsAndStoreDIDsToFile)
 	s.Step(`^client sends request to domains "([^"]*)" to create "([^"]*)" DID documents using "([^"]*)" concurrent requests and a maximum of "([^"]*)" attempts, storing the dids to file "([^"]*)"$`, d.createDIDDocumentsWithRetriesAndStoreDIDsToFile)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were created$`, d.verifyDIDDocuments)
+	s.Step(`^we wait up to "([^"]*)" for (\d+) DID documents to be created$`, d.waitForCreateDIDDocuments)
 	s.Step(`^client sends request to domains "([^"]*)" to verify the DID documents that were created from file "([^"]*)" with a maximum of "([^"]*)" attempts$`, d.verifyDIDDocumentsFromFile)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were updated with key "([^"]*)"$`, d.verifyUpdatedDIDDocuments)

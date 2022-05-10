@@ -35,6 +35,12 @@ func (d *DockerSteps) stopContainer(containerID string) error {
 	return err
 }
 
+func (d *DockerSteps) restartContainer(containerID string) error {
+	logger.Infof("Restarting Docker container [%s]", containerID)
+	_, err := d.BDDContext.Composition().issueCommand([]string{"restart", containerID})
+	return err
+}
+
 func (d *DockerSteps) pauseContainer(containerID string) error {
 	logger.Infof("Pausing Docker container [%s]", containerID)
 	_, err := d.BDDContext.Composition().issueCommand([]string{"pause", containerID})
@@ -73,4 +79,5 @@ func (d *DockerSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^container "([^"]*)" is paused$`, d.pauseContainer)
 	s.Step(`^container "([^"]*)" is unpaused$`, d.unpauseContainer)
 	s.Step(`^container "([^"]*)" is recreated$`, d.recreateContainer)
+	s.Step(`^container "([^"]*)" is restarted$`, d.restartContainer)
 }

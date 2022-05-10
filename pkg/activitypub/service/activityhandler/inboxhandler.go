@@ -1011,10 +1011,12 @@ func (h *Inbox) ensureActivityInOutbox(activity *vocab.ActivityType) (*vocab.Act
 	obActivity, err := h.getActivityFromOutbox(activity.ID().URL())
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			return nil, fmt.Errorf("get activity from outbox: %w", err)
+			return nil, fmt.Errorf("get activity [%s] of type %s from outbox: %w",
+				activity.ID(), activity.Type(), err)
 		}
 
-		return nil, orberrors.NewTransient(fmt.Errorf("get activity from outbox: %w", err))
+		return nil, orberrors.NewTransient(fmt.Errorf("get activity [%s] of type %s from outbox: %w",
+			activity.ID(), activity.Type(), err))
 	}
 
 	// Ensure the activity in the outbox is the same as the given activity.

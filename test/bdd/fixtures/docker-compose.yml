@@ -37,6 +37,15 @@ services:
       - IPFS_URL=ipfs:5001
       - IPFS_TIMEOUT=10s
       - MQ_URL=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@orb.mq.domain1.com:5672/
+      # MQ_REDELIVERY_INITIAL_INTERVAL is the delay for the initial redelivery attempt (default is 2s).
+      - MQ_REDELIVERY_INITIAL_INTERVAL=2s
+      # MQ_REDELIVERY_MULTIPLIER is the multiplier for a redelivery attempt. For example, if set to 1.5 and
+      #	the previous redelivery interval was 2s then the next redelivery interval is set 3s (default is 1.5).
+      - MQ_REDELIVERY_MULTIPLIER=1.5
+      # MQ_REDELIVERY_MAX_INTERVAL is the maximum delay for a redelivery (default is 30s).
+      - MQ_REDELIVERY_MAX_INTERVAL=30s
+      # MQ_REDELIVERY_MAX_ATTEMPTS Specifies the maximum number of redelivery attempts for a failed message (default is 20).
+      - MQ_REDELIVERY_MAX_ATTEMPTS=20
       # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
       - OP_QUEUE_POOL=10
       # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).
@@ -56,6 +65,8 @@ services:
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=50
+      # MQ_PUBLISHER_CONFIRM_DELIVERY turns on delivery confirmation of published messages (default true).
+      - MQ_PUBLISHER_CONFIRM_DELIVERY=true
       - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain1.com

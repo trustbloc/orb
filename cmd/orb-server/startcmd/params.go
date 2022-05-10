@@ -117,11 +117,12 @@ const (
 	defaultAnchorStatusInProcessGracePeriod = 30 * time.Second
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	mqDefaultPublisherChannelPoolSize       = 25
+	mqDefaultPublisherConfirmDelivery       = true
 	mqDefaultObserverPoolSize               = 5
 	mqDefaultOutboxPoolSize                 = 5
 	mqDefaultInboxPoolSize                  = 5
 	mqDefaultConnectMaxRetries              = 25
-	mqDefaultRedeliveryMaxAttempts          = 10
+	mqDefaultRedeliveryMaxAttempts          = 20
 	mqDefaultRedeliveryMultiplier           = 1.5
 	mqDefaultRedeliveryInitialInterval      = 2 * time.Second
 	mqDefaultRedeliveryMaxInterval          = 30 * time.Second
@@ -137,8 +138,8 @@ const (
 	opQueueDefaultPoolSize                = 5
 	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
 	opQueueDefaultTaskExpiration          = 30 * time.Second
-	opQueueDefaultMaxReposts              = 10
-	opQueueOperationExpirationGracePeriod = time.Minute
+	opQueueDefaultMaxReposts              = 20
+	opQueueOperationExpirationGracePeriod = 10 * time.Minute
 	splitRequestTokenLength               = 2
 	vctReadTokenKey                       = "vct-read"
 	vctWriteTokenKey                      = "vct-write"
@@ -301,6 +302,13 @@ const (
 		"If set to 0 then a channel pool is not used and a new channel is opened/closed for every publish to a queue." +
 		commonEnvVarUsageText + mqPublisherChannelPoolSizeEnvKey
 
+	mqPublisherConfirmDeliveryFlagName  = "mq-publisher-confirm-delivery"
+	mqPublisherConfirmDeliveryEnvKey    = "MQ_PUBLISHER_CONFIRM_DELIVERY"
+	mqPublisherConfirmDeliveryFlagUsage = "Turns on delivery confirmation of published messages (default is true). " +
+		"If set to true then the publisher waits until a confirmation is received from the AMQP server to guarantee " +
+		"that the message is delivered." +
+		commonEnvVarUsageText + mqPublisherConfirmDeliveryEnvKey
+
 	mqConnectMaxRetriesFlagName  = "mq-connect-max-retries"
 	mqConnectMaxRetriesEnvKey    = "MQ_CONNECT_MAX_RETRIES"
 	mqConnectMaxRetriesFlagUsage = "The maximum number of retries to connect to an AMQP service (default is 25). " +
@@ -308,7 +316,7 @@ const (
 
 	mqRedeliveryMaxAttemptsFlagName  = "mq-redelivery-max-attempts"
 	mqRedeliveryMaxAttemptsEnvKey    = "MQ_REDELIVERY_MAX_ATTEMPTS"
-	mqRedeliveryMaxAttemptsFlagUsage = "The maximum number of redelivery attempts for a failed message (default is 10). " +
+	mqRedeliveryMaxAttemptsFlagUsage = "The maximum number of redelivery attempts for a failed message (default is 20). " +
 		commonEnvVarUsageText + mqRedeliveryMaxAttemptsEnvKey
 
 	mqRedeliveryInitialIntervalFlagName  = "mq-redelivery-initial-interval"
@@ -349,7 +357,7 @@ const (
 	opQueueMaxRepostsFlagName  = "op-queue-max-reposts"
 	opQueueMaxRepostsEnvKey    = "OP_QUEUE_MAX_REPOSTS"
 	opQueueMaxRepostsFlagUsage = "The maximum number of times an operation may be reposted to the queue " +
-		"after having failed (default is 10). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
+		"after having failed (default is 20). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -1679,6 +1687,24 @@ func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64)
 	return value, nil
 }
 
+func getBool(cmd *cobra.Command, flagName, envKey string, defaultValue bool) (bool, error) {
+	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
+	}
+
+	return value, nil
+}
+
 type mqParams struct {
 	endpoint                   string
 	observerPoolSize           int
@@ -1686,6 +1712,7 @@ type mqParams struct {
 	inboxPoolSize              int
 	maxConnectionSubscriptions int
 	publisherChannelPoolSize   int
+	publisherConfirmDelivery   bool
 	maxConnectRetries          int
 	maxRedeliveryAttempts      int
 	redeliveryMultiplier       float64
@@ -1722,6 +1749,12 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 
 	mqPublisherChannelPoolSize, err := getInt(cmd, mqPublisherChannelPoolSizeFlagName,
 		mqPublisherChannelPoolSizeEnvKey, mqDefaultPublisherChannelPoolSize)
+	if err != nil {
+		return nil, err
+	}
+
+	mqPublisherConfirmDelivery, err := getBool(cmd, mqPublisherConfirmDeliveryFlagName,
+		mqPublisherConfirmDeliveryEnvKey, mqDefaultPublisherConfirmDelivery)
 	if err != nil {
 		return nil, err
 	}
@@ -1763,6 +1796,7 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		inboxPoolSize:              mqInboxPoolSize,
 		maxConnectionSubscriptions: mqMaxConnectionSubscriptions,
 		publisherChannelPoolSize:   mqPublisherChannelPoolSize,
+		publisherConfirmDelivery:   mqPublisherConfirmDelivery,
 		maxConnectRetries:          mqMaxConnectRetries,
 		maxRedeliveryAttempts:      mqMaxRedeliveryAttempts,
 		redeliveryMultiplier:       mqRedeliveryMultiplier,
@@ -1986,6 +2020,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqInboxPoolFlagName, "", "", mqInboxPoolFlagUsage)
 	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
 	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
+	startCmd.Flags().StringP(mqPublisherConfirmDeliveryEnvKey, "", "", mqPublisherConfirmDeliveryFlagUsage)
 	startCmd.Flags().StringP(mqConnectMaxRetriesFlagName, "", "", mqConnectMaxRetriesFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMaxAttemptsFlagName, "", "", mqRedeliveryMaxAttemptsFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryInitialIntervalFlagName, "", "", mqRedeliveryInitialIntervalFlagUsage)

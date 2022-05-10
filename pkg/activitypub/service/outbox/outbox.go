@@ -257,8 +257,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 
 		if err := h.handleResolveIRIs(activityMsg.Activity, activityMsg.TargetIRI.URL(),
 			activityMsg.ExcludeIRIs.URLs()); err != nil {
-			return nil, fmt.Errorf("handle 'resolve-and-deliver' message for activity [%s] to [%s]: %w",
-				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
+			return nil, fmt.Errorf("handle 'resolve-and-deliver' message for activity [%s] of type [%s] to [%s]: %w",
+				activityMsg.Activity.ID(), activityMsg.Activity.Type(), activityMsg.TargetIRI, err)
 		}
 
 		return activityMsg.Activity, nil
@@ -268,8 +268,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
 
 		if err := h.sendActivity(activityMsg.Activity, activityMsg.TargetIRI.URL()); err != nil {
-			return nil, fmt.Errorf("handle 'deliver' message for activity [%s] to [%s]: %w",
-				activityMsg.Activity.ID(), activityMsg.TargetIRI, err)
+			return nil, fmt.Errorf("handle 'deliver' message for activity [%s] of type [%s] to [%s]: %w",
+				activityMsg.Activity.ID(), activityMsg.Activity.Type(), activityMsg.TargetIRI, err)
 		}
 
 		return activityMsg.Activity, nil
