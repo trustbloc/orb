@@ -90,7 +90,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
-	github.com/rabbitmq/amqp091-go v1.2.0 // indirect
+	github.com/rabbitmq/amqp091-go v1.3.4 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -123,3 +123,5 @@ require (
 )
 
 replace github.com/trustbloc/orb => ../..
+
+replace github.com/ThreeDotsLabs/watermill-amqp/v2 => github.com/trustbloc/watermill-amqp/v2 v2.0.5-0.20220510153053-678b4a0b3cd6

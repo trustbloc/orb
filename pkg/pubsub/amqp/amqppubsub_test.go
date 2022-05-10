@@ -250,7 +250,9 @@ func TestAMQP_Error(t *testing.T) {
 		p.Start()
 		defer p.stop()
 
-		require.EqualError(t, p.Publish(topic), errPublish.Error())
+		err := p.Publish(topic)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errPublish.Error())
 	})
 }
 

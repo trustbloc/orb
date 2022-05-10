@@ -715,6 +715,7 @@ func startOrbServices(parameters *orbParameters) error {
 			URI:                        mqParams.endpoint,
 			MaxConnectionSubscriptions: mqParams.maxConnectionSubscriptions,
 			PublisherChannelPoolSize:   mqParams.publisherChannelPoolSize,
+			PublisherConfirmDelivery:   mqParams.publisherConfirmDelivery,
 			MaxConnectRetries:          mqParams.maxConnectRetries,
 			MaxRedeliveryAttempts:      mqParams.maxRedeliveryAttempts,
 			RedeliveryMultiplier:       mqParams.redeliveryMultiplier,

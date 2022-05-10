@@ -70,6 +70,7 @@ type Config struct {
 	RedeliveryInitialInterval  time.Duration
 	MaxRedeliveryInterval      time.Duration
 	PublisherChannelPoolSize   int
+	PublisherConfirmDelivery   bool
 }
 
 type closeable interface {
@@ -231,7 +232,11 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 	logger.Debugf("Publishing messages to topic [%s]", topic)
 
 	if err := p.publisher.Publish(topic, messages...); err != nil {
-		return errors.NewTransient(err)
+		for _, msg := range messages {
+			logger.Errorf("Error publishing message [%s] to topic: %s", msg.UUID, topic)
+		}
+
+		return errors.NewTransientf("publish messages to topic [%s]: %w", topic, err)
 	}
 
 	return nil
@@ -426,7 +431,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			return fmt.Errorf("publish message to queue [%s]: %w", queue, err)
 		}
 
-		logger.Infof("Successfully posted message [%s] for redelivery to queue [%s]", msg.UUID, queue)
+		logger.Infof("Successfully posted message [%s] for redelivery to queue [%s] after %d redelivery attempts",
+			msg.UUID, queue, redeliveryAttempts-1)
 
 		return nil
 	}
@@ -441,7 +447,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 		),
 	)
 	if err != nil {
-		return fmt.Errorf("publish message to queue [%s]: %w", waitQueue, err)
+		return fmt.Errorf("publish message to queue [%s] with expiration %s for redelivery attempt %d: %w",
+			waitQueue, expiration, redeliveryAttempts, err)
 	}
 
 	logger.Infof("Successfully posted message [%s] to queue [%s] with expiration %s for redelivery attempt %d",
@@ -807,6 +814,7 @@ func newDefaultQueueConfig(cfg Config) amqp.Config {
 		Publish: amqp.PublishConfig{
 			GenerateRoutingKey: func(queue string) string { return queue },
 			ChannelPoolSize:    cfg.PublisherChannelPoolSize,
+			ConfirmDelivery:    cfg.PublisherConfirmDelivery,
 		},
 		Consume: amqp.ConsumeConfig{
 			Qos:             amqp.QosConfig{PrefetchCount: 1},

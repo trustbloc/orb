@@ -28,7 +28,7 @@ require (
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/piprate/json-gold v0.4.1
 	github.com/prometheus/client_golang v1.11.0
-	github.com/rabbitmq/amqp091-go v1.2.0
+	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
@@ -127,3 +127,5 @@ require (
 )
 
 go 1.17
+
+replace github.com/ThreeDotsLabs/watermill-amqp/v2 => github.com/trustbloc/watermill-amqp/v2 v2.0.5-0.20220510153053-678b4a0b3cd6

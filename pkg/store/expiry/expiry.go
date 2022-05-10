@@ -171,6 +171,8 @@ func (r *registeredStore) deleteExpiredData(logger logger) { //nolint:funlen
 		operations := make([]storage.Operation, len(keysToDelete))
 
 		for i, key := range keysToDelete {
+			logger.Debugf("Deleting expired data for key [%s] in %s.", key, r.name)
+
 			operations[i] = storage.Operation{Key: key}
 		}
 

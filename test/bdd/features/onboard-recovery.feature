@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+@local_cas
 @orb-onboarding-and-recovery
 Feature:
   Background: Setup
@@ -56,22 +57,24 @@ Feature:
     When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # set witness policy for domain1
-    When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "OutOf(1,system)" of type "text/plain"
+    # set witness policy for domain2
+    When an HTTP POST is sent to "https://orb.domain2.com/policy" with content "OutOf(1,system)" of type "text/plain"
 
     Then we wait 5 seconds
 
-  @all
   @orb_domain_onboarding_recovery
   Scenario: Domain onboarding and recovery
     # Create and update a bunch of DIDs in the background.
-    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 500 DID documents using 3 concurrent requests in the background
-    Then we wait 2 seconds
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 200 DID documents using 3 concurrent requests in the background
+    Then we wait 3 seconds
 
-    # Stop an instance in domain2 (orb-domain2) while DIDs are still being created to ensure that the pending operations in orb-domain2's queue are reposted
-    # to the AMQP queue so that they are processed by the other instance (orb1-domain2.com).
-    Then container "orb-domain2" is stopped
+    # Stop an instance in domain2 (orb-domain2.backend) while DIDs are still being created to ensure that the pending operations in orb-domain2's queue are reposted
+    # to the AMQP queue so that they are processed by the other instance (orb1-domain2.backend).
+    Then container "orb-domain2.backend" is stopped
+    And we wait up to "2m" for 200 DID documents to be created
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
-    Then container "orb-domain2" is started
+    Then container "orb-domain2.backend" is started
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_1_1" using 10 concurrent requests
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_1_1"
@@ -82,7 +85,7 @@ Feature:
     # Don't wait for the updates to finish. On-board domain5 immediately and then verify them on domain5.
 
     # Onboard domain5 by asking to follow domain1 and domain2:
-    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(1,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
     Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
@@ -102,9 +105,15 @@ Feature:
     # --- domain1 server follows domain5 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
     Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain1 invites domain5 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain2 server follows domain5 server
     And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
     Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    # --- domain2 invites domain5 to be a witness
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
+    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # The synchronization process should kick in for domain5, i.e. domain5 will read all missed 'Create' and 'Announce'
     # activities from domain1 and domain2's outbox to figure out which events were missed (which should be all of them)
@@ -133,11 +142,17 @@ Feature:
     # Resolve the DIDs from domain5, which should have synced up with the other domains.
     Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_2_3"
 
-    # Create a bunch of DIDs on domain5 and make sure they're available on domain1 and domain2.
-    When client sends request to "https://orb.domain5.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
-    Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    # Test AMQP service restart:
+    # Create a bunch of DIDs on domain1, domain2, and domain5 in the background.
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations,https://orb.domain5.com/sidetree/v1/operations" to create 200 DID documents using 3 concurrent requests in the background
+    # Wait for domain5 to add some DID operations to it's queue.
+    And we wait 3 seconds
+    # Restart the AMQP server in domain5 while DIDs are still being created to ensure that pending operations
+    # in domain5's queue are recovered after the AMQP server comes online.
+    Then container "orb.mq.domain5.com" is restarted
+    And we wait up to "5m" for 200 DID documents to be created
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
-  @all
   @orb_domain_backup_and_restore
   Scenario: Backup and restore a domain
     # Onboard domain5 by asking to follow domain1 and domain2:

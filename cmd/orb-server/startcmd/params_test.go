@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
@@ -1182,6 +1182,7 @@ func TestGetMQParameters(t *testing.T) {
 		restoreOutboxPoolEnv := setEnv(t, mqOutboxPoolEnvKey, "4")
 		restoreInboxPoolEnv := setEnv(t, mqInboxPoolEnvKey, "7")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
+		restoreConfirmDeliveryEnv := setEnv(t, mqPublisherConfirmDeliveryEnvKey, "false")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
 		restoreConnectionRetriesEnv := setEnv(t, mqConnectMaxRetriesEnvKey, "12")
 		restoreRedeliveryMaxAttempts := setEnv(t, mqRedeliveryMaxAttemptsEnvKey, "17")
@@ -1196,6 +1197,7 @@ func TestGetMQParameters(t *testing.T) {
 			restoreInboxPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 			restoreChannelPoolEnv()
+			restoreConfirmDeliveryEnv()
 			restoreConnectionRetriesEnv()
 			restoreRedeliveryMaxAttempts()
 			restoreRedeliveryMultiplier()
@@ -1213,6 +1215,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, 7, mqParams.inboxPoolSize)
 		require.Equal(t, 456, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
+		require.False(t, mqParams.publisherConfirmDelivery)
 		require.Equal(t, 12, mqParams.maxConnectRetries)
 		require.Equal(t, 17, mqParams.maxRedeliveryAttempts)
 		require.Equal(t, 1.7, mqParams.redeliveryMultiplier)
@@ -1237,6 +1240,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, mqDefaultInboxPoolSize, mqParams.inboxPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionSubscriptions)
 		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
+		require.Equal(t, mqDefaultPublisherConfirmDelivery, mqParams.publisherConfirmDelivery)
 		require.Equal(t, mqDefaultRedeliveryMaxInterval, mqParams.maxRedeliveryInterval)
 		require.Equal(t, mqDefaultRedeliveryInitialInterval, mqParams.redeliveryInitialInterval)
 		require.Equal(t, mqDefaultRedeliveryMaxAttempts, mqParams.maxRedeliveryAttempts)
@@ -1259,6 +1263,20 @@ func TestGetMQParameters(t *testing.T) {
 
 	t.Run("Invalid publisher channel pool value -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "xxx")
+
+		defer func() {
+			restoreEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid publisher confirm delivery -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqPublisherConfirmDeliveryEnvKey, "xxx")
 
 		defer func() {
 			restoreEnv()
