@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/store/logmonitor"
 )
 
 const (
@@ -23,7 +25,7 @@ const (
 	deactivatePayload = `{"deactivate": ["https://vct.com/log", "https://second.com/log"]}`
 )
 
-func TestNewActivate(t *testing.T) {
+func TestNew(t *testing.T) {
 	handler := NewUpdateHandler(&mockLogMonitorStore{})
 	require.NotNil(t, handler)
 	require.Equal(t, endpoint, handler.Path())
@@ -244,7 +246,9 @@ func (errReader) Read(p []byte) (n int, err error) {
 }
 
 type mockLogMonitorStore struct {
-	Err error
+	Err          error
+	ActiveLogs   []*logmonitor.LogMonitor
+	InactiveLogs []*logmonitor.LogMonitor
 }
 
 func (m *mockLogMonitorStore) Activate(_ string) error {
@@ -253,4 +257,20 @@ func (m *mockLogMonitorStore) Activate(_ string) error {
 
 func (m *mockLogMonitorStore) Deactivate(_ string) error {
 	return m.Err
+}
+
+func (m *mockLogMonitorStore) GetActiveLogs() ([]*logmonitor.LogMonitor, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+
+	return m.ActiveLogs, nil
+}
+
+func (m *mockLogMonitorStore) GetInactiveLogs() ([]*logmonitor.LogMonitor, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+
+	return m.InactiveLogs, nil
 }

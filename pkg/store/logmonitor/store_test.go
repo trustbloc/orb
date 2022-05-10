@@ -402,9 +402,22 @@ func TestStore_GetActiveLogs(t *testing.T) {
 		err = s.Activate(testLog)
 		require.NoError(t, err)
 
-		logs, err := s.GetActiveLogs()
+		err = s.Deactivate(testLog)
 		require.NoError(t, err)
-		require.NotEmpty(t, logs)
+
+		err = s.Activate("https://first.com/log")
+		require.NoError(t, err)
+
+		err = s.Activate("https://second.com/log")
+		require.NoError(t, err)
+
+		activeLogs, err := s.GetActiveLogs()
+		require.NoError(t, err)
+		require.Equal(t, 2, len(activeLogs))
+
+		inactiveLogs, err := s.GetInactiveLogs()
+		require.NoError(t, err)
+		require.Equal(t, 1, len(inactiveLogs))
 	})
 	t.Run("error - query error", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
@@ -435,6 +448,11 @@ func TestStore_GetActiveLogs(t *testing.T) {
 		require.NoError(t, err)
 
 		logs, err := s.GetActiveLogs()
+		require.Error(t, err)
+		require.Nil(t, logs)
+		require.Equal(t, err.Error(), orberrors.ErrContentNotFound.Error())
+
+		logs, err = s.GetInactiveLogs()
 		require.Error(t, err)
 		require.Nil(t, logs)
 		require.Equal(t, err.Error(), orberrors.ErrContentNotFound.Error())

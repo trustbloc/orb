@@ -15,6 +15,8 @@ import (
 
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	"github.com/trustbloc/orb/pkg/store/logmonitor"
 )
 
 const (
@@ -23,6 +25,7 @@ const (
 
 const (
 	badRequestResponse          = "Bad Request."
+	notFoundResponse            = "Not Found"
 	internalServerErrorResponse = "Internal Server Error."
 )
 
@@ -38,6 +41,8 @@ type UpdateHandler struct {
 type logMonitorStore interface {
 	Activate(logURL string) error
 	Deactivate(logURL string) error
+	GetActiveLogs() ([]*logmonitor.LogMonitor, error)
+	GetInactiveLogs() ([]*logmonitor.LogMonitor, error)
 }
 
 // Path returns the HTTP REST endpoint for the UpdateHandler service.
