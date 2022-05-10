@@ -24,9 +24,7 @@ Feature:
 
     # set up logs for domains
     When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
-    When an HTTP POST is sent to "https://orb.domain2.com/log" with content "" of type "text/plain"
     When an HTTP POST is sent to "https://orb.domain3.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
-    When an HTTP POST is sent to "https://orb.domain4.com/log" with content "" of type "text/plain"
 
   @activitypub_service
   Scenario: Get ActivityPub service

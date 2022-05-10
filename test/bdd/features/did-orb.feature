@@ -31,17 +31,13 @@ Feature:
 
     # set up logs for domains
     When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
-    When an HTTP POST is sent to "https://orb.domain2.com/log" with content "" of type "text/plain"
     When an HTTP POST is sent to "https://orb.domain3.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
-    When an HTTP POST is sent to "https://orb.domain4.com/log" with content "" of type "text/plain"
-    When an HTTP POST is sent to "https://orb.domain5.com/log" with content "" of type "text/plain"
 
     Then we wait 1 seconds
 
     When an HTTP GET is sent to "https://orb.domain1.com/log"
     Then the response equals "http://orb.vct:8077/maple2020"
-    When an HTTP GET is sent to "https://orb.domain2.com/log"
-    Then the response equals ""
+    When an HTTP GET is sent to "https://orb.domain2.com/log" and the returned status code is 404
 
     # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
     Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'

@@ -511,6 +511,10 @@ const (
 	activityPubPageSizeFlagUsage     = "The maximum page size for an ActivityPub collection or ordered collection. " +
 		commonEnvVarUsageText + activityPubPageSizeEnvKey
 
+	enableVCTFlagName  = "vct-enabled"
+	enableVCTFlagUsage = "Indicates if Orb server has VCT log configured."
+	enabledVCTEnvKey   = "VCT_ENABLED"
+
 	devModeEnabledFlagName = "enable-dev-mode"
 	devModeEnabledEnvKey   = "DEV_MODE_ENABLED"
 	devModeEnabledUsage    = `Set to "true" to enable dev mode. ` +
@@ -703,6 +707,7 @@ type orbParameters struct {
 	clientAuthTokens                        map[string]string
 	activityPubPageSize                     int
 	enableDevMode                           bool
+	enableVCT                               bool
 	nodeInfoRefreshInterval                 time.Duration
 	ipfsTimeout                             time.Duration
 	databaseTimeout                         time.Duration
@@ -1016,6 +1021,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 
 		didDiscoveryEnabled = enable
+	}
+
+	enableVCTStr := cmdutils.GetUserSetOptionalVarFromString(cmd, enableVCTFlagName, enabledVCTEnvKey)
+
+	enableVCT := defaultVCTEnabled
+	if enableVCTStr != "" {
+		enable, parseErr := strconv.ParseBool(enableVCTStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", enableVCTFlagName, parseErr)
+		}
+
+		enableVCT = enable
 	}
 
 	enableDevModeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, devModeEnabledFlagName, devModeEnabledEnvKey)
@@ -1401,6 +1418,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		clientAuthTokens:                        clientAuthTokens,
 		activityPubPageSize:                     activityPubPageSize,
 		enableDevMode:                           enableDevMode,
+		enableVCT:                               enableVCT,
 		nodeInfoRefreshInterval:                 nodeInfoRefreshInterval,
 		ipfsTimeout:                             ipfsTimeout,
 		databaseTimeout:                         databaseTimeout,
@@ -2054,6 +2072,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(clientAuthTokensFlagName, "", nil, clientAuthTokensFlagUsage)
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
+	startCmd.Flags().String(enableVCTFlagName, "false", enableVCTFlagUsage)
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
 	startCmd.Flags().StringP(ipfsTimeoutFlagName, ipfsTimeoutFlagShorthand, "", ipfsTimeoutFlagUsage)
 	startCmd.Flags().StringArrayP(contextProviderFlagName, "", []string{}, contextProviderFlagUsage)

@@ -15,7 +15,6 @@ Feature: Using Orb driver
       Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
 
       # set up logs for domains
-      When an HTTP POST is sent to "https://orb.domain2.com/log" with content "" of type "text/plain"
       When an HTTP POST is sent to "https://orb.domain3.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
 
     And orb-cli is executed with args 'acceptlist add --url https://localhost:48426/services/orb/acceptlist --actor https://orb.domain3.com/services/orb --type invite-witness --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
