@@ -55,11 +55,11 @@ type Store struct {
 
 // LogMonitor provides information about log monitor.
 type LogMonitor struct {
-	Log    string
-	STH    *command.GetSTHResponse
-	PubKey []byte
+	Log    string                  `json:"log_url"`
+	STH    *command.GetSTHResponse `json:"sth_response"`
+	PubKey []byte                  `json:"pub_key"`
 
-	Active bool
+	Active bool `json:"active"`
 }
 
 // Activate stores a log to be monitored. If it already exists active flag will be set to true.
@@ -197,18 +197,32 @@ func (s *Store) Delete(logURL string) error {
 
 // GetActiveLogs retrieves all active log monitors.
 func (s *Store) GetActiveLogs() ([]*LogMonitor, error) {
+	return s.getLogs(true)
+}
+
+// GetInactiveLogs retrieves all inactive log monitors.
+func (s *Store) GetInactiveLogs() ([]*LogMonitor, error) {
+	return s.getLogs(false)
+}
+
+func (s *Store) getLogs(active bool) ([]*LogMonitor, error) {
 	var err error
 
-	query := fmt.Sprintf("%s:%t", activeIndex, true)
+	label := "active"
+	if !active {
+		label = "inactive"
+	}
+
+	query := fmt.Sprintf("%s:%t", activeIndex, active)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active log monitors, query[%s]: %w", query, err)
+		return nil, fmt.Errorf("failed to get '%s' log monitors, query[%s]: %w", label, query, err)
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("iterator error for get active log monitors: %w", err)
+		return nil, fmt.Errorf("iterator error for get '%s' log monitors: %w", label, err)
 	}
 
 	if !ok {
@@ -220,7 +234,7 @@ func (s *Store) GetActiveLogs() ([]*LogMonitor, error) {
 	for ok {
 		value, err := iter.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get iterator value for active log monitors: %w", err)
+			return nil, fmt.Errorf("failed to get iterator value for '%s' log monitors: %w", label, err)
 		}
 
 		var logMonitor LogMonitor
@@ -234,11 +248,11 @@ func (s *Store) GetActiveLogs() ([]*LogMonitor, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterator error for active log monitors: %w", err)
+			return nil, fmt.Errorf("iterator error for '%s' log monitors: %w", label, err)
 		}
 	}
 
-	logger.Debugf("get active log monitors: %s", logMonitors)
+	logger.Debugf("get '%s' log monitors: %+v", label, logMonitors)
 
 	return logMonitors, nil
 }

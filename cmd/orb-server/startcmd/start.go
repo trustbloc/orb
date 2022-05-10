@@ -1143,6 +1143,7 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(policyhandler.New(configStore), authTokenManager),
 		auth.NewHandlerWrapper(policyhandler.NewRetriever(configStore), authTokenManager),
 		auth.NewHandlerWrapper(logmonitorhandler.NewUpdateHandler(logMonitorStore), authTokenManager),
+		auth.NewHandlerWrapper(logmonitorhandler.NewRetriever(logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(vcthandler.New(configStore, logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(vcthandler.NewRetriever(configStore), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
