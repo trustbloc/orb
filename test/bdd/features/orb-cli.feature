@@ -81,3 +81,9 @@ Feature: Using Orb CLI
     Then the JSON path '#(type="follow").url' of the response does not contain "https://orb.domainx.com/services/orb"
     And the JSON path '#(type="follow").url' of the response does not contain "https://orb.domainx.com/services/orb"
     And the JSON path '#(type="invite-witness").url' of the response does not contain "https://orb.domainz.com/services/orb"
+
+  @orb_cli_policy
+  Scenario: test witness policy using cli
+    When orb-cli is executed with args 'policy update --url https://localhost:48326/policy --policy "MinPercent(100,batch) AND OutOf(1,system)" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+    And orb-cli is executed with args 'policy get --url https://localhost:48326/policy --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    Then the response equals "MinPercent(100,batch) AND OutOf(1,system)"
