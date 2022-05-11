@@ -113,7 +113,12 @@ func (c *Store) getFromDB(issuerID, keyID string) (*verifier.PublicKey, error) {
 
 	pkBytes, err := c.store.Get(key)
 	if err != nil {
-		return nil, fmt.Errorf("get key - issuer [%s], key ID [%s]: %w", issuerID, keyID, err)
+		if errors.Is(err, storage.ErrDataNotFound) {
+			return nil, fmt.Errorf("get key - issuer [%s], key ID [%s]: %w", issuerID, keyID, err)
+		}
+
+		return nil, fmt.Errorf("database error getting public key for issuer [%s], key ID [%s]: %w",
+			issuerID, keyID, err)
 	}
 
 	logger.Infof("Public key found in storage for issuer [%s], key ID [%s]", issuerID, keyID)

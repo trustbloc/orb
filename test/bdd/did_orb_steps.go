@@ -197,7 +197,7 @@ func (r *createResponses) Get(ctx context.Context, n int) ([]*createDIDResponse,
 			responses := r.responses
 			r.mutex.RUnlock()
 
-			if len(r.responses) >= n {
+			if len(responses) >= n {
 				return responses[0:n], nil
 			}
 

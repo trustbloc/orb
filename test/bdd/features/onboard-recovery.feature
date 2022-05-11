@@ -156,7 +156,7 @@ Feature:
   @orb_domain_backup_and_restore
   Scenario: Backup and restore a domain
     # Onboard domain5 by asking to follow domain1 and domain2:
-    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
+    When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(1,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
     Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
@@ -189,13 +189,16 @@ Feature:
     # Take a backup of the domain5 database.
     When command "mongodump --out ./fixtures/mongodbbackup --host localhost --port 28017" is executed
 
-    # Create some DIDs on domain5, domain1, domain2.
-    When client sends request to "https://orb.domain5.com/sidetree/v1/operations,https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 50 DID documents using 10 concurrent requests
+    # Test database restart:
+
+    When client sends request to "https://orb.domain5.com/sidetree/v1/operations,https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to create 200 DID documents using 3 concurrent requests in the background
+    And we wait 5 seconds
+    Then container "mongodb.domain5.com" is restarted
+    And we wait up to "2m" for 200 DID documents to be created
     Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
-    Then we wait 5 seconds
+    # Test database restore:
 
-    # Update the DIDs on domain5, domain1, domain2.
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_3_1" using 10 concurrent requests
     Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
 
@@ -220,5 +223,5 @@ Feature:
     Then we wait 15 seconds
 
     # Ensure that domain5 has retrieved the anchor files (that were created after the backup) from alternate sources.
-    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
-    And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
