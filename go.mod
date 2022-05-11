@@ -6,7 +6,7 @@ module github.com/trustbloc/orb
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
-	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.3
+	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.5-0.20220511202644-f8efc8147ada
 	github.com/ThreeDotsLabs/watermill-http v1.1.3
 	github.com/bluele/gcache v0.0.2
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
@@ -127,5 +127,3 @@ require (
 )
 
 go 1.17
-
-replace github.com/ThreeDotsLabs/watermill-amqp/v2 => github.com/trustbloc/watermill-amqp/v2 v2.0.5-0.20220510153053-678b4a0b3cd6
