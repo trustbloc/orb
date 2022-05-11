@@ -165,6 +165,7 @@ const (
 	defaultVerifyLatestFromAnchorOrigin     = false
 	defaultLocalCASReplicateInIPFSEnabled   = false
 	defaultDevModeEnabled                   = false
+	defaultVCTEnabled                       = false
 	defaultCasCacheSize                     = 1000
 
 	unpublishedDIDLabel = "uAAA"
@@ -862,7 +863,7 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		pubSub, parameters.dataURIMediaType)
 
-	logEndpointRetriever := configclient.New(configStore)
+	logEndpointRetriever := getLogEndpointRetriever(parameters, configStore)
 
 	witness := vct.New(logEndpointRetriever, vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),
@@ -1530,6 +1531,26 @@ func getActivityPubSigners(parameters *orbParameters, km keyManager,
 	}
 
 	return
+}
+
+func getLogEndpointRetriever(parameters *orbParameters, cfgStore storage.Store) logEndpointRetriever {
+	if parameters.enableVCT {
+		return configclient.New(cfgStore)
+	}
+
+	logger.Warnf("VCT is disabled.")
+
+	return &noOpRetriever{}
+}
+
+type logEndpointRetriever interface {
+	GetLogEndpoint() (string, error)
+}
+
+type noOpRetriever struct{}
+
+func (r *noOpRetriever) GetLogEndpoint() (string, error) {
+	return "", nil
 }
 
 func getActivityPubVerifier(parameters *orbParameters, km keyManager,

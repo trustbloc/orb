@@ -379,6 +379,32 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for enable-http-signatures")
 	})
 
+	t.Run("test invalid vct enabled flag", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + enableVCTFlagName, "invalid bool",
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for vct-enabled")
+	})
+
 	t.Run("test invalid enable-did-discovery", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -1618,6 +1644,9 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err := os.Setenv(hostURLEnvKey, "localhost:8237")
 	require.NoError(t, err)
 
+	err = os.Setenv(enableVCTFlagName, "true")
+	require.NoError(t, err)
+
 	err = os.Setenv(casTypeEnvKey, casType)
 	require.NoError(t, err)
 
@@ -1732,6 +1761,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + hostMetricsURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + discoveryDomainFlagName, "shared.example.com",
+		"--" + enableVCTFlagName, "true",
 		"--" + ipfsURLFlagName, ipfsURL,
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
