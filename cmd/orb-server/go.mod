@@ -26,7 +26,7 @@ require (
 )
 
 require (
-	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.3 // indirect
+	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.5-0.20220511202644-f8efc8147ada // indirect
 	github.com/ThreeDotsLabs/watermill-http v1.1.3 // indirect
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -123,5 +123,3 @@ require (
 )
 
 replace github.com/trustbloc/orb => ../..
-
-replace github.com/ThreeDotsLabs/watermill-amqp/v2 => github.com/trustbloc/watermill-amqp/v2 v2.0.5-0.20220510153053-678b4a0b3cd6
