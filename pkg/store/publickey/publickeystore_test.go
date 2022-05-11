@@ -123,6 +123,7 @@ func TestStore_GetPublicKey(t *testing.T) {
 		pk, err := s.GetPublicKey("did:web:orb.domain1.com", "key1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+		require.Contains(t, err.Error(), "database error getting public key")
 		require.Nil(t, pk)
 	})
 
