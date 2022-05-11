@@ -534,13 +534,7 @@ func (e *Steps) createDID() error {
 }
 
 func (e *Steps) execute(argsStr string) error {
-	var args []string
-
-	for _, arg := range strings.Split(argsStr, " ") {
-		args = append(args, arg)
-	}
-
-	value, err := execCMD(args...)
+	value, err := execCMD(parseArgs(argsStr)...)
 	if err != nil {
 		return err
 	}
@@ -633,4 +627,37 @@ func sendHTTPRequest(httpClient *http.Client, request interface{}, headers map[s
 	}
 
 	return json.Unmarshal(responseBytes, response)
+}
+
+func parseArgs(argsStr string) []string {
+	var args []string
+
+	var current string
+
+	startStringIndex := -1
+
+	for i := 0; i < len(argsStr); i++ {
+		c := argsStr[i : i+1]
+
+		switch {
+		case c == "\"":
+			if startStringIndex == -1 {
+				startStringIndex = i
+			} else {
+				current = argsStr[startStringIndex+1 : i]
+				startStringIndex = -1
+			}
+		case c == " " && startStringIndex == -1:
+			args = append(args, current)
+			current = ""
+		default:
+			current += argsStr[i : i+1]
+		}
+	}
+
+	if current != "" {
+		args = append(args, current)
+	}
+
+	return args
 }

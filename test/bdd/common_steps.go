@@ -439,7 +439,7 @@ func (d *CommonSteps) valueOfJSONStringResponseSavedToVar(varName string) error 
 }
 
 func (d *CommonSteps) responseEquals(value string) error {
-	if d.state.getResponse() == value {
+	if strings.TrimSuffix(d.state.getResponse(), "\n") == value {
 		logger.Infof("Response equals expected value [%s]", value)
 		return nil
 	}
