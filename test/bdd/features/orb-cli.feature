@@ -87,8 +87,14 @@ Feature: Using Orb CLI
     And orb-cli is executed with args 'policy get --url https://localhost:48326/policy --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
     Then the response equals "MinPercent(100,batch) AND OutOf(1,system)"
 
+  @orb_cli_log
+  Scenario: test domain log management using cli
+    When orb-cli is executed with args 'log update --url https://localhost:48326/log --log "http://orb.vct:8077/maple2022" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+    And orb-cli is executed with args 'policy get --url https://localhost:48326/log --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    Then the response equals "http://orb.vct:8077/maple2022"
+
   @orb_cli_logmonitor
-  Scenario: test accept list management using cli
+  Scenario: test log monitor management using cli
     # Add log for monitoring.
     When orb-cli is executed with args 'logmonitor activate --url https://localhost:48326/log-monitor --log http://orb.vct:8077/maple2022 --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
 
