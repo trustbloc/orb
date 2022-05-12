@@ -17,6 +17,7 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/ipfskeygencmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetagencmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/ipnshostmetauploadcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/logmonitorcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/policycmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/recoverdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/resolvedidcmd"
@@ -64,6 +65,8 @@ func main() {
 	rootCmd.AddCommand(witnesscmd.GetCmd())
 	rootCmd.AddCommand(acceptlistcmd.GetCmd())
 	rootCmd.AddCommand(policycmd.GetCmd())
+
+	rootCmd.AddCommand(logmonitorcmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-cli: %s", err.Error())

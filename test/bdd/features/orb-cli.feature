@@ -86,3 +86,22 @@ Feature: Using Orb CLI
     When orb-cli is executed with args 'policy update --url https://localhost:48326/policy --policy "MinPercent(100,batch) AND OutOf(1,system)" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
     And orb-cli is executed with args 'policy get --url https://localhost:48326/policy --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
     Then the response equals "MinPercent(100,batch) AND OutOf(1,system)"
+
+  @orb_cli_logmonitor
+  Scenario: test accept list management using cli
+    # Add log for monitoring.
+    When orb-cli is executed with args 'logmonitor activate --url https://localhost:48326/log-monitor --log http://orb.vct:8077/maple2022 --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    Then we wait 1 seconds
+
+    When orb-cli is executed with args 'logmonitor get --url https://localhost:48326/log-monitor --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    Then the JSON path "active.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+
+     # Deactivate log - remove from log monitoring list.
+    When orb-cli is executed with args 'logmonitor deactivate --url https://localhost:48326/log-monitor --log http://orb.vct:8077/maple2022 --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    Then we wait 1 seconds
+
+    When orb-cli is executed with args 'logmonitor get --url https://localhost:48326/log-monitor --status inactive --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    Then the JSON path "inactive.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+
