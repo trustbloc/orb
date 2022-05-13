@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package logmonitorcmd
+package logcmd
 
 import (
 	"testing"
@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLogMonitorCmd(t *testing.T) {
+func TestLogCmd(t *testing.T) {
 	t.Run("test missing subcommand", func(t *testing.T) {
 		err := GetCmd().Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "expecting subcommand activate, deactivate, or get")
+		require.Contains(t, err.Error(), "expecting subcommand update or get")
 	})
 }
