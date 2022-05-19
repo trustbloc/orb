@@ -11,11 +11,11 @@ require (
 	github.com/aws/aws-sdk-go v1.42.33
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220428145156-7e6cf9acbc9e
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220425190739-5c1b81a74df6
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220425190739-5c1b81a74df6
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220425190801-5d239d542d7d
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220428163625-96d8261511e1
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b
 	github.com/piprate/json-gold v0.4.1
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
@@ -26,7 +26,7 @@ require (
 )
 
 require (
-	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.5-0.20220511202644-f8efc8147ada // indirect
+	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.6 // indirect
 	github.com/ThreeDotsLabs/watermill-http v1.1.3 // indirect
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -98,7 +98,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 // indirect
-	github.com/trustbloc/vct v1.0.0-rc1.0.20220426133750-e02ec33d2826 // indirect
+	github.com/trustbloc/vct v1.0.0-rc1.0.20220519143600-82122f0ed232 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

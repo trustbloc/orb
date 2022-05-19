@@ -121,18 +121,21 @@ func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 	// gets latest signed tree head to get the latest tree size.
 	sth, err := vctClient.GetSTH(context.Background())
 	if err != nil {
-		return fmt.Errorf("get STH: %w", err)
+		return fmt.Errorf("get STH from %s: %w", e.Domain, err)
 	}
 
-	// gets proof by hash
+	if sth.TreeSize == 0 {
+		return fmt.Errorf("tree size is zero for %s", e.Domain)
+	}
+
 	resp, err := vctClient.GetProofByHash(context.Background(), hash, sth.TreeSize)
 	if err != nil {
-		return fmt.Errorf("get proof by hash: %w", err)
+		return fmt.Errorf("get proof by hash from %s: %w", e.Domain, err)
 	}
 
-	// checks that audit path it not zero
-	if len(resp.AuditPath) < 1 {
-		return errors.New("audit path cannot be zero")
+	// An audit path must exist if there is more than one log entry.
+	if resp.LeafIndex > 0 && len(resp.AuditPath) == 0 {
+		return fmt.Errorf("no audit path in proof from %s for leaf index %d", e.Domain, resp.LeafIndex)
 	}
 
 	return nil
