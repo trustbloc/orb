@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
@@ -60,7 +60,7 @@ func TestNext(t *testing.T) {
 	require.True(t, Next(&mockNext{}))
 }
 
-func TestClient_Watch(t *testing.T) {
+func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
@@ -172,7 +172,60 @@ func TestClient_Watch(t *testing.T) {
 		checkQueue(t, db, 1)
 	})
 
-	t.Run("No audit path (escapes to queue)", func(t *testing.T) {
+	t.Run("Proof found -> success", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		taskMgr := mocks.NewTaskManager("vct-monitor")
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		var callNum int
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
+			switch callNum {
+			case 0:
+				callNum++
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			case 1:
+				callNum++
+
+				return &http.Response{
+					Body: ioutil.NopCloser(bytes.NewBufferString(
+						`{"leaf_index":1,"audit_path":["r7LiyrC61FBM2ylSs+V8o5r+9wppzAH0DYHbOqhYnl4="]}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			default:
+				return nil, errors.New("unexpected HTTP request")
+			}
+		}), taskMgr, time.Second, map[string]string{})
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: ID,
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWrapper{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		))
+
+		checkQueue(t, db, 0)
+	})
+
+	t.Run("Tree size is 0 (escapes to queue)", func(t *testing.T) {
 		var (
 			db = mem.NewProvider()
 			dl = testutil.GetLoader(t)
@@ -185,9 +238,113 @@ func TestClient_Watch(t *testing.T) {
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[]}`)),
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":0}`)),
 				StatusCode: http.StatusOK,
 			}, nil
+		}), taskMgr, time.Second, map[string]string{})
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: ID,
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWrapper{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		))
+
+		checkQueue(t, db, 1)
+	})
+
+	t.Run("No proof (escapes to queue)", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		taskMgr := mocks.NewTaskManager("vct-monitor")
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		var callNum int
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
+			switch callNum {
+			case 0:
+				callNum++
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			case 1:
+				callNum++
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`Not found`)),
+					StatusCode: http.StatusNotFound,
+				}, nil
+			default:
+				return nil, errors.New("unexpected HTTP request")
+			}
+		}), taskMgr, time.Second, map[string]string{})
+		require.NoError(t, err)
+
+		ID := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: ID,
+			Issuer:  verifiable.Issuer{ID: ID},
+			Issued:  &util.TimeWrapper{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Minute),
+			"https://vct.com", time.Now(),
+		))
+
+		checkQueue(t, db, 1)
+	})
+
+	t.Run("No audit path (escapes to queue)", func(t *testing.T) {
+		var (
+			db = mem.NewProvider()
+			dl = testutil.GetLoader(t)
+		)
+
+		taskMgr := mocks.NewTaskManager("vct-monitor")
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		var callNum int
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
+			switch callNum {
+			case 0:
+				callNum++
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			case 1:
+				callNum++
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"leaf_index":1}`)),
+					StatusCode: http.StatusOK,
+				}, nil
+			default:
+				return nil, errors.New("unexpected HTTP request")
+			}
 		}), taskMgr, time.Second, map[string]string{})
 		require.NoError(t, err)
 
@@ -541,7 +698,7 @@ func checkQueue(t *testing.T, db storage.Provider, expected int) {
 		count++
 	}
 
-	require.Equal(t, count, expected)
+	require.Equal(t, expected, count)
 }
 
 type dbMock struct {
