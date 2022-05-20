@@ -1029,6 +1029,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path '([^']*)' of the response equals "([^"]*)"$`, d.jsonPathOfResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
+	s.Step(`^the JSON path '([^']*)' of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfResponseHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfResponseContains)
 	s.Step(`^the JSON path '([^']*)' of the response contains "([^"]*)"$`, d.jsonPathOfResponseContains)

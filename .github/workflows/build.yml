@@ -53,6 +53,7 @@ jobs:
         timeout-minutes: 60
         run: |
           echo '127.0.0.1 orb.domain1.com' | sudo tee -a /etc/hosts
+          echo '127.0.0.1 orb.vct' | sudo tee -a /etc/hosts
           make bdd-test
 
       - uses: actions/upload-artifact@v2

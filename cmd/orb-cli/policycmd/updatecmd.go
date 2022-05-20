@@ -68,7 +68,7 @@ func getUpdateArgs(cmd *cobra.Command) (u, policy string, err error) {
 		return "", "", fmt.Errorf("invalid URL %s: %w", u, err)
 	}
 
-	policy, err = cmdutils.GetUserSetVarFromString(cmd, policyFlagName, typeEnvKey, false)
+	policy, err = cmdutils.GetUserSetVarFromString(cmd, policyFlagName, policyEnvKey, false)
 	if err != nil {
 		return "", "", err
 	}

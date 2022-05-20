@@ -247,6 +247,8 @@ func (e *Steps) cliResolveDID() error {
 		return err
 	}
 
+	e.state.setResponse(value)
+
 	if strings.Contains(value, e.createdDID.ID) {
 		return nil
 	}
@@ -466,6 +468,8 @@ func (e *Steps) updateDID() error {
 
 	e.cliValue = value
 
+	e.state.setResponse(value)
+
 	return nil
 }
 
@@ -530,10 +534,16 @@ func (e *Steps) createDID() error {
 
 	e.cliValue = value
 
+	e.state.setResponse(value)
+
 	return nil
 }
 
 func (e *Steps) execute(argsStr string) error {
+	if err := e.state.resolveVarsInExpression(&argsStr); err != nil {
+		return err
+	}
+
 	value, err := execCMD(parseArgs(argsStr)...)
 	if err != nil {
 		return err

@@ -23,7 +23,7 @@ Feature: Using Orb CLI
     And orb-cli is executed with args 'acceptlist add --url https://localhost:48426/services/orb/acceptlist --actor https://orb.domain1.com/services/orb --type invite-witness --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
 
   @orb_cli_did
-  Scenario: test create and update did doc using cli
+  Scenario: Create and update did doc using CLI and verify proofs in VCT log
     # domain2 server follows domain1 server
     When user create "follower" activity with outbox-url "https://localhost:48426/services/orb/outbox" actor "https://orb.domain2.com/services/orb" to "https://orb.domain1.com/services/orb" action "Follow"
     # domain1 invites domain2 to be a witness
@@ -32,7 +32,15 @@ Feature: Using Orb CLI
     When Create keys in kms
     When Orb DID is created through cli
     Then check cli created valid DID
-    Then Orb DID is resolved through cli
+    And we wait 3 seconds
+
+    When Orb DID is resolved through cli
+    Then the JSON path "didDocumentMetadata.versionId" of the response is saved to variable "anchorHash"
+    And we wait 3 seconds
+
+    When orb-cli is executed with args 'vct verify --cas-url https://localhost:48326/cas --anchor ${anchorHash} --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN --vct-auth-token=vctread'
+    Then the JSON path '#(domain=="http://orb.vct:8077/maple2020").found' of the boolean response equals "true"
+
     When Orb DID is updated through cli
     Then check cli updated DID
     When Orb DID is recovered through cli

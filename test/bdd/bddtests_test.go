@@ -114,7 +114,7 @@ func TestMain(m *testing.M) {
 		FeatureContext(s, state)
 	}, godog.Options{
 		Tags:          tags,
-		Format:        "progress",
+		Format:        "pretty",
 		Paths:         []string{"features"},
 		Randomize:     time.Now().UTC().UnixNano(), // randomize scenario execution order
 		Strict:        true,
