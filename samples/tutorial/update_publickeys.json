@@ -1,0 +1,14 @@
+[
+ {
+  "id": "key3",
+  "type": "Ed25519VerificationKey2018",
+  "purposes": ["authentication"],
+  "jwkPath": "jwk3.json"
+ },
+ {
+  "id": "key4",
+  "type": "JsonWebKey2020",
+  "purposes": ["authentication"],
+  "jwkPath": "jwk4.json"
+ }
+]

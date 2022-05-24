@@ -1,0 +1,16 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+  cli:
+    container_name: cli
+    image: ubuntu
+    restart: on-failure
+    command: /orb/cli.sh
+    volumes:
+      - ../../.build/extract/orb-cli-linux-amd64:/usr/local/sbin/orb-cli
+      - .:/orb

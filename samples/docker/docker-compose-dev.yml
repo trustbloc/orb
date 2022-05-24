@@ -1,0 +1,61 @@
+#
+# Copyright SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+services:
+
+  orb-domain1:
+    container_name: orb1.local
+    image: ghcr.io/trustbloc/orb:latest
+    restart: always
+    environment:
+      - ORB_HOST_URL=0.0.0.0:80
+      - ORB_EXTERNAL_ENDPOINT=http://orb1.local
+      - DID_NAMESPACE=did:orb
+      - ALLOWED_ORIGINS=http://orb1.local
+      - CAS_TYPE=local
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - DATABASE_TYPE=mem
+      - ORB_KMS_TYPE=local
+      - KMSSECRETS_DATABASE_TYPE=mem
+      - DEV_MODE_ENABLED=true
+      - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
+      - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
+      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
+      - DID_DISCOVERY_ENABLED=true
+      - BATCH_WRITER_TIMEOUT=1000
+    ports:
+      - 80:80
+    command: start
+    volumes:
+      - ./testdata/keys/domain1:/etc/orb/activitypub
+
+  orb-domain2:
+    container_name: orb2.local
+    image: ghcr.io/trustbloc/orb:latest
+    restart: always
+    environment:
+      - ORB_HOST_URL=0.0.0.0:80
+      - ORB_EXTERNAL_ENDPOINT=http://orb2.local
+      - DID_NAMESPACE=did:orb
+      - ALLOWED_ORIGINS=http://orb2.local
+      - CAS_TYPE=local
+      - ANCHOR_CREDENTIAL_SIGNATURE_SUITE=Ed25519Signature2018
+      - DATABASE_TYPE=mem
+      - ORB_KMS_TYPE=local
+      - KMSSECRETS_DATABASE_TYPE=mem
+      - DEV_MODE_ENABLED=true
+      - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
+      - INCLUDE_UNPUBLISHED_OPERATIONS_IN_METADATA=true
+      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
+      - DID_DISCOVERY_ENABLED=true
+      - BATCH_WRITER_TIMEOUT=1000
+    ports:
+      - 48426:443
+      - 48827:48827
+    command: start
+    volumes:
+      - ./testdata/keys/domain2:/etc/orb/activitypub
