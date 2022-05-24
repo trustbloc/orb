@@ -18,8 +18,8 @@ require (
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220428163625-96d8261511e1
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1.0.20220428163625-96d8261511e1
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220428154356-41d198a5fade
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220428211718-66cc046674a1
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/mr-tron/base58 v1.2.0

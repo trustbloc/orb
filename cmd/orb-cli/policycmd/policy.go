@@ -19,9 +19,9 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + urlEnvKey
 
 	policyFlagName  = "policy"
-	typeEnvKey      = "ORB_CLI_POLICY"
+	policyEnvKey    = "ORB_CLI_POLICY"
 	policyFlagUsage = `The witness policy. For example "MinPercent(100,batch) AND OutOf(1,system)".` +
-		" Alternatively, this can be set with the following environment variable: " + typeEnvKey
+		" Alternatively, this can be set with the following environment variable: " + policyEnvKey
 )
 
 // GetCmd returns the Cobra policy command.

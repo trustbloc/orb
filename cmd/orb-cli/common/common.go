@@ -369,7 +369,7 @@ func SendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 
 // SendHTTPRequest sends the given HTTP request using the options provided on the command-line.
 func SendHTTPRequest(cmd *cobra.Command, reqBytes []byte, method, endpointURL string) ([]byte, error) {
-	c, err := newHTTPClient(cmd)
+	c, err := NewHTTPClient(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +383,8 @@ func closeResponseBody(respBody io.Closer) {
 	}
 }
 
-func newHTTPClient(cmd *cobra.Command) (*http.Client, error) {
+// NewHTTPClient returns a new HTTP client using the arguments from the given command.
+func NewHTTPClient(cmd *cobra.Command) (*http.Client, error) {
 	rootCAs, err := getRootCAs(cmd)
 	if err != nil {
 		return nil, err
@@ -531,4 +532,18 @@ func (s *Signer) Headers() jws.Headers {
 // PublicKeyJWK return public key JWK.
 func (s *Signer) PublicKeyJWK() *jws.JWK {
 	return s.publicKey
+}
+
+// Printf prints to the given writer.
+func Printf(out io.Writer, msg string, args ...interface{}) {
+	if _, err := fmt.Fprintf(out, msg, args...); err != nil {
+		panic(err)
+	}
+}
+
+// Println prints a line to the given writer.
+func Println(out io.Writer, msg string) {
+	if _, err := fmt.Fprintln(out, msg); err != nil {
+		panic(err)
+	}
 }
