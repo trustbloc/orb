@@ -1,0 +1,12 @@
+[
+  {
+    "id": "svc3",
+    "type": "type3",
+    "priority": 1,
+    "recipientKeys": ["key3"],
+    "serviceEndpoint": {
+        "uri": "https://example.com",
+        "routingKeys": ["key3"]
+    }
+  }
+]
