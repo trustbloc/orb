@@ -177,13 +177,14 @@ func addUpdateFlags(cmd *cobra.Command) {
 }
 
 func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, verbose bool, err error) {
-	casURL = cmdutils.GetUserSetOptionalVarFromString(cmd, casURLFlagName, casURLEnvKey)
+	casURL, err = cmdutils.GetUserSetVarFromString(cmd, casURLFlagName, casURLEnvKey, false)
+	if err != nil {
+		return "", "", "", false, err
+	}
 
-	if casURL != "" {
-		_, err = url.Parse(casURL)
-		if err != nil {
-			return "", "", "", false, fmt.Errorf("invalid CAS URL %s: %w", casURL, err)
-		}
+	_, err = url.Parse(casURL)
+	if err != nil {
+		return "", "", "", false, fmt.Errorf("invalid CAS URL %s: %w", casURL, err)
 	}
 
 	anchorHash, err = cmdutils.GetUserSetVarFromString(cmd, anchorHashFlagName, anchorHashEnvKey, false)
@@ -202,21 +203,10 @@ func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, ve
 }
 
 func getVC(cmd *cobra.Command, anchorHash, casURL string, verbose bool) (*verifiable.Credential, error) {
-	var anchorLinksetBytes []byte
-
-	var err error
-
-	if casURL == "" {
-		anchorLinksetBytes, err = getFromIPFS(anchorHash)
-		if err != nil {
-			return nil, fmt.Errorf("get anchor linkset from IPFS: %w", err)
-		}
-	} else {
-		anchorLinksetBytes, err = common.SendHTTPRequest(cmd, nil, http.MethodGet,
-			fmt.Sprintf("%s/%s", casURL, anchorHash))
-		if err != nil {
-			return nil, fmt.Errorf("get anchor linkset from %s: %w", casURL, err)
-		}
+	anchorLinksetBytes, err := common.SendHTTPRequest(cmd, nil, http.MethodGet,
+		fmt.Sprintf("%s/%s", casURL, anchorHash))
+	if err != nil {
+		return nil, fmt.Errorf("get anchor linkset from %s: %w", casURL, err)
 	}
 
 	if verbose {
@@ -253,11 +243,6 @@ func getVC(cmd *cobra.Command, anchorHash, casURL string, verbose bool) (*verifi
 	}
 
 	return vc, nil
-}
-
-func getFromIPFS(string) ([]byte, error) {
-	// TODO: Add support for IPFS.
-	return nil, errors.New("IPFS not supported")
 }
 
 func newDocumentLoader() (jsonld.DocumentLoader, error) {
