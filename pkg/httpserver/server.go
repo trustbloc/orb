@@ -159,16 +159,20 @@ type healthCheckResp struct {
 	Version     string    `json:"version,omitempty"`
 }
 
-func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop
+func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop,funlen
 	mqStatus := ""
 	vctStatus := ""
 	dbStatus := ""
 	kmsStatus := ""
 
+	returnStatusServiceUnavailable := false
+
 	if s.pubSub != nil {
 		mqStatus = success
 
 		if err := s.pubSub.IsConnected(); err != nil {
+			returnStatusServiceUnavailable = true
+
 			mqStatus = err.Error()
 		}
 	}
@@ -177,6 +181,8 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		vctStatus = success
 
 		if err := s.vct.HealthCheck(); err != nil {
+			returnStatusServiceUnavailable = true
+
 			vctStatus = err.Error()
 		}
 	}
@@ -185,6 +191,8 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		dbStatus = success
 
 		if err := s.db.Ping(); err != nil {
+			returnStatusServiceUnavailable = true
+
 			dbStatus = err.Error()
 		}
 	}
@@ -193,11 +201,13 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		kmsStatus = success
 
 		if err := s.keyManager.HealthCheck(); err != nil {
+			returnStatusServiceUnavailable = true
+
 			kmsStatus = err.Error()
 		}
 	}
 
-	if mqStatus != success || vctStatus != success || dbStatus != success || kmsStatus != success {
+	if returnStatusServiceUnavailable {
 		rw.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		rw.WriteHeader(http.StatusOK)
