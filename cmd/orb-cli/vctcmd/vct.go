@@ -15,7 +15,7 @@ import (
 const (
 	casURLFlagName  = "cas-url"
 	casURLEnvKey    = "ORB_CAS_URL"
-	casURLFlagUsage = "The URL of the CAS endpoint. If not specified then IPFS is assumed." +
+	casURLFlagUsage = "The URL of the CAS endpoint." +
 		" Alternatively, this can be set with the following environment variable: " + casURLEnvKey
 
 	anchorHashFlagName  = "anchor"

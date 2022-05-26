@@ -30,8 +30,6 @@ services:
     ports:
       - 80:80
     command: start
-    volumes:
-      - ./testdata/keys/domain1:/etc/orb/activitypub
 
   orb-domain2:
     container_name: orb2.local
@@ -57,5 +55,3 @@ services:
       - 48426:443
       - 48827:48827
     command: start
-    volumes:
-      - ./testdata/keys/domain2:/etc/orb/activitypub

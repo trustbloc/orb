@@ -25,7 +25,7 @@ const (
 )
 
 func TestVerifyCmd(t *testing.T) {
-	t.Run("test missing url arg", func(t *testing.T) {
+	t.Run("test missing cas-url arg", func(t *testing.T) {
 		cmd := GetCmd()
 		cmd.SetArgs([]string{"verify"})
 
@@ -33,7 +33,7 @@ func TestVerifyCmd(t *testing.T) {
 
 		require.Error(t, err)
 		require.Equal(t,
-			"Neither anchor (command line flag) nor ORB_CLI_ANCHOR (environment variable) have been set.",
+			"Neither cas-url (command line flag) nor ORB_CAS_URL (environment variable) have been set.",
 			err.Error())
 	})
 
@@ -196,16 +196,6 @@ func TestExecuteVerify(t *testing.T) {
 		outStr := out.String()
 
 		require.Contains(t, outStr, `"error": "injected error"`)
-	})
-
-	t.Run("IPFS CAS -> error (not supported yet)", func(t *testing.T) {
-		cmd := newVerifyCmd(&mockVCTClientProvider{})
-
-		args := []string{}
-		args = append(args, anchorHashArg(anchorHash)...)
-		cmd.SetArgs(args)
-
-		require.Contains(t, cmd.Execute().Error(), "IPFS not supported")
 	})
 }
 
