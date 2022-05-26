@@ -342,7 +342,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			return nil, nil, err
 		}
 
-		awsSvc := awssvc.New(awsSession, metrics.Get())
+		awsSvc := awssvc.New(awsSession, metrics.Get(), parameters.kmsParams.vcSignActiveKeyID)
 
 		return awsSvc, awsSvc, nil
 	}
