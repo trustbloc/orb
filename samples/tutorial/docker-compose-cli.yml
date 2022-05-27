@@ -14,3 +14,5 @@ services:
     volumes:
       - ../../.build/extract/orb-cli-linux-amd64:/usr/local/sbin/orb-cli
       - .:/orb
+    networks:
+      - "orbnet"

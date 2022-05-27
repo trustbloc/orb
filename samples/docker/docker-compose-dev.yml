@@ -5,6 +5,15 @@
 #
 version: '2'
 
+networks:
+  orbnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.28.0.0/24"
+          gateway: "172.28.0.1"
+
 services:
 
   orb-domain1:
@@ -30,6 +39,8 @@ services:
     ports:
       - 80:80
     command: start
+    networks:
+      - "orbnet"
 
   orb-domain2:
     container_name: orb2.local
@@ -55,3 +66,5 @@ services:
       - 48426:443
       - 48827:48827
     command: start
+    networks:
+      - "orbnet"
