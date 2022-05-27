@@ -5,6 +5,15 @@
 #
 version: '2'
 
+networks:
+  orbnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.28.0.0/24"
+          gateway: "172.28.0.1"
+
 services:
   orb-domain1:
     container_name: orb1.local
@@ -30,6 +39,8 @@ services:
     ports:
       - 48326:80
     command: start
+    networks:
+      - "orbnet"
 
   orb-domain2:
     container_name: orb2.local
@@ -55,6 +66,8 @@ services:
     ports:
       - 48426:80
     command: start
+    networks:
+      - "orbnet"
 
   orb.vct:
     container_name: orb.vct
@@ -75,6 +88,8 @@ services:
       - orb.file-server.com
       - orb.postgres
     command: start
+    networks:
+      - "orbnet"
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
@@ -90,6 +105,8 @@ services:
       - orb.postgres
     ports:
       - 8090:8090
+    networks:
+      - "orbnet"
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
@@ -106,6 +123,8 @@ services:
       - orb.postgres
     ports:
       - 8091:8091
+    networks:
+      - "orbnet"
 
   orb.postgres:
     container_name: orb.postgres
@@ -116,6 +135,8 @@ services:
       - POSTGRES_DB=test
     ports:
       - 5432:5432
+    networks:
+      - "orbnet"
 
   orb.file-server.com: # file server for hosting static resources (e.g. JSON-LD contexts)
     container_name: orb.file-server.com
@@ -130,3 +151,5 @@ services:
       - 12096:12096
     volumes:
       - ./contexts:/data
+    networks:
+      - "orbnet"
