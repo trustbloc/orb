@@ -132,9 +132,7 @@ const docTemplate = `{
 	   "id": "didcomm",
 	   "type": "did-communication",
 	   "recipientKeys": ["%s"],
-	   "serviceEndpoint": {
-          "uri": "https://hub.example.com/.identity/did:example:0123456789abcdef/"
-       },
+	   "serviceEndpoint": "https://hub.example.com/.identity/did:example:0123456789abcdef/",
 	   "priority": 0
 	}
   ]
