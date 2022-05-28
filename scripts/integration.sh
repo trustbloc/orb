@@ -15,6 +15,9 @@ export ORB_KMS_ENDPOINT=http://localhost:7878
 export CAS_TYPE=local
 export COMPOSE_HTTP_TIMEOUT=120
 
+export PGUSER=postgres
+export PGPASSWORD=password
+
 export DOCKER_COMPOSE_FILE=docker-compose.yml
 
 cd test/bdd
