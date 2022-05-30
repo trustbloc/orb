@@ -70,20 +70,20 @@ Q7UGQKWNHeITH8NQlkmcySEKnaI9uyOkcb6TIvklapHCAF8cUf1kCHU10Eo0RTMI
     "type": "type1",
     "priority": 1,
     "recipientKeys": ["key1"],
-    "serviceEndpoint": {
+    "serviceEndpoint": [{
         "uri": "https://example.com",
         "routingKeys": ["key1"]
-    }
+    }]
   },
   {
     "id": "svc2",
     "type": "type2",
     "priority": 2,
     "recipientKeys": ["key2"],
-    "serviceEndpoint": {
+    "serviceEndpoint": [{
         "uri": "https://example.com",
         "routingKeys": ["key2"]
-    }
+    }]
   }
 ]`
 )

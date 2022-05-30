@@ -434,7 +434,7 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 
 	didDoc.Service = []ariesdid.Service{{
 		ID: serviceID, Type: "type",
-		ServiceEndpoint: model.Endpoint{URI: svcEndpoint},
+		ServiceEndpoint: model.NewDIDCommV1Endpoint(svcEndpoint),
 	}}
 
 	startTime := time.Now()
@@ -461,7 +461,7 @@ func (e *StressSteps) updateDID(didID string, svcEndpoint string, vdr *orb.VDR,
 	didDoc.Service = []ariesdid.Service{{
 		ID:              serviceID,
 		Type:            "type",
-		ServiceEndpoint: model.Endpoint{URI: svcEndpoint}},
+		ServiceEndpoint: model.NewDIDCommV1Endpoint(svcEndpoint)},
 	}
 
 	for _, vm := range verMethodsCreate {
@@ -811,7 +811,12 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		resolveUpdateHTTPTime = append(resolveUpdateHTTPTime, endTimeMS)
 
-		if err == nil && docResolution.DIDDocument.Service[0].ServiceEndpoint.URI == r.svcEndpoint {
+		uri, err := docResolution.DIDDocument.Service[0].ServiceEndpoint.URI()
+		if err != nil {
+			return nil, err
+		}
+
+		if err == nil && uri == r.svcEndpoint {
 			break
 		}
 

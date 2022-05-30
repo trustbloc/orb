@@ -4,9 +4,9 @@
     "type": "type3",
     "priority": 3,
     "recipientKeys": ["key3"],
-    "serviceEndpoint": {
+    "serviceEndpoint": [{
       "uri": "https://example.com",
       "routingKeys": ["key3"]
-    }
+    }]
   }
 ]
