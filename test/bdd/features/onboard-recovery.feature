@@ -223,3 +223,74 @@ Feature:
     # Ensure that domain5 has retrieved the anchor files (that were created after the backup) from alternate sources.
     Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
     And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
+
+
+  @vct_backup_and_restore
+  Scenario: Backup VCT database and restore VCT database from backup
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    # Take a backup of VCT database (tree size = X)
+    # JSON-LD contexts are also stored in Postgres so there will be more than one db (test + JSON-LD contexts)
+    When command "pg_dumpall -f pgdbbackup -h localhost -p 5432" is executed
+
+    # Create two DIDs to advance tree size before restoring from backup
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    # Wait for Orb to reach X + 2 tree size
+    Then we wait 10 seconds
+
+    # Wipe out VCT database by recreating the postgres container
+    And container "orb.postgres" is recreated
+    Then we wait 2 seconds
+
+    # Restore the VCT database from backup (original tree size is smaller than Orb tree size)
+    Then command "psql -h localhost -p 5432 -f pgdbbackup" is executed
+    And command "rm -rf pgdbbackup" is executed
+
+    # VCT tree size is behind - wait for monitor to generate error in log
+    # validation failed: first_tree_size 'X' and second_tree_size 'Y' values is not a valid range
+    Then we wait 12 seconds
+
+    # create three more DIDs for VCT tree size to catch up to Orb tree size
+    # monitoring will start working after two DIDs have been created because VCT tree size will reach Orb tree size
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    # VCT tree size is caching up to Orb tree size - wait for monitor to stop generating errors in the log
+    Then we wait 10 seconds

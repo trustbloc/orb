@@ -894,8 +894,8 @@ services:
     image: postgres:13
     restart: always
     environment:
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=test
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_DB=${PGDATABASE}
     ports:
       - 5432:5432
     networks:
@@ -909,7 +909,7 @@ services:
     command:
       - --quota_system=noop
       - --storage_system=postgres
-      - --pg_conn_str=user=postgres host=orb.postgres password=password dbname=test port=5432 sslmode=disable
+      - --pg_conn_str=user=${PGUSER} host=orb.postgres password=${PGPASSWORD} dbname=${PGDATABASE} port=5432 sslmode=disable
       - --rpc_endpoint=172.20.0.11:8090
       - --logtostderr
     depends_on:
@@ -927,7 +927,7 @@ services:
     command:
       - --quota_system=noop
       - --storage_system=postgres
-      - --pg_conn_str=user=postgres host=orb.postgres password=password dbname=test port=5432 sslmode=disable
+      - --pg_conn_str=user=${PGUSER} host=orb.postgres password=${PGPASSWORD} dbname=${PGDATABASE} port=5432 sslmode=disable
       - --http_endpoint=172.20.0.12:8091
       - --force_master=true
       - --logtostderr
@@ -1000,7 +1000,7 @@ services:
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
       - VCT_TLS_SYSTEMCERTPOOL=true
-      - VCT_DSN=postgres://postgres:password@orb.postgres:5432
+      - VCT_DSN=postgres://postgres:${PGPASSWORD}@orb.postgres:5432
       - VCT_DATABASE_PREFIX=vct
       - VCT_API_READ_TOKEN=vctread
       - VCT_API_WRITE_TOKEN=vctwrite
