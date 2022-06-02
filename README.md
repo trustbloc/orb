@@ -34,9 +34,9 @@ creating/resolving sample DIDs. (These are located in ./test/bdd/features.) Afte
 1. `cd test/bdd`
 2. `DISABLE_COMPOSITION=true go test`
 
-(Note that one of the tests, _orb_domain_backup_and_restore_, requires that
+(Note that _orb_domain_backup_and_restore_ test requires that
 [MongoDB Tools](https://www.mongodb.com/docs/database-tools/installation/installation/)
-is installed.)
+is installed and _vct_backup_and_restore_ test requires that Command Line Tools, part of [PostgreSQL](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads) is installed.)
 
 You can run individual tests using the -run option, for example:
 
