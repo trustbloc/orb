@@ -24,10 +24,23 @@ import (
 const (
 	nameSpace = "log-entry"
 
-	logTagName   = "Log"
-	indexTagName = "Index"
+	logTagName    = "Log"
+	indexTagName  = "Index"
+	statusTagName = "Status"
 
 	defaultPageSize = 500
+)
+
+// EntryStatus defines valid values for log entry status.
+type EntryStatus string
+
+const (
+
+	// EntryStatusSuccess defines "success" status.
+	EntryStatusSuccess EntryStatus = "success"
+
+	// EntryStatusFailed defines "failed" status.
+	EntryStatusFailed EntryStatus = "failed"
 )
 
 var logger = log.New("log-entry-store")
@@ -66,6 +79,13 @@ func New(provider storage.Provider, opts ...Option) (*Store, error) {
 	store, err := provider.OpenStore(nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log entry store: %w", err)
+	}
+
+	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{
+		TagNames: []string{logTagName, indexTagName, statusTagName},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
 	logEntryStore := &Store{
@@ -114,6 +134,11 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 			Value: strconv.Itoa(index),
 		}
 
+		statusTag := storage.Tag{
+			Name:  statusTagName,
+			Value: string(EntryStatusSuccess),
+		}
+
 		logTag := storage.Tag{
 			Name:  logTagName,
 			Value: base64.RawURLEncoding.EncodeToString([]byte(logURL)),
@@ -122,7 +147,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 		op := storage.Operation{
 			Key:   uuid.New().String(),
 			Value: logEntryBytes,
-			Tags:  []storage.Tag{logTag, indexTag},
+			Tags:  []storage.Tag{logTag, indexTag, statusTag},
 		}
 
 		operations[i] = op
@@ -138,14 +163,121 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 	return nil
 }
 
+// FailLogEntriesFrom updates all log entries from start (until end) and tags them with status=failure.
+func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { // nolint:funlen,gocyclo,cyclop
+	if logURL == "" {
+		return errors.New("missing log URL")
+	}
+
+	query := fmt.Sprintf("%s:%s&&%s>=%d&&%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+		indexTagName, start, statusTagName, EntryStatusSuccess)
+
+	iterator, e := s.store.Query(query,
+		storage.WithSortOrder(&storage.SortOptions{
+			Order:   storage.SortAscending,
+			TagName: indexTagName,
+		}),
+		storage.WithPageSize(s.pageSize))
+	if e != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to query log entry store: %w", e))
+	}
+
+	ok, e := iterator.Next()
+	if e != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", e))
+	}
+
+	if !ok {
+		// nothing to do
+		return nil
+	}
+
+	var operations []storage.Operation
+
+	for ok {
+		entryBytes, err := iterator.Value()
+		if err != nil {
+			return orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
+		}
+
+		tags, err := iterator.Tags()
+		if err != nil {
+			return orberrors.NewTransient(fmt.Errorf("failed to get tags: %w", err))
+		}
+
+		for i, tag := range tags {
+			if tag.Name == statusTagName {
+				tags[i].Value = string(EntryStatusFailed)
+			}
+		}
+
+		key, err := iterator.Key()
+		if err != nil {
+			return orberrors.NewTransient(fmt.Errorf("failed to get key: %w", err))
+		}
+
+		op := storage.Operation{
+			Key:   key,
+			Value: entryBytes,
+			Tags:  tags,
+		}
+
+		operations = append(operations, op)
+
+		ok, err = iterator.Next()
+		if err != nil {
+			return orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", err))
+		}
+	}
+
+	e = s.store.Batch(operations)
+	if e != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to update %d entries to failed for log: %w", len(operations), e))
+	}
+
+	logger.Debugf("updated %d entries to failed for log: %s", len(operations), logURL)
+
+	return nil
+}
+
 // GetLogEntries retrieves log entries.
 func (s *Store) GetLogEntries(logURL string) (EntryIterator, error) {
 	if logURL == "" {
 		return nil, errors.New("missing log URL")
 	}
 
-	query := fmt.Sprintf("%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)))
+	query := fmt.Sprintf("%s:%s&&%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+		statusTagName, EntryStatusSuccess)
 
+	return s.queryEntries(query)
+}
+
+// GetFailedLogEntries retrieves failed log entries.
+func (s *Store) GetFailedLogEntries(logURL string) (EntryIterator, error) {
+	if logURL == "" {
+		return nil, errors.New("missing log URL")
+	}
+
+	query := fmt.Sprintf("%s:%s&&%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+		statusTagName, EntryStatusFailed)
+
+	return s.queryEntries(query)
+}
+
+// GetLogEntriesFrom retrieves log entries from index start.
+func (s *Store) GetLogEntriesFrom(logURL string, start uint64) (EntryIterator, error) {
+	if logURL == "" {
+		return nil, errors.New("missing log URL")
+	}
+
+	query := fmt.Sprintf("%s:%s&&%s>=%d&&%s:%s", logTagName, base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+		indexTagName, start, statusTagName, EntryStatusSuccess)
+
+	return s.queryEntries(query)
+}
+
+// query entries retrieves log entries.
+func (s *Store) queryEntries(query string) (EntryIterator, error) {
 	iterator, err := s.store.Query(query,
 		storage.WithSortOrder(&storage.SortOptions{
 			Order:   storage.SortAscending,
