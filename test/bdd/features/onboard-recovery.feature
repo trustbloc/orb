@@ -235,6 +235,13 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
 
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+    Then we wait 2 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
     # Take a backup of VCT database (tree size = X)
     # JSON-LD contexts are also stored in Postgres so there will be more than one db (test + JSON-LD contexts)
     When command "pg_dumpall -f pgdbbackup -h localhost -p 5432" is executed

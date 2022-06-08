@@ -12,13 +12,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
+	"github.com/trustbloc/orb/pkg/store/logentry"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
@@ -416,6 +420,33 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				}, nil
 			}
 
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+						{
+							LeafInput: []byte("leafInput-1"),
+						},
+						{
+							LeafInput: []byte("leafInput-2"),
+						},
+						{
+							LeafInput: []byte("leafInput-3"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
 			if req.URL.Path == webfingerURL {
 				expected := command.WebFingerResponse{
 					Subject: "https://vct.com/maple2021",
@@ -508,6 +539,1069 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 					Entries: []command.LeafEntry{{
 						LeafInput: []byte("leafInput"),
 					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{})
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=4, log=0)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		entries := []command.LeafEntry{
+			{
+				LeafInput: []byte("leafInput-0"),
+			},
+			{
+				LeafInput: []byte("leafInput-1"),
+			},
+			{
+				LeafInput: []byte("leafInput-2"),
+			},
+			{
+				LeafInput: []byte("leafInput-3"),
+			},
+		}
+
+		err = s.StoreLogEntries(testLog, 0, 3, entries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth4), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{{
+						LeafInput: []byte("leafInput"),
+					}},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+						{
+							LeafInput: []byte("leafInput-1"),
+						},
+						{
+							LeafInput: []byte("leafInput-2"),
+						},
+						{
+							LeafInput: []byte("leafInput-3"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4, fetchSize=3)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				responseEntries := []command.LeafEntry{
+					{
+						LeafInput: []byte("leafInput-0"),
+					},
+					{
+						LeafInput: []byte("leafInput-1"),
+					},
+					{
+						LeafInput: []byte("leafInput-2"),
+					},
+					{
+						LeafInput: []byte("leafInput-3"),
+					},
+				}
+
+				params := req.URL.Query()
+
+				start, e := strconv.Atoi(params["start"][0])
+				require.NoError(t, e)
+
+				end, e := strconv.Atoi(params["end"][0])
+				require.NoError(t, e)
+
+				if end+1 <= len(responseEntries) {
+					end++
+				}
+
+				expected := command.GetEntriesResponse{
+					Entries: responseEntries[start:end],
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(s),
+			WithMaxRecoveryFetchSize(3))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4, fetchSize=1)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				responseEntries := []command.LeafEntry{
+					{
+						LeafInput: []byte("leafInput-0"),
+					},
+					{
+						LeafInput: []byte("leafInput-1"),
+					},
+					{
+						LeafInput: []byte("leafInput-2"),
+					},
+					{
+						LeafInput: []byte("leafInput-3"),
+					},
+				}
+
+				params := req.URL.Query()
+
+				start, e := strconv.Atoi(params["start"][0])
+				require.NoError(t, e)
+
+				end, e := strconv.Atoi(params["end"][0])
+				require.NoError(t, e)
+
+				if end+1 <= len(responseEntries) {
+					end++
+				}
+
+				expected := command.GetEntriesResponse{
+					Entries: responseEntries[start:end],
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(s),
+			WithMaxRecoveryFetchSize(1))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4, fetchSize=1)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				responseEntries := []command.LeafEntry{
+					{
+						LeafInput: []byte("leafInput-0"),
+					},
+					{
+						LeafInput: []byte("leafInput-1"),
+					},
+					{
+						LeafInput: []byte("leafInput-diff-2"),
+					},
+					{
+						LeafInput: []byte("leafInput-diff-3"),
+					},
+				}
+
+				params := req.URL.Query()
+
+				start, e := strconv.Atoi(params["start"][0])
+				require.NoError(t, e)
+
+				end, e := strconv.Atoi(params["end"][0])
+				require.NoError(t, e)
+
+				if end+1 <= len(responseEntries) {
+					end++
+				}
+
+				expected := command.GetEntriesResponse{
+					Entries: responseEntries[start:end],
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(s),
+			WithMaxRecoveryFetchSize(1))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size greater than log tree size"+
+		"(stored=5, log=4, different=2)", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+						{
+							LeafInput: []byte("leafInput-1"),
+						},
+						{
+							LeafInput: []byte("leafInput-diff-2"),
+						},
+						{
+							LeafInput: []byte("leafInput-diff-3"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.NoError(t, err)
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4)"+
+		"error due to get entries failure", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := logentry.New(mongoDBProvider)
+		require.NoError(t, err)
+
+		err = s.StoreLogEntries(testLog, 0, 4, storedEntries)
+		require.NoError(t, err)
+
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusInternalServerError,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get entries for range[0-4]")
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4)"+
+		"error due to get entries from entry store failure", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{GetErr: fmt.Errorf("get entries error")}))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "get entries error")
+	})
+
+	t.Run("recovery - stored tree size is greater than log tree size (stored=5, log=4)"+
+		"error due to fail entries in entry store failure", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{FailErr: fmt.Errorf("fail entries error")}))
+		require.NoError(t, err)
+
+		client.logVerifier = &mockLogVerifier{}
+
+		err = client.checkVCTConsistency(logMonitor)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "fail entries error")
+	})
+
+	t.Run("recovery - stored and new STH are different tree sizes "+
+		"(stored=5, log=4, entries store disabled)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		err = store.Activate(testLog)
+		require.NoError(t, err)
+
+		logMonitor, err := store.Get(testLog)
+		require.NoError(t, err)
+
+		var sthResponse command.GetSTHResponse
+		err = json.Unmarshal([]byte(sth5), &sthResponse)
+		require.NoError(t, err)
+
+		logMonitor.STH = &sthResponse
+
+		err = store.Update(logMonitor)
+		require.NoError(t, err)
+
+		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == sthURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == webfingerURL {
+				expected := command.WebFingerResponse{
+					Subject: "https://vct.com/maple2021",
+					Properties: map[string]interface{}{
+						"https://trustbloc.dev/ns/public-key": PublicKey,
+					},
+					Links: []command.WebFingerLink{{
+						Rel:  "self",
+						Href: "https://vct.com/maple2021",
+					}},
+				}
+
+				fakeResp, innerErr := json.Marshal(expected)
+				require.NoError(t, innerErr)
+
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == sthConsistencyURL {
+				return &http.Response{
+					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput-0"),
+						},
+						{
+							LeafInput: []byte("leafInput-1"),
+						},
+						{
+							LeafInput: []byte("leafInput-2"),
+						},
+						{
+							LeafInput: []byte("leafInput-3"),
+						},
+					},
 				}
 
 				fakeResp, e := json.Marshal(expected)
@@ -1314,7 +2408,7 @@ func TestClient_getEntries(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		client, err := New(store, nil, map[string]string{})
+		client, err := New(store, nil, map[string]string{}, WithMaxGetEntriesRange(2))
 		require.NoError(t, err)
 
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
@@ -1345,7 +2439,7 @@ func TestClient_getEntries(t *testing.T) {
 			}, nil
 		})))
 
-		entries, err := client.getAllEntries(testLog, vctClient, 4, 2)
+		entries, err := client.getAllEntries(testLog, vctClient, 4)
 		require.NoError(t, err)
 		require.Equal(t, 4, len(entries))
 	})
@@ -1354,7 +2448,7 @@ func TestClient_getEntries(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		client, err := New(store, nil, map[string]string{})
+		client, err := New(store, nil, map[string]string{}, WithMaxGetEntriesRange(1))
 		require.NoError(t, err)
 
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
@@ -1382,7 +2476,7 @@ func TestClient_getEntries(t *testing.T) {
 			}, nil
 		})))
 
-		entries, err := client.getAllEntries(testLog, vctClient, 3, 1)
+		entries, err := client.getAllEntries(testLog, vctClient, 3)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(entries))
 	})
@@ -1392,7 +2486,9 @@ func TestClient_getEntries(t *testing.T) {
 		require.NoError(t, err)
 
 		client, err := New(store, nil, map[string]string{},
-			WithLogEntriesStore(&mockLogEntryStore{Err: fmt.Errorf("log entries store error")}))
+			WithLogEntriesStoreEnabled(true),
+			WithMaxGetEntriesRange(2),
+			WithLogEntriesStore(&mockLogEntryStore{StoreErr: fmt.Errorf("store entries error")}))
 		require.NoError(t, err)
 
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
@@ -1423,10 +2519,74 @@ func TestClient_getEntries(t *testing.T) {
 			}, nil
 		})))
 
-		entries, err := client.getAllEntries(testLog, vctClient, 2, 2)
+		entries, err := client.getAllEntries(testLog, vctClient, 2)
 		require.Error(t, err)
 		require.Empty(t, entries)
-		require.Contains(t, err.Error(), "failed to store entries for range[0-1]: log entries store error")
+		require.Contains(t, err.Error(), "failed to store entries for range[0-1]: store entries error")
+	})
+}
+
+func TestClient_GetLogEntriesFrom(t *testing.T) {
+	t.Run("success ", func(t *testing.T) {
+		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
+			return nil, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{GetIter: &mockLogEntryIterator{}}))
+		require.NoError(t, err)
+
+		entries, err := client.getStoreEntriesFrom(testLog, 0, 2)
+		require.NoError(t, err)
+		require.Empty(t, entries)
+	})
+
+	t.Run("error - iterator total items ", func(t *testing.T) {
+		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
+			return nil, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{GetIter: &mockLogEntryIterator{
+				TotalItemsErr: fmt.Errorf("total items error"),
+			}}))
+		require.NoError(t, err)
+
+		entries, err := client.getStoreEntriesFrom(testLog, 0, 2)
+		require.Error(t, err)
+		require.Nil(t, entries)
+		require.Contains(t, err.Error(), "total items error")
+	})
+
+	t.Run("error - iterator next ", func(t *testing.T) {
+		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
+			return nil, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{
+				GetIter: &mockLogEntryIterator{
+					ItemCount: 1,
+					NextErr:   fmt.Errorf("next error"),
+				},
+			}))
+		require.NoError(t, err)
+
+		entries, err := client.getStoreEntriesFrom(testLog, 0, 2)
+		require.Error(t, err)
+		require.Nil(t, entries)
+		require.Contains(t, err.Error(), "next error")
+	})
+
+	t.Run("error - store error ", func(t *testing.T) {
+		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
+			return nil, nil
+		}), map[string]string{},
+			WithLogEntriesStoreEnabled(true),
+			WithLogEntriesStore(&mockLogEntryStore{GetErr: fmt.Errorf("get entries error")}))
+		require.NoError(t, err)
+
+		entries, err := client.getStoreEntriesFrom(testLog, 0, 2)
+		require.Error(t, err)
+		require.Nil(t, entries)
+		require.Contains(t, err.Error(), "get entries error")
 	})
 }
 
@@ -1568,11 +2728,72 @@ func (v *mockLogVerifier) GetRootHashFromEntries(entries []*command.LeafEntry) (
 }
 
 type mockLogEntryStore struct {
-	Err error
+	StoreErr error
+	FailErr  error
+	GetErr   error
+
+	GetIter *mockLogEntryIterator
 }
 
 func (s *mockLogEntryStore) StoreLogEntries(log string, start, end uint64, entries []command.LeafEntry) error {
-	return s.Err
+	return s.StoreErr
+}
+
+func (s *mockLogEntryStore) FailLogEntriesFrom(logURL string, start uint64) error {
+	return s.FailErr
+}
+
+func (s *mockLogEntryStore) GetLogEntriesFrom(logURL string, start uint64) (logentry.EntryIterator, error) {
+	if s.GetIter != nil {
+		return s.GetIter, nil
+	}
+
+	return &mockLogEntryIterator{}, s.GetErr
+}
+
+type mockLogEntryIterator struct {
+	TotalItemsErr error
+	NextErr       error
+
+	ItemCount int
+}
+
+func (e *mockLogEntryIterator) TotalItems() (int, error) {
+	if e.TotalItemsErr != nil {
+		return 0, e.TotalItemsErr
+	}
+
+	return e.ItemCount, nil
+}
+
+func (e *mockLogEntryIterator) Next() (*command.LeafEntry, error) {
+	if e.NextErr != nil {
+		return nil, e.NextErr
+	}
+
+	return nil, nil
+}
+
+func (e *mockLogEntryIterator) Close() error {
+	return nil
+}
+
+var storedEntries = []command.LeafEntry{
+	{
+		LeafInput: []byte("leafInput-0"),
+	},
+	{
+		LeafInput: []byte("leafInput-1"),
+	},
+	{
+		LeafInput: []byte("leafInput-2"),
+	},
+	{
+		LeafInput: []byte("leafInput-3"),
+	},
+	{
+		LeafInput: []byte("leafInput-4"),
+	},
 }
 
 //nolint:lll

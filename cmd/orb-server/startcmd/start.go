@@ -812,6 +812,7 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 
 		logMonitoringOpts = append(logMonitoringOpts,
+			logmonitoring.WithLogEntriesStoreEnabled(true),
 			logmonitoring.WithLogEntriesStore(logEntryStore))
 	}
 
