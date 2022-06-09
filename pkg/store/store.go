@@ -82,7 +82,7 @@ type mongoDBStore interface {
 	GetAsRawMap(id string) (map[string]interface{}, error)
 	GetBulkAsRawMap(ids ...string) ([]map[string]interface{}, error)
 	QueryCustom(filter interface{}, options ...*mongoopts.FindOptions) (mongodb.Iterator, error)
-	CreateMongoDBFindOptions(options []storage.QueryOption) *mongoopts.FindOptions
+	CreateMongoDBFindOptions(options []storage.QueryOption, isJSONQuery bool) *mongoopts.FindOptions
 }
 
 type mongoDBProvider interface {
@@ -148,7 +148,7 @@ func (s *mongoDBWrapper) Put(key string, value []byte, _ ...storage.Tag) error {
 	}
 
 	if err := s.ms.PutAsJSON(key, doc); err != nil {
-		return fmt.Errorf("pust as JSON failed [%s-%s]: %w", s.namespace, key, err)
+		return fmt.Errorf("put as JSON failed [%s-%s]: %w", s.namespace, key, err)
 	}
 
 	return nil
@@ -208,7 +208,7 @@ func (s *mongoDBWrapper) Query(expression string, options ...storage.QueryOption
 		return nil, fmt.Errorf("convert expression [%s] to MongoDB filter: %w", expression, err)
 	}
 
-	iterator, err := s.ms.QueryCustom(filter, s.ms.CreateMongoDBFindOptions(options))
+	iterator, err := s.ms.QueryCustom(filter, s.ms.CreateMongoDBFindOptions(options, true))
 	if err != nil {
 		return nil, fmt.Errorf("query MongoDB store [%s] - expression [%s]: %w",
 			s.namespace, expression, err)

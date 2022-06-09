@@ -29,6 +29,9 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
+//nolint:lll
+//go:generate counterfeiter -o ../mocks/activityiterator.gen.go --fake-name ActivityIterator ../store/spi ActivityIterator
+
 const (
 	inboxURL  = "https://example.com/services/orb/inbox"
 	outboxURL = "https://example.com/services/orb/outbox"
@@ -916,19 +919,13 @@ func TestGetActivities(t *testing.T) {
 }
 
 func TestActivityHandlerGetPage(t *testing.T) {
-	ariesStore, err := ariesstore.New("", &mock.Provider{
-		OpenStoreReturn: &mock.Store{
-			QueryReturn: &mock.Iterator{ErrTotalItems: errors.New("total items error")},
-		},
-	}, true)
-	require.NoError(t, err)
-
-	mockActivityIterator, err := ariesStore.QueryActivities(&spi.Criteria{})
-	require.NoError(t, err)
+	mit := &apmocks.ActivityIterator{}
+	mit.NextReturnsOnCall(0, nil, nil)
+	mit.NextReturnsOnCall(0, nil, spi.ErrNotFound)
+	mit.TotalItemsReturns(0, errors.New("total items error"))
 
 	mockActivityStore := mocks.ActivityStore{}
-
-	mockActivityStore.QueryActivitiesReturns(mockActivityIterator, nil)
+	mockActivityStore.QueryActivitiesReturns(mit, nil)
 
 	activitiesHandler := Activities{handler: &handler{AuthHandler: &AuthHandler{activityStore: &mockActivityStore}}}
 

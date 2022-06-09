@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220602200413-1135b419c644
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220608225241-8ee7e2826393
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220609192245-be476b6ca623
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220428211718-66cc046674a1
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220526205258-18d510d84955
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23

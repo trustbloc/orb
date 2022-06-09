@@ -42,10 +42,11 @@ type MongoDBStore struct {
 	closeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CreateMongoDBFindOptionsStub        func([]storage.QueryOption) *options.FindOptions
+	CreateMongoDBFindOptionsStub        func([]storage.QueryOption, bool) *options.FindOptions
 	createMongoDBFindOptionsMutex       sync.RWMutex
 	createMongoDBFindOptionsArgsForCall []struct {
 		arg1 []storage.QueryOption
+		arg2 bool
 	}
 	createMongoDBFindOptionsReturns struct {
 		result1 *options.FindOptions
@@ -381,7 +382,7 @@ func (fake *MongoDBStore) CloseReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *MongoDBStore) CreateMongoDBFindOptions(arg1 []storage.QueryOption) *options.FindOptions {
+func (fake *MongoDBStore) CreateMongoDBFindOptions(arg1 []storage.QueryOption, arg2 bool) *options.FindOptions {
 	var arg1Copy []storage.QueryOption
 	if arg1 != nil {
 		arg1Copy = make([]storage.QueryOption, len(arg1))
@@ -391,13 +392,14 @@ func (fake *MongoDBStore) CreateMongoDBFindOptions(arg1 []storage.QueryOption) *
 	ret, specificReturn := fake.createMongoDBFindOptionsReturnsOnCall[len(fake.createMongoDBFindOptionsArgsForCall)]
 	fake.createMongoDBFindOptionsArgsForCall = append(fake.createMongoDBFindOptionsArgsForCall, struct {
 		arg1 []storage.QueryOption
-	}{arg1Copy})
+		arg2 bool
+	}{arg1Copy, arg2})
 	stub := fake.CreateMongoDBFindOptionsStub
 	fakeReturns := fake.createMongoDBFindOptionsReturns
-	fake.recordInvocation("CreateMongoDBFindOptions", []interface{}{arg1Copy})
+	fake.recordInvocation("CreateMongoDBFindOptions", []interface{}{arg1Copy, arg2})
 	fake.createMongoDBFindOptionsMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -411,17 +413,17 @@ func (fake *MongoDBStore) CreateMongoDBFindOptionsCallCount() int {
 	return len(fake.createMongoDBFindOptionsArgsForCall)
 }
 
-func (fake *MongoDBStore) CreateMongoDBFindOptionsCalls(stub func([]storage.QueryOption) *options.FindOptions) {
+func (fake *MongoDBStore) CreateMongoDBFindOptionsCalls(stub func([]storage.QueryOption, bool) *options.FindOptions) {
 	fake.createMongoDBFindOptionsMutex.Lock()
 	defer fake.createMongoDBFindOptionsMutex.Unlock()
 	fake.CreateMongoDBFindOptionsStub = stub
 }
 
-func (fake *MongoDBStore) CreateMongoDBFindOptionsArgsForCall(i int) []storage.QueryOption {
+func (fake *MongoDBStore) CreateMongoDBFindOptionsArgsForCall(i int) ([]storage.QueryOption, bool) {
 	fake.createMongoDBFindOptionsMutex.RLock()
 	defer fake.createMongoDBFindOptionsMutex.RUnlock()
 	argsForCall := fake.createMongoDBFindOptionsArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *MongoDBStore) CreateMongoDBFindOptionsReturns(result1 *options.FindOptions) {

@@ -63,38 +63,40 @@ func TestNew(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: "activity",
 		}, false)
-		require.EqualError(t, err, "failed to open stores: failed to open activity store: open store error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to open activity store: open store [activity]: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on activities store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
 			setStoreConfigNameToFailOn: "activity",
 		}, false)
-		require.EqualError(t, err, "failed to open stores: failed to set store configuration on "+
-			"activity store: set store config error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "set store configuration for [activity]: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: "activity-ref",
 		}, true)
-		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to open activity-ref store: open store error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to open reference stores: open store [activity-ref]: open store error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to set store config on inbox store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
 			setStoreConfigNameToFailOn: "activity-ref",
 		}, true)
-		require.EqualError(t, err, "failed to open stores: failed to open reference stores: "+
-			"failed to set store configuration on activity-ref store: set store config error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "set store configuration for [activity-ref]: set store config error")
 		require.Nil(t, provider)
 	})
 	t.Run("Failed to open actor store", func(t *testing.T) {
 		provider, err := ariesstore.New("ServiceName", &mockStore{
 			openStoreNameToFailOn: "actor",
 		}, false)
-		require.EqualError(t, err, "failed to open stores: failed to open actor store: open store error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to open actor store: open store [actor]: open store error")
 		require.Nil(t, provider)
 	})
 }
@@ -161,17 +163,8 @@ func TestFunctionalityUsingMongoDB(t *testing.T) {
 		t.Run("Query all", func(t *testing.T) {
 			t.Run("Ascending (default) order", func(t *testing.T) {
 				it, err := s.QueryActivities(spi.NewCriteria())
-				require.NoError(t, err)
-				require.NotNil(t, it)
-
-				checkActivityQueryResultsInOrder(t, it, 3, activityID1, activityID2, activityID3)
-			})
-			t.Run("Descending order", func(t *testing.T) {
-				it, err := s.QueryActivities(spi.NewCriteria(), spi.WithSortOrder(spi.SortDescending))
-				require.NoError(t, err)
-				require.NotNil(t, it)
-
-				checkActivityQueryResultsInOrder(t, it, 3, activityID3, activityID2, activityID1)
+				require.EqualError(t, err, "unsupported query criteria")
+				require.Nil(t, it)
 			})
 		})
 
@@ -394,14 +387,16 @@ func TestStore_Activity_Failures(t *testing.T) {
 		require.EqualError(t, err, "unexpected failure while getting activity from store: get error")
 	})
 	t.Run("Fail to query", func(t *testing.T) {
+		serviceID1 := testutil.MustParseURL("https://example.com/services/service1")
+
 		provider, err := ariesstore.New("ServiceName", &mock.Provider{
 			OpenStoreReturn: &mock.Store{
 				ErrQuery: errors.New("query error"),
 			},
-		}, false)
+		}, true)
 		require.NoError(t, err)
 
-		_, err = provider.QueryActivities(spi.NewCriteria())
+		_, err = provider.QueryActivities(spi.NewCriteria(spi.WithObjectIRI(serviceID1), spi.WithReferenceType(spi.Inbox)))
 		require.EqualError(t, err, "failed to query store: query error")
 	})
 	t.Run("Unsupported query criteria", func(t *testing.T) {

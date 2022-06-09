@@ -110,7 +110,7 @@ type mongoDBStore interface {
 	GetAsRawMap(id string) (map[string]interface{}, error)
 	GetBulkAsRawMap(ids ...string) ([]map[string]interface{}, error)
 	QueryCustom(filter interface{}, options ...*mongoopts.FindOptions) (mongodb.Iterator, error)
-	CreateMongoDBFindOptions(options []storage.QueryOption) *mongoopts.FindOptions
+	CreateMongoDBFindOptions(options []storage.QueryOption, isJSONQuery bool) *mongoopts.FindOptions
 }
 
 // MongoDBStoreWrapper wraps a MongoDB store.
@@ -178,6 +178,7 @@ func (store *MongoDBStoreWrapper) QueryCustom(filter interface{},
 }
 
 // CreateMongoDBFindOptions converts the given storage options to MongoDB options.
-func (store *MongoDBStoreWrapper) CreateMongoDBFindOptions(options []storage.QueryOption) *mongoopts.FindOptions {
-	return store.ms.CreateMongoDBFindOptions(options)
+func (store *MongoDBStoreWrapper) CreateMongoDBFindOptions(options []storage.QueryOption,
+	isJSONQuery bool) *mongoopts.FindOptions {
+	return store.ms.CreateMongoDBFindOptions(options, isJSONQuery)
 }

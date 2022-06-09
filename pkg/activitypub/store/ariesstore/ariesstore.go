@@ -24,15 +24,18 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const (
-	storeName           = "activity-ref"
-	activityTag         = "Activity"
-	objectIRITagName    = "ObjectIRI"
-	refTypeTagName      = "RefType"
-	timeAddedTagName    = "TimeAdded"
-	activityTypeTagName = "ActivityType"
+	activityStoreName = "activity"
+	refStoreName      = "activity-ref"
+	actorStoreName    = "actor"
+
+	objectIRITagName    = "objectIRI"
+	refTypeTagName      = "refType"
+	timeAddedTagName    = "timeAdded"
+	activityTypeTagName = "activityType"
 )
 
 var logger = log.New("activitypub_store")
@@ -83,7 +86,7 @@ func (s *Provider) PutActor(actor *vocab.ActorType) error {
 }
 
 // GetActor returns the actor for the given IRI. Returns an ErrNoFound error if the actor is not in the store.
-func (s *Provider) GetActor(iri *url.URL) (*vocab.ActorType, error) { //nolint: dupl // false positive
+func (s *Provider) GetActor(iri *url.URL) (*vocab.ActorType, error) { //nolint:dupl
 	logger.Debugf("[%s] Retrieving actor [%s]", s.serviceName, iri)
 
 	actorBytes, err := s.actorStore.Get(iri.String())
@@ -116,13 +119,7 @@ func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
 		return fmt.Errorf("failed to marshal activity: %w", err)
 	}
 
-	err = s.activityStore.Put(activity.ID().String(), activityBytes,
-		ariesstorage.Tag{
-			Name: activityTag,
-		}, ariesstorage.Tag{
-			Name:  timeAddedTagName,
-			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
-		})
+	err = s.activityStore.Put(activity.ID().String(), activityBytes)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to store activity: %w", err))
 	}
@@ -132,7 +129,7 @@ func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
 
 // GetActivity returns the activity for the given ID from the activity store
 // or ErrNotFound error if it wasn't found.
-func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) { //nolint: dupl // false positive
+func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) { //nolint:dupl
 	logger.Debugf("[%s] Retrieving activity - ID: %s", s.serviceName, activityID)
 
 	activityBytes, err := s.activityStore.Get(activityID.String())
@@ -160,28 +157,19 @@ func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error)
 func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	logger.Debugf("[%s] Querying activities - Query: %+v", s.serviceName, query)
 
-	options := storeutil.GetQueryOptions(opts...)
-
 	if query.ReferenceType != "" && query.ObjectIRI != nil {
 		return s.queryActivitiesByRef(query.ReferenceType, query, opts...)
 	}
 
-	if len(query.ActivityIRIs) == 0 && len(query.Types) == 0 { // Get all activities
-		iterator, err := s.activityStore.Query(activityTag,
-			ariesstorage.WithSortOrder(&ariesstorage.SortOptions{
-				Order:   ariesstorage.SortOrder(options.SortOrder),
-				TagName: timeAddedTagName,
-			}),
-			ariesstorage.WithPageSize(options.PageSize),
-			ariesstorage.WithInitialPageNum(options.PageNumber))
-		if err != nil {
-			return nil, orberrors.NewTransient(fmt.Errorf("failed to query store: %w", err))
-		}
-
-		return &activityIterator{ariesIterator: iterator}, nil
-	}
-
 	return nil, errors.New("unsupported query criteria")
+}
+
+type activityRef struct {
+	RefType      spi.ReferenceType  `json:"refType"`
+	ObjectIRI    string             `json:"objectIRI,omitempty"` // Base64-encoded IRI
+	IRI          *vocab.URLProperty `json:"iri"`
+	ActivityType vocab.Type         `json:"activityType,omitempty"`
+	TimeAdded    int64              `json:"timeAdded"`
 }
 
 // AddReference adds the reference of the given type to the given object.
@@ -190,12 +178,30 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.
 	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
 		s.serviceName, referenceType, objectIRI, referenceIRI)
 
-	valueBytes, err := json.Marshal(referenceIRI.String())
+	refMetadata := storeutil.GetRefMetadata(refMetaDataOpts...)
+
+	ref := &activityRef{
+		RefType:      referenceType,
+		ObjectIRI:    base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
+		IRI:          vocab.NewURLProperty(referenceIRI),
+		TimeAdded:    time.Now().UnixNano(),
+		ActivityType: refMetadata.ActivityType,
+	}
+
+	valueBytes, err := json.Marshal(ref)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	tags := determineTags(referenceType, objectIRI, refMetaDataOpts)
+	tags := []ariesstorage.Tag{
+		{Name: refTypeTagName, Value: string(referenceType)},
+		{Name: objectIRITagName, Value: ref.ObjectIRI},
+		{Name: timeAddedTagName, Value: strconv.FormatInt(ref.TimeAdded, 10)},
+	}
+
+	if refMetadata.ActivityType != "" {
+		tags = append(tags, ariesstorage.Tag{Name: activityTypeTagName, Value: string(refMetadata.ActivityType)})
+	}
 
 	err = s.referenceStore.Put(getRefKey(referenceType, objectIRI, referenceIRI), valueBytes, tags...)
 	if err != nil {
@@ -254,7 +260,7 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 
 	// Otherwise, if there is a reference IRI,
 	// then we should only grab the reference associated with the object IRI and reference IRI.
-	retrievedURLBytes, err := s.referenceStore.Get(getRefKey(referenceType, query.ObjectIRI, query.ReferenceIRI))
+	retrievedRefBytes, err := s.referenceStore.Get(getRefKey(referenceType, query.ObjectIRI, query.ReferenceIRI))
 	if err != nil {
 		if errors.Is(err, ariesstorage.ErrDataNotFound) {
 			return memstore.NewReferenceIterator(nil, 0), nil
@@ -263,19 +269,14 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 		return nil, orberrors.NewTransient(fmt.Errorf("unexpected failure while getting reference: %w", err))
 	}
 
-	var urlStr string
+	ref := &activityRef{}
 
-	err = json.Unmarshal(retrievedURLBytes, &urlStr)
+	err = json.Unmarshal(retrievedRefBytes, ref)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal URL: %w", err)
+		return nil, fmt.Errorf("unmarshal reference: %w", err)
 	}
 
-	retrievedURL, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL from storage: %w", err)
-	}
-
-	return memstore.NewReferenceIterator([]*url.URL{retrievedURL}, 1), nil
+	return memstore.NewReferenceIterator([]*url.URL{ref.IRI.URL()}, 1), nil
 }
 
 func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Criteria,
@@ -318,12 +319,11 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 	var activities []*vocab.ActivityType
 
 	for _, activityBytes := range activitiesBytes {
-		if activityBytes != nil {
+		if len(activityBytes) > 0 {
 			var activity vocab.ActivityType
 
-			err = json.Unmarshal(activityBytes, &activity)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal activity bytes: %w", err)
+			if e := json.Unmarshal(activityBytes, &activity); e != nil {
+				return nil, fmt.Errorf("failed to unmarshal activity bytes: %w", e)
 			}
 
 			activities = append(activities, &activity)
@@ -331,43 +331,6 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Cr
 	}
 
 	return memstore.NewActivityIterator(activities, totalItems), nil
-}
-
-type activityIterator struct {
-	ariesIterator ariesstorage.Iterator
-}
-
-func (a *activityIterator) TotalItems() (int, error) {
-	return a.ariesIterator.TotalItems()
-}
-
-func (a *activityIterator) Next() (*vocab.ActivityType, error) {
-	areMoreResults, err := a.ariesIterator.Next()
-	if err != nil {
-		return nil, orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", err))
-	}
-
-	if areMoreResults {
-		activityBytes, err := a.ariesIterator.Value()
-		if err != nil {
-			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
-		}
-
-		var activity vocab.ActivityType
-
-		err = json.Unmarshal(activityBytes, &activity)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal activity bytes: %w", err)
-		}
-
-		return &activity, nil
-	}
-
-	return nil, spi.ErrNotFound
-}
-
-func (a *activityIterator) Close() error {
-	return a.ariesIterator.Close()
 }
 
 type referenceIterator struct {
@@ -385,24 +348,19 @@ func (r *referenceIterator) Next() (*url.URL, error) {
 	}
 
 	if areMoreResults {
-		urlBytes, err := r.ariesIterator.Value()
+		refBytes, err := r.ariesIterator.Value()
 		if err != nil {
 			return nil, orberrors.NewTransient(fmt.Errorf("failed to get value: %w", err))
 		}
 
-		var urlStr string
+		ref := &activityRef{}
 
-		err = json.Unmarshal(urlBytes, &urlStr)
+		err = json.Unmarshal(refBytes, &ref)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal URL: %w", err)
+			return nil, fmt.Errorf("unmarshal activity reference: %w", err)
 		}
 
-		retrievedURL, err := url.Parse(urlStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse stored value as a URL: %w", err)
-		}
-
-		return retrievedURL, nil
+		return ref.IRI.URL(), nil
 	}
 
 	return nil, spi.ErrNotFound
@@ -419,25 +377,20 @@ type stores struct {
 }
 
 func openStores(provider ariesstorage.Provider) (stores, error) {
-	activityStore, err := provider.OpenStore("activity")
+	activityStore, err := store.Open(provider, activityStoreName)
 	if err != nil {
 		return stores{}, fmt.Errorf("failed to open activity store: %w", err)
 	}
 
-	err = provider.SetStoreConfig("activity",
-		ariesstorage.StoreConfiguration{
-			TagNames: []string{activityTag, timeAddedTagName},
-		})
-	if err != nil {
-		return stores{}, fmt.Errorf("failed to set store configuration on activity store: %w", err)
-	}
-
-	referenceStore, err := openReferenceStore(provider)
+	referenceStore, err := store.Open(provider, refStoreName,
+		store.NewTagGroup(refTypeTagName, objectIRITagName, activityTypeTagName),
+		store.NewTagGroup(refTypeTagName, timeAddedTagName),
+	)
 	if err != nil {
 		return stores{}, fmt.Errorf("failed to open reference stores: %w", err)
 	}
 
-	actorStore, err := provider.OpenStore("actor")
+	actorStore, err := store.Open(provider, actorStoreName)
 	if err != nil {
 		return stores{}, fmt.Errorf("failed to open actor store: %w", err)
 	}
@@ -447,51 +400,6 @@ func openStores(provider ariesstorage.Provider) (stores, error) {
 		reference:  referenceStore,
 		actor:      actorStore,
 	}, nil
-}
-
-func openReferenceStore(provider ariesstorage.Provider) (ariesstorage.Store, error) {
-	storeConfig := ariesstorage.StoreConfiguration{
-		TagNames: []string{refTypeTagName, objectIRITagName, timeAddedTagName, activityTypeTagName},
-	}
-
-	store, err := provider.OpenStore(storeName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open %s store: %w", storeName, err)
-	}
-
-	err = provider.SetStoreConfig(storeName, storeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration on %s store: %w",
-			storeName, err)
-	}
-
-	return store, nil
-}
-
-func determineTags(referenceType spi.ReferenceType, objectIRI *url.URL,
-	refMetaDataOpts []spi.RefMetadataOpt) []ariesstorage.Tag {
-	refMetadata := storeutil.GetRefMetadata(refMetaDataOpts...)
-
-	tags := []ariesstorage.Tag{
-		{
-			Name:  refTypeTagName,
-			Value: string(referenceType),
-		},
-		{
-			Name:  objectIRITagName,
-			Value: base64.RawStdEncoding.EncodeToString([]byte(objectIRI.String())),
-		},
-		{
-			Name:  timeAddedTagName,
-			Value: strconv.FormatInt(time.Now().UnixNano(), 10),
-		},
-	}
-
-	if refMetadata.ActivityType != "" {
-		tags = append(tags, ariesstorage.Tag{Name: activityTypeTagName, Value: string(refMetadata.ActivityType)})
-	}
-
-	return tags
 }
 
 func (s *Provider) generateQueryExpression(referenceType spi.ReferenceType, query *spi.Criteria) (string, error) {
