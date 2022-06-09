@@ -35,7 +35,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220602200413-1135b419c644 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220530114906-35b469518049 // indirect
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220428211718-66cc046674a1 // indirect
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b // indirect
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220526205258-18d510d84955 // indirect
 	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220516154446-0ba34929e05b // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
