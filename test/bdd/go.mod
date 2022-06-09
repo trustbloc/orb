@@ -15,7 +15,7 @@ require (
 	github.com/greenpau/go-calculator v1.0.1
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220602200413-1135b419c644
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220608225241-8ee7e2826393
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220609192245-be476b6ca623
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1.0.20220528105912-9ab9f9e64868
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220528104915-e9e6de4fc0e6
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b

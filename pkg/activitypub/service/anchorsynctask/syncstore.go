@@ -12,6 +12,8 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const storeName = "activity-sync"
@@ -23,13 +25,13 @@ type syncStore struct {
 }
 
 func newSyncStore(storageProvider storage.Provider) (*syncStore, error) {
-	store, err := storageProvider.OpenStore(storeName)
+	s, err := store.Open(storageProvider, storeName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open activity-sync store: %w", err)
 	}
 
 	return &syncStore{
-		store:     store,
+		store:     s,
 		marshal:   json.Marshal,
 		unmarshal: json.Unmarshal,
 	}, nil

@@ -70,6 +70,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -1250,9 +1251,9 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	return pcp, nil
 }
 
-func createActivityPubStore(storageProvider *storageProvider,
+func createActivityPubStore(storageProvider dbProvider,
 	serviceEndpoint string) (activitypubspi.Store, error) {
-	switch strings.ToLower(storageProvider.dbType) {
+	switch strings.ToLower(storageProvider.DBType()) {
 	case databaseTypeMongoDBOption:
 		apStore, err := apariesstore.New(serviceEndpoint, storageProvider, true)
 		if err != nil {
@@ -1320,13 +1321,38 @@ type provider interface {
 	Ping() error
 }
 
+type dbProvider interface {
+	provider
+
+	DBType() string
+}
+
+type mongoDBProvider interface {
+	provider
+
+	CreateCustomIndex(storeName string, model mongo.IndexModel) error
+}
+
 type storageProvider struct {
 	provider
 	dbType string
 }
 
+func (p *storageProvider) DBType() string {
+	return p.dbType
+}
+
+type mongoDBStorageProvider struct {
+	mongoDBProvider
+	dbType string
+}
+
+func (p *mongoDBStorageProvider) DBType() string {
+	return p.dbType
+}
+
 type storageProviders struct {
-	provider           *storageProvider
+	provider           dbProvider
 	kmsSecretsProvider storage.Provider
 }
 
@@ -1357,7 +1383,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
 
-		edgeServiceProvs.provider = &storageProvider{wrapper.NewProvider(mongoDBProvider, "MongoDB"),
+		edgeServiceProvs.provider = &mongoDBStorageProvider{wrapper.NewMongoDBProvider(mongoDBProvider),
 			databaseTypeMongoDBOption}
 
 	default:
@@ -1438,7 +1464,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 	}
 
 	if err = cfg.Put(keyID, src); err != nil {
-		return fmt.Errorf("marshal config value for %q: %w", keyID, err)
+		return fmt.Errorf("put config value for %q: %w", keyID, err)
 	}
 
 	logger.Debugf("Stored KMS key [%s] with %s", keyID, src)

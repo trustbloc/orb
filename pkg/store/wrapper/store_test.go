@@ -117,7 +117,7 @@ func TestMongoDBStoreWrapper(t *testing.T) {
 
 		mongoOpts := s.CreateMongoDBFindOptions([]storage.QueryOption{
 			storage.WithPageSize(1000),
-		})
+		}, true)
 		require.NotNil(t, mongoOpts)
 	})
 }
