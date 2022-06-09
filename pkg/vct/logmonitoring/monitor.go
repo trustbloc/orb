@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store/logentry"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
 )
@@ -38,6 +39,8 @@ const (
 
 	vctReadTokenKey  = "vct-read"
 	vctWriteTokenKey = "vct-write"
+
+	defaultRecoveryFetchSize = 500
 )
 
 // httpClient represents HTTP client.
@@ -52,6 +55,8 @@ type logMonitorStore interface {
 
 type logEntryStore interface {
 	StoreLogEntries(log string, start, end uint64, entries []command.LeafEntry) error
+	GetLogEntriesFrom(logURL string, start uint64) (logentry.EntryIterator, error)
+	FailLogEntriesFrom(logURL string, start uint64) error
 }
 
 type logVerifier interface {
@@ -82,13 +87,15 @@ type logVerifier interface {
 // Client implements periodical monitoring of VCT consistency
 // as per https://datatracker.ietf.org/doc/html/rfc6962#section-5.3.
 type Client struct {
-	logVerifier        logVerifier
-	monitorStore       logMonitorStore
-	entryStore         logEntryStore
-	http               httpClient
-	requestTokens      map[string]string
-	maxTreeSize        uint64
-	maxGetEntriesRange int
+	logVerifier          logVerifier
+	monitorStore         logMonitorStore
+	entryStore           logEntryStore
+	entryStoreEnabled    bool
+	http                 httpClient
+	requestTokens        map[string]string
+	maxTreeSize          uint64
+	maxGetEntriesRange   int
+	maxRecoveryFetchSize int
 }
 
 // Option is an option for resolve handler.
@@ -108,6 +115,13 @@ func WithMaxGetEntriesRange(max int) Option {
 	}
 }
 
+// WithMaxRecoveryFetchSize sets an optional limit for number of entries retrieved during recover.
+func WithMaxRecoveryFetchSize(max int) Option {
+	return func(opts *Client) {
+		opts.maxRecoveryFetchSize = max
+	}
+}
+
 // WithLogEntriesStore sets optional implementation of log entries store (default is noop store).
 func WithLogEntriesStore(s logEntryStore) Option {
 	return func(opts *Client) {
@@ -115,16 +129,25 @@ func WithLogEntriesStore(s logEntryStore) Option {
 	}
 }
 
+// WithLogEntriesStoreEnabled enables log entries store (default is false).
+func WithLogEntriesStoreEnabled(enabled bool) Option {
+	return func(opts *Client) {
+		opts.entryStoreEnabled = enabled
+	}
+}
+
 // New returns new client for monitoring VCT log consistency.
 func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string, opts ...Option) (*Client, error) { //nolint:lll
 	client := &Client{
-		logVerifier:        verifier.New(),
-		monitorStore:       store,
-		entryStore:         &noopLogEntryStore{},
-		http:               httpClient,
-		requestTokens:      requestTokens,
-		maxTreeSize:        defaultMaxTreeSize,
-		maxGetEntriesRange: defaultMaxGetEntriesRange,
+		logVerifier:          verifier.New(),
+		monitorStore:         store,
+		entryStoreEnabled:    false,
+		entryStore:           &noopLogEntryStore{},
+		http:                 httpClient,
+		requestTokens:        requestTokens,
+		maxTreeSize:          defaultMaxTreeSize,
+		maxGetEntriesRange:   defaultMaxGetEntriesRange,
+		maxRecoveryFetchSize: defaultRecoveryFetchSize,
 	}
 
 	// apply options
@@ -183,7 +206,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 	return nil
 }
 
-func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error {
+func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { // nolint: lll,gocyclo,cyclop
 	var err error
 
 	if storedSTH == nil {
@@ -210,8 +233,21 @@ func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse
 		return nil
 	}
 
-	if sth.TreeSize == storedSTH.TreeSize {
-		logger.Debugf("log[%s]: STH tree size[%d] did not change - nothing to do", logURL, sth.TreeSize)
+	if sth.TreeSize == storedSTH.TreeSize && bytes.Equal(sth.SHA256RootHash, storedSTH.SHA256RootHash) {
+		logger.Debugf("log[%s]: STH tree size[%d] and root hash did not change - nothing to do", logURL, sth.TreeSize)
+
+		return nil
+	}
+
+	if sth.TreeSize < storedSTH.TreeSize ||
+		(sth.TreeSize == storedSTH.TreeSize && !bytes.Equal(sth.SHA256RootHash, storedSTH.SHA256RootHash)) {
+		logger.Errorf("log[%s]: log tree size[%d] is less than stored tree size[%d] or root hashes are not equal",
+			logURL, sth.TreeSize, storedSTH.TreeSize)
+
+		e := c.processLogInconsistency(logURL, vctClient, sth)
+		if e != nil {
+			return fmt.Errorf("failed to process log inconsistency: %w", e)
+		}
 
 		return nil
 	}
@@ -226,10 +262,135 @@ func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse
 	return nil
 }
 
+func (c *Client) processLogInconsistency(logURL string, vctClient *vct.Client, sth *command.GetSTHResponse) error {
+	// if storage is not enabled we have no record of missing objects so there's nothing else we can do
+	if !c.entryStoreEnabled {
+		return nil
+	}
+
+	logger.Infof("log[%s]: starting recovery process for log entry store ...", logURL)
+
+	// entry storage is enabled - find last common entry for log and store
+	index, entries, err := c.getDiscrepancyIndexAndAdditionalLogEntries(logURL, vctClient, sth.TreeSize)
+	if err != nil {
+		return fmt.Errorf("failed to get discrepancy index and additional log entries: %w", err)
+	}
+
+	err = c.entryStore.FailLogEntriesFrom(logURL, uint64(index))
+	if err != nil {
+		return fmt.Errorf("failed to change log entry status to 'failed' for log entries starting from[%d]: %w",
+			index, err)
+	}
+
+	if len(entries) == 0 {
+		return nil
+	}
+
+	var dbEntries []command.LeafEntry
+	for _, entry := range entries {
+		dbEntries = append(dbEntries, *entry)
+	}
+
+	err = c.entryStore.StoreLogEntries(logURL, uint64(index), uint64(index)+uint64(len(entries)-1), dbEntries)
+	if err != nil {
+		return fmt.Errorf("failed to store additional log entries starting from[%d]: %w",
+			index, err)
+	}
+
+	return nil
+}
+
+func (c *Client) getDiscrepancyIndexAndAdditionalLogEntries(logURL string,
+	vctClient *vct.Client, treeSize uint64) (int64, []*command.LeafEntry, error) {
+	var allDifferentLogEntries []*command.LeafEntry
+
+	curEnd := int64(treeSize)
+
+	for curEnd >= 0 {
+		curStart := curEnd - int64(c.maxRecoveryFetchSize) + 1
+		if curStart < 0 {
+			curStart = 0
+		}
+
+		logEntries, err := c.getLogEntries(logURL, vctClient, uint64(curStart), uint64(curEnd), false)
+		if err != nil {
+			return 0, nil, fmt.Errorf("get log entries from[%d] to[%d]: %w", curStart, curEnd, err)
+		}
+
+		storedEntries, err := c.getStoreEntriesFrom(logURL, uint64(curStart), c.maxRecoveryFetchSize)
+		if err != nil {
+			return 0, nil, fmt.Errorf("get store entries from[%d]: %w", curStart, err)
+		}
+
+		minSize := minimum(len(storedEntries), len(logEntries))
+
+		logger.Debugf("log[%s]: retrieved %d stored and %d log entries from index[%d], fetchSize[%d]",
+			logURL, len(storedEntries), len(logEntries), curStart, c.maxRecoveryFetchSize)
+
+		for i := minSize - 1; i >= 0; i-- {
+			if bytes.Equal(storedEntries[i].LeafInput, logEntries[i].LeafInput) {
+				firstDifferentIndex := curStart + int64(i) + 1
+
+				if i+1 < minSize {
+					allDifferentLogEntries = append(logEntries[i+1:], allDifferentLogEntries...)
+				}
+
+				logger.Infof("log[%s]: found common log entry between store and log - first different index[%d]",
+					logURL, firstDifferentIndex)
+
+				return firstDifferentIndex, allDifferentLogEntries, nil
+			}
+		}
+
+		allDifferentLogEntries = append(logEntries, allDifferentLogEntries...)
+
+		curEnd = curStart - 1
+	}
+
+	logger.Infof("log[%s]: there was no common log entry between store entries and log entries", logURL)
+
+	// not found or zero index have same meaning, all current entries should be marked failed in the store and
+	// all log entries should be added to the store
+	return 0, allDifferentLogEntries, nil
+}
+
+func (c *Client) getStoreEntriesFrom(logURL string, start uint64, maxCount int) ([]*command.LeafEntry, error) {
+	iter, err := c.entryStore.GetLogEntriesFrom(logURL, start)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := iter.TotalItems()
+	if err != nil {
+		return nil, err
+	}
+
+	var retrievedEntries []*command.LeafEntry
+
+	for i := 0; i < minimum(n, maxCount); i++ {
+		val, err := iter.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		retrievedEntries = append(retrievedEntries, val)
+	}
+
+	return retrievedEntries, nil
+}
+
+func minimum(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
 func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctClient *vct.Client) error {
 	logger.Debugf("log[%s]: get STH tree[%d] and verify consistency", logURL, sth.TreeSize)
 
-	entries, err := c.getAllEntries(logURL, vctClient, sth.TreeSize, c.maxGetEntriesRange)
+	entries, err := c.getAllEntries(logURL, vctClient, sth.TreeSize)
 	if err != nil {
 		return fmt.Errorf("failed to get all entries: %w", err)
 	}
@@ -252,17 +413,17 @@ func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctCl
 	return nil
 }
 
-func (c *Client) getEntries(logURL string, vctClient *vct.Client,
-	start, end uint64, maxEntriesPerRequest int) ([]*command.LeafEntry, error) {
+func (c *Client) getLogEntries(logURL string, vctClient *vct.Client,
+	start, end uint64, store bool) ([]*command.LeafEntry, error) {
 	var allEntries []*command.LeafEntry
 
-	attempts := int(end) / maxEntriesPerRequest
+	attempts := int(end) / c.maxGetEntriesRange
 
 	// fetch all the entries in the tree corresponding to the STH
 	// VCT: get-entries allow maximum 1000 entries to be returned
 	for i := 0; i <= attempts; i++ {
-		attemptStart := start + uint64(i*maxEntriesPerRequest)
-		attemptEnd := min(uint64((i+1)*maxEntriesPerRequest-1), end)
+		attemptStart := start + uint64(i*c.maxGetEntriesRange)
+		attemptEnd := min(uint64((i+1)*c.maxGetEntriesRange-1), end)
 
 		entries, err := vctClient.GetEntries(context.Background(), attemptStart, attemptEnd)
 		if err != nil {
@@ -271,9 +432,11 @@ func (c *Client) getEntries(logURL string, vctClient *vct.Client,
 
 		logger.Debugf("log[%s] fetched entries from %d to %d", logURL, attemptStart, attemptEnd)
 
-		err = c.entryStore.StoreLogEntries(logURL, attemptStart, attemptEnd, entries.Entries)
-		if err != nil {
-			return nil, fmt.Errorf("failed to store entries for range[%d-%d]: %w", attemptStart, attemptEnd, err)
+		if c.entryStoreEnabled && store {
+			err = c.entryStore.StoreLogEntries(logURL, attemptStart, attemptEnd, entries.Entries)
+			if err != nil {
+				return nil, fmt.Errorf("failed to store entries for range[%d-%d]: %w", attemptStart, attemptEnd, err)
+			}
 		}
 
 		for i := range entries.Entries {
@@ -285,8 +448,8 @@ func (c *Client) getEntries(logURL string, vctClient *vct.Client,
 }
 
 func (c *Client) getAllEntries(logURL string, vctClient *vct.Client,
-	treeSize uint64, maxEntriesPerRequest int) ([]*command.LeafEntry, error) {
-	return c.getEntries(logURL, vctClient, 0, treeSize-1, maxEntriesPerRequest)
+	treeSize uint64) ([]*command.LeafEntry, error) {
+	return c.getLogEntries(logURL, vctClient, 0, treeSize-1, true)
 }
 
 func min(a, b uint64) uint64 {
@@ -298,31 +461,29 @@ func min(a, b uint64) uint64 {
 }
 
 func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { //nolint:lll
-	if storedSTH.TreeSize == 0 {
+	if storedSTH.TreeSize > 0 {
+		logger.Debugf("log[%s]: get STH consistency for stored[%d] and latest[%d]",
+			logURL, storedSTH.TreeSize, sth.TreeSize)
+
+		sthConsistency, err := vctClient.GetSTHConsistency(context.Background(), storedSTH.TreeSize, sth.TreeSize)
+		if err != nil {
+			return fmt.Errorf("get STH consistency: %w", err)
+		}
+
+		logger.Debugf("log[%s]: found %d consistencies in STH consistency response",
+			logURL, len(sthConsistency.Consistency))
+
+		err = c.logVerifier.VerifyConsistencyProof(int64(storedSTH.TreeSize), int64(sth.TreeSize),
+			storedSTH.SHA256RootHash, sth.SHA256RootHash, sthConsistency.Consistency)
+		if err != nil {
+			return fmt.Errorf("verify consistency proof: %w", err)
+		}
+	} else {
 		// any tree is consistent with tree size of zero - nothing to do
 		logger.Debugf("log[%s]: STH stored tree size is zero - nothing to do for STH consistency", logURL)
-
-		return nil
 	}
 
-	logger.Debugf("log[%s]: get STH consistency for stored[%d] and latest[%d]",
-		logURL, storedSTH.TreeSize, sth.TreeSize)
-
-	sthConsistency, err := vctClient.GetSTHConsistency(context.Background(), storedSTH.TreeSize, sth.TreeSize)
-	if err != nil {
-		return fmt.Errorf("get STH consistency: %w", err)
-	}
-
-	logger.Debugf("log[%s]: found %d consistencies in STH consistency response",
-		logURL, len(sthConsistency.Consistency))
-
-	err = c.logVerifier.VerifyConsistencyProof(int64(storedSTH.TreeSize), int64(sth.TreeSize),
-		storedSTH.SHA256RootHash, sth.SHA256RootHash, sthConsistency.Consistency)
-	if err != nil {
-		return fmt.Errorf("verify consistency proof: %w", err)
-	}
-
-	_, err = c.getEntries(logURL, vctClient, storedSTH.TreeSize, sth.TreeSize-1, c.maxGetEntriesRange)
+	_, err := c.getLogEntries(logURL, vctClient, storedSTH.TreeSize, sth.TreeSize-1, true)
 	if err != nil {
 		return fmt.Errorf("get entries between trees: %w", err)
 	}
@@ -418,4 +579,12 @@ type noopLogEntryStore struct{}
 
 func (s *noopLogEntryStore) StoreLogEntries(logURL string, start, end uint64, entries []command.LeafEntry) error {
 	return nil
+}
+
+func (s *noopLogEntryStore) FailLogEntriesFrom(logURL string, start uint64) error {
+	return nil
+}
+
+func (s *noopLogEntryStore) GetLogEntriesFrom(logURL string, start uint64) (logentry.EntryIterator, error) {
+	return nil, nil
 }

@@ -139,6 +139,7 @@ services:
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/gzip;base64
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
+      - VCT_LOG_ENTRIES_STORE_ENABLED=true
     ports:
       - 48326:443
       - 48327:48327
@@ -272,6 +273,7 @@ services:
       - ANCHOR_DATA_URI_MEDIA_TYPE=application/gzip;base64
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
+      - VCT_LOG_ENTRIES_STORE_ENABLED=true
     ports:
       - 48526:443
       - 48527:48527
