@@ -6,15 +6,21 @@ SPDX-License-Identifier: Apache-2.0
 
 package wrapper
 
-import "github.com/hyperledger/aries-framework-go/spi/storage"
+import (
+	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"go.mongodb.org/mongo-driver/mongo"
+)
 
 type provider interface {
-	OpenStore(name string) (storage.Store, error)
-	SetStoreConfig(name string, config storage.StoreConfiguration) error
-	GetStoreConfig(name string) (storage.StoreConfiguration, error)
-	GetOpenStores() []storage.Store
-	Close() error
+	storage.Provider
+
 	Ping() error
+}
+
+type mongoDBProvider interface {
+	provider
+
+	CreateCustomIndex(storeName string, model mongo.IndexModel) error
 }
 
 // ProviderWrapper wrap aries provider.
@@ -61,4 +67,34 @@ func (prov *ProviderWrapper) Ping() error {
 // Close provider.
 func (prov *ProviderWrapper) Close() error {
 	return prov.p.Close()
+}
+
+// MongoDBProviderWrapper wraps a MongoDB aries provider.
+type MongoDBProviderWrapper struct {
+	*ProviderWrapper
+
+	mp mongoDBProvider
+}
+
+// NewMongoDBProvider return new store provider wrapper.
+func NewMongoDBProvider(p mongoDBProvider) *MongoDBProviderWrapper {
+	return &MongoDBProviderWrapper{
+		ProviderWrapper: NewProvider(p, "MongoDB"),
+		mp:              p,
+	}
+}
+
+// OpenStore open store.
+func (prov *MongoDBProviderWrapper) OpenStore(name string) (storage.Store, error) {
+	s, err := prov.p.OpenStore(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewMongoDBStore(s), nil
+}
+
+// CreateCustomIndex creates a MongoDB index.
+func (prov *MongoDBProviderWrapper) CreateCustomIndex(storeName string, model mongo.IndexModel) error {
+	return prov.mp.CreateCustomIndex(storeName, model)
 }

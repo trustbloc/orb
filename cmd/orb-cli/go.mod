@@ -43,7 +43,7 @@ require (
 	github.com/google/tink/go v1.6.1 // indirect
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220516154446-0ba34929e05b // indirect
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220526205258-18d510d84955 // indirect
 	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220516154446-0ba34929e05b // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect

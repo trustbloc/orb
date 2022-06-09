@@ -7,13 +7,17 @@ SPDX-License-Identifier: Apache-2.0
 package wrapper
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-func TestProvider(t *testing.T) {
+func TestProviderWrapper(t *testing.T) {
 	s := NewProvider(&mockProvider{}, "CouchDB")
 	require.NotNil(t, s)
 
@@ -41,6 +45,34 @@ func TestProvider(t *testing.T) {
 
 	t.Run("ping", func(t *testing.T) {
 		require.NoError(t, s.Ping())
+	})
+}
+
+func TestMongoDBProviderWrapper(t *testing.T) {
+	mp := &mocks.MongoDBProvider{}
+
+	p := NewMongoDBProvider(mp)
+	require.NotNil(t, p)
+
+	t.Run("open store", func(t *testing.T) {
+		mp.OpenStoreReturns(&mocks.MongoDBStore{}, nil)
+
+		_, err := p.OpenStore("s1")
+		require.NoError(t, err)
+	})
+
+	t.Run("open store error", func(t *testing.T) {
+		errExpected := errors.New("injected OpenStore error")
+
+		mp.OpenStoreReturns(nil, errExpected)
+
+		_, err := p.OpenStore("s1")
+		require.EqualError(t, err, errExpected.Error())
+	})
+
+	t.Run("CreateCustomIndex", func(t *testing.T) {
+		err := p.CreateCustomIndex("s1", mongo.IndexModel{})
+		require.NoError(t, err)
 	})
 }
 
