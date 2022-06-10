@@ -19,18 +19,17 @@ import (
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 const (
 	namespace = "anchor-status"
 
-	index = "anchorID"
-
-	expiryTimeTagName = "ExpiryTime"
-
-	statusTagName          = "Status"
-	statusCheckTimeTagName = "StatusCheckTime"
+	anchorIDTagName        = "anchorID"
+	expiryTimeTagName      = "expiryTime"
+	statusTagName          = "status"
+	statusCheckTimeTagName = "statusCheckTime"
 
 	// adding time in order to avoid possible errors due to differences in server times.
 	delta = 5 * time.Minute
@@ -70,22 +69,19 @@ func (s *noopPolicyHandler) CheckPolicy(_ string) error {
 // New creates new anchor event status store.
 func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration,
 	opts ...Option) (*Store, error) {
-	store, err := provider.OpenStore(namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open vc-status store: %w", err)
-	}
-
-	err = provider.SetStoreConfig(namespace,
-		storage.StoreConfiguration{TagNames: []string{index, expiryTimeTagName, statusTagName, statusCheckTimeTagName}},
+	s, err := store.Open(provider, namespace,
+		store.NewTagGroup(anchorIDTagName, statusTagName),
+		store.NewTagGroup(expiryTimeTagName),
+		store.NewTagGroup(statusCheckTimeTagName),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
+		return nil, err
 	}
 
-	expiryService.Register(store, expiryTimeTagName, namespace)
+	expiryService.Register(s, expiryTimeTagName, namespace)
 
 	anchorEventStatusStore := &Store{
-		store:          store,
+		store:          s,
 		statusLifespan: maxWitnessDelay + delta,
 
 		policyHandler:              &noopPolicyHandler{},
@@ -116,10 +112,37 @@ type Store struct {
 
 // AddStatus adds verifiable credential proof collecting status.
 func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error {
+	as, tags := s.getAnchorStatusWithTags(anchorID, status)
+
+	asBytes, err := s.marshal(as)
+	if err != nil {
+		return fmt.Errorf("marshal anchor status: %w", err)
+	}
+
+	if err := s.store.Put(uuid.New().String(), asBytes, tags...); err != nil {
+		return orberrors.NewTransient(fmt.Errorf("failed to store anchorID[%s] status '%s': %w",
+			anchorID, status, err))
+	}
+
+	if status == proof.AnchorIndexStatusCompleted {
+		delErr := s.deleteInProcessStatus(anchorID)
+		if delErr != nil {
+			// no need to stop processing for this
+			logger.Debugf("failed to delete in-process statuses after receiving complete status: %s", delErr.Error())
+		}
+	}
+
+	logger.Debugf("stored anchorID[%s] status '%s'", anchorID, status)
+
+	return nil
+}
+
+func (s *Store) getAnchorStatusWithTags(anchorID string,
+	status proof.AnchorIndexStatus) (*anchorStatus, []storage.Tag) {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	indexTag := storage.Tag{
-		Name:  index,
+		Name:  anchorIDTagName,
 		Value: anchorIDEncoded,
 	}
 
@@ -128,15 +151,19 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 		Value: string(status),
 	}
 
+	expiryTime := time.Now().Add(s.statusLifespan).Unix()
+
 	expiryTag := storage.Tag{
 		Name:  expiryTimeTagName,
-		Value: fmt.Sprintf("%d", time.Now().Add(s.statusLifespan).Unix()),
+		Value: fmt.Sprintf("%d", expiryTime),
 	}
+
+	var statusCheckTime int64
 
 	tags := []storage.Tag{indexTag, statusTag, expiryTag}
 
 	if status != proof.AnchorIndexStatusCompleted {
-		statusCheckTime := time.Now().Add(s.checkStatusAfterTimePeriod).Unix()
+		statusCheckTime = time.Now().Add(s.checkStatusAfterTimePeriod).Unix()
 
 		logger.Debugf("Setting '%s' tag for anchorID[%s]: %d", statusCheckTimeTagName, anchorID, statusCheckTime)
 
@@ -146,28 +173,12 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 		})
 	}
 
-	statusBytes, err := s.marshal(status)
-	if err != nil {
-		return fmt.Errorf("marshal: %w", err)
-	}
-
-	err = s.store.Put(uuid.New().String(), statusBytes, tags...)
-	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to store anchorID[%s] status '%s': %w",
-			anchorID, status, err))
-	}
-
-	if status == proof.AnchorIndexStatusCompleted {
-		delErr := s.deleteInProcessStatus(anchorID)
-		if delErr != nil {
-			// no need to stop processing for this
-			logger.Debugf("failed to delete in-process statuses after receiving complete status: %s", err.Error())
-		}
-	}
-
-	logger.Debugf("stored anchorID[%s] status '%s'", anchorID, status)
-
-	return nil
+	return &anchorStatus{
+		AnchorID:        anchorIDEncoded,
+		Status:          status,
+		ExpiryTime:      expiryTime,
+		StatusCheckTime: statusCheckTime,
+	}, tags
 }
 
 func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:funlen,gocyclo,cyclop
@@ -175,11 +186,14 @@ func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:funlen,g
 
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf("%s:%s", index, anchorIDEncoded)
+	query := fmt.Sprintf("%s:%s&&%s:%s",
+		anchorIDTagName, anchorIDEncoded,
+		statusTagName, proof.AnchorIndexStatusInProcess,
+	)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return fmt.Errorf("failed to get statuses for anchor event[%s] query[%s]: %w",
+		return fmt.Errorf("failed to get statuses for anchor[%s] query[%s]: %w",
 			anchorID, query, err)
 	}
 
@@ -189,32 +203,35 @@ func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:funlen,g
 	}
 
 	if !ok {
-		return fmt.Errorf("in-process status not found for anchor event[%s]", anchorID)
+		// No in-process anchors.
+		return nil
 	}
 
 	var keysToDelete []string
 
 	for ok {
-		tags, errTags := iter.Tags()
-		if errTags != nil {
-			return fmt.Errorf("failed to get tags for anchor event[%s]: %w",
-				anchorID, errTags)
+		statusBytes, e := iter.Value()
+		if e != nil {
+			return fmt.Errorf("failed to get status for anchor[%s]: %w", anchorID, e)
 		}
 
-		for _, tag := range tags {
-			if tag.Name == statusTagName && tag.Value == string(proof.AnchorIndexStatusInProcess) {
-				key, errKey := iter.Key()
-				if errKey != nil {
-					return fmt.Errorf("failed to get key from iterator: %w", errKey)
-				}
+		status := &anchorStatus{}
 
-				keysToDelete = append(keysToDelete, key)
-			}
+		e = s.unmarshal(statusBytes, status)
+		if e != nil {
+			return fmt.Errorf("unmarshal anchor status for anchor[%s]: %w", anchorID, e)
 		}
 
-		ok, err = iter.Next()
-		if err != nil {
-			return orberrors.NewTransient(fmt.Errorf("iterator error for anchor event[%s]: %w", anchorID, err))
+		key, e := iter.Key()
+		if e != nil {
+			return fmt.Errorf("failed to get key from iterator for anchor[%s]: %w", anchorID, e)
+		}
+
+		keysToDelete = append(keysToDelete, key)
+
+		ok, e = iter.Next()
+		if e != nil {
+			return orberrors.NewTransientf("iterator error for anchor event[%s]: %w", anchorID, e)
 		}
 	}
 
@@ -243,21 +260,21 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf("%s:%s", index, anchorIDEncoded)
+	query := fmt.Sprintf("%s:%s", anchorIDTagName, anchorIDEncoded)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return "", orberrors.NewTransient(fmt.Errorf("failed to get statuses for anchor event[%s] query[%s]: %w",
+		return "", orberrors.NewTransient(fmt.Errorf("failed to get statuses for anchor [%s] query[%s]: %w",
 			anchorID, query, err))
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return "", orberrors.NewTransient(fmt.Errorf("iterator error for anchor event[%s] statuses: %w", anchorID, err))
+		return "", orberrors.NewTransient(fmt.Errorf("iterator error for anchor [%s] statuses: %w", anchorID, err))
 	}
 
 	if !ok {
-		return "", fmt.Errorf("status not found for anchor event[%s]", anchorID)
+		return "", fmt.Errorf("status not found for anchor [%s]", anchorID)
 	}
 
 	var status proof.AnchorIndexStatus
@@ -269,12 +286,16 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 				anchorID, err))
 		}
 
-		err = s.unmarshal(value, &status)
+		var anchrStatus anchorStatus
+
+		err = s.unmarshal(value, &anchrStatus)
 		if err != nil {
 			return "", fmt.Errorf("unmarshal status: %w", err)
 		}
 
-		if status == proof.AnchorIndexStatusCompleted {
+		status = anchrStatus.Status
+
+		if anchrStatus.Status == proof.AnchorIndexStatusCompleted {
 			return proof.AnchorIndexStatusCompleted, nil
 		}
 
@@ -284,7 +305,7 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 		}
 	}
 
-	logger.Debugf("status for anchor event[%s]: %s", anchorID, status)
+	logger.Debugf("status for anchor [%s]: %s", anchorID, status)
 
 	return status, nil
 }
@@ -293,49 +314,50 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 func (s *Store) CheckInProcessAnchors() {
 	query := fmt.Sprintf("%s<=%d", statusCheckTimeTagName, time.Now().Unix())
 
-	iterator, err := s.store.Query(query)
-	if err != nil {
-		logger.Errorf("failed to query anchor event status store: %s", err.Error())
+	iterator, e := s.store.Query(query)
+	if e != nil {
+		logger.Errorf("failed to query anchor event status store: %s", e.Error())
 
 		return
 	}
 
-	more, err := iterator.Next()
-	if err != nil {
-		logger.Errorf("failed to get next value from iterator: %s", err.Error())
+	more, e := iterator.Next()
+	if e != nil {
+		logger.Errorf("failed to get next value from iterator: %s", e.Error())
 
 		return
 	}
 
 	for more {
-		tags, err := iterator.Tags()
-		if err != nil {
-			logger.Errorf("failed to get key from iterator: %s", err.Error())
+		statusBytes, e := iterator.Value()
+		if e != nil {
+			logger.Errorf("Failed to get status from iterator: %s", e.Error())
 
-			return
+			continue
 		}
 
-		for _, tag := range tags {
-			if tag.Name == index {
-				err := s.processIndex(tag.Value)
-				if err != nil {
-					if errors.Is(err, orberrors.ErrWitnessesNotFound) {
-						// This is not a critical error. Log it as info.
-						logger.Infof("failed to process anchor event index: %s", err.Error())
-					} else {
-						logger.Errorf("failed to process anchor event index: %s", err.Error())
-					}
-				}
+		status := &anchorStatus{}
 
-				break
+		e = s.unmarshal(statusBytes, status)
+		if e != nil {
+			logger.Errorf("Failed to unmarshal status from iterator: %s", e.Error())
+
+			continue
+		}
+
+		e = s.processIndex(status.AnchorID)
+		if e != nil {
+			if errors.Is(e, orberrors.ErrWitnessesNotFound) {
+				// This is not a critical error. Log it as info.
+				logger.Infof("failed to process anchor event index: %s", e.Error())
+			} else {
+				logger.Errorf("failed to process anchor event index: %s", e.Error())
 			}
 		}
 
-		var errNext error
-
-		more, errNext = iterator.Next()
-		if errNext != nil {
-			logger.Errorf("failed to get next value from iterator: %s", errNext.Error())
+		more, e = iterator.Next()
+		if e != nil {
+			logger.Errorf("failed to get next value from iterator: %s", e)
 
 			return
 		}
@@ -350,7 +372,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 
 	anchorID := string(anchorIDBytes)
 
-	logger.Debugf("Processing anchor event ID[%s]", anchorID)
+	logger.Debugf("Processing anchor [%s]", anchorID)
 
 	status, err := s.GetStatus(anchorID)
 	if err != nil {
@@ -370,4 +392,11 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 	logger.Debugf("successfully re-evaluated policy for anchorID[%s]", anchorID)
 
 	return nil
+}
+
+type anchorStatus struct {
+	AnchorID        string                  `json:"anchorID"`
+	Status          proof.AnchorIndexStatus `json:"status"`
+	ExpiryTime      int64                   `json:"expiryTime"`
+	StatusCheckTime int64                   `json:"statusCheckTime"`
 }

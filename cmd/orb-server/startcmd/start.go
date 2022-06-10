@@ -703,7 +703,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create vc builder: %s", err.Error())
 	}
 
-	alStore, err := anchorlinkstore.New(storeProviders.provider, orbDocumentLoader)
+	alStore, err := anchorlinkstore.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("failed to create anchor event store: %s", err.Error())
 	}
@@ -973,7 +973,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	go monitorActivities(activityPubService.Subscribe(), logger)
 
-	vcStore, err := storeProviders.provider.OpenStore("verifiable")
+	vcStore, err := store.Open(storeProviders.provider, "verifiable")
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}

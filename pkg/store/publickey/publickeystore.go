@@ -16,6 +16,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 var logger = log.New("public-key-store")
@@ -40,7 +42,7 @@ type cacheKey struct {
 
 // New returns a new public key store.
 func New(p storage.Provider, fetchPublicKey verifiable.PublicKeyFetcher) (*Store, error) {
-	s, err := p.OpenStore(storeName)
+	s, err := store.Open(p, storeName)
 	if err != nil {
 		return nil, fmt.Errorf("open store [%s]: %w", storeName, err)
 	}

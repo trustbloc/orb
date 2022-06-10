@@ -17,6 +17,7 @@ import (
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const (
@@ -28,18 +29,15 @@ var logger = log.New("anchor-ref-store")
 
 // New creates a new anchor link store.
 func New(provider storage.Provider) (*Store, error) {
-	store, err := provider.OpenStore(storeName)
+	s, err := store.Open(provider, storeName,
+		store.NewTagGroup(hashTag),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open anchor ref store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(storeName, storage.StoreConfiguration{TagNames: []string{hashTag}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
-
 	return &Store{
-		store:     store,
+		store:     s,
 		marshal:   json.Marshal,
 		unmarshal: json.Unmarshal,
 	}, nil
@@ -52,6 +50,11 @@ type Store struct {
 	unmarshal func(data []byte, v interface{}) error
 }
 
+type anchorLinkRef struct {
+	AnchorHash string `json:"anchorHash"`
+	URL        string `json:"url"`
+}
+
 // PutLinks stores the given hash links.
 func (s *Store) PutLinks(links []*url.URL) error {
 	operations := make([]storage.Operation, len(links))
@@ -62,7 +65,10 @@ func (s *Store) PutLinks(links []*url.URL) error {
 			return fmt.Errorf("get hash from hashlink [%s]: %w", link, err)
 		}
 
-		linkBytes, err := s.marshal(link.String())
+		linkBytes, err := s.marshal(&anchorLinkRef{
+			AnchorHash: anchorHash,
+			URL:        link.String(),
+		})
 		if err != nil {
 			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
@@ -147,16 +153,16 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 				anchorHash, err))
 		}
 
-		var link string
+		linkRef := anchorLinkRef{}
 
-		err = s.unmarshal(value, &link)
+		err = s.unmarshal(value, &linkRef)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshal link [%s] for anchor [%s]: %w", value, anchorHash, err)
 		}
 
-		u, err := url.Parse(link)
+		u, err := url.Parse(linkRef.URL)
 		if err != nil {
-			return nil, fmt.Errorf("parse link [%s] for anchor [%s]: %w", link, anchorHash, err)
+			return nil, fmt.Errorf("parse link [%s] for anchor [%s]: %w", linkRef.URL, anchorHash, err)
 		}
 
 		links = append(links, u)

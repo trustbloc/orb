@@ -46,7 +46,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open vc-status store: open store error")
+		require.Contains(t, err.Error(), "open store [anchor-status]: open store error")
 		require.Nil(t, s)
 	})
 
@@ -56,7 +56,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
+		require.Contains(t, err.Error(), "set store configuration for [anchor-status]: set store config error")
 		require.Nil(t, s)
 	})
 }
@@ -397,28 +397,9 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		s.CheckInProcessAnchors()
 	})
 
-	t.Run("error - iterator tags() error ", func(t *testing.T) {
-		iterator := &mocks.Iterator{}
-
-		iterator.NextReturnsOnCall(0, true, nil)
-		iterator.NextReturnsOnCall(1, false, nil)
-
-		iterator.TagsReturns(nil, fmt.Errorf("iterator tags() error"))
-
-		store := &mocks.Store{}
-		store.QueryReturns(iterator, nil)
-
-		provider := &mocks.Provider{}
-		provider.OpenStoreReturns(store, nil)
-
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
-		require.NoError(t, err)
-
-		s.CheckInProcessAnchors()
-	})
-
 	t.Run("error - iterator second next() error ", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
+		iterator.ValueReturns([]byte(`{"status": "in-process"}`), nil)
 		iterator.NextReturnsOnCall(0, true, nil)
 		iterator.NextReturnsOnCall(1, false, fmt.Errorf("iterator second next() error"))
 
@@ -436,7 +417,24 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 }
 
 func TestStore_deleteInProcessStatus(t *testing.T) {
-	t.Run("error - query error ", func(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		err = s.deleteInProcessStatus(vcID)
+		require.NoError(t, err)
+	})
+
+	t.Run("nothing to delete -> success", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
 
@@ -468,24 +466,6 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		require.Contains(t, err.Error(), "query error")
 	})
 
-	t.Run("error - no records", func(t *testing.T) {
-		iterator := &mocks.Iterator{}
-		iterator.NextReturns(false, nil)
-
-		store := &mocks.Store{}
-		store.QueryReturns(iterator, nil)
-
-		provider := &mocks.Provider{}
-		provider.OpenStoreReturns(store, nil)
-
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
-		require.NoError(t, err)
-
-		err = s.deleteInProcessStatus(vcID)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "in-process status not found for anchor event")
-	})
-
 	t.Run("error - iterator next() error ", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
 		iterator.NextReturns(false, fmt.Errorf("iterator next() error"))
@@ -504,31 +484,9 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		require.Contains(t, err.Error(), "iterator next() error")
 	})
 
-	t.Run("error - iterator tags() error ", func(t *testing.T) {
-		iterator := &mocks.Iterator{}
-
-		iterator.NextReturnsOnCall(0, true, nil)
-		iterator.NextReturnsOnCall(1, false, nil)
-
-		iterator.TagsReturns(nil, fmt.Errorf("iterator tags() error"))
-
-		store := &mocks.Store{}
-		store.QueryReturns(iterator, nil)
-
-		provider := &mocks.Provider{}
-		provider.OpenStoreReturns(store, nil)
-
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
-		require.NoError(t, err)
-
-		err = s.deleteInProcessStatus(vcID)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "iterator tags() error")
-	})
-
 	t.Run("error - iterator key() error ", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
-
+		iterator.ValueReturns([]byte(`{"status": "in-process"}`), nil)
 		iterator.NextReturnsOnCall(0, true, nil)
 		iterator.NextReturnsOnCall(1, false, nil)
 
@@ -552,6 +510,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 
 	t.Run("error - iterator second next() error ", func(t *testing.T) {
 		iterator := &mocks.Iterator{}
+		iterator.ValueReturns([]byte(`{"status": "in-process"}`), nil)
 		iterator.NextReturnsOnCall(0, true, nil)
 		iterator.NextReturnsOnCall(1, false, fmt.Errorf("iterator second next() error"))
 
