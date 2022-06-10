@@ -19,7 +19,6 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	policymocks "github.com/trustbloc/orb/pkg/anchor/witness/policy/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
-	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	anchorlinkstore "github.com/trustbloc/orb/pkg/store/anchorlink"
@@ -35,7 +34,7 @@ const (
 )
 
 func TestNew(t *testing.T) {
-	anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -69,7 +68,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 		p := &mocks.Provider{}
 		p.OpenStoreReturns(s, nil)
 
-		anchorLinkStore, err := anchorlinkstore.New(p, testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(p)
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)
@@ -102,7 +101,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - get anchor event error", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		selectedWitnessURL, err := url.Parse("http://domain.com/service")
@@ -133,7 +132,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - post offer to outbox error", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)
@@ -167,7 +166,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - no additional witnesses selected", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)
@@ -203,7 +202,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - witness store error", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)
@@ -225,7 +224,7 @@ func TestInspector_CheckPolicy(t *testing.T) {
 	})
 
 	t.Run("error - witness policy selection error", func(t *testing.T) {
-		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		anchorLinkStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = anchorLinkStore.Put(anchorLink)

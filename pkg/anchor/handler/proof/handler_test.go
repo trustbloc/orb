@@ -45,7 +45,7 @@ const (
 func TestNew(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 
-	store, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+	store, err := anchorlinkstore.New(mem.NewProvider())
 	require.NoError(t, err)
 
 	providers := &Providers{
@@ -68,7 +68,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	expiryTime := time.Now().Add(60 * time.Second)
 
 	t.Run("success - witness policy not satisfied", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -123,7 +123,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - witness policy satisfied", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -173,7 +173,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - status is completed", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -209,7 +209,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - policy satisfied but some witness proofs are empty", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -252,7 +252,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("success - duplicate proofs", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -302,7 +302,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - get status error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -348,7 +348,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - second get status error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -387,7 +387,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - set status to complete error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -425,7 +425,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("status already completed", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -473,7 +473,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness policy error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -511,7 +511,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - status not found store error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -541,7 +541,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = proofHandler.HandleProof(witnessIRI, "testVC",
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "status not found for anchor event[testVC]")
+		require.Contains(t, err.Error(), "status not found for anchor [testVC]")
 	})
 
 	t.Run("error - store error", func(t *testing.T) {
@@ -551,7 +551,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		provider := &storemocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		aeStore, err := anchorlinkstore.New(provider, testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(provider)
 		require.NoError(t, err)
 
 		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -577,7 +577,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -613,7 +613,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - witness store add proof error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}
@@ -649,7 +649,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - unmarshal witness proof", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
@@ -675,7 +675,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	})
 
 	t.Run("error - monitoring error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider(), testutil.GetLoader(t))
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
 		als := &linkset.Linkset{}

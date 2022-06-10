@@ -12,11 +12,11 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const nameSpace = "anchor-link"
@@ -24,26 +24,24 @@ const nameSpace = "anchor-link"
 var logger = log.New("anchor-link-store")
 
 // New returns new instance of anchor event store.
-func New(provider storage.Provider, loader ld.DocumentLoader) (*Store, error) {
-	store, err := provider.OpenStore(nameSpace)
+func New(p storage.Provider) (*Store, error) {
+	s, err := store.Open(p, nameSpace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vc store: %w", err)
 	}
 
 	return &Store{
-		documentLoader: loader,
-		store:          store,
-		marshal:        json.Marshal,
-		unmarshal:      json.Unmarshal,
+		store:     s,
+		marshal:   json.Marshal,
+		unmarshal: json.Unmarshal,
 	}, nil
 }
 
 // Store implements storage for anchor event.
 type Store struct {
-	store          storage.Store
-	documentLoader ld.DocumentLoader
-	marshal        func(v interface{}) ([]byte, error)
-	unmarshal      func(data []byte, v interface{}) error
+	store     storage.Store
+	marshal   func(v interface{}) ([]byte, error)
+	unmarshal func(data []byte, v interface{}) error
 }
 
 // Put saves an anchor event. If it already exists it will be overwritten.

@@ -25,7 +25,7 @@ var anchorIndexURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mM
 
 func TestNew(t *testing.T) {
 	t.Run("test new store", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -33,7 +33,7 @@ func TestNew(t *testing.T) {
 	t.Run("test error from open store", func(t *testing.T) {
 		s, err := New(&mockstore.Provider{
 			ErrOpenStore: fmt.Errorf("failed to open store"),
-		}, testutil.GetLoader(t))
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to open store")
 		require.Nil(t, s)
@@ -42,7 +42,7 @@ func TestNew(t *testing.T) {
 
 func TestStore_Put(t *testing.T) {
 	t.Run("test save anchor event - success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
@@ -54,7 +54,7 @@ func TestStore_Put(t *testing.T) {
 			ErrPut: fmt.Errorf("error put"),
 		}}
 
-		s, err := New(storeProvider, testutil.GetLoader(t))
+		s, err := New(storeProvider)
 		require.NoError(t, err)
 
 		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
@@ -65,7 +65,7 @@ func TestStore_Put(t *testing.T) {
 
 func TestStore_Get(t *testing.T) {
 	t.Run("test success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
@@ -77,7 +77,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("test success - with proof", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
@@ -89,7 +89,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("error - nil anchors URL", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = s.Put(&linkset.Link{})
@@ -102,7 +102,7 @@ func TestStore_Get(t *testing.T) {
 			ErrGet: fmt.Errorf("error get"),
 		}}
 
-		s, err := New(storeProvider, testutil.GetLoader(t))
+		s, err := New(storeProvider)
 		require.NoError(t, err)
 
 		vc, err := s.Get("vc1")
@@ -116,7 +116,7 @@ func TestStore_Get(t *testing.T) {
 			ErrGet: storage.ErrDataNotFound,
 		}}
 
-		s, err := New(storeProvider, testutil.GetLoader(t))
+		s, err := New(storeProvider)
 		require.NoError(t, err)
 
 		vc, err := s.Get("vc1")
@@ -125,7 +125,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("test marshal error", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected marshal error")
@@ -140,7 +140,7 @@ func TestStore_Get(t *testing.T) {
 	})
 
 	t.Run("test unmarshal error", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected unmarshal error")
@@ -161,7 +161,7 @@ func TestStore_Get(t *testing.T) {
 
 func TestStore_Delete(t *testing.T) {
 	t.Run("test success", func(t *testing.T) {
-		s, err := New(mem.NewProvider(), testutil.GetLoader(t))
+		s, err := New(mem.NewProvider())
 		require.NoError(t, err)
 
 		err = s.Put(linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil))
@@ -181,7 +181,7 @@ func TestStore_Delete(t *testing.T) {
 			ErrDelete: fmt.Errorf("error delete"),
 		}}
 
-		s, err := New(storeProvider, testutil.GetLoader(t))
+		s, err := New(storeProvider)
 		require.NoError(t, err)
 
 		err = s.Delete("vc1")
