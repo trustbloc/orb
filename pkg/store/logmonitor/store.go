@@ -10,37 +10,41 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const (
 	namespace = "log-monitor"
 
-	activeIndex = "active"
+	statusIndex = "status"
+)
+
+type status = string
+
+const (
+	statusActive   status = "active"
+	statusInactive status = "inactive"
 )
 
 var logger = log.New("log-monitor-store")
 
 // New returns new instance of log monitor store.
 func New(provider storage.Provider) (*Store, error) {
-	store, err := provider.OpenStore(namespace)
+	s, err := store.Open(provider, namespace,
+		store.NewTagGroup(statusIndex),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log monitor store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{activeIndex}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
-
 	return &Store{
-		store:     store,
+		store:     s,
 		marshal:   json.Marshal,
 		unmarshal: json.Unmarshal,
 	}, nil
@@ -55,11 +59,11 @@ type Store struct {
 
 // LogMonitor provides information about log monitor.
 type LogMonitor struct {
-	Log    string                  `json:"log_url"`
-	STH    *command.GetSTHResponse `json:"sth_response"`
-	PubKey []byte                  `json:"pub_key"`
+	Log    string                  `json:"logUrl"`
+	STH    *command.GetSTHResponse `json:"sthResponse"`
+	PubKey []byte                  `json:"pubKey"`
 
-	Active bool `json:"active"`
+	Status status `json:"status"`
 }
 
 // Activate stores a log to be monitored. If it already exists active flag will be set to true.
@@ -74,14 +78,14 @@ func (s *Store) Activate(logURL string) error {
 			// create new log monitor
 			rec = &LogMonitor{
 				Log:    logURL,
-				Active: true,
+				Status: statusActive,
 			}
 		} else {
 			return orberrors.NewTransientf("failed to get log monitor record: %w", err)
 		}
 	}
 
-	rec.Active = true
+	rec.Status = statusActive
 
 	recBytes, err := s.marshal(rec)
 	if err != nil {
@@ -91,8 +95,8 @@ func (s *Store) Activate(logURL string) error {
 	logger.Debugf("storing log monitor: %s", string(recBytes))
 
 	indexTag := storage.Tag{
-		Name:  activeIndex,
-		Value: "true",
+		Name:  statusIndex,
+		Value: statusActive,
 	}
 
 	if e := s.store.Put(logURL, recBytes, indexTag); e != nil {
@@ -117,7 +121,7 @@ func (s *Store) Deactivate(logURL string) error {
 		return orberrors.NewTransientf("failed to deactivate log[%s] monitor: %w", logURL, err)
 	}
 
-	rec.Active = false
+	rec.Status = statusInactive
 
 	recBytes, err := s.marshal(rec)
 	if err != nil {
@@ -127,8 +131,8 @@ func (s *Store) Deactivate(logURL string) error {
 	logger.Debugf("deactivating log monitor: %s", logURL)
 
 	indexTag := storage.Tag{
-		Name:  activeIndex,
-		Value: "false",
+		Name:  statusIndex,
+		Value: statusInactive,
 	}
 
 	if e := s.store.Put(logURL, recBytes, indexTag); e != nil {
@@ -173,8 +177,8 @@ func (s *Store) Update(logMonitor *LogMonitor) error {
 	logger.Debugf("updating log monitor: %s", string(recBytes))
 
 	indexTag := storage.Tag{
-		Name:  activeIndex,
-		Value: strconv.FormatBool(logMonitor.Active),
+		Name:  statusIndex,
+		Value: logMonitor.Status,
 	}
 
 	if e := s.store.Put(logMonitor.Log, recBytes, indexTag); e != nil {
@@ -197,32 +201,25 @@ func (s *Store) Delete(logURL string) error {
 
 // GetActiveLogs retrieves all active log monitors.
 func (s *Store) GetActiveLogs() ([]*LogMonitor, error) {
-	return s.getLogs(true)
+	return s.getLogs(statusActive)
 }
 
 // GetInactiveLogs retrieves all inactive log monitors.
 func (s *Store) GetInactiveLogs() ([]*LogMonitor, error) {
-	return s.getLogs(false)
+	return s.getLogs(statusInactive)
 }
 
-func (s *Store) getLogs(active bool) ([]*LogMonitor, error) {
-	var err error
-
-	label := "active"
-	if !active {
-		label = "inactive"
-	}
-
-	query := fmt.Sprintf("%s:%t", activeIndex, active)
+func (s *Store) getLogs(status status) ([]*LogMonitor, error) {
+	query := fmt.Sprintf("%s:%s", statusIndex, status)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get '%s' log monitors, query[%s]: %w", label, query, err)
+		return nil, fmt.Errorf("failed to get '%s' log monitors, query[%s]: %w", status, query, err)
 	}
 
 	ok, err := iter.Next()
 	if err != nil {
-		return nil, fmt.Errorf("iterator error for get '%s' log monitors: %w", label, err)
+		return nil, fmt.Errorf("iterator error for get '%s' log monitors: %w", status, err)
 	}
 
 	if !ok {
@@ -234,7 +231,7 @@ func (s *Store) getLogs(active bool) ([]*LogMonitor, error) {
 	for ok {
 		value, err := iter.Value()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get iterator value for '%s' log monitors: %w", label, err)
+			return nil, fmt.Errorf("failed to get iterator value for '%s' log monitors: %w", status, err)
 		}
 
 		var logMonitor LogMonitor
@@ -248,11 +245,11 @@ func (s *Store) getLogs(active bool) ([]*LogMonitor, error) {
 
 		ok, err = iter.Next()
 		if err != nil {
-			return nil, fmt.Errorf("iterator error for '%s' log monitors: %w", label, err)
+			return nil, fmt.Errorf("iterator error for '%s' log monitors: %w", status, err)
 		}
 	}
 
-	logger.Debugf("get '%s' log monitors: %+v", label, logMonitors)
+	logger.Debugf("get '%s' log monitors: %+v", status, logMonitors)
 
 	return logMonitors, nil
 }

@@ -9,6 +9,7 @@ package proofmonitoring_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -31,8 +32,9 @@ import (
 )
 
 const (
-	storeName       = "monitoring"
-	tagNotConfirmed = "not_confirmed"
+	storeName         = "proof-monitor"
+	tagStatus         = "status"
+	statusUnconfirmed = "unconfirmed"
 
 	webfingerPayload = `{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`
 )
@@ -46,12 +48,12 @@ func TestNew(t *testing.T) {
 
 	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil, nil, nil,
 		taskMgr, time.Second, map[string]string{})
-	require.EqualError(t, err, "open store: error")
+	require.EqualError(t, err, "open store: open store [proof-monitor]: error")
 	require.Nil(t, client)
 
 	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil, nil, nil,
 		taskMgr, time.Second, map[string]string{})
-	require.EqualError(t, err, "failed to set store configuration: error")
+	require.EqualError(t, err, "open store: set store configuration for [proof-monitor]: error")
 	require.Nil(t, client)
 }
 
@@ -421,7 +423,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 				t.Error("timeout")
 			}
 
-			records, err := store.Query(tagNotConfirmed)
+			records, err := store.Query(fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed))
 			if err != nil {
 				return err
 			}
@@ -489,7 +491,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		)
 
 		require.NoError(t, backoff.Retry(func() error {
-			records, err := store.Query(tagNotConfirmed)
+			records, err := store.Query(fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed))
 			require.NoError(t, err)
 
 			var count int
@@ -690,7 +692,7 @@ func checkQueue(t *testing.T, db storage.Provider, expected int) {
 	store, err := db.OpenStore(storeName)
 	require.NoError(t, err)
 
-	records, err := store.Query(tagNotConfirmed)
+	records, err := store.Query(fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed))
 	require.NoError(t, err)
 
 	var count int

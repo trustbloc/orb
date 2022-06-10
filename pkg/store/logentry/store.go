@@ -19,14 +19,15 @@ import (
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const (
 	nameSpace = "log-entry"
 
-	logTagName    = "Log"
-	indexTagName  = "Index"
-	statusTagName = "Status"
+	logTagName    = "logUrl"
+	indexTagName  = "index"
+	statusTagName = "status"
 
 	defaultPageSize = 500
 )
@@ -60,8 +61,10 @@ type Store struct {
 
 // LogEntry consists of index with log and leaf entry.
 type LogEntry struct {
-	Index     int
-	LeafEntry command.LeafEntry
+	Index     int               `json:"index"`
+	LeafEntry command.LeafEntry `json:"leafEntry"`
+	LogURL    string            `json:"logUrl"`
+	Status    EntryStatus       `json:"status"`
 }
 
 // EntryIterator defines the query results iterator for log entry queries.
@@ -76,21 +79,16 @@ type EntryIterator interface {
 
 // New creates db implementation of log entries.
 func New(provider storage.Provider, opts ...Option) (*Store, error) {
-	store, err := provider.OpenStore(nameSpace)
+	s, err := store.Open(provider, nameSpace,
+		store.NewTagGroup(logTagName, indexTagName, statusTagName),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log entry store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{
-		TagNames: []string{logTagName, indexTagName, statusTagName},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
-
 	logEntryStore := &Store{
 		pageSize: defaultPageSize,
-		store:    store,
+		store:    s,
 	}
 
 	for _, opt := range opts {
@@ -122,6 +120,8 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 		logEntry := &LogEntry{
 			Index:     index,
 			LeafEntry: entry,
+			LogURL:    base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+			Status:    EntryStatusSuccess,
 		}
 
 		logEntryBytes, err := json.Marshal(logEntry)
@@ -131,7 +131,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 
 		indexTag := storage.Tag{
 			Name:  indexTagName,
-			Value: strconv.Itoa(index),
+			Value: strconv.Itoa(logEntry.Index),
 		}
 
 		statusTag := storage.Tag{
@@ -141,7 +141,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 
 		logTag := storage.Tag{
 			Name:  logTagName,
-			Value: base64.RawURLEncoding.EncodeToString([]byte(logURL)),
+			Value: logEntry.LogURL,
 		}
 
 		op := storage.Operation{
@@ -153,8 +153,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 		operations[i] = op
 	}
 
-	err := s.store.Batch(operations)
-	if err != nil {
+	if err := s.store.Batch(operations); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to add entries for log: %w", err))
 	}
 
@@ -214,6 +213,20 @@ func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { // nolin
 		key, err := iterator.Key()
 		if err != nil {
 			return orberrors.NewTransient(fmt.Errorf("failed to get key: %w", err))
+		}
+
+		var entry LogEntry
+
+		err = json.Unmarshal(entryBytes, &entry)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal entry bytes: %w", err)
+		}
+
+		entry.Status = EntryStatusFailed
+
+		entryBytes, err = json.Marshal(entry)
+		if err != nil {
+			return fmt.Errorf("failed to marshal entry bytes: %w", err)
 		}
 
 		op := storage.Operation{
