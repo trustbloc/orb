@@ -13,14 +13,12 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
-
-	"github.com/trustbloc/orb/pkg/anchor/witness/policy"
 )
 
 // PolicyRetriever retrieves the current witness policy.
 type PolicyRetriever struct {
-	configStore storage.Store
-	unmarshal   func([]byte, interface{}) error
+	store     policyStore
+	unmarshal func([]byte, interface{}) error
 }
 
 // Path returns the HTTP REST endpoint for the policy retriever.
@@ -39,15 +37,15 @@ func (pc *PolicyRetriever) Handler() common.HTTPRequestHandler {
 }
 
 // NewRetriever returns a new PolicyRetriever.
-func NewRetriever(cfgStore storage.Store) *PolicyRetriever {
+func NewRetriever(store policyStore) *PolicyRetriever {
 	return &PolicyRetriever{
-		configStore: cfgStore,
-		unmarshal:   json.Unmarshal,
+		store:     store,
+		unmarshal: json.Unmarshal,
 	}
 }
 
 func (pc *PolicyRetriever) handle(w http.ResponseWriter, req *http.Request) {
-	policyBytes, err := pc.configStore.Get(policy.WitnessPolicyKey)
+	policyStr, err := pc.store.GetPolicy()
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
 			logger.Debugf("[%s] Witness policy not found", endpoint)
@@ -64,18 +62,7 @@ func (pc *PolicyRetriever) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var policyStr string
-
-	err = pc.unmarshal(policyBytes, &policyStr)
-	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling witness policy: %s", endpoint, err)
-
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
-
-		return
-	}
-
-	logger.Debugf("[%s] Retrieved witness policy %s", endpoint, policyBytes)
+	logger.Debugf("[%s] Retrieved witness policy %s", endpoint, policyStr)
 
 	writeResponse(w, http.StatusOK, []byte(policyStr))
 }

@@ -105,6 +105,10 @@ func (c *Client) GetValue(key string) ([]byte, error) {
 	return valueBytes, nil
 }
 
+type logCfg struct {
+	URL string `json:"url"`
+}
+
 // GetLogEndpoint returns log endpoint.
 func (c *Client) GetLogEndpoint() (string, error) {
 	value, err := c.GetValue(logURL)
@@ -112,12 +116,12 @@ func (c *Client) GetLogEndpoint() (string, error) {
 		return "", fmt.Errorf("failed to retrieve log endpoint from config cache: %w", err)
 	}
 
-	var logURLStr string
+	logConfig := &logCfg{}
 
-	err = c.unmarshal(value, &logURLStr)
+	err = c.unmarshal(value, &logConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal log URL: %w", err)
+		return "", fmt.Errorf("failed to unmarshal log config: %w", err)
 	}
 
-	return logURLStr, nil
+	return logConfig.URL, nil
 }

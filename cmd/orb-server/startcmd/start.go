@@ -94,6 +94,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/handler/proof"
 	"github.com/trustbloc/orb/pkg/anchor/linkstore"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy"
+	policycfg "github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/inspector"
 	policyhandler "github.com/trustbloc/orb/pkg/anchor/witness/policy/resthandler"
 	"github.com/trustbloc/orb/pkg/anchor/writer"
@@ -127,6 +128,7 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo"
+	"github.com/trustbloc/orb/pkg/store"
 	anchorlinkstore "github.com/trustbloc/orb/pkg/store/anchorlink"
 	"github.com/trustbloc/orb/pkg/store/anchorstatus"
 	casstore "github.com/trustbloc/orb/pkg/store/cas"
@@ -285,6 +287,11 @@ func BuildKMSURL(base, uri string) string {
 	return uri
 }
 
+type keyStoreCfg struct {
+	URL   string `json:"url,omitempty"`
+	KeyID string `json:"keyID,omitempty"`
+}
+
 func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 	store storage.Provider, cfg storage.Store) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
@@ -314,20 +321,22 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 				webcrypto.New(parameters.kmsParams.kmsEndpoint, client), nil
 		}
 
-		var keystoreURL string
+		keyStoreCfg := &keyStoreCfg{}
 
-		err := getOrInit(cfg, webKeyStoreKey, &keystoreURL, func() (interface{}, error) {
-			location, _, err := webkms.CreateKeyStore(client, parameters.kmsParams.kmsEndpoint, uuid.New().String(), "", nil)
+		err := getOrInit(cfg, webKeyStoreKey, &keyStoreCfg, func() (interface{}, error) {
+			var err error
 
-			return location, err
+			keyStoreCfg.URL, _, err = webkms.CreateKeyStore(client, parameters.kmsParams.kmsEndpoint, uuid.New().String(), "", nil)
+
+			return keyStoreCfg, err
 		}, parameters.syncTimeout)
 		if err != nil {
 			return nil, nil, fmt.Errorf("get or init: %w", err)
 		}
 
-		keystoreURL = BuildKMSURL(parameters.kmsParams.kmsEndpoint, keystoreURL)
+		keyStoreURL := BuildKMSURL(parameters.kmsParams.kmsEndpoint, keyStoreCfg.URL)
 
-		return webkms.New(keystoreURL, client), webcrypto.New(keystoreURL, client), nil
+		return webkms.New(keyStoreURL, client), webcrypto.New(keyStoreURL, client), nil
 	case kmsAWS:
 		region, err := getRegion(parameters.kmsParams.vcSignActiveKeyID)
 		if err != nil {
@@ -376,11 +385,22 @@ func createKID(km keyManager, httpSignKeyType bool, parameters *orbParameters, c
 		kidKey = httpKidKey
 	}
 
-	return getOrInit(cfg, kidKey, activeKeyID, func() (interface{}, error) {
-		keyID, _, err := km.Create(kmsKeyType)
+	keyStoreCfg := &keyStoreCfg{}
 
-		return keyID, err
+	err := getOrInit(cfg, kidKey, keyStoreCfg, func() (interface{}, error) {
+		var err error
+
+		keyStoreCfg.KeyID, _, err = km.Create(kmsKeyType)
+
+		return keyStoreCfg, err
 	}, parameters.syncTimeout)
+	if err != nil {
+		return fmt.Errorf("create Key ID: %w", err)
+	}
+
+	*activeKeyID = keyStoreCfg.KeyID
+
+	return nil
 }
 
 func importPrivateKey(km keyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
@@ -421,7 +441,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	configStore, err := storeProviders.provider.OpenStore("orb-config")
+	configStore, err := store.Open(storeProviders.provider, "orb-config")
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
@@ -825,7 +845,9 @@ func startOrbServices(parameters *orbParameters) error {
 
 	taskMgr.RegisterTask("vct-log-consistency-monitor", parameters.vctLogMonitoringInterval, logMonitoringSvc.MonitorLogs)
 
-	witnessPolicy, err := policy.New(configStore, parameters.witnessPolicyCacheExpiration)
+	policyStore := policycfg.NewPolicyStore(configStore)
+
+	witnessPolicy, err := policy.New(policyStore, parameters.witnessPolicyCacheExpiration)
 	if err != nil {
 		return fmt.Errorf("failed to create witness policy: %s", err.Error())
 	}
@@ -1144,8 +1166,8 @@ func startOrbServices(parameters *orbParameters) error {
 			},
 			apStore, apSigVerifier, coreCASClient, authTokenManager,
 		),
-		auth.NewHandlerWrapper(policyhandler.New(configStore), authTokenManager),
-		auth.NewHandlerWrapper(policyhandler.NewRetriever(configStore), authTokenManager),
+		auth.NewHandlerWrapper(policyhandler.New(policyStore), authTokenManager),
+		auth.NewHandlerWrapper(policyhandler.NewRetriever(policyStore), authTokenManager),
 		auth.NewHandlerWrapper(logmonitorhandler.NewUpdateHandler(logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(logmonitorhandler.NewRetriever(logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(vcthandler.New(configStore, logMonitorStore), authTokenManager),
