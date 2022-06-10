@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
@@ -22,10 +21,7 @@ import (
 
 var logger = log.New("accept_list")
 
-const (
-	acceptTypeTag    = "accept-type"
-	acceptTypePrefix = "accept-type-"
-)
+const acceptTypeTag = "acceptType"
 
 // Manager manages reads and updates to accept lists of various types.
 type Manager struct {
@@ -41,6 +37,11 @@ func NewManager(s storage.Store) *Manager {
 	}
 }
 
+type acceptListCfg struct {
+	URI        string `json:"uri"`
+	AcceptType string `json:"acceptType"`
+}
+
 // Update updates an 'accept list' of the given type with the given additions and deletions.
 func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) error {
 	current, err := m.Get(acceptType)
@@ -53,17 +54,24 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 	var operations []storage.Operation
 
 	for _, uri := range additions {
-		value, e := json.Marshal(uri.String())
+		cfg := &acceptListCfg{
+			URI:        uri.String(),
+			AcceptType: acceptType,
+		}
+
+		value, e := json.Marshal(cfg)
 		if e != nil {
-			return fmt.Errorf("marshal URI [%s]: %w", uri, e)
+			return fmt.Errorf("marshal accept list config [%s]: %w", uri, e)
 		}
 
 		operations = append(operations, storage.Operation{
 			Key:   newKey(acceptType, uri),
 			Value: value,
 			Tags: []storage.Tag{
-				{Name: newTag("")},
-				{Name: newTag(acceptType)},
+				{
+					Name:  acceptTypeTag,
+					Value: acceptType,
+				},
 			},
 		})
 	}
@@ -122,7 +130,7 @@ func (m *Manager) GetAll() ([]*spi.AcceptList, error) {
 }
 
 func (m *Manager) queryByType(acceptType string) ([]*spi.AcceptList, error) {
-	it, err := m.store.Query(newTag(acceptType))
+	it, err := m.store.Query(queryExpression(acceptType))
 	if err != nil {
 		return nil, orberrors.NewTransientf("query by type [%s]: %w", acceptType, err)
 	}
@@ -164,44 +172,29 @@ func (m *Manager) next(it storage.Iterator, acceptListMap map[string]*spi.Accept
 		return false, orberrors.NewTransientf("get value: %w", err)
 	}
 
-	tags, err := it.Tags()
-	if err != nil {
-		return false, orberrors.NewTransientf("get tags: %w", err)
-	}
+	cfg := &acceptListCfg{}
 
-	var rawURL string
-
-	err = m.unmarshal(value, &rawURL)
+	err = m.unmarshal(value, &cfg)
 	if err != nil {
-		logger.Warnf("Error unmarshalling URI: %s. The item will be ignored.", err)
+		logger.Warnf("Error unmarshalling accept-list config: %s. The item will be ignored.", err)
 
 		return true, nil
 	}
 
-	uri, err := url.Parse(rawURL)
+	uri, err := url.Parse(cfg.URI)
 	if err != nil {
-		logger.Warnf("Invalid URI [%s]: %s. The item will be ignored.", rawURL, err)
+		logger.Warnf("Invalid URI [%s]: %s. The item will be ignored.", cfg.URI, err)
 
 		return true, nil
 	}
 
-	var t string
-
-	for _, tag := range tags {
-		if strings.HasPrefix(tag.Name, acceptTypePrefix) {
-			t = tag.Name[len(acceptTypePrefix):]
-
-			break
-		}
-	}
-
-	acceptList, ok := acceptListMap[t]
+	acceptList, ok := acceptListMap[cfg.AcceptType]
 	if !ok {
 		acceptList = &spi.AcceptList{
-			Type: t,
+			Type: cfg.AcceptType,
 		}
 
-		acceptListMap[t] = acceptList
+		acceptListMap[cfg.AcceptType] = acceptList
 	}
 
 	acceptList.URL = append(acceptList.URL, uri)
@@ -228,15 +221,15 @@ func removeDuplicates(current, additions []*url.URL) []*url.URL {
 }
 
 func newKey(acceptType string, uri fmt.Stringer) string {
-	return fmt.Sprintf("%s-%s", newTag(acceptType), uri)
+	return fmt.Sprintf("%s-%s-%s", acceptTypeTag, acceptType, uri)
 }
 
-func newTag(acceptType string) string {
+func queryExpression(acceptType string) string {
 	if acceptType == "" {
 		return acceptTypeTag
 	}
 
-	return acceptTypePrefix + acceptType
+	return fmt.Sprintf("%s:%s", acceptTypeTag, acceptType)
 }
 
 func contains(arr []*url.URL, uri *url.URL) bool {

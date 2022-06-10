@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package policy
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -24,7 +23,7 @@ import (
 
 // WitnessPolicy evaluates witness policy.
 type WitnessPolicy struct {
-	configStore storage.Store
+	retriever   policyRetriever
 	cache       gCache
 	cacheExpiry time.Duration
 
@@ -51,17 +50,21 @@ type selector interface {
 	Select(witnesses []*proof.Witness, n int) ([]*proof.Witness, error)
 }
 
+type policyRetriever interface {
+	GetPolicy() (string, error)
+}
+
 // New will create new witness policy evaluator.
-func New(configStore storage.Store, policyCacheExpiry time.Duration) (*WitnessPolicy, error) {
+func New(retriever policyRetriever, policyCacheExpiry time.Duration) (*WitnessPolicy, error) {
 	wp := &WitnessPolicy{
-		configStore: configStore,
+		retriever:   retriever,
 		cacheExpiry: policyCacheExpiry,
 		selector:    random.New(),
 	}
 
 	wp.cache = gcache.New(defaultCacheSize).ARC().LoaderExpireFunc(wp.loadWitnessPolicy).Build()
 
-	policy, _, err := wp.loadWitnessPolicy(WitnessPolicyKey)
+	policy, _, err := wp.loadWitnessPolicy("")
 	if err != nil {
 		return nil, err
 	}
@@ -121,18 +124,10 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 	return evaluated, nil
 }
 
-func (wp *WitnessPolicy) loadWitnessPolicy(key interface{}) (interface{}, *time.Duration, error) {
-	witnessPolicy, err := wp.configStore.Get(key.(string))
+func (wp *WitnessPolicy) loadWitnessPolicy(interface{}) (interface{}, *time.Duration, error) {
+	policy, err := wp.retriever.GetPolicy()
 	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
 		return nil, nil, err
-	}
-
-	var policy string
-
-	if len(witnessPolicy) != 0 {
-		if err := json.Unmarshal(witnessPolicy, &policy); err != nil {
-			return nil, nil, fmt.Errorf("unmarshal policy error: %w", err)
-		}
 	}
 
 	logger.Debugf("loaded witness policy from store: %s", policy)

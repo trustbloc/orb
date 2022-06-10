@@ -45,7 +45,7 @@ func NewRetriever(cfgStore storage.Store) *LogRetriever {
 }
 
 func (lr *LogRetriever) handle(w http.ResponseWriter, req *http.Request) {
-	logBytes, err := lr.configStore.Get(logURLKey)
+	logConfigBytes, err := lr.configStore.Get(logURLKey)
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
 			logger.Debugf("[%s] log URL not found", endpoint)
@@ -62,18 +62,18 @@ func (lr *LogRetriever) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var logStr string
+	logConfig := &logConfig{}
 
-	err = lr.unmarshal(logBytes, &logStr)
+	err = lr.unmarshal(logConfigBytes, &logConfig)
 	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling log URL: %s", endpoint, err)
+		logger.Errorf("[%s] Error unmarshalling log configuration: %s", endpoint, err)
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Retrieved log URL: %s", endpoint, logStr)
+	logger.Debugf("[%s] Retrieved log URL: %s", endpoint, logConfig.URL)
 
-	writeResponse(w, http.StatusOK, []byte(logStr))
+	writeResponse(w, http.StatusOK, []byte(logConfig.URL))
 }

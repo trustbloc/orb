@@ -36,7 +36,7 @@ func TestLogRetriever_Handler(t *testing.T) {
 		configStore, err := mem.NewProvider().OpenStore(configStoreName)
 		require.NoError(t, err)
 
-		testLogBytes, err := json.Marshal(testLogURL)
+		testLogBytes, err := json.Marshal(&logConfig{URL: testLogURL})
 		require.NoError(t, err)
 
 		require.NoError(t, configStore.Put(logURLKey, testLogBytes))

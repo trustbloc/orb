@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy"
+	policymocks "github.com/trustbloc/orb/pkg/anchor/witness/policy/mocks"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -38,7 +39,6 @@ import (
 const (
 	anchorID                 = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
 	witnessURL               = "http://example.com/orb/services"
-	configStoreName          = "orb-config"
 	defaultPolicyCacheExpiry = 5 * time.Second
 )
 
@@ -63,8 +63,7 @@ func TestWitnessProofHandler(t *testing.T) {
 	witnessIRI, outerErr := url.Parse(witnessURL)
 	require.NoError(t, outerErr)
 
-	configStore, outerErr := mem.NewProvider().OpenStore(configStoreName)
-	require.NoError(t, outerErr)
+	configStore := &policymocks.PolicyStore{}
 
 	expiryTime := time.Now().Add(60 * time.Second)
 

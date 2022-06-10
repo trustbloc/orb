@@ -15,22 +15,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
 
-	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
+	"github.com/trustbloc/orb/pkg/anchor/witness/policy/mocks"
 )
 
-const (
-	testPolicy      = "MinPercent(50,system) AND MinPercent(50,batch)"
-	configStoreName = "orb-config"
-)
+//go:generate counterfeiter -o ../mocks/policystore.gen.go --fake-name PolicyStore . policyStore
+
+const testPolicy = "MinPercent(50,system) AND MinPercent(50,batch)"
 
 func TestNew(t *testing.T) {
-	configStore, err := mem.NewProvider().OpenStore(configStoreName)
-	require.NoError(t, err)
+	policyStore := &mocks.PolicyStore{}
 
-	policyConfigurator := New(configStore)
+	policyConfigurator := New(policyStore)
 	require.NotNil(t, policyConfigurator)
 	require.Equal(t, endpoint, policyConfigurator.Path())
 	require.Equal(t, http.MethodPost, policyConfigurator.Method())
@@ -39,10 +36,9 @@ func TestNew(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		configStore, err := mem.NewProvider().OpenStore(configStoreName)
-		require.NoError(t, err)
+		policyStore := &mocks.PolicyStore{}
 
-		policyConfigurator := New(configStore)
+		policyConfigurator := New(policyStore)
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
@@ -61,10 +57,9 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("error - reader error", func(t *testing.T) {
-		configStore, err := mem.NewProvider().OpenStore(configStoreName)
-		require.NoError(t, err)
+		policyStore := &mocks.PolicyStore{}
 
-		policyConfigurator := New(configStore)
+		policyConfigurator := New(policyStore)
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
@@ -83,10 +78,10 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("error - parse policy error", func(t *testing.T) {
-		configStore, err := mem.NewProvider().OpenStore(configStoreName)
-		require.NoError(t, err)
+		policyStore := &mocks.PolicyStore{}
+		policyStore.PutPolicyReturns(errors.New("injected PutPolicy error"))
 
-		policyConfigurator := New(configStore)
+		policyConfigurator := New(policyStore)
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
@@ -105,38 +100,11 @@ func TestHandler(t *testing.T) {
 	})
 
 	t.Run("error - config store error", func(t *testing.T) {
-		configStore := &storemocks.Store{}
-		configStore.PutReturns(fmt.Errorf("put error"))
+		policyStore := &mocks.PolicyStore{}
+		policyStore.PutPolicyReturns(fmt.Errorf("put error"))
 
-		policyConfigurator := New(configStore)
+		policyConfigurator := New(policyStore)
 		require.NotNil(t, policyConfigurator)
-
-		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))
-
-		policyConfigurator.handle(rw, req)
-
-		result := rw.Result()
-		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
-		require.NoError(t, result.Body.Close())
-
-		respBytes, err := ioutil.ReadAll(result.Body)
-		require.NoError(t, err)
-		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
-		require.NoError(t, result.Body.Close())
-	})
-
-	t.Run("error - marshal error", func(t *testing.T) {
-		configStore := &storemocks.Store{}
-
-		policyConfigurator := New(configStore)
-		require.NotNil(t, policyConfigurator)
-
-		errExpected := errors.New("injected marshal error")
-
-		policyConfigurator.marshal = func(interface{}) ([]byte, error) {
-			return nil, errExpected
-		}
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))

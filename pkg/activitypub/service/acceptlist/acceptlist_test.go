@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 const (
@@ -134,22 +135,12 @@ func TestManagerError(t *testing.T) {
 	t.Run("Iterator.Value error", func(t *testing.T) {
 		errExpected := errors.New("injected iterator Value error")
 
-		s := &storagemocks.MockStore{
-			Store: map[string]storagemocks.DBEntry{
-				"key": {
-					Value: []byte("value"),
-					Tags: []storage.Tag{
-						{
-							Name: newTag(""),
-						},
-						{
-							Name: newTag(acceptListTypeFollow),
-						},
-					},
-				},
-			},
-			ErrValue: errExpected,
-		}
+		mit := &mocks.Iterator{}
+		mit.NextReturns(true, nil)
+		mit.ValueReturns(nil, errExpected)
+
+		s := &mocks.Store{}
+		s.QueryReturns(mit, nil)
 
 		mgr := NewManager(s)
 		require.NotNil(t, mgr)

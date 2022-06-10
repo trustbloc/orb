@@ -18,9 +18,7 @@ import (
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-const (
-	configStoreName = "orb-config"
-)
+const configStoreName = "orb-config"
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -110,7 +108,7 @@ func TestGetEndpoint(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, configClient)
 
-		logURLValueBytes, err := json.Marshal(logURLValue)
+		logURLValueBytes, err := json.Marshal(&logCfg{URL: logURLValue})
 		require.NoError(t, err)
 
 		err = configStore.Put(logURL, logURLValueBytes)
@@ -135,7 +133,7 @@ func TestGetEndpoint(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, configClient)
 
-		logURLValueBytes, err := json.Marshal(empty)
+		logURLValueBytes, err := json.Marshal(&logCfg{URL: ""})
 		require.NoError(t, err)
 
 		err = configStore.Put(logURL, logURLValueBytes)
@@ -183,6 +181,6 @@ func TestGetEndpoint(t *testing.T) {
 		endpoint, err := configClient.GetLogEndpoint()
 		require.Error(t, err)
 		require.Equal(t, empty, endpoint)
-		require.Contains(t, err.Error(), "failed to unmarshal log URL: invalid character")
+		require.Contains(t, err.Error(), "failed to unmarshal log config")
 	})
 }

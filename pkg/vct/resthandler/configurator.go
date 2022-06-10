@@ -89,9 +89,13 @@ func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	valueBytes, err := c.marshal(logURLStr)
+	logConfig := &logConfig{
+		URL: logURLStr,
+	}
+
+	valueBytes, err := c.marshal(logConfig)
 	if err != nil {
-		logger.Errorf("[%s] Marshal log URL error: %s", endpoint, err)
+		logger.Errorf("[%s] Marshal log configuration error: %s", endpoint, err)
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -139,4 +143,8 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 		logger.Debugf("[%s] Wrote response: %s", endpoint, body)
 	}
+}
+
+type logConfig struct {
+	URL string `json:"url"`
 }
