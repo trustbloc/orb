@@ -109,7 +109,7 @@ Feature: Using Orb CLI
     Then we wait 1 seconds
 
     When orb-cli is executed with args 'logmonitor get --url https://localhost:48326/log-monitor --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
-    Then the JSON path "active.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+    Then the JSON path "active.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 
      # Deactivate log - remove from log monitoring list.
     When orb-cli is executed with args 'logmonitor deactivate --url https://localhost:48326/log-monitor --log http://orb.vct:8077/maple2022 --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
@@ -117,5 +117,5 @@ Feature: Using Orb CLI
     Then we wait 1 seconds
 
     When orb-cli is executed with args 'logmonitor get --url https://localhost:48326/log-monitor --status inactive --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
-    Then the JSON path "inactive.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+    Then the JSON path "inactive.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 

@@ -20,16 +20,19 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/client/vct"
 
+	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
 var logger = log.New("vct_monitor")
 
 const (
-	taskID           = "vct-monitor"
-	storeName        = "monitoring"
-	keyPrefix        = "queue"
-	tagNotConfirmed  = "not_confirmed"
+	taskID            = "proof-monitor"
+	storeName         = "proof-monitor"
+	keyPrefix         = "queue"
+	tagStatus         = "status"
+	statusUnconfirmed = "unconfirmed"
+
 	vctReadTokenKey  = "vct-read"
 	vctWriteTokenKey = "vct-write"
 )
@@ -60,19 +63,16 @@ type taskManager interface {
 func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient,
 	httpClient httpClient, taskMgr taskManager, interval time.Duration,
 	requestTokens map[string]string) (*Client, error) {
-	store, err := provider.OpenStore(storeName)
+	s, err := store.Open(provider, storeName,
+		store.NewTagGroup(tagStatus),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(storeName, storage.StoreConfiguration{TagNames: []string{tagNotConfirmed}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
-
 	client := &Client{
 		documentLoader: documentLoader,
-		store:          store,
+		store:          s,
 		http:           httpClient,
 		wfClient:       wfClient,
 		requestTokens:  requestTokens,
@@ -95,16 +95,17 @@ type Proof struct {
 
 type entity struct {
 	CredentialRaw  []byte    `json:"credential"`
-	ExpirationDate time.Time `json:"expiration_date"`
+	ExpirationTime time.Time `json:"expirationTime"`
 	Domain         string    `json:"domain"`
 	Created        time.Time `json:"created"`
+	Status         string    `json:"status"`
 }
 
 var errExpired = errors.New("expired")
 
 func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 	// validates whether the promise is valid against the end time
-	if time.Now().UnixNano() > e.ExpirationDate.UnixNano() {
+	if time.Now().UnixNano() > e.ExpirationTime.UnixNano() {
 		return errExpired
 	}
 
@@ -160,9 +161,11 @@ func Next(records interface{ Next() (bool, error) }) bool {
 }
 
 func (c *Client) handleEntities() error {
-	records, err := c.store.Query(tagNotConfirmed)
+	expr := fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed)
+
+	records, err := c.store.Query(expr)
 	if err != nil {
-		return fmt.Errorf("query %q entities: %w", tagNotConfirmed, err)
+		return fmt.Errorf("query %s: %w", expr, err)
 	}
 
 	defer storage.Close(records, logger)
@@ -241,9 +244,10 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 	}
 
 	e := &entity{
-		ExpirationDate: endTime,
+		ExpirationTime: endTime,
 		Domain:         domain,
 		Created:        created,
+		Status:         statusUnconfirmed,
 	}
 
 	err = c.exist(vc, e)
@@ -277,7 +281,9 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 	}
 
 	// puts data in the queue, the entity will be picked and checked by the worker later.
-	return c.store.Put(key(vc.ID), src, storage.Tag{Name: tagNotConfirmed})
+	return c.store.Put(key(vc.ID), src,
+		storage.Tag{Name: tagStatus, Value: statusUnconfirmed},
+	)
 }
 
 func key(id string) string {

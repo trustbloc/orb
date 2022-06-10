@@ -108,7 +108,7 @@ Feature:
 
     Then we wait 2 seconds
     When an HTTP GET is sent to "https://orb.domain1.com/log-monitor?status=active"
-    And the JSON path "active.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+    And the JSON path "active.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 
     And variable "activateLog" is assigned the JSON value '{"activate":["http://orb.vct:8077/maple2022"]}'
     And variable "deactivateLog" is assigned the JSON value '{"deactivate":["http://orb.vct:8077/maple2022"]}'
@@ -118,13 +118,13 @@ Feature:
 
     Then we wait 1 seconds
     When an HTTP GET is sent to "https://orb.domain1.com/log-monitor?status=inactive"
-    And the JSON path "inactive.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+    And the JSON path "inactive.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 
     When an HTTP POST is sent to "https://orb.domain1.com/log-monitor" with content "${activateLog}" of type "text/plain"
 
     Then we wait 1 seconds
     When an HTTP GET is sent to "https://orb.domain1.com/log-monitor?status=active"
-    And the JSON path "active.#.log_url" of the response contains "http://orb.vct:8077/maple2022"
+    And the JSON path "active.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 
   @all
   @discover_did_hashlink

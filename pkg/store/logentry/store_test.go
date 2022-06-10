@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open log entry store: open store error")
+		require.Contains(t, err.Error(), "open store error")
 		require.Nil(t, s)
 	})
 }
@@ -660,6 +660,7 @@ func TestStore_FailLogEntriesFrom(t *testing.T) {
 		iterator := &mocks.Iterator{}
 		iterator.NextReturnsOnCall(0, true, nil)
 		iterator.NextReturnsOnCall(1, false, fmt.Errorf("iterator second next() error"))
+		iterator.ValueReturns([]byte(`{}`), nil)
 
 		store := &mocks.Store{}
 		store.QueryReturns(iterator, nil)

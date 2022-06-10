@@ -20,6 +20,7 @@ import (
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
+	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 const testLog = "http://vct.com/log"
@@ -52,7 +53,7 @@ func TestStore_Activate(t *testing.T) {
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
 		require.Equal(t, testLog, rec.Log)
-		require.Equal(t, true, rec.Active)
+		require.Equal(t, statusActive, rec.Status)
 		require.Nil(t, rec.STH)
 	})
 
@@ -65,21 +66,21 @@ func TestStore_Activate(t *testing.T) {
 
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, true, rec.Active)
+		require.Equal(t, statusActive, rec.Status)
 
 		err = s.Deactivate(testLog)
 		require.NoError(t, err)
 
 		rec, err = s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, false, rec.Active)
+		require.Equal(t, statusInactive, rec.Status)
 
 		err = s.Activate(testLog)
 		require.NoError(t, err)
 
 		rec, err = s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, true, rec.Active)
+		require.Equal(t, statusActive, rec.Status)
 	})
 
 	t.Run("error - empty log URL", func(t *testing.T) {
@@ -146,14 +147,14 @@ func TestStore_Deactivate(t *testing.T) {
 
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, true, rec.Active)
+		require.Equal(t, statusActive, rec.Status)
 
 		err = s.Deactivate(testLog)
 		require.NoError(t, err)
 
 		rec, err = s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, false, rec.Active)
+		require.Equal(t, statusInactive, rec.Status)
 	})
 
 	t.Run("error - empty log URL", func(t *testing.T) {
@@ -224,7 +225,7 @@ func TestStore_Get(t *testing.T) {
 
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, rec.Active, true)
+		require.Equal(t, statusActive, rec.Status)
 		require.Nil(t, rec.STH)
 	})
 
@@ -300,14 +301,14 @@ func TestStore_Update(t *testing.T) {
 
 		rec, err := s.Get(testLog)
 		require.NoError(t, err)
-		require.Equal(t, true, rec.Active)
+		require.Equal(t, statusActive, rec.Status)
 		require.Nil(t, rec.STH)
 
-		rec.Active = false
+		rec.Status = statusInactive
 
 		err = s.Update(rec)
 		require.NoError(t, err)
-		require.Equal(t, false, rec.Active)
+		require.Equal(t, statusInactive, rec.Status)
 		require.Nil(t, rec.STH)
 	})
 
@@ -321,7 +322,7 @@ func TestStore_Update(t *testing.T) {
 			return nil, errExpected
 		}
 
-		rec := &LogMonitor{Log: testLog, Active: true}
+		rec := &LogMonitor{Log: testLog, Status: statusActive}
 
 		err = s.Update(rec)
 		require.Error(t, err)
@@ -336,7 +337,7 @@ func TestStore_Update(t *testing.T) {
 		s, err := New(storeProvider)
 		require.NoError(t, err)
 
-		rec := &LogMonitor{Log: testLog, Active: true}
+		rec := &LogMonitor{Log: testLog, Status: statusActive}
 
 		err = s.Update(rec)
 		require.Error(t, err)
@@ -459,24 +460,17 @@ func TestStore_GetActiveLogs(t *testing.T) {
 	})
 
 	t.Run("error - unmarshall error", func(t *testing.T) {
-		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
-		defer stopMongo()
+		mit := &mocks.Iterator{}
+		mit.NextReturns(true, nil)
+		mit.ValueReturns([]byte(`not-json`), nil)
 
-		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
-		require.NoError(t, err)
+		store := &mocks.Store{}
+		store.QueryReturns(mit, nil)
 
-		s, err := New(mongoDBProvider)
-		require.NoError(t, err)
+		provider := &mocks.Provider{}
+		provider.OpenStoreReturns(store, nil)
 
-		store, err := mongoDBProvider.OpenStore(namespace)
-		require.NoError(t, err)
-
-		indexTag := storage.Tag{
-			Name:  activeIndex,
-			Value: "true",
-		}
-
-		err = store.Put(testLog, []byte("not-json"), indexTag)
+		s, err := New(provider)
 		require.NoError(t, err)
 
 		logs, err := s.GetActiveLogs()
