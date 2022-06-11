@@ -17,6 +17,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
@@ -24,8 +25,8 @@ import (
 
 const (
 	nameSpace     = "unpublished-operation"
-	expiryTagName = "ExpiryTime"
-	index         = "suffix"
+	expiryTagName = "expirationTime"
+	index         = "uniqueSuffix"
 	sha2_256      = 18
 )
 
@@ -38,20 +39,18 @@ var logger = log.New("unpublished-operation-store")
 // for deletion.
 func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
 	expiryService *expiry.Service, metrics metricsProvider) (*Store, error) {
-	store, err := provider.OpenStore(nameSpace)
+	s, err := store.Open(provider, nameSpace,
+		store.NewTagGroup(index),
+		store.NewTagGroup(expiryTagName),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open unpublished operation store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(nameSpace, storage.StoreConfiguration{TagNames: []string{expiryTagName, index}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration on unpublished operation store: %w", err)
-	}
-
-	expiryService.Register(store, expiryTagName, nameSpace)
+	expiryService.Register(s, expiryTagName, nameSpace)
 
 	return &Store{
-		store:                        store,
+		store:                        s,
 		unpublishedOperationLifespan: unpublishedOperationLifespan,
 
 		metrics: metrics,
@@ -72,6 +71,12 @@ type metricsProvider interface {
 	CalculateUnpublishedOperationKey(duration time.Duration)
 }
 
+type operationWrapper struct {
+	*operation.AnchoredOperation
+
+	ExpirationTime int64 `json:"expirationTime"`
+}
+
 // Put saves an unpublished operation. If it already exists it will be overwritten.
 func (s *Store) Put(op *operation.AnchoredOperation) error {
 	startTime := time.Now()
@@ -84,7 +89,12 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 		return fmt.Errorf("failed to save unpublished operation: suffix is empty")
 	}
 
-	opBytes, err := json.Marshal(op)
+	opw := &operationWrapper{
+		AnchoredOperation: op,
+		ExpirationTime:    time.Now().Add(s.unpublishedOperationLifespan).Unix(),
+	}
+
+	opBytes, err := json.Marshal(&opw)
 	if err != nil {
 		return fmt.Errorf("failed to marshal unpublished operation: %w", err)
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
@@ -42,28 +43,22 @@ var logger = log.New("witness-store")
 
 // New creates new anchor witness store.
 func New(provider storage.Provider, expiryService *expiry.Service, expiryPeriod time.Duration) (*Store, error) {
-	store, err := provider.OpenStore(namespace)
+	s, err := store.Open(provider, namespace,
+		store.NewTagGroup(anchorIndexTagName, typeTagName),
+		store.NewTagGroup(expiryTagName),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open anchor witness store: %w", err)
 	}
 
-	s := &Store{
-		store:        store,
+	ws := &Store{
+		store:        s,
 		expiryPeriod: expiryPeriod,
 	}
 
-	err = provider.SetStoreConfig(namespace,
-		storage.StoreConfiguration{
-			TagNames: []string{typeTagName, anchorIndexTagName, expiryTagName},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
+	expiryService.Register(s, expiryTagName, namespace, expiry.WithExpiryHandler(ws))
 
-	expiryService.Register(store, expiryTagName, namespace, expiry.WithExpiryHandler(s))
-
-	return s, nil
+	return ws, nil
 }
 
 // Store is db implementation of anchor witness store.
@@ -81,7 +76,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 	putOptions := &storage.PutOptions{IsNewKey: true}
 
 	for i, w := range witnesses {
-		value, err := json.Marshal(w)
+		value, err := json.Marshal(s.newWitnessInfo(anchorIDEncoded, w))
 		if err != nil {
 			return fmt.Errorf("failed to marshal anchor witness: %w", err)
 		}
@@ -193,7 +188,7 @@ func (s *Store) Get(anchorID string) ([]*proof.WitnessProof, error) {
 func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf(queryExpr, typeTagName, witnessInfoType, anchorIndexTagName, anchorIDEncoded)
+	query := fmt.Sprintf(queryExpr, anchorIndexTagName, anchorIDEncoded, typeTagName, witnessInfoType)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -221,15 +216,15 @@ func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 				anchorID, e)
 		}
 
-		var witness proof.Witness
+		witnessInfo := &witnessInfo{}
 
-		e = json.Unmarshal(value, &witness)
+		e = json.Unmarshal(value, witnessInfo)
 		if e != nil {
 			return nil, fmt.Errorf("failed to unmarshal anchor witness from store value for anchorID[%s]: %w",
 				anchorID, e)
 		}
 
-		witnesses = append(witnesses, &witness)
+		witnesses = append(witnesses, witnessInfo.Witness)
 
 		ok, e = iter.Next()
 		if e != nil {
@@ -249,7 +244,7 @@ func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 func (s *Store) getProofs(anchorID string) (proofs, error) {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf(queryExpr, typeTagName, proofType, anchorIndexTagName, anchorIDEncoded)
+	query := fmt.Sprintf(queryExpr, anchorIndexTagName, anchorIDEncoded, typeTagName, proofType)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -301,10 +296,7 @@ func (s *Store) getProofs(anchorID string) (proofs, error) {
 func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	wp := &witnessProof{
-		WitnessURI: vocab.NewURLProperty(witness),
-		Proof:      p,
-	}
+	wp := s.newWitnessProof(anchorIDEncoded, witness, p)
 
 	wpBytes, err := json.Marshal(wp)
 	if err != nil {
@@ -312,9 +304,9 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error {
 	}
 
 	err = s.store.Put(uuid.New().String(), wpBytes,
-		storage.Tag{Name: typeTagName, Value: proofType},
-		storage.Tag{Name: anchorIndexTagName, Value: anchorIDEncoded},
-		storage.Tag{Name: expiryTagName, Value: fmt.Sprintf("%d", time.Now().Add(s.expiryPeriod).Unix())},
+		storage.Tag{Name: typeTagName, Value: wp.EntryType},
+		storage.Tag{Name: anchorIndexTagName, Value: wp.AnchorID},
+		storage.Tag{Name: expiryTagName, Value: fmt.Sprintf("%d", wp.ExpiryTime)},
 	)
 	if err != nil {
 		return orberrors.NewTransientf("store proof for anchorID[%s], witness[%s]: %w", anchorID, witness, err)
@@ -329,7 +321,7 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error {
 func (s *Store) UpdateWitnessSelection(anchorID string, witnesses []*url.URL, selected bool) error {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
-	query := fmt.Sprintf(queryExpr, typeTagName, witnessInfoType, anchorIndexTagName, anchorIDEncoded)
+	query := fmt.Sprintf(queryExpr, anchorIndexTagName, anchorIDEncoded, typeTagName, witnessInfoType)
 
 	iter, err := s.store.Query(query)
 	if err != nil {
@@ -389,7 +381,7 @@ func getWitness(iter storage.Iterator) (string, *proof.Witness, error) {
 		return "", nil, orberrors.NewTransientf("get iterator value: %w", err)
 	}
 
-	w := &proof.Witness{}
+	w := &witnessInfo{}
 
 	err = json.Unmarshal(value, w)
 	if err != nil {
@@ -401,19 +393,21 @@ func getWitness(iter storage.Iterator) (string, *proof.Witness, error) {
 		return "", nil, orberrors.NewTransientf("get key: %w", err)
 	}
 
-	return key, w, nil
+	return key, w.Witness, nil
 }
 
 func (s *Store) storeWitness(key string, w *proof.Witness, anchorIDEncoded string) error {
-	witnessBytes, marshalErr := json.Marshal(w)
+	info := s.newWitnessInfo(anchorIDEncoded, w)
+
+	witnessBytes, marshalErr := json.Marshal(info)
 	if marshalErr != nil {
 		return fmt.Errorf("marshal witness[%s]: %w", w.URI, marshalErr)
 	}
 
 	err := s.store.Put(key, witnessBytes,
-		storage.Tag{Name: typeTagName, Value: witnessInfoType},
-		storage.Tag{Name: anchorIndexTagName, Value: anchorIDEncoded},
-		storage.Tag{Name: expiryTagName, Value: fmt.Sprintf("%d", time.Now().Add(s.expiryPeriod).Unix())},
+		storage.Tag{Name: typeTagName, Value: info.EntryType},
+		storage.Tag{Name: anchorIndexTagName, Value: info.AnchorID},
+		storage.Tag{Name: expiryTagName, Value: fmt.Sprintf("%d", info.ExpiryTime)},
 	)
 	if err != nil {
 		return orberrors.NewTransientf("store witness[%s]: %w", w.URI, err)
@@ -431,25 +425,30 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 	uniqueAnchors := make(map[string]bool)
 
 	for _, key := range keys {
-		tags, err := s.store.GetTags(key)
+		entryBytes, err := s.store.Get(key)
 		if err != nil {
 			logger.Errorf("get tags for expired key[%s]: %s", key, err)
 
 			return nil
 		}
 
-		for _, tag := range tags {
-			if tag.Name == anchorIndexTagName {
-				anchor, err := base64.RawURLEncoding.DecodeString(tag.Value)
-				if err != nil {
-					logger.Errorf("failed to decode encoded anchor[%s]: %s", tag.Value, err)
+		entry := &Entry{}
 
-					return nil
-				}
+		err = json.Unmarshal(entryBytes, entry)
+		if err != nil {
+			logger.Errorf("Failed to unmarshal expired entry for key[%s]: %s", key, err)
 
-				uniqueAnchors[string(anchor)] = true
-			}
+			continue
 		}
+
+		anchor, err := base64.RawURLEncoding.DecodeString(entry.AnchorID)
+		if err != nil {
+			logger.Errorf("failed to decode encoded anchor[%s]: %s", entry.AnchorID, err)
+
+			return nil
+		}
+
+		uniqueAnchors[string(anchor)] = true
 	}
 
 	anchors := make([]string, 0, len(uniqueAnchors))
@@ -475,9 +474,45 @@ func getWitnessesMap(witnesses []*url.URL) map[string]bool {
 	return witnessesMap
 }
 
+// Entry contains common data for for witness-info and witness-proof.
+type Entry struct {
+	EntryType  string `json:"entryType"`
+	AnchorID   string `json:"anchorID"`
+	ExpiryTime int64  `json:"expiryTime"`
+}
+
+type witnessInfo struct {
+	*Entry
+	*proof.Witness
+}
+
 type witnessProof struct {
+	*Entry
 	WitnessURI *vocab.URLProperty `json:"witness"`
 	Proof      []byte             `json:"proof"`
+}
+
+func (s *Store) newWitnessInfo(anchorID string, w *proof.Witness) *witnessInfo {
+	return &witnessInfo{
+		Entry: &Entry{
+			EntryType:  witnessInfoType,
+			AnchorID:   anchorID,
+			ExpiryTime: time.Now().Add(s.expiryPeriod).Unix(),
+		},
+		Witness: w,
+	}
+}
+
+func (s *Store) newWitnessProof(anchorID string, uri *url.URL, prf []byte) *witnessProof {
+	return &witnessProof{
+		Entry: &Entry{
+			EntryType:  proofType,
+			AnchorID:   anchorID,
+			ExpiryTime: time.Now().Add(s.expiryPeriod).Unix(),
+		},
+		WitnessURI: vocab.NewURLProperty(uri),
+		Proof:      prf,
+	}
 }
 
 type proofs []*witnessProof
@@ -504,9 +539,10 @@ func getWitnessProofs(witnesses []*proof.Witness, proofs proofs) []*proof.Witnes
 			Witness: w,
 		}
 
-		wp := proofs.get(w.URI.URL())
-		if wp != nil {
-			p.Proof = wp.Proof
+		if proofs != nil {
+			if wp := proofs.get(w.URI.URL()); wp != nil {
+				p.Proof = wp.Proof
+			}
 		}
 
 		witnessProofs = append(witnessProofs, p)

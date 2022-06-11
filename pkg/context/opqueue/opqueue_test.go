@@ -399,7 +399,7 @@ func TestQueue_Error(t *testing.T) {
 			Namespace:        "ns1",
 		}
 
-		opMsg := &operationMessage{
+		opMsg := &OperationMessage{
 			ID: uuid.New().String(),
 			Operation: &operation.QueuedOperationAtTime{
 				QueuedOperation: *op,

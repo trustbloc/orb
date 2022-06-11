@@ -48,7 +48,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open anchor witness store: open store error")
+		require.Contains(t, err.Error(), "open store [witness]: open store error")
 		require.Nil(t, s)
 	})
 
@@ -58,7 +58,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
+		require.Contains(t, err.Error(), "set store configuration for [witness]: set store config error")
 		require.Nil(t, s)
 	})
 }
