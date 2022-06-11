@@ -17,11 +17,12 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 const (
 	namespace = "operation"
-	index     = "suffix"
+	index     = "uniqueSuffix"
 )
 
 var logger = log.New("operation-store")
@@ -33,18 +34,15 @@ type metricsProvider interface {
 
 // New creates new operation store.
 func New(provider storage.Provider, metrics metricsProvider) (*Store, error) {
-	store, err := provider.OpenStore(namespace)
+	s, err := store.Open(provider, namespace,
+		store.NewTagGroup(index),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open operation store: %w", err)
 	}
 
-	err = provider.SetStoreConfig(namespace, storage.StoreConfiguration{TagNames: []string{index}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
-	}
-
 	return &Store{
-		store:   store,
+		store:   s,
 		metrics: metrics,
 	}, nil
 }

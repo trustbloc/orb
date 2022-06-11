@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open operation store: open store error")
+		require.Contains(t, err.Error(), "open store [operation]: open store error")
 		require.Nil(t, s)
 	})
 
@@ -50,7 +50,7 @@ func TestNew(t *testing.T) {
 
 		s, err := New(provider, &orbmocks.MetricsProvider{})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to set store configuration: set store config error")
+		require.Contains(t, err.Error(), "set store configuration for [operation]: set store config error")
 		require.Nil(t, s)
 	})
 }

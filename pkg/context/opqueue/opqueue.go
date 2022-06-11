@@ -22,6 +22,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
+	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
@@ -30,10 +31,10 @@ var logger = log.New("sidetree_context")
 const (
 	topic            = "orb.operation"
 	taskID           = "op-queue-monitor"
-	storeName        = "op-queue"
-	tagOpExpiry      = "ExpiryTime"
-	tagOpQueueTask   = "Task"
-	tagServerID      = "ServerID"
+	storeName        = "operation-queue"
+	tagOpExpiry      = "expiryTime"
+	tagOpQueueTask   = "taskID"
+	tagServerID      = "serverID"
 	detachedServerID = "detached"
 
 	defaultInterval             = 10 * time.Second
@@ -48,17 +49,25 @@ type pubSub interface {
 	Close() error
 }
 
-type operationMessage struct {
+// OperationMessage contains the data that is sent to the message broker.
+type OperationMessage struct {
 	ID        string                           `json:"id"`
 	Operation *operation.QueuedOperationAtTime `json:"operation"`
 	Retries   int                              `json:"retries"`
 }
 
 type queuedOperation struct {
-	*operationMessage
+	*OperationMessage
 
 	key       string
 	timeAdded time.Time
+}
+
+type persistedOperation struct {
+	*OperationMessage
+
+	ServerID   string `json:"serverID"`
+	ExpiryTime int64  `json:"expiryTime"`
 }
 
 type metricsProvider interface {
@@ -78,10 +87,10 @@ type dataExpiryService interface {
 }
 
 type opQueueTask struct {
-	// ServerID is the unique ID of the server instance.
-	ServerID string `json:"serverID"`
+	// TaskID contains the unique ID of the server instance.
+	TaskID string `json:"taskID"`
 	// UpdatedTime indicates when the status was last updated.
-	UpdatedTime int64 `json:"updateTaskTime"` // This is a Unix timestamp.
+	UpdatedTime int64 `json:"updatedTime"` // This is a Unix timestamp.
 }
 
 // Config contains configuration parameters for the operation queue.
@@ -132,14 +141,12 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", topic, err)
 	}
 
-	s, err := p.OpenStore(storeName)
+	s, err := store.Open(p, storeName,
+		store.NewTagGroup(tagOpQueueTask),
+		store.NewTagGroup(tagOpExpiry),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
-	}
-
-	err = p.SetStoreConfig(storeName, storage.StoreConfiguration{TagNames: []string{tagOpQueueTask, tagOpExpiry}})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set store configuration: %w", err)
 	}
 
 	cfg = resolveConfig(cfg)
@@ -184,7 +191,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 // Add publishes the given operation.
 func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
 	return q.publish(
-		&operationMessage{
+		&OperationMessage{
 			ID: uuid.New().String(),
 			Operation: &operation.QueuedOperationAtTime{
 				QueuedOperation: *op,
@@ -194,7 +201,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 	)
 }
 
-func (q *Queue) publish(op *operationMessage) (uint, error) {
+func (q *Queue) publish(op *OperationMessage) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -323,7 +330,7 @@ func (q *Queue) listen() {
 func (q *Queue) handleMessage(msg *message.Message) {
 	logger.Debugf("Handling operation message [%s]", msg.UUID)
 
-	op := &operationMessage{}
+	op := &OperationMessage{}
 
 	err := q.unmarshal(msg.Payload, op)
 	if err != nil {
@@ -337,15 +344,25 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	key := uuid.New().String()
 
-	err = q.store.Put(key, msg.Payload,
-		storage.Tag{
-			Name:  tagServerID,
-			Value: q.serverInstanceID,
-		},
-		storage.Tag{
-			Name:  tagOpExpiry,
-			Value: fmt.Sprintf("%d", time.Now().Add(q.opExpiration).Unix()),
-		},
+	pop := persistedOperation{
+		OperationMessage: op,
+		ServerID:         q.serverInstanceID,
+		ExpiryTime:       time.Now().Add(q.opExpiration).Unix(),
+	}
+
+	opBytes, err := json.Marshal(pop)
+	if err != nil {
+		logger.Errorf("Error marshalling operation for message [%s]: %s", msg.UUID, err)
+
+		// Send an Ack so that the message is not retried.
+		msg.Ack()
+
+		return
+	}
+
+	err = q.store.Put(key, opBytes,
+		storage.Tag{Name: tagServerID, Value: q.serverInstanceID},
+		storage.Tag{Name: tagOpExpiry, Value: fmt.Sprintf("%d", pop.ExpiryTime)},
 	)
 	if err != nil {
 		logger.Warnf("Error storing operation info for [%s]. Message [%s] will be nacked and retried: %w",
@@ -363,7 +380,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		q.serverInstanceID, op.ID, op.Operation.UniqueSuffix, op.Retries)
 
 	q.pending = append(q.pending, &queuedOperation{
-		operationMessage: op,
+		OperationMessage: op,
 		key:              key,
 		timeAdded:        time.Now(),
 	})
@@ -412,7 +429,7 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 			logger.Infof("... re-posting operation [%s] for suffix [%s], retries [%d]",
 				op.ID, op.Operation.UniqueSuffix, op.Retries)
 
-			if _, err := q.publish(op.operationMessage); err != nil {
+			if _, err := q.publish(op.OperationMessage); err != nil {
 				logger.Errorf("Error re-posting operation [%s]. Operation will be detached from this server instance: %s",
 					op.ID, err)
 
@@ -463,7 +480,7 @@ func (q *Queue) monitorOtherServers() {
 			break
 		}
 
-		if task.ServerID == q.serverInstanceID {
+		if task.TaskID == q.serverInstanceID {
 			// This is our queue task. Nothing to do.
 			continue
 		}
@@ -473,12 +490,12 @@ func (q *Queue) monitorOtherServers() {
 }
 
 func (q *Queue) repostOperationsForTask(task *opQueueTask) {
-	if task.ServerID == detachedServerID {
+	if task.TaskID == detachedServerID {
 		// Operations associated with the "detached" server ID are in error, most likely because the message
 		// queue service is unavailable and the operations could not be re-published. Try to repost the operations.
-		if err := q.repostOperations(task.ServerID); err != nil {
+		if err := q.repostOperations(task.TaskID); err != nil {
 			logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
-				q.serverInstanceID, task.ServerID, err)
+				q.serverInstanceID, task.TaskID, err)
 		}
 
 		return
@@ -493,11 +510,11 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 
 	logger.Warnf("[%s] Operation queue task [%s] was last updated %s ago which is longer than the expiry %s. "+
 		"Assuming the server is dead and re-posting any outstanding operations to the queue.",
-		q.serverInstanceID, task.ServerID, timeSinceLastUpdate, q.taskExpiration)
+		q.serverInstanceID, task.TaskID, timeSinceLastUpdate, q.taskExpiration)
 
-	if err := q.repostOperations(task.ServerID); err != nil {
+	if err := q.repostOperations(task.TaskID); err != nil {
 		logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
-			q.serverInstanceID, task.ServerID, err)
+			q.serverInstanceID, task.TaskID, err)
 	}
 }
 
@@ -533,7 +550,7 @@ func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.Queue
 
 func (q *Queue) updateTaskTime(instanceID string) error {
 	task := &opQueueTask{
-		ServerID:    instanceID,
+		TaskID:      instanceID,
 		UpdatedTime: time.Now().Unix(),
 	}
 
@@ -542,7 +559,12 @@ func (q *Queue) updateTaskTime(instanceID string) error {
 		return fmt.Errorf("marshal operation queue task: %w", err)
 	}
 
-	err = q.store.Put(instanceID, taskBytes, storage.Tag{Name: tagOpQueueTask})
+	err = q.store.Put(instanceID, taskBytes,
+		storage.Tag{
+			Name:  tagOpQueueTask,
+			Value: instanceID,
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("store operation queue task: %w", err)
 	}
@@ -563,7 +585,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 	for {
 		key, op, ok, e := q.nextOperation(it)
 		if e != nil {
-			return fmt.Errorf("get nextOperation operation: %w", err)
+			return fmt.Errorf("get nextOperation operation: %w", e)
 		}
 
 		if !ok {
@@ -636,7 +658,7 @@ func (q *Queue) nextTask(it storage.Iterator) (*opQueueTask, bool, error) {
 	return task, true, nil
 }
 
-func (q *Queue) nextOperation(it storage.Iterator) (string, *operationMessage, bool, error) {
+func (q *Queue) nextOperation(it storage.Iterator) (string, *OperationMessage, bool, error) {
 	ok, err := it.Next()
 	if err != nil {
 		return "", nil, false, fmt.Errorf("get next operation: %w", err)
@@ -656,18 +678,26 @@ func (q *Queue) nextOperation(it storage.Iterator) (string, *operationMessage, b
 		return "", nil, false, fmt.Errorf("get operation [%s]: %w", key, err)
 	}
 
-	op := &operationMessage{}
+	op := &persistedOperation{}
 
 	err = q.unmarshal(opBytes, op)
 	if err != nil {
 		return "", nil, false, fmt.Errorf("unmarshal operation [%s]: %w", key, err)
 	}
 
-	return key, op, true, nil
+	return key, op.OperationMessage, true, nil
 }
 
 func (q *Queue) detachOperation(op *queuedOperation) error {
-	opBytes, err := q.marshal(op)
+	expiryTime := time.Now().Add(q.opExpiration).Unix()
+
+	pop := &persistedOperation{
+		OperationMessage: op.OperationMessage,
+		ServerID:         detachedServerID,
+		ExpiryTime:       expiryTime,
+	}
+
+	opBytes, err := q.marshal(pop)
 	if err != nil {
 		return fmt.Errorf("marshal operation [%s]: %w", op.ID, err)
 	}
@@ -679,7 +709,7 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 		},
 		storage.Tag{
 			Name:  tagOpExpiry,
-			Value: fmt.Sprintf("%d", time.Now().Add(q.opExpiration).Unix()),
+			Value: fmt.Sprintf("%d", expiryTime),
 		},
 	)
 }

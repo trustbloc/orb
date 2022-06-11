@@ -14,10 +14,10 @@ import (
 
 // Witness contains info about witness.
 type Witness struct {
-	Type     WitnessType
-	URI      *vocab.URLProperty
-	HasLog   bool
-	Selected bool
+	Type     WitnessType        `json:"type"`
+	URI      *vocab.URLProperty `json:"uri"`
+	HasLog   bool               `json:"hasLog"`
+	Selected bool               `json:"selected"`
 }
 
 func (wf *Witness) String() string {
