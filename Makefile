@@ -20,6 +20,10 @@ CONTAINER_IDS      = $(shell type docker >/dev/null 2>&1 && docker ps -a -q)
 DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* -q)
 ARCH               = $(shell go env GOARCH)
 GO_VER             = 1.17
+GOBIN_PATH         = $(abspath .)/build/bin
+SWAGGER_VERSION    ?= v0.27.0
+SWAGGER_DIR		   = "./test/bdd/fixtures/specs"
+SWAGGER_OUTPUT	   = $(SWAGGER_DIR)"/openAPI.yml"
 
 # Namespace for orb node
 DOCKER_OUTPUT_NS  ?= ghcr.io
@@ -39,7 +43,7 @@ GO_TAGS    ?=
 export GO111MODULE=on
 
 .PHONY: checks
-checks: license lint
+checks: license open-api-spec lint
 
 .PHONY: license
 license:
@@ -146,4 +150,16 @@ clean:
 	rm -Rf ./test/bdd/fixtures/data
 	rm -Rf ./test/bdd/fixtures/mongodbbackup
 	rm -Rf ./test/bdd/fixtures/export
+	rm -Rf ./test/bdd/fixtures/specs
 	rm -Rf ./test/bdd/website
+	rm -Rf ./coverage.out
+
+.PHONY: open-api-spec
+open-api-spec:
+	rm -Rf ./test/bdd/fixtures/specs
+	@GOBIN=$(GOBIN_PATH) go install github.com/go-swagger/go-swagger/cmd/swagger@$(SWAGGER_VERSION)
+	@echo "Generating Open API spec."
+	@mkdir $(SWAGGER_DIR)
+	@$(GOBIN_PATH)/swagger generate spec -w ./cmd/orb-server -o $(SWAGGER_OUTPUT) -c github.com/trustbloc/orb
+	@echo "Validating generated spec"
+	@$(GOBIN_PATH)/swagger validate $(SWAGGER_OUTPUT)

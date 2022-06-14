@@ -30,7 +30,7 @@ type wellKnownResp struct { // nolint: unused,deadcode
 //
 // swagger:parameters webFingerReq
 type webFingerReq struct { // nolint: unused,deadcode
-	// in: path
+	// in: query
 	Resource string `json:"resource"`
 }
 

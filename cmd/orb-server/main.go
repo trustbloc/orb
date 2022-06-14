@@ -4,6 +4,15 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
+// Package main Orb.
+//
+// Terms Of Service:
+//
+//     Schemes: http
+//     Version: 1.0
+//     License: SPDX-License-Identifier: Apache-2.0
+//
+// swagger:meta
 package main
 
 import (
