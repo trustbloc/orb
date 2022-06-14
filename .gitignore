@@ -39,3 +39,4 @@ test/bdd/website
 test/bdd/OrbBDDTestKey.key
 /test/bdd/fixtures/mongodbbackup/
 /test/bdd/fixtures/dids.txt
+/test/bdd/fixtures/specs/openAPI.yml

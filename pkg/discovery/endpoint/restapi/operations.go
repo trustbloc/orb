@@ -268,7 +268,7 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 
 // nodeInfoHandler swagger:route Get /.well-known/nodeinfo discovery wellKnownNodeInfoReq
 //
-// webDIDHandler.
+// Returns the NodeInfo endpoints that may be queried to provide general information about an Orb server.
 //
 // Responses:
 //    default: genericError
