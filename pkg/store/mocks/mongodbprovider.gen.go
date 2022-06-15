@@ -19,16 +19,16 @@ type MongoDBProvider struct {
 	closeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CreateCustomIndexStub        func(string, mongo.IndexModel) error
-	createCustomIndexMutex       sync.RWMutex
-	createCustomIndexArgsForCall []struct {
+	CreateCustomIndexesStub        func(string, ...mongo.IndexModel) error
+	createCustomIndexesMutex       sync.RWMutex
+	createCustomIndexesArgsForCall []struct {
 		arg1 string
-		arg2 mongo.IndexModel
+		arg2 []mongo.IndexModel
 	}
-	createCustomIndexReturns struct {
+	createCustomIndexesReturns struct {
 		result1 error
 	}
-	createCustomIndexReturnsOnCall map[int]struct {
+	createCustomIndexesReturnsOnCall map[int]struct {
 		result1 error
 	}
 	GetOpenStoresStub        func() []storage.Store
@@ -146,19 +146,19 @@ func (fake *MongoDBProvider) CloseReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *MongoDBProvider) CreateCustomIndex(arg1 string, arg2 mongo.IndexModel) error {
-	fake.createCustomIndexMutex.Lock()
-	ret, specificReturn := fake.createCustomIndexReturnsOnCall[len(fake.createCustomIndexArgsForCall)]
-	fake.createCustomIndexArgsForCall = append(fake.createCustomIndexArgsForCall, struct {
+func (fake *MongoDBProvider) CreateCustomIndexes(arg1 string, arg2 ...mongo.IndexModel) error {
+	fake.createCustomIndexesMutex.Lock()
+	ret, specificReturn := fake.createCustomIndexesReturnsOnCall[len(fake.createCustomIndexesArgsForCall)]
+	fake.createCustomIndexesArgsForCall = append(fake.createCustomIndexesArgsForCall, struct {
 		arg1 string
-		arg2 mongo.IndexModel
+		arg2 []mongo.IndexModel
 	}{arg1, arg2})
-	stub := fake.CreateCustomIndexStub
-	fakeReturns := fake.createCustomIndexReturns
-	fake.recordInvocation("CreateCustomIndex", []interface{}{arg1, arg2})
-	fake.createCustomIndexMutex.Unlock()
+	stub := fake.CreateCustomIndexesStub
+	fakeReturns := fake.createCustomIndexesReturns
+	fake.recordInvocation("CreateCustomIndexes", []interface{}{arg1, arg2})
+	fake.createCustomIndexesMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2...)
 	}
 	if specificReturn {
 		return ret.result1
@@ -166,44 +166,44 @@ func (fake *MongoDBProvider) CreateCustomIndex(arg1 string, arg2 mongo.IndexMode
 	return fakeReturns.result1
 }
 
-func (fake *MongoDBProvider) CreateCustomIndexCallCount() int {
-	fake.createCustomIndexMutex.RLock()
-	defer fake.createCustomIndexMutex.RUnlock()
-	return len(fake.createCustomIndexArgsForCall)
+func (fake *MongoDBProvider) CreateCustomIndexesCallCount() int {
+	fake.createCustomIndexesMutex.RLock()
+	defer fake.createCustomIndexesMutex.RUnlock()
+	return len(fake.createCustomIndexesArgsForCall)
 }
 
-func (fake *MongoDBProvider) CreateCustomIndexCalls(stub func(string, mongo.IndexModel) error) {
-	fake.createCustomIndexMutex.Lock()
-	defer fake.createCustomIndexMutex.Unlock()
-	fake.CreateCustomIndexStub = stub
+func (fake *MongoDBProvider) CreateCustomIndexesCalls(stub func(string, ...mongo.IndexModel) error) {
+	fake.createCustomIndexesMutex.Lock()
+	defer fake.createCustomIndexesMutex.Unlock()
+	fake.CreateCustomIndexesStub = stub
 }
 
-func (fake *MongoDBProvider) CreateCustomIndexArgsForCall(i int) (string, mongo.IndexModel) {
-	fake.createCustomIndexMutex.RLock()
-	defer fake.createCustomIndexMutex.RUnlock()
-	argsForCall := fake.createCustomIndexArgsForCall[i]
+func (fake *MongoDBProvider) CreateCustomIndexesArgsForCall(i int) (string, []mongo.IndexModel) {
+	fake.createCustomIndexesMutex.RLock()
+	defer fake.createCustomIndexesMutex.RUnlock()
+	argsForCall := fake.createCustomIndexesArgsForCall[i]
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *MongoDBProvider) CreateCustomIndexReturns(result1 error) {
-	fake.createCustomIndexMutex.Lock()
-	defer fake.createCustomIndexMutex.Unlock()
-	fake.CreateCustomIndexStub = nil
-	fake.createCustomIndexReturns = struct {
+func (fake *MongoDBProvider) CreateCustomIndexesReturns(result1 error) {
+	fake.createCustomIndexesMutex.Lock()
+	defer fake.createCustomIndexesMutex.Unlock()
+	fake.CreateCustomIndexesStub = nil
+	fake.createCustomIndexesReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *MongoDBProvider) CreateCustomIndexReturnsOnCall(i int, result1 error) {
-	fake.createCustomIndexMutex.Lock()
-	defer fake.createCustomIndexMutex.Unlock()
-	fake.CreateCustomIndexStub = nil
-	if fake.createCustomIndexReturnsOnCall == nil {
-		fake.createCustomIndexReturnsOnCall = make(map[int]struct {
+func (fake *MongoDBProvider) CreateCustomIndexesReturnsOnCall(i int, result1 error) {
+	fake.createCustomIndexesMutex.Lock()
+	defer fake.createCustomIndexesMutex.Unlock()
+	fake.CreateCustomIndexesStub = nil
+	if fake.createCustomIndexesReturnsOnCall == nil {
+		fake.createCustomIndexesReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.createCustomIndexReturnsOnCall[i] = struct {
+	fake.createCustomIndexesReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -509,8 +509,8 @@ func (fake *MongoDBProvider) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
-	fake.createCustomIndexMutex.RLock()
-	defer fake.createCustomIndexMutex.RUnlock()
+	fake.createCustomIndexesMutex.RLock()
+	defer fake.createCustomIndexesMutex.RUnlock()
 	fake.getOpenStoresMutex.RLock()
 	defer fake.getOpenStoresMutex.RUnlock()
 	fake.getStoreConfigMutex.RLock()

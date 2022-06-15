@@ -127,7 +127,7 @@ func TestOpen(t *testing.T) {
 
 			provider := &mocks.MongoDBProvider{}
 			provider.OpenStoreReturns(store, nil)
-			provider.CreateCustomIndexReturns(errExpected)
+			provider.CreateCustomIndexesReturns(errExpected)
 
 			s, err := Open(provider, "store1",
 				NewTagGroup(tag1, tag2),
