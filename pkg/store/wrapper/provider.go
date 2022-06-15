@@ -20,7 +20,7 @@ type provider interface {
 type mongoDBProvider interface {
 	provider
 
-	CreateCustomIndex(storeName string, model mongo.IndexModel) error
+	CreateCustomIndexes(storeName string, model ...mongo.IndexModel) error
 }
 
 // ProviderWrapper wrap aries provider.
@@ -96,5 +96,5 @@ func (prov *MongoDBProviderWrapper) OpenStore(name string) (storage.Store, error
 
 // CreateCustomIndex creates a MongoDB index.
 func (prov *MongoDBProviderWrapper) CreateCustomIndex(storeName string, model mongo.IndexModel) error {
-	return prov.mp.CreateCustomIndex(storeName, model)
+	return prov.mp.CreateCustomIndexes(storeName, model)
 }

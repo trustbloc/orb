@@ -86,7 +86,7 @@ type mongoDBStore interface {
 }
 
 type mongoDBProvider interface {
-	CreateCustomIndex(storeName string, model mongo.IndexModel) error
+	CreateCustomIndexes(storeName string, model ...mongo.IndexModel) error
 }
 
 type mongoDBWrapper struct {
@@ -130,7 +130,7 @@ func (s *mongoDBWrapper) createIndexes(tags []TagGroup) error {
 
 		model := mongo.IndexModel{Keys: keys}
 
-		err := s.provider.CreateCustomIndex(s.namespace, model)
+		err := s.provider.CreateCustomIndexes(s.namespace, model)
 		if err != nil {
 			return fmt.Errorf("create index for [%s]: %w", s.namespace, err)
 		}
