@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -160,6 +161,12 @@ type healthCheckResp struct {
 }
 
 func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop,funlen
+	checks := r.URL.Query().Get("checks")
+
+	if checks == "" {
+		checks = "mq,vct,db,kms"
+	}
+
 	mqStatus := ""
 	vctStatus := ""
 	dbStatus := ""
@@ -167,7 +174,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 
 	returnStatusServiceUnavailable := false
 
-	if s.pubSub != nil {
+	if s.pubSub != nil && strings.Contains(checks, "mq") {
 		mqStatus = success
 
 		if err := s.pubSub.IsConnected(); err != nil {
@@ -177,7 +184,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		}
 	}
 
-	if s.vct != nil {
+	if s.vct != nil && strings.Contains(checks, "vct") {
 		vctStatus = success
 
 		if err := s.vct.HealthCheck(); err != nil {
@@ -187,7 +194,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		}
 	}
 
-	if s.db != nil {
+	if s.db != nil && strings.Contains(checks, "db") {
 		dbStatus = success
 
 		if err := s.db.Ping(); err != nil {
@@ -197,7 +204,7 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		}
 	}
 
-	if s.keyManager != nil {
+	if s.keyManager != nil && strings.Contains(checks, "kms") {
 		kmsStatus = success
 
 		if err := s.keyManager.HealthCheck(); err != nil {

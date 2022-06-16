@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -21,14 +22,14 @@ import (
 )
 
 const (
-	url       = "localhost:8080"
-	clientURL = "http://" + url
+	urlLocal  = "localhost:8080"
+	clientURL = "http://" + urlLocal
 
 	samplePath = "/sample"
 )
 
 func TestServer_Start(t *testing.T) {
-	s := New(url,
+	s := New(urlLocal,
 		"",
 		"",
 		1*time.Second,
@@ -59,14 +60,14 @@ func TestServer_Start(t *testing.T) {
 
 	t.Run("success - health check", func(t *testing.T) {
 		b := &httptest.ResponseRecorder{}
-		s.healthCheckHandler(b, nil)
+		s.healthCheckHandler(b, &http.Request{URL: &url.URL{}})
 
 		require.Equal(t, http.StatusOK, b.Code)
 	})
 
 	t.Run("error - health check", func(t *testing.T) {
 		b := &httptest.ResponseRecorder{}
-		s1 := New(url,
+		s1 := New(urlLocal,
 			"",
 			"",
 			1*time.Second,
@@ -77,7 +78,7 @@ func TestServer_Start(t *testing.T) {
 			&mockUpdateHandler{},
 			&mockResolveHandler{},
 		)
-		s1.healthCheckHandler(b, nil)
+		s1.healthCheckHandler(b, &http.Request{URL: &url.URL{}})
 
 		require.Equal(t, http.StatusServiceUnavailable, b.Code)
 	})
