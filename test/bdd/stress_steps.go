@@ -811,13 +811,15 @@ func (r *resolveUpdatedDIDReq) Invoke() (interface{}, error) {
 
 		resolveUpdateHTTPTime = append(resolveUpdateHTTPTime, endTimeMS)
 
-		uri, err := docResolution.DIDDocument.Service[0].ServiceEndpoint.URI()
-		if err != nil {
-			return nil, err
-		}
+		if err == nil {
+			uri, err := docResolution.DIDDocument.Service[0].ServiceEndpoint.URI()
+			if err != nil {
+				return nil, err
+			}
 
-		if err == nil && uri == r.svcEndpoint {
-			break
+			if uri == r.svcEndpoint {
+				break
+			}
 		}
 
 		if err != nil && !checkRetryError(err) {
