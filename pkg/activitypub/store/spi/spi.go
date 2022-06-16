@@ -52,10 +52,6 @@ const (
 
 // Store defines the functions of an ActivityPub store.
 type Store interface {
-	// PutActor stores the given actor.
-	PutActor(actor *vocab.ActorType) error
-	// GetActor returns the actor for the given IRI. Returns an ErrNotFound error if the actor is not in the store.
-	GetActor(actorIRI *url.URL) (*vocab.ActorType, error)
 	// AddActivity adds the given activity to the activity store.
 	AddActivity(activity *vocab.ActivityType) error
 	// GetActivity returns the activity for the given ID from the given activity store

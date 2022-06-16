@@ -30,7 +30,6 @@ import (
 const (
 	activityStoreName = "activity"
 	refStoreName      = "activity-ref"
-	actorStoreName    = "actor"
 
 	objectIRITagName    = "objectIRI"
 	refTypeTagName      = "refType"
@@ -45,7 +44,6 @@ type Provider struct {
 	serviceName             string
 	activityStore           ariesstorage.Store
 	referenceStore          ariesstorage.Store
-	actorStore              ariesstorage.Store
 	multipleTagQueryCapable bool
 }
 
@@ -63,50 +61,8 @@ func New(serviceName string, provider ariesstorage.Provider, multipleTagQueryCap
 		serviceName:             serviceName,
 		activityStore:           stores.activities,
 		referenceStore:          stores.reference,
-		actorStore:              stores.actor,
 		multipleTagQueryCapable: multipleTagQueryCapable,
 	}, nil
-}
-
-// PutActor stores the given actor.
-func (s *Provider) PutActor(actor *vocab.ActorType) error {
-	logger.Debugf("[%s] Storing actor [%s]", s.serviceName, actor.ID())
-
-	actorBytes, err := json.Marshal(actor)
-	if err != nil {
-		return fmt.Errorf("failed to marshal actor: %w", err)
-	}
-
-	err = s.actorStore.Put(actor.ID().String(), actorBytes)
-	if err != nil {
-		return orberrors.NewTransient(fmt.Errorf("failed to store actor: %w", err))
-	}
-
-	return nil
-}
-
-// GetActor returns the actor for the given IRI. Returns an ErrNoFound error if the actor is not in the store.
-func (s *Provider) GetActor(iri *url.URL) (*vocab.ActorType, error) { //nolint:dupl
-	logger.Debugf("[%s] Retrieving actor [%s]", s.serviceName, iri)
-
-	actorBytes, err := s.actorStore.Get(iri.String())
-	if err != nil {
-		if errors.Is(err, ariesstorage.ErrDataNotFound) {
-			return nil, spi.ErrNotFound
-		}
-
-		return nil,
-			orberrors.NewTransient(fmt.Errorf("unexpected failure while getting actor from store: %w", err))
-	}
-
-	var actor vocab.ActorType
-
-	err = json.Unmarshal(actorBytes, &actor)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal actor bytes: %w", err)
-	}
-
-	return &actor, nil
 }
 
 // AddActivity adds the given activity to the activity store.
@@ -129,7 +85,7 @@ func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
 
 // GetActivity returns the activity for the given ID from the activity store
 // or ErrNotFound error if it wasn't found.
-func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) { //nolint:dupl
+func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
 	logger.Debugf("[%s] Retrieving activity - ID: %s", s.serviceName, activityID)
 
 	activityBytes, err := s.activityStore.Get(activityID.String())
@@ -373,7 +329,6 @@ func (r *referenceIterator) Close() error {
 type stores struct {
 	activities ariesstorage.Store
 	reference  ariesstorage.Store
-	actor      ariesstorage.Store
 }
 
 func openStores(provider ariesstorage.Provider) (stores, error) {
@@ -390,15 +345,9 @@ func openStores(provider ariesstorage.Provider) (stores, error) {
 		return stores{}, fmt.Errorf("failed to open reference stores: %w", err)
 	}
 
-	actorStore, err := store.Open(provider, actorStoreName)
-	if err != nil {
-		return stores{}, fmt.Errorf("failed to open actor store: %w", err)
-	}
-
 	return stores{
 		activities: activityStore,
 		reference:  referenceStore,
-		actor:      actorStore,
 	}, nil
 }
 
