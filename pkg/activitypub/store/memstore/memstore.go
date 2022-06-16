@@ -26,8 +26,6 @@ type Store struct {
 	serviceName     string
 	activityStore   *activityStore
 	referenceStores map[spi.ReferenceType]*referenceStore
-	actorStore      map[string]*vocab.ActorType
-	mutex           sync.RWMutex
 }
 
 // New returns a new in-memory ActivityPub store.
@@ -48,35 +46,7 @@ func New(serviceName string) *Store {
 			spi.Share:         newReferenceStore(),
 			spi.AnchorLinkset: newReferenceStore(),
 		},
-		actorStore: make(map[string]*vocab.ActorType),
 	}
-}
-
-// PutActor stores the given actor.
-func (s *Store) PutActor(actor *vocab.ActorType) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	logger.Debugf("[%s] Storing actor [%s]", s.serviceName, actor.ID())
-
-	s.actorStore[actor.ID().String()] = actor
-
-	return nil
-}
-
-// GetActor returns the actor for the given IRI. Returns an ErrNoFound error if the actor is not in the store.
-func (s *Store) GetActor(iri *url.URL) (*vocab.ActorType, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	logger.Debugf("[%s] Retrieving actor [%s]", s.serviceName, iri)
-
-	a, ok := s.actorStore[iri.String()]
-	if !ok {
-		return nil, spi.ErrNotFound
-	}
-
-	return a, nil
 }
 
 // AddActivity adds the given activity to the activity store.

@@ -2052,7 +2052,6 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 	)
 
 	require.NoError(t, obHandler.store.AddActivity(follow))
-	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, ibHandler.store.AddActivity(follow))
 	require.NoError(t, ibHandler.store.AddActivity(followNoActorInStoredActivity))
 	require.NoError(t, ibHandler.store.AddActivity(unsupported))
@@ -2419,7 +2418,6 @@ func TestHandler_HandleUndoInviteWitnessActivity(t *testing.T) {
 
 	require.NoError(t, obHandler.store.AddActivity(invite))
 
-	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
 	require.NoError(t, ibHandler.store.AddActivity(invite))
 
 	t.Run("Inbox Undo Invite", func(t *testing.T) {
@@ -2664,8 +2662,6 @@ func TestHandler_HandleUndoLikeActivity(t *testing.T) {
 	)
 
 	require.NoError(t, obHandler.store.AddActivity(like))
-
-	require.NoError(t, ibHandler.store.PutActor(vocab.NewService(service2IRI)))
 
 	t.Run("Inbox Undo Like", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {

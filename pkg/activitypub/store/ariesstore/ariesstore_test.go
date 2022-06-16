@@ -91,14 +91,6 @@ func TestNew(t *testing.T) {
 		require.Contains(t, err.Error(), "set store configuration for [activity-ref]: set store config error")
 		require.Nil(t, provider)
 	})
-	t.Run("Failed to open actor store", func(t *testing.T) {
-		provider, err := ariesstore.New("ServiceName", &mockStore{
-			openStoreNameToFailOn: "actor",
-		}, false)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to open actor store: open store [actor]: open store error")
-		require.Nil(t, provider)
-	})
 }
 
 func TestFunctionalityUsingMongoDB(t *testing.T) {
@@ -216,51 +208,6 @@ func TestFunctionalityUsingMongoDB(t *testing.T) {
 				require.Nil(t, it)
 			})
 		})
-	})
-	t.Run("Actor tests", func(t *testing.T) {
-		serviceName := generateRandomServiceName()
-
-		mongoDBProvider, err := ariesmongodbstorage.NewProvider(mongoDBConnString,
-			ariesmongodbstorage.WithDBPrefix(serviceName))
-		require.NoError(t, err)
-
-		s, err := ariesstore.New(serviceName, mongoDBProvider, false)
-		require.NoError(t, err)
-
-		actor1IRI := testutil.MustParseURL("https://actor1")
-		actor2IRI := testutil.MustParseURL("https://actor2")
-
-		a, err := s.GetActor(actor1IRI)
-		require.EqualError(t, err, spi.ErrNotFound.Error())
-		require.Nil(t, a)
-
-		actor1 := vocab.NewService(actor1IRI)
-		actor2 := vocab.NewService(actor2IRI)
-
-		require.NoError(t, s.PutActor(actor1))
-		require.NoError(t, s.PutActor(actor2))
-
-		receivedActor1, err := s.GetActor(actor1IRI)
-		require.NoError(t, err)
-
-		expectedActor1Bytes, err := actor1.MarshalJSON()
-		require.NoError(t, err)
-
-		receivedActor1Bytes, err := receivedActor1.MarshalJSON()
-		require.NoError(t, err)
-
-		require.Equal(t, string(expectedActor1Bytes), string(receivedActor1Bytes))
-
-		receivedActor2, err := s.GetActor(actor2IRI)
-		require.NoError(t, err)
-
-		expectedActor2Bytes, err := actor2.MarshalJSON()
-		require.NoError(t, err)
-
-		receivedActor2Bytes, err := receivedActor2.MarshalJSON()
-		require.NoError(t, err)
-
-		require.Equal(t, string(expectedActor2Bytes), string(receivedActor2Bytes))
 	})
 	t.Run("Reference tests", func(t *testing.T) {
 		serviceName := generateRandomServiceName()
@@ -409,31 +356,6 @@ func TestStore_Activity_Failures(t *testing.T) {
 			spi.WithActivityIRIs(testutil.MustParseURL("https://example.com/activities/activity1"),
 				testutil.MustParseURL("https://example.com/activities/activity1"))))
 		require.EqualError(t, err, "unsupported query criteria")
-	})
-}
-
-func TestStore_Actor_Failures(t *testing.T) {
-	t.Run("Fail to put actor", func(t *testing.T) {
-		provider, err := ariesstore.New("ServiceName", &mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrPut: errors.New("put error"),
-			},
-		}, false)
-		require.NoError(t, err)
-
-		err = provider.PutActor(vocab.NewService(testutil.MustParseURL("https://actor1")))
-		require.EqualError(t, err, "failed to store actor: put error")
-	})
-	t.Run("Fail to get actor", func(t *testing.T) {
-		provider, err := ariesstore.New("ServiceName", &mock.Provider{
-			OpenStoreReturn: &mock.Store{
-				ErrGet: errors.New("get error"),
-			},
-		}, false)
-		require.NoError(t, err)
-
-		_, err = provider.GetActor(testutil.MustParseURL("https://actor1"))
-		require.EqualError(t, err, "unexpected failure while getting actor from store: get error")
 	})
 }
 

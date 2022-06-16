@@ -160,32 +160,6 @@ func TestStore_ReferenceError(t *testing.T) {
 	})
 }
 
-func TestStore_Actors(t *testing.T) {
-	s := New("service1")
-	require.NotNil(t, s)
-
-	actor1IRI := testutil.MustParseURL("https://actor1")
-	actor2IRI := testutil.MustParseURL("https://actor2")
-
-	a, err := s.GetActor(actor1IRI)
-	require.EqualError(t, err, spi.ErrNotFound.Error())
-	require.Nil(t, a)
-
-	actor1 := vocab.NewService(actor1IRI)
-	actor2 := vocab.NewService(actor2IRI)
-
-	require.NoError(t, s.PutActor(actor1))
-	require.NoError(t, s.PutActor(actor2))
-
-	a, err = s.GetActor(actor1IRI)
-	require.NoError(t, err)
-	require.Equal(t, actor1, a)
-
-	a, err = s.GetActor(actor2IRI)
-	require.NoError(t, err)
-	require.Equal(t, actor2, a)
-}
-
 func checkQueryResults(t *testing.T, it spi.ActivityIterator, expectedTypes ...*url.URL) {
 	t.Helper()
 
