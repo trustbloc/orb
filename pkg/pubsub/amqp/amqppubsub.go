@@ -175,15 +175,15 @@ func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.M
 
 // IsConnected return error if not connected.
 func (p *PubSub) IsConnected() error {
-	connMgr, err := p.connMgr.getConnection(false)
-	if err != nil {
-		return err
-	}
-
-	if !connMgr.amqpConnection().IsConnected() {
-		return fmt.Errorf("mq not connected")
-	}
-
+	// TODO find way to check if mq is down
+	// connMgr, err := p.connMgr.getConnection(false)
+	// if err != nil {
+	//	return err
+	// }
+	//
+	// if !connMgr.amqpConnection().IsConnected() {
+	//	return fmt.Errorf("mq not connected")
+	// }
 	return nil
 }
 
