@@ -36,6 +36,8 @@ func TestAMQP(t *testing.T) {
 		p := New(Config{URI: mqURI})
 		require.NotNil(t, p)
 
+		require.True(t, p.IsConnected())
+
 		msgChan, err := p.Subscribe(context.Background(), topic)
 		require.NoError(t, err)
 
@@ -349,6 +351,10 @@ func (m *mockConnectionMgr) getConnection(bool) (connection, error) {
 	}
 
 	return &mockConnection{}, nil
+}
+
+func (m *mockConnectionMgr) isConnected() bool {
+	return m.err == nil
 }
 
 type mockConnection struct{}

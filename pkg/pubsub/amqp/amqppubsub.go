@@ -95,6 +95,7 @@ type publisher interface {
 type connMgr interface {
 	close() error
 	getConnection(shared bool) (connection, error)
+	isConnected() bool
 }
 
 type subscriberFactory = func(conn connection) (initializingSubscriber, error)
@@ -173,18 +174,9 @@ func (p *PubSub) Subscribe(ctx context.Context, topic string) (<-chan *message.M
 	return p.SubscribeWithOpts(ctx, topic)
 }
 
-// IsConnected return error if not connected.
-func (p *PubSub) IsConnected() error {
-	// TODO find way to check if mq is down
-	// connMgr, err := p.connMgr.getConnection(false)
-	// if err != nil {
-	//	return err
-	// }
-	//
-	// if !connMgr.amqpConnection().IsConnected() {
-	//	return fmt.Errorf("mq not connected")
-	// }
-	return nil
+// IsConnected return true if connected to the AMQP server.
+func (p *PubSub) IsConnected() bool {
+	return p.connMgr.isConnected()
 }
 
 // SubscribeWithOpts subscribes to a topic using the given options, and returns the Go channel over which messages
@@ -549,6 +541,13 @@ func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 	logger.Infof("Current connection has %d channels.", numChannels)
 
 	return m.current, nil
+}
+
+func (m *connectionMgr) isConnected() bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	return m.current != nil && m.current.amqpConnection().IsConnected()
 }
 
 func (m *connectionMgr) close() error {

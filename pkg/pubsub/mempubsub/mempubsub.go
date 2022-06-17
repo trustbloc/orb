@@ -96,8 +96,8 @@ func (p *PubSub) Close() error {
 }
 
 // IsConnected return true is connected.
-func (p *PubSub) IsConnected() error {
-	return nil
+func (p *PubSub) IsConnected() bool {
+	return true
 }
 
 func (p *PubSub) stop() {

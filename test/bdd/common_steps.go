@@ -448,6 +448,8 @@ func (d *CommonSteps) responseEquals(value string) error {
 }
 
 func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) error {
+	d.state.clearResponse()
+
 	resp, err := d.doHTTPGet(url)
 	if err != nil {
 		return err
@@ -457,7 +459,14 @@ func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) err
 		return fmt.Errorf("expecting status code %d but got %d", expectingCode, resp.StatusCode)
 	}
 
-	logger.Infof("Returned status code is %d which is the expected status code", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		d.state.setResponse(resp.ErrorMsg)
+	} else {
+		d.state.setResponse(string(resp.Payload))
+	}
+
+	logger.Infof("Returned status code is %d (which is the expected status code) and error message '%s'",
+		resp.StatusCode, resp.ErrorMsg)
 
 	return nil
 }
@@ -497,6 +506,8 @@ func (d *CommonSteps) httpGetWithSignature(url, pubKeyID string) error {
 }
 
 func (d *CommonSteps) httpGetWithSignatureAndExpectedCode(url, pubKeyID string, expectingCode int) error {
+	d.state.clearResponse()
+
 	resp, err := d.doHTTPGetWithSignature(url, pubKeyID)
 	if err != nil {
 		return err
@@ -506,7 +517,14 @@ func (d *CommonSteps) httpGetWithSignatureAndExpectedCode(url, pubKeyID string, 
 		return fmt.Errorf("expecting status code %d but got %d", expectingCode, resp.StatusCode)
 	}
 
-	logger.Infof("Returned status code is %d which is the expected status code", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		d.state.setResponse(resp.ErrorMsg)
+	} else {
+		d.state.setResponse(string(resp.Payload))
+	}
+
+	logger.Infof("Returned status code is %d (which is the expected status code) and error message '%s'",
+		resp.StatusCode, resp.ErrorMsg)
 
 	return nil
 }

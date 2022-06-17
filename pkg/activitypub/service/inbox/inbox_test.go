@@ -757,8 +757,8 @@ type mockService struct {
 	pingErr        error
 }
 
-func (m *mockService) IsConnected() error {
-	return m.isConnectedErr
+func (m *mockService) IsConnected() bool {
+	return m.isConnectedErr == nil
 }
 
 func (m *mockService) HealthCheck() error {
