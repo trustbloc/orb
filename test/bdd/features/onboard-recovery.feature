@@ -224,6 +224,25 @@ Feature:
     Then client sends request to "https://orb.domain5.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
     And client sends request to "https://orb.domain5.com/sidetree/v1/identifiers" to verify the DID documents that were updated with key "newkey_3_1"
 
+  @orb_health_check
+  Scenario: Health Check
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
+    Then container "orb.mq.domain1.com" is stopped
+    Then we wait 5 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck" and the returned status code is 503
+    Then the JSON path "mqStatus" of the response equals "not connected"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
+    Then container "orb.mq.domain1.com" is started
+    Then we wait 30 seconds
 
   @vct_backup_and_restore
   Scenario: Backup VCT database and restore VCT database from backup

@@ -48,7 +48,7 @@ type Server struct {
 }
 
 type pubSub interface {
-	IsConnected() error
+	IsConnected() bool
 }
 
 type vct interface {
@@ -160,6 +160,8 @@ type healthCheckResp struct {
 }
 
 func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop,funlen
+	const unknown = "unknown error"
+
 	mqStatus := ""
 	vctStatus := ""
 	dbStatus := ""
@@ -170,10 +172,10 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 	if s.pubSub != nil {
 		mqStatus = success
 
-		if err := s.pubSub.IsConnected(); err != nil {
+		if !s.pubSub.IsConnected() {
 			returnStatusServiceUnavailable = true
 
-			mqStatus = err.Error()
+			mqStatus = "not connected"
 		}
 	}
 
@@ -183,7 +185,11 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		if err := s.vct.HealthCheck(); err != nil {
 			returnStatusServiceUnavailable = true
 
-			vctStatus = err.Error()
+			if err.Error() != "" {
+				vctStatus = err.Error()
+			} else {
+				vctStatus = unknown
+			}
 		}
 	}
 
@@ -193,7 +199,11 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		if err := s.db.Ping(); err != nil {
 			returnStatusServiceUnavailable = true
 
-			dbStatus = err.Error()
+			if err.Error() != "" {
+				dbStatus = err.Error()
+			} else {
+				dbStatus = unknown
+			}
 		}
 	}
 
@@ -203,26 +213,43 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 		if err := s.keyManager.HealthCheck(); err != nil {
 			returnStatusServiceUnavailable = true
 
-			kmsStatus = err.Error()
+			if err.Error() != "" {
+				kmsStatus = err.Error()
+			} else {
+				kmsStatus = unknown
+			}
 		}
 	}
 
+	status := http.StatusOK
+
 	if returnStatusServiceUnavailable {
-		rw.WriteHeader(http.StatusServiceUnavailable)
-	} else {
-		rw.WriteHeader(http.StatusOK)
+		status = http.StatusServiceUnavailable
 	}
 
-	err := json.NewEncoder(rw).Encode(&healthCheckResp{
+	hc := &healthCheckResp{
 		MQStatus:    mqStatus,
 		VCTStatus:   vctStatus,
 		DBStatus:    dbStatus,
 		KMSStatus:   kmsStatus,
 		CurrentTime: time.Now(),
 		Version:     BuildVersion,
-	})
+	}
+
+	hcBytes, err := json.Marshal(hc)
 	if err != nil {
-		logger.Errorf("healthcheck response failure, %s", err)
+		logger.Errorf("healthcheck marshal error: %s", err)
+
+		return
+	}
+
+	logger.Debugf("Health check returning %d - %s", status, hcBytes)
+
+	rw.WriteHeader(status)
+
+	_, err = rw.Write(hcBytes)
+	if err != nil {
+		logger.Errorf("healthcheck response failure: %s", err)
 	}
 }
 
