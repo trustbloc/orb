@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
+	"github.com/trustbloc/sidetree-core-go/pkg/mocks"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/docvalidator/didvalidator"
@@ -58,7 +59,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	cp := compression.New(compression.WithDefaultAlgorithms())
 	op := txnprovider.NewOperationProvider(p, opParser, &casReader{casResolver}, cp,
 		txnprovider.WithSourceCASURIFormatter(formatWebCASURI))
-	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser)
+	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser, &mocks.MetricsProvider{})
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
 

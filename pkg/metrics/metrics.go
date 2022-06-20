@@ -133,6 +133,7 @@ const (
 	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
 	coreHTTPCreateUpdateTimeMetrics       = "http_create_update_seconds"
 	coreHTTPResolveTimeMetrics            = "http_resolve_seconds"
+	coreCASWriteSizeMetrics               = "cas_write_size"
 
 	// AWS kms.
 	aws                           = "aws"
@@ -237,6 +238,7 @@ type Metrics struct {
 	coreGetCreateOperationResultTime prometheus.Histogram
 	coreHTTPCreateUpdateTime         prometheus.Histogram
 	coreHTTPResolveTime              prometheus.Histogram
+	coreCASWriteSize                 map[string]prometheus.Gauge
 
 	awsSignCount            prometheus.Counter
 	awsSignTime             prometheus.Histogram
@@ -258,6 +260,7 @@ func Get() *Metrics {
 func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
+	modelTypes := []string{"core index", "core proof", "provisional proof", "chunk", "provisional index"}
 
 	m := &Metrics{
 		apOutboxPostTime:                             newOutboxPostTime(),
@@ -333,6 +336,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		coreGetCreateOperationResultTime:             newCoreGetCreateOperationResultTime(),
 		coreHTTPCreateUpdateTime:                     newCoreHTTPCreateUpdateTime(),
 		coreHTTPResolveTime:                          newCoreHTTPResolveTime(),
+		coreCASWriteSize:                             newCoreCASWriteSize(modelTypes),
 		awsSignCount:                                 newAWSSignCount(),
 		awsSignTime:                                  newAWSSignTime(),
 		awsExportPublicKeyCount:                      newAWSExportPublicKeyCount(),
@@ -366,7 +370,8 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
 		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
 		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
-		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime, m.awsSignCount, m.awsSignTime, m.awsExportPublicKeyCount,
+		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime, m.awsSignCount, m.awsSignTime,
+		m.awsExportPublicKeyCount,
 		m.awsExportPublicKeyTime, m.awsVerifyTime, m.awsVerifyCount,
 	)
 
@@ -407,6 +412,10 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 	}
 
 	for _, c := range m.casReadTimes {
+		prometheus.MustRegister(c)
+	}
+
+	for _, c := range m.coreCASWriteSize {
 		prometheus.MustRegister(c)
 	}
 
@@ -925,6 +934,17 @@ func (m *Metrics) HTTPResolveTime(value time.Duration) {
 	logger.Debugf("core http resolve: %s", value)
 }
 
+// CASWriteSize the size (in bytes) of the data written to CAS for the given model type.
+func (m *Metrics) CASWriteSize(modelType string, size int) {
+	if c, ok := m.coreCASWriteSize[modelType]; ok {
+		c.Set(float64(size))
+	} else {
+		logger.Warnf("Metric for CAS model type [%s] not registered. Reason: Unsupported model type.", modelType)
+	}
+
+	logger.Debugf("CAS write size for model [%s]: %s bytes", modelType, size)
+}
+
 // SignCount increments the number of sign hits.
 func (m *Metrics) SignCount() {
 	m.awsSignCount.Inc()
@@ -978,12 +998,13 @@ func newCounter(subsystem, name, help string, labels prometheus.Labels) promethe
 	})
 }
 
-func newGauge(subsystem, name, help string) prometheus.Gauge {
+func newGauge(subsystem, name, help string, labels prometheus.Labels) prometheus.Gauge {
 	return prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: subsystem,
-		Name:      name,
-		Help:      help,
+		Namespace:   namespace,
+		Subsystem:   subsystem,
+		Name:        name,
+		Help:        help,
+		ConstLabels: labels,
 	})
 }
 
@@ -1194,6 +1215,7 @@ func newOpQueueBatchSize() prometheus.Gauge {
 	return newGauge(
 		operationQueue, opQueueBatchSizeMetric,
 		"The size of a cut batch.",
+		nil,
 	)
 }
 
@@ -1643,6 +1665,20 @@ func newCoreHTTPResolveTime() prometheus.Histogram {
 		"The time (in seconds) it takes for resolve http call.",
 		nil,
 	)
+}
+
+func newCoreCASWriteSize(modelTypes []string) map[string]prometheus.Gauge {
+	gauges := make(map[string]prometheus.Gauge)
+
+	for _, modelType := range modelTypes {
+		gauges[modelType] = newGauge(
+			coreOperations, coreCASWriteSizeMetrics,
+			"The size (in bytes) of written CAS data.",
+			prometheus.Labels{"type": modelType},
+		)
+	}
+
+	return gauges
 }
 
 func newAWSSignCount() prometheus.Counter {
