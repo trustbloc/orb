@@ -16,7 +16,7 @@ func GetProtocolConfig() protocol.Protocol {
 	p := protocol.Protocol{
 		GenesisTime:                  777,
 		MultihashAlgorithms:          []uint{18},
-		MaxOperationCount:            10000,
+		MaxOperationCount:            5000,
 		MaxOperationSize:             1700,
 		MaxOperationHashLength:       100,
 		MaxDeltaSize:                 1500,
