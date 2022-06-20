@@ -15,6 +15,6 @@ import (
 func TestGetProtocolConfig(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		cfg := GetProtocolConfig()
-		require.Equal(t, uint(10000), cfg.MaxOperationCount)
+		require.Equal(t, uint(5000), cfg.MaxOperationCount)
 	})
 }
