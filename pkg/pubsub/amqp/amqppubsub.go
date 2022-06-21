@@ -31,10 +31,11 @@ import (
 var logger = log.New("pubsub")
 
 const (
-	defaultMaxConnectRetries          = 25
-	defaultMaxConnectInterval         = 5 * time.Second
-	defaultMaxConnectElapsedTime      = 3 * time.Minute
-	defaultMaxConnectionSubscriptions = 1000
+	defaultMaxConnectRetries                 = 25
+	defaultMaxConnectInterval                = 5 * time.Second
+	defaultMaxConnectElapsedTime             = 3 * time.Minute
+	defaultMaxConnectionSubscriptions        = 1000
+	defaultWaitQueuePublisherChannelPoolSize = 5
 
 	defaultMaxRedeliveryAttempts     = 10
 	defaultRedeliveryMultiplier      = 1.5
@@ -798,6 +799,7 @@ func newWaitQueueConfig(cfg Config) amqp.Config {
 		metadataDeadLetterRoutingKey: redeliveryQueue,
 		metadataDeadLetterExchange:   redeliveryExchange,
 	})
+	queueConfig.Publish.ChannelPoolSize = defaultWaitQueuePublisherChannelPoolSize
 
 	return queueConfig
 }
