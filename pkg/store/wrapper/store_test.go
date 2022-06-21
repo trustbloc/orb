@@ -9,10 +9,10 @@ package wrapper
 import (
 	"testing"
 
-	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/trustbloc/orb/pkg/store/mocks"
@@ -77,10 +77,9 @@ func TestMongoDBStoreWrapper(t *testing.T) {
 		require.NoError(t, s.PutAsJSON("k1", doc))
 	})
 
-	t.Run("BatchAsJSON", func(t *testing.T) {
-		require.NoError(t, s.BatchAsJSON([]mongodb.BatchAsJSONOperation{
-			{Key: "k1", Value: doc},
-		}))
+	t.Run("BulkWrite", func(t *testing.T) {
+		insertOneModel := mongo.NewInsertOneModel().SetDocument(doc)
+		require.NoError(t, s.BulkWrite([]mongo.WriteModel{insertOneModel}))
 	})
 
 	t.Run("GetAsRawMap", func(t *testing.T) {

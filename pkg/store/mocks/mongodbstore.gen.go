@@ -6,6 +6,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -21,15 +22,16 @@ type MongoDBStore struct {
 	batchReturnsOnCall map[int]struct {
 		result1 error
 	}
-	BatchAsJSONStub        func([]mongodb.BatchAsJSONOperation) error
-	batchAsJSONMutex       sync.RWMutex
-	batchAsJSONArgsForCall []struct {
-		arg1 []mongodb.BatchAsJSONOperation
+	BulkWriteStub        func([]mongo.WriteModel, ...*options.BulkWriteOptions) error
+	bulkWriteMutex       sync.RWMutex
+	bulkWriteArgsForCall []struct {
+		arg1 []mongo.WriteModel
+		arg2 []*options.BulkWriteOptions
 	}
-	batchAsJSONReturns struct {
+	bulkWriteReturns struct {
 		result1 error
 	}
-	batchAsJSONReturnsOnCall map[int]struct {
+	bulkWriteReturnsOnCall map[int]struct {
 		result1 error
 	}
 	CloseStub        func() error
@@ -263,23 +265,24 @@ func (fake *MongoDBStore) BatchReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *MongoDBStore) BatchAsJSON(arg1 []mongodb.BatchAsJSONOperation) error {
-	var arg1Copy []mongodb.BatchAsJSONOperation
+func (fake *MongoDBStore) BulkWrite(arg1 []mongo.WriteModel, arg2 ...*options.BulkWriteOptions) error {
+	var arg1Copy []mongo.WriteModel
 	if arg1 != nil {
-		arg1Copy = make([]mongodb.BatchAsJSONOperation, len(arg1))
+		arg1Copy = make([]mongo.WriteModel, len(arg1))
 		copy(arg1Copy, arg1)
 	}
-	fake.batchAsJSONMutex.Lock()
-	ret, specificReturn := fake.batchAsJSONReturnsOnCall[len(fake.batchAsJSONArgsForCall)]
-	fake.batchAsJSONArgsForCall = append(fake.batchAsJSONArgsForCall, struct {
-		arg1 []mongodb.BatchAsJSONOperation
-	}{arg1Copy})
-	stub := fake.BatchAsJSONStub
-	fakeReturns := fake.batchAsJSONReturns
-	fake.recordInvocation("BatchAsJSON", []interface{}{arg1Copy})
-	fake.batchAsJSONMutex.Unlock()
+	fake.bulkWriteMutex.Lock()
+	ret, specificReturn := fake.bulkWriteReturnsOnCall[len(fake.bulkWriteArgsForCall)]
+	fake.bulkWriteArgsForCall = append(fake.bulkWriteArgsForCall, struct {
+		arg1 []mongo.WriteModel
+		arg2 []*options.BulkWriteOptions
+	}{arg1Copy, arg2})
+	stub := fake.BulkWriteStub
+	fakeReturns := fake.bulkWriteReturns
+	fake.recordInvocation("BulkWrite", []interface{}{arg1Copy, arg2})
+	fake.bulkWriteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2...)
 	}
 	if specificReturn {
 		return ret.result1
@@ -287,44 +290,44 @@ func (fake *MongoDBStore) BatchAsJSON(arg1 []mongodb.BatchAsJSONOperation) error
 	return fakeReturns.result1
 }
 
-func (fake *MongoDBStore) BatchAsJSONCallCount() int {
-	fake.batchAsJSONMutex.RLock()
-	defer fake.batchAsJSONMutex.RUnlock()
-	return len(fake.batchAsJSONArgsForCall)
+func (fake *MongoDBStore) BulkWriteCallCount() int {
+	fake.bulkWriteMutex.RLock()
+	defer fake.bulkWriteMutex.RUnlock()
+	return len(fake.bulkWriteArgsForCall)
 }
 
-func (fake *MongoDBStore) BatchAsJSONCalls(stub func([]mongodb.BatchAsJSONOperation) error) {
-	fake.batchAsJSONMutex.Lock()
-	defer fake.batchAsJSONMutex.Unlock()
-	fake.BatchAsJSONStub = stub
+func (fake *MongoDBStore) BulkWriteCalls(stub func([]mongo.WriteModel, ...*options.BulkWriteOptions) error) {
+	fake.bulkWriteMutex.Lock()
+	defer fake.bulkWriteMutex.Unlock()
+	fake.BulkWriteStub = stub
 }
 
-func (fake *MongoDBStore) BatchAsJSONArgsForCall(i int) []mongodb.BatchAsJSONOperation {
-	fake.batchAsJSONMutex.RLock()
-	defer fake.batchAsJSONMutex.RUnlock()
-	argsForCall := fake.batchAsJSONArgsForCall[i]
-	return argsForCall.arg1
+func (fake *MongoDBStore) BulkWriteArgsForCall(i int) ([]mongo.WriteModel, []*options.BulkWriteOptions) {
+	fake.bulkWriteMutex.RLock()
+	defer fake.bulkWriteMutex.RUnlock()
+	argsForCall := fake.bulkWriteArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *MongoDBStore) BatchAsJSONReturns(result1 error) {
-	fake.batchAsJSONMutex.Lock()
-	defer fake.batchAsJSONMutex.Unlock()
-	fake.BatchAsJSONStub = nil
-	fake.batchAsJSONReturns = struct {
+func (fake *MongoDBStore) BulkWriteReturns(result1 error) {
+	fake.bulkWriteMutex.Lock()
+	defer fake.bulkWriteMutex.Unlock()
+	fake.BulkWriteStub = nil
+	fake.bulkWriteReturns = struct {
 		result1 error
 	}{result1}
 }
 
-func (fake *MongoDBStore) BatchAsJSONReturnsOnCall(i int, result1 error) {
-	fake.batchAsJSONMutex.Lock()
-	defer fake.batchAsJSONMutex.Unlock()
-	fake.BatchAsJSONStub = nil
-	if fake.batchAsJSONReturnsOnCall == nil {
-		fake.batchAsJSONReturnsOnCall = make(map[int]struct {
+func (fake *MongoDBStore) BulkWriteReturnsOnCall(i int, result1 error) {
+	fake.bulkWriteMutex.Lock()
+	defer fake.bulkWriteMutex.Unlock()
+	fake.BulkWriteStub = nil
+	if fake.bulkWriteReturnsOnCall == nil {
+		fake.bulkWriteReturnsOnCall = make(map[int]struct {
 			result1 error
 		})
 	}
-	fake.batchAsJSONReturnsOnCall[i] = struct {
+	fake.bulkWriteReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -1148,8 +1151,8 @@ func (fake *MongoDBStore) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.batchMutex.RLock()
 	defer fake.batchMutex.RUnlock()
-	fake.batchAsJSONMutex.RLock()
-	defer fake.batchAsJSONMutex.RUnlock()
+	fake.bulkWriteMutex.RLock()
+	defer fake.bulkWriteMutex.RUnlock()
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
 	fake.createMongoDBFindOptionsMutex.RLock()
