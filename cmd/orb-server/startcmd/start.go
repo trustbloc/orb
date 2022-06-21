@@ -1352,7 +1352,7 @@ type dbProvider interface {
 type mongoDBProvider interface {
 	provider
 
-	CreateCustomIndex(storeName string, model mongo.IndexModel) error
+	CreateCustomIndexes(storeName string, model ...mongo.IndexModel) error
 }
 
 type storageProvider struct {

@@ -94,7 +94,7 @@ func (prov *MongoDBProviderWrapper) OpenStore(name string) (storage.Store, error
 	return NewMongoDBStore(s), nil
 }
 
-// CreateCustomIndex creates a MongoDB index.
-func (prov *MongoDBProviderWrapper) CreateCustomIndex(storeName string, model mongo.IndexModel) error {
-	return prov.mp.CreateCustomIndexes(storeName, model)
+// CreateCustomIndexes creates MongoDB indexes.
+func (prov *MongoDBProviderWrapper) CreateCustomIndexes(storeName string, model ...mongo.IndexModel) error {
+	return prov.mp.CreateCustomIndexes(storeName, model...)
 }

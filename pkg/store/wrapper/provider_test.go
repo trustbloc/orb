@@ -71,7 +71,7 @@ func TestMongoDBProviderWrapper(t *testing.T) {
 	})
 
 	t.Run("CreateCustomIndex", func(t *testing.T) {
-		err := p.CreateCustomIndex("s1", mongo.IndexModel{})
+		err := p.CreateCustomIndexes("s1", mongo.IndexModel{})
 		require.NoError(t, err)
 	})
 }
