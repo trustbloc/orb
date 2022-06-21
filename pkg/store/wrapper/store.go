@@ -11,6 +11,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"go.mongodb.org/mongo-driver/mongo"
 	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/trustbloc/orb/pkg/metrics"
@@ -106,7 +107,7 @@ func (store *StoreWrapper) Close() error {
 
 type mongoDBStore interface {
 	PutAsJSON(key string, value interface{}) error
-	BatchAsJSON(operations []mongodb.BatchAsJSONOperation) error
+	BulkWrite(models []mongo.WriteModel, opts ...*mongoopts.BulkWriteOptions) error
 	GetAsRawMap(id string) (map[string]interface{}, error)
 	GetBulkAsRawMap(ids ...string) ([]map[string]interface{}, error)
 	QueryCustom(filter interface{}, options ...*mongoopts.FindOptions) (mongodb.Iterator, error)
@@ -140,13 +141,12 @@ func (store *MongoDBStoreWrapper) PutAsJSON(key string, value interface{}) error
 	return store.ms.PutAsJSON(key, value)
 }
 
-// BatchAsJSON is similar to Batch, but values are stored directly in MongoDB documents without wrapping, with
-// keys being used in the _id fields. Values must be structs or maps.
-func (store *MongoDBStoreWrapper) BatchAsJSON(operations []mongodb.BatchAsJSONOperation) error {
+// BulkWrite executes the mongoDB BulkWrite command using the given WriteModels and BulkWriteOptions.
+func (store *MongoDBStoreWrapper) BulkWrite(models []mongo.WriteModel, opts ...*mongoopts.BulkWriteOptions) error {
 	start := time.Now()
 	defer func() { store.m.DBBatchTime(store.dbType, time.Since(start)) }()
 
-	return store.ms.BatchAsJSON(operations)
+	return store.ms.BulkWrite(models, opts...)
 }
 
 // GetAsRawMap fetches the full MongoDB JSON document stored with the given id (_id field in MongoDB).

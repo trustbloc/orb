@@ -428,6 +428,7 @@ func TestMongoDBBatch(t *testing.T) {
 	const (
 		key1 = "key1"
 		key2 = "key2"
+		key3 = "key3"
 	)
 
 	t.Run("success", func(t *testing.T) {
@@ -437,8 +438,12 @@ func TestMongoDBBatch(t *testing.T) {
 				Value: []byte(`{"field1":"value1"}`),
 			},
 			{
-				Key:   key2,
-				Value: []byte(`{"field1":"value2"}`),
+				Key:        key2,
+				Value:      []byte(`{"field1":"value2"}`),
+				PutOptions: &storage.PutOptions{IsNewKey: true},
+			},
+			{
+				Key: key3,
 			},
 		}))
 	})
@@ -452,10 +457,10 @@ func TestMongoDBBatch(t *testing.T) {
 		}))
 	})
 
-	t.Run("BatchAsJSON error", func(t *testing.T) {
-		errExpected := errors.New("injected BatchAsJSON error")
+	t.Run("BulkWrite error", func(t *testing.T) {
+		errExpected := errors.New("injected BulkWrite error")
 
-		store.BatchAsJSONReturns(errExpected)
+		store.BulkWriteReturns(errExpected)
 
 		err := s.Batch([]storage.Operation{
 			{

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -78,7 +79,7 @@ func newVendorStore(provider storage.Provider, store storage.Store,
 
 type mongoDBStore interface {
 	PutAsJSON(key string, value interface{}) error
-	BatchAsJSON(operations []mongodb.BatchAsJSONOperation) error
+	BulkWrite(models []mongo.WriteModel, opts ...*mongoopts.BulkWriteOptions) error
 	GetAsRawMap(id string) (map[string]interface{}, error)
 	GetBulkAsRawMap(ids ...string) ([]map[string]interface{}, error)
 	QueryCustom(filter interface{}, options ...*mongoopts.FindOptions) (mongodb.Iterator, error)
@@ -219,22 +220,38 @@ func (s *mongoDBWrapper) Query(expression string, options ...storage.QueryOption
 
 // Batch performs multiple Put and/or Delete operations in order.
 func (s *mongoDBWrapper) Batch(operations []storage.Operation) error {
-	jsonOps := make([]mongodb.BatchAsJSONOperation, len(operations))
+	writeModels := make([]mongo.WriteModel, len(operations))
 
 	for i, op := range operations {
-		jsonOp := mongodb.BatchAsJSONOperation{Key: op.Key}
-
 		if len(op.Value) > 0 {
-			if err := json.Unmarshal(op.Value, &jsonOp.Value); err != nil {
-				return fmt.Errorf("unmarshal document [%s-%s]: %w", s.namespace, op.Key, err)
-			}
-		}
+			var valueAsMap map[string]interface{}
 
-		jsonOps[i] = jsonOp
+			jsonDecoder := json.NewDecoder(bytes.NewReader(op.Value))
+			jsonDecoder.UseNumber()
+
+			err := jsonDecoder.Decode(&valueAsMap)
+			if err != nil {
+				return err
+			}
+
+			valueAsMap["_id"] = op.Key
+
+			if op.PutOptions != nil && op.PutOptions.IsNewKey {
+				writeModels[i] = mongo.NewInsertOneModel().SetDocument(valueAsMap)
+			} else {
+				filter := bson.M{"_id": op.Key}
+
+				writeModels[i] = mongo.NewReplaceOneModel().SetFilter(filter).
+					SetReplacement(valueAsMap).
+					SetUpsert(true)
+			}
+		} else {
+			writeModels[i] = mongo.NewDeleteOneModel().SetFilter(bson.M{"_id": op.Key})
+		}
 	}
 
-	if err := s.ms.BatchAsJSON(jsonOps); err != nil {
-		return fmt.Errorf("batch as JSON failed for [%s]: %w", s.namespace, err)
+	if err := s.ms.BulkWrite(writeModels); err != nil {
+		return fmt.Errorf("bulk write failed for [%s]: %w", s.namespace, err)
 	}
 
 	return nil
