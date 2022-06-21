@@ -23,7 +23,8 @@ import (
 var logger = log.New("factory-registry")
 
 type factory interface {
-	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore, provider storage.Provider, sidetreeCfg *config.Sidetree) (protocol.Version, error) //nolint: lll
+	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore,
+		provider storage.Provider, sidetreeCfg *config.Sidetree) (protocol.Version, error)
 }
 
 // Registry implements a protocol version factory registry.

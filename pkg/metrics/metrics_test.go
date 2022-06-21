@@ -93,6 +93,8 @@ func TestMetrics(t *testing.T) {
 		require.NotPanics(t, func() { m.GetCreateOperationResultTime(time.Second) })
 		require.NotPanics(t, func() { m.HTTPCreateUpdateTime(time.Second) })
 		require.NotPanics(t, func() { m.HTTPResolveTime(time.Second) })
+		require.NotPanics(t, func() { m.CASWriteSize("core index", 1000) })
+		require.NotPanics(t, func() { m.CASWriteSize("unsupported", 1000) })
 		require.NotPanics(t, func() { m.SignCount() })
 		require.NotPanics(t, func() { m.SignTime(time.Second) })
 		require.NotPanics(t, func() { m.ExportPublicKeyCount() })
@@ -115,5 +117,5 @@ func TestNewHistogram(t *testing.T) {
 }
 
 func TestNewGuage(t *testing.T) {
-	require.NotNil(t, newGauge("activityPub", "metric_name", "Some help"))
+	require.NotNil(t, newGauge("activityPub", "metric_name", "Some help", nil))
 }

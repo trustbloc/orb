@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/metrics"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
@@ -58,7 +59,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 	cp := compression.New(compression.WithDefaultAlgorithms())
 	op := txnprovider.NewOperationProvider(p, opParser, &casReader{casResolver}, cp,
 		txnprovider.WithSourceCASURIFormatter(formatWebCASURI))
-	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser)
+	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser, metrics.Get())
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
 
