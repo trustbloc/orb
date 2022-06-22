@@ -43,7 +43,7 @@ services:
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=50
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
+      - MQ_MAX_CONNECTION_CHANNELS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN1}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain1.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain1.com/vc
@@ -165,7 +165,7 @@ services:
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=25
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
+      - MQ_MAX_CONNECTION_CHANNELS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN2}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain2.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain2.com/vc
@@ -267,7 +267,7 @@ services:
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=25
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
+      - MQ_MAX_CONNECTION_CHANNELS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain3.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain3.com/vc
@@ -380,7 +380,7 @@ services:
       # MQ_PUBLISHER_POOL specifies the size of a channel pool for an AMQP publisher (default 25). If set to 0 then
       #	a channel pool is not used and a new channel is opened/closed for every publish to a queue.
       - MQ_PUBLISHER_POOL=25
-      - MQ_MAX_CONNECTION_SUBSCRIPTIONS=1500
+      - MQ_MAX_CONNECTION_CHANNELS=1500
       - CID_VERSION=${CID_VERSION_DOMAIN3}
       - ANCHOR_CREDENTIAL_ISSUER=https://orb.domain4.com
       - ANCHOR_CREDENTIAL_URL=https://orb.domain4.com/vc

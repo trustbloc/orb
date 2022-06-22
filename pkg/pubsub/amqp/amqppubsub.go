@@ -63,15 +63,15 @@ const (
 
 // Config holds the configuration for the publisher/subscriber.
 type Config struct {
-	URI                        string
-	MaxConnectRetries          int
-	MaxConnectionSubscriptions int
-	MaxRedeliveryAttempts      int
-	RedeliveryMultiplier       float64
-	RedeliveryInitialInterval  time.Duration
-	MaxRedeliveryInterval      time.Duration
-	PublisherChannelPoolSize   int
-	PublisherConfirmDelivery   bool
+	URI                       string
+	MaxConnectRetries         int
+	MaxConnectionChannels     int
+	MaxRedeliveryAttempts     int
+	RedeliveryMultiplier      float64
+	RedeliveryInitialInterval time.Duration
+	MaxRedeliveryInterval     time.Duration
+	PublisherChannelPoolSize  int
+	PublisherConfirmDelivery  bool
 }
 
 type closeable interface {
@@ -119,7 +119,7 @@ type PubSub struct {
 	pools                       []*pooledSubscriber
 	mutex                       sync.RWMutex
 	subscriberFactory           subscriberFactory
-	createPublisher             publisherFactory
+	createPublisher             createPublisherFunc
 	redeliverySubscriberFactory subscriberFactory
 	waitSubscriberFactory       subscriberFactory
 	createWaitPublisher         publisherFactory
@@ -133,10 +133,11 @@ func New(cfg Config) *PubSub {
 
 	p := &PubSub{
 		Config:               cfg,
-		connMgr:              newConnectionMgr(amqp.ConnectionConfig{AmqpURI: cfg.URI}, cfg.MaxConnectionSubscriptions),
+		connMgr:              newConnectionMgr(amqp.ConnectionConfig{AmqpURI: cfg.URI}, cfg.MaxConnectionChannels),
 		amqpConfig:           newQueueConfig(cfg),
 		amqpRedeliveryConfig: newRedeliveryQueueConfig(cfg),
 		amqpWaitConfig:       newWaitQueueConfig(cfg),
+		createPublisher:      createPublisher,
 	}
 
 	p.Lifecycle = lifecycle.New("amqp",
@@ -145,10 +146,6 @@ func New(cfg Config) *PubSub {
 
 	p.subscriberFactory = func(conn connection) (initializingSubscriber, error) {
 		return amqp.NewSubscriberWithConnection(p.amqpConfig, wmlogger.New(), conn.amqpConnection())
-	}
-
-	p.createPublisher = func(conn connection) (publisher, error) {
-		return amqp.NewPublisherWithConnection(p.amqpConfig, wmlogger.New(), conn.amqpConnection())
 	}
 
 	p.redeliverySubscriberFactory = func(conn connection) (initializingSubscriber, error) {
@@ -300,7 +297,7 @@ func (p *PubSub) start() {
 		},
 	)
 	if err != nil {
-		panic(fmt.Sprintf("Unable to connect to message queue after %d attempts", maxRetries))
+		panic(fmt.Sprintf("Unable to connect to message queue after %d attempts: %s", maxRetries, err))
 	}
 
 	retryChan, err := p.redeliverySubscriber.Subscribe(context.Background(), redeliveryQueue)
@@ -325,25 +322,23 @@ func (p *PubSub) start() {
 }
 
 func (p *PubSub) connect() error {
-	// Use a dedicated connection for the publishers that will not be shared by subscribers.
-	conn, err := p.connMgr.getConnection(false)
-	if err != nil {
-		return fmt.Errorf("get connection: %w", err)
-	}
-
-	logger.Debugf("Successfully created connection to [%s]", extractEndpoint(p.amqpConfig.Connection.AmqpURI))
-
-	pub, err := p.createPublisher(conn)
+	pubPool, err := newPublisherPool(p.connMgr, p.MaxConnectionChannels, &p.amqpConfig, p.createPublisher)
 	if err != nil {
 		return err
 	}
 
+	p.publisher = pubPool
+
 	p.subscriber = newSubscriberMgr(p.connMgr, p.subscriberFactory)
-	p.publisher = pub
 
 	p.redeliverySubscriber = newSubscriberMgr(p.connMgr, p.redeliverySubscriberFactory)
 
-	pub, err = p.createWaitPublisher(conn)
+	conn, err := p.connMgr.getConnection(true)
+	if err != nil {
+		return fmt.Errorf("get connection: %w", err)
+	}
+
+	pub, err := p.createWaitPublisher(conn)
 	if err != nil {
 		return err
 	}
@@ -466,6 +461,15 @@ func (p *PubSub) getRedeliveryInterval(attempts int) time.Duration {
 	}
 
 	return interval
+}
+
+func createPublisher(cfg *amqp.Config, conn connection) (publisher, error) {
+	pub, err := amqp.NewPublisherWithConnection(*cfg, wmlogger.New(), conn.amqpConnection())
+	if err != nil {
+		return nil, fmt.Errorf("new publisher: %w", err)
+	}
+
+	return pub, nil
 }
 
 func newConnectBackOff() backoff.BackOff {
@@ -844,8 +848,8 @@ func newAMQPQueueConfig(args ramqp.Table) amqp.QueueConfig {
 }
 
 func initConfig(cfg Config) Config {
-	if cfg.MaxConnectionSubscriptions == 0 {
-		cfg.MaxConnectionSubscriptions = defaultMaxConnectionSubscriptions
+	if cfg.MaxConnectionChannels == 0 {
+		cfg.MaxConnectionChannels = defaultMaxConnectionSubscriptions
 	}
 
 	if cfg.MaxRedeliveryAttempts == 0 {

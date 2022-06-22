@@ -75,8 +75,8 @@ func TestAMQP(t *testing.T) {
 		receivedMessages := &sync.Map{}
 
 		p := New(Config{
-			URI:                        mqURI,
-			MaxConnectionSubscriptions: 5,
+			URI:                   mqURI,
+			MaxConnectionChannels: 5,
 		})
 		require.NotNil(t, p)
 		defer func() {
@@ -134,10 +134,10 @@ func TestAMQP(t *testing.T) {
 		const topic = "topic_redelivery"
 
 		p := New(Config{
-			URI:                        mqURI,
-			MaxConnectionSubscriptions: 5,
-			MaxRedeliveryAttempts:      5,
-			MaxRedeliveryInterval:      200 * time.Millisecond,
+			URI:                   mqURI,
+			MaxConnectionChannels: 5,
+			MaxRedeliveryAttempts: 5,
+			MaxRedeliveryInterval: 200 * time.Millisecond,
 		})
 		require.NotNil(t, p)
 		defer func() {
@@ -182,7 +182,7 @@ func TestAMQP_Error(t *testing.T) {
 			subscriberFactory: func(connection) (initializingSubscriber, error) {
 				return nil, errExpected
 			},
-			createPublisher: func(connection) (publisher, error) {
+			createPublisher: func(cfg *amqp.Config, conn connection) (publisher, error) {
 				return &mockPublisher{}, nil
 			},
 			createWaitPublisher: func(connection) (publisher, error) {
@@ -199,19 +199,21 @@ func TestAMQP_Error(t *testing.T) {
 	})
 
 	t.Run("Publisher factory error", func(t *testing.T) {
-		errExpected := errors.New("injected publisher subscriberFactory error")
+		errExpected := errors.New("injected publisher factory error")
 
 		p := &PubSub{
 			connMgr: &mockConnectionMgr{},
 			subscriberFactory: func(connection) (initializingSubscriber, error) {
 				return &mockSubscriber{}, nil
 			},
-			createPublisher: func(connection) (publisher, error) {
+			createPublisher: func(cfg *amqp.Config, conn connection) (publisher, error) {
 				return nil, errExpected
 			},
 		}
 
-		require.EqualError(t, p.connect(), errExpected.Error())
+		err := p.connect()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Subscribe error", func(t *testing.T) {
@@ -327,6 +329,12 @@ type mockPublisher struct {
 	*mockClosable
 
 	err error
+}
+
+func newMockPublisher() *mockPublisher {
+	return &mockPublisher{
+		mockClosable: &mockClosable{},
+	}
 }
 
 func (m *mockPublisher) Publish(topic string, messages ...*message.Message) error {
