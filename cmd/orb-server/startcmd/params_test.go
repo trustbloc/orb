@@ -639,8 +639,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "missing unit in duration")
 	})
 
-	t.Run("Invalid max connection subscriptions", func(t *testing.T) {
-		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
+	t.Run("Invalid max connection channels", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqMaxConnectionChannelsEnvKey, "xxx")
 		defer restoreEnv()
 
 		startCmd := GetStartCmd()
@@ -649,7 +649,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value for mq-max-connection-subscriptions")
+		require.Contains(t, err.Error(), "invalid value for mq-max-connection-channels")
 	})
 
 	t.Run("Invalid follow auth policy", func(t *testing.T) {
@@ -1209,7 +1209,7 @@ func TestGetMQParameters(t *testing.T) {
 		restoreInboxPoolEnv := setEnv(t, mqInboxPoolEnvKey, "7")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConfirmDeliveryEnv := setEnv(t, mqPublisherConfirmDeliveryEnvKey, "false")
-		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "456")
+		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionChannelsEnvKey, "456")
 		restoreConnectionRetriesEnv := setEnv(t, mqConnectMaxRetriesEnvKey, "12")
 		restoreRedeliveryMaxAttempts := setEnv(t, mqRedeliveryMaxAttemptsEnvKey, "17")
 		restoreRedeliveryMultiplier := setEnv(t, mqRedeliveryMultiplierEnvKey, "1.7")
@@ -1239,7 +1239,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, 3, mqParams.observerPoolSize)
 		require.Equal(t, 4, mqParams.outboxPoolSize)
 		require.Equal(t, 7, mqParams.inboxPoolSize)
-		require.Equal(t, 456, mqParams.maxConnectionSubscriptions)
+		require.Equal(t, 456, mqParams.maxConnectionChannels)
 		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
 		require.False(t, mqParams.publisherConfirmDelivery)
 		require.Equal(t, 12, mqParams.maxConnectRetries)
@@ -1264,7 +1264,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, mqDefaultObserverPoolSize, mqParams.observerPoolSize)
 		require.Equal(t, mqDefaultOutboxPoolSize, mqParams.outboxPoolSize)
 		require.Equal(t, mqDefaultInboxPoolSize, mqParams.inboxPoolSize)
-		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionSubscriptions)
+		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionChannels)
 		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
 		require.Equal(t, mqDefaultPublisherConfirmDelivery, mqParams.publisherConfirmDelivery)
 		require.Equal(t, mqDefaultRedeliveryMaxInterval, mqParams.maxRedeliveryInterval)
@@ -1274,7 +1274,7 @@ func TestGetMQParameters(t *testing.T) {
 	})
 
 	t.Run("Invalid max connection subscriptions value -> error", func(t *testing.T) {
-		restoreEnv := setEnv(t, mqMaxConnectionSubscriptionsEnvKey, "xxx")
+		restoreEnv := setEnv(t, mqMaxConnectionChannelsEnvKey, "xxx")
 
 		defer func() {
 			restoreEnv()

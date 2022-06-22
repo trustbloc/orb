@@ -734,15 +734,15 @@ func startOrbServices(parameters *orbParameters) error {
 
 	if mqParams.endpoint != "" {
 		pubSub = amqp.New(amqp.Config{
-			URI:                        mqParams.endpoint,
-			MaxConnectionSubscriptions: mqParams.maxConnectionSubscriptions,
-			PublisherChannelPoolSize:   mqParams.publisherChannelPoolSize,
-			PublisherConfirmDelivery:   mqParams.publisherConfirmDelivery,
-			MaxConnectRetries:          mqParams.maxConnectRetries,
-			MaxRedeliveryAttempts:      mqParams.maxRedeliveryAttempts,
-			RedeliveryMultiplier:       mqParams.redeliveryMultiplier,
-			RedeliveryInitialInterval:  mqParams.redeliveryInitialInterval,
-			MaxRedeliveryInterval:      mqParams.maxRedeliveryInterval,
+			URI:                       mqParams.endpoint,
+			MaxConnectionChannels:     mqParams.maxConnectionChannels,
+			PublisherChannelPoolSize:  mqParams.publisherChannelPoolSize,
+			PublisherConfirmDelivery:  mqParams.publisherConfirmDelivery,
+			MaxConnectRetries:         mqParams.maxConnectRetries,
+			MaxRedeliveryAttempts:     mqParams.maxRedeliveryAttempts,
+			RedeliveryMultiplier:      mqParams.redeliveryMultiplier,
+			RedeliveryInitialInterval: mqParams.redeliveryInitialInterval,
+			MaxRedeliveryInterval:     mqParams.maxRedeliveryInterval,
 		})
 	} else {
 		pubSub = mempubsub.New(mempubsub.DefaultConfig())

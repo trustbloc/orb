@@ -290,11 +290,11 @@ const (
 	mqInboxPoolFlagUsage = "The size of the inbox queue subscriber pool. If not specified then the default size is used. " +
 		commonEnvVarUsageText + mqInboxPoolEnvKey
 
-	mqMaxConnectionSubscriptionsFlagName      = "mq-max-connection-subscriptions"
-	mqMaxConnectionSubscriptionsFlagShorthand = "C"
-	mqMaxConnectionSubscriptionsEnvKey        = "MQ_MAX_CONNECTION_SUBSCRIPTIONS"
-	mqMaxConnectionSubscriptionsFlagUsage     = "The maximum number of subscriptions per connection. " +
-		commonEnvVarUsageText + mqMaxConnectionSubscriptionsEnvKey
+	mqMaxConnectionChannelsFlagName      = "mq-max-connection-channels"
+	mqMaxConnectionChannelsFlagShorthand = "C"
+	mqMaxConnectionChannelsEnvKey        = "MQ_MAX_CONNECTION_CHANNELS"
+	mqMaxConnectionChannelsFlagUsage     = "The maximum number of channels per connection. " +
+		commonEnvVarUsageText + mqMaxConnectionChannelsEnvKey
 
 	mqPublisherChannelPoolSizeFlagName  = "mq-publisher-channel-pool-size"
 	mqPublisherChannelPoolSizeEnvKey    = "MQ_PUBLISHER_POOL"
@@ -1724,18 +1724,18 @@ func getBool(cmd *cobra.Command, flagName, envKey string, defaultValue bool) (bo
 }
 
 type mqParams struct {
-	endpoint                   string
-	observerPoolSize           int
-	outboxPoolSize             int
-	inboxPoolSize              int
-	maxConnectionSubscriptions int
-	publisherChannelPoolSize   int
-	publisherConfirmDelivery   bool
-	maxConnectRetries          int
-	maxRedeliveryAttempts      int
-	redeliveryMultiplier       float64
-	redeliveryInitialInterval  time.Duration
-	maxRedeliveryInterval      time.Duration
+	endpoint                  string
+	observerPoolSize          int
+	outboxPoolSize            int
+	inboxPoolSize             int
+	maxConnectionChannels     int
+	publisherChannelPoolSize  int
+	publisherConfirmDelivery  bool
+	maxConnectRetries         int
+	maxRedeliveryAttempts     int
+	redeliveryMultiplier      float64
+	redeliveryInitialInterval time.Duration
+	maxRedeliveryInterval     time.Duration
 }
 
 func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
@@ -1759,8 +1759,8 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		return nil, err
 	}
 
-	mqMaxConnectionSubscriptions, err := getInt(cmd, mqMaxConnectionSubscriptionsFlagName,
-		mqMaxConnectionSubscriptionsEnvKey, mqDefaultMaxConnectionSubscriptions)
+	mqMaxConnectionChannels, err := getInt(cmd, mqMaxConnectionChannelsFlagName,
+		mqMaxConnectionChannelsEnvKey, mqDefaultMaxConnectionSubscriptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1808,18 +1808,18 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	}
 
 	return &mqParams{
-		endpoint:                   mqURL,
-		observerPoolSize:           mqObserverPoolSize,
-		outboxPoolSize:             mqOutboxPoolSize,
-		inboxPoolSize:              mqInboxPoolSize,
-		maxConnectionSubscriptions: mqMaxConnectionSubscriptions,
-		publisherChannelPoolSize:   mqPublisherChannelPoolSize,
-		publisherConfirmDelivery:   mqPublisherConfirmDelivery,
-		maxConnectRetries:          mqMaxConnectRetries,
-		maxRedeliveryAttempts:      mqMaxRedeliveryAttempts,
-		redeliveryMultiplier:       mqRedeliveryMultiplier,
-		redeliveryInitialInterval:  mqRedeliveryInitialInterval,
-		maxRedeliveryInterval:      mqRedeliveryMaxInterval,
+		endpoint:                  mqURL,
+		observerPoolSize:          mqObserverPoolSize,
+		outboxPoolSize:            mqOutboxPoolSize,
+		inboxPoolSize:             mqInboxPoolSize,
+		maxConnectionChannels:     mqMaxConnectionChannels,
+		publisherChannelPoolSize:  mqPublisherChannelPoolSize,
+		publisherConfirmDelivery:  mqPublisherConfirmDelivery,
+		maxConnectRetries:         mqMaxConnectRetries,
+		maxRedeliveryAttempts:     mqMaxRedeliveryAttempts,
+		redeliveryMultiplier:      mqRedeliveryMultiplier,
+		redeliveryInitialInterval: mqRedeliveryInitialInterval,
+		maxRedeliveryInterval:     mqRedeliveryMaxInterval,
 	}, nil
 }
 
@@ -2036,7 +2036,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqObserverPoolFlagName, mqObserverPoolFlagShorthand, "", mqObserverPoolFlagUsage)
 	startCmd.Flags().StringP(mqOutboxPoolFlagName, "", "", mqOutboxPoolFlagUsage)
 	startCmd.Flags().StringP(mqInboxPoolFlagName, "", "", mqInboxPoolFlagUsage)
-	startCmd.Flags().StringP(mqMaxConnectionSubscriptionsFlagName, mqMaxConnectionSubscriptionsFlagShorthand, "", mqMaxConnectionSubscriptionsFlagUsage)
+	startCmd.Flags().StringP(mqMaxConnectionChannelsFlagName, mqMaxConnectionChannelsFlagShorthand, "", mqMaxConnectionChannelsFlagUsage)
 	startCmd.Flags().StringP(mqPublisherChannelPoolSizeFlagName, "", "", mqPublisherChannelPoolSizeFlagUsage)
 	startCmd.Flags().StringP(mqPublisherConfirmDeliveryEnvKey, "", "", mqPublisherConfirmDeliveryFlagUsage)
 	startCmd.Flags().StringP(mqConnectMaxRetriesFlagName, "", "", mqConnectMaxRetriesFlagUsage)
