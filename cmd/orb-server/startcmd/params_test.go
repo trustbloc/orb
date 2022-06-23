@@ -820,6 +820,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value [xxx] for parameter [apiri-cache-size]")
 	})
+
+	t.Run("allowed origins cache expiration", func(t *testing.T) {
+		restoreEnv := setEnv(t, allowedOriginsCacheExpirationEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "allowed-origins-cache-expiration: invalid value [xxx]")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {
