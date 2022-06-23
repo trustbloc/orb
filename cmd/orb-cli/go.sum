@@ -791,10 +791,10 @@ github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-2
 github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf h1:F12zbOSRsye3IWK3Zb6prgrqQQFYnz5zjGSCh9pfYzk=
 github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf/go.mod h1:GDANCnJONcCqBvv6QgKuk5Y2FWHyD/Hu26kyc7NTyfY=
 github.com/hyperledger/aries-framework-go-ext/component/storage/postgresql v0.0.0-20220428163625-96d8261511e1/go.mod h1:35iXtsPH1PImVDq8xFHETtrcvyHhJXKcvf82YJ6/z4k=
-github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1.0.20220603055629-55b4fab22d40 h1:4OHnb4dh35Pzc3g8lGISM7ASx4Qh936YmCXfJFBrLcY=
-github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc.1.0.20220603055629-55b4fab22d40/go.mod h1:u+E9ZMD6TNPci7citnar2mEhZ3eKKgsoJqXkbgnpTyk=
-github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220530114906-35b469518049 h1:8IOvvZbJILpFDRs36wD1vC6zfKWiCm3dWWPm54bN5JE=
-github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc.1.0.20220530114906-35b469518049/go.mod h1:w2ANkQuCP7fjIO0EruwPPVmcNJ/l2+SZiDWEPLbIGoE=
+github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2 h1:rzMCq0Ay62VYp0CyhTZqUOQBa7LExzRx/SgAgcBX5k4=
+github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2/go.mod h1:ZAf6+VFYPHnFbYv/09oV2eTpGzWOxP4WeFlILrfyS+E=
+github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2 h1:J/5dDlk+s6EJI5zXREnMY1w2Xg43rZNbkKP1qjvAmFA=
+github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2/go.mod h1:e8aQHQRjTfZpB7bsEBrSKyP0LFAsgPs/AzCKe82nQyo=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210520055214-ae429bb89bf7/go.mod h1:7D+Y5J9cIsUrMGFAsIED+3bAPNjxp6ggXo0/kT5N6BI=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210820175050-dcc7a225178d/go.mod h1:i40JkMHCh9cHHxSc1SYznO3xDH6ly5CE0B3vPYZVeWI=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220308060532-714cd5c18552/go.mod h1:eIac5lubCy3tw6D0sTluM5U6Bw3inBwUfjX17o2U7PE=
@@ -1430,11 +1430,8 @@ github.com/trustbloc/edge-core v0.1.7/go.mod h1:nQnH3CcEHTRXsWZe/vgj+J0JxxjwFK9I
 github.com/trustbloc/edge-core v0.1.8 h1:m4X5XNDwiHJjGf8gHnpo6aLkBYuqDyNRq+npjxLc5cY=
 github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHYn+87f+TBQ8M=
 github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc.1/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc.1.0.20220428193233-a1567c33db3e/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc2 h1:Ca/4iuZu/RhzraPfrj/r+tDuJiqYOd3R7bXyBJF+cXg=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc2/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
-github.com/trustbloc/vct v1.0.0-rc1.0.20220530071917-3aa4f907b424/go.mod h1:k45HahHV0lr2h8ldzITXLjcWpTgXzRE8WL1avfC95po=
 github.com/trustbloc/vct v1.0.0-rc2 h1:iuoG3rLC3V0kuwGnBmnzVPGH6xAxWzpozgkW5T5Qlac=
 github.com/trustbloc/vct v1.0.0-rc2/go.mod h1:k45HahHV0lr2h8ldzITXLjcWpTgXzRE8WL1avfC95po=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
