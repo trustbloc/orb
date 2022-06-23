@@ -88,6 +88,7 @@ import (
 	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/allowedorigins/allowedoriginsmgr"
+	"github.com/trustbloc/orb/pkg/anchor/allowedorigins/allowedoriginsrest"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/vcresthandler"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
@@ -1190,6 +1191,8 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger), authTokenManager),
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
+		auth.NewHandlerWrapper(allowedoriginsrest.NewWriter(allowedOriginsStore), authTokenManager),
+		auth.NewHandlerWrapper(allowedoriginsrest.NewReader(allowedOriginsStore), authTokenManager),
 	)
 
 	handlers = append(handlers,
