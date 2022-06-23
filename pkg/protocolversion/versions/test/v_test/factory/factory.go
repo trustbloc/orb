@@ -29,7 +29,6 @@ import (
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/test/v_test/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
-	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
@@ -52,7 +51,8 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 
 	opParser := operationparser.New(p,
 		operationparser.WithAnchorTimeValidator(anchortime.New(p.MaxOperationTimeDelta)),
-		operationparser.WithAnchorOriginValidator(anchororigin.New(sidetreeCfg.AnchorOrigins)))
+		operationparser.WithAnchorOriginValidator(sidetreeCfg.AllowedOriginsValidator),
+	)
 
 	orbParser := orboperationparser.New(opParser)
 

@@ -121,10 +121,8 @@ func newRoundRobin(max int) *roundRobin {
 }
 
 func (r *roundRobin) nextIndex() int {
-	var i int32
-
 	for {
-		i = atomic.AddInt32(&r.current, 1)
+		i := atomic.AddInt32(&r.current, 1)
 
 		if int(i) > r.max {
 			if !atomic.CompareAndSwapInt32(&r.current, i, 0) {

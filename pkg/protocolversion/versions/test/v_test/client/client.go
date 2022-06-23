@@ -21,7 +21,6 @@ import (
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/test/v_test/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
-	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
 )
 
@@ -41,9 +40,7 @@ func (v *Factory) Create(version string, casClient common.CASReader,
 	var parserOpts []operationparser.Option
 	parserOpts = append(parserOpts, operationparser.WithAnchorTimeValidator(anchortime.New(p.MaxOperationTimeDelta)))
 
-	if len(sidetreeCfg.AnchorOrigins) > 0 {
-		operationparser.WithAnchorOriginValidator(anchororigin.New(sidetreeCfg.AnchorOrigins))
-	}
+	operationparser.WithAnchorOriginValidator(sidetreeCfg.AllowedOriginsValidator)
 
 	opParser := operationparser.New(p, parserOpts...)
 

@@ -9,6 +9,7 @@ package mocks
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -22,6 +23,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
 
 	"github.com/trustbloc/orb/pkg/context/common"
+	protomocks "github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchortime"
@@ -136,6 +138,7 @@ func (m *MockProtocolClientProvider) ForNamespace(namespace string) (protocol.Cl
 	return pc, nil
 }
 
+//nolint:funlen
 func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 	//nolint:gomnd
 	latest := protocol.Protocol{
@@ -159,7 +162,10 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 
 	parser := operationparser.New(latest,
 		operationparser.WithAnchorTimeValidator(anchortime.New(latest.MaxOperationTimeDelta)),
-		operationparser.WithAnchorOriginValidator(anchororigin.New(m.allowedOrigins)))
+		operationparser.WithAnchorOriginValidator(
+			anchororigin.New(protomocks.NewAllowedOriginsStore().FromString(m.allowedOrigins...), time.Second),
+		),
+	)
 
 	orbParser := orboperationparser.New(parser)
 

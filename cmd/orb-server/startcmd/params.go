@@ -134,6 +134,7 @@ const (
 	defaultInviteWitnessAuthType            = acceptAllPolicy
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
 	defaultDataURIMediaType                 = datauri.MediaTypeDataURIGzipBase64
+	defaultAllowedOriginsCacheExpiration    = time.Minute
 
 	opQueueDefaultPoolSize                = 5
 	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
@@ -420,6 +421,11 @@ const (
 	allowedOriginsFlagShorthand = "o"
 	allowedOriginsFlagUsage     = "Allowed origins for this did method. " + commonEnvVarUsageText + allowedOriginsEnvKey
 
+	allowedOriginsCacheExpirationFlagName  = "allowed-origins-cache-expiration"
+	allowedOriginsCacheExpirationEnvKey    = "ALLOWED_ORIGINS_CACHE_EXPIRATION"
+	allowedOriginsCacheExpirationFlagUsage = "The expiration time of the allowed origins cache. " +
+		commonEnvVarUsageText + allowedOriginsCacheExpirationEnvKey
+
 	maxWitnessDelayFlagName      = "max-witness-delay"
 	maxWitnessDelayEnvKey        = "MAX_WITNESS_DELAY"
 	maxWitnessDelayFlagShorthand = "w"
@@ -685,6 +691,7 @@ type orbParameters struct {
 	methodContext                           []string
 	baseEnabled                             bool
 	allowedOrigins                          []string
+	allowedOriginsCacheExpiration           time.Duration
 	tlsParams                               *tlsParameters
 	anchorCredentialParams                  *anchorCredentialParams
 	discoveryDomains                        []string
@@ -1170,6 +1177,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	allowedOriginsCacheExpiration, err := getDuration(cmd, allowedOriginsCacheExpirationFlagName,
+		allowedOriginsCacheExpirationEnvKey, defaultAllowedOriginsCacheExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", allowedOriginsCacheExpirationFlagName, err)
+	}
+
 	dataURIMediaType, err := cmdutils.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -1388,6 +1401,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didNamespace:                            didNamespace,
 		didAliases:                              didAliases,
 		allowedOrigins:                          allowedOrigins,
+		allowedOriginsCacheExpiration:           allowedOriginsCacheExpiration,
 		casType:                                 casType,
 		ipfsURL:                                 ipfsURL,
 		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
@@ -2104,4 +2118,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)
 	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)
 	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
+	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
 }

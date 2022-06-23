@@ -8,6 +8,7 @@ package config
 
 import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 
 	"github.com/trustbloc/orb/pkg/store/operation/unpublished"
 )
@@ -16,11 +17,12 @@ import (
 type Sidetree struct {
 	MethodContext []string
 	EnableBase    bool
-	AnchorOrigins []string
 
 	UnpublishedOpStore                      *unpublished.Store
 	UnpublishedOperationStoreOperationTypes []operation.Type
 
 	IncludeUnpublishedOperations bool
 	IncludePublishedOperations   bool
+
+	AllowedOriginsValidator operationparser.ObjectValidator
 }

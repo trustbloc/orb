@@ -64,8 +64,7 @@ func New(namespace string, opts ...Option) (*ResolutionVerifier, error) {
 		opt(rv)
 	}
 
-	pc, err := getProtocolClient(namespace, rv.versions, rv.currentVersion,
-		rv.anchorOrigins, rv.methodContexts, rv.enableBase)
+	pc, err := getProtocolClient(namespace, rv.versions, rv.currentVersion, rv.methodContexts, rv.enableBase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create protocol client provider: %w", err)
 	}
@@ -113,7 +112,7 @@ func WithEnableBase(enabled bool) Option {
 	}
 }
 
-func getProtocolClient(namespace string, versions []string, currentVersion string, anchorOrigins, methodContexts []string, enableBase bool) (protocol.Client, error) { //nolint:lll
+func getProtocolClient(namespace string, versions []string, currentVersion string, methodContexts []string, enableBase bool) (protocol.Client, error) { //nolint:lll
 	registry := clientregistry.New()
 
 	var clientVersions []protocol.Version
@@ -122,7 +121,6 @@ func getProtocolClient(namespace string, versions []string, currentVersion strin
 		cv, err := registry.CreateClientVersion(version, nil, &config.Sidetree{
 			IncludePublishedOperations:   true,
 			IncludeUnpublishedOperations: true,
-			AnchorOrigins:                anchorOrigins,
 			MethodContext:                methodContexts,
 			EnableBase:                   enableBase,
 		})

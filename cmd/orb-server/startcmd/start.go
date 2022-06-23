@@ -70,6 +70,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/processor"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
+	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
@@ -86,6 +87,7 @@ import (
 	apmemstore "github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	activitypubspi "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/allowedorigins/allowedoriginsmgr"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/vcresthandler"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
@@ -149,6 +151,7 @@ import (
 	logmonitorhandler "github.com/trustbloc/orb/pkg/vct/logmonitoring/resthandler"
 	"github.com/trustbloc/orb/pkg/vct/proofmonitoring"
 	vcthandler "github.com/trustbloc/orb/pkg/vct/resthandler"
+	"github.com/trustbloc/orb/pkg/versions/1_0/operationparser/validators/anchororigin"
 	"github.com/trustbloc/orb/pkg/webcas"
 	wfclient "github.com/trustbloc/orb/pkg/webfinger/client"
 )
@@ -648,15 +651,27 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	// get protocol client provider
-	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore, storeProviders.provider, updateDocumentStore)
+	originURIs, err := asURIs(parameters.allowedOrigins...)
 	if err != nil {
-		return fmt.Errorf("failed to create protocol client provider: %s", err.Error())
+		return fmt.Errorf("invalid anchor origins: %s", err)
+	}
+
+	allowedOriginsStore, err := allowedoriginsmgr.New(configStore, originURIs...)
+	if err != nil {
+		return fmt.Errorf("new allowed origin store: %w", err)
+	}
+
+	// get protocol client provider
+	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore,
+		storeProviders.provider, updateDocumentStore, anchororigin.New(allowedOriginsStore,
+			parameters.allowedOriginsCacheExpiration))
+	if err != nil {
+		return fmt.Errorf("failed to create protocol client provider: %w", err)
 	}
 
 	pc, err := pcp.ForNamespace(parameters.didNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to get protocol client for namespace [%s]: %s", parameters.didNamespace, err.Error())
+		return fmt.Errorf("failed to get protocol client for namespace [%s]: %w", parameters.didNamespace, err)
 	}
 
 	u, err := url.Parse(parameters.externalEndpoint)
@@ -1231,17 +1246,17 @@ func startOrbServices(parameters *orbParameters) error {
 }
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
-	opStore common.OperationStore, provider storage.Provider,
-	unpublishedOpStore *unpublishedopstore.Store) (*orbpcp.ClientProvider, error) {
+	opStore common.OperationStore, provider storage.Provider, unpublishedOpStore *unpublishedopstore.Store,
+	allowedOriginsValidator operationparser.ObjectValidator) (*orbpcp.ClientProvider, error) {
 
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                           parameters.methodContext,
 		EnableBase:                              parameters.baseEnabled,
-		AnchorOrigins:                           parameters.allowedOrigins,
 		UnpublishedOpStore:                      unpublishedOpStore,
 		UnpublishedOperationStoreOperationTypes: parameters.unpublishedOperationStoreOperationTypes,
 		IncludeUnpublishedOperations:            parameters.includeUnpublishedOperations,
 		IncludePublishedOperations:              parameters.includePublishedOperations,
+		AllowedOriginsValidator:                 allowedOriginsValidator,
 	}
 
 	registry := factoryregistry.New()
@@ -1698,4 +1713,19 @@ func monitorActivities(activityChan <-chan *vocab.ActivityType, l activityLogger
 	}
 
 	logger.Infof("Activity monitor stopped.")
+}
+
+func asURIs(strs ...string) ([]*url.URL, error) {
+	uris := make([]*url.URL, len(strs))
+
+	for i, str := range strs {
+		uri, err := url.Parse(str)
+		if err != nil {
+			return nil, fmt.Errorf("invalid URI: %s: %w", str, err)
+		}
+
+		uris[i] = uri
+	}
+
+	return uris, nil
 }
