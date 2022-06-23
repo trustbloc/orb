@@ -483,7 +483,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc/vct-log-server:v1.0.0-rc.1
+    image: ghcr.io/trustbloc/vct-log-server:v1.0.0-rc2
     restart: always
     command:
       - --quota_system=noop
@@ -501,7 +501,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc/vct-log-signer:v1.0.0-rc.1
+    image: ghcr.io/trustbloc/vct-log-signer:v1.0.0-rc2
     restart: always
     command:
       - --quota_system=noop
@@ -544,7 +544,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc2-snapshot-3aa4f90
+    image: ghcr.io/trustbloc/vct:v1.0.0-rc2
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
