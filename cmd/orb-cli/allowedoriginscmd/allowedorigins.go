@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package acceptlistcmd
+package allowedoriginscmd
 
 import (
 	"errors"
@@ -14,29 +14,23 @@ import (
 
 const (
 	urlFlagName  = "url"
-	urlFlagUsage = "The URL of the accept list REST endpoint." +
+	urlFlagUsage = "The URL of the allowed origins REST endpoint." +
 		" Alternatively, this can be set with the following environment variable: " + urlEnvKey
 	urlEnvKey = "ORB_CLI_URL"
 
-	actorFlagName  = "actor"
-	actorFlagUsage = "The service URI to add to/remove from the accept list. Multiple URIs may be specified," +
-		" for example, --actor <uri1> --actor <uri2>." +
+	originFlagName  = "anchororigin"
+	originFlagUsage = "The URI to add to/remove from the allowed anchor origins list. Multiple URIs may be specified," +
+		" for example, --anchororigin <uri1> --anchororigin <uri2>." +
 		" Alternatively, this can be set with the following environment variable as a comma-separated list of URIs: " +
-		actorEnvKey
-	actorEnvKey = "ORB_CLI_ACTOR"
-
-	typeFlagName  = "type"
-	typeFlagUsage = "Accept list type (follow or invite-witness)." +
-		" Alternatively, this can be set with the following environment variable: " + typeEnvKey
-	typeEnvKey = "ORB_CLI_ACCEPT_TYPE"
+		originsEnvKey
+	originsEnvKey = "ORB_CLI_ANCHOR_ORIGINS"
 )
 
 // GetCmd returns the Cobra acceptlist command.
 func GetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "acceptlist",
-		Short:        "Manages accept lists.",
-		Long:         "Manages accept lists for 'Follow' and 'Invite' witness authorization handlers.",
+		Use:          "allowedorigins",
+		Short:        "Manages allowed anchor origins.",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return errors.New("expecting subcommand add, remove, or get")

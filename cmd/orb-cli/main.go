@@ -11,6 +11,7 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/acceptlistcmd"
+	"github.com/trustbloc/orb/cmd/orb-cli/allowedoriginscmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/createdidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/deactivatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/followcmd"
@@ -72,6 +73,8 @@ func main() {
 	rootCmd.AddCommand(logcmd.GetCmd())
 
 	rootCmd.AddCommand(vctcmd.GetCmd())
+
+	rootCmd.AddCommand(allowedoriginscmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to run orb-cli: %s", err.Error())

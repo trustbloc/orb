@@ -119,3 +119,18 @@ Feature: Using Orb CLI
     When orb-cli is executed with args 'logmonitor get --url https://localhost:48326/log-monitor --status inactive --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
     Then the JSON path "inactive.#.logUrl" of the response contains "http://orb.vct:8077/maple2022"
 
+  @orb_cli_allowedorigins
+  Scenario: test allowed anchor origins management using cli
+    # Add URIs to the allowed anchor origins list.
+    When orb-cli is executed with args 'allowedorigins add --url https://localhost:48326/allowedorigins --anchororigin https://orb.domainx.com --anchororigin https://orb.domainy.com --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    Then orb-cli is executed with args 'allowedorigins get --url https://localhost:48326/allowedorigins --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    And the JSON path "@this" of the response contains "https://orb.domainx.com"
+    And the JSON path "@this" of the response contains "https://orb.domainy.com"
+
+    # Remove URIs from the allowed anchor origins list.
+    When orb-cli is executed with args 'allowedorigins remove --url https://localhost:48326/allowedorigins --anchororigin https://orb.domainx.com --anchororigin https://orb.domainy.com --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    Then orb-cli is executed with args 'allowedorigins get --url https://localhost:48326/allowedorigins --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token READ_TOKEN'
+    And the JSON path "@this" of the response does not contain "https://orb.domainx.com"
+    And the JSON path "@this" of the response does not contain "https://orb.domainy.com"
