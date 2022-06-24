@@ -28,6 +28,8 @@ Feature:
     And the authorization bearer token for "GET" requests to path "/cas" is set to "READ_TOKEN"
     And the authorization bearer token for "GET" requests to path "/vc" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "GET" requests to path "/allowedorigins" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/allowedorigins" is set to "ADMIN_TOKEN"
 
     # set up logs for domains
     When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
@@ -712,3 +714,43 @@ Feature:
     Then container "orb-domain3" is started
     Then we wait 10 seconds
 
+  @all
+  @allowed_origins
+  Scenario: Update allowed origins
+    When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
+    Then the JSON path "@this" of the response contains "https://orb.domain1.com"
+    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+
+    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain3.com","https://orb.domain4.com"]}'
+    When an HTTP POST is sent to "https://orb.domain1.com/allowedorigins" with content "${domain1AllowedOrigins}" of type "application/json"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
+    Then the JSON path "@this" of the response contains "https://orb.domain1.com"
+    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+    And the JSON path "@this" of the response contains "https://orb.domain3.com"
+    And the JSON path "@this" of the response contains "https://orb.domain4.com"
+
+    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain5.com"],"remove":["https://orb.domain3.com","https://orb.domain4.com"]}'
+    When an HTTP POST is sent to "https://orb.domain1.com/allowedorigins" with content "${domain1AllowedOrigins}" of type "application/json"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
+    Then the JSON path "@this" of the response contains "https://orb.domain1.com"
+    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+    And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
+    And the JSON path "@this" of the response does not contain "https://orb.domain4.com"
+    And the JSON path "@this" of the response contains "https://orb.domain5.com"
+
+    # Add a duplicate and remove domain5
+    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain1.com"],"remove":["https://orb.domain5.com"]}'
+    When an HTTP POST is sent to "https://orb.domain1.com/allowedorigins" with content "${domain1AllowedOrigins}" of type "application/json"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
+    Then the JSON path "@this" of the response contains "https://orb.domain1.com"
+    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+    And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
+    And the JSON path "@this" of the response does not contain "https://orb.domain4.com"
+    And the JSON path "@this" of the response does not contain "https://orb.domain5.com"
