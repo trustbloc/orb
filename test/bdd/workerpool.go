@@ -121,9 +121,9 @@ func (p *WorkerPool) listen() {
 
 		if len(p.responses)%100 == 0 {
 			if p.taskDescription != "" {
-				logger.Debugf("Got %d responses for task [%s]", len(p.responses), p.taskDescription)
+				logger.Warnf("Got %d responses for task [%s]", len(p.responses), p.taskDescription)
 			} else {
-				logger.Debugf("Got %d responses", len(p.responses))
+				logger.Warnf("Got %d responses", len(p.responses))
 			}
 		}
 	}

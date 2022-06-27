@@ -2020,7 +2020,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		resp, respErr = r.httpClient.Post(u, reqBytes, "application/json")
 		if respErr != nil {
 			if r.shouldRetry(nil, respErr) {
-				logger.Infof("Error posting request to [%s] on attempt %d: %s. Retrying in %s",
+				logger.Warnf("Error posting request to [%s] on attempt %d: %s. Retrying in %s",
 					u, i+1, respErr, r.backoff)
 
 				r.greylist.Add(u)
@@ -2030,7 +2030,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 				continue
 			}
 
-			logger.Infof("Error posting request to [%s]: %s. Not retrying.", u, respErr)
+			logger.Errorf("Error posting request to [%s]: %s. Not retrying.", u, respErr)
 
 			return "", respErr
 		}
@@ -2042,12 +2042,12 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		}
 
 		if !r.shouldRetry(resp, nil) {
-			logger.Infof("Got HTTP response from [%s]: %d:%s. Not retrying.", u, resp.StatusCode, resp.ErrorMsg)
+			logger.Errorf("Got HTTP response from [%s]: %d:%s. Not retrying.", u, resp.StatusCode, resp.ErrorMsg)
 
 			return "", respErr
 		}
 
-		logger.Infof("Got HTTP response from [%s]: %d:%s. Retrying in %s", u, resp.StatusCode, resp.ErrorMsg, r.backoff)
+		logger.Warnf("Got HTTP response from [%s]: %d:%s. Retrying in %s", u, resp.StatusCode, resp.ErrorMsg, r.backoff)
 
 		time.Sleep(r.backoff)
 	}
