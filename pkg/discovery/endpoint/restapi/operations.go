@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/multihash"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
+	"github.com/trustbloc/orb/pkg/vct"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
@@ -179,7 +180,7 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 	writeResponse(rw, &WellKnownResponse{
 		ResolutionEndpoint: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath),
 		OperationEndpoint:  fmt.Sprintf("%s%s", o.baseURL, o.operationPath),
-	}, http.StatusOK)
+	})
 }
 
 // webDIDHandler swagger:route Get /.well-known/did.json discovery wellKnownDIDReq
@@ -285,7 +286,7 @@ func (o *Operation) nodeInfoHandler(rw http.ResponseWriter, r *http.Request) {
 				Href: fmt.Sprintf("%s/nodeinfo/2.1", o.baseURL),
 			},
 		},
-	}, http.StatusOK)
+	})
 }
 
 func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) {
@@ -306,7 +307,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 			})
 		}
 
-		writeResponse(rw, resp, http.StatusOK)
+		writeResponse(rw, resp)
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.operationPath):
 		resp := &JRD{
 			Subject: resource,
@@ -322,7 +323,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 			})
 		}
 
-		writeResponse(rw, resp, http.StatusOK)
+		writeResponse(rw, resp)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s/vct", o.baseURL)):
@@ -380,7 +381,7 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 		})
 	}
 
-	writeResponse(rw, resp, http.StatusOK)
+	writeResponse(rw, resp)
 }
 
 func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
@@ -389,10 +390,12 @@ func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
 	}
 
 	logURL, err := o.logEndpointRetriever.GetLogEndpoint()
-	if err != nil {
+	if err != nil && !errors.Is(err, vct.ErrDisabled) && !errors.Is(err, vct.ErrLogEndpointNotConfigured) {
 		logger.Warnf("Error retrieving log endpoint: %s", err)
 
 		writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving log endpoint")
+
+		return
 	}
 
 	if logURL != "" {
@@ -405,7 +408,7 @@ func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
 		lt, err := o.wfClient.GetLedgerType(logURL)
 		if err != nil {
 			if errors.Is(err, model.ErrResourceNotFound) {
-				writeResponse(rw, resp, http.StatusOK)
+				writeResponse(rw, resp)
 			} else {
 				logger.Warnf("Error retrieving ledger type from VCT[%s]: %s", logURL, err)
 
@@ -420,7 +423,7 @@ func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
 		}
 	}
 
-	writeResponse(rw, resp, http.StatusOK)
+	writeResponse(rw, resp)
 }
 
 func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
@@ -472,7 +475,7 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 			})
 	}
 
-	writeResponse(rw, resp, http.StatusOK)
+	writeResponse(rw, resp)
 }
 
 func (o *Operation) hostMetaHandler(rw http.ResponseWriter, r *http.Request) {
@@ -521,7 +524,7 @@ func (o *Operation) respondWithHostMetaJSON(rw http.ResponseWriter) {
 		})
 	}
 
-	writeResponse(rw, resp, http.StatusOK)
+	writeResponse(rw, resp)
 }
 
 func (o *Operation) appendAlternateDomains(domains []string, anchorURI string) []string {
@@ -637,9 +640,8 @@ func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
 }
 
 // writeResponse writes response.
-func writeResponse(rw http.ResponseWriter, v interface{}, status int) { // nolint: unparam
+func writeResponse(rw http.ResponseWriter, v interface{}) {
 	rw.Header().Add("Content-Type", "application/json")
-	rw.WriteHeader(status)
 
 	err := json.NewEncoder(rw).Encode(v)
 	if err != nil {

@@ -27,6 +27,16 @@ import (
 
 const (
 	ctxSecurity = "https://w3id.org/security/v1"
+
+	logURLKey = "log-url"
+)
+
+var (
+	// ErrLogEndpointNotConfigured indicates that a log endpoint has not been configured.
+	ErrLogEndpointNotConfigured = errors.New("log endpoint not configured")
+
+	// ErrDisabled indicates that this Orb instance has no VCT.
+	ErrDisabled = errors.New("disabled")
 )
 
 type signer interface {
@@ -49,19 +59,19 @@ type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-type endpointRetriever interface {
-	GetLogEndpoint() (string, error)
+type configRetriever interface {
+	GetValue(key string) ([]byte, error)
 }
 
 // Client represents VCT client.
 type Client struct {
-	signer            signer
-	http              HTTPClient
-	documentLoader    ld.DocumentLoader
-	endpointRetriever endpointRetriever
-	authReadToken     string
-	authWriteToken    string
-	metrics           metricsProvider
+	signer          signer
+	http            HTTPClient
+	documentLoader  ld.DocumentLoader
+	configRetriever configRetriever
+	authReadToken   string
+	authWriteToken  string
+	metrics         metricsProvider
 }
 
 // Option is a config client instance option.
@@ -96,11 +106,11 @@ func WithAuthWriteToken(authToken string) Option {
 }
 
 // New returns the client.
-func New(endpointRetriever endpointRetriever, signer signer, metrics metricsProvider, opts ...Option) *Client {
+func New(configRetriever configRetriever, signer signer, metrics metricsProvider, opts ...Option) *Client {
 	client := &Client{
-		endpointRetriever: endpointRetriever,
-		signer:            signer,
-		metrics:           metrics,
+		configRetriever: configRetriever,
+		signer:          signer,
+		metrics:         metrics,
 		http: &http.Client{
 			Timeout: time.Minute,
 		},
@@ -173,7 +183,7 @@ func (c *Client) addProof(endpoint string, anchorCred []byte, timestamp int64) (
 
 // HealthCheck check health.
 func (c *Client) HealthCheck() error {
-	endpoint, err := c.endpointRetriever.GetLogEndpoint()
+	endpoint, err := c.GetLogEndpoint()
 	if err != nil {
 		return fmt.Errorf("failed to get log endpoint: %w", err)
 	}
@@ -186,8 +196,8 @@ func (c *Client) HealthCheck() error {
 
 // Witness credentials.
 func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
-	endpoint, err := c.endpointRetriever.GetLogEndpoint()
-	if err != nil {
+	endpoint, err := c.GetLogEndpoint()
+	if err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrLogEndpointNotConfigured) {
 		return nil, fmt.Errorf("failed to get log endpoint for witness: %w", err)
 	}
 
@@ -289,6 +299,32 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 		Context: ctx,
 		Proof:   proof,
 	})
+}
+
+// GetLogEndpoint returns the log endpoint or error, ErrLogEndpointNotConfigured,
+// if a log endpoint has not been configured.
+func (c *Client) GetLogEndpoint() (string, error) {
+	value, err := c.configRetriever.GetValue(logURLKey)
+	if err != nil {
+		if errors.Is(err, orberrors.ErrContentNotFound) {
+			return "", ErrLogEndpointNotConfigured
+		}
+
+		return "", fmt.Errorf("failed to retrieve log endpoint from config cache: %w", err)
+	}
+
+	logConfig := &logCfg{}
+
+	err = json.Unmarshal(value, &logConfig)
+	if err != nil {
+		return "", fmt.Errorf("unmarshal log config: %w", err)
+	}
+
+	return logConfig.URL, nil
+}
+
+type logCfg struct {
+	URL string `json:"url"`
 }
 
 // Proof represents response.

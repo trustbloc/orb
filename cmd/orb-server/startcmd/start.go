@@ -903,9 +903,7 @@ func startOrbServices(parameters *orbParameters) error {
 		},
 		pubSub, parameters.dataURIMediaType)
 
-	logEndpointRetriever := getLogEndpointRetriever(parameters, configStore)
-
-	witness := vct.New(logEndpointRetriever, vcSigner, metrics.Get(),
+	witness := vct.New(configclient.New(configStore), vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 		vct.WithAuthReadToken(parameters.requestTokens[vctReadTokenKey]),
@@ -1109,6 +1107,16 @@ func startOrbServices(parameters *orbParameters) error {
 
 	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics.Get(), updateHandlerOpts...)
 
+	var logEndpoint logEndpoint
+
+	if parameters.enableVCT {
+		logEndpoint = witness
+	} else {
+		logger.Warnf("VCT is disabled.")
+
+		logEndpoint = &noOpRetriever{}
+	}
+
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(
 		&discoveryrest.Config{
@@ -1125,7 +1133,7 @@ func startOrbServices(parameters *orbParameters) error {
 			CAS:                  coreCASClient,
 			AnchorLinkStore:      anchorLinkStore,
 			WebfingerClient:      wfClient,
-			LogEndpointRetriever: logEndpointRetriever,
+			LogEndpointRetriever: logEndpoint,
 		})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)
@@ -1218,7 +1226,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.tlsParams.serveKeyPath,
 		parameters.serverIdleTimeout,
 		pubSub,
-		witness,
+		logEndpoint,
 		storeProviders.provider,
 		km,
 		handlers...,
@@ -1600,24 +1608,19 @@ func getActivityPubSigners(parameters *orbParameters, km keyManager,
 	return
 }
 
-func getLogEndpointRetriever(parameters *orbParameters, cfgStore storage.Store) logEndpointRetriever {
-	if parameters.enableVCT {
-		return configclient.New(cfgStore)
-	}
-
-	logger.Warnf("VCT is disabled.")
-
-	return &noOpRetriever{}
-}
-
-type logEndpointRetriever interface {
+type logEndpoint interface {
 	GetLogEndpoint() (string, error)
+	HealthCheck() error
 }
 
 type noOpRetriever struct{}
 
 func (r *noOpRetriever) GetLogEndpoint() (string, error) {
-	return "", nil
+	return "", vct.ErrDisabled
+}
+
+func (r *noOpRetriever) HealthCheck() error {
+	return vct.ErrDisabled
 }
 
 func getActivityPubVerifier(parameters *orbParameters, km keyManager,
