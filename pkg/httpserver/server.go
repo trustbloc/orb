@@ -21,6 +21,8 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	vct2 "github.com/trustbloc/orb/pkg/vct"
 )
 
 var (
@@ -33,6 +35,8 @@ var (
 const (
 	healthCheckEndpoint = "/healthcheck"
 	success             = "success"
+	unknown             = "unknown error"
+	notConnected        = "not connected"
 )
 
 // Server implements an HTTP server.
@@ -159,66 +163,29 @@ type healthCheckResp struct {
 	Version     string    `json:"version,omitempty"`
 }
 
-func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop,funlen
-	const unknown = "unknown error"
-
-	mqStatus := ""
-	vctStatus := ""
-	dbStatus := ""
-	kmsStatus := ""
+func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
+	var mqStatus, vctStatus, dbStatus, kmsStatus string
 
 	returnStatusServiceUnavailable := false
 
-	if s.pubSub != nil {
-		mqStatus = success
-
-		if !s.pubSub.IsConnected() {
-			returnStatusServiceUnavailable = true
-
-			mqStatus = "not connected"
-		}
+	unavailable, mqStatus := s.mqHealthCheck()
+	if unavailable {
+		returnStatusServiceUnavailable = true
 	}
 
-	if s.vct != nil {
-		vctStatus = success
-
-		if err := s.vct.HealthCheck(); err != nil {
-			returnStatusServiceUnavailable = true
-
-			if err.Error() != "" {
-				vctStatus = err.Error()
-			} else {
-				vctStatus = unknown
-			}
-		}
+	unavailable, vctStatus = s.vctHealthCheck()
+	if unavailable {
+		returnStatusServiceUnavailable = true
 	}
 
-	if s.db != nil {
-		dbStatus = success
-
-		if err := s.db.Ping(); err != nil {
-			returnStatusServiceUnavailable = true
-
-			if err.Error() != "" {
-				dbStatus = err.Error()
-			} else {
-				dbStatus = unknown
-			}
-		}
+	unavailable, dbStatus = s.dbHealthCheck()
+	if unavailable {
+		returnStatusServiceUnavailable = true
 	}
 
-	if s.keyManager != nil {
-		kmsStatus = success
-
-		if err := s.keyManager.HealthCheck(); err != nil {
-			returnStatusServiceUnavailable = true
-
-			if err.Error() != "" {
-				kmsStatus = err.Error()
-			} else {
-				kmsStatus = unknown
-			}
-		}
+	unavailable, kmsStatus = s.kmsHealthCheck()
+	if unavailable {
+		returnStatusServiceUnavailable = true
 	}
 
 	status := http.StatusOK
@@ -251,6 +218,71 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) { /
 	if err != nil {
 		logger.Errorf("healthcheck response failure: %s", err)
 	}
+}
+
+func (s *Server) mqHealthCheck() (bool, string) {
+	if s.pubSub == nil {
+		return false, ""
+	}
+
+	if s.pubSub.IsConnected() {
+		return false, success
+	}
+
+	return true, notConnected
+}
+
+func (s *Server) vctHealthCheck() (bool, string) {
+	if s.vct == nil {
+		return false, ""
+	}
+
+	err := s.vct.HealthCheck()
+	if err == nil {
+		return false, success
+	}
+
+	if errors.Is(err, vct2.ErrLogEndpointNotConfigured) || errors.Is(err, vct2.ErrDisabled) {
+		// It's not an error if VCT is disabled or no log endpoint was configured.
+		// Return the message so that the client knows the status of VCT.
+		return false, err.Error()
+	}
+
+	return true, toStatus(err)
+}
+
+func (s *Server) dbHealthCheck() (bool, string) {
+	if s.db == nil {
+		return false, ""
+	}
+
+	err := s.db.Ping()
+	if err == nil {
+		return false, success
+	}
+
+	return true, toStatus(err)
+}
+
+func (s *Server) kmsHealthCheck() (bool, string) {
+	if s.keyManager == nil {
+		return false, ""
+	}
+
+	err := s.keyManager.HealthCheck()
+	if err == nil {
+		return false, success
+	}
+
+	return true, toStatus(err)
+}
+
+func toStatus(err error) string {
+	if err.Error() != "" {
+		return err.Error()
+	}
+
+	return unknown
 }
 
 type paramHolder interface {

@@ -226,6 +226,12 @@ Feature:
 
   @orb_health_check
   Scenario: Health Check
+    When an HTTP GET is sent to "https://orb.domain2.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "disabled"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
     When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
     Then the JSON path "mqStatus" of the response equals "success"
     And the JSON path "vctStatus" of the response equals "success"

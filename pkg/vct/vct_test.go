@@ -4,11 +4,12 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package vct_test
+package vct
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -19,11 +20,13 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/vcsigner"
-	. "github.com/trustbloc/orb/pkg/vct"
 )
+
+//go:generate counterfeiter -o ../mocks/configretriever.gen.go --fake-name ConfigRetriever . configRetriever
 
 // nolint: lll
 const mockResponse = `{
@@ -62,8 +65,11 @@ func (m httpMock) Do(req *http.Request) (*http.Response, error) { return m(req) 
 func TestClient_Witness(t *testing.T) {
 	const webfingerURL = "/.well-known/webfinger"
 
-	endpointRetriever := &mockLogEndpointProvider{LogURL: "https://example.com"}
-	emptyEndpointRetriever := &mockLogEndpointProvider{LogURL: ""}
+	configRetriever := &mocks.ConfigRetriever{}
+	configRetriever.GetValueReturns([]byte(`{"url":"https://example.com"}`), nil)
+
+	emptyConfigRetriever := &mocks.ConfigRetriever{}
+	emptyConfigRetriever.GetValueReturns([]byte(`{"url":""}`), nil)
 
 	t.Run("Success", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
@@ -83,7 +89,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)), WithAuthWriteToken("write"),
 			WithAuthReadToken("read"))
 
@@ -101,6 +107,9 @@ func TestClient_Witness(t *testing.T) {
 	})
 
 	t.Run("Error - endpoint retriever error", func(t *testing.T) {
+		retriever := &mocks.ConfigRetriever{}
+		retriever.GetValueReturns(nil, fmt.Errorf("endpoint error"))
+
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
@@ -118,7 +127,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(&mockLogEndpointProvider{Err: fmt.Errorf("endpoint error")}, &mockSigner{},
+		client := New(retriever, &mockSigner{},
 			&mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)), WithAuthWriteToken("write"),
 			WithAuthReadToken("read"))
@@ -126,11 +135,11 @@ func TestClient_Witness(t *testing.T) {
 		resp, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
 		require.Nil(t, resp)
-		require.Contains(t, err.Error(), "failed to get log endpoint for witness: endpoint error")
+		require.Contains(t, err.Error(), "failed to get log endpoint for witness")
 	})
 
 	t.Run("Success (no vct)", func(t *testing.T) {
-		client := New(emptyEndpointRetriever, &mockSigner{}, &mocks.MetricsProvider{},
+		client := New(emptyConfigRetriever, &mockSigner{}, &mocks.MetricsProvider{},
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		resp, err := client.Witness([]byte(mockVC))
@@ -147,7 +156,7 @@ func TestClient_Witness(t *testing.T) {
 		require.NotEmpty(t, timestampTime.UnixNano())
 	})
 	t.Run("Parse credential (error)", func(t *testing.T) {
-		client := New(emptyEndpointRetriever, &mockSigner{}, &mocks.MetricsProvider{})
+		client := New(emptyConfigRetriever, &mockSigner{}, &mocks.MetricsProvider{})
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -173,7 +182,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -191,7 +200,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -209,7 +218,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)))
 
 		_, err := client.Witness([]byte(mockVC))
@@ -225,7 +234,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{},
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{},
 			WithHTTPClient(mockHTTP),
 			WithDocumentLoader(testutil.GetLoader(t)),
 		)
@@ -242,7 +251,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(`[]`))
 		require.Error(t, err)
@@ -257,7 +266,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		_, err := client.Witness([]byte(mockVC))
 		require.Error(t, err)
@@ -272,7 +281,7 @@ func TestClient_Witness(t *testing.T) {
 			}, nil
 		})
 
-		client := New(endpointRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{}, WithHTTPClient(mockHTTP))
 
 		err := client.HealthCheck()
 		require.Error(t, err)
@@ -280,12 +289,72 @@ func TestClient_Witness(t *testing.T) {
 	})
 
 	t.Run("Check Health (endpoint retriever error)", func(t *testing.T) {
-		client := New(&mockLogEndpointProvider{Err: fmt.Errorf("log retriever error")}, &mockSigner{},
+		configRetriever := &mocks.ConfigRetriever{}
+		configRetriever.GetValueReturns(nil, fmt.Errorf("log retriever error"))
+
+		client := New(configRetriever, &mockSigner{},
 			&mocks.MetricsProvider{})
 
 		err := client.HealthCheck()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "log retriever error")
+	})
+}
+
+func TestGetLogEndpoint(t *testing.T) {
+	const logURLValue = "https://vct.com/log"
+
+	const empty = ""
+
+	t.Run("success - retrieve from cache and from store", func(t *testing.T) {
+		logURLValueBytes, err := json.Marshal(&logCfg{URL: logURLValue})
+		require.NoError(t, err)
+
+		configRetriever := &mocks.ConfigRetriever{}
+		configRetriever.GetValueReturns(logURLValueBytes, nil)
+
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{})
+
+		endpoint, err := client.GetLogEndpoint()
+		require.NoError(t, err)
+		require.Equal(t, logURLValue, endpoint)
+	})
+
+	t.Run("success - empty log URL", func(t *testing.T) {
+		logURLValueBytes, err := json.Marshal(&logCfg{})
+		require.NoError(t, err)
+
+		configRetriever := &mocks.ConfigRetriever{}
+		configRetriever.GetValueReturns(logURLValueBytes, nil)
+
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{})
+
+		endpoint, err := client.GetLogEndpoint()
+		require.NoError(t, err)
+		require.Equal(t, empty, endpoint)
+	})
+
+	t.Run("error - log URL not configured", func(t *testing.T) {
+		configRetriever := &mocks.ConfigRetriever{}
+		configRetriever.GetValueReturns(nil, orberrors.ErrContentNotFound)
+
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{})
+
+		endpoint, err := client.GetLogEndpoint()
+		require.True(t, errors.Is(err, ErrLogEndpointNotConfigured))
+		require.Empty(t, endpoint)
+	})
+
+	t.Run("error - unmarshal log URL ", func(t *testing.T) {
+		configRetriever := &mocks.ConfigRetriever{}
+		configRetriever.GetValueReturns([]byte(`}`), nil)
+
+		client := New(configRetriever, &mockSigner{}, &mocks.MetricsProvider{})
+
+		endpoint, err := client.GetLogEndpoint()
+		require.Error(t, err)
+		require.Equal(t, empty, endpoint)
+		require.Contains(t, err.Error(), "unmarshal log config: invalid character")
 	})
 }
 
@@ -314,17 +383,4 @@ func (m *mockSigner) Sign(vc *verifiable.Credential, opts ...vcsigner.Opt) (*ver
 
 func (m *mockSigner) Context() []string {
 	return []string{}
-}
-
-type mockLogEndpointProvider struct {
-	LogURL string
-	Err    error
-}
-
-func (mle *mockLogEndpointProvider) GetLogEndpoint() (string, error) {
-	if mle.Err != nil {
-		return "", mle.Err
-	}
-
-	return mle.LogURL, nil
 }

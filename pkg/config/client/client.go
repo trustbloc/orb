@@ -8,12 +8,15 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/edge-core/pkg/log"
+
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("config-client")
@@ -21,8 +24,6 @@ var logger = log.New("config-client")
 const (
 	defaultCacheSize       = 100
 	defaultCacheExpiration = time.Minute
-
-	logURL = "log-url"
 )
 
 // Client implements retrieving and caching of config store parameters.
@@ -82,7 +83,11 @@ func WithCacheSize(size int) Option {
 func (c *Client) get(key string) ([]byte, error) {
 	val, err := c.configStore.Get(key)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, storage.ErrDataNotFound) {
+			return nil, orberrors.ErrContentNotFound
+		}
+
+		return nil, orberrors.NewTransientf("get config for key [%s]: %w", key, err)
 	}
 
 	logger.Debugf("loaded key from config store: %s", key)
@@ -103,25 +108,4 @@ func (c *Client) GetValue(key string) ([]byte, error) {
 	}
 
 	return valueBytes, nil
-}
-
-type logCfg struct {
-	URL string `json:"url"`
-}
-
-// GetLogEndpoint returns log endpoint.
-func (c *Client) GetLogEndpoint() (string, error) {
-	value, err := c.GetValue(logURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve log endpoint from config cache: %w", err)
-	}
-
-	logConfig := &logCfg{}
-
-	err = c.unmarshal(value, &logConfig)
-	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal log config: %w", err)
-	}
-
-	return logConfig.URL, nil
 }
