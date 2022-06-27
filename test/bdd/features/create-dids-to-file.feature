@@ -5,15 +5,6 @@
 #
 
 Feature:
-  Background: Setup
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
-
-    And the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
-
-    # set up logs for domains
-    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
-
   @create_dids_to_file
   Scenario: Create DIDs and store them in a file. (Uses environment variables.)
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "${ORB_BACKUP_READ_TOKEN}"
@@ -39,6 +30,9 @@ Feature:
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
+
+    Then an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
 
     # domain2 adds domain1 to its 'invite-witness' accept lists.
     Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"invite-witness","add":["${domain1IRI}"]}]'
