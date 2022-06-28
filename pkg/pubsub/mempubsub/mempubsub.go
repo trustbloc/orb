@@ -168,6 +168,11 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 	return nil
 }
 
+// PublishWithOpts simply calls Publish since options are not supported.
+func (p *PubSub) PublishWithOpts(topic string, msg *message.Message, _ ...spi.Option) error {
+	return p.Publish(topic, msg)
+}
+
 func (p *PubSub) processMessages() {
 	for {
 		select {

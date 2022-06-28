@@ -140,6 +140,9 @@ const (
 	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
 	opQueueDefaultTaskExpiration          = 30 * time.Second
 	opQueueDefaultMaxReposts              = 20
+	opQueueDefaultRepostInitialDelay      = 5 * time.Second
+	opQueueDefaultRepostMaxDelay          = 1 * time.Minute
+	opQueueDefaultRepostMultiplier        = 1.5
 	opQueueOperationExpirationGracePeriod = 10 * time.Minute
 	splitRequestTokenLength               = 2
 	vctReadTokenKey                       = "vct-read"
@@ -359,6 +362,22 @@ const (
 	opQueueMaxRepostsEnvKey    = "OP_QUEUE_MAX_REPOSTS"
 	opQueueMaxRepostsFlagUsage = "The maximum number of times an operation may be reposted to the queue " +
 		"after having failed (default is 20). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
+
+	opQueueRepostInitialDelayFlagName  = "op-queue-repost-initial-delay"
+	opQueueRepostInitialDelayEnvKey    = "OP_QUEUE_REPOST_INITIAL_DELAY"
+	opQueueRepostInitialDelayFlagUsage = "The delay for the initial retry attempt after having failed to process " +
+		"the operation in the queue  (default is 5s). " + commonEnvVarUsageText + opQueueRepostInitialDelayEnvKey
+
+	opQueueRepostMaxDelayFlagName  = "op-queue-repost-max-delay"
+	opQueueRepostMaxDelayEnvKey    = "OP_QUEUE_REPOST_MAX_DELAY"
+	opQueueRepostMaxDelayFlagUsage = "The maximum delay of a retry attempt after having failed to process " +
+		"the operation in the queue (default is 2m). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
+
+	opQueueRepostMultiplierFlagName  = "op-queue-repost-multiplier"
+	opQueueRepostMultiplierEnvKey    = "OP_QUEUE_REPOST_MULTIPLIER"
+	opQueueRepostMultiplierFlagUsage = "The multiplier for a retry attempt after having failed to process " +
+		"the operation in the queue. For example, if set to 1.5 and the previous retry interval was 2s then " +
+		"the next retry interval is set 3s (default is 1.5). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -1860,6 +1879,21 @@ func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration) (*opqu
 		return nil, fmt.Errorf("%s: %w", opQueueMaxRepostsFlagName, err)
 	}
 
+	retriesInitialDelay, err := getDuration(cmd, opQueueRepostInitialDelayFlagName, opQueueRepostInitialDelayEnvKey, opQueueDefaultRepostInitialDelay)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueRepostInitialDelayFlagName, err)
+	}
+
+	retriesMaxDelay, err := getDuration(cmd, opQueueRepostMaxDelayFlagName, opQueueRepostMaxDelayEnvKey, opQueueDefaultRepostMaxDelay)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueRepostMaxDelayFlagName, err)
+	}
+
+	retriesMultiplier, err := getFloat(cmd, opQueueRepostMultiplierFlagName, opQueueRepostMultiplierEnvKey, opQueueDefaultRepostMultiplier)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueRepostMultiplierFlagName, err)
+	}
+
 	// The operation expiration is set to the batch timeout plus a grace period. The operation should
 	// exist in the database until a batch times out, after which it is assumed that those operations are no
 	// longer valid and may be deleted.
@@ -1871,6 +1905,9 @@ func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration) (*opqu
 		TaskExpiration:      taskExpiration,
 		OpExpiration:        operationExpiration,
 		MaxRetries:          maxRetries,
+		RetriesInitialDelay: retriesInitialDelay,
+		RetriesMaxDelay:     retriesMaxDelay,
+		RetriesMultiplier:   retriesMultiplier,
 	}, nil
 }
 
@@ -2062,6 +2099,9 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(opQueueTaskMonitorIntervalFlagName, "", "", opQueueTaskMonitorIntervalFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
 	startCmd.Flags().StringP(opQueueMaxRepostsFlagName, "", "", opQueueMaxRepostsFlagUsage)
+	startCmd.Flags().StringP(opQueueRepostInitialDelayFlagName, "", "", opQueueRepostInitialDelayFlagUsage)
+	startCmd.Flags().StringP(opQueueRepostMaxDelayFlagName, "", "", opQueueRepostMaxDelayFlagUsage)
+	startCmd.Flags().StringP(opQueueRepostMultiplierFlagName, "", "", opQueueRepostMultiplierFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

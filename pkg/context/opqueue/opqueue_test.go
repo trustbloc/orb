@@ -64,7 +64,15 @@ func TestQueue(t *testing.T) {
 
 	defer ps2.Stop()
 
-	q1, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second},
+	q1, err := New(
+		Config{
+			PoolSize:            8,
+			TaskMonitorInterval: time.Second,
+			MaxRetries:          1,
+			RetriesInitialDelay: 10 * time.Millisecond,
+			RetriesMaxDelay:     10 * time.Millisecond,
+			RetriesMultiplier:   1.0,
+		},
 		ps1, storageProvider, taskMgr1,
 		expiry.NewService(taskMgr1, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
@@ -81,7 +89,16 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, ops1)
 
-	q2, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second},
+	q2, err := New(
+		Config{
+			PoolSize:            8,
+			TaskMonitorInterval: time.Second,
+			MaxRetries:          1,
+			RetriesInitialDelay: 10 * time.Millisecond,
+			RetriesMaxDelay:     10 * time.Millisecond,
+			RetriesMultiplier:   1.0,
+		},
+
 		ps2, storageProvider, taskMgr2,
 		expiry.NewService(taskMgr2, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
@@ -215,7 +232,7 @@ func TestQueue_Error(t *testing.T) {
 		errExpected := errors.New("injected publish error")
 
 		ps := &ctxmocks.PubSub{}
-		ps.PublishReturns(errExpected)
+		ps.PublishWithOptsReturns(errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, expirySvc, &mocks.MetricsProvider{})
@@ -383,7 +400,7 @@ func TestQueue_Error(t *testing.T) {
 		errExpected := errors.New("injected publish error")
 
 		ps := &ctxmocks.PubSub{}
-		ps.PublishReturnsOnCall(0, errExpected)
+		ps.PublishWithOptsReturnsOnCall(0, errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, expirySvc, &mocks.MetricsProvider{})
@@ -446,7 +463,15 @@ func TestRepostWithMaxRetries(t *testing.T) {
 
 	defer ps.Stop()
 
-	q, err := New(Config{PoolSize: 8, TaskMonitorInterval: time.Second, MaxRetries: 1},
+	q, err := New(
+		Config{
+			PoolSize:            8,
+			TaskMonitorInterval: time.Second,
+			MaxRetries:          1,
+			RetriesInitialDelay: 50 * time.Millisecond,
+			RetriesMaxDelay:     100 * time.Millisecond,
+			RetriesMultiplier:   1.0,
+		},
 		ps, storageProvider, taskMgr,
 		expiry.NewService(taskMgr, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
@@ -462,7 +487,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	removedOps, _, nack, err := q.Remove(5)
 	require.NoError(t, err)
@@ -470,7 +495,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 
 	nack()
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(time.Second)
 
 	removedOps, _, nack, err = q.Remove(5)
 	require.NoError(t, err)

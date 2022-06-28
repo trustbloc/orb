@@ -203,6 +203,7 @@ type pubSub interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
+	PublishWithOpts(topic string, message *message.Message, opts ...spi.Option) error
 	IsConnected() bool
 	Close() error
 }

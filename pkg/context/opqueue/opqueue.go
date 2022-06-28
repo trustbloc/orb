@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -41,11 +42,14 @@ const (
 	defaultTaskExpirationFactor = 2
 	defaultOpCleanupFactor      = 5
 	defaultMaxRetries           = 10
+	defaultRetryInitialDelay    = 5 * time.Second
+	defaultMaxRetryDelay        = 1 * time.Minute
+	defaultRetryMultiplier      = 1.5
 )
 
 type pubSub interface {
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
-	Publish(topic string, messages ...*message.Message) error
+	PublishWithOpts(topic string, msg *message.Message, opts ...spi.Option) error
 	Close() error
 }
 
@@ -110,27 +114,37 @@ type Config struct {
 	OpExpiration time.Duration
 	// MaxRetries is the maximum number of retries for a failed operation in a batch.
 	MaxRetries int
+	// RetriesInitialDelay is the delay for the initial retry attempt.
+	RetriesInitialDelay time.Duration
+	// RetriesMaxDelay is the maximum delay for a retry attempt.
+	RetriesMaxDelay time.Duration
+	// RetriesMultiplier is the multiplier for a retry attempt. For example, if set to 1.5 and
+	// the previous retry interval was 2s then the next retry interval is set 3s.
+	RetriesMultiplier float64
 }
 
 // Queue implements an operation queue that uses a publisher/subscriber.
 type Queue struct {
 	*lifecycle.Lifecycle
 
-	pubSub              pubSub
-	msgChan             <-chan *message.Message
-	mutex               sync.RWMutex
-	pending             []*queuedOperation
-	marshal             func(interface{}) ([]byte, error)
-	unmarshal           func(data []byte, v interface{}) error
-	metrics             metricsProvider
-	serverInstanceID    string
-	store               storage.Store
-	taskMonitorInterval time.Duration
-	taskExpiration      time.Duration
-	opExpiration        time.Duration
-	taskMgr             taskManager
-	expiryService       dataExpiryService
-	maxRetries          int
+	pubSub                    pubSub
+	msgChan                   <-chan *message.Message
+	mutex                     sync.RWMutex
+	pending                   []*queuedOperation
+	marshal                   func(interface{}) ([]byte, error)
+	unmarshal                 func(data []byte, v interface{}) error
+	metrics                   metricsProvider
+	serverInstanceID          string
+	store                     storage.Store
+	taskMonitorInterval       time.Duration
+	taskExpiration            time.Duration
+	opExpiration              time.Duration
+	taskMgr                   taskManager
+	expiryService             dataExpiryService
+	maxRetries                int
+	redeliveryInitialInterval time.Duration
+	maxRedeliveryInterval     time.Duration
+	redeliveryMultiplier      float64
 }
 
 // New returns a new operation queue.
@@ -156,19 +170,22 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		cfg.OpExpiration, cfg.MaxRetries)
 
 	q := &Queue{
-		pubSub:              pubSub,
-		msgChan:             msgChan,
-		marshal:             json.Marshal,
-		unmarshal:           json.Unmarshal,
-		metrics:             metrics,
-		serverInstanceID:    taskMgr.InstanceID(),
-		store:               s,
-		taskExpiration:      cfg.TaskExpiration,
-		opExpiration:        cfg.OpExpiration,
-		taskMonitorInterval: cfg.TaskMonitorInterval,
-		taskMgr:             taskMgr,
-		expiryService:       expiryService,
-		maxRetries:          cfg.MaxRetries,
+		pubSub:                    pubSub,
+		msgChan:                   msgChan,
+		marshal:                   json.Marshal,
+		unmarshal:                 json.Unmarshal,
+		metrics:                   metrics,
+		serverInstanceID:          taskMgr.InstanceID(),
+		store:                     s,
+		taskExpiration:            cfg.TaskExpiration,
+		opExpiration:              cfg.OpExpiration,
+		taskMonitorInterval:       cfg.TaskMonitorInterval,
+		taskMgr:                   taskMgr,
+		expiryService:             expiryService,
+		maxRetries:                cfg.MaxRetries,
+		redeliveryInitialInterval: cfg.RetriesInitialDelay,
+		redeliveryMultiplier:      cfg.RetriesMultiplier,
+		maxRedeliveryInterval:     cfg.RetriesMaxDelay,
 	}
 
 	q.Lifecycle = lifecycle.New("operation-queue", lifecycle.WithStart(q.start))
@@ -219,10 +236,12 @@ func (q *Queue) publish(op *OperationMessage) (uint, error) {
 
 	msg := message.NewMessage(watermill.NewUUID(), b)
 
-	logger.Debugf("Publishing operation message to topic [%s] - Msg [%s], OpID [%s], DID [%s], Retries [%d]",
-		topic, msg.UUID, op.ID, op.Operation.UniqueSuffix, op.Retries)
+	delay := q.getDeliveryDelay(op.Retries)
 
-	err = q.pubSub.Publish(topic, msg)
+	logger.Debugf("Publishing operation message to topic [%s] - Msg [%s], OpID [%s], DID [%s], "+
+		"Retries [%d], Delivery delay [%s]", topic, msg.UUID, op.ID, op.Operation.UniqueSuffix, op.Retries, delay)
+
+	err = q.pubSub.PublishWithOpts(topic, msg, spi.WithDeliveryDelay(delay))
 	if err != nil {
 		return 0, fmt.Errorf("publish queued operation [%s]: %w", op.ID, err)
 	}
@@ -714,6 +733,24 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 	)
 }
 
+func (q *Queue) getDeliveryDelay(attempts int) time.Duration {
+	if attempts == 0 {
+		return 0
+	}
+
+	if attempts == 1 {
+		return q.redeliveryInitialInterval
+	}
+
+	interval := time.Duration(float64(q.redeliveryInitialInterval) * math.Pow(q.redeliveryMultiplier, float64(attempts-1)))
+
+	if interval > q.maxRedeliveryInterval {
+		interval = q.maxRedeliveryInterval
+	}
+
+	return interval
+}
+
 func resolveConfig(cfg Config) Config {
 	if cfg.TaskMonitorInterval == 0 {
 		cfg.TaskMonitorInterval = defaultInterval
@@ -733,6 +770,18 @@ func resolveConfig(cfg Config) Config {
 
 	if cfg.MaxRetries == 0 {
 		cfg.MaxRetries = defaultMaxRetries
+	}
+
+	if cfg.RetriesInitialDelay == 0 {
+		cfg.RetriesInitialDelay = defaultRetryInitialDelay
+	}
+
+	if cfg.RetriesMultiplier == 0 {
+		cfg.RetriesMultiplier = defaultRetryMultiplier
+	}
+
+	if cfg.RetriesMaxDelay == 0 {
+		cfg.RetriesMaxDelay = defaultMaxRetryDelay
 	}
 
 	return cfg

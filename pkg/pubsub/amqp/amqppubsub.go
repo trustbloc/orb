@@ -185,11 +185,7 @@ func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	options := &spi.Options{}
-
-	for _, opt := range opts {
-		opt(options)
-	}
+	options := getOptions(opts)
 
 	if options.PoolSize <= 1 {
 		logger.Debugf("Subscribing to topic [%s]", topic)
@@ -228,6 +224,40 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 
 		return errors.NewTransientf("publish messages to topic [%s]: %w", topic, err)
 	}
+
+	return nil
+}
+
+// PublishWithOpts publishes a message to a topic using the supplied options.
+func (p *PubSub) PublishWithOpts(topic string, msg *message.Message, opts ...spi.Option) error {
+	if p.State() != lifecycle.StateStarted {
+		return lifecycle.ErrNotStarted
+	}
+
+	if options := getOptions(opts); options.DeliveryDelay > 0 {
+		return p.publishWithDelay(topic, msg, options.DeliveryDelay)
+	}
+
+	return p.Publish(topic, msg)
+}
+
+func (p *PubSub) publishWithDelay(topic string, msg *message.Message, delay time.Duration) error {
+	logger.Debugf("Publishing message [%s] to topic [%s] with a delay of %s", msg.UUID, topic, delay)
+
+	// Post the message to the wait queue with the given expiration so that it isn't immediately redelivered.
+	err := p.waitPublisher.Publish(waitQueue,
+		newMessage(msg,
+			withQueue(topic),
+			withExpiration(delay),
+		),
+	)
+	if err != nil {
+		logger.Errorf("Error publishing message [%s] to wait queue", msg.UUID)
+
+		return errors.NewTransientf("publish message to wait queue: %w", err)
+	}
+
+	logger.Debugf("Successfully published message [%s] to topic [%s] with a delay of %s", msg.UUID, topic, delay)
 
 	return nil
 }
@@ -869,4 +899,14 @@ func initConfig(cfg Config) Config {
 	}
 
 	return cfg
+}
+
+func getOptions(opts []spi.Option) *spi.Options {
+	options := &spi.Options{}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return options
 }
