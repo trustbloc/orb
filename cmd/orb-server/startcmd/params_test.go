@@ -1335,12 +1335,18 @@ func TestGetOpQueueParameters(t *testing.T) {
 		restoreTaskMonitorIntervalEnv := setEnv(t, opQueueTaskMonitorIntervalEnvKey, "17s")
 		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33s")
 		restoreMaxRepostsEnv := setEnv(t, opQueueMaxRepostsEnvKey, "23")
+		restoreRepostInitialDelayEnv := setEnv(t, opQueueRepostInitialDelayEnvKey, "4s")
+		restoreRepostMaxDelay := setEnv(t, opQueueRepostMaxDelayEnvKey, "3m")
+		restoreRepostMultiplierEnv := setEnv(t, opQueueRepostMultiplierEnvKey, "2.5")
 
 		defer func() {
 			restorePoolEnv()
 			restoreTaskExpirationEnv()
 			restoreTaskMonitorIntervalEnv()
 			restoreMaxRepostsEnv()
+			restoreRepostInitialDelayEnv()
+			restoreRepostMaxDelay()
+			restoreRepostMultiplierEnv()
 		}()
 
 		cmd := getTestCmd(t)
@@ -1351,6 +1357,9 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, 17*time.Second, opQueueParams.TaskMonitorInterval)
 		require.Equal(t, 33*time.Second, opQueueParams.TaskExpiration)
 		require.Equal(t, 23, opQueueParams.MaxRetries)
+		require.Equal(t, 4*time.Second, opQueueParams.RetriesInitialDelay)
+		require.Equal(t, 3*time.Minute, opQueueParams.RetriesMaxDelay)
+		require.Equal(t, float64(2.5), opQueueParams.RetriesMultiplier)
 		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
 	})
 
@@ -1363,6 +1372,9 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, opQueueDefaultTaskMonitorInterval, opQueueParams.TaskMonitorInterval)
 		require.Equal(t, opQueueDefaultTaskExpiration, opQueueParams.TaskExpiration)
 		require.Equal(t, opQueueDefaultMaxReposts, opQueueParams.MaxRetries)
+		require.Equal(t, opQueueDefaultRepostInitialDelay, opQueueParams.RetriesInitialDelay)
+		require.Equal(t, opQueueDefaultRepostMaxDelay, opQueueParams.RetriesMaxDelay)
+		require.Equal(t, opQueueDefaultRepostMultiplier, opQueueParams.RetriesMultiplier)
 		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
 	})
 
@@ -1414,6 +1426,39 @@ func TestGetOpQueueParameters(t *testing.T) {
 		defer func() {
 			restoreMaxRepostsEnv()
 		}()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid repost initial delay value -> error", func(t *testing.T) {
+		restore := setEnv(t, opQueueRepostInitialDelayEnvKey, "xxx")
+		defer restore()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid repost max delay value -> error", func(t *testing.T) {
+		restore := setEnv(t, opQueueRepostMaxDelayEnvKey, "xxx")
+		defer restore()
+
+		cmd := getTestCmd(t)
+
+		_, err := getOpQueueParameters(cmd, time.Minute)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid repost multiplier value -> error", func(t *testing.T) {
+		restore := setEnv(t, opQueueRepostMultiplierEnvKey, "xxx")
+		defer restore()
 
 		cmd := getTestCmd(t)
 

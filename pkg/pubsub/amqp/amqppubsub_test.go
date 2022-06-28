@@ -42,7 +42,7 @@ func TestAMQP(t *testing.T) {
 		require.NoError(t, err)
 
 		msg := message.NewMessage(watermill.NewUUID(), []byte("some payload"))
-		require.NoError(t, p.Publish(topic, msg))
+		require.NoError(t, p.PublishWithOpts(topic, msg))
 
 		select {
 		case m := <-msgChan:
@@ -56,6 +56,34 @@ func TestAMQP(t *testing.T) {
 		_, err = p.Subscribe(context.Background(), topic)
 		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
 		require.True(t, errors.Is(p.Publish(topic, msg), lifecycle.ErrNotStarted))
+	})
+
+	t.Run("Publish with delivery delay -> Success", func(t *testing.T) {
+		const topic = "delayed-topic"
+
+		p := New(Config{URI: mqURI})
+		require.NotNil(t, p)
+
+		require.True(t, p.IsConnected())
+
+		msgChan, err := p.Subscribe(context.Background(), topic)
+		require.NoError(t, err)
+
+		payload := []byte("payload for delayed delivery")
+
+		msg := message.NewMessage(watermill.NewUUID(), payload)
+		require.NoError(t, p.PublishWithOpts(topic, msg, spi.WithDeliveryDelay(time.Second)))
+
+		select {
+		case m := <-msgChan:
+			require.Equal(t, payload, []byte(m.Payload))
+		case <-time.After(3 * time.Second):
+			t.Fatal("timed out waiting for message")
+		}
+
+		require.NoError(t, p.Close())
+
+		require.True(t, errors.Is(p.PublishWithOpts(topic, msg), lifecycle.ErrNotStarted))
 	})
 
 	t.Run("Connection failure", func(t *testing.T) {

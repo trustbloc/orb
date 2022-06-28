@@ -10,12 +10,35 @@ import (
 )
 
 type PubSub struct {
-	SubscribeWithOptsStub        func(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
+	CloseStub        func() error
+	closeMutex       sync.RWMutex
+	closeArgsForCall []struct {
+	}
+	closeReturns struct {
+		result1 error
+	}
+	closeReturnsOnCall map[int]struct {
+		result1 error
+	}
+	PublishWithOptsStub        func(string, *message.Message, ...spi.Option) error
+	publishWithOptsMutex       sync.RWMutex
+	publishWithOptsArgsForCall []struct {
+		arg1 string
+		arg2 *message.Message
+		arg3 []spi.Option
+	}
+	publishWithOptsReturns struct {
+		result1 error
+	}
+	publishWithOptsReturnsOnCall map[int]struct {
+		result1 error
+	}
+	SubscribeWithOptsStub        func(context.Context, string, ...spi.Option) (<-chan *message.Message, error)
 	subscribeWithOptsMutex       sync.RWMutex
 	subscribeWithOptsArgsForCall []struct {
-		ctx   context.Context
-		topic string
-		opts  []spi.Option
+		arg1 context.Context
+		arg2 string
+		arg3 []spi.Option
 	}
 	subscribeWithOptsReturns struct {
 		result1 <-chan *message.Message
@@ -25,48 +48,145 @@ type PubSub struct {
 		result1 <-chan *message.Message
 		result2 error
 	}
-	PublishStub        func(topic string, messages ...*message.Message) error
-	publishMutex       sync.RWMutex
-	publishArgsForCall []struct {
-		topic    string
-		messages []*message.Message
-	}
-	publishReturns struct {
-		result1 error
-	}
-	publishReturnsOnCall map[int]struct {
-		result1 error
-	}
-	CloseStub        func() error
-	closeMutex       sync.RWMutex
-	closeArgsForCall []struct{}
-	closeReturns     struct {
-		result1 error
-	}
-	closeReturnsOnCall map[int]struct {
-		result1 error
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *PubSub) SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error) {
+func (fake *PubSub) Close() error {
+	fake.closeMutex.Lock()
+	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
+	fake.closeArgsForCall = append(fake.closeArgsForCall, struct {
+	}{})
+	stub := fake.CloseStub
+	fakeReturns := fake.closeReturns
+	fake.recordInvocation("Close", []interface{}{})
+	fake.closeMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *PubSub) CloseCallCount() int {
+	fake.closeMutex.RLock()
+	defer fake.closeMutex.RUnlock()
+	return len(fake.closeArgsForCall)
+}
+
+func (fake *PubSub) CloseCalls(stub func() error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = stub
+}
+
+func (fake *PubSub) CloseReturns(result1 error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = nil
+	fake.closeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *PubSub) CloseReturnsOnCall(i int, result1 error) {
+	fake.closeMutex.Lock()
+	defer fake.closeMutex.Unlock()
+	fake.CloseStub = nil
+	if fake.closeReturnsOnCall == nil {
+		fake.closeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.closeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *PubSub) PublishWithOpts(arg1 string, arg2 *message.Message, arg3 ...spi.Option) error {
+	fake.publishWithOptsMutex.Lock()
+	ret, specificReturn := fake.publishWithOptsReturnsOnCall[len(fake.publishWithOptsArgsForCall)]
+	fake.publishWithOptsArgsForCall = append(fake.publishWithOptsArgsForCall, struct {
+		arg1 string
+		arg2 *message.Message
+		arg3 []spi.Option
+	}{arg1, arg2, arg3})
+	stub := fake.PublishWithOptsStub
+	fakeReturns := fake.publishWithOptsReturns
+	fake.recordInvocation("PublishWithOpts", []interface{}{arg1, arg2, arg3})
+	fake.publishWithOptsMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *PubSub) PublishWithOptsCallCount() int {
+	fake.publishWithOptsMutex.RLock()
+	defer fake.publishWithOptsMutex.RUnlock()
+	return len(fake.publishWithOptsArgsForCall)
+}
+
+func (fake *PubSub) PublishWithOptsCalls(stub func(string, *message.Message, ...spi.Option) error) {
+	fake.publishWithOptsMutex.Lock()
+	defer fake.publishWithOptsMutex.Unlock()
+	fake.PublishWithOptsStub = stub
+}
+
+func (fake *PubSub) PublishWithOptsArgsForCall(i int) (string, *message.Message, []spi.Option) {
+	fake.publishWithOptsMutex.RLock()
+	defer fake.publishWithOptsMutex.RUnlock()
+	argsForCall := fake.publishWithOptsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *PubSub) PublishWithOptsReturns(result1 error) {
+	fake.publishWithOptsMutex.Lock()
+	defer fake.publishWithOptsMutex.Unlock()
+	fake.PublishWithOptsStub = nil
+	fake.publishWithOptsReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *PubSub) PublishWithOptsReturnsOnCall(i int, result1 error) {
+	fake.publishWithOptsMutex.Lock()
+	defer fake.publishWithOptsMutex.Unlock()
+	fake.PublishWithOptsStub = nil
+	if fake.publishWithOptsReturnsOnCall == nil {
+		fake.publishWithOptsReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.publishWithOptsReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *PubSub) SubscribeWithOpts(arg1 context.Context, arg2 string, arg3 ...spi.Option) (<-chan *message.Message, error) {
 	fake.subscribeWithOptsMutex.Lock()
 	ret, specificReturn := fake.subscribeWithOptsReturnsOnCall[len(fake.subscribeWithOptsArgsForCall)]
 	fake.subscribeWithOptsArgsForCall = append(fake.subscribeWithOptsArgsForCall, struct {
-		ctx   context.Context
-		topic string
-		opts  []spi.Option
-	}{ctx, topic, opts})
-	fake.recordInvocation("SubscribeWithOpts", []interface{}{ctx, topic, opts})
+		arg1 context.Context
+		arg2 string
+		arg3 []spi.Option
+	}{arg1, arg2, arg3})
+	stub := fake.SubscribeWithOptsStub
+	fakeReturns := fake.subscribeWithOptsReturns
+	fake.recordInvocation("SubscribeWithOpts", []interface{}{arg1, arg2, arg3})
 	fake.subscribeWithOptsMutex.Unlock()
-	if fake.SubscribeWithOptsStub != nil {
-		return fake.SubscribeWithOptsStub(ctx, topic, opts...)
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.subscribeWithOptsReturns.result1, fake.subscribeWithOptsReturns.result2
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *PubSub) SubscribeWithOptsCallCount() int {
@@ -75,13 +195,22 @@ func (fake *PubSub) SubscribeWithOptsCallCount() int {
 	return len(fake.subscribeWithOptsArgsForCall)
 }
 
+func (fake *PubSub) SubscribeWithOptsCalls(stub func(context.Context, string, ...spi.Option) (<-chan *message.Message, error)) {
+	fake.subscribeWithOptsMutex.Lock()
+	defer fake.subscribeWithOptsMutex.Unlock()
+	fake.SubscribeWithOptsStub = stub
+}
+
 func (fake *PubSub) SubscribeWithOptsArgsForCall(i int) (context.Context, string, []spi.Option) {
 	fake.subscribeWithOptsMutex.RLock()
 	defer fake.subscribeWithOptsMutex.RUnlock()
-	return fake.subscribeWithOptsArgsForCall[i].ctx, fake.subscribeWithOptsArgsForCall[i].topic, fake.subscribeWithOptsArgsForCall[i].opts
+	argsForCall := fake.subscribeWithOptsArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *PubSub) SubscribeWithOptsReturns(result1 <-chan *message.Message, result2 error) {
+	fake.subscribeWithOptsMutex.Lock()
+	defer fake.subscribeWithOptsMutex.Unlock()
 	fake.SubscribeWithOptsStub = nil
 	fake.subscribeWithOptsReturns = struct {
 		result1 <-chan *message.Message
@@ -90,6 +219,8 @@ func (fake *PubSub) SubscribeWithOptsReturns(result1 <-chan *message.Message, re
 }
 
 func (fake *PubSub) SubscribeWithOptsReturnsOnCall(i int, result1 <-chan *message.Message, result2 error) {
+	fake.subscribeWithOptsMutex.Lock()
+	defer fake.subscribeWithOptsMutex.Unlock()
 	fake.SubscribeWithOptsStub = nil
 	if fake.subscribeWithOptsReturnsOnCall == nil {
 		fake.subscribeWithOptsReturnsOnCall = make(map[int]struct {
@@ -103,104 +234,15 @@ func (fake *PubSub) SubscribeWithOptsReturnsOnCall(i int, result1 <-chan *messag
 	}{result1, result2}
 }
 
-func (fake *PubSub) Publish(topic string, messages ...*message.Message) error {
-	fake.publishMutex.Lock()
-	ret, specificReturn := fake.publishReturnsOnCall[len(fake.publishArgsForCall)]
-	fake.publishArgsForCall = append(fake.publishArgsForCall, struct {
-		topic    string
-		messages []*message.Message
-	}{topic, messages})
-	fake.recordInvocation("Publish", []interface{}{topic, messages})
-	fake.publishMutex.Unlock()
-	if fake.PublishStub != nil {
-		return fake.PublishStub(topic, messages...)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.publishReturns.result1
-}
-
-func (fake *PubSub) PublishCallCount() int {
-	fake.publishMutex.RLock()
-	defer fake.publishMutex.RUnlock()
-	return len(fake.publishArgsForCall)
-}
-
-func (fake *PubSub) PublishArgsForCall(i int) (string, []*message.Message) {
-	fake.publishMutex.RLock()
-	defer fake.publishMutex.RUnlock()
-	return fake.publishArgsForCall[i].topic, fake.publishArgsForCall[i].messages
-}
-
-func (fake *PubSub) PublishReturns(result1 error) {
-	fake.PublishStub = nil
-	fake.publishReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *PubSub) PublishReturnsOnCall(i int, result1 error) {
-	fake.PublishStub = nil
-	if fake.publishReturnsOnCall == nil {
-		fake.publishReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.publishReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *PubSub) Close() error {
-	fake.closeMutex.Lock()
-	ret, specificReturn := fake.closeReturnsOnCall[len(fake.closeArgsForCall)]
-	fake.closeArgsForCall = append(fake.closeArgsForCall, struct{}{})
-	fake.recordInvocation("Close", []interface{}{})
-	fake.closeMutex.Unlock()
-	if fake.CloseStub != nil {
-		return fake.CloseStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.closeReturns.result1
-}
-
-func (fake *PubSub) CloseCallCount() int {
-	fake.closeMutex.RLock()
-	defer fake.closeMutex.RUnlock()
-	return len(fake.closeArgsForCall)
-}
-
-func (fake *PubSub) CloseReturns(result1 error) {
-	fake.CloseStub = nil
-	fake.closeReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *PubSub) CloseReturnsOnCall(i int, result1 error) {
-	fake.CloseStub = nil
-	if fake.closeReturnsOnCall == nil {
-		fake.closeReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.closeReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *PubSub) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.subscribeWithOptsMutex.RLock()
-	defer fake.subscribeWithOptsMutex.RUnlock()
-	fake.publishMutex.RLock()
-	defer fake.publishMutex.RUnlock()
 	fake.closeMutex.RLock()
 	defer fake.closeMutex.RUnlock()
+	fake.publishWithOptsMutex.RLock()
+	defer fake.publishWithOptsMutex.RUnlock()
+	fake.subscribeWithOptsMutex.RLock()
+	defer fake.subscribeWithOptsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
