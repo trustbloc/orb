@@ -72,7 +72,7 @@ func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDel
 	s, err := store.Open(provider, namespace,
 		store.NewTagGroup(anchorIDTagName, statusTagName),
 		store.NewTagGroup(expiryTimeTagName),
-		store.NewTagGroup(statusCheckTimeTagName),
+		store.NewTagGroup(statusTagName, statusCheckTimeTagName),
 	)
 	if err != nil {
 		return nil, err
@@ -310,9 +310,10 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 	return status, nil
 }
 
-// CheckInProcessAnchors will be invoked to check for in-complete (not processed) anchors.
+// CheckInProcessAnchors will be invoked to check for incomplete (not processed) anchors.
 func (s *Store) CheckInProcessAnchors() {
-	query := fmt.Sprintf("%s<=%d", statusCheckTimeTagName, time.Now().Unix())
+	query := fmt.Sprintf("%s:%s&&%s<=%d", statusTagName, proof.AnchorIndexStatusInProcess,
+		statusCheckTimeTagName, time.Now().Unix())
 
 	iterator, e := s.store.Query(query)
 	if e != nil {
