@@ -42,8 +42,8 @@ const (
 	defaultTaskExpirationFactor = 2
 	defaultOpCleanupFactor      = 5
 	defaultMaxRetries           = 10
-	defaultRetryInitialDelay    = 5 * time.Second
-	defaultMaxRetryDelay        = 1 * time.Minute
+	defaultRetryInitialDelay    = 2 * time.Second
+	defaultMaxRetryDelay        = 30 * time.Second
 	defaultRetryMultiplier      = 1.5
 )
 
