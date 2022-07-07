@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
@@ -274,6 +274,34 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid duration")
 	})
 
+	t.Run("test invalid max clock skew", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + maxWitnessDelayFlagName, "10s",
+			"--" + maxClockSkewFlagName, "abc",
+			"--" + witnessStoreExpiryPeriodFlagName, "1m",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + anchorCredentialIssuerFlagName, "issuer.com",
+			"--" + anchorCredentialURLFlagName, "peer.com",
+			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid duration")
+	})
+
 	t.Run("test invalid witness store duration - less than maximum witness delay", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
@@ -298,7 +326,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness store expiry period must me greater than maximum witness delay")
+		require.Contains(t, err.Error(),
+			"witness store expiry period must me greater than maximum witness delay + max clock skew")
 	})
 
 	t.Run("test invalid sign with local witness flag", func(t *testing.T) {
@@ -1788,7 +1817,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + cidVersionFlagName, "0",
 		"--" + batchWriterTimeoutFlagName, "700",
 		"--" + maxWitnessDelayFlagName, "1m",
-		"--" + witnessStoreExpiryPeriodFlagName, "2m",
+		"--" + witnessStoreExpiryPeriodFlagName, "5m",
 		"--" + signWithLocalWitnessFlagName, "false",
 		"--" + casTypeFlagName, casType,
 		"--" + didNamespaceFlagName, "namespace",

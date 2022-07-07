@@ -161,6 +161,7 @@ const (
 	masterKeyURI = "local-lock://custom/master/key/"
 
 	defaultMaxWitnessDelay                  = 10 * time.Minute
+	defaultMaxClockSkew                     = 1 * time.Minute
 	defaultWitnessStoreExpiryDelta          = 12 * time.Minute
 	defaultSyncTimeout                      = 1
 	defaulthttpSignaturesEnabled            = true
@@ -902,7 +903,7 @@ func startOrbServices(parameters *orbParameters) error {
 			WitnessPolicy:   witnessPolicy,
 			Metrics:         metrics.Get(),
 		},
-		pubSub, parameters.dataURIMediaType)
+		pubSub, parameters.dataURIMediaType, parameters.maxClockSkew)
 
 	witness := vct.New(configclient.New(configStore), vcSigner, metrics.Get(),
 		vct.WithHTTPClient(httpClient),

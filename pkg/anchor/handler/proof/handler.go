@@ -45,11 +45,13 @@ type metricsProvider interface {
 }
 
 // New creates new proof handler.
-func New(providers *Providers, pubSub pubSub, dataURIMediaType datauri.MediaType) *WitnessProofHandler {
+func New(providers *Providers, pubSub pubSub, dataURIMediaType datauri.MediaType,
+	maxClockSkew time.Duration) *WitnessProofHandler {
 	return &WitnessProofHandler{
 		Providers:        providers,
 		publisher:        vcpubsub.NewPublisher(pubSub),
 		dataURIMediaType: dataURIMediaType,
+		maxClockSkew:     maxClockSkew,
 	}
 }
 
@@ -69,6 +71,7 @@ type WitnessProofHandler struct {
 	*Providers
 	publisher        anchorLinkPublisher
 	dataURIMediaType vocab.MediaType
+	maxClockSkew     time.Duration
 }
 
 type witnessStore interface {
@@ -94,16 +97,48 @@ type witnessPolicy interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error { //nolint:lll
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error { //nolint:lll,funlen,gocyclo,cyclop
 	logger.Debugf("received proof for anchor [%s] from witness[%s], proof: %s",
 		anchor, witness.String(), string(proof))
 
-	serverTime := time.Now().Unix()
+	var witnessProof vct.Proof
 
-	if endTime.Unix() < serverTime {
-		// proof came after expiry time so nothing to do here
+	err := json.Unmarshal(proof, &witnessProof)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal incoming witness proof for anchor [%s]: %w", anchor, err)
+	}
+
+	anchorLink, err := h.AnchorLinkStore.Get(anchor)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve anchor link [%s]: %w", anchor, err)
+	}
+
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(h.DocLoader),
+	)
+	if err != nil {
+		return fmt.Errorf("failed get verifiable credential from anchor: %w", err)
+	}
+
+	vcIssuedTime := vc.Issued.Time
+
+	proofCreatedTime, err := getCreatedTime(witnessProof)
+	if err != nil {
+		return fmt.Errorf("failed to get create time from witness[%s] proof for anchor[%s] : %w",
+			witness.String(), anchor, err)
+	}
+
+	endTimeForProof := endTime.Add(h.maxClockSkew)
+	startTimeForProof := vcIssuedTime.Add(-1 * h.maxClockSkew)
+
+	if proofCreatedTime.Before(startTimeForProof) || proofCreatedTime.After(endTimeForProof) {
+		// proof created time is after expiry time or before create time so nothing to do here
 		// clean up process for witness store and Sidetree batch files will have to be initiated differently
 		// since we can have scenario that proof never shows up
+		logger.Infof("proof created time[%s] for anchor[%s] from witness[%s] "+
+			"is either too early or too late.", proofCreatedTime, anchor, witness.String())
+
 		return nil
 	}
 
@@ -120,30 +155,10 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 		return nil
 	}
 
-	var witnessProof vct.Proof
-
-	err = json.Unmarshal(proof, &witnessProof)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal incoming witness proof for anchor [%s]: %w", anchor, err)
-	}
-
-	anchorLink, err := h.AnchorLinkStore.Get(anchor)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve anchor link [%s]: %w", anchor, err)
-	}
-
 	err = h.WitnessStore.AddProof(anchor, witness, proof)
 	if err != nil {
 		return fmt.Errorf("failed to add witness[%s] proof for anchor [%s]: %w",
 			witness.String(), anchor, err)
-	}
-
-	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
-		verifiable.WithDisabledProofCheck(),
-		verifiable.WithJSONLDDocumentLoader(h.DocLoader),
-	)
-	if err != nil {
-		return fmt.Errorf("failed get verifiable credential from anchor: %w", err)
 	}
 
 	err = h.setupMonitoring(witnessProof, vc, endTime)
@@ -155,14 +170,9 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 }
 
 func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Credential, endTime time.Time) error {
-	var created string
-	if createdVal, ok := wp.Proof["created"].(string); ok {
-		created = createdVal
-	}
-
-	createdTime, err := time.Parse(time.RFC3339, created)
+	createdTime, err := getCreatedTime(wp)
 	if err != nil {
-		return fmt.Errorf("parse created: %w", err)
+		return err
 	}
 
 	var domain string
@@ -171,6 +181,20 @@ func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Crede
 	}
 
 	return h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
+}
+
+func getCreatedTime(wp vct.Proof) (time.Time, error) {
+	var created string
+	if createdVal, ok := wp.Proof["created"].(string); ok {
+		created = createdVal
+	}
+
+	createdTime, err := time.Parse(time.RFC3339, created)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse created: %w", err)
+	}
+
+	return createdTime, nil
 }
 
 func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *verifiable.Credential) error { //nolint:funlen,gocyclo,cyclop,lll
