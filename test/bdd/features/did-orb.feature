@@ -96,7 +96,7 @@ Feature:
 
     Then we wait 3 seconds
 
-  @vct_log_rotation_test
+  @vct_log_rotation_REST_test
   Scenario: various did doc operations
     Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/log-monitor" is set to "ADMIN_TOKEN"

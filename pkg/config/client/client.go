@@ -23,7 +23,7 @@ var logger = log.New("config-client")
 
 const (
 	defaultCacheSize       = 100
-	defaultCacheExpiration = time.Minute
+	defaultCacheExpiration = 5 * time.Second
 )
 
 // Client implements retrieving and caching of config store parameters.
@@ -37,7 +37,7 @@ type Client struct {
 	unmarshal func([]byte, interface{}) error
 }
 
-// New returns a new ActivityPub client.
+// New returns a new config store client.
 func New(cfg storage.Store, opts ...Option) *Client {
 	client := &Client{
 		configStore: cfg,

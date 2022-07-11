@@ -48,6 +48,84 @@ Feature: Using Orb CLI
     When Orb DID is deactivated through cli
     Then check cli deactivated DID
 
+  @orb_cli_did_rotate_log
+  Scenario: Rotate log, then update existing did followed by create new did and verify proofs in rotated VCT log
+    # domain2 server follows domain1 server
+    When user create "follower" activity with outbox-url "https://localhost:48426/services/orb/outbox" actor "https://orb.domain2.com/services/orb" to "https://orb.domain1.com/services/orb" action "Follow"
+    # domain1 invites domain2 to be a witness
+    When user create "witness" activity with outbox-url "https://localhost:48326/services/orb/outbox" actor "https://orb.domain1.com/services/orb" to "https://orb.domain2.com/services/orb" action "InviteWitness"
+    Then we wait 3 seconds
+
+    # domain1 will start with 2020 VCT log
+    When orb-cli is executed with args 'log update --url https://localhost:48326/log --log "http://orb.vct:8077/maple2020" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    # wait for config cache to expire
+    Then we wait 5 seconds
+
+    When Create keys in kms
+    When Orb DID is created through cli
+    Then check cli created valid DID
+    And we wait 3 seconds
+
+    When Orb DID is resolved through cli
+    Then the JSON path "didDocumentMetadata.versionId" of the response is saved to variable "anchorHash"
+    And we wait 3 seconds
+
+    When orb-cli is executed with args 'vct verify --cas-url https://localhost:48326/cas --anchor ${anchorHash} --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN --vct-auth-token=vctread'
+    Then the JSON path '#(domain=="http://orb.vct:8077/maple2020").found' of the boolean response equals "true"
+
+    # domain1 will then rotate to 2022 VCT log
+    When orb-cli is executed with args 'log update --url https://localhost:48326/log --log "http://orb.vct:8077/maple2022" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    # wait for config cache to expire
+    Then we wait 5 seconds
+
+    When Orb DID is updated through cli
+    Then check cli updated DID
+
+    When Orb DID is resolved through cli
+    Then the JSON path "didDocumentMetadata.versionId" of the response is saved to variable "anchorHash"
+    And we wait 3 seconds
+
+    When orb-cli is executed with args 'vct verify --cas-url https://localhost:48326/cas --anchor ${anchorHash} --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN --vct-auth-token=vctread'
+    Then the JSON path '#(domain=="http://orb.vct:8077/maple2022").found' of the boolean response equals "true"
+
+    # now create new did after log rotation
+
+    When Create keys in kms
+    When Orb DID is created through cli
+    Then check cli created valid DID
+    And we wait 3 seconds
+
+    When Orb DID is resolved through cli
+    Then the JSON path "didDocumentMetadata.versionId" of the response is saved to variable "anchorHash"
+    And we wait 3 seconds
+
+    When orb-cli is executed with args 'vct verify --cas-url https://localhost:48326/cas --anchor ${anchorHash} --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN --vct-auth-token=vctread'
+    Then the JSON path '#(domain=="http://orb.vct:8077/maple2022").found' of the boolean response equals "true"
+
+    When Orb DID is updated through cli
+    Then check cli updated DID
+
+    When Orb DID is recovered through cli
+    Then check cli recovered DID
+
+    When Orb DID is deactivated through cli
+    Then check cli deactivated DID
+
+    When Orb DID is resolved through cli
+    Then the JSON path "didDocumentMetadata.versionId" of the response is saved to variable "anchorHash"
+    And we wait 3 seconds
+
+    When orb-cli is executed with args 'vct verify --cas-url https://localhost:48326/cas --anchor ${anchorHash} --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN --vct-auth-token=vctread'
+    Then the JSON path '#(domain=="http://orb.vct:8077/maple2022").found' of the boolean response equals "true"
+
+    # re-set to 2020 VCT log for other tests
+    When orb-cli is executed with args 'log update --url https://localhost:48326/log --log "http://orb.vct:8077/maple2020" --tls-cacerts fixtures/keys/tls/ec-cacert.pem --auth-token ADMIN_TOKEN'
+
+    # wait for config cache to expire
+    Then we wait 5 seconds
+
   @orb_cli_activity
   Scenario: test follow and witness
     # domain1 server follows domain2 server
