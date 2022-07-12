@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
@@ -1363,13 +1363,11 @@ func TestGetOpQueueParameters(t *testing.T) {
 		restorePoolEnv := setEnv(t, opQueuePoolEnvKey, "221")
 		restoreTaskMonitorIntervalEnv := setEnv(t, opQueueTaskMonitorIntervalEnvKey, "17s")
 		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33s")
-		restoreMaxRepostsEnv := setEnv(t, opQueueMaxRepostsEnvKey, "23")
 
 		defer func() {
 			restorePoolEnv()
 			restoreTaskExpirationEnv()
 			restoreTaskMonitorIntervalEnv()
-			restoreMaxRepostsEnv()
 		}()
 
 		cmd := getTestCmd(t)
@@ -1379,6 +1377,7 @@ func TestGetOpQueueParameters(t *testing.T) {
 				redeliveryMultiplier:      2.5,
 				redeliveryInitialInterval: 4 * time.Second,
 				maxRedeliveryInterval:     3 * time.Minute,
+				maxRedeliveryAttempts:     23,
 			},
 		)
 		require.NoError(t, err)
@@ -1389,7 +1388,6 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, 4*time.Second, opQueueParams.RetriesInitialDelay)
 		require.Equal(t, 3*time.Minute, opQueueParams.RetriesMaxDelay)
 		require.Equal(t, float64(2.5), opQueueParams.RetriesMultiplier)
-		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
 	})
 
 	t.Run("Not specified -> default value", func(t *testing.T) {
@@ -1400,8 +1398,6 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, opQueueDefaultPoolSize, opQueueParams.PoolSize)
 		require.Equal(t, opQueueDefaultTaskMonitorInterval, opQueueParams.TaskMonitorInterval)
 		require.Equal(t, opQueueDefaultTaskExpiration, opQueueParams.TaskExpiration)
-		require.Equal(t, opQueueDefaultMaxReposts, opQueueParams.MaxRetries)
-		require.Equal(t, defaultBatchWriterTimeout+opQueueOperationExpirationGracePeriod, opQueueParams.OpExpiration)
 	})
 
 	t.Run("Invalid pool size value -> error", func(t *testing.T) {
@@ -1437,20 +1433,6 @@ func TestGetOpQueueParameters(t *testing.T) {
 
 		defer func() {
 			restoreTaskExpirationEnv()
-		}()
-
-		cmd := getTestCmd(t)
-
-		_, err := getOpQueueParameters(cmd, time.Minute, &mqParams{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid value")
-	})
-
-	t.Run("Invalid max reposts value -> error", func(t *testing.T) {
-		restoreMaxRepostsEnv := setEnv(t, opQueueMaxRepostsEnvKey, "xxx")
-
-		defer func() {
-			restoreMaxRepostsEnv()
 		}()
 
 		cmd := getTestCmd(t)

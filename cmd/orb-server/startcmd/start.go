@@ -1027,8 +1027,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
 
-	opQueue, err := opqueue.New(*parameters.opQueueParams, pubSub, storeProviders.provider, taskMgr,
-		expiryService, metrics.Get())
+	opQueue, err := opqueue.New(*parameters.opQueueParams, pubSub, storeProviders.provider, taskMgr, metrics.Get())
 	if err != nil {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
 	}

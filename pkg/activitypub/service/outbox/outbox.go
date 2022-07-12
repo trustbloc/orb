@@ -224,7 +224,7 @@ func (h *Outbox) handle(msg *message.Message) {
 			msg.Ack()
 		}
 	} else {
-		logger.Infof("[%s] Acking message [%s] for activity [%s]", h.ServiceName, msg.UUID, activity.ID())
+		logger.Debugf("[%s] Acking message [%s] for activity [%s]", h.ServiceName, msg.UUID, activity.ID())
 
 		msg.Ack()
 	}
