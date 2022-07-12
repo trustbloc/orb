@@ -40,6 +40,7 @@ const (
 	anchorID                 = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
 	witnessURL               = "http://example.com/orb/services"
 	defaultPolicyCacheExpiry = 5 * time.Second
+	defaultClockSkew         = 10 * 12 * 30 * 24 * time.Hour // ten years
 )
 
 func TestNew(t *testing.T) {
@@ -52,7 +53,7 @@ func TestNew(t *testing.T) {
 		AnchorLinkStore: store,
 	}
 
-	c := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+	c := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 	require.NotNil(t, c)
 }
 
@@ -107,18 +108,61 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
 	t.Run("success - proof expired", func(t *testing.T) {
-		proofHandler := New(&Providers{}, ps, datauri.MediaTypeDataURIGzipBase64)
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		als := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(anchorLinksetTwoProofs), als))
+
+		al := als.Link()
+		require.NotNil(t, al)
+
+		err = aeStore.Put(al)
+		require.NoError(t, err)
+
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore := &mocks.WitnessStore{}
+		witnessStore.GetReturns(
+			[]*proofapi.WitnessProof{
+				{
+					Witness: &proofapi.Witness{
+						Type: proofapi.WitnessTypeSystem,
+						URI:  vocab.NewURLProperty(witnessIRI),
+					},
+				},
+			}, nil)
+
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorLinkStore: aeStore,
+			StatusStore:     statusStore,
+			MonitoringSvc:   &mocks.MonitoringService{},
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   witnessPolicy,
+			Metrics:         &orbmocks.MetricsProvider{},
+			DocLoader:       testutil.GetLoader(t),
+		}
+
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, time.Second)
 
 		expiredTime := time.Now().Add(-60 * time.Second)
 
-		err := proofHandler.HandleProof(witnessIRI, anchorID, expiredTime, nil)
+		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
+			expiredTime, []byte(witnessProof))
 		require.NoError(t, err)
 	})
 
@@ -165,7 +209,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -201,7 +245,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -244,7 +288,43 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:     testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
+
+		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProof))
+		require.NoError(t, err)
+	})
+
+	t.Run("error - vc created ", func(t *testing.T) {
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		als := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(anchorLinksetTwoProofs), als))
+
+		al := als.Link()
+		require.NotNil(t, al)
+
+		err = aeStore.Put(al)
+		require.NoError(t, err)
+
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusCompleted)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorLinkStore: aeStore,
+			StatusStore:     statusStore,
+			MonitoringSvc:   &mocks.MonitoringService{},
+			WitnessStore:    &mockWitnessStore{},
+			WitnessPolicy:   &mockWitnessPolicy{eval: true},
+			Metrics:         &orbmocks.MetricsProvider{},
+			DocLoader:       testutil.GetLoader(t),
+		}
+
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -294,11 +374,116 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(duplicateWitnessProof))
 		require.NoError(t, err)
+	})
+
+	t.Run("error - invalid anchor link set (no replies hence invalid VC)", func(t *testing.T) {
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		als := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(anchorLinksetWithoutReplies), als))
+
+		al := als.Link()
+		require.NotNil(t, al)
+
+		err = aeStore.Put(al)
+		require.NoError(t, err)
+
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore := &mocks.WitnessStore{}
+		witnessStore.GetReturns(
+			[]*proofapi.WitnessProof{
+				{
+					Witness: &proofapi.Witness{
+						Type: proofapi.WitnessTypeSystem,
+						URI:  vocab.NewURLProperty(witnessIRI),
+					},
+				},
+			}, nil)
+
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorLinkStore: aeStore,
+			StatusStore:     statusStore,
+			MonitoringSvc:   &mocks.MonitoringService{},
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   witnessPolicy,
+			Metrics:         &orbmocks.MetricsProvider{},
+			DocLoader:       testutil.GetLoader(t),
+		}
+
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
+
+		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProof))
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"failed get verifiable credential from anchor: no replies in anchor link")
+	})
+
+	t.Run("error - vc created date missing", func(t *testing.T) {
+		aeStore, err := anchorlinkstore.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		als := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(anchorLinksetTwoProofs), als))
+
+		al := als.Link()
+		require.NotNil(t, al)
+
+		err = aeStore.Put(al)
+		require.NoError(t, err)
+
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		require.NoError(t, err)
+
+		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		witnessStore := &mocks.WitnessStore{}
+		witnessStore.GetReturns(
+			[]*proofapi.WitnessProof{
+				{
+					Witness: &proofapi.Witness{
+						Type: proofapi.WitnessTypeSystem,
+						URI:  vocab.NewURLProperty(witnessIRI),
+					},
+				},
+			}, nil)
+
+		witnessPolicy, err := policy.New(configStore, defaultPolicyCacheExpiry)
+		require.NoError(t, err)
+
+		providers := &Providers{
+			AnchorLinkStore: aeStore,
+			StatusStore:     statusStore,
+			MonitoringSvc:   &mocks.MonitoringService{},
+			WitnessStore:    witnessStore,
+			WitnessPolicy:   witnessPolicy,
+			Metrics:         &orbmocks.MetricsProvider{},
+			DocLoader:       testutil.GetLoader(t),
+		}
+
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, time.Second)
+
+		expiredTime := time.Now()
+
+		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
+			expiredTime, []byte(witnessProofWithoutCreated))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to get create time")
 	})
 
 	t.Run("error - get status error", func(t *testing.T) {
@@ -338,7 +523,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -377,7 +562,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -415,7 +600,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -465,7 +650,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -501,7 +686,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
@@ -536,12 +721,12 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, "testVC",
+		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
 			expiryTime, []byte(witnessProof))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "status not found for anchor [testVC]")
+		require.Contains(t, err.Error(), "status not found for anchor [hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw]")
 	})
 
 	t.Run("error - store error", func(t *testing.T) {
@@ -569,7 +754,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			Metrics:         &orbmocks.MetricsProvider{},
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(witnessProof))
 		require.Error(t, err)
@@ -605,7 +790,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
@@ -641,7 +826,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
@@ -667,7 +852,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			Metrics:         &orbmocks.MetricsProvider{},
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(""))
 		require.Error(t, err)
@@ -706,7 +891,7 @@ func TestWitnessProofHandler(t *testing.T) {
 			DocLoader:       testutil.GetLoader(t),
 		}
 
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64)
+		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
 		require.Error(t, err)
@@ -808,6 +993,31 @@ const anchorLinksetTwoProofs = `{
 }`
 
 //nolint:lll
+const anchorLinksetWithoutReplies = `{
+  "linkset": [
+    {
+      "anchor": "hl:uEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw",
+      "author": "https://orb.domain1.com/services/orb",
+      "original": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiC6PTR6rRVbrvx2g06lYRwBDwWvO-8ZZdqBuvXUvYgBWg%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiBASbC8BstzmFwGyFVPY4ToGh_75G74WHKpqNNXwQ7RaA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDXvAb7xkkj8QleSnrt1sWah5lGT7MlGIYLNOmeILCoNA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDljSIyFmQfONMeWRuXaAK7Veh0FDUsqtMu_FuWRes72g%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDJ0RDNSlRAe-X00jInBus3srtOwKDjkPhBScsCocAomQ%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiAcIEwYOvzu9JeDgi3tZPDvx4NOH5mgRKDax1o199_9QA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AEiB9lWJFoXkUFyak38-hhjp8DK3ceNVtkhdTm_PvoR8JdA%22%2C%22previous%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiDfKmNhXjZBT9pi_ddpLRSp85p8jCTgMcHwEsW8C6xBVQ%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiBVjbmP2rO3zo0Dha94KivlGuBUINdyWvrpwHdC3xgGAA%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%3AEiBK9-TmD1pxSCBNfBYV5Ww6YZbQHH1ZZo5go2WpQ2_2GA%22%2C%22previous%22%3A%22hl%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AEiBS7BB7sgLlHkgX1wSQVYShaOPumObH2xieRnYA3CpIjA%22%2C%22previous%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%22%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AEiCmKxvTAtorz91jOPl-jCHMdCU2C_C96fqgc5nR3bbS4g%22%2C%22previous%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "profile": "https://w3id.org/orb#v0",
+      "related": [
+        {
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiBqkaTRFZScQsXTw8IDBSpVxiKGqjJCDUcgiwpcd2frLw%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiC3Q4SF3bP-qb0i9MIz_k_n-rKi-BhSgcOk8qoKVcJqrg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzNRNFNGM2JQLXFiMGk5TUl6X2tfbi1yS2ktQmhTZ2NPazhxb0tWY0pxcmd4QmlwZnM6Ly9iYWZrcmVpZnhpb2NpbHhudDcydTMyaXh1eWl6NzR0N2g3a3prZjZheWtrYTRoamhzdmlmZmxxdGt2eQ%22%7D%2C%7B%22href%22%3A%22hl%3AuEiCWKM6q1fGqlpW4HjpXYP5KbM8bLRQv_wZkDwyV_rp_JQ%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ1dLTTZxMWZHcWxwVzRIanBYWVA1S2JNOGJMUlF2X3daa0R3eVZfcnBfSlE%22%7D%2C%7B%22href%22%3A%22hl%3AuEiC_17B7wGGQ61SZi2QDQMpQcB-cqLZz1mdBOPcT3cAZBA%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQ18xN0I3d0dHUTYxU1ppMlFEUU1wUWNCLWNxTFp6MW1kQk9QY1QzY0FaQkE%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiC6PTR6rRVbrvx2g06lYRwBDwWvO-8ZZdqBuvXUvYgBWg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzZQVFI2clJWYnJ2eDJnMDZsWVJ3QkR3V3ZPLThaWmRxQnV2WFV2WWdCV2d4QmlwZnM6Ly9iYWZrcmVpZjJodTJodmxpdmxveHB5NXVkajJzd2NoYWJiNGMyNm83cGRmczV2YW4yNnhrbDNjYWJsaQ%22%7D%5D%7D%5D%7D",
+          "type": "application/linkset+json"
+        }
+      ],
+      "replies": [
+      ]
+    }
+  ]
+}`
+
+//nolint:lll
 const witnessProof = `{
   "@context": [
     "https://w3id.org/security/v1",
@@ -835,5 +1045,20 @@ const duplicateWitnessProof = `{
       "proofValue": "FX58osRrwU11IrUfhVTi0ucrNEq05Cv94CQNvd8SdoY66fAjwU2--m8plvxwVnXmxnlV23i6htkq4qI8qrDgAA",
       "type": "Ed25519Signature2020",
       "verificationMethod": "did:web:orb.domain2.com#orb2key"
+  }
+}`
+
+//nolint:lll
+const witnessProofWithoutCreated = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "proof": {
+    "domain": "http://orb.vct:8077",
+    "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PahivkKT6iKdnZDpkLu6uwDWYSdP7frt4l66AXI8mTsBnjgwrf9Pr-y_BkEFqsOMEuwJ3DSFdmAp1eOdTxMfDQ",
+    "proofPurpose": "assertionMethod",
+    "type": "Ed25519Signature2018",
+    "verificationMethod": "did:web:abc.com#2130bhDAK-2jKsOXJiEDG909Jux4rcYEpFsYzVlqdAY"
   }
 }`

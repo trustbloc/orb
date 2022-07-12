@@ -431,9 +431,14 @@ const (
 	maxWitnessDelayFlagShorthand = "w"
 	maxWitnessDelayFlagUsage     = "Maximum witness response time (default 10m). " + commonEnvVarUsageText + maxWitnessDelayEnvKey
 
+	maxClockSkewFlagName  = "max-clock-skew"
+	maxClockSkewEnvKey    = "MAX_CLOCK_SKEW"
+	maxClockSkewFlagUsage = "Maximum clock skew (default 1m). " + commonEnvVarUsageText + maxClockSkewEnvKey
+
 	witnessStoreExpiryPeriodFlagName  = "witness-store-expiry-period"
 	witnessStoreExpiryPeriodEnvKey    = "WITNESS_STORE_EXPIRY_PERIOD"
-	witnessStoreExpiryPeriodFlagUsage = "Witness store expiry period has to be greater than maximum witness response time" +
+	witnessStoreExpiryPeriodFlagUsage = "Witness store expiry period has to be greater than " +
+		"maximum witness response time + clock skew time" +
 		"(default 12m). " + commonEnvVarUsageText + witnessStoreExpiryPeriodEnvKey
 
 	signWithLocalWitnessFlagName      = "sign-with-local-witness"
@@ -697,6 +702,7 @@ type orbParameters struct {
 	discoveryDomains                        []string
 	discoveryMinimumResolvers               int
 	maxWitnessDelay                         time.Duration
+	maxClockSkew                            time.Duration
 	witnessStoreExpiryPeriod                time.Duration
 	syncTimeout                             uint64
 	signWithLocalWitness                    bool
@@ -966,13 +972,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
+	maxClockSkew, err := getDuration(cmd, maxClockSkewFlagName, maxClockSkewEnvKey, defaultMaxClockSkew)
+	if err != nil {
+		return nil, err
+	}
+
 	witnessStoreExpiryPeriod, err := getDuration(cmd, witnessStoreExpiryPeriodFlagName, witnessStoreExpiryPeriodEnvKey, defaultWitnessStoreExpiryDelta)
 	if err != nil {
 		return nil, err
 	}
 
-	if witnessStoreExpiryPeriod <= maxWitnessDelay {
-		return nil, fmt.Errorf("witness store expiry period must me greater than maximum witness delay")
+	if witnessStoreExpiryPeriod <= maxWitnessDelay+maxClockSkew {
+		return nil, fmt.Errorf("witness store expiry period must me greater than maximum witness delay + max clock skew")
 	}
 
 	signWithLocalWitnessStr, err := cmdutils.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
@@ -1415,6 +1426,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		discoveryDomains:                        discoveryDomains,
 		discoveryMinimumResolvers:               discoveryMinimumResolvers,
 		maxWitnessDelay:                         maxWitnessDelay,
+		maxClockSkew:                            maxClockSkew,
 		witnessStoreExpiryPeriod:                witnessStoreExpiryPeriod,
 		syncTimeout:                             syncTimeout,
 		signWithLocalWitness:                    signWithLocalWitness,
@@ -2036,6 +2048,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(tlsCACertsFlagName, "", []string{}, tlsCACertsFlagUsage)
 	startCmd.Flags().StringP(batchWriterTimeoutFlagName, batchWriterTimeoutFlagShorthand, "", batchWriterTimeoutFlagUsage)
 	startCmd.Flags().StringP(maxWitnessDelayFlagName, maxWitnessDelayFlagShorthand, "", maxWitnessDelayFlagUsage)
+	startCmd.Flags().StringP(maxClockSkewFlagName, "", "", maxClockSkewFlagUsage)
 	startCmd.Flags().StringP(witnessStoreExpiryPeriodFlagName, "", "", witnessStoreExpiryPeriodFlagUsage)
 	startCmd.Flags().StringP(signWithLocalWitnessFlagName, signWithLocalWitnessFlagShorthand, "", signWithLocalWitnessFlagUsage)
 	startCmd.Flags().StringP(httpSignaturesEnabledFlagName, httpSignaturesEnabledShorthand, "", httpSignaturesEnabledUsage)
