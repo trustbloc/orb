@@ -28,7 +28,6 @@ import (
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
-	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 //go:generate counterfeiter -o ../mocks/pubsub.gen.go --fake-name PubSub . pubSub
@@ -74,7 +73,6 @@ func TestQueue(t *testing.T) {
 			RetriesMultiplier:   1.0,
 		},
 		ps1, storageProvider, taskMgr1,
-		expiry.NewService(taskMgr1, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)
@@ -100,7 +98,6 @@ func TestQueue(t *testing.T) {
 		},
 
 		ps2, storageProvider, taskMgr2,
-		expiry.NewService(taskMgr2, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)
@@ -203,11 +200,10 @@ func TestQueue_Error(t *testing.T) {
 	defer ps.Stop()
 
 	taskMgr := servicemocks.NewTaskManager("taskmgr1")
-	expirySvc := expiry.NewService(taskMgr, 750*time.Millisecond)
 
 	t.Run("Not started error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -235,7 +231,7 @@ func TestQueue_Error(t *testing.T) {
 		ps.PublishWithOptsReturns(errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -254,14 +250,14 @@ func TestQueue_Error(t *testing.T) {
 		ps.SubscribeWithOptsReturns(nil, errExpected)
 
 		_, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -281,7 +277,7 @@ func TestQueue_Error(t *testing.T) {
 
 	t.Run("Unmarshal error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -315,7 +311,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrPut = errExpected
 
 		q, err := New(Config{}, ps, p,
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, q)
@@ -337,7 +333,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrQuery = errExpected
 
 		q, err := New(Config{}, ps, p,
-			mgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -363,7 +359,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrNext = errExpected
 
 		q, err := New(Config{}, ps, p,
-			mgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -380,7 +376,7 @@ func TestQueue_Error(t *testing.T) {
 		defer mgr.Stop()
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			mgr, expirySvc, &mocks.MetricsProvider{})
+			mgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -403,7 +399,7 @@ func TestQueue_Error(t *testing.T) {
 		ps.PublishWithOptsReturnsOnCall(0, errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, expirySvc, &mocks.MetricsProvider{})
+			taskMgr, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -473,7 +469,6 @@ func TestRepostWithMaxRetries(t *testing.T) {
 			RetriesMultiplier:   1.0,
 		},
 		ps, storageProvider, taskMgr,
-		expiry.NewService(taskMgr, 750*time.Millisecond),
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)

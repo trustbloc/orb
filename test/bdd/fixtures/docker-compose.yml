@@ -44,10 +44,10 @@ services:
       # MQ_REDELIVERY_MULTIPLIER is the multiplier for a redelivery attempt. For example, if set to 1.5 and
       #	the previous redelivery interval was 2s then the next redelivery interval is set 3s (default is 1.5).
       - MQ_REDELIVERY_MULTIPLIER=1.5
-      # MQ_REDELIVERY_MAX_INTERVAL is the maximum delay for a redelivery (default is 30s).
-      - MQ_REDELIVERY_MAX_INTERVAL=30s
-      # MQ_REDELIVERY_MAX_ATTEMPTS Specifies the maximum number of redelivery attempts for a failed message (default is 20).
-      - MQ_REDELIVERY_MAX_ATTEMPTS=20
+      # MQ_REDELIVERY_MAX_INTERVAL is the maximum delay for a redelivery (default is 1m).
+      - MQ_REDELIVERY_MAX_INTERVAL=1m
+      # MQ_REDELIVERY_MAX_ATTEMPTS Specifies the maximum number of redelivery attempts for a failed message (default is 30).
+      - MQ_REDELIVERY_MAX_ATTEMPTS=30
       # OP_QUEUE_POOL specifies the number of subscribers that concurrently process messages in the operation queue (default 5).
       - OP_QUEUE_POOL=10
       # OP_QUEUE_TASK_MONITOR_INTERVAL specifies The interval (period) in which operation queue tasks from other servers are monitored (default is 10s).

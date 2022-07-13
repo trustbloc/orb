@@ -196,9 +196,11 @@ func TestInspector_CheckPolicy(t *testing.T) {
 
 		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get additional witnesses: unable to select additional witnesses "+
-			"from newly selected witnesses[[http://domain.com/service]] "+
-			"and previously selected witnesses[[http://domain.com/service]]")
+		require.Contains(t, err.Error(),
+			fmt.Sprintf("failed to get additional witnesses: unable to select additional witnesses for anchorID[%s] "+
+				"from newly selected witnesses[[http://domain.com/service]] "+
+				"and previously selected witnesses[[http://domain.com/service]]", anchorLink.Anchor()),
+		)
 	})
 
 	t.Run("error - witness store error", func(t *testing.T) {
@@ -242,7 +244,10 @@ func TestInspector_CheckPolicy(t *testing.T) {
 
 		err = c.CheckPolicy(anchorLink.Anchor().String())
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get additional witnesses: select witnesses: witness selection error")
+		require.Contains(t, err.Error(),
+			fmt.Sprintf("failed to get additional witnesses: select witnesses for anchorID[%s]: witness selection error",
+				anchorLink.Anchor()),
+		)
 	})
 }
 

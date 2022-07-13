@@ -122,10 +122,10 @@ const (
 	mqDefaultOutboxPoolSize                 = 5
 	mqDefaultInboxPoolSize                  = 5
 	mqDefaultConnectMaxRetries              = 25
-	mqDefaultRedeliveryMaxAttempts          = 20
+	mqDefaultRedeliveryMaxAttempts          = 30
 	mqDefaultRedeliveryMultiplier           = 1.5
 	mqDefaultRedeliveryInitialInterval      = 2 * time.Second
-	mqDefaultRedeliveryMaxInterval          = 30 * time.Second
+	mqDefaultRedeliveryMaxInterval          = time.Minute
 	defaultActivityPubClientCacheSize       = 100
 	defaultActivityPubClientCacheExpiration = time.Hour
 	defaultActivityPubIRICacheSize          = 100
@@ -136,14 +136,12 @@ const (
 	defaultDataURIMediaType                 = datauri.MediaTypeDataURIGzipBase64
 	defaultAllowedOriginsCacheExpiration    = time.Minute
 
-	opQueueDefaultPoolSize                = 5
-	opQueueDefaultTaskMonitorInterval     = 10 * time.Second
-	opQueueDefaultTaskExpiration          = 30 * time.Second
-	opQueueDefaultMaxReposts              = 20
-	opQueueOperationExpirationGracePeriod = 10 * time.Minute
-	splitRequestTokenLength               = 2
-	vctReadTokenKey                       = "vct-read"
-	vctWriteTokenKey                      = "vct-write"
+	opQueueDefaultPoolSize            = 5
+	opQueueDefaultTaskMonitorInterval = 10 * time.Second
+	opQueueDefaultTaskExpiration      = 30 * time.Second
+	splitRequestTokenLength           = 2
+	vctReadTokenKey                   = "vct-read"
+	vctWriteTokenKey                  = "vct-write"
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -317,7 +315,7 @@ const (
 
 	mqRedeliveryMaxAttemptsFlagName  = "mq-redelivery-max-attempts"
 	mqRedeliveryMaxAttemptsEnvKey    = "MQ_REDELIVERY_MAX_ATTEMPTS"
-	mqRedeliveryMaxAttemptsFlagUsage = "The maximum number of redelivery attempts for a failed message (default is 20). " +
+	mqRedeliveryMaxAttemptsFlagUsage = "The maximum number of redelivery attempts for a failed message (default is 30). " +
 		commonEnvVarUsageText + mqRedeliveryMaxAttemptsEnvKey
 
 	mqRedeliveryInitialIntervalFlagName  = "mq-redelivery-initial-interval"
@@ -333,7 +331,7 @@ const (
 
 	mqRedeliveryMaxIntervalFlagName  = "mq-redelivery-max-interval"
 	mqRedeliveryMaxIntervalEnvKey    = "MQ_REDELIVERY_MAX_INTERVAL"
-	mqRedeliveryMaxIntervalFlagUsage = "The maximum delay for a redelivery (default is 30s). " +
+	mqRedeliveryMaxIntervalFlagUsage = "The maximum delay for a redelivery (default is 1m). " +
 		commonEnvVarUsageText + mqRedeliveryMaxIntervalEnvKey
 
 	opQueuePoolFlagName      = "op-queue-pool"
@@ -354,11 +352,6 @@ const (
 		"repost the operations associated with the task to the queue so that they are processed by another " +
 		"Orb instance (default is 30s). " +
 		commonEnvVarUsageText + opQueueTaskExpirationEnvKey
-
-	opQueueMaxRepostsFlagName  = "op-queue-max-reposts"
-	opQueueMaxRepostsEnvKey    = "OP_QUEUE_MAX_REPOSTS"
-	opQueueMaxRepostsFlagUsage = "The maximum number of times an operation may be reposted to the queue " +
-		"after having failed (default is 20). " + commonEnvVarUsageText + opQueueMaxRepostsEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -1867,22 +1860,11 @@ func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration, mqPara
 		return nil, fmt.Errorf("%s: %w", opQueueTaskExpirationFlagName, err)
 	}
 
-	maxRetries, err := getInt(cmd, opQueueMaxRepostsFlagName, opQueueMaxRepostsEnvKey, opQueueDefaultMaxReposts)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", opQueueMaxRepostsFlagName, err)
-	}
-
-	// The operation expiration is set to the batch timeout plus a grace period. The operation should
-	// exist in the database until a batch times out, after which it is assumed that those operations are no
-	// longer valid and may be deleted.
-	operationExpiration := batchTimeout + opQueueOperationExpirationGracePeriod
-
 	return &opqueue.Config{
 		PoolSize:            poolSize,
 		TaskMonitorInterval: taskMonitorInterval,
 		TaskExpiration:      taskExpiration,
-		OpExpiration:        operationExpiration,
-		MaxRetries:          maxRetries,
+		MaxRetries:          mqParams.maxRedeliveryAttempts,
 		RetriesInitialDelay: mqParams.redeliveryInitialInterval,
 		RetriesMaxDelay:     mqParams.maxRedeliveryInterval,
 		RetriesMultiplier:   mqParams.redeliveryMultiplier,
@@ -2077,7 +2059,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(opQueuePoolFlagName, opQueuePoolFlagShorthand, "", opQueuePoolFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskMonitorIntervalFlagName, "", "", opQueueTaskMonitorIntervalFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
-	startCmd.Flags().StringP(opQueueMaxRepostsFlagName, "", "", opQueueMaxRepostsFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

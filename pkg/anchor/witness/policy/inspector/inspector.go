@@ -142,8 +142,8 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 
 			if w.Proof == nil {
 				// something went wrong with this selected witness - no proof provided
-				logger.Debugf("witness[%s] did not return proof within 'in-process' grace period, "+
-					"this witness will be ignored during re-selecting witnesses.", w.URI.String())
+				logger.Infof("witness[%s] did not return proof for anchorID[%s] within 'in-process' grace period, "+
+					"this witness will be ignored during re-selecting witnesses.", w.URI, anchorID)
 
 				excludeWitness := &proof.Witness{
 					Type:     w.Type,
@@ -168,7 +168,7 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 
 	newlySelectedWitnesses, err := c.WitnessPolicy.Select(allWitnesses, excludeWitnesses...)
 	if err != nil {
-		return nil, fmt.Errorf("select witnesses: %w", err)
+		return nil, fmt.Errorf("select witnesses for anchorID[%s]: %w", anchorID, err)
 	}
 
 	newlySelectedWitnessesIRI, _ := getUniqueWitnesses(newlySelectedWitnesses)
@@ -176,18 +176,19 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 	additionalWitnessesIRI := difference(newlySelectedWitnessesIRI, selectedWitnessesIRI)
 
 	if len(additionalWitnessesIRI) == 0 {
-		return nil, fmt.Errorf("unable to select additional witnesses from newly selected witnesses[%s] "+
-			"and previously selected witnesses[%s] with exclude witnesses[%s]: %w",
-			newlySelectedWitnessesIRI, selectedWitnessesIRI, excludeWitnesses, orberrors.ErrWitnessesNotFound)
+		return nil, fmt.Errorf("unable to select additional witnesses for anchorID[%s] from newly selected "+
+			"witnesses[%s] and previously selected witnesses[%s] with exclude witnesses[%s]: %w",
+			anchorID, newlySelectedWitnessesIRI, selectedWitnessesIRI, excludeWitnesses, orberrors.ErrWitnessesNotFound)
 	}
 
 	// update selected flag for additional witnesses
 	err = c.WitnessStore.UpdateWitnessSelection(anchorID, additionalWitnessesIRI, true)
 	if err != nil {
-		return nil, fmt.Errorf("update witness selection flag: %w", err)
+		return nil, fmt.Errorf("update witness selection flag for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debugf("selected %d witnesses: %+v", len(newlySelectedWitnessesIRI), newlySelectedWitnessesIRI)
+	logger.Debugf("selected %d witnesses for anchorID[%s]: %+v",
+		len(newlySelectedWitnessesIRI), anchorID, newlySelectedWitnessesIRI)
 
 	return additionalWitnessesIRI, nil
 }

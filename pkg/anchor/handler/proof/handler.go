@@ -148,8 +148,8 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 	}
 
 	if status == proofapi.AnchorIndexStatusCompleted {
-		logger.Infof("Received proof from [%s] but witness policy has already been satisfied for anchor[%s]",
-			witness, anchor, string(proof))
+		logger.Infof("Received proof for anchor [%s] from witness [%s] but witness policy has already "+
+			"been satisfied so it will be ignored. Proof: %s", anchor, witness, proof)
 
 		// witness policy has been satisfied and witness proofs added to verifiable credential - nothing to do
 		return nil

@@ -24,7 +24,6 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store"
-	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 var logger = log.New("sidetree_context")
@@ -33,14 +32,12 @@ const (
 	topic            = "orb.operation"
 	taskID           = "op-queue-monitor"
 	storeName        = "operation-queue"
-	tagOpExpiry      = "expiryTime"
 	tagOpQueueTask   = "taskID"
 	tagServerID      = "serverID"
 	detachedServerID = "detached"
 
 	defaultInterval             = 10 * time.Second
 	defaultTaskExpirationFactor = 2
-	defaultOpCleanupFactor      = 5
 	defaultMaxRetries           = 10
 	defaultRetryInitialDelay    = 2 * time.Second
 	defaultMaxRetryDelay        = 30 * time.Second
@@ -70,8 +67,7 @@ type queuedOperation struct {
 type persistedOperation struct {
 	*OperationMessage
 
-	ServerID   string `json:"serverID"`
-	ExpiryTime int64  `json:"expiryTime"`
+	ServerID string `json:"serverID"`
 }
 
 type metricsProvider interface {
@@ -84,10 +80,6 @@ type metricsProvider interface {
 type taskManager interface {
 	InstanceID() string
 	RegisterTask(taskID string, interval time.Duration, task func())
-}
-
-type dataExpiryService interface {
-	Register(store storage.Store, expiryTagName, storeName string, opts ...expiry.Option)
 }
 
 type opQueueTask struct {
@@ -108,10 +100,6 @@ type Config struct {
 	// considered to have expired. At which point, any other server instance may delete the task and take over
 	// processing of all operations associated with the task.
 	TaskExpiration time.Duration
-	// OpExpiration is the age that a pending operation in the database is considered to have expired, after which the
-	// operation is deleted. Operations should be deleted during normal processing but, in case it isn't deleted,
-	// the data expiry service will delete the operations that are older than this value.
-	OpExpiration time.Duration
 	// MaxRetries is the maximum number of retries for a failed operation in a batch.
 	MaxRetries int
 	// RetriesInitialDelay is the delay for the initial retry attempt.
@@ -138,9 +126,7 @@ type Queue struct {
 	store                     storage.Store
 	taskMonitorInterval       time.Duration
 	taskExpiration            time.Duration
-	opExpiration              time.Duration
 	taskMgr                   taskManager
-	expiryService             dataExpiryService
 	maxRetries                int
 	redeliveryInitialInterval time.Duration
 	maxRedeliveryInterval     time.Duration
@@ -148,8 +134,7 @@ type Queue struct {
 }
 
 // New returns a new operation queue.
-func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
-	expiryService dataExpiryService, metrics metricsProvider) (*Queue, error) {
+func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, metrics metricsProvider) (*Queue, error) {
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", topic, err)
@@ -157,7 +142,6 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 
 	s, err := store.Open(p, storeName,
 		store.NewTagGroup(tagOpQueueTask),
-		store.NewTagGroup(tagOpExpiry),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -166,8 +150,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 	cfg = resolveConfig(cfg)
 
 	logger.Infof("Creating operation queue - PoolSize: %d, TaskMonitorInterval: %s, TaskExpiration: %s, "+
-		"OpExpiration: %s, MaxRetries: %d", cfg.PoolSize, cfg.TaskMonitorInterval, cfg.TaskExpiration,
-		cfg.OpExpiration, cfg.MaxRetries)
+		"MaxRetries: %d", cfg.PoolSize, cfg.TaskMonitorInterval, cfg.TaskExpiration, cfg.MaxRetries)
 
 	q := &Queue{
 		pubSub:                    pubSub,
@@ -178,10 +161,8 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		serverInstanceID:          taskMgr.InstanceID(),
 		store:                     s,
 		taskExpiration:            cfg.TaskExpiration,
-		opExpiration:              cfg.OpExpiration,
 		taskMonitorInterval:       cfg.TaskMonitorInterval,
 		taskMgr:                   taskMgr,
-		expiryService:             expiryService,
 		maxRetries:                cfg.MaxRetries,
 		redeliveryInitialInterval: cfg.RetriesInitialDelay,
 		redeliveryMultiplier:      cfg.RetriesMultiplier,
@@ -314,8 +295,6 @@ func (q *Queue) Len() uint {
 func (q *Queue) start() {
 	q.taskMgr.RegisterTask(taskID, q.taskMonitorInterval, q.monitorOtherServers)
 
-	q.expiryService.Register(q.store, tagOpExpiry, storeName)
-
 	go q.listen()
 
 	logger.Infof("Started operation queue")
@@ -366,7 +345,6 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	pop := persistedOperation{
 		OperationMessage: op,
 		ServerID:         q.serverInstanceID,
-		ExpiryTime:       time.Now().Add(q.opExpiration).Unix(),
 	}
 
 	opBytes, err := json.Marshal(pop)
@@ -381,7 +359,6 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	err = q.store.Put(key, opBytes,
 		storage.Tag{Name: tagServerID, Value: q.serverInstanceID},
-		storage.Tag{Name: tagOpExpiry, Value: fmt.Sprintf("%d", pop.ExpiryTime)},
 	)
 	if err != nil {
 		logger.Warnf("Error storing operation info for [%s]. Message [%s] will be nacked and retried: %w",
@@ -439,6 +416,8 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 			if op.Retries >= q.maxRetries {
 				logger.Warnf("... not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
 					op.ID, op.Operation.UniqueSuffix, op.Retries)
+
+				operationsToDelete = append(operationsToDelete, op)
 
 				continue
 			}
@@ -708,12 +687,9 @@ func (q *Queue) nextOperation(it storage.Iterator) (string, *OperationMessage, b
 }
 
 func (q *Queue) detachOperation(op *queuedOperation) error {
-	expiryTime := time.Now().Add(q.opExpiration).Unix()
-
 	pop := &persistedOperation{
 		OperationMessage: op.OperationMessage,
 		ServerID:         detachedServerID,
-		ExpiryTime:       expiryTime,
 	}
 
 	opBytes, err := q.marshal(pop)
@@ -725,10 +701,6 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 		storage.Tag{
 			Name:  tagServerID,
 			Value: detachedServerID,
-		},
-		storage.Tag{
-			Name:  tagOpExpiry,
-			Value: fmt.Sprintf("%d", expiryTime),
 		},
 	)
 }
@@ -760,12 +732,6 @@ func resolveConfig(cfg Config) Config {
 		// Set the task expiration to a factor of the monitoring interval. So, if the monitoring interval is 10s and
 		// the expiration factor is 2 then the task is considered to have expired after 20s.
 		cfg.TaskExpiration = cfg.TaskMonitorInterval * defaultTaskExpirationFactor
-	}
-
-	if cfg.OpExpiration == 0 {
-		// Set the cleanup interval to a factor of the task expiration interval. So, if the task expiration interval
-		// is 20s and the cleanup factor is 5 then the operation is considered to have expired after 100s.
-		cfg.OpExpiration = cfg.TaskExpiration * defaultOpCleanupFactor
 	}
 
 	if cfg.MaxRetries == 0 {

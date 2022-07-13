@@ -206,7 +206,7 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 func (h *PubSub) ackNackMessage(msg *message.Message, info fmt.Stringer, err error) {
 	switch {
 	case err == nil:
-		logger.Infof("Acking message [%s] for %s", msg.UUID, info)
+		logger.Debugf("Acking message [%s] for %s", msg.UUID, info)
 
 		msg.Ack()
 	case errors.IsTransient(err):
