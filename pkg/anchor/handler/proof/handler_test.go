@@ -32,7 +32,6 @@ import (
 	"github.com/trustbloc/orb/pkg/store/witness"
 )
 
-//go:generate counterfeiter -o ../mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
 //go:generate counterfeiter -o ../mocks/anchorindexstatus.gen.go --fake-name AnchorIndexStatusStore . statusStore
 //go:generate counterfeiter -o ../mocks/witnessstore.gen.go --fake-name WitnessStore . witnessStore
 
@@ -101,7 +100,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
 			WitnessStore:    witnessStore,
 			WitnessPolicy:   &mockWitnessPolicy{eval: false},
 			Metrics:         &orbmocks.MetricsProvider{},
@@ -150,7 +148,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
 			WitnessStore:    witnessStore,
 			WitnessPolicy:   witnessPolicy,
 			Metrics:         &orbmocks.MetricsProvider{},
@@ -202,7 +199,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
 			WitnessStore:    witnessStore,
 			WitnessPolicy:   witnessPolicy,
 			Metrics:         &orbmocks.MetricsProvider{},
@@ -238,7 +234,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
 			WitnessStore:    &mockWitnessStore{},
 			WitnessPolicy:   &mockWitnessPolicy{eval: true},
 			Metrics:         &orbmocks.MetricsProvider{},
@@ -274,7 +269,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
 			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{
 				{
 					Witness: &proofapi.Witness{
@@ -317,11 +311,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{eval: true},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{eval: true},
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -367,11 +361,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    witnessStore,
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -417,11 +411,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    witnessStore,
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -469,11 +463,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    witnessStore,
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, time.Second)
@@ -516,11 +510,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     mockStatusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    witnessStore,
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -555,11 +549,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     mockStatusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mocks.WitnessStore{},
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mocks.WitnessStore{},
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -593,11 +587,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     mockStatusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mocks.WitnessStore{},
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mocks.WitnessStore{},
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -643,11 +637,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     mockStatusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    witnessStore,
-			WitnessPolicy:   witnessPolicy,
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  witnessStore,
+			WitnessPolicy: witnessPolicy,
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -679,11 +673,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{Err: fmt.Errorf("witness policy error")},
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -714,11 +708,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore, // error will be returned b/c we didn't set "in-process" status for anchor
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -748,10 +742,10 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
+
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -783,11 +777,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mockWitnessStore{AddProofErr: fmt.Errorf("witness store error")},
+			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -819,11 +813,11 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
+
+			WitnessStore:  &mockWitnessStore{GetErr: fmt.Errorf("witness store error")},
+			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
+			DocLoader:     testutil.GetLoader(t),
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -846,10 +840,10 @@ func TestWitnessProofHandler(t *testing.T) {
 		providers := &Providers{
 			AnchorLinkStore: aeStore,
 			StatusStore:     statusStore,
-			MonitoringSvc:   &mocks.MonitoringService{},
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
+
+			WitnessStore:  &mockWitnessStore{},
+			WitnessPolicy: &mockWitnessPolicy{},
+			Metrics:       &orbmocks.MetricsProvider{},
 		}
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
@@ -857,45 +851,6 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor")
-	})
-
-	t.Run("error - monitoring error", func(t *testing.T) {
-		aeStore, err := anchorlinkstore.New(mem.NewProvider())
-		require.NoError(t, err)
-
-		als := &linkset.Linkset{}
-		require.NoError(t, json.Unmarshal([]byte(anchorLinksetTwoProofs), als))
-
-		al := als.Link()
-		require.NotNil(t, al)
-
-		err = aeStore.Put(al)
-		require.NoError(t, err)
-
-		monitoringSvc := &mocks.MonitoringService{}
-		monitoringSvc.WatchReturns(fmt.Errorf("monitoring error"))
-
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
-		require.NoError(t, err)
-
-		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
-		require.NoError(t, err)
-
-		providers := &Providers{
-			AnchorLinkStore: aeStore,
-			StatusStore:     statusStore,
-			MonitoringSvc:   monitoringSvc,
-			WitnessStore:    &mockWitnessStore{},
-			WitnessPolicy:   &mockWitnessPolicy{},
-			Metrics:         &orbmocks.MetricsProvider{},
-			DocLoader:       testutil.GetLoader(t),
-		}
-
-		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
-
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "monitoring error")
 	})
 }
 

@@ -97,7 +97,7 @@ type witnessPolicy interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error { //nolint:lll,funlen,gocyclo,cyclop
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error { //nolint:lll,funlen
 	logger.Debugf("received proof for anchor [%s] from witness[%s], proof: %s",
 		anchor, witness.String(), string(proof))
 
@@ -161,26 +161,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 			witness.String(), anchor, err)
 	}
 
-	err = h.setupMonitoring(witnessProof, vc, endTime)
-	if err != nil {
-		return fmt.Errorf("failed to setup monitoring for anchor [%s]: %w", anchor, err)
-	}
-
 	return h.handleWitnessPolicy(anchorLink, vc)
-}
-
-func (h *WitnessProofHandler) setupMonitoring(wp vct.Proof, vc *verifiable.Credential, endTime time.Time) error {
-	createdTime, err := getCreatedTime(wp)
-	if err != nil {
-		return err
-	}
-
-	var domain string
-	if domainVal, ok := wp.Proof["domain"].(string); ok {
-		domain = domainVal
-	}
-
-	return h.MonitoringSvc.Watch(vc, endTime, domain, createdTime)
 }
 
 func getCreatedTime(wp vct.Proof) (time.Time, error) {

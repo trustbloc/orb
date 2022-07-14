@@ -943,6 +943,7 @@ func startOrbServices(parameters *orbParameters) error {
 		DocLoader:              orbDocumentLoader,
 		Pkf:                    publicKeyFetcher,
 		AnchorLinkStore:        anchorLinkStore,
+		MonitoringSvc:          proofMonitoringSvc,
 	}
 
 	observer, err := observer.New(apConfig.ServiceIRI, providers,
@@ -977,7 +978,7 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithUndoFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			observer.Publisher(), casResolver, orbDocumentLoader, proofMonitoringSvc, parameters.maxWitnessDelay, anchorLinkStore,
+			observer.Publisher(), casResolver, orbDocumentLoader, parameters.maxWitnessDelay, anchorLinkStore,
 		)),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),

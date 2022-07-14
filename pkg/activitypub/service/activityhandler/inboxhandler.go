@@ -585,7 +585,7 @@ func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) err
 		return fmt.Errorf("marshal error of attachment in 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
 
-	err = h.ProofHandler.HandleProof(accept.Actor(), anchorLink.Anchor().String(), *result.EndTime(), attachmentBytes)
+	err = h.ProofHandler.HandleProof(accept.Actor(), anchorLink.Anchor().String(), *offer.EndTime(), attachmentBytes)
 	if err != nil {
 		return fmt.Errorf("proof handler returned error for 'Accept' offer activity [%s]: %w", accept.ID(), err)
 	}
