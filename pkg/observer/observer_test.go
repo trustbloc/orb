@@ -37,6 +37,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/linkset"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
+	obsmocks "github.com/trustbloc/orb/pkg/observer/mocks"
 	protomocks "github.com/trustbloc/orb/pkg/protocolversion/mocks"
 	"github.com/trustbloc/orb/pkg/pubsub/mempubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -46,6 +47,7 @@ import (
 
 //go:generate counterfeiter -o ../mocks/anchorgraph.gen.go --fake-name AnchorGraph . AnchorGraph
 //go:generate counterfeiter -o ../mocks/anchorlinkstore.gen.go --fake-name AnchorLinkStore . linkStore
+//go:generate counterfeiter -o ./mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
 
 type linkStore interface { //nolint:deadcode,unused
 	PutLinks(links []*url.URL) error
@@ -188,9 +190,13 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			MonitoringSvc:          &obsmocks.MonitoringService{},
 		}
 
-		o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
+		o, err := New(serviceIRI, providers,
+			WithDiscoveryDomain("webcas:shared.domain.com"),
+			WithMonitoringServiceExpiry(20*time.Second),
+			WithSubscriberPoolSize(3))
 		require.NotNil(t, o)
 		require.NoError(t, err)
 
@@ -910,6 +916,79 @@ func TestResolveActorFromHashlink(t *testing.T) {
 	})
 }
 
+func TestSetupProofMonitoring(t *testing.T) {
+	vc, err := verifiable.ParseCredential([]byte(testVC),
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+	require.NoError(t, err)
+
+	t.Run("success", func(t *testing.T) {
+		providers := &Providers{
+			PubSub:        mempubsub.New(mempubsub.DefaultConfig()),
+			MonitoringSvc: &obsmocks.MonitoringService{},
+		}
+
+		o, e := New(serviceIRI, providers)
+		require.NotNil(t, o)
+		require.NoError(t, e)
+
+		o.setupProofMonitoring(vc)
+	})
+
+	t.Run("success - duplicate same proof(ignored)", func(t *testing.T) {
+		providers := &Providers{
+			PubSub:        mempubsub.New(mempubsub.DefaultConfig()),
+			MonitoringSvc: &obsmocks.MonitoringService{},
+		}
+
+		o, err := New(serviceIRI, providers)
+		require.NotNil(t, o)
+		require.NoError(t, err)
+
+		vc, err = verifiable.ParseCredential([]byte(testVCDuplicateProof),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		require.NoError(t, err)
+
+		o.setupProofMonitoring(vc)
+	})
+
+	t.Run("success - monitoring service error (ignored)", func(t *testing.T) {
+		svc := &obsmocks.MonitoringService{}
+
+		svc.WatchReturns(fmt.Errorf("monitoring service error"))
+
+		providers := &Providers{
+			PubSub:        mempubsub.New(mempubsub.DefaultConfig()),
+			MonitoringSvc: svc,
+		}
+
+		o, e := New(serviceIRI, providers)
+		require.NotNil(t, o)
+		require.NoError(t, e)
+
+		o.setupProofMonitoring(vc)
+	})
+
+	t.Run("success - parse proof created error (ignored)", func(t *testing.T) {
+		providers := &Providers{
+			PubSub:        mempubsub.New(mempubsub.DefaultConfig()),
+			MonitoringSvc: &obsmocks.MonitoringService{},
+		}
+
+		o, err := New(serviceIRI, providers)
+		require.NotNil(t, o)
+		require.NoError(t, err)
+
+		vc, err = verifiable.ParseCredential([]byte(testVCInvalidCreated),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		require.NoError(t, err)
+
+		o.setupProofMonitoring(vc)
+	})
+}
+
 func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Linkset {
 	t.Helper()
 
@@ -985,3 +1064,104 @@ const anchorEvent = `{
 const anchorEventInvalid = `{
   "@context": [
 `
+
+const testVC = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": "hl:uEiCU5ft0nJgRWoPH3ZrlRfgeah6svknFAMFozhJxFhKvMw",
+  "id": "https://orb.domain4.com/vc/61f38a18-e2dd-4f91-b376-9586ca189b25",
+  "issuanceDate": "2022-07-15T19:17:55.2446168Z",
+  "issuer": "https://orb.domain4.com",
+  "proof": [
+    {
+      "created": "2022-07-15T19:17:55.246854Z",
+      "domain": "https://orb.domain4.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "MEYCIQDwuBrM_lgb6mVyXu6DzD2wa25WJA9AD9GsqWk1eeblSQIhANKgynJs6bP-W7mnryJ7TJryLdz9CHnMKtWqJ2XMmMBt",
+      "type": "JsonWebSignature2020",
+      "verificationMethod": "did:web:orb.domain4.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+    },
+    {
+      "created": "2022-07-15T19:17:55.529Z",
+      "domain": "http://orb.vct:8077/maple2020",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "z5UAYnpRW8QQq9uSUcNfoDeBxnTkC8XSYeLhRHdV18dUTewsBcwprWgKuWoDUBQ2rYV9y664opekQ8x6M62cqdH3J",
+      "type": "Ed25519Signature2020",
+      "verificationMethod": "did:web:orb.domain1.com#wE0TM-aQ4sEmtxFcFAzdpYTRysoRu1XDoWJKp-j3yA4"
+    },
+    {
+      "created": "2022-07-15T19:17:59.5484674Z",
+      "domain": "https://orb.domain2.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "z3jbefjmhKeoirfakRAtD8UPySJjsY4Hb4t6fG5myAwMr1mV4ygGKXKuhkJZ4MHDLkL4AQwPnbpMt4desfW8Wd6FT",
+      "type": "Ed25519Signature2020",
+      "verificationMethod": "did:web:orb.domain2.com#umaoTg511ZzOEm23TzMFwbDv3d_gLvRr1zfZVyxXZxM"
+    }
+  ],
+  "type": "VerifiableCredential"
+}`
+
+const testVCDuplicateProof = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": "hl:uEiCU5ft0nJgRWoPH3ZrlRfgeah6svknFAMFozhJxFhKvMw",
+  "id": "https://orb.domain4.com/vc/61f38a18-e2dd-4f91-b376-9586ca189b25",
+  "issuanceDate": "2022-07-15T19:17:55.2446168Z",
+  "issuer": "https://orb.domain4.com",
+  "proof": [
+    {
+      "created": "2022-07-15T19:17:55.246854Z",
+      "domain": "https://orb.domain4.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "MEYCIQDwuBrM_lgb6mVyXu6DzD2wa25WJA9AD9GsqWk1eeblSQIhANKgynJs6bP-W7mnryJ7TJryLdz9CHnMKtWqJ2XMmMBt",
+      "type": "JsonWebSignature2020",
+      "verificationMethod": "did:web:orb.domain4.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+    },
+    {
+      "created": "2022-07-15T19:17:55.246854Z",
+      "domain": "https://orb.domain4.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "MEYCIQDwuBrM_lgb6mVyXu6DzD2wa25WJA9AD9GsqWk1eeblSQIhANKgynJs6bP-W7mnryJ7TJryLdz9CHnMKtWqJ2XMmMBt",
+      "type": "JsonWebSignature2020",
+      "verificationMethod": "did:web:orb.domain4.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+    },
+    {
+      "created": "2022-07-15T19:17:59.5484674Z",
+      "domain": "https://orb.domain2.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "z3jbefjmhKeoirfakRAtD8UPySJjsY4Hb4t6fG5myAwMr1mV4ygGKXKuhkJZ4MHDLkL4AQwPnbpMt4desfW8Wd6FT",
+      "type": "Ed25519Signature2020",
+      "verificationMethod": "did:web:orb.domain2.com#umaoTg511ZzOEm23TzMFwbDv3d_gLvRr1zfZVyxXZxM"
+    }
+  ],
+  "type": "VerifiableCredential"
+}`
+
+const testVCInvalidCreated = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": "hl:uEiCU5ft0nJgRWoPH3ZrlRfgeah6svknFAMFozhJxFhKvMw",
+  "id": "https://orb.domain4.com/vc/61f38a18-e2dd-4f91-b376-9586ca189b25",
+  "issuanceDate": "2022-07-15T19:17:55.2446168Z",
+  "issuer": "https://orb.domain4.com",
+  "proof": [
+    {
+      "created": "hello",
+      "domain": "https://orb.domain2.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "z3jbefjmhKeoirfakRAtD8UPySJjsY4Hb4t6fG5myAwMr1mV4ygGKXKuhkJZ4MHDLkL4AQwPnbpMt4desfW8Wd6FT",
+      "type": "Ed25519Signature2020",
+      "verificationMethod": "did:web:orb.domain2.com#umaoTg511ZzOEm23TzMFwbDv3d_gLvRr1zfZVyxXZxM"
+    }
+  ],
+  "type": "VerifiableCredential"
+}`

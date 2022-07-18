@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -28,7 +27,6 @@ import (
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -71,26 +69,6 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
 		require.NoError(t, err)
-	})
-
-	t.Run("Parse created time (error)", func(t *testing.T) {
-		anchorLinksetBytes := strings.Replace(sampleGrandparentAnchorLinkset, "35.629Z", "35X629Z", 1)
-
-		anchorLinkset := &linkset.Linkset{}
-		require.NoError(t, json.Unmarshal([]byte(anchorLinksetBytes), anchorLinkset))
-
-		hl, err := hashlink.New().CreateHashLink(testutil.MarshalCanonical(t, anchorLinkset), nil)
-		require.NoError(t, err)
-
-		anchorEvent := vocab.NewAnchorEvent(
-			vocab.NewObjectProperty(vocab.WithDocument(vocab.MustMarshalToDoc(anchorLinkset))),
-			vocab.WithURL(testutil.MustParseURL(hl)),
-		)
-
-		err = newAnchorEventHandler(t, createInMemoryCAS(t)).
-			HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, anchorEvent)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "parse created: parsing time")
 	})
 
 	t.Run("Ignore time and domain", func(t *testing.T) {
@@ -146,7 +124,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		anchorEvent := &vocab.AnchorEventType{}
@@ -179,7 +157,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 			grandparentHL, nil)
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		anchorEvent := &vocab.AnchorEventType{}
@@ -205,7 +183,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		anchorLinkStore.GetLinksReturns(nil, nil)
@@ -225,7 +203,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		errExpected := errors.New("injected unmarshal error")
@@ -259,7 +237,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -277,7 +255,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		errExpected := errors.New("injected GetLinks error")
@@ -297,7 +275,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-			&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+			time.Second, anchorLinkStore)
 		require.NotNil(t, handler)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -327,7 +305,7 @@ func newAnchorEventHandler(t *testing.T,
 	anchorLinkStore := &orbmocks.AnchorLinkStore{}
 
 	anchorEventHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-		&mocks.MonitoringService{}, time.Second, anchorLinkStore)
+		time.Second, anchorLinkStore)
 	require.NotNil(t, anchorEventHandler)
 
 	return anchorEventHandler

@@ -37,7 +37,11 @@ import (
 
 var logger = log.New("orb-observer")
 
-const defaultSubscriberPoolSize = 5
+const (
+	defaultSubscriberPoolSize = 5
+
+	defaultMonitoringSvcExpiry = 30 * time.Minute
+)
 
 // AnchorGraph interface to access anchors.
 type AnchorGraph interface {
@@ -100,11 +104,16 @@ type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)
 }
 
+type monitoringSvc interface {
+	Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error
+}
+
 type outboxProvider func() Outbox
 
 type options struct {
-	discoveryDomain    string
-	subscriberPoolSize int
+	discoveryDomain     string
+	subscriberPoolSize  int
+	monitoringSvcExpiry time.Duration
 }
 
 // Option is an option for observer.
@@ -124,7 +133,14 @@ func WithSubscriberPoolSize(value int) Option {
 	}
 }
 
-// Providers contains all of the providers required by the TxnProcessor.
+// WithMonitoringServiceExpiry sets expiry period for proof monitoring service.
+func WithMonitoringServiceExpiry(value time.Duration) Option {
+	return func(opts *options) {
+		opts.monitoringSvcExpiry = value
+	}
+}
+
+// Providers contains all of the providers required by the observer.
 type Providers struct {
 	ProtocolClientProvider protocol.ClientProvider
 	AnchorGraph
@@ -137,29 +153,34 @@ type Providers struct {
 	DocLoader         documentLoader
 	Pkf               verifiable.PublicKeyFetcher
 	AnchorLinkStore   anchorLinkStore
+	MonitoringSvc     monitoringSvc
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
 type Observer struct {
 	*Providers
 
-	serviceIRI      *url.URL
-	pubSub          *PubSub
-	discoveryDomain string
+	serviceIRI          *url.URL
+	pubSub              *PubSub
+	discoveryDomain     string
+	monitoringSvcExpiry time.Duration
 }
 
 // New returns a new observer.
 func New(serviceIRI *url.URL, providers *Providers, opts ...Option) (*Observer, error) {
-	optns := &options{}
+	optns := &options{
+		monitoringSvcExpiry: defaultMonitoringSvcExpiry,
+	}
 
 	for _, opt := range opts {
 		opt(optns)
 	}
 
 	o := &Observer{
-		serviceIRI:      serviceIRI,
-		Providers:       providers,
-		discoveryDomain: optns.discoveryDomain,
+		serviceIRI:          serviceIRI,
+		Providers:           providers,
+		discoveryDomain:     optns.discoveryDomain,
+		monitoringSvcExpiry: optns.monitoringSvcExpiry,
 	}
 
 	subscriberPoolSize := optns.subscriberPoolSize
@@ -320,6 +341,8 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		return fmt.Errorf("get verifiable credential from anchor link: %w", err)
 	}
 
+	o.setupProofMonitoring(vc)
+
 	sidetreeTxn := txnapi.SidetreeTxn{
 		TransactionTime:      uint64(vc.Issued.Unix()),
 		AnchorString:         ad.GetAnchorString(),
@@ -379,6 +402,37 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	}
 
 	return nil
+}
+
+func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
+	expiryTime := time.Now().Add(o.monitoringSvcExpiry)
+
+	// This code was moved from proof/credential handler to observer to make sure that monitoring is checked at all times
+	// not just during anchor creation/publishing
+	for _, proof := range getUniqueDomainCreated(vc.Proofs) {
+		// getUniqueDomainCreated already checked that data is a string
+		domain := proof["domain"].(string)   // nolint: errcheck, forcetypeassert
+		created := proof["created"].(string) // nolint: errcheck, forcetypeassert
+
+		createdTime, err := time.Parse(time.RFC3339, created)
+		if err != nil {
+			logger.Errorf("failed to setup monitoring for anchor credential[%s] proof domain[%s]: "+
+				"parse created error: %s", vc.ID, domain, err.Error())
+
+			continue
+		}
+
+		err = o.MonitoringSvc.Watch(vc, expiryTime, domain, createdTime)
+		if err != nil {
+			// This shouldn't be a fatal error since the anchor being processed may have multiple
+			// witness proofs and, if one of the witness domains is down, it should not prevent the
+			// anchor from being processed.
+			logger.Errorf("failed to setup monitoring for anchor credential[%s] proof domain[%s]: %s",
+				vc.ID, domain, err.Error())
+		} else {
+			logger.Debugf("successfully setup monitoring for anchor credential[%s] proof domain[%s]", vc.ID, domain)
+		}
+	}
 }
 
 func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
@@ -557,4 +611,33 @@ func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {
 	return vocab.NewObjectProperty(vocab.WithAnchorEvent(
 		vocab.NewAnchorEvent(nil, vocab.WithURL(u))),
 	), nil
+}
+
+func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
+	var (
+		set    = make(map[string]struct{})
+		result []verifiable.Proof
+	)
+
+	for i := range proofs {
+		domain, ok := proofs[i]["domain"].(string)
+		if !ok {
+			continue
+		}
+
+		created, ok := proofs[i]["created"].(string)
+		if !ok {
+			continue
+		}
+
+		if _, ok := set[domain+created]; ok {
+			continue
+		}
+
+		set[domain+created] = struct{}{}
+
+		result = append(result, proofs[i])
+	}
+
+	return result
 }

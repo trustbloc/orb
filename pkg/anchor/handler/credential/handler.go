@@ -12,23 +12,17 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
-	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("anchor-credential-handler")
-
-type monitoringSvc interface {
-	Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error
-}
 
 type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)
@@ -40,7 +34,6 @@ type AnchorEventHandler struct {
 	casResolver     casResolver
 	maxDelay        time.Duration
 	documentLoader  ld.DocumentLoader
-	monitoringSvc   monitoringSvc
 	anchorLinkStore anchorLinkStore
 	unmarshal       func(data []byte, v interface{}) error
 }
@@ -55,47 +48,16 @@ type anchorPublisher interface {
 
 // New creates new credential handler.
 func New(anchorPublisher anchorPublisher, casResolver casResolver,
-	documentLoader ld.DocumentLoader, monitoringSvc monitoringSvc,
-	maxDelay time.Duration, anchorLinkStore anchorLinkStore) *AnchorEventHandler {
+	documentLoader ld.DocumentLoader, maxDelay time.Duration,
+	anchorLinkStore anchorLinkStore) *AnchorEventHandler {
 	return &AnchorEventHandler{
 		anchorPublisher: anchorPublisher,
 		maxDelay:        maxDelay,
 		casResolver:     casResolver,
 		documentLoader:  documentLoader,
-		monitoringSvc:   monitoringSvc,
 		anchorLinkStore: anchorLinkStore,
 		unmarshal:       json.Unmarshal,
 	}
-}
-
-func getUniqueDomainCreated(proofs []verifiable.Proof) []verifiable.Proof {
-	var (
-		set    = make(map[string]struct{})
-		result []verifiable.Proof
-	)
-
-	for i := range proofs {
-		domain, ok := proofs[i]["domain"].(string)
-		if !ok {
-			continue
-		}
-
-		created, ok := proofs[i]["created"].(string)
-		if !ok {
-			continue
-		}
-
-		if _, ok := set[domain+created]; ok {
-			continue
-		}
-
-		set[domain+created] = struct{}{}
-		set[domain+created] = struct{}{}
-
-		result = append(result, proofs[i])
-	}
-
-	return result
 }
 
 // HandleAnchorEvent handles an anchor event.
@@ -177,33 +139,6 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 }
 
 func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
-	vc, err := util.VerifiableCredentialFromAnchorLink(anchorInfo.anchorLink,
-		verifiable.WithDisabledProofCheck(),
-		verifiable.WithJSONLDDocumentLoader(h.documentLoader),
-	)
-	if err != nil {
-		return fmt.Errorf("failed get verifiable credential from anchor link: %w", err)
-	}
-
-	for _, proof := range getUniqueDomainCreated(vc.Proofs) {
-		// getUniqueDomainCreated already checked that data is a string
-		domain := proof["domain"].(string)   // nolint: errcheck, forcetypeassert
-		created := proof["created"].(string) // nolint: errcheck, forcetypeassert
-
-		createdTime, err := time.Parse(time.RFC3339, created)
-		if err != nil {
-			return fmt.Errorf("parse created: %w", err)
-		}
-
-		err = h.monitoringSvc.Watch(vc, time.Now().Add(h.maxDelay), domain, createdTime)
-		if err != nil {
-			// This shouldn't be a fatal error since the anchor being processed may have multiple
-			// witness proofs and, if one of the witness domains is down, it should not prevent the
-			// anchor from being processed.
-			logger.Errorf("Failed to setup monitoring for anchor credential[%s]: %w", vc.ID, err)
-		}
-	}
-
 	return h.anchorPublisher.PublishAnchor(anchorInfo.AnchorInfo)
 }
 
