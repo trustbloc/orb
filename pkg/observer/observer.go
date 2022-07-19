@@ -111,9 +111,9 @@ type monitoringSvc interface {
 type outboxProvider func() Outbox
 
 type options struct {
-	discoveryDomain     string
-	subscriberPoolSize  int
-	monitoringSvcExpiry time.Duration
+	discoveryDomain          string
+	subscriberPoolSize       int
+	proofMonitoringSvcExpiry time.Duration
 }
 
 // Option is an option for observer.
@@ -133,10 +133,10 @@ func WithSubscriberPoolSize(value int) Option {
 	}
 }
 
-// WithMonitoringServiceExpiry sets expiry period for proof monitoring service.
-func WithMonitoringServiceExpiry(value time.Duration) Option {
+// WithProofMonitoringExpiryPeriod sets expiry period for proof monitoring service.
+func WithProofMonitoringExpiryPeriod(value time.Duration) Option {
 	return func(opts *options) {
-		opts.monitoringSvcExpiry = value
+		opts.proofMonitoringSvcExpiry = value
 	}
 }
 
@@ -169,7 +169,7 @@ type Observer struct {
 // New returns a new observer.
 func New(serviceIRI *url.URL, providers *Providers, opts ...Option) (*Observer, error) {
 	optns := &options{
-		monitoringSvcExpiry: defaultMonitoringSvcExpiry,
+		proofMonitoringSvcExpiry: defaultMonitoringSvcExpiry,
 	}
 
 	for _, opt := range opts {
@@ -180,7 +180,7 @@ func New(serviceIRI *url.URL, providers *Providers, opts ...Option) (*Observer, 
 		serviceIRI:          serviceIRI,
 		Providers:           providers,
 		discoveryDomain:     optns.discoveryDomain,
-		monitoringSvcExpiry: optns.monitoringSvcExpiry,
+		monitoringSvcExpiry: optns.proofMonitoringSvcExpiry,
 	}
 
 	subscriberPoolSize := optns.subscriberPoolSize

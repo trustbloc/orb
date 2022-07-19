@@ -195,7 +195,7 @@ func TestStartObserver(t *testing.T) {
 
 		o, err := New(serviceIRI, providers,
 			WithDiscoveryDomain("webcas:shared.domain.com"),
-			WithMonitoringServiceExpiry(20*time.Second),
+			WithProofMonitoringExpiryPeriod(20*time.Second),
 			WithSubscriberPoolSize(3))
 		require.NotNil(t, o)
 		require.NoError(t, err)

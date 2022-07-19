@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	backoff "github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
@@ -731,6 +731,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "vct-proof-monitoring-interval: invalid value [xxx]")
+	})
+
+	t.Run("VCT proof monitoring expiry period", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctProofMonitoringExpiryPeriodEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vct-proof-monitoring-expiry-period: invalid value [xxx]")
 	})
 
 	t.Run("VCT log monitoring interval", func(t *testing.T) {
