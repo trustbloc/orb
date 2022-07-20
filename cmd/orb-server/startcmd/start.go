@@ -89,6 +89,8 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/allowedorigins/allowedoriginsmgr"
 	"github.com/trustbloc/orb/pkg/anchor/allowedorigins/allowedoriginsrest"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/vcresthandler"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
@@ -634,10 +636,15 @@ func startOrbServices(parameters *orbParameters) error {
 		casResolver = resolver.New(coreCASClient, nil, webCASResolver, metrics.Get())
 	}
 
+	generatorRegistry := generator.NewRegistry()
+
+	anchorLinksetBuilder := anchorlinkset.NewBuilder(generatorRegistry)
+
 	graphProviders := &graph.Providers{
-		CasResolver: casResolver,
-		CasWriter:   coreCASClient,
-		DocLoader:   orbDocumentLoader,
+		CasResolver:          casResolver,
+		CasWriter:            coreCASClient,
+		DocLoader:            orbDocumentLoader,
+		AnchorLinksetBuilder: anchorLinksetBuilder,
 	}
 
 	anchorGraph := graph.New(graphProviders)
@@ -944,6 +951,7 @@ func startOrbServices(parameters *orbParameters) error {
 		DocLoader:              orbDocumentLoader,
 		Pkf:                    publicKeyFetcher,
 		AnchorLinkStore:        anchorLinkStore,
+		AnchorLinksetBuilder:   anchorLinksetBuilder,
 		MonitoringSvc:          proofMonitoringSvc,
 	}
 
@@ -980,7 +988,8 @@ func startOrbServices(parameters *orbParameters) error {
 		apspi.WithUndoFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			observer.Publisher(), casResolver, orbDocumentLoader, parameters.maxWitnessDelay, anchorLinkStore,
+			observer.Publisher(), casResolver, orbDocumentLoader, parameters.maxWitnessDelay,
+			anchorLinkStore, generatorRegistry,
 		)),
 		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
 		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
@@ -1015,6 +1024,8 @@ func startOrbServices(parameters *orbParameters) error {
 		WFClient:               wfClient,
 		DocumentLoader:         orbDocumentLoader,
 		VCStore:                vcStore,
+		GeneratorRegistry:      generatorRegistry,
+		AnchorLinkBuilder:      anchorLinksetBuilder,
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,

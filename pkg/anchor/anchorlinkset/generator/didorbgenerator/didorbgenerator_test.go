@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
@@ -168,6 +169,89 @@ func TestGenerator_CreatePayload(t *testing.T) {
 	})
 }
 
+func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
+	vc, err := verifiable.ParseCredential([]byte(vcJSON),
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+	)
+	require.NoError(t, err)
+
+	t.Run("Success", func(t *testing.T) {
+		require.NoError(t, New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3)))
+	})
+
+	t.Run("subject is ID -> success", func(t *testing.T) {
+		vc2, e := verifiable.ParseCredential([]byte(vcSubjectIsIDJSON),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, e)
+		require.NoError(t, New().ValidateAnchorCredential(vc2, testutil.GetCanonicalBytes(t, linksetJSON3)))
+	})
+
+	t.Run("Unmarshal anchor linkset error", func(t *testing.T) {
+		err = New().ValidateAnchorCredential(vc, []byte("}"))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unmarshal anchor linkset: invalid character")
+	})
+
+	t.Run("Empty anchor linkset -> success", func(t *testing.T) {
+		err = New().ValidateAnchorCredential(vc, []byte("{}"))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "empty anchor linkset")
+	})
+
+	t.Run("Unsupported profile -> success", func(t *testing.T) {
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetUnsupportedProfileJSON))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported profile")
+	})
+
+	t.Run("Nil anchor in anchor linkset -> success", func(t *testing.T) {
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetNilAnchorJSON))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "anchor in anchor linkset is nil")
+	})
+
+	t.Run("Invalid subject ID -> error", func(t *testing.T) {
+		vc, err := verifiable.ParseCredential([]byte(vcInvalidIDJSON),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "subject ID [invalid] does not match the hashlink of the content")
+	})
+
+	t.Run("Invalid profile -> error", func(t *testing.T) {
+		vc, err := verifiable.ParseCredential([]byte(vcInvalidProfileJSON),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3))
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"profile in the credential subject [https://invalid] does not match profile [https://w3id.org/orb#v0]")
+	})
+
+	t.Run("Invalid profile -> error", func(t *testing.T) {
+		vc, err := verifiable.ParseCredential([]byte(vcInvalidAnchorJSON),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3))
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"anchor in the credential subject [invalid] does not match the anchor in the anchor linkset")
+	})
+}
+
 const (
 	//nolint:lll
 	linksetJSON1 = `{
@@ -216,4 +300,189 @@ const (
 }`
 
 	linksetJSONEmpty = `{"linkset": []}`
+
+	linksetJSON3 = `{
+  "linkset": [
+    {
+      "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
+      "author": "https://orb.domain1.com/services/orb",
+      "item": [
+        {
+          "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
+        }
+      ],
+      "profile": "https://w3id.org/orb#v0"
+    }
+  ]
+}`
+
+	linksetUnsupportedProfileJSON = `{
+  "linkset": [
+    {
+      "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
+      "author": "https://orb.domain1.com/services/orb",
+      "item": [
+        {
+          "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
+        }
+      ],
+      "profile": "https://unsupported"
+    }
+  ]
+}`
+
+	linksetNilAnchorJSON = `{
+  "linkset": [
+    {
+      "author": "https://orb.domain1.com/services/orb",
+      "item": [
+        {
+          "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
+        }
+      ],
+      "profile": "https://w3id.org/orb#v0"
+    }
+  ]
+}`
+
+	vcJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": {
+    "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
+    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "profile": "https://w3id.org/orb#v0"
+  },
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+	vcSubjectIsIDJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+	vcInvalidIDJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": {
+    "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
+    "id": "invalid",
+    "profile": "https://w3id.org/orb#v0"
+  },
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+	vcInvalidProfileJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": {
+    "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
+    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "profile": "https://invalid"
+  },
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+	vcInvalidAnchorJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": {
+    "anchor": "invalid",
+    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "profile": "https://w3id.org/orb#v0"
+  },
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
 )

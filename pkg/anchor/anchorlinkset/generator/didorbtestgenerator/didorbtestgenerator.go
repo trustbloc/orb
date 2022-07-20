@@ -9,6 +9,8 @@ package didorbtestgenerator
 import (
 	"net/url"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator/didorbgenerator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -64,4 +66,9 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
 	anchors []*url.URL) (*subject.Payload, error) {
 	return g.orbGenerator.CreatePayload(doc, coreIndexURI, anchors)
+}
+
+// ValidateAnchorCredential validates the anchor credential against the given content.
+func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, originalContentBytes []byte) error {
+	return g.orbGenerator.ValidateAnchorCredential(vc, originalContentBytes)
 }

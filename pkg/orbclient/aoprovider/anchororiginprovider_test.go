@@ -19,6 +19,7 @@ import (
 	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/datauri"
@@ -297,8 +298,9 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 		Issued:  &util.TimeWrapper{Time: time.Now()},
 	}
 
-	link, _, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
-		func(anchorHashlink string) (*verifiable.Credential, error) {
+	link, _, err := anchorlinkset.NewBuilder(
+		generator.NewRegistry()).BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+		func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 			return vc, nil
 		},
 	)

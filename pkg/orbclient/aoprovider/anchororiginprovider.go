@@ -18,7 +18,9 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
@@ -38,14 +40,19 @@ type OrbClient struct {
 	versions       []string
 	currentVersion string
 
-	publicKeyFetcher  verifiable.PublicKeyFetcher
-	docLoader         ld.DocumentLoader
-	casReader         common.CASReader
-	disableProofCheck bool
+	publicKeyFetcher     verifiable.PublicKeyFetcher
+	docLoader            ld.DocumentLoader
+	casReader            common.CASReader
+	anchorLinksetBuilder anchorLinksetBuilder
+	disableProofCheck    bool
 }
 
 type namespaceProvider interface {
 	ForNamespace(namespace string) (nsprovider.ClientVersionProvider, error)
+}
+
+type anchorLinksetBuilder interface {
+	GetPayloadFromAnchorLink(anchorLink *linkset.Link) (*subject.Payload, error)
 }
 
 // Option is an option for document handler.
@@ -90,8 +97,9 @@ func WithCurrentProtocolVersion(version string) Option {
 // New creates new Orb client.
 func New(namespace string, cas common.CASReader, opts ...Option) (*OrbClient, error) {
 	orbClient := &OrbClient{
-		casReader: cas,
-		versions:  []string{v1},
+		casReader:            cas,
+		versions:             []string{v1},
+		anchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 	}
 
 	// apply options
@@ -182,7 +190,7 @@ func (c *OrbClient) getParseCredentialOpts() []verifiable.CredentialOpt {
 }
 
 func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorLink *linkset.Link, vc *verifiable.Credential, suffix string) (*operation.AnchoredOperation, error) { //nolint:lll
-	anchorPayload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
+	anchorPayload, err := c.anchorLinksetBuilder.GetPayloadFromAnchorLink(anchorLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}

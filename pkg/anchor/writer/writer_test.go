@@ -33,6 +33,8 @@ import (
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/store/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
@@ -169,6 +171,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -221,6 +225,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		var testServerURL string
@@ -275,6 +281,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -329,6 +337,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -380,6 +390,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: &mockstatusStore{Err: fmt.Errorf("status error")},
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -418,18 +430,20 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"created": "021-02-23T:07Z"}}`)}
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			OpProcessor:     &mockOpProcessor{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         wit,
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			AnchorLinkStore: anchorEventStore,
-			WFClient:        wfClient,
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			OpProcessor:       &mockOpProcessor{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			Witness:           wit,
+			MonitoringSvc:     &mockMonitoring{},
+			WitnessStore:      &mockWitnessStore{},
+			ActivityStore:     &mockActivityStore{},
+			AnchorLinkStore:   anchorEventStore,
+			WFClient:          wfClient,
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -466,17 +480,19 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      &mockDidAnchor{},
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			MonitoringSvc:   &mockMonitoring{},
-			WitnessStore:    &mockWitnessStore{},
-			ActivityStore:   &mockActivityStore{},
-			AnchorLinkStore: anchorEventStore,
-			OpProcessor:     &mockOpProcessor{Err: errors.New("operation processor error")},
-			WFClient:        wfClient,
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        &mockDidAnchor{},
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			MonitoringSvc:     &mockMonitoring{},
+			WitnessStore:      &mockWitnessStore{},
+			ActivityStore:     &mockActivityStore{},
+			AnchorLinkStore:   anchorEventStore,
+			OpProcessor:       &mockOpProcessor{Err: errors.New("operation processor error")},
+			WFClient:          wfClient,
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -517,6 +533,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -550,11 +568,13 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	t.Run("error - anchor credential signing error", func(t *testing.T) {
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{Err: fmt.Errorf("signer error")},
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{Err: fmt.Errorf("signer error")},
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -598,6 +618,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore:          &mockActivityStore{},
 			MonitoringSvc:          &mockMonitoring{Err: fmt.Errorf("monitoring error")},
 			AnchorLinkStore:        anchorEventStore,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -625,12 +647,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	t.Run("error - local witness log error", func(t *testing.T) {
 		providersWithErr := &Providers{
-			AnchorGraph:   anchorGraph,
-			DidAnchors:    memdidanchor.New(),
-			AnchorBuilder: &mockTxnBuilder{},
-			Outbox:        &mockOutbox{},
-			Signer:        &mockSigner{},
-			Witness:       &mockWitness{Err: fmt.Errorf("witness error")},
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			Witness:           &mockWitness{Err: fmt.Errorf("witness error")},
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -664,12 +688,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStoreWithErr,
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStoreWithErr,
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -703,14 +729,16 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			Witness:         &mockWitness{},
-			MonitoringSvc:   &mockMonitoring{},
-			AnchorLinkStore: anchorEventStoreWithErr,
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			Witness:           &mockWitness{},
+			MonitoringSvc:     &mockMonitoring{},
+			AnchorLinkStore:   anchorEventStoreWithErr,
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -740,12 +768,14 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -779,6 +809,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		publisher := &anchormocks.AnchorPublisher{}
@@ -831,6 +863,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			ActivityStore:          &mockActivityStore{},
 			AnchorLinkStore:        anchorEventStore,
 			AnchorEventStatusStore: statusStore,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -882,6 +916,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 			WitnessPolicy:          witnessPolicy,
 			ProofHandler:           servicemocks.NewProofHandler(),
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
@@ -949,6 +985,8 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			WFClient:               wfClient,
 			WitnessPolicy:          &mockWitnessPolicy{},
 			ProofHandler:           servicemocks.NewProofHandler(),
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1023,15 +1061,17 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			WitnessStore:    &mockWitnessStore{},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			WitnessStore:      &mockWitnessStore{},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1052,14 +1092,16 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     &mockAnchorGraph{Err: errors.New("txn graph error")},
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       &mockAnchorGraph{Err: errors.New("txn graph error")},
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -1083,15 +1125,17 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      &mockDidAnchor{Err: errors.New("did references error")},
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			WitnessStore:    &mockWitnessStore{},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        &mockDidAnchor{Err: errors.New("did references error")},
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			WitnessStore:      &mockWitnessStore{},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		errExpected := errors.New("anchor publisher error")
@@ -1119,14 +1163,16 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{Err: errors.New("outbox error")},
-			AnchorLinkStore: anchorEventStore,
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
-			WitnessStore:    &mockWitnessStore{},
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{Err: errors.New("outbox error")},
+			AnchorLinkStore:   anchorEventStore,
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			WitnessStore:      &mockWitnessStore{},
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1150,15 +1196,17 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			WitnessStore:    &mockWitnessStore{DeleteErr: fmt.Errorf("delete error")},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			WitnessStore:      &mockWitnessStore{DeleteErr: fmt.Errorf("delete error")},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1183,15 +1231,17 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providersWithErr := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStoreWithErr,
-			WitnessStore:    &mockWitnessStore{},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStoreWithErr,
+			WitnessStore:      &mockWitnessStore{},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
@@ -1213,15 +1263,17 @@ func TestWriter_handle(t *testing.T) {
 		require.NoError(t, err)
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			WitnessStore:    &mockWitnessStore{},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			WitnessStore:      &mockWitnessStore{},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1245,15 +1297,17 @@ func TestWriter_handle(t *testing.T) {
 		vcStore.PutReturns(fmt.Errorf("anchor event store error"))
 
 		providers := &Providers{
-			AnchorGraph:     anchorGraph,
-			DidAnchors:      memdidanchor.New(),
-			AnchorBuilder:   &mockTxnBuilder{},
-			Outbox:          &mockOutbox{},
-			Signer:          &mockSigner{},
-			AnchorLinkStore: anchorEventStore,
-			WitnessStore:    &mockWitnessStore{},
-			VCStore:         vcStore,
-			DocumentLoader:  testutil.GetLoader(t),
+			AnchorGraph:       anchorGraph,
+			DidAnchors:        memdidanchor.New(),
+			AnchorBuilder:     &mockTxnBuilder{},
+			Outbox:            &mockOutbox{},
+			Signer:            &mockSigner{},
+			AnchorLinkStore:   anchorEventStore,
+			WitnessStore:      &mockWitnessStore{},
+			VCStore:           vcStore,
+			DocumentLoader:    testutil.GetLoader(t),
+			GeneratorRegistry: generator.NewRegistry(),
+			AnchorLinkBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1306,6 +1360,8 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			ActivityStore:          &mockActivityStore{},
 			AnchorEventStatusStore: statusStore,
 			WFClient:               wfClient,
+			GeneratorRegistry:      generator.NewRegistry(),
+			AnchorLinkBuilder:      anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		c, err := New(namespace, apServiceIRI, casIRI, vocab.JSONMediaType, providers, &anchormocks.AnchorPublisher{}, ps,
@@ -1688,12 +1744,17 @@ type mockTxnBuilder struct {
 	Err error
 }
 
-func (m *mockTxnBuilder) Build(anchorHashlink string, context []string) (*verifiable.Credential, error) {
+func (m *mockTxnBuilder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string,
+	context []string) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
 
-	return &verifiable.Credential{Subject: &builder.CredentialSubject{ID: anchorHashlink}}, nil
+	return &verifiable.Credential{Subject: &builder.CredentialSubject{
+		ID:      anchorHashlink,
+		Anchor:  coreIndexHashlink,
+		Profile: profile.String(),
+	}}, nil
 }
 
 type mockAnchorGraph struct {

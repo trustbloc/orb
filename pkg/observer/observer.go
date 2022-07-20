@@ -23,7 +23,6 @@ import (
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
-	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -104,6 +103,10 @@ type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)
 }
 
+type anchorLinksetBuilder interface {
+	GetPayloadFromAnchorLink(anchorLink *linkset.Link) (*subject.Payload, error)
+}
+
 type monitoringSvc interface {
 	Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error
 }
@@ -144,16 +147,17 @@ func WithProofMonitoringExpiryPeriod(value time.Duration) Option {
 type Providers struct {
 	ProtocolClientProvider protocol.ClientProvider
 	AnchorGraph
-	DidAnchors        didAnchors
-	PubSub            pubSub
-	Metrics           metricsProvider
-	Outbox            outboxProvider
-	WebFingerResolver resourceResolver
-	CASResolver       casResolver
-	DocLoader         documentLoader
-	Pkf               verifiable.PublicKeyFetcher
-	AnchorLinkStore   anchorLinkStore
-	MonitoringSvc     monitoringSvc
+	DidAnchors           didAnchors
+	PubSub               pubSub
+	Metrics              metricsProvider
+	Outbox               outboxProvider
+	WebFingerResolver    resourceResolver
+	CASResolver          casResolver
+	DocLoader            documentLoader
+	Pkf                  verifiable.PublicKeyFetcher
+	AnchorLinkStore      anchorLinkStore
+	MonitoringSvc        monitoringSvc
+	AnchorLinksetBuilder anchorLinksetBuilder
 }
 
 // Observer receives transactions over a channel and processes them by storing them to an operation store.
@@ -304,7 +308,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	anchorLink *linkset.Link, suffixes ...string) error {
 	logger.Debugf("processing anchor[%s] from [%s], suffixes: %s", anchor.Hashlink, anchor.AttributedTo, suffixes)
 
-	anchorPayload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
+	anchorPayload, err := o.AnchorLinksetBuilder.GetPayloadFromAnchorLink(anchorLink)
 	if err != nil {
 		return fmt.Errorf("failed to extract anchor payload from anchor[%s]: %w", anchor.Hashlink, err)
 	}

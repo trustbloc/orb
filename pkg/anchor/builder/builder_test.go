@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
 func TestSigner_New(t *testing.T) {
@@ -52,7 +54,10 @@ func TestBuilder_Build(t *testing.T) {
 		b, err := New(builderParams)
 		require.NoError(t, err)
 
-		vc, err := b.Build("hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg", []string{})
+		vc, err := b.Build(testutil.MustParseURL("https://profile1"),
+			"hl:uEiBy8pPgN9eS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotehg",
+			"hl:uEiBy9pSgN9fS3hpQAwpSwJJvm6Awpsnc8kR_fkbUPotfog",
+			[]string{})
 		require.NoError(t, err)
 		require.NotEmpty(t, vc)
 	})

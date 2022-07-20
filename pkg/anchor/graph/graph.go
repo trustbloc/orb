@@ -15,7 +15,6 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
@@ -28,11 +27,16 @@ type Graph struct {
 	*Providers
 }
 
+type anchorLinksetBuilder interface {
+	GetPayloadFromAnchorLink(anchorLink *linkset.Link) (*subject.Payload, error)
+}
+
 // Providers for anchor graph.
 type Providers struct {
-	CasWriter   casWriter
-	CasResolver casResolver
-	DocLoader   ld.DocumentLoader
+	CasWriter            casWriter
+	CasResolver          casResolver
+	DocLoader            ld.DocumentLoader
+	AnchorLinksetBuilder anchorLinksetBuilder
 }
 
 // New creates new graph manager.
@@ -118,7 +122,7 @@ func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 			Info: anchorLink,
 		})
 
-		payload, err := anchorlinkset.GetPayloadFromAnchorLink(anchorLink)
+		payload, err := g.AnchorLinksetBuilder.GetPayloadFromAnchorLink(anchorLink)
 		if err != nil {
 			return nil, fmt.Errorf("get payload from anchor link: %w", err)
 		}

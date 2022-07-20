@@ -18,13 +18,21 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/datauri"
+	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
 var logger = log.New("anchorevent")
 
-// TODO: Remove this global and move the global functions below to an "anchor event builder".
-var registry = generator.NewRegistry() //nolint:gochecknoglobals
+// Builder constructs an anchor linkset.
+type Builder struct {
+	registry generatorRegistry
+}
+
+// NewBuilder returns a new anchor linkset builder.
+func NewBuilder(registry generatorRegistry) *Builder {
+	return &Builder{registry: registry}
+}
 
 // ContentObject wraps a content object payload and includes the ID of the generator used to generate the payload.
 type ContentObject struct {
@@ -32,12 +40,19 @@ type ContentObject struct {
 	Payload vocab.Document
 }
 
-type vcBuilder func(anchorHashlink string) (*verifiable.Credential, error)
+// VCBuilder constructs a verifiable credential.
+type VCBuilder func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error)
+
+type generatorRegistry interface {
+	Get(id *url.URL) (generator.Generator, error)
+	GetByNamespaceAndVersion(ns string, ver uint64) (generator.Generator, error)
+}
 
 // BuildAnchorLink builds an anchor Link from the given payload.
-func BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaType,
-	buildVC vcBuilder) (anchorLink *linkset.Link, vcBytes []byte, err error) {
-	contentObj, err := BuildContentObject(payload)
+//nolint:funlen,gocyclo,cyclop
+func (b *Builder) BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaType,
+	buildVC VCBuilder) (anchorLink *linkset.Link, vcBytes []byte, err error) {
+	contentObj, err := b.buildContentObject(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build content object: %w", err)
 	}
@@ -52,7 +67,12 @@ func BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaTyp
 		return nil, nil, fmt.Errorf("build 'original' reference: %w", err)
 	}
 
-	vc, err := buildVC(anchorURI.String())
+	coreIndexInfo, err := hashlink.New().ParseHashLink(payload.CoreIndex)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse core index hashlink [%s]: %w", payload.CoreIndex, err)
+	}
+
+	vc, err := buildVC(anchorURI.String(), hashlink.HLPrefix+coreIndexInfo.ResourceHash)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build anchor credential: %w", err)
 	}
@@ -97,9 +117,8 @@ func BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaTyp
 	return anchorLink, vcBytes, nil
 }
 
-// BuildContentObject builds a contentObject from the given payload.
-func BuildContentObject(payload *subject.Payload) (*ContentObject, error) {
-	gen, err := registry.GetByNamespaceAndVersion(payload.Namespace, payload.Version)
+func (b *Builder) buildContentObject(payload *subject.Payload) (*ContentObject, error) {
+	gen, err := b.registry.GetByNamespaceAndVersion(payload.Namespace, payload.Version)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +135,8 @@ func BuildContentObject(payload *subject.Payload) (*ContentObject, error) {
 }
 
 // GetPayloadFromAnchorLink populates a Payload from the given anchor event.
-func GetPayloadFromAnchorLink(anchorLink *linkset.Link) (*subject.Payload, error) {
-	gen, err := registry.Get(anchorLink.Profile())
+func (b *Builder) GetPayloadFromAnchorLink(anchorLink *linkset.Link) (*subject.Payload, error) {
+	gen, err := b.registry.Get(anchorLink.Profile())
 	if err != nil {
 		return nil, fmt.Errorf("get generator: %w", err)
 	}

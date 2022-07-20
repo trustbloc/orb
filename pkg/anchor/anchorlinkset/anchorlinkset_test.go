@@ -13,6 +13,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
@@ -37,6 +38,8 @@ func TestBuildAnchorLink(t *testing.T) {
 		{Suffix: updateSuffix, Anchor: updatePrevAnchor},
 	}
 
+	builder := NewBuilder(generator.NewRegistry())
+
 	t.Run("success - mixed model (create + update)", func(t *testing.T) {
 		payload := &subject.Payload{
 			CoreIndex:       coreIndex,
@@ -46,8 +49,8 @@ func TestBuildAnchorLink(t *testing.T) {
 			PreviousAnchors: previousAnchors,
 		}
 
-		anchorLink, vcBytes, err := BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
-			func(anchorHashlink string) (*verifiable.Credential, error) {
+		anchorLink, vcBytes, err := builder.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+			func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 				return &verifiable.Credential{}, nil
 			},
 		)
@@ -82,7 +85,7 @@ func TestBuildAnchorLink(t *testing.T) {
 			AnchorOrigin: anchorOrigin,
 		}
 
-		_, err := BuildContentObject(payload)
+		_, err := builder.buildContentObject(payload)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "payload is missing previous anchors")
 	})
@@ -97,7 +100,7 @@ func TestBuildAnchorLink(t *testing.T) {
 			OperationCount:  uint64(len(previousAnchors)),
 		}
 
-		contentObj, err := BuildContentObject(invalidPayload)
+		contentObj, err := builder.buildContentObject(invalidPayload)
 		require.Error(t, err)
 		require.Nil(t, contentObj)
 		require.Contains(t, err.Error(), "generator not found for namespace [did:other] and version [0]")
@@ -119,15 +122,17 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		OperationCount:  uint64(len(previousAnchors)),
 	}
 
+	builder := NewBuilder(generator.NewRegistry())
+
 	t.Run("success - from payload", func(t *testing.T) {
-		anchorLink, _, err := BuildAnchorLink(inPayload, datauri.MediaTypeDataURIGzipBase64,
-			func(anchorHashlink string) (*verifiable.Credential, error) {
+		anchorLink, _, err := builder.BuildAnchorLink(inPayload, datauri.MediaTypeDataURIGzipBase64,
+			func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 				return &verifiable.Credential{}, nil
 			},
 		)
 		require.NoError(t, err)
 
-		outPayload, err := GetPayloadFromAnchorLink(anchorLink)
+		outPayload, err := builder.GetPayloadFromAnchorLink(anchorLink)
 		require.NoError(t, err)
 
 		require.Equal(t, inPayload.Namespace, outPayload.Namespace)
@@ -139,7 +144,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 	})
 
 	t.Run("error - missing anchor object", func(t *testing.T) {
-		payload, err := GetPayloadFromAnchorLink(&linkset.Link{})
+		payload, err := builder.GetPayloadFromAnchorLink(&linkset.Link{})
 		require.EqualError(t, err, "get generator: nil generator URI")
 		require.Nil(t, payload)
 	})
@@ -150,7 +155,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, anchorLinkset.Link())
 
-		payload, err := GetPayloadFromAnchorLink(anchorLinkset.Link())
+		payload, err := builder.GetPayloadFromAnchorLink(anchorLinkset.Link())
 		require.Error(t, err)
 		require.Nil(t, payload)
 		require.Contains(t, err.Error(), "generator not found")
@@ -162,7 +167,7 @@ func TestGetPayloadFromActivity(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, anchorLinkset.Link())
 
-		payload, err := GetPayloadFromAnchorLink(anchorLinkset.Link())
+		payload, err := builder.GetPayloadFromAnchorLink(anchorLinkset.Link())
 		require.Error(t, err)
 		require.Nil(t, payload)
 		require.Contains(t, err.Error(), "failed to parse previous anchors")
