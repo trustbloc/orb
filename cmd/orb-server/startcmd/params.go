@@ -167,6 +167,10 @@ const (
 		"Defaults to 10s if not set. " +
 		commonEnvVarUsageText + vctProofMonitoringIntervalEnvKey
 
+	vctProofMonitoringExpiryPeriodFlagName  = "vct-proof-monitoring-expiry-period"
+	vctProofMonitoringExpiryPeriodEnvKey    = "VCT_PROOF_MONITORING_EXPIRY_PERIOD"
+	vctProofMonitoringExpiryPeriodFlagUsage = "Monitoring service will keep checking for this period of time for proof to be included(default 1h). " + commonEnvVarUsageText + vctProofMonitoringExpiryPeriodEnvKey
+
 	vctLogMonitoringIntervalFlagName  = "vct-log-monitoring-interval"
 	vctLogMonitoringIntervalEnvKey    = "VCT_LOG_MONITORING_INTERVAL"
 	vctLogMonitoringIntervalFlagUsage = "The interval in which VCT logs are monitored to ensure that they are consistent. " +
@@ -697,6 +701,7 @@ type orbParameters struct {
 	maxWitnessDelay                         time.Duration
 	maxClockSkew                            time.Duration
 	witnessStoreExpiryPeriod                time.Duration
+	proofMonitoringExpiryPeriod             time.Duration
 	syncTimeout                             uint64
 	signWithLocalWitness                    bool
 	httpSignaturesEnabled                   bool
@@ -1309,6 +1314,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", vctProofMonitoringIntervalFlagName, err)
 	}
 
+	proofMonitoringExpiryPeriod, err := getDuration(cmd, vctProofMonitoringExpiryPeriodFlagName, vctProofMonitoringExpiryPeriodEnvKey, defaultProofMonitoringExpiryPeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", vctProofMonitoringExpiryPeriodFlagName, err)
+	}
+
 	vctLogMonitoringInterval, err := getDuration(cmd, vctLogMonitoringIntervalFlagName, vctLogMonitoringIntervalEnvKey,
 		defaultVCTLogMonitoringInterval)
 	if err != nil {
@@ -1421,6 +1431,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		maxWitnessDelay:                         maxWitnessDelay,
 		maxClockSkew:                            maxClockSkew,
 		witnessStoreExpiryPeriod:                witnessStoreExpiryPeriod,
+		proofMonitoringExpiryPeriod:             proofMonitoringExpiryPeriod,
 		syncTimeout:                             syncTimeout,
 		signWithLocalWitness:                    signWithLocalWitness,
 		httpSignaturesEnabled:                   httpSignaturesEnabled,
@@ -2098,6 +2109,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(anchorSyncIntervalFlagName, anchorSyncIntervalFlagShorthand, "", anchorSyncIntervalFlagUsage)
 	startCmd.Flags().StringP(anchorSyncMinActivityAgeFlagName, "", "", anchorSyncMinActivityAgeFlagUsage)
 	startCmd.Flags().StringP(vctProofMonitoringIntervalFlagName, "", "", vctProofMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(vctProofMonitoringExpiryPeriodFlagName, "", "", vctProofMonitoringExpiryPeriodFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringIntervalFlagName, "", "", vctLogMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringMaxTreeSizeFlagName, "", "", vctLogMonitoringMaxTreeSizeFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringGetEntriesRangeFlagName, "", "", vctLogMonitoringGetEntriesRangeFlagUsage)

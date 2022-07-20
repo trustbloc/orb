@@ -163,6 +163,7 @@ const (
 	defaultMaxWitnessDelay                  = 10 * time.Minute
 	defaultMaxClockSkew                     = 1 * time.Minute
 	defaultWitnessStoreExpiryDelta          = 12 * time.Minute
+	defaultProofMonitoringExpiryPeriod      = 1 * time.Hour
 	defaultSyncTimeout                      = 1
 	defaulthttpSignaturesEnabled            = true
 	defaultDidDiscoveryEnabled              = false
@@ -949,6 +950,7 @@ func startOrbServices(parameters *orbParameters) error {
 	observer, err := observer.New(apConfig.ServiceIRI, providers,
 		observer.WithDiscoveryDomain(parameters.discoveryDomain),
 		observer.WithSubscriberPoolSize(parameters.mqParams.observerPoolSize),
+		observer.WithProofMonitoringExpiryPeriod(parameters.proofMonitoringExpiryPeriod),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %w", err)

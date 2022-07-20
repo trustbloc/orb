@@ -692,6 +692,7 @@ services:
       - MAX_WITNESS_DELAY=25s
       - MAX_CLOCK_SKEW=5s
       - WITNESS_STORE_EXPIRY_PERIOD=32s
+      - VCT_PROOF_MONITORING_EXPIRY_PERIOD=5s
 
       # ORB_AUTH_TOKENS_DEF contains the authorization definition for each of the REST endpoints. Format:
       #
