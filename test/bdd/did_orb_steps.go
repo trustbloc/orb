@@ -113,6 +113,7 @@ const addServicesTemplate = `[
 const removeServicesTemplate = `["%s"]`
 
 const docTemplate = `{
+  "alsoKnownAs": ["https://myblog.example/"],
   "publicKey": [
    {
      "id": "%s",
