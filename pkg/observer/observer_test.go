@@ -26,6 +26,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
@@ -191,6 +192,7 @@ func TestStartObserver(t *testing.T) {
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
 			MonitoringSvc:          &obsmocks.MonitoringService{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers,
@@ -230,7 +232,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -262,6 +265,7 @@ func TestStartObserver(t *testing.T) {
 			Pkf:                    pubKeyFetcherFnc,
 			DocLoader:              testutil.GetLoader(t),
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -297,7 +301,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -339,6 +344,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -372,7 +378,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 		anchorGraph := graph.New(graphProviders)
 
@@ -402,6 +409,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -436,7 +444,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -467,6 +476,7 @@ func TestStartObserver(t *testing.T) {
 			Metrics:                &orbmocks.MetricsProvider{},
 			DocLoader:              testutil.GetLoader(t),
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -502,7 +512,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -542,6 +553,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -576,7 +588,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -590,6 +603,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -620,6 +634,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -656,6 +671,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -689,7 +705,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -725,6 +742,7 @@ func TestStartObserver(t *testing.T) {
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
 			AnchorLinkStore:        &orbmocks.AnchorLinkStore{},
+			AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		o, err := New(serviceIRI, providers)
@@ -763,7 +781,8 @@ func TestStartObserver(t *testing.T) {
 					transport.New(&http.Client{}, testutil.MustParseURL("https://example.com/keys/public-key"),
 						transport.DefaultSigner(), transport.DefaultSigner(), &apclientmocks.AuthTokenMgr{}),
 					webfingerclient.New(), "https"), &orbmocks.MetricsProvider{}),
-			DocLoader: testutil.GetLoader(t),
+			DocLoader:            testutil.GetLoader(t),
+			AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 		}
 
 		anchorGraph := graph.New(graphProviders)
@@ -806,6 +825,7 @@ func TestStartObserver(t *testing.T) {
 				DocLoader:              testutil.GetLoader(t),
 				Pkf:                    pubKeyFetcherFnc,
 				AnchorLinkStore:        anchorLinkStore,
+				AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 			}
 
 			o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
@@ -838,6 +858,7 @@ func TestStartObserver(t *testing.T) {
 				DocLoader:              testutil.GetLoader(t),
 				Pkf:                    pubKeyFetcherFnc,
 				AnchorLinkStore:        anchorLinkStore,
+				AnchorLinksetBuilder:   anchorlinkset.NewBuilder(generator.NewRegistry()),
 			}
 
 			o, err := New(serviceIRI, providers, WithDiscoveryDomain("webcas:shared.domain.com"))
@@ -1006,8 +1027,9 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	al, _, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
-		func(anchorHashlink string) (*verifiable.Credential, error) {
+	al, _, err := anchorlinkset.NewBuilder(
+		generator.NewRegistry()).BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+		func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 			return vc, nil
 		},
 	)

@@ -7,13 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package didorbgenerator
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
@@ -229,6 +232,65 @@ func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
 		PreviousAnchors: prevAnchors,
 		AnchorOrigin:    anchorLink.Author().String(),
 	}, nil
+}
+
+// ValidateAnchorCredential validates the anchor credential against the given content.
+// - The ID of the credential subject is a hashlink of the content.
+// - The content must be a valid anchor linkset.
+// - If profile is provided then it must be set to https://w3id.org/orb#v0.
+// - If anchor is provided then it is set to the same value as 'anchor' in the anchor linkset.
+//nolint:gocyclo,cyclop
+func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentBytes []byte) error {
+	anchorLinkset := &linkset.Linkset{}
+
+	if err := json.Unmarshal(contentBytes, anchorLinkset); err != nil {
+		return fmt.Errorf("unmarshal anchor linkset: %w", err)
+	}
+
+	anchorLink := anchorLinkset.Link()
+	if anchorLink == nil {
+		return fmt.Errorf("empty anchor linkset")
+	}
+
+	if anchorLink.Profile() == nil || anchorLink.Profile().String() != g.ID().String() {
+		return fmt.Errorf("unsupported profile [%s]", anchorLink.Profile())
+	}
+
+	if anchorLink.Anchor() == nil {
+		return fmt.Errorf("anchor in anchor linkset is nil")
+	}
+
+	vSubject := vc.Subject.([]verifiable.Subject)[0]
+
+	s := &builder.CredentialSubject{ID: vSubject.ID}
+
+	if err := vocab.UnmarshalFromDoc(vocab.Document(vSubject.CustomFields), s); err != nil {
+		return fmt.Errorf("unmarshal credential subject: %w", err)
+	}
+
+	anchorHL, err := hashlink.New().CreateHashLink(contentBytes, nil)
+	if err != nil {
+		return fmt.Errorf("create hashlink of data: %w", err)
+	}
+
+	if s.ID != anchorHL {
+		return fmt.Errorf("subject ID [%s] does not match the hashlink of the content [%s]", s.ID, anchorHL)
+	}
+
+	// Validate the profile if present in the subject.
+	if s.Profile != "" && s.Profile != g.ID().String() {
+		return fmt.Errorf("profile in the credential subject [%s] does not match profile [%s]", s.Profile, g.ID().String())
+	}
+
+	// Validate the anchor if present in the subject.
+	if s.Anchor != "" && s.Anchor != anchorLink.Anchor().String() {
+		return fmt.Errorf("anchor in the credential subject [%s] does not match the anchor in the anchor linkset [%s]",
+			s.Anchor, anchorLink.Anchor())
+	}
+
+	logger.Debugf("Anchor credential subject is valid for [%s]", vc.ID)
+
+	return nil
 }
 
 func getPreviousAnchors(resources []*linkset.Item, previous []*url.URL) ([]*subject.SuffixAnchor, error) {

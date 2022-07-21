@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator/didorbgenerator"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator/didorbtestgenerator"
@@ -26,6 +28,7 @@ type Generator interface {
 	Version() uint64
 	CreateContentObject(payload *subject.Payload) (vocab.Document, error)
 	CreatePayload(doc vocab.Document, coreIndexURI *url.URL, anchors []*url.URL) (*subject.Payload, error)
+	ValidateAnchorCredential(vc *verifiable.Credential, originalContentBytes []byte) error
 }
 
 // Registry maintains a registry of content object generators.

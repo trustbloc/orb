@@ -12,12 +12,15 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
 )
@@ -28,14 +31,19 @@ type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)
 }
 
+type generatorRegistry interface {
+	Get(id *url.URL) (generator.Generator, error)
+}
+
 // AnchorEventHandler handles a new, published anchor credential.
 type AnchorEventHandler struct {
-	anchorPublisher anchorPublisher
-	casResolver     casResolver
-	maxDelay        time.Duration
-	documentLoader  ld.DocumentLoader
-	anchorLinkStore anchorLinkStore
-	unmarshal       func(data []byte, v interface{}) error
+	anchorPublisher   anchorPublisher
+	casResolver       casResolver
+	maxDelay          time.Duration
+	documentLoader    ld.DocumentLoader
+	anchorLinkStore   anchorLinkStore
+	unmarshal         func(data []byte, v interface{}) error
+	generatorRegistry generatorRegistry
 }
 
 type casResolver interface {
@@ -48,15 +56,17 @@ type anchorPublisher interface {
 
 // New creates new credential handler.
 func New(anchorPublisher anchorPublisher, casResolver casResolver,
-	documentLoader ld.DocumentLoader, maxDelay time.Duration,
-	anchorLinkStore anchorLinkStore) *AnchorEventHandler {
+	documentLoader ld.DocumentLoader,
+	maxDelay time.Duration, anchorLinkStore anchorLinkStore,
+	registry generatorRegistry) *AnchorEventHandler {
 	return &AnchorEventHandler{
-		anchorPublisher: anchorPublisher,
-		maxDelay:        maxDelay,
-		casResolver:     casResolver,
-		documentLoader:  documentLoader,
-		anchorLinkStore: anchorLinkStore,
-		unmarshal:       json.Unmarshal,
+		anchorPublisher:   anchorPublisher,
+		maxDelay:          maxDelay,
+		casResolver:       casResolver,
+		documentLoader:    documentLoader,
+		anchorLinkStore:   anchorLinkStore,
+		generatorRegistry: registry,
+		unmarshal:         json.Unmarshal,
 	}
 }
 
@@ -139,6 +149,31 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 }
 
 func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
+	anchorLink := anchorInfo.anchorLink
+
+	contentBytes, err := anchorLink.Original().Content()
+	if err != nil {
+		return fmt.Errorf("get content from original: %w", err)
+	}
+
+	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
+		verifiable.WithDisabledProofCheck(),
+		verifiable.WithJSONLDDocumentLoader(h.documentLoader),
+	)
+	if err != nil {
+		return fmt.Errorf("failed get verifiable credential from anchor link: %w", err)
+	}
+
+	gen, err := h.generatorRegistry.Get(anchorLink.Profile())
+	if err != nil {
+		return fmt.Errorf("resolve generator for profile [%s]: %w", anchorLink.Profile(), err)
+	}
+
+	err = gen.ValidateAnchorCredential(vc, contentBytes)
+	if err != nil {
+		return fmt.Errorf("validate credential subject for anchor [%s]: %w", anchorLink.Anchor(), err)
+	}
+
 	return h.anchorPublisher.PublishAnchor(anchorInfo.AnchorInfo)
 }
 

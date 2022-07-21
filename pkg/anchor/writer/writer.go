@@ -29,11 +29,13 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
+	"github.com/trustbloc/orb/pkg/datauri"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/linkset"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
@@ -62,6 +64,15 @@ type metricsProvider interface {
 
 type proofHandler interface {
 	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
+}
+
+type generatorRegistry interface {
+	GetByNamespaceAndVersion(ns string, ver uint64) (generator.Generator, error)
+}
+
+type anchorLinkBuilder interface {
+	BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaType,
+		buildVC anchorlinkset.VCBuilder) (anchorLink *linkset.Link, vcBytes []byte, err error)
 }
 
 // Writer implements writing anchors.
@@ -97,6 +108,8 @@ type Providers struct {
 	WFClient               webfingerClient
 	DocumentLoader         ld.DocumentLoader
 	VCStore                storage.Store
+	GeneratorRegistry      generatorRegistry
+	AnchorLinkBuilder      anchorLinkBuilder
 }
 
 type webfingerClient interface {
@@ -142,7 +155,7 @@ type anchorGraph interface {
 }
 
 type anchorBuilder interface {
-	Build(anchorHashlink string, context []string) (*verifiable.Credential, error)
+	Build(profile *url.URL, anchorHashlink, coreIndexHashlink string, context []string) (*verifiable.Credential, error)
 }
 
 type didAnchors interface {
@@ -258,13 +271,18 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 
 func (c *Writer) buildAnchorLink(payload *subject.Payload,
 	witnesses []string) (anchorLink *linkset.Link, vcBytes []byte, err error) {
-	return anchorlinkset.BuildAnchorLink(payload, c.dataURIMediaType,
-		func(anchorHashlink string) (*verifiable.Credential, error) {
+	return c.AnchorLinkBuilder.BuildAnchorLink(payload, c.dataURIMediaType,
+		func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 			buildCredStartTime := time.Now()
 
 			defer c.metrics.WriteAnchorBuildCredentialTime(time.Since(buildCredStartTime))
 
-			vc, err := c.AnchorBuilder.Build(anchorHashlink, c.Signer.Context())
+			gen, err := c.GeneratorRegistry.GetByNamespaceAndVersion(payload.Namespace, payload.Version)
+			if err != nil {
+				return nil, fmt.Errorf("get generator: %w", err)
+			}
+
+			vc, err := c.AnchorBuilder.Build(gen.ID(), anchorHashlink, coreIndexHashlink, c.Signer.Context())
 			if err != nil {
 				return nil, fmt.Errorf("build anchor credential: %w", err)
 			}

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/datauri"
@@ -38,8 +39,9 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 			PreviousAnchors: previousAnchors,
 		}
 
-		al, vcBytes, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
-			func(anchorHashlink string) (*verifiable.Credential, error) {
+		al, vcBytes, err := anchorlinkset.NewBuilder(
+			generator.NewRegistry()).BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+			func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 				return &verifiable.Credential{
 					Types:   []string{"VerifiableCredential"},
 					Context: []string{defVCContext},

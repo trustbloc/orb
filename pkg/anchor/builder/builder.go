@@ -9,11 +9,14 @@ package builder
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
 const (
@@ -45,23 +48,30 @@ type Builder struct {
 
 // CredentialSubject contains the verifiable credential subject.
 type CredentialSubject struct {
-	ID string `json:"id"`
+	ID      string `json:"id"`
+	Profile string `json:"profile"`
+	Anchor  string `json:"anchor"`
 }
 
 // Build will create and sign anchor credential.
-func (b *Builder) Build(anchorHashlink string, context []string) (*verifiable.Credential, error) {
+func (b *Builder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string,
+	context []string) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	now := &util.TimeWrapper{Time: time.Now()}
 
-	ctx := []string{vcContextURIV1}
+	ctx := []string{vcContextURIV1, string(vocab.ContextActivityAnchors)}
 
 	ctx = append(ctx, context...)
 
 	vc := &verifiable.Credential{
-		Types:   []string{"VerifiableCredential"},
+		Types:   []string{"VerifiableCredential", "AnchorCredential"},
 		Context: ctx,
-		Subject: &CredentialSubject{ID: anchorHashlink},
+		Subject: &CredentialSubject{
+			ID:      anchorHashlink,
+			Profile: profile.String(),
+			Anchor:  coreIndexHashlink,
+		},
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,
 		},

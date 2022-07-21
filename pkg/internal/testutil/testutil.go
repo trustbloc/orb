@@ -55,6 +55,13 @@ func NewMockURLs(num int, getURI func(i int) string) []*url.URL {
 func GetCanonical(t *testing.T, raw string) string {
 	t.Helper()
 
+	return string(GetCanonicalBytes(t, raw))
+}
+
+// GetCanonicalBytes converts the given JSON string into a canonical JSON (returning the bytes).
+func GetCanonicalBytes(t *testing.T, raw string) []byte {
+	t.Helper()
+
 	var expectedDoc map[string]interface{}
 
 	require.NoError(t, json.Unmarshal([]byte(raw), &expectedDoc))
@@ -63,7 +70,7 @@ func GetCanonical(t *testing.T, raw string) string {
 
 	require.NoError(t, err)
 
-	return string(bytes)
+	return bytes
 }
 
 // MarshalCanonical marshals the given object to a canonical JSON.

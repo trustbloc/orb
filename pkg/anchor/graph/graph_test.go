@@ -17,6 +17,7 @@ import (
 
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
+	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	casresolver "github.com/trustbloc/orb/pkg/cas/resolver"
@@ -88,7 +89,7 @@ func TestGraph_Read(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, als.Link())
 
-		payloadFromVC, err := anchorlinkset.GetPayloadFromAnchorLink(als.Link())
+		payloadFromVC, err := anchorlinkset.NewBuilder(generator.NewRegistry()).GetPayloadFromAnchorLink(als.Link())
 		require.NoError(t, err)
 
 		require.Equal(t, testNS, payloadFromVC.Namespace)
@@ -114,7 +115,8 @@ func TestGraph_GetDidAnchors(t *testing.T) {
 			casresolver.NewWebCASResolver(
 				&apmocks.HTTPTransport{}, webfingerclient.New(), "https"),
 			&metricsProvider{}),
-		DocLoader: testutil.GetLoader(t),
+		DocLoader:            testutil.GetLoader(t),
+		AnchorLinksetBuilder: anchorlinkset.NewBuilder(generator.NewRegistry()),
 	}
 
 	t.Run("success - first did anchor (create), no previous did anchors", func(t *testing.T) {
@@ -289,8 +291,9 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
-	al, _, err := anchorlinkset.BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
-		func(anchorHashlink string) (*verifiable.Credential, error) {
+	al, _, err := anchorlinkset.NewBuilder(
+		generator.NewRegistry()).BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
+		func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 			return vc, nil
 		},
 	)
