@@ -22,7 +22,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220727134606-0164affe3d8f
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
 	go.mongodb.org/mongo-driver v1.9.1
 )
 
