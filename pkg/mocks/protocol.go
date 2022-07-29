@@ -154,7 +154,7 @@ func (m *MockProtocolClientProvider) create() *MockProtocolClient {
 		MaxProvisionalIndexFileSize:  maxBatchFileSize,
 		MaxCoreIndexFileSize:         maxBatchFileSize,
 		MaxProofFileSize:             maxBatchFileSize,
-		Patches:                      []string{"replace", "add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch", "-add-also-known-as", "-remove-also-known-as"}, //nolint:lll
+		Patches:                      []string{"replace", "add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch", "add-also-known-as", "remove-also-known-as"}, //nolint:lll
 		SignatureAlgorithms:          []string{"EdDSA", "ES256", "ES256K"},
 		KeyAlgorithms:                []string{"Ed25519", "P-256", "secp256k1"},
 		MaxMemoryDecompressionFactor: 3,

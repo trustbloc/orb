@@ -178,13 +178,14 @@ func (e *Steps) checkCreatedDID() error {
 
 	if len(result.DIDDocument.AlsoKnownAs) != numberOfAlsoKnownAs {
 		return fmt.Errorf("did doc number of also known as after create is not equal to %d", numberOfAlsoKnownAs)
-		if result.DIDDocument.AlsoKnownAs[0] != createAlsoKnownAsOne {
-			return fmt.Errorf("did doc first also known as after update is not equal to %s", createAlsoKnownAsOne)
-		}
+	}
 
-		if result.DIDDocument.AlsoKnownAs[1] != createAlsoKnownAsTwo {
-			return fmt.Errorf("did doc second also known as after update is not equal to %s", createAlsoKnownAsTwo)
-		}
+	if result.DIDDocument.AlsoKnownAs[0] != createAlsoKnownAsOne {
+		return fmt.Errorf("did doc first also known as after update is not equal to %s", createAlsoKnownAsOne)
+	}
+
+	if result.DIDDocument.AlsoKnownAs[1] != createAlsoKnownAsTwo {
+		return fmt.Errorf("did doc second also known as after update is not equal to %s", createAlsoKnownAsTwo)
 	}
 
 	e.createdDID = result.DIDDocument
