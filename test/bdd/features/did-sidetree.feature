@@ -234,6 +234,50 @@ Feature:
       When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
       Then check success response does NOT contain "newService"
 
+    @create_update_also_known_as
+    Scenario: update also known as
+      Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+      And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
+      When client discover orb endpoints
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+      Then check success response contains "#interimDID"
+      Then check success response contains "alsoKnownAs"
+      Then check success response contains "https://myblog.example/"
+      Then we wait 5 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
+      Then check success response contains "#canonicalDID"
+      Then check success response contains "alsoKnownAs"
+      Then check success response contains "https://myblog.example/"
+
+      # test removing existing URI - success
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to remove also known as URI "https://myblog.example/" from DID document
+      Then check for request success
+      Then we wait 5 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response does NOT contain "alsoKnownAs"
+
+      # test adding new URI for document without also known as
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add also known as URI "newURI" to DID document
+      Then check for request success
+      Then we wait 5 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "alsoKnownAs"
+      Then check success response contains "newURI"
+
+      # test adding additional also known as URI to document
+      When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add also known as URI "additionalURI" to DID document
+      Then check for request success
+      Then we wait 5 seconds
+
+      When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+      Then check success response contains "alsoKnownAs"
+      Then check success response contains "newURI"
+      Then check success response contains "additionalURI"
+
     @did_retrieve_by_version_id_and_time
     Scenario: retrieve document by version ID and version time
         Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
