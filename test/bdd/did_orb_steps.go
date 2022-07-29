@@ -675,6 +675,24 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(url, keyID string) e
 	return d.updateDIDDocument(url, []patch.Patch{p})
 }
 
+func (d *DIDOrbSteps) addAlsoKnownAsURIToDIDDocument(url, uri string) error {
+	p, err := getAddAlsoKnownAsPatch(uri)
+	if err != nil {
+		return err
+	}
+
+	return d.updateDIDDocument(url, []patch.Patch{p})
+}
+
+func (d *DIDOrbSteps) removeAlsoKnownAsURIFromDIDDocument(url, uri string) error {
+	p, err := getRemoveAlsoKnownAsPatch(uri)
+	if err != nil {
+		return err
+	}
+
+	return d.updateDIDDocument(url, []patch.Patch{p})
+}
+
 func (d *DIDOrbSteps) checkErrorResp(errorMsg string) error {
 	if !strings.Contains(d.resp.ErrorMsg, errorMsg) {
 		return fmt.Errorf(`error resp "%s" doesn't contain "%s" status: %d`, d.resp.ErrorMsg, errorMsg, d.resp.StatusCode)
@@ -1244,6 +1262,18 @@ func getRemoveServiceEndpointsPatch(keyID string) (patch.Patch, error) {
 	removeServices := fmt.Sprintf(removeServicesTemplate, keyID)
 	logger.Infof("creating remove service endpoints patch: %s", removeServices)
 	return patch.NewRemoveServiceEndpointsPatch(removeServices)
+}
+
+func getAddAlsoKnownAsPatch(uri string) (patch.Patch, error) {
+	addURIs := fmt.Sprintf(`["%s"]`, uri)
+	logger.Infof("creating add also known as patch: %s", uri)
+	return patch.NewAddAlsoKnownAs(addURIs)
+}
+
+func getRemoveAlsoKnownAsPatch(uri string) (patch.Patch, error) {
+	removeURIs := fmt.Sprintf(`["%s"]`, uri)
+	logger.Infof("creating remove also known as patch: %s", removeURIs)
+	return patch.NewRemoveAlsoKnownAs(removeURIs)
 }
 
 func getOpaqueDocument(keyID string) ([]byte, error) {
@@ -2143,6 +2173,8 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to remove public key with ID "([^"]*)" from DID document$`, d.removePublicKeyFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to add service endpoint with ID "([^"]*)" to DID document$`, d.addServiceEndpointToDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to remove service endpoint with ID "([^"]*)" from DID document$`, d.removeServiceEndpointsFromDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to add also known as URI "([^"]*)" to DID document$`, d.addAlsoKnownAsURIToDIDDocument)
+	s.Step(`^client sends request to "([^"]*)" to remove also known as URI "([^"]*)" from DID document$`, d.removeAlsoKnownAsURIFromDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to deactivate DID document$`, d.deactivateDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to recover DID document$`, d.recoverDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with initial state$`, d.resolveDIDDocumentWithInitialValue)

@@ -9,9 +9,9 @@ go 1.17
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220714220520-d96b693387a7
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220725145110-78317f6d44d8
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2.0.20220728172020-0a8903e45149
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2.0.20220728150434-dc0c08cf45dc
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.2
 	github.com/trustbloc/edge-core v0.1.8
-	github.com/trustbloc/orb v1.0.0-rc1.0.20220623092839-0a44f37eeba2
+	github.com/trustbloc/orb v1.0.0-rc2.0.20220722161937-49dd83f0166a
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220727134606-0164affe3d8f
 	github.com/trustbloc/vct v1.0.0-rc2
 )
