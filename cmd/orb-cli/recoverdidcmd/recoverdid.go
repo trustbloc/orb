@@ -141,6 +141,11 @@ const (
 	didAnchorOriginEnvKey    = "ORB_CLI_DID_ANCHOR_ORIGIN"
 	didAnchorOriginFlagUsage = "did anchor origin " +
 		" Alternatively, this can be set with the following environment variable: " + didAnchorOriginEnvKey
+
+	didAlsoKnownAsFlagName  = "did-also-known-as"
+	didAlsoKnownAsFlagUsage = "Comma-separated list of also known as uris." +
+		" Alternatively, this can be set with the following environment variable: " + didAlsoKnownAsEnvKey
+	didAlsoKnownAsEnvKey = "ORB_CLI_DID_ALSO_KNOWN_AS"
 )
 
 // GetRecoverDIDCmd returns the Cobra recover did command.
@@ -319,6 +324,13 @@ func recoverDIDOption(didID string, cmd *cobra.Command) (*ariesdid.Doc, []vdrapi
 	didDoc.ID = didID
 	didDoc.Service = services
 
+	alsoKnownAs := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAlsoKnownAsFlagName,
+		didAlsoKnownAsEnvKey)
+
+	if len(alsoKnownAs) > 0 {
+		didDoc.AlsoKnownAs = alsoKnownAs
+	}
+
 	return didDoc, opts, nil
 }
 
@@ -393,6 +405,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(nextRecoveryKeyFlagName, "", "", nextRecoveryKeyFlagUsage)
 	startCmd.Flags().StringP(nextRecoveryKeyFileFlagName, "", "", nextRecoveryKeyFileFlagUsage)
 	startCmd.Flags().StringP(didAnchorOriginFlagName, "", "", didAnchorOriginFlagUsage)
+	startCmd.Flags().StringArrayP(didAlsoKnownAsFlagName, "", []string{}, didAlsoKnownAsFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(signingKeyIDFlagName, "", signingKeyIDFlagUsage)
 	startCmd.Flags().String(nextUpdateKeyIDFlagName, "", nextUpdateKeyIDFlagUsage)

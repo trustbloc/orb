@@ -211,6 +211,7 @@ func TestCreateDID(t *testing.T) {
 		args = append(args, updateKeyFileFlagNameArg(updateKeyFile.Name())...)
 		args = append(args, servicesFileArg(servicesFile.Name())...)
 		args = append(args, publicKeyFileArg(publicKeyFile.Name())...)
+		args = append(args, didAlsoKnownAsArg("https://blog.example")...)
 
 		cmd.SetArgs(args)
 		err = cmd.Execute()
@@ -250,6 +251,7 @@ func TestCreateDID(t *testing.T) {
 		args = append(args, updateKeyFileFlagNameArg(updateKeyFile.Name())...)
 		args = append(args, servicesFileArg(servicesFile.Name())...)
 		args = append(args, publicKeyFileArg(publicKeyFile.Name())...)
+		args = append(args, didAlsoKnownAsArg("https://blog.example")...)
 
 		cmd.SetArgs(args)
 		err = cmd.Execute()
@@ -325,4 +327,8 @@ func sidetreeURLArg(value string) []string {
 
 func didAnchorOrigin(value string) []string {
 	return []string{flag + didAnchorOriginFlagName, value}
+}
+
+func didAlsoKnownAsArg(value string) []string {
+	return []string{flag + didAlsoKnownAsFlagName, value}
 }

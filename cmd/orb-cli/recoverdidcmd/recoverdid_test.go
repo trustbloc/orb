@@ -173,6 +173,7 @@ func TestRecoverDID(t *testing.T) {
 		args = append(args, servicesFileArg(servicesFile.Name())...)
 		args = append(args, publicKeyFileArg(publicKeyFile.Name())...)
 		args = append(args, didAnchorOrigin()...)
+		args = append(args, didAlsoKnownAsArg("https://blog.example")...)
 
 		cmd.SetArgs(args)
 		err = cmd.Execute()
@@ -407,4 +408,8 @@ func signingKeyPasswordArg() []string {
 
 func kmsStoreEndpointFlagNameArg(value string) []string {
 	return []string{flag + kmsStoreEndpointFlagName, value}
+}
+
+func didAlsoKnownAsArg(value string) []string {
+	return []string{flag + didAlsoKnownAsFlagName, value}
 }
