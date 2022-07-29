@@ -118,6 +118,11 @@ const (
 	nextUpdateKeyIDFlagUsage = "The key id in kms" +
 		" used for validating the signature of the next update of the document. " +
 		" Alternatively, this can be set with the following environment variable: " + nextUpdateKeyIDEnvKey
+
+	didAlsoKnownAsFlagName  = "did-also-known-as"
+	didAlsoKnownAsFlagUsage = "Comma-separated list of also known as uris." +
+		" Alternatively, this can be set with the following environment variable: " + didAlsoKnownAsEnvKey
+	didAlsoKnownAsEnvKey = "ORB_CLI_DID_ALSO_KNOWN_AS"
 )
 
 // GetUpdateDIDCmd returns the Cobra update did command.
@@ -274,6 +279,13 @@ func updateDIDOption(didID string, cmd *cobra.Command) (*ariesdid.Doc, []vdrapi.
 	didDoc.ID = didID
 	didDoc.Service = services
 
+	alsoKnownAs := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAlsoKnownAsFlagName,
+		didAlsoKnownAsEnvKey)
+
+	if len(alsoKnownAs) > 0 {
+		didDoc.AlsoKnownAs = alsoKnownAs
+	}
+
 	return didDoc, opts, nil
 }
 
@@ -348,6 +360,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(signingKeyIDFlagName, "", signingKeyIDFlagUsage)
 	startCmd.Flags().String(nextUpdateKeyIDFlagName, "", nextUpdateKeyIDFlagUsage)
+	startCmd.Flags().StringArrayP(didAlsoKnownAsFlagName, "", []string{}, didAlsoKnownAsFlagUsage)
 }
 
 type keyRetriever struct {

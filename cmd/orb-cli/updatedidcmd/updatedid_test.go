@@ -261,6 +261,7 @@ func TestUpdateDID(t *testing.T) {
 		args = append(args, addServicesFileArg(servicesFile.Name())...)
 		args = append(args, signingKeyPasswordArg()...)
 		args = append(args, addPublicKeyFileArg(file.Name())...)
+		args = append(args, didAlsoKnownAsArg("https://blog.example")...)
 
 		cmd.SetArgs(args)
 		err = cmd.Execute()
@@ -362,4 +363,8 @@ func addServicesFileArg(value string) []string {
 
 func kmsStoreEndpointFlagNameArg(value string) []string {
 	return []string{flag + kmsStoreEndpointFlagName, value}
+}
+
+func didAlsoKnownAsArg(value string) []string {
+	return []string{flag + didAlsoKnownAsFlagName, value}
 }

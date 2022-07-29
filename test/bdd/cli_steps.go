@@ -22,6 +22,13 @@ import (
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 )
 
+const (
+	createAlsoKnownAsOne = "https://one.example.com"
+	createAlsoKnownAsTwo = "https://two.example.com"
+	updateAlsoKnownAs    = "https://update.example.com"
+	recoverAlsoKnownAs   = "https://recover.example.com"
+)
+
 type createKeystoreReq struct {
 	Controller string `json:"controller"`
 }
@@ -149,6 +156,8 @@ func (e *Steps) checkCreatedDID() error {
 
 	const numberOfServices = 2
 
+	const numberOfAlsoKnownAs = 2
+
 	doc, err := ariesdid.ParseDocument([]byte(e.cliValue))
 	if err != nil {
 		return err
@@ -167,6 +176,17 @@ func (e *Steps) checkCreatedDID() error {
 		return fmt.Errorf("did doc services is not equal to %d", numberOfServices)
 	}
 
+	if len(result.DIDDocument.AlsoKnownAs) != numberOfAlsoKnownAs {
+		return fmt.Errorf("did doc number of also known as after create is not equal to %d", numberOfAlsoKnownAs)
+		if result.DIDDocument.AlsoKnownAs[0] != createAlsoKnownAsOne {
+			return fmt.Errorf("did doc first also known as after update is not equal to %s", createAlsoKnownAsOne)
+		}
+
+		if result.DIDDocument.AlsoKnownAs[1] != createAlsoKnownAsTwo {
+			return fmt.Errorf("did doc second also known as after update is not equal to %s", createAlsoKnownAsTwo)
+		}
+	}
+
 	e.createdDID = result.DIDDocument
 
 	return nil
@@ -178,6 +198,8 @@ func (e *Steps) checkRecoveredDID() error {
 	const numberOfServices = 1
 
 	const maxRetry = 10
+
+	const numberOfAlsoKnownAs = 1
 
 	for i := 1; i <= maxRetry; i++ {
 
@@ -221,6 +243,26 @@ func (e *Steps) checkRecoveredDID() error {
 		if !strings.Contains(doc.Service[0].ID, "svc-recover-id") {
 			if i == maxRetry {
 				return fmt.Errorf("wrong recoverd service")
+			}
+
+			time.Sleep(1 * time.Second)
+
+			continue
+		}
+
+		if len(result.DIDDocument.AlsoKnownAs) != numberOfAlsoKnownAs {
+			if i == maxRetry {
+				return fmt.Errorf("did doc number of also known as after recovery is not equal to %d", numberOfAlsoKnownAs)
+			}
+
+			time.Sleep(1 * time.Second)
+
+			continue
+		}
+
+		if result.DIDDocument.AlsoKnownAs[0] != recoverAlsoKnownAs {
+			if i == maxRetry {
+				return fmt.Errorf("did doc also known as after recover is not equal to %s", recoverAlsoKnownAs)
 			}
 
 			time.Sleep(1 * time.Second)
@@ -317,6 +359,8 @@ func (e *Steps) checkUpdatedDID() error { //nolint: gocyclo
 
 	const maxRetry = 10
 
+	const numberOfAlsoKnownAs = 1
+
 	for i := 1; i <= maxRetry; i++ {
 		result, err := e.resolveDID(e.createdDID.ID)
 		if err != nil {
@@ -404,6 +448,26 @@ func (e *Steps) checkUpdatedDID() error { //nolint: gocyclo
 			continue
 		}
 
+		if len(result.DIDDocument.AlsoKnownAs) != numberOfAlsoKnownAs {
+			if i == maxRetry {
+				return fmt.Errorf("did doc number of also known as after update is not equal to %d", numberOfAlsoKnownAs)
+			}
+
+			time.Sleep(1 * time.Second)
+
+			continue
+		}
+
+		if result.DIDDocument.AlsoKnownAs[0] != updateAlsoKnownAs {
+			if i == maxRetry {
+				return fmt.Errorf("did doc also known as after update is not equal to %s", updateAlsoKnownAs)
+			}
+
+			time.Sleep(1 * time.Second)
+
+			continue
+		}
+
 		return nil
 	}
 
@@ -454,6 +518,7 @@ func (e *Steps) updateDID() error {
 	args = append(args, "did", "update",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
+		"--did-also-known-as", updateAlsoKnownAs,
 		"--kms-store-endpoint", e.keyStoreURL,
 		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--add-publickey-file", "fixtures/did-keys/update/publickeys.json",
@@ -480,7 +545,9 @@ func (e *Steps) recoverDID() error {
 		"did", "recover",
 		"--sidetree-url-operation", "https://localhost:48326/sidetree/v1/operations",
 		"--sidetree-url-resolution", "https://localhost:48326/sidetree/v1/identifiers",
-		"--did-anchor-origin", "https://orb.domain1.com", "--kms-store-endpoint", e.keyStoreURL,
+		"--did-anchor-origin", "https://orb.domain1.com",
+		"--did-also-known-as", recoverAlsoKnownAs,
+		"--kms-store-endpoint", e.keyStoreURL,
 		"--did-uri", e.createdDID.ID, "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/recover/publickeys.json", "--sidetree-write-token", "ADMIN_TOKEN",
 		"--service-file", "fixtures/did-services/recover/services.json",
@@ -521,6 +588,8 @@ func (e *Steps) createDID() error {
 	var args []string
 
 	args = append(args, "did", "create", "--did-anchor-origin", "https://orb.domain1.com",
+		"--did-also-known-as", createAlsoKnownAsOne,
+		"--did-also-known-as", createAlsoKnownAsTwo,
 		"--kms-store-endpoint", e.keyStoreURL,
 		"--sidetree-url", "https://localhost:48326/sidetree/v1/operations", "--tls-cacerts", "fixtures/keys/tls/ec-cacert.pem",
 		"--publickey-file", "fixtures/did-keys/create/publickeys.json",

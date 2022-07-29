@@ -102,6 +102,11 @@ const (
 	didAnchorOriginEnvKey    = "ORB_CLI_DID_ANCHOR_ORIGIN"
 	didAnchorOriginFlagUsage = "did anchor origin " +
 		" Alternatively, this can be set with the following environment variable: " + didAnchorOriginEnvKey
+
+	didAlsoKnownAsFlagName  = "did-also-known-as"
+	didAlsoKnownAsFlagUsage = "Comma-separated list of also known as uris." +
+		" Alternatively, this can be set with the following environment variable: " + didAlsoKnownAsEnvKey
+	didAlsoKnownAsEnvKey = "ORB_CLI_DID_ALSO_KNOWN_AS"
 )
 
 // GetCreateDIDCmd returns the Cobra create did command.
@@ -185,7 +190,7 @@ func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	return opts
 }
 
-func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc, []vdrapi.DIDMethodOption, error) {
+func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc, []vdrapi.DIDMethodOption, error) { //nolint:funlen,lll
 	opts := getSidetreeURL(cmd)
 
 	didDoc, err := getPublicKeys(cmd)
@@ -230,6 +235,13 @@ func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc,
 	}
 
 	didDoc.Service = services
+
+	alsoKnownAs := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAlsoKnownAsFlagName,
+		didAlsoKnownAsEnvKey)
+
+	if len(alsoKnownAs) > 0 {
+		didDoc.AlsoKnownAs = alsoKnownAs
+	}
 
 	didAnchorOrigin, err := cmdutils.GetUserSetVarFromString(cmd, didAnchorOriginFlagName,
 		didAnchorOriginEnvKey, false)
@@ -308,6 +320,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(updateKeyFileFlagName, "", "", updateKeyFileFlagUsage)
 	startCmd.Flags().StringArrayP(sidetreeURLFlagName, "", []string{}, sidetreeURLFlagUsage)
 	startCmd.Flags().StringP(didAnchorOriginFlagName, "", "", didAnchorOriginFlagUsage)
+	startCmd.Flags().StringArrayP(didAlsoKnownAsFlagName, "", []string{}, didAlsoKnownAsFlagUsage)
 	startCmd.Flags().String(kmsStoreEndpointFlagName, "", kmsStoreEndpointFlagUsage)
 	startCmd.Flags().String(updateKeyIDFlagName, "", updateKeyIDFlagUsage)
 	startCmd.Flags().String(recoveryKeyIDFlagName, "", recoveryKeyIDFlagUsage)
