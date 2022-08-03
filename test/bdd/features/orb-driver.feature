@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+@all
 @orb_driver
 Feature: Using Orb driver
   Background: Setup
