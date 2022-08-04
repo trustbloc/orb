@@ -230,7 +230,7 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 				return fmt.Errorf("failed to send http request: %w", err)
 			}
 
-			for i := 0; i < maxRetry; i++ {
+			for i := 1; i <= maxRetry; i++ {
 				resp, err := common.SendRequest(httpClient, nil, headers, http.MethodGet,
 					fmt.Sprintf("%s/following?page=true", actor))
 				if err != nil {

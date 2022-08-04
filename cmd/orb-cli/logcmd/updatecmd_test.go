@@ -63,7 +63,7 @@ func TestUpdateCmd(t *testing.T) {
 
 	t.Run("update -> success", func(t *testing.T) {
 		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := fmt.Fprint(w, "d1")
+			_, err := fmt.Fprint(w, "https://vct.com/log")
 			require.NoError(t, err)
 		}))
 
@@ -80,6 +80,30 @@ func TestUpdateCmd(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+
+	t.Run("update -> failed", func(t *testing.T) {
+		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := fmt.Fprint(w, "https://vct.com/log1")
+			require.NoError(t, err)
+		}))
+
+		cmd := GetCmd()
+
+		args := []string{"update"}
+		args = append(args, urlArg(serv.URL)...)
+		args = append(args, logArg("https://vct.com/log")...)
+		args = append(args, authTokenArg("ADMIN_TOKEN")...)
+		args = append(args, maxRetryArg("2")...)
+		cmd.SetArgs(args)
+
+		cmd.SetArgs(args)
+		err := cmd.Execute()
+
+		require.Error(t, err)
+		require.Equal(t,
+			"update log failed max retries exhausted check server logs for more info",
+			err.Error())
+	})
 }
 
 func urlArg(value string) []string {
@@ -92,4 +116,8 @@ func logArg(value string) []string {
 
 func authTokenArg(value string) []string {
 	return []string{flag + common.AuthTokenFlagName, value}
+}
+
+func maxRetryArg(value string) []string {
+	return []string{flag + maxRetryFlagName, value}
 }

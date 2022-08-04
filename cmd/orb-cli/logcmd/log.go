@@ -8,8 +8,14 @@ package logcmd
 
 import (
 	"errors"
+	"time"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	defaultMaxRetry = 10
+	defaultWaitTime = 1 * time.Second
 )
 
 const (
@@ -22,6 +28,16 @@ const (
 	typeEnvKey   = "ORB_CLI_LOG"
 	logFlagUsage = `The domain log. For example "https://vct.com/log".` +
 		" Alternatively, this can be set with the following environment variable: " + typeEnvKey
+
+	maxRetryFlagName  = "max-retry"
+	maxRetryEnvKey    = "ORB_CLI_MAX_RETRY"
+	maxRetryFlagUsage = "max retry to check if follow cmd is succeed default value is 10" +
+		" Alternatively, this can be set with the following environment variable: " + maxRetryEnvKey
+
+	waitTimeFlagName  = "wait-time"
+	waitTimeEnvKey    = "ORB_CLI_WAIT_TIME"
+	waitTimeFlagUsage = "wait time between retries default value is 1s" +
+		" Alternatively, this can be set with the following environment variable: " + waitTimeEnvKey
 )
 
 // GetCmd returns the Cobra log command.
