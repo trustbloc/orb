@@ -143,11 +143,13 @@ func FeatureContext(s *godog.Suite, state *state) {
 
 	bddContext.SetComposition(composition)
 
+	httpClient := newHTTPClient(state, bddContext)
+
 	// Context is shared between tests - for now
-	NewCommonSteps(bddContext, state).RegisterSteps(s)
+	NewCommonSteps(bddContext, state, httpClient).RegisterSteps(s)
 	NewDockerSteps(bddContext).RegisterSteps(s)
 	NewDIDSideSteps(bddContext, state, "did:orb").RegisterSteps(s)
-	NewCLISteps(bddContext, state).RegisterSteps(s)
+	NewCLISteps(bddContext, state, httpClient).RegisterSteps(s)
 	NewDriverSteps(bddContext, state).RegisterSteps(s)
 	NewStressSteps(bddContext).RegisterSteps(s)
 }

@@ -301,6 +301,13 @@ func (c *httpClient) MapDomain(domain string, mapping string) {
 	c.mappings[domain] = mapping
 }
 
+func (c *httpClient) HostMappings() map[string]string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	return c.mappings
+}
+
 func (c *httpClient) resolveURL(url string) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()

@@ -62,11 +62,11 @@ type CommonSteps struct {
 }
 
 // NewCommonSteps create new CommonSteps struct
-func NewCommonSteps(context *BDDContext, state *state) *CommonSteps {
+func NewCommonSteps(context *BDDContext, state *state, httpClient *httpClient) *CommonSteps {
 	return &CommonSteps{
 		BDDContext: context,
 		state:      state,
-		httpClient: newHTTPClient(state, context),
+		httpClient: httpClient,
 	}
 }
 

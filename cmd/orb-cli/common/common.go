@@ -69,6 +69,16 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + AuthTokenEnvKey
 	// AuthTokenEnvKey defines the environment variable for the authorization bearer token flag.
 	AuthTokenEnvKey = "ORB_CLI_AUTH_TOKEN" //nolint:gosec
+
+	// TargetOverrideFlagName defines the flag for specifying target overrides.
+	TargetOverrideFlagName = "target-override"
+	// TargetOverrideFlagUsage defines the flag for target override usage.
+	TargetOverrideFlagUsage = "Overrides one or more targets used for resolving HTTP endpoints. " +
+		" For example, --target-override orb.domain2.com->localhost:48426 will use localhost:48426 instead of" +
+		" orb.domain2.com for HTTP requests. This flag should only be used for testing." +
+		" Alternatively, this can be set with the following environment variable: " + TargetOverrideEnvKey
+	// TargetOverrideEnvKey defines the flag for target override environment variable.
+	TargetOverrideEnvKey = "ORB_CLI_OUTBOX_URL"
 )
 
 // PublicKey struct.
@@ -458,6 +468,7 @@ func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(TLSSystemCertPoolFlagName, "", "", TLSSystemCertPoolFlagUsage)
 	cmd.Flags().StringArrayP(TLSCACertsFlagName, "", nil, TLSCACertsFlagUsage)
 	cmd.Flags().StringP(AuthTokenFlagName, "", "", AuthTokenFlagUsage)
+	cmd.Flags().StringArrayP(TargetOverrideFlagName, "", nil, TargetOverrideFlagUsage)
 }
 
 // Signer operation.
