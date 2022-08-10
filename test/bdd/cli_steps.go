@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -64,11 +65,11 @@ type Steps struct {
 }
 
 // NewCLISteps returns new agent from client SDK.
-func NewCLISteps(ctx *BDDContext, state *state) *Steps {
+func NewCLISteps(ctx *BDDContext, state *state, httpClient *httpClient) *Steps {
 	return &Steps{
 		bddContext: ctx,
 		state:      state,
-		httpClient: newHTTPClient(state, ctx),
+		httpClient: httpClient,
 	}
 }
 
@@ -488,7 +489,15 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 		"--auth-token", "ADMIN_TOKEN",
 	)
 
+	for oldTarget, newTarget := range e.httpClient.HostMappings() {
+		args = append(args, "--target-override", fmt.Sprintf("%s->%s", oldTarget, newTarget))
+	}
+
 	if action == "Undo" {
+		if e.cliValue == "" {
+			return errors.New("cannot determine follower/invite-witness ID")
+		}
+
 		if subCmd == "follower" {
 			s := strings.Split(e.cliValue, "Follow id: ")
 			id := s[1][1 : len(s[1])-2]
@@ -501,11 +510,15 @@ func (e *Steps) createActivity(subCmd, outboxURL, actor, to, action string) erro
 	}
 
 	value, err := execCMD(args...)
-	if err != nil && !strings.Contains(err.Error(), "no such host") &&
-		!strings.Contains(err.Error(), "connection timed out") &&
-		!strings.Contains(err.Error(), "remote error") &&
-		!strings.Contains(err.Error(), "certificate signed by unknown authority") {
-		return err
+	if err != nil {
+		logger.Infof("Error executing command %s: %s", args, err)
+
+		if !strings.Contains(err.Error(), "no such host") &&
+			!strings.Contains(err.Error(), "connection timed out") &&
+			!strings.Contains(err.Error(), "remote error") &&
+			!strings.Contains(err.Error(), "certificate signed by unknown authority") {
+			return err
+		}
 	}
 
 	e.cliValue = value
