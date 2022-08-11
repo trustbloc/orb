@@ -218,6 +218,8 @@ func getKeyIDFromVerificationMethod(verificationMethod string) (string, error) {
 type signer interface {
 	// Sign will sign data and return signature
 	Sign(data []byte) ([]byte, error)
+	// Alg return alg.
+	Alg() string
 }
 
 type kmsSigner struct {
@@ -257,4 +259,9 @@ func (ks *kmsSigner) Sign(data []byte) ([]byte, error) {
 	}
 
 	return v, nil
+}
+
+// Alg return alg.
+func (ks *kmsSigner) Alg() string {
+	return ""
 }
