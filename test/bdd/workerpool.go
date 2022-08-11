@@ -40,7 +40,7 @@ type workerPoolOptions struct {
 
 type Opt func(*workerPoolOptions)
 
-func WithTaskDscription(desc string) Opt {
+func WithTaskDescription(desc string) Opt {
 	return func(options *workerPoolOptions) {
 		options.taskDescription = desc
 	}

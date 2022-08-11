@@ -68,24 +68,6 @@ const (
 	testCID = "bafkreie4a6z6hosibbfz2dd7vhsukojw3gwmldh5jvy5uh3mjfrubiq5hi"
 )
 
-var localURLs = map[string]string{
-	"https://orb.domain1.com":  "https://localhost:48326",
-	"https://orb2.domain1.com": "https://localhost:48526",
-	"https://orb.domain2.com":  "https://localhost:48426",
-	"https://orb.domain3.com":  "https://localhost:48626",
-	"https://orb.domain4.com":  "https://localhost:48726",
-	"https://orb.domain5.com":  "https://localhost:49026",
-}
-
-var anchorOriginURLs = map[string]string{
-	"https://localhost:48326/sidetree/v1/operations": "https://orb.domain1.com",
-	"https://localhost:48526/sidetree/v1/operations": "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q",
-	"https://localhost:48426/sidetree/v1/operations": "https://orb.domain1.com",
-	"https://localhost:48626/sidetree/v1/operations": "https://orb.domain3.com",
-	"https://localhost:48726/sidetree/v1/operations": "https://orb.domain1.com",
-	"https://localhost:49026/sidetree/v1/operations": "https://orb.domain5.com",
-}
-
 const addPublicKeysTemplate = `[
 	{
       "id": "%s",
@@ -207,12 +189,12 @@ func (r *createResponses) Get(ctx context.Context, n int) ([]*createDIDResponse,
 }
 
 // NewDIDSideSteps
-func NewDIDSideSteps(context *BDDContext, state *state, namespace string) *DIDOrbSteps {
+func NewDIDSideSteps(context *BDDContext, state *state, httpClient *httpClient, namespace string) *DIDOrbSteps {
 	return &DIDOrbSteps{
 		bddContext:      context,
 		state:           state,
 		namespace:       namespace,
-		httpClient:      newHTTPClient(state, context),
+		httpClient:      httpClient,
 		didPrintEnabled: true,
 		createResponses: newCreateResponses(),
 	}
@@ -472,7 +454,7 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 		return err
 	}
 
-	recoveryKey, updateKey, reqBytes, err := getCreateRequest(d.sidetreeURL, opaqueDoc, nil)
+	recoveryKey, updateKey, reqBytes, err := getCreateRequest(d.sidetreeURL, opaqueDoc, nil, d.state)
 	if err != nil {
 		return err
 	}
@@ -508,38 +490,9 @@ func (d *DIDOrbSteps) createDIDDocument(url string) error {
 }
 
 func (d *DIDOrbSteps) setSidetreeURL(url string) error {
-	localURL, err := getLocalURL(url, "/sidetree/v1/")
-	if err != nil {
-		return err
-	}
-
-	d.sidetreeURL = localURL
+	d.sidetreeURL = url
 
 	return nil
-}
-
-func getLocalURL(url, separator string) (string, error) {
-	var parts []string
-
-	if separator != "" {
-		parts = strings.Split(url, separator)
-	} else {
-		parts = []string{url}
-	}
-
-	externalURL := parts[0]
-
-	if strings.Contains(externalURL, "localhost") {
-		// already internal url - nothing to do
-		return url, nil
-	}
-
-	localURL, ok := localURLs[externalURL]
-	if !ok {
-		return url, nil
-	}
-
-	return strings.ReplaceAll(url, externalURL, localURL), nil
 }
 
 func (d *DIDOrbSteps) updateDIDDocument(url string, patches []patch.Patch) error {
@@ -1045,7 +998,7 @@ func (d *DIDOrbSteps) getInitialState() (string, error) {
 	return encoder.EncodeToString(bytes), nil
 }
 
-func getCreateRequest(strUrl string, doc []byte, patches []patch.Patch) (*ecdsa.PrivateKey, *ecdsa.PrivateKey, []byte, error) {
+func getCreateRequest(strUrl string, doc []byte, patches []patch.Patch, state *state) (*ecdsa.PrivateKey, *ecdsa.PrivateKey, []byte, error) {
 	recoveryKey, recoveryCommitment, err := generateKeyAndCommitment()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1056,16 +1009,9 @@ func getCreateRequest(strUrl string, doc []byte, patches []patch.Patch) (*ecdsa.
 		return nil, nil, nil, err
 	}
 
-	origin, ok := anchorOriginURLs[strUrl]
-	if !ok {
-		u, err := url.Parse(strUrl)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
-
-		logger.Infof("Anchor origin not configured for %s. Using %s", strUrl, origin)
+	origin, err := state.getAnchorOrigin(strUrl)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	reqBytes, err := client.NewCreateRequest(&client.CreateRequestInfo{
@@ -1109,9 +1055,9 @@ func (d *DIDOrbSteps) getRecoverRequest(doc []byte, patches []patch.Patch, uniqu
 
 	now := time.Now().Unix()
 
-	origin, ok := anchorOriginURLs[d.sidetreeURL]
-	if !ok {
-		return nil, nil, nil, fmt.Errorf("anchor origin not configured for %s", d.sidetreeURL)
+	origin, err := d.state.getAnchorOrigin(d.sidetreeURL)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	recoverRequest, err := client.NewRecoverRequest(&client.RecoverRequestInfo{
@@ -1347,20 +1293,7 @@ func (d *DIDOrbSteps) prettyPrint(result *document.ResolutionResult) error {
 func (d *DIDOrbSteps) createDIDDocuments(strURLs string, num int, concurrency int) error {
 	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, strURLs, concurrency)
 
-	urls := strings.Split(strURLs, ",")
-
-	localUrls := make([]string, len(urls))
-
-	for i, u := range urls {
-		localURL, err := getLocalURL(u, "/sidetree/v1/")
-		if err != nil {
-			return err
-		}
-
-		localUrls[i] = localURL
-	}
-
-	return d.createDIDDocumentsAtURLs(localUrls, num, concurrency, 30)
+	return d.createDIDDocumentsAtURLs(strings.Split(strURLs, ","), num, concurrency, 30)
 }
 
 func (d *DIDOrbSteps) createDIDDocumentsAsync(strURLs string, num int, concurrency int) error {
@@ -1381,13 +1314,13 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, 
 
 	d.createResponses = newCreateResponses()
 
-	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Create %d DID documents", num)))
+	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Create %d DID documents", num)))
 
 	p.Start()
 
 	for i := 0; i < num; i++ {
 		p.Submit(
-			newCreateDIDRequest(d.httpClient, urls, attempts, 10*time.Second,
+			newCreateDIDRequest(d.state, d.httpClient, urls, attempts, 10*time.Second,
 				func(resp *httpResponse, err error) bool {
 					if err != nil {
 						return strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) ||
@@ -1459,12 +1392,7 @@ func (d *DIDOrbSteps) createDIDDocumentsWithRetriesAndStoreDIDsToFile(strURLs, s
 	localUrls := make([]string, len(urls))
 
 	for i, u := range urls {
-		localURL, err := getLocalURL(u, "")
-		if err != nil {
-			return err
-		}
-
-		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", localURL)
+		localUrls[i] = fmt.Sprintf("%s/sidetree/v1/operations", u)
 	}
 
 	if maxAttempts <= 0 {
@@ -1548,18 +1476,11 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Update %d DID documents", num)))
+	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
 	for i := 0; i < num; i++ {
-		randomURL := urls[mrand.Intn(len(urls))]
-
-		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
-		if err != nil {
-			return err
-		}
-
 		createResp := responses[i]
 
 		createReq := &model.CreateRequest{}
@@ -1573,7 +1494,7 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 		}
 
 		p.Submit(&updateDIDRequest{
-			url:        localURL,
+			url:        urls[mrand.Intn(len(urls))],
 			did:        createResp.did,
 			suffix:     suffix,
 			httpClient: d.httpClient,
@@ -1621,18 +1542,11 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency, WithTaskDscription(fmt.Sprintf("Update %d DID documents", num)))
+	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
 	for i := 0; i < num; i++ {
-		randomURL := urls[mrand.Intn(len(urls))]
-
-		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
-		if err != nil {
-			return err
-		}
-
 		updateResp := updateResponses[i]
 
 		suffix, err := getUniqueSuffix(updateResp.suffixData)
@@ -1641,7 +1555,7 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 		}
 
 		p.Submit(&updateDIDRequest{
-			url:        localURL,
+			url:        urls[mrand.Intn(len(urls))],
 			did:        updateResp.did,
 			suffix:     suffix,
 			httpClient: d.httpClient,
@@ -1680,14 +1594,7 @@ func (d *DIDOrbSteps) verifyDIDDocuments(strURLs string) error {
 	urls := strings.Split(strURLs, ",")
 
 	for i, resp := range responses {
-		randomURL := urls[mrand.Intn(len(urls))]
-
-		localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
-		if err != nil {
-			return err
-		}
-
-		canonicalID, err := d.verifyDID(localURL, resp.did, 50)
+		canonicalID, err := d.verifyDID(urls[mrand.Intn(len(urls))], resp.did, 50)
 		if err != nil {
 			return err
 		}
@@ -1735,14 +1642,7 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file, strAttempts stri
 	urls := strings.Split(strURLs, ",")
 
 	for i, did := range dids {
-		randomURL := urls[mrand.Intn(len(urls))]
-
-		localURL, e := getLocalURL(randomURL, "")
-		if e != nil {
-			return e
-		}
-
-		_, e = d.verifyDID(fmt.Sprintf("%s/sidetree/v1/identifiers", localURL), did, attempts)
+		_, e := d.verifyDID(fmt.Sprintf("%s/sidetree/v1/identifiers", urls[mrand.Intn(len(urls))]), did, attempts)
 		if e != nil {
 			return e
 		}
@@ -1801,12 +1701,7 @@ func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) er
 func (d *DIDOrbSteps) doVerifyUpdatedDIDContainsKeyID(urls []string, did, keyID string) error {
 	randomURL := urls[mrand.Intn(len(urls))]
 
-	localURL, err := getLocalURL(randomURL, "/sidetree/v1/")
-	if err != nil {
-		return err
-	}
-
-	if err := d.verifyUpdatedDIDContainsKeyID(localURL, did, keyID); err != nil {
+	if err := d.verifyUpdatedDIDContainsKeyID(randomURL, did, keyID); err != nil {
 		return err
 	}
 
@@ -1973,6 +1868,16 @@ func (d *DIDOrbSteps) newReader(file string) (io.Reader, error) {
 	return bytes.NewReader(contents), nil
 }
 
+func (d *DIDOrbSteps) setAnchorOrigin(host, anchorOrigin string) error {
+	if err := d.state.resolveVarsInExpression(&host, &anchorOrigin); err != nil {
+		return err
+	}
+
+	d.state.setAnchorOrigin(host, anchorOrigin)
+
+	return nil
+}
+
 type createDIDRequest struct {
 	urls        []string
 	url         string
@@ -1981,6 +1886,7 @@ type createDIDRequest struct {
 	maxAttempts int
 	backoff     time.Duration
 	greylist    *greylist
+	state       *state
 }
 
 type createDIDResponse struct {
@@ -1990,7 +1896,7 @@ type createDIDResponse struct {
 	reqBytes    []byte
 }
 
-func newCreateDIDRequest(httpClient *httpClient, urls []string, attempts int, greylistDuration time.Duration,
+func newCreateDIDRequest(state *state, httpClient *httpClient, urls []string, attempts int, greylistDuration time.Duration,
 	shouldRetry func(*httpResponse, error) bool) *createDIDRequest {
 
 	return &createDIDRequest{
@@ -2000,6 +1906,7 @@ func newCreateDIDRequest(httpClient *httpClient, urls []string, attempts int, gr
 		maxAttempts: attempts,
 		backoff:     3 * time.Second,
 		greylist:    newGreylist(greylistDuration),
+		state:       state,
 	}
 }
 
@@ -2041,7 +1948,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 			return nil, err
 		}
 
-		recoveryKey, updateKey, reqBytes, err = getCreateRequest(u, opaqueDoc, nil)
+		recoveryKey, updateKey, reqBytes, err = getCreateRequest(u, opaqueDoc, nil, r.state)
 		if err != nil {
 			return nil, err
 		}
@@ -2063,7 +1970,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 
 			logger.Errorf("Error posting request to [%s]: %s. Not retrying.", u, respErr)
 
-			return "", respErr
+			return nil, respErr
 		}
 
 		if resp.StatusCode == http.StatusOK {
@@ -2075,7 +1982,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 		if !r.shouldRetry(resp, nil) {
 			logger.Errorf("Got HTTP response from [%s]: %d:%s. Not retrying.", u, resp.StatusCode, resp.ErrorMsg)
 
-			return "", respErr
+			return nil, fmt.Errorf("status code: %d: %s", resp.StatusCode, resp.ErrorMsg)
 		}
 
 		logger.Warnf("Got HTTP response from [%s]: %d:%s. Retrying in %s", u, resp.StatusCode, resp.ErrorMsg, r.backoff)
@@ -2084,7 +1991,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 	}
 
 	if respErr != nil {
-		return "", respErr
+		return nil, respErr
 	}
 
 	logger.Infof("... got DID document: %s", resp.Payload)
@@ -2092,7 +1999,7 @@ func (r *createDIDRequest) Invoke() (interface{}, error) {
 	var rr document.ResolutionResult
 	err := json.Unmarshal(resp.Payload, &rr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return &createDIDResponse{
@@ -2189,4 +2096,5 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents that were created with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to verify the DID documents that were updated with key "([^"]*)"$`, d.verifyUpdatedDIDDocuments)
 	s.Step(`^client sends request to "([^"]*)" to update the DID documents again with public key ID "([^"]*)" using (\d+) concurrent requests$`, d.updateDIDDocumentsAgain)
+	s.Step(`^anchor origin for host "([^"]*)" is set to "([^"]*)"$`, d.setAnchorOrigin)
 }

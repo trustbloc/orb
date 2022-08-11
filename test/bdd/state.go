@@ -33,6 +33,7 @@ type state struct {
 	vars              map[string]string
 	responseValue     string
 	authTokenMap      map[httpPath]map[httpMethod]authToken
+	anchorOrigins     map[string]string
 }
 
 func newState() *state {
@@ -48,6 +49,7 @@ func newState() *state {
 		vars:              vars,
 		authTokenMap:      make(map[httpPath]map[httpMethod]authToken),
 		dockerComposeFile: "docker-compose.yml",
+		anchorOrigins:     make(map[string]string),
 	}
 }
 
@@ -63,6 +65,7 @@ func (s *state) clear() {
 
 	s.authTokenMap = make(map[httpPath]map[httpMethod]authToken)
 	s.responseValue = ""
+	s.anchorOrigins = make(map[string]string)
 }
 
 // clearResponse clears the query response
@@ -302,15 +305,15 @@ func (s *state) resolveArray(arr []interface{}) ([]interface{}, error) {
 func (s *state) evaluateFunctions(expression string) (string, error) {
 	switch {
 	case strings.Contains(expression, funcHashLinkPrefix):
-		return s.evaluateHashlinkFunc(expression)
+		return s.evaluateHashlinkFunc(expression, funcHashLinkPrefix)
 	case strings.Contains(expression, funcURLEncodePrefix):
-		return s.evaluateURLEncodeFunc(expression)
+		return s.evaluateURLEncodeFunc(expression, funcURLEncodePrefix)
 	default:
 		return expression, nil
 	}
 }
 
-func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
+func (s *state) evaluateHashlinkFunc(expression, prefix string) (string, error) {
 	logger.Infof("Evaluating hashlink function for expression %s", expression)
 
 	i := strings.Index(expression, "|)")
@@ -327,7 +330,7 @@ func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
 
 	property := propertyExp[j+1:]
 
-	hl := expression[len(funcHashLinkPrefix):i]
+	hl := expression[len(prefix):i]
 
 	hlParser := hashlink.New()
 
@@ -346,7 +349,7 @@ func (s *state) evaluateHashlinkFunc(expression string) (string, error) {
 	}
 }
 
-func (s *state) evaluateURLEncodeFunc(expression string) (string, error) {
+func (s *state) evaluateURLEncodeFunc(expression, prefix string) (string, error) {
 	logger.Infof("Evaluating URLEncode function for expression %s", expression)
 
 	i := strings.Index(expression, "|)")
@@ -354,11 +357,35 @@ func (s *state) evaluateURLEncodeFunc(expression string) (string, error) {
 		return expression, nil
 	}
 
-	param := expression[len(funcURLEncodePrefix):i]
+	param := expression[len(prefix):i]
 
 	escapedParam := url.QueryEscape(param)
 
 	logger.Infof("Evaluated URLEncode function for parameter %s: %s", param, escapedParam)
 
 	return escapedParam, nil
+}
+
+func (s *state) setAnchorOrigin(host, anchorOrigin string) {
+	s.anchorOrigins[host] = anchorOrigin
+}
+
+func (s *state) getAnchorOrigin(strUrl string) (string, error) {
+	u, err := url.Parse(strUrl)
+	if err != nil {
+		return "", err
+	}
+
+	domain := u.Host
+
+	origin, ok := s.anchorOrigins[domain]
+	if !ok {
+		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+
+		logger.Infof("Anchor origin not configured for %s. Using %s", domain, origin)
+	} else {
+		logger.Infof("Using anchor origin %s for %s", origin, domain)
+	}
+
+	return origin, nil
 }

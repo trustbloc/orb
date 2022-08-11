@@ -21,10 +21,11 @@ Feature:
   @all
   @create_and_verify_dids_from_file
   Scenario: Create DIDs, store them in a file and verify the DIDs from the file.
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
     And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
+    And variable "domain2ID" is assigned the value "${domain2IRI}"
 
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
@@ -39,8 +40,8 @@ Feature:
     When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     # domain1 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     Then client sends request to domains "https://orb.domain1.com" to create "50" DID documents using "5" concurrent requests and a maximum of "2" attempts, storing the dids to file "./fixtures/dids.txt"
     And client sends request to domains "https://orb.domain1.com" to verify the DID documents that were created from file "./fixtures/dids.txt" with a maximum of "25" attempts

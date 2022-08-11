@@ -12,10 +12,20 @@ Feature:
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
     And variable "domain5IRI" is assigned the value "https://orb.domain5.com/services/orb"
 
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb2.domain1.com" is mapped to "localhost:48526"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
-    And domain "orb.domain5.com" is mapped to "localhost:49026"
+    Given variable "domain1ID" is assigned the value "${domain1IRI}"
+    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain5ID" is assigned the value "${domain5IRI}"
+
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb2.domain1.com" is mapped to "localhost:48526"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
+    And host "orb1-domain2.backend" is mapped to "localhost:48926"
+    And host "orb.domain5.com" is mapped to "localhost:49026"
+
+    Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb2.domain1.com" is set to "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain5.com" is set to "https://orb.domain5.com"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -31,28 +41,28 @@ Feature:
     When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
 
     # domain1 adds domain2 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}"]},{"type":"invite-witness","add":["${domain2IRI}"]}]'
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2ID}"]},{"type":"invite-witness","add":["${domain2ID}"]}]'
     When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
 
     # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1ID}"]},{"type":"invite-witness","add":["${domain1ID}"]}]'
     When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     # domain2 server follows domain1 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 server follows domain2 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1ID}","to":"${domain2IRI}","object":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain2 invites domain1 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # set witness policy for domain1
     When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "OutOf(1,system)" of type "text/plain"
@@ -71,7 +81,7 @@ Feature:
     # to the AMQP queue so that they are processed by the other instance (orb1-domain2.backend).
     Then container "orb-domain2.backend" is stopped
     And we wait up to "2m" for 200 DID documents to be created
-    Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
+    Then client sends request to "https://orb.domain1.com/sidetree/v1/identifiers,http://orb1-domain2.backend/sidetree/v1/identifiers" to verify the DID documents that were created
     Then container "orb-domain2.backend" is started
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations,https://orb.domain2.com/sidetree/v1/operations" to update the DID documents that were created with public key ID "newkey_1_1" using 10 concurrent requests
@@ -85,33 +95,33 @@ Feature:
     # Onboard domain5 by asking to follow domain1 and domain2:
     When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(1,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
-    Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
+    Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5ID}"]},{"type":"invite-witness","add":["${domain5ID}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
     Then an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${acceptList}" of type "application/json"
     # --- domain5 server follows domain1 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain5 server follows domain2 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5ID}","to":"${domain2IRI}","object":"${domain2ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain5 invites domain1 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain5 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain1 server follows domain5 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1ID}","to":"${domain5IRI}","object":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain1IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain1 invites domain5 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1ID}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain2 server follows domain5 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2ID}","to":"${domain5IRI}","object":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain2IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain2 invites domain5 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2ID}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain2IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # The synchronization process should kick in for domain5, i.e. domain5 will read all missed 'Create' and 'Announce'
     # activities from domain1 and domain2's outbox to figure out which events were missed (which should be all of them)
@@ -156,33 +166,33 @@ Feature:
     # Onboard domain5 by asking to follow domain1 and domain2:
     When an HTTP POST is sent to "https://orb.domain5.com/policy" with content "OutOf(1,system)" of type "text/plain"
     # --- domain1 and domain2 add domain5 to the 'follow' and 'invite-witness' accept lists.
-    Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5IRI}"]},{"type":"invite-witness","add":["${domain5IRI}"]}]'
+    Given variable "acceptList" is assigned the JSON value '[{"type":"follow","add":["${domain5ID}"]},{"type":"invite-witness","add":["${domain5ID}"]}]'
     Then an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${acceptList}" of type "application/json"
     Then an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${acceptList}" of type "application/json"
     # --- domain5 server follows domain1 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain5 server follows domain2 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain5ID}","to":"${domain2IRI}","object":"${domain2ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain5 invites domain1 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain5 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain5.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain5ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    Then an HTTP POST is sent to "${domain5IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain1 server follows domain5 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1ID}","to":"${domain5IRI}","object":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain1IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain1 invites domain5 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1ID}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
     # --- domain2 server follows domain5 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain5IRI}","object":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2ID}","to":"${domain5IRI}","object":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain2IRI}/outbox" with content "${followActivity}" of type "application/json"
     # --- domain2 invites domain5 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5IRI}"}'
-    Then an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2ID}","to":"${domain5IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain5ID}"}'
+    Then an HTTP POST is sent to "${domain2IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # Take a backup of the domain5 database.
     When command "mongodump --out ./fixtures/mongodbbackup --host localhost --port 28017" is executed
