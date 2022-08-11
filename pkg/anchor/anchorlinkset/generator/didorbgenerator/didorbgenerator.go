@@ -260,12 +260,18 @@ func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentB
 		return fmt.Errorf("anchor in anchor linkset is nil")
 	}
 
-	vSubject := vc.Subject.([]verifiable.Subject)[0]
+	s := &builder.CredentialSubject{}
 
-	s := &builder.CredentialSubject{ID: vSubject.ID}
+	if v, ok := vc.Subject.(string); ok {
+		s.ID = v
+	} else {
+		vSubject := vc.Subject.([]verifiable.Subject)[0]
 
-	if err := vocab.UnmarshalFromDoc(vocab.Document(vSubject.CustomFields), s); err != nil {
-		return fmt.Errorf("unmarshal credential subject: %w", err)
+		s.ID = vSubject.ID
+
+		if err := vocab.UnmarshalFromDoc(vocab.Document(vSubject.CustomFields), s); err != nil {
+			return fmt.Errorf("unmarshal credential subject: %w", err)
+		}
 	}
 
 	anchorHL, err := hashlink.New().CreateHashLink(contentBytes, nil)
