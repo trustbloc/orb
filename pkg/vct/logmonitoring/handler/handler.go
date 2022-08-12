@@ -45,20 +45,18 @@ type logResolver interface {
 func (h *Handler) Accept(actor *url.URL) error { //nolint:dupl
 	logger.Debugf("received request to add log for actor: %s", actor.String())
 
-	domainURL := fmt.Sprintf("%s://%s", actor.Scheme, actor.Host)
-
-	logURL, err := h.logResolver.ResolveLog(domainURL)
+	logURL, err := h.logResolver.ResolveLog(actor.String())
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Infof("domain[%s] doesn't have log", domainURL)
+			logger.Infof("actor[%s] doesn't have log", actor)
 
 			return nil
 		}
 
-		return fmt.Errorf("failed to resolve log for domain[%s]: %w", domainURL, err)
+		return fmt.Errorf("failed to resolve log for actor[%s]: %w", actor, err)
 	}
 
-	logger.Debugf("retrieved logURL[%s] for domain[%s]", logURL.String(), domainURL)
+	logger.Debugf("retrieved logURL[%s] for actor[%s]", logURL.String(), actor)
 
 	err = h.store.Activate(logURL.String())
 	if err != nil {
@@ -75,20 +73,18 @@ func (h *Handler) Accept(actor *url.URL) error { //nolint:dupl
 func (h *Handler) Undo(actor *url.URL) error { //nolint:dupl
 	logger.Debugf("received request to deactivate log for actor: %s", actor.String())
 
-	domainURL := fmt.Sprintf("%s://%s", actor.Scheme, actor.Host)
-
-	logURL, err := h.logResolver.ResolveLog(domainURL)
+	logURL, err := h.logResolver.ResolveLog(actor.String())
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Infof("domain[%s] doesn't have log", domainURL)
+			logger.Infof("actor[%s] doesn't have log", actor)
 
 			return nil
 		}
 
-		return fmt.Errorf("failed to resolve log for domain[%s]: %w", domainURL, err)
+		return fmt.Errorf("failed to resolve log for actor[%s]: %w", actor, err)
 	}
 
-	logger.Debugf("retrieved logURL[%s] for domain[%s]", logURL.String(), domainURL)
+	logger.Debugf("retrieved logURL[%s] for actor[%s]", logURL.String(), actor)
 
 	err = h.store.Deactivate(logURL.String())
 	if err != nil {

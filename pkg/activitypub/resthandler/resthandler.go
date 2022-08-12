@@ -71,6 +71,7 @@ const (
 type Config struct {
 	BasePath               string
 	ObjectIRI              *url.URL
+	ServiceEndpointURL     *url.URL
 	PageSize               int
 	VerifyActorInSignature bool
 }

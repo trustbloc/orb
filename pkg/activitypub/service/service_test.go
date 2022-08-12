@@ -49,14 +49,17 @@ import (
 //go:generate counterfeiter -o ./mocks/activityiterator.gen.go --fake-name ActivityIterator ./../client ActivityIterator
 
 func TestNewService(t *testing.T) {
+	serviceIRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+
 	cfg1 := &Config{
-		ServiceEndpoint: "/services/service1",
-		ServiceIRI:      testutil.MustParseURL("http://localhost:8301/services/service1"),
+		ServicePath:        "/services/service1",
+		ServiceIRI:         serviceIRI,
+		ServiceEndpointURL: serviceIRI,
 	}
 
 	tm := &apmocks.AuthTokenMgr{}
 
-	store1 := memstore.New(cfg1.ServiceEndpoint)
+	store1 := memstore.New(cfg1.ServicePath)
 
 	service1, err := New(cfg1, store1, transport.Default(), &mocks.SignatureVerifier{}, mocks.NewPubSub(),
 		mocks.NewActivitPubClient(), &mocks.WebFingerResolver{}, tm, &orbmocks.MetricsProvider{})
@@ -925,8 +928,9 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	const kmsKey1 = "123456"
 
 	cfg := &Config{
-		ServiceEndpoint: endpoint,
-		ServiceIRI:      serviceIRI,
+		ServicePath:        endpoint,
+		ServiceIRI:         serviceIRI,
+		ServiceEndpointURL: serviceIRI,
 	}
 
 	providers := &mockProviders{
@@ -971,13 +975,13 @@ func newServiceWithMocks(t *testing.T, endpoint string,
 	serverAuthTokenMgr.RequiredAuthTokensReturns([]string{"admin"}, nil)
 
 	trnspt := transport.New(http.DefaultClient,
-		publicKey.ID.URL(),
+		publicKey.ID(),
 		httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, kmsKey1),
 		httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, kmsKey1),
 		clientAuthTokenMgr,
 	)
 
-	activityStore := memstore.New(cfg.ServiceEndpoint)
+	activityStore := memstore.New(cfg.ServicePath)
 
 	s, err := New(cfg, activityStore, trnspt, httpsig.NewVerifier(providers.actorRetriever, cr, km),
 		mocks.NewPubSub(), providers.actorRetriever, &mocks.WebFingerResolver{},

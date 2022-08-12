@@ -12,7 +12,7 @@ Feature:
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
 
     Given variable "domain1ID" is assigned the value "${domain1IRI}"
-    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain2ID" is assigned the value "did:web:orb.domain2.com:services:orb"
 
     Given host "orb.domain1.com" is mapped to "localhost:48326"
     And host "orb2.domain1.com" is mapped to "localhost:48526"

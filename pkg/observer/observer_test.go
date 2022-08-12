@@ -186,7 +186,7 @@ func TestStartObserver(t *testing.T) {
 			PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 			Metrics:                &orbmocks.MetricsProvider{},
 			Outbox:                 func() Outbox { return apmocks.NewOutbox() },
-			WebFingerResolver:      &apmocks.WebFingerResolver{},
+			HostMetaLinkResolver:   &apmocks.WebFingerResolver{},
 			CASResolver:            casResolver,
 			DocLoader:              testutil.GetLoader(t),
 			Pkf:                    pubKeyFetcherFnc,
@@ -820,7 +820,7 @@ func TestStartObserver(t *testing.T) {
 				PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 				Metrics:                &orbmocks.MetricsProvider{},
 				Outbox:                 func() Outbox { return apmocks.NewOutbox() },
-				WebFingerResolver:      &apmocks.WebFingerResolver{},
+				HostMetaLinkResolver:   &apmocks.WebFingerResolver{},
 				CASResolver:            casResolver,
 				DocLoader:              testutil.GetLoader(t),
 				Pkf:                    pubKeyFetcherFnc,
@@ -853,7 +853,7 @@ func TestStartObserver(t *testing.T) {
 				PubSub:                 mempubsub.New(mempubsub.DefaultConfig()),
 				Metrics:                &orbmocks.MetricsProvider{},
 				Outbox:                 func() Outbox { return apmocks.NewOutbox() },
-				WebFingerResolver:      &apmocks.WebFingerResolver{},
+				HostMetaLinkResolver:   &apmocks.WebFingerResolver{},
 				CASResolver:            casResolver,
 				DocLoader:              testutil.GetLoader(t),
 				Pkf:                    pubKeyFetcherFnc,
@@ -883,12 +883,12 @@ func TestResolveActorFromHashlink(t *testing.T) {
 	wfResolver := &apmocks.WebFingerResolver{}
 
 	providers := &Providers{
-		PubSub:            mempubsub.New(mempubsub.DefaultConfig()),
-		WebFingerResolver: wfResolver,
-		CASResolver:       casResolver,
-		DocLoader:         testutil.GetLoader(t),
-		Pkf:               pubKeyFetcherFnc,
-		AnchorLinkStore:   &orbmocks.AnchorLinkStore{},
+		PubSub:               mempubsub.New(mempubsub.DefaultConfig()),
+		HostMetaLinkResolver: wfResolver,
+		CASResolver:          casResolver,
+		DocLoader:            testutil.GetLoader(t),
+		Pkf:                  pubKeyFetcherFnc,
+		AnchorLinkStore:      &orbmocks.AnchorLinkStore{},
 	}
 
 	o, e := New(serviceIRI, providers)
@@ -900,7 +900,7 @@ func TestResolveActorFromHashlink(t *testing.T) {
 
 		actor, err := o.resolveActorFromHashlink(hl)
 		require.NoError(t, err)
-		require.Equal(t, "https://orb.domain1.com/services/orb", actor.String())
+		require.Equal(t, "https://orb.domain1.com/services/orb", actor)
 	})
 
 	t.Run("CAS resolve error", func(t *testing.T) {
@@ -919,21 +919,6 @@ func TestResolveActorFromHashlink(t *testing.T) {
 		_, err := o.resolveActorFromHashlink(hl)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unexpected end of JSON input")
-	})
-
-	t.Run("WebFinger resolve error", func(t *testing.T) {
-		errExpected := errors.New("injected WebFinger resolve error")
-
-		casResolver.ResolveReturns([]byte(anchorEvent), "", nil)
-		wfResolver.Err = errExpected
-
-		defer func() {
-			wfResolver.Err = nil
-		}()
-
-		_, err := o.resolveActorFromHashlink(hl)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), errExpected.Error())
 	})
 }
 

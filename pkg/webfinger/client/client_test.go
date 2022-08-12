@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
@@ -249,6 +250,7 @@ func TestClient_ResolveLog(t *testing.T) {
 		logURL  = "https://vct.com/log"
 		domain  = "https://domain.com"
 		subject = "https://domain.com/vct"
+		did     = "did:web:domain.com:services:orb"
 	)
 
 	t.Run("success", func(t *testing.T) {
@@ -350,6 +352,75 @@ func TestClient_ResolveLog(t *testing.T) {
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "http.Do() error")
 	})
+
+	t.Run("From DID", func(t *testing.T) {
+		resp := &discoveryrest.JRD{
+			Subject: subject,
+		}
+
+		resp.Links = append(resp.Links, discoveryrest.Link{
+			Rel:  "vct",
+			Type: "application/jrd+json",
+			Href: logURL,
+		})
+
+		resp.Properties = map[string]interface{}{
+			command.LedgerType: "vct-v1",
+		}
+
+		respBytes, err := json.Marshal(resp)
+		require.NoError(t, err)
+
+		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body: ioutil.NopCloser(
+					bytes.NewBufferString(string(respBytes)),
+				),
+				StatusCode: http.StatusOK,
+			}, nil
+		})
+
+		t.Run("success", func(t *testing.T) {
+			c := New(
+				WithHTTPClient(httpClient),
+				WithDIDDomainResolver(func(did string) (string, error) {
+					return domain, nil
+				}),
+			)
+
+			response, err := c.ResolveLog(did)
+			require.NoError(t, err)
+			require.Equal(t, response.String(), logURL)
+		})
+
+		t.Run("domain resolver error", func(t *testing.T) {
+			errExpected := errors.New("injected domain resolver error")
+
+			c := New(
+				WithHTTPClient(httpClient),
+				WithDIDDomainResolver(func(did string) (string, error) {
+					return "", errExpected
+				}),
+			)
+
+			_, err := c.ResolveLog(did)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errExpected.Error())
+		})
+
+		t.Run("invalid domain error", func(t *testing.T) {
+			c := New(
+				WithHTTPClient(httpClient),
+				WithDIDDomainResolver(func(did string) (string, error) {
+					return "%", nil
+				}),
+			)
+
+			_, err := c.ResolveLog(did)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid URL")
+		})
+	})
 }
 
 func TestResolveWebFingerResource(t *testing.T) {
@@ -360,7 +431,7 @@ func TestResolveWebFingerResource(t *testing.T) {
 		defer testServer.Close()
 
 		operations, err := discoveryrest.New(
-			&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&discoveryrest.Config{ServiceEndpointURL: testutil.MustParseURL(testServer.URL), WebCASPath: "/cas"},
 			&discoveryrest.Providers{CAS: &mocks.CASClient{}, AnchorLinkStore: &orbmocks.AnchorLinkStore{}},
 		)
 		require.NoError(t, err)
@@ -383,7 +454,7 @@ func TestResolveWebFingerResource(t *testing.T) {
 
 		webFingerResponse, err := client.ResolveWebFingerResource("NonExistentDomain",
 			fmt.Sprintf("%s/cas/%s", "NonExistentDomain", "SomeCID"))
-		require.EqualError(t, err, "failed to get response (URL: NonExistentDomain/.well-known/webfinger?"+
+		require.Contains(t, err.Error(), "failed to get response (URL: NonExistentDomain/.well-known/webfinger?"+
 			`resource=NonExistentDomain/cas/SomeCID): Get "NonExistentDomain/.well-known/webfinger?resource=NonEx`+
 			`istentDomain/cas/SomeCID": unsupported protocol scheme ""`)
 		require.Empty(t, webFingerResponse)
@@ -405,7 +476,7 @@ func TestResolveWebFingerResource(t *testing.T) {
 
 		webFingerResponse, err := client.ResolveWebFingerResource(testServer.URL,
 			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
-		require.EqualError(t, err, fmt.Sprintf("received unexpected status code. URL [%s/.well-known"+
+		require.Contains(t, err.Error(), fmt.Sprintf("received unexpected status code. URL [%s/.well-known"+
 			"/webfinger?resource=%s/cas/SomeCID], status code [500], response body [unknown failu"+
 			"re]", testServer.URL, testServer.URL))
 		require.Empty(t, webFingerResponse)
@@ -426,7 +497,7 @@ func TestResolveWebFingerResource(t *testing.T) {
 
 		webFingerResponse, err := client.ResolveWebFingerResource(testServer.URL,
 			fmt.Sprintf("%s/cas/%s", testServer.URL, "SomeCID"))
-		require.EqualError(t, err, "failed to unmarshal WebFinger response: invalid character "+
+		require.Contains(t, err.Error(), "failed to unmarshal WebFinger response: invalid character "+
 			"'h' in literal true (expecting 'r')")
 		require.Empty(t, webFingerResponse)
 	})
@@ -441,7 +512,7 @@ func TestGetWebCASURL(t *testing.T) {
 		defer testServer.Close()
 
 		operations, err := discoveryrest.New(
-			&discoveryrest.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&discoveryrest.Config{ServiceEndpointURL: testutil.MustParseURL(testServer.URL), WebCASPath: "/cas"},
 			&discoveryrest.Providers{CAS: &mocks.CASClient{}, AnchorLinkStore: &orbmocks.AnchorLinkStore{}},
 		)
 		require.NoError(t, err)
@@ -458,7 +529,7 @@ func TestGetWebCASURL(t *testing.T) {
 		webFingerClient := New()
 
 		webCASURL, err := webFingerClient.GetWebCASURL("NonExistentDomain", "SomeCID")
-		require.EqualError(t, err, "failed to get WebFinger resource: failed to get response "+
+		require.Contains(t, err.Error(), "failed to get response "+
 			`(URL: NonExistentDomain/.well-known/webfinger?resource=NonExistentDomain/cas/SomeCID): `+
 			`Get "NonExistentDomain/.well-known/webfinger?resource=NonExistentDomain/cas/SomeCID": `+
 			`unsupported protocol scheme ""`)
@@ -484,7 +555,7 @@ func TestGetWebCASURL(t *testing.T) {
 		webFingerClient := New()
 
 		data, err := webFingerClient.GetWebCASURL(testServer.URL, "SomeCID")
-		require.EqualError(t, err, `failed to parse webcas URL: parse "%": invalid URL escape "%"`)
+		require.EqualError(t, err, `failed to parse URL: parse "%": invalid URL escape "%"`)
 		require.Nil(t, data)
 	})
 }

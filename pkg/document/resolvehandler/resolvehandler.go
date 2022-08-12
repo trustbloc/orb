@@ -63,6 +63,7 @@ type discoveryService interface {
 
 type endpointClient interface {
 	GetEndpoint(domain string) (*models.Endpoint, error)
+	ResolveDomainForDID(id string) (string, error)
 }
 
 type remoteResolver interface {
@@ -148,27 +149,47 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 	return localResponse, nil
 }
 
-//nolint:funlen
+//nolint:funlen,gocyclo,cyclop
 func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	id string, localResponse *document.ResolutionResult,
 	opts ...document.ResolutionOption) *document.ResolutionResult {
 	localAnchorOrigin, err := util.GetAnchorOrigin(localResponse.DocumentMetadata)
 	if err != nil {
-		logger.Debugf("resolving locally since there was an error while getting anchor origin from local response[%s]: %s", id, err.Error()) //nolint:lll
+		logger.Debugf(
+			"resolving locally since there was an error while getting anchor origin from local response[%s]: %s",
+			id, err.Error())
 
 		// this error should never happen - return local response
 		return localResponse
 	}
 
-	if localAnchorOrigin == r.domain {
+	var domain string
+
+	if util.IsDID(localAnchorOrigin) {
+		domain, err = r.endpointClient.ResolveDomainForDID(localAnchorOrigin)
+		if err != nil {
+			logger.Debugf("resolving locally since there was an error getting domain for id[%s]: %s", id, err.Error())
+
+			return localResponse
+		}
+	} else {
+		domain = localAnchorOrigin
+	}
+
+	logger.Debugf("Domain of [%s]: [%s]", id, domain)
+
+	if domain == r.domain {
+		logger.Debugf("Nothing to do since local anchor origin domain [%s] for [%s] equals current domain [%s]",
+			localAnchorOrigin, id, r.domain)
+
 		// nothing to do since DID's anchor origin equals current domain - return local response
 		return localResponse
 	}
 
 	anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id, localAnchorOrigin)
 	if err != nil {
-		logger.Debugf("resolving locally since there was an error while getting local anchor origin for id[%s]: %s",
-			id, err.Error()) //
+		logger.Warnf("resolving locally since there was an error while getting local anchor origin for id[%s]: %s",
+			id, err.Error())
 
 		return localResponse
 	}
@@ -177,7 +198,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 	latestAnchorOrigin, err := util.GetAnchorOrigin(anchorOriginResponse.DocumentMetadata)
 	if err != nil {
-		logger.Debugf("resolving locally since there was an error while getting remote anchor origin for id[%s]: %s",
+		logger.Warnf("resolving locally since there was an error while getting remote anchor origin for id[%s]: %s",
 			id, err.Error())
 
 		return localResponse
@@ -359,6 +380,9 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string
 		return nil, fmt.Errorf("unable to resolve id[%s] from anchor origin endpoints%s: %w",
 			id, endpoint.ResolutionEndpoints, err)
 	}
+
+	logger.Debugf("... successfully resolved document for DID [%s] from anchor origin [%s]: %+v",
+		id, anchorOrigin, anchorOriginResponse)
 
 	return anchorOriginResponse, nil
 }

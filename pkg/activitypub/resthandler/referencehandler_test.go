@@ -30,9 +30,10 @@ const followersURL = "https://example.com/services/orb/followers"
 
 func TestNewFollowers(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewFollowers(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
@@ -41,12 +42,7 @@ func TestNewFollowers(t *testing.T) {
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
-	objectIRI, err := h.getObjectIRI(nil)
-	require.NoError(t, err)
-	require.NotNil(t, objectIRI)
-	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
-
-	id, err := h.getID(objectIRI, nil)
+	id, err := h.getID(serviceIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/followers", id.String())
@@ -54,9 +50,10 @@ func TestNewFollowers(t *testing.T) {
 
 func TestNewFollowing(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewFollowing(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
@@ -65,12 +62,7 @@ func TestNewFollowing(t *testing.T) {
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
-	objectIRI, err := h.getObjectIRI(nil)
-	require.NoError(t, err)
-	require.NotNil(t, objectIRI)
-	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
-
-	id, err := h.getID(objectIRI, nil)
+	id, err := h.getID(serviceIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/following", id.String())
@@ -78,9 +70,10 @@ func TestNewFollowing(t *testing.T) {
 
 func TestNewWitnesses(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewWitnesses(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
@@ -89,12 +82,7 @@ func TestNewWitnesses(t *testing.T) {
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
-	objectIRI, err := h.getObjectIRI(nil)
-	require.NoError(t, err)
-	require.NotNil(t, objectIRI)
-	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
-
-	id, err := h.getID(objectIRI, nil)
+	id, err := h.getID(serviceIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/witnesses", id.String())
@@ -102,9 +90,10 @@ func TestNewWitnesses(t *testing.T) {
 
 func TestNewWitnessing(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewWitnessing(cfg, memstore.New(""), &mocks.SignatureVerifier{}, &apmocks.AuthTokenMgr{})
@@ -113,12 +102,7 @@ func TestNewWitnessing(t *testing.T) {
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 
-	objectIRI, err := h.getObjectIRI(nil)
-	require.NoError(t, err)
-	require.NotNil(t, objectIRI)
-	require.Equal(t, "https://example1.com/services/orb", objectIRI.String())
-
-	id, err := h.getID(objectIRI, nil)
+	id, err := h.getID(serviceIRI, nil)
 	require.NoError(t, err)
 	require.NotNil(t, id)
 	require.Equal(t, "https://example1.com/services/orb/witnessing", id.String())
@@ -136,9 +120,10 @@ func TestFollowers_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -196,26 +181,6 @@ func TestFollowers_Handler(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
-
-		h.handle(rw, req)
-
-		result := rw.Result()
-		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
-		require.NoError(t, result.Body.Close())
-	})
-
-	t.Run("GetObjectIRI error", func(t *testing.T) {
-		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
-		require.NotNil(t, h)
-
-		errExpected := fmt.Errorf("injected error")
-
-		h.getObjectIRI = func(req *http.Request) (*url.URL, error) {
-			return nil, errExpected
-		}
-
-		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
 
 		h.handle(rw, req)
 
@@ -299,8 +264,9 @@ func TestFollowers_PageHandler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -340,8 +306,9 @@ func TestFollowers_PageHandler(t *testing.T) {
 		s.QueryReferencesReturns(nil, errExpected)
 
 		cfg := &Config{
-			ObjectIRI: serviceIRI,
-			PageSize:  4,
+			ObjectIRI:          serviceIRI,
+			ServiceEndpointURL: serviceIRI,
+			PageSize:           4,
 		}
 
 		h := NewFollowers(cfg, s, verifier, &apmocks.AuthTokenMgr{})
@@ -362,8 +329,9 @@ func TestFollowers_PageHandler(t *testing.T) {
 
 	t.Run("Marshal error", func(t *testing.T) {
 		cfg := &Config{
-			ObjectIRI: serviceIRI,
-			PageSize:  4,
+			ObjectIRI:          serviceIRI,
+			ServiceEndpointURL: serviceIRI,
+			PageSize:           4,
 		}
 
 		h := NewFollowers(cfg, activityStore, verifier, &apmocks.AuthTokenMgr{})
@@ -401,9 +369,10 @@ func TestWitnesses_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -437,9 +406,10 @@ func TestWitnessing_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -469,12 +439,17 @@ func TestGetReference(t *testing.T) {
 	}, true)
 	require.NoError(t, err)
 
-	referenceHandler := Reference{
-		handler: &handler{AuthHandler: &AuthHandler{activityStore: store}},
+	referenceHandler := &Reference{
+		handler: &handler{
+			Config: &Config{
+				ObjectIRI: serviceIRI,
+			},
+			AuthHandler: &AuthHandler{activityStore: store},
+		},
 		refType: spi.Inbox,
 	}
 
-	reference, err := referenceHandler.getReference(&url.URL{}, &url.URL{})
+	reference, err := referenceHandler.getReference(&url.URL{})
 	require.EqualError(t, err, "failed to get total items from reference query: total items error")
 	require.Nil(t, reference)
 }
@@ -487,12 +462,17 @@ func TestReferenceHandlerGetPage(t *testing.T) {
 	}, true)
 	require.NoError(t, err)
 
-	referenceHandler := Reference{
-		handler: &handler{AuthHandler: &AuthHandler{activityStore: ariesStore}},
+	referenceHandler := &Reference{
+		handler: &handler{
+			Config: &Config{
+				ObjectIRI: serviceIRI,
+			},
+			AuthHandler: &AuthHandler{activityStore: ariesStore},
+		},
 		refType: spi.Inbox,
 	}
 
-	page, err := referenceHandler.getPage(&url.URL{}, &url.URL{})
+	page, err := referenceHandler.getPage(&url.URL{})
 	require.EqualError(t, err, "failed to get total items from reference query: total items error")
 	require.Nil(t, page)
 }

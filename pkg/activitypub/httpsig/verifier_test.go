@@ -91,7 +91,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
+		require.NoError(t, signer.SignRequest(publicKey.ID().String(), req))
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
+		require.NoError(t, signer.SignRequest(publicKey.ID().String(), req))
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
+		require.NoError(t, signer.SignRequest(publicKey.ID().String(), req))
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.Error(t, err)
@@ -198,7 +198,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
+		require.NoError(t, signer.SignRequest(publicKey.ID().String(), req))
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		require.NoError(t, signer.SignRequest(publicKey.ID.String(), req))
+		require.NoError(t, signer.SignRequest(publicKey.ID().String(), req))
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)

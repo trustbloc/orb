@@ -127,7 +127,7 @@ const (
 	mqDefaultRedeliveryInitialInterval      = 2 * time.Second
 	mqDefaultRedeliveryMaxInterval          = time.Minute
 	defaultActivityPubClientCacheSize       = 100
-	defaultActivityPubClientCacheExpiration = time.Hour
+	defaultActivityPubClientCacheExpiration = 10 * time.Minute
 	defaultActivityPubIRICacheSize          = 100
 	defaultActivityPubIRICacheExpiration    = time.Hour
 	defaultFollowAuthType                   = acceptAllPolicy
@@ -213,6 +213,12 @@ const (
 		" This endpoint is used to generate IDs of anchor credentials and ActivityPub objects and" +
 		" should be resolvable by external clients. Format: HostName[:Port]."
 	externalEndpointEnvKey = "ORB_EXTERNAL_ENDPOINT"
+
+	serviceIDFlagName  = "service-id"
+	serviceIDFlagUsage = "The ID of the ActivityPub service." +
+		" By default, the ID is composed of the external endpoint appended with /services/orb, " +
+		" but it can also be set to a did:web DID, e.g. did:web:alice.example.com:services:anchor."
+	serviceIDEnvKey = "ORB_SERVICE_ID"
 
 	discoveryDomainFlagName  = "discovery-domain"
 	discoveryDomainFlagUsage = "Discovery domain for this domain." + " Format: HostName"
@@ -677,6 +683,7 @@ type orbParameters struct {
 	hostURL                                 string
 	hostMetricsURL                          string
 	externalEndpoint                        string
+	serviceID                               string
 	discoveryDomain                         string
 	didNamespace                            string
 	didAliases                              []string
@@ -872,6 +879,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	if externalEndpoint == "" {
 		externalEndpoint = hostURL
+	}
+
+	serviceID, err := cmdutils.GetUserSetVarFromString(cmd, serviceIDFlagName, serviceIDEnvKey, true)
+	if err != nil {
+		return nil, err
 	}
 
 	discoveryDomain, err := cmdutils.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
@@ -1411,6 +1423,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		hostMetricsURL:                          hostMetricsURL,
 		discoveryDomain:                         discoveryDomain,
 		externalEndpoint:                        externalEndpoint,
+		serviceID:                               serviceID,
 		tlsParams:                               tlsParams,
 		didNamespace:                            didNamespace,
 		didAliases:                              didAliases,
@@ -2034,6 +2047,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(secretLockKeyPathFlagName, "", secretLockKeyPathFlagUsage)
 	startCmd.Flags().String(kmsTypeFlagName, "", kmsTypeFlagUsage)
 	startCmd.Flags().StringP(externalEndpointFlagName, externalEndpointFlagShorthand, "", externalEndpointFlagUsage)
+	startCmd.Flags().StringP(serviceIDFlagName, "", "", serviceIDFlagUsage)
 	startCmd.Flags().String(discoveryDomainFlagName, "", discoveryDomainFlagUsage)
 	startCmd.Flags().StringP(tlsCertificateFlagName, tlsCertificateFlagShorthand, "", tlsCertificateFlagUsage)
 	startCmd.Flags().StringP(tlsKeyFlagName, tlsKeyFlagShorthand, "", tlsKeyFlagUsage)

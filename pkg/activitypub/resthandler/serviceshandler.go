@@ -94,9 +94,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Currently only one key is supported. In the future we may wish to have
-	// multiple keys per service.
-	if keyID != MainKeyID {
+	if fmt.Sprintf("%s/keys/%s", h.ObjectIRI, keyID) != h.publicKey.ID().String() {
 		logger.Infof("[%s] Public key [%s] not found for [%s]", h.endpoint, h.ObjectIRI, keyID)
 
 		h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
@@ -119,47 +117,47 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Services) newService() (*vocab.ActorType, error) {
-	inbox, err := newID(h.ObjectIRI, InboxPath)
+	inbox, err := newID(h.ServiceEndpointURL, InboxPath)
 	if err != nil {
 		return nil, err
 	}
 
-	outbox, err := newID(h.ObjectIRI, OutboxPath)
+	outbox, err := newID(h.ServiceEndpointURL, OutboxPath)
 	if err != nil {
 		return nil, err
 	}
 
-	followers, err := newID(h.ObjectIRI, FollowersPath)
+	followers, err := newID(h.ServiceEndpointURL, FollowersPath)
 	if err != nil {
 		return nil, err
 	}
 
-	following, err := newID(h.ObjectIRI, FollowingPath)
+	following, err := newID(h.ServiceEndpointURL, FollowingPath)
 	if err != nil {
 		return nil, err
 	}
 
-	witnesses, err := newID(h.ObjectIRI, WitnessesPath)
+	witnesses, err := newID(h.ServiceEndpointURL, WitnessesPath)
 	if err != nil {
 		return nil, err
 	}
 
-	witnessing, err := newID(h.ObjectIRI, WitnessingPath)
+	witnessing, err := newID(h.ServiceEndpointURL, WitnessingPath)
 	if err != nil {
 		return nil, err
 	}
 
-	liked, err := newID(h.ObjectIRI, LikedPath)
+	liked, err := newID(h.ServiceEndpointURL, LikedPath)
 	if err != nil {
 		return nil, err
 	}
 
-	likes, err := newID(h.ObjectIRI, LikesPath)
+	likes, err := newID(h.ServiceEndpointURL, LikesPath)
 	if err != nil {
 		return nil, err
 	}
 
-	shares, err := newID(h.ObjectIRI, SharesPath)
+	shares, err := newID(h.ServiceEndpointURL, SharesPath)
 	if err != nil {
 		return nil, err
 	}

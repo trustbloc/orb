@@ -235,7 +235,7 @@ func TestResolver_Resolve(t *testing.T) {
 		defer testServer.Close()
 
 		operations, err := restapi.New(
-			&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&restapi.Config{ServiceEndpointURL: testutil.MustParseURL(testServer.URL), WebCASPath: "/cas"},
 			&restapi.Providers{CAS: casClient, AnchorLinkStore: linkStore})
 		require.NoError(t, err)
 
@@ -303,7 +303,7 @@ func TestResolver_Resolve(t *testing.T) {
 		defer testServer.Close()
 
 		operations, err := restapi.New(
-			&restapi.Config{BaseURL: testServer.URL, WebCASPath: "/cas"},
+			&restapi.Config{ServiceEndpointURL: testutil.MustParseURL(testServer.URL), WebCASPath: "/cas"},
 			&restapi.Providers{CAS: casClient, AnchorLinkStore: linkStore},
 		)
 		require.NoError(t, err)
@@ -614,9 +614,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 			data, localHL, err := resolver.Resolve(nil, hashWithHint, nil)
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "failed to resolve domain and resource hash via WebCAS: "+
-				"failed to determine WebCAS URL via WebFinger: "+
-				"failed to get WebFinger resource: failed to get response "+
+			require.Contains(t, err.Error(), "failed to get response "+
 				"(URL: http://NonExistentDomain/.well-known/webfinger?resource=http://Non"+
 				`ExistentDomain/cas/uEiCIOcbw1KEQ7neFh6F4GqB-KyhsRhJAGhXpL3kqy4oYVA): Get "http://`+
 				"NonExistentDomain/.well-known/webfinger?resource=http://NonExistentDomain/cas/"+
@@ -722,10 +720,9 @@ func TestResolver_Resolve(t *testing.T) {
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, localHL, err := resolver.Resolve(nil, cidWithHint, nil)
-			require.EqualError(t, err, "failed to resolve domain and resource hash via WebCAS: failed to determine "+
-				"WebCAS URL via WebFinger: failed to get WebFinger resource: "+
+			require.Contains(t, err.Error(),
 				"failed to unmarshal WebFinger response: invalid character 'h' in "+
-				"literal true (expecting 'r')")
+					"literal true (expecting 'r')")
 			require.Nil(t, data)
 			require.Empty(t, localHL)
 		})
@@ -771,8 +768,7 @@ func TestResolver_Resolve(t *testing.T) {
 			resolver.webCASResolver.webFingerURIScheme = httpScheme
 
 			data, localHL, err := resolver.Resolve(nil, hashWithHint, nil)
-			require.EqualError(t, err, "failed to resolve domain and resource hash via WebCAS: failed to determine "+
-				`WebCAS URL via WebFinger: failed to parse webcas URL: parse "%": invalid URL escape "%"`)
+			require.Contains(t, err.Error(), `failed to parse URL: parse "%": invalid URL escape "%"`)
 			require.Nil(t, data)
 			require.Empty(t, localHL)
 		})

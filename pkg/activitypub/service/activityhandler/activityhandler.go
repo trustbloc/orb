@@ -36,8 +36,11 @@ type Config struct {
 	ServiceName string
 
 	// ServiceIRI is the IRI of the local service (actor). It is used as the 'actor' in activities
-	// that are posted to the outbox by the handler.
+	// that are posted to the outbox by the handler. This IRI may be an HTTP(s) address or a DID.
 	ServiceIRI *url.URL
+
+	// ServiceEndpointURL is the HTTP(s) endpoint of the service (actor).
+	ServiceEndpointURL *url.URL
 
 	// BufferSize is the size of the Go channel buffer for a subscription.
 	BufferSize int

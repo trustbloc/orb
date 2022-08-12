@@ -14,7 +14,7 @@ Feature:
     And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
     Given variable "domain1ID" is assigned the value "${domain1IRI}"
-    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain2ID" is assigned the value "did:web:orb.domain2.com:services:orb"
     And variable "domain3ID" is assigned the value "${domain3IRI}"
     And variable "domain4ID" is assigned the value "${domain4IRI}"
 
@@ -30,7 +30,7 @@ Feature:
     And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb.domain3.com" is set to "https://orb.domain3.com"
     And anchor origin for host "orb.domain4.com" is set to "https://orb.domain1.com"
-    And anchor origin for host "orb.domain5.com" is set to "https://orb.domain5.com"
+    And anchor origin for host "orb.domain5.com" is set to "did:web:orb.domain5.com:services:anchor"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -678,8 +678,16 @@ Feature:
     Given variable "undoLikeActivity_1" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor_1}","to":#{likeTo_1},"object":#{likeActivity_1}}'
     And variable "undoLikeActivity_2" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${likeActor_2}","to":#{likeTo_2},"object":#{likeActivity_2}}'
 
-    When an HTTP POST is sent to "${likeActor_1}/outbox" with content "${undoLikeActivity_1}" of type "application/json"
-    And an HTTP POST is sent to "${likeActor_2}/outbox" with content "${undoLikeActivity_2}" of type "application/json"
+    Then variable "likeActorDomain_1" is assigned the value "$GetDomainFromURI(|${likeActor_1}|)"
+    When an HTTP GET is sent to "${likeActorDomain_1}/.well-known/host-meta.json"
+    And the JSON path 'links.#(type=="application/activity+json").href' of the response is saved to variable "likeActorHRef_1"
+
+    Then variable "likeActorDomain_2" is assigned the value "$GetDomainFromURI(|${likeActor_2}|)"
+    When an HTTP GET is sent to "${likeActorDomain_2}/.well-known/host-meta.json"
+    And the JSON path 'links.#(type=="application/activity+json").href' of the response is saved to variable "likeActorHRef_2"
+
+    When an HTTP POST is sent to "${likeActorHRef_1}/outbox" with content "${undoLikeActivity_1}" of type "application/json"
+    And an HTTP POST is sent to "${likeActorHRef_2}/outbox" with content "${undoLikeActivity_2}" of type "application/json"
 
     Then we wait 2 seconds
 
@@ -745,7 +753,7 @@ Feature:
     And the JSON path "@this" of the response contains "https://orb.domain3.com"
     And the JSON path "@this" of the response contains "https://orb.domain4.com"
 
-    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain5.com"],"remove":["https://orb.domain3.com","https://orb.domain4.com"]}'
+    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["did:web:orb.domain5.com:services:anchor"],"remove":["https://orb.domain3.com","https://orb.domain4.com"]}'
     When an HTTP POST is sent to "https://orb.domain1.com/allowedorigins" with content "${domain1AllowedOrigins}" of type "application/json"
 
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
@@ -754,10 +762,10 @@ Feature:
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
     And the JSON path "@this" of the response does not contain "https://orb.domain4.com"
-    And the JSON path "@this" of the response contains "https://orb.domain5.com"
+    And the JSON path "@this" of the response contains "did:web:orb.domain5.com:services:anchor"
 
     # Add a duplicate and remove domain5
-    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain1.com"],"remove":["https://orb.domain5.com"]}'
+    Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain1.com"],"remove":["did:web:orb.domain5.com:services:anchor"]}'
     When an HTTP POST is sent to "https://orb.domain1.com/allowedorigins" with content "${domain1AllowedOrigins}" of type "application/json"
 
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
@@ -766,4 +774,4 @@ Feature:
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
     And the JSON path "@this" of the response does not contain "https://orb.domain4.com"
-    And the JSON path "@this" of the response does not contain "https://orb.domain5.com"
+    And the JSON path "@this" of the response does not contain "did:web:orb.domain5.com:services:anchor"

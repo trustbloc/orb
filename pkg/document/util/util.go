@@ -146,6 +146,24 @@ func GetAnchorOrigin(metadata document.Metadata) (string, error) {
 	return anchorOrigin, nil
 }
 
+// IsDID return true if the given URI is a DID.
+func IsDID(uri string) bool {
+	return strings.HasPrefix(uri, "did:")
+}
+
+// ParseKeyURI parses the key IRI and returns the DID and the key ID.
+func ParseKeyURI(keyIRI string) (did, keyID string, err error) {
+	parts := strings.Split(keyIRI, "#")
+
+	const numDIDParts = 2
+
+	if len(parts) != numDIDParts {
+		return "", "", fmt.Errorf("invalid public key ID - expecting DID and key ID")
+	}
+
+	return parts[0], parts[1], nil
+}
+
 func getOperationsByKey(methodMetadata map[string]interface{}, key string) ([]*operation.AnchoredOperation, error) {
 	opsObj, ok := methodMetadata[key]
 	if !ok {

@@ -40,9 +40,10 @@ const (
 
 func TestNewOutbox(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewOutbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
@@ -64,9 +65,10 @@ func TestNewOutbox(t *testing.T) {
 
 func TestNewInbox(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	h := NewInbox(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
@@ -90,8 +92,9 @@ func TestNewShares(t *testing.T) {
 	const id = "http://example1.com/vc/31027ffa-bfc9-4a36-aa1a-6bfc04e6d432"
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
 	}
 
 	h := NewShares(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
@@ -131,8 +134,9 @@ func TestNewLikes(t *testing.T) {
 	const id = "http://example1.com/vc/31027ffa-bfc9-4a36-aa1a-6bfc04e6d432"
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
 	}
 
 	h := NewLikes(cfg, memstore.New(""), &mocks.SignatureVerifier{}, spi.SortDescending, &apmocks.AuthTokenMgr{})
@@ -179,9 +183,10 @@ func TestActivities_Handler(t *testing.T) {
 	require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -457,9 +462,10 @@ func TestReadOutbox_Handler(t *testing.T) {
 	require.NoError(t, activityStore.AddReference(spi.Follower, serviceIRI, service2IRI))
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	t.Run("Authorized -> All items", func(t *testing.T) {
@@ -553,9 +559,10 @@ func TestShares_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: srvcIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          srvcIRI,
+		ServiceEndpointURL: srvcIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -605,9 +612,10 @@ func TestShares_PageHandler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: srvcIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          srvcIRI,
+		ServiceEndpointURL: srvcIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -681,9 +689,10 @@ func TestLiked_Handler(t *testing.T) {
 	}
 
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  5,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           5,
 	}
 
 	verifier := &mocks.SignatureVerifier{}
@@ -715,8 +724,9 @@ func TestActivity_Handler(t *testing.T) {
 	publicID := "bcd35f29-032f-4e22-8f52-df00365323bc"
 
 	cfg := &Config{
-		ObjectIRI: serviceIRI,
-		BasePath:  basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		BasePath:           basePath,
 	}
 
 	activityStore := memstore.New("")
@@ -835,6 +845,7 @@ func TestActivity_Handler(t *testing.T) {
 		cnfg := &Config{
 			BasePath:               basePath,
 			ObjectIRI:              serviceIRI,
+			ServiceEndpointURL:     serviceIRI,
 			VerifyActorInSignature: true,
 		}
 
@@ -938,8 +949,9 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	t.Helper()
 
 	cfg := &Config{
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	verifier := &mocks.SignatureVerifier{}

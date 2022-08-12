@@ -7,11 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package vocab
 
 import (
+	"encoding/json"
 	"net/url"
 )
 
 // PublicKeyType defines a public key object.
 type PublicKeyType struct {
+	publicKey publicKey
+}
+
+type publicKey struct {
 	ID           *URLProperty `json:"id"`
 	Owner        *URLProperty `json:"owner"`
 	PublicKeyPem string       `json:"publicKeyPem"`
@@ -22,10 +27,62 @@ func NewPublicKey(opts ...Opt) *PublicKeyType {
 	options := NewOptions(opts...)
 
 	return &PublicKeyType{
-		ID:           NewURLProperty(options.ID),
-		Owner:        NewURLProperty(options.Owner),
-		PublicKeyPem: options.PublicKeyPem,
+		publicKey: publicKey{
+			ID:           NewURLProperty(options.ID),
+			Owner:        NewURLProperty(options.Owner),
+			PublicKeyPem: options.PublicKeyPem,
+		},
 	}
+}
+
+// ID returns the public key ID.
+func (t *PublicKeyType) ID() *url.URL {
+	if t == nil {
+		return nil
+	}
+
+	return t.publicKey.ID.URL()
+}
+
+// Owner returns the owner of the key.
+func (t *PublicKeyType) Owner() *url.URL {
+	if t == nil {
+		return nil
+	}
+
+	return t.publicKey.Owner.URL()
+}
+
+// PublicKeyPem returns the public key in PEM format.
+func (t *PublicKeyType) PublicKeyPem() string {
+	if t == nil {
+		return ""
+	}
+
+	return t.publicKey.PublicKeyPem
+}
+
+// MarshalJSON marshals the object to JSON.
+func (t *PublicKeyType) MarshalJSON() ([]byte, error) {
+	if t.publicKey.Owner == nil && t.publicKey.PublicKeyPem == "" {
+		return Marshal(t.publicKey.ID)
+	}
+
+	return MarshalJSON(t.publicKey)
+}
+
+// UnmarshalJSON unmarshals the object from JSON.
+func (t *PublicKeyType) UnmarshalJSON(bytes []byte) error {
+	id := &URLProperty{}
+
+	err := json.Unmarshal(bytes, id)
+	if err == nil {
+		t.publicKey.ID = id
+
+		return nil
+	}
+
+	return json.Unmarshal(bytes, &t.publicKey)
 }
 
 // ActorType defines an 'actor'.

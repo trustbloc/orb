@@ -25,7 +25,7 @@ Feature:
     And host "orb.domain2.com" is mapped to "localhost:48426"
     And variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
-    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain2ID" is assigned the value "did:web:orb.domain2.com:services:orb"
 
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"

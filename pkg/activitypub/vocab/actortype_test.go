@@ -74,9 +74,9 @@ func TestActor(t *testing.T) {
 
 		key := a.PublicKey()
 		require.NotNil(t, key)
-		require.Equal(t, keyID.String(), key.ID.String())
-		require.Equal(t, serviceIRI.String(), key.Owner.String())
-		require.Equal(t, keyPem, key.PublicKeyPem)
+		require.Equal(t, keyID.String(), key.ID().String())
+		require.Equal(t, serviceIRI.String(), key.Owner().String())
+		require.Equal(t, keyPem, key.PublicKeyPem())
 
 		in := a.Inbox()
 		require.NotNil(t, in)
@@ -123,6 +123,52 @@ func TestActor(t *testing.T) {
 		require.Nil(t, a.Witnesses())
 		require.Nil(t, a.Witnessing())
 		require.Nil(t, a.Liked())
+	})
+}
+
+func TestPublicKey(t *testing.T) {
+	t.Run("PEM -> success", func(t *testing.T) {
+		const (
+			pkID  = "https://alice.example.com/services/orb/keys/main-key"
+			owner = "https://alice.example.com/services/orb"
+			pem   = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhki....."
+		)
+
+		pk := NewPublicKey(WithID(MustParseURL(pkID)), WithOwner(MustParseURL(owner)), WithPublicKeyPem(pem))
+		pkBytes, err := json.Marshal(pk)
+		require.NoError(t, err)
+
+		pk = &PublicKeyType{}
+
+		require.NoError(t, json.Unmarshal(pkBytes, pk))
+		require.Equal(t, pkID, pk.ID().String())
+		require.Equal(t, owner, pk.Owner().String())
+		require.Equal(t, pem, pk.PublicKeyPem())
+	})
+
+	t.Run("ID -> success", func(t *testing.T) {
+		const pkID = "did:web:alice.example.com:services:anchor#main-key"
+
+		pk := NewPublicKey(WithID(MustParseURL(pkID)))
+		require.NotNil(t, pk)
+
+		pkBytes, err := json.Marshal(pk)
+		require.NotNil(t, pkBytes)
+		require.NoError(t, err)
+
+		pk = &PublicKeyType{}
+		require.NoError(t, json.Unmarshal(pkBytes, pk))
+		require.Equal(t, pkID, pk.ID().String())
+		require.Nil(t, pk.Owner())
+		require.Empty(t, pk.PublicKeyPem())
+	})
+
+	t.Run("Nil public key", func(t *testing.T) {
+		var pk *PublicKeyType
+
+		require.Nil(t, pk.ID())
+		require.Nil(t, pk.Owner())
+		require.Empty(t, pk.PublicKeyPem())
 	})
 }
 

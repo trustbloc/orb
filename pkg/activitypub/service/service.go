@@ -44,8 +44,9 @@ type PubSub interface {
 
 // Config holds the configuration parameters for an ActivityPub service.
 type Config struct {
-	ServiceEndpoint           string
+	ServicePath               string
 	ServiceIRI                *url.URL
+	ServiceEndpointURL        *url.URL
 	ActivityHandlerBufferSize int
 	VerifyActorInSignature    bool
 
@@ -105,16 +106,18 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 	tm authTokenManager, m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {
 	outboxHandler := activityhandler.NewOutbox(
 		&activityhandler.Config{
-			ServiceName: cfg.ServiceEndpoint + "/outbox",
-			BufferSize:  cfg.ActivityHandlerBufferSize,
-			ServiceIRI:  cfg.ServiceIRI,
+			ServiceName:        cfg.ServicePath + resthandler.OutboxPath,
+			BufferSize:         cfg.ActivityHandlerBufferSize,
+			ServiceIRI:         cfg.ServiceIRI,
+			ServiceEndpointURL: cfg.ServiceEndpointURL,
 		},
 		activityStore, activityPubClient)
 
 	ob, err := outbox.New(
 		&outbox.Config{
-			ServiceName:        cfg.ServiceEndpoint,
+			ServiceName:        cfg.ServicePath,
 			ServiceIRI:         cfg.ServiceIRI,
+			ServiceEndpointURL: cfg.ServiceEndpointURL,
 			Topic:              outboxActivitiesTopic,
 			CacheSize:          cfg.IRICacheSize,
 			CacheExpiration:    cfg.IRICacheExpiration,
@@ -129,16 +132,17 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 
 	inboxHandler := activityhandler.NewInbox(
 		&activityhandler.Config{
-			ServiceName:     cfg.ServiceEndpoint + "/inbox",
-			BufferSize:      cfg.ActivityHandlerBufferSize,
-			ServiceIRI:      cfg.ServiceIRI,
-			MaxWitnessDelay: cfg.MaxWitnessDelay,
+			ServiceName:        cfg.ServicePath + resthandler.InboxPath,
+			BufferSize:         cfg.ActivityHandlerBufferSize,
+			ServiceIRI:         cfg.ServiceIRI,
+			ServiceEndpointURL: cfg.ServiceEndpointURL,
+			MaxWitnessDelay:    cfg.MaxWitnessDelay,
 		},
 		activityStore, ob, activityPubClient, handlerOpts...)
 
 	ib, err := inbox.New(
 		&inbox.Config{
-			ServiceEndpoint:        cfg.ServiceEndpoint + resthandler.InboxPath,
+			ServiceEndpoint:        cfg.ServicePath + resthandler.InboxPath,
 			ServiceIRI:             cfg.ServiceIRI,
 			Topic:                  inboxActivitiesTopic,
 			VerifyActorInSignature: cfg.VerifyActorInSignature,
@@ -157,7 +161,7 @@ func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier si
 		activityHandler: inboxHandler,
 	}
 
-	s.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
+	s.Lifecycle = lifecycle.New(cfg.ServicePath,
 		lifecycle.WithStart(s.start),
 		lifecycle.WithStop(s.stop),
 	)

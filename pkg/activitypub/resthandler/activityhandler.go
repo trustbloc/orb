@@ -33,8 +33,10 @@ func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *ReadOutbox {
 	h := &ReadOutbox{
 		Activities: &Activities{
-			getID:        getID("outbox"),
 			getObjectIRI: getObjectIRI(cfg.ObjectIRI),
+			getID: func(*url.URL, *http.Request) (*url.URL, error) {
+				return url.Parse(fmt.Sprintf("%s/outbox", cfg.ServiceEndpointURL))
+			},
 		},
 	}
 
@@ -47,21 +49,25 @@ func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
 	return NewActivities(InboxPath, spi.Inbox, cfg, activityStore,
-		getObjectIRI(cfg.ObjectIRI), getID("inbox"), verifier, sortOrder, tm)
+		getObjectIRI(cfg.ObjectIRI),
+		func(*url.URL, *http.Request) (*url.URL, error) {
+			return url.Parse(fmt.Sprintf("%s/inbox", cfg.ServiceEndpointURL))
+		},
+		verifier, sortOrder, tm)
 }
 
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
 func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
 	return NewActivities(fmt.Sprintf("%s/{id}", SharesPath), spi.Share, cfg, activityStore,
-		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, SharesPath), verifier, sortOrder, tm)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ServiceEndpointURL, SharesPath), verifier, sortOrder, tm)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
 func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
 	return NewActivities(fmt.Sprintf("%s/{id}", LikesPath), spi.Like, cfg, activityStore,
-		getObjectIRIFromIDParam, getIDFromParam(cfg.ObjectIRI, LikesPath), verifier, sortOrder, tm)
+		getObjectIRIFromIDParam, getIDFromParam(cfg.ServiceEndpointURL, LikesPath), verifier, sortOrder, tm)
 }
 
 type getIDFunc func(objectIRI *url.URL, req *http.Request) (*url.URL, error)
@@ -378,7 +384,7 @@ func (h *Activity) getActivityIRI(req *http.Request) (*url.URL, error) {
 		return nil, errors.New("activity ID not specified")
 	}
 
-	activityID := fmt.Sprintf("%s/activities/%s", h.ObjectIRI, id)
+	activityID := fmt.Sprintf("%s/activities/%s", h.ServiceEndpointURL, id)
 
 	logger.Debugf("[%s] Retrieving activity from store [%s]", h.endpoint, activityID)
 

@@ -126,7 +126,7 @@ services:
       # Default value: 100
       - ACTIVITYPUB_CLIENT_CACHE_SIZE=200
       # ACTIVITYPUB_CLIENT_CACHE_EXPIRATION sets the expiration time of an ActivityPub service and public key cache.
-      # Default value: 1h (one hour)
+      # Default value: 10m (10 minutes)
       - ACTIVITYPUB_CLIENT_CACHE_EXPIRATION=90s
       # ACTIVITYPUB_IRI_CACHE_SIZE sets the maximum size of an ActivityPub actor IRI cache.
       # Default value: 100
@@ -264,7 +264,7 @@ services:
       # Default value: 100
       - ACTIVITYPUB_CLIENT_CACHE_SIZE=200
       # ACTIVITYPUB_CLIENT_CACHE_EXPIRATION sets the expiration time of an ActivityPub service and public key cache.
-      # Default value: 1h (one hour)
+      # Default value: 10m (10 minutes)
       - ACTIVITYPUB_CLIENT_CACHE_EXPIRATION=90s
       # ACTIVITYPUB_IRI_CACHE_SIZE sets the maximum size of an ActivityPub actor IRI cache.
       # Default value: 100
@@ -327,6 +327,11 @@ services:
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
+      # ORB_SERVICE_ID is the ID of the ActivityPub service. By default, the ID is composed of the external endpoint
+      # appended with /services/orb. For example, if ORB_EXTERNAL_ENDPOINT is set to https://orb.domain5.com then the
+      # service ID will be https://orb.domain5.com/services/orb. The ID may also be set to a DID,
+      # e.g. did:web:orb.domain5.com:services:anchor.
+      - ORB_SERVICE_ID=did:web:orb.domain2.com:services:orb
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
@@ -428,6 +433,11 @@ services:
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain2.com
+      # ORB_SERVICE_ID is the ID of the ActivityPub service. By default, the ID is composed of the external endpoint
+      # appended with /services/orb. For example, if ORB_EXTERNAL_ENDPOINT is set to https://orb.domain5.com then the
+      # service ID will be https://orb.domain5.com/services/orb. The ID may also be set to a DID,
+      # e.g. did:web:orb.domain5.com:services:anchor.
+      - ORB_SERVICE_ID=did:web:orb.domain2.com:services:orb
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
@@ -765,6 +775,11 @@ services:
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
       # balancer servicing multiple nodes.
       - ORB_EXTERNAL_ENDPOINT=https://orb.domain5.com
+      # ORB_SERVICE_ID is the ID of the ActivityPub service. By default, the ID is composed of the external endpoint
+      # appended with /services/orb. For example, if ORB_EXTERNAL_ENDPOINT is set to https://orb.domain5.com then the
+      # service ID will be https://orb.domain5.com/services/orb. The ID may also be set to a DID,
+      # e.g. did:web:orb.domain5.com:services:anchor.
+      - ORB_SERVICE_ID=did:web:orb.domain5.com:services:anchor
       - ORB_TLS_CERTIFICATE=/etc/orb/tls/ec-pubCert.pem
       - ORB_TLS_KEY=/etc/orb/tls/ec-key.pem
       - ORB_TLS_SYSTEMCERTPOOL=true
@@ -772,7 +787,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - DID_DISCOVERY_ENABLED=false
-      - ALLOWED_ORIGINS=https://orb.domain5.com,https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=did:web:orb.domain5.com:services:anchor,https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=5000
       - CAS_TYPE=${CAS_TYPE}
