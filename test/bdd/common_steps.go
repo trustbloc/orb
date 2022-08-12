@@ -198,6 +198,23 @@ func (d *CommonSteps) jsonPathOfResponseEquals(path, expected string) error {
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Str, expected)
 }
 
+func (d *CommonSteps) jsonPathOfResponseHasPrefix(path, prefix string) error {
+	err := d.state.resolveVarsInExpression(&prefix)
+	if err != nil {
+		return err
+	}
+
+	r := gjson.Get(d.state.getResponse(), path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, d.state.getResponse(), r.Str)
+
+	if strings.HasPrefix(r.Str, prefix) {
+		return nil
+	}
+
+	return fmt.Errorf("JSON path resolves to [%s] which does not have the prefix [%s]", r.Str, prefix)
+}
+
 func (d *CommonSteps) jsonPathOfNumericResponseEquals(path, expected string) error {
 	resolved, err := d.state.resolveVars(expected)
 	if err != nil {
@@ -355,6 +372,10 @@ func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
 }
 
 func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) error {
+	if err := d.state.resolveVarsInExpression(&path); err != nil {
+		return err
+	}
+
 	r := gjson.Get(d.state.getResponse(), path)
 
 	logger.Infof("Path [%s] of JSON %s resolves to %g. Saving to variable [%s]", path, d.state.getResponse(), r.Num, varName)
@@ -365,6 +386,10 @@ func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) 
 }
 
 func (d *CommonSteps) jsonPathOfRawResponseSavedToVar(path, varName string) error {
+	if err := d.state.resolveVarsInExpression(&path); err != nil {
+		return err
+	}
+
 	r := gjson.Get(d.state.getResponse(), path)
 
 	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]", path, d.state.getResponse(), r.Raw, varName)
@@ -375,6 +400,10 @@ func (d *CommonSteps) jsonPathOfRawResponseSavedToVar(path, varName string) erro
 }
 
 func (d *CommonSteps) jsonPathOfBoolResponseSavedToVar(path, varName string) error {
+	if err := d.state.resolveVarsInExpression(&path); err != nil {
+		return err
+	}
+
 	r := gjson.Get(d.state.getResponse(), path)
 
 	logger.Infof("Path [%s] of JSON %s resolves to %t. Saving to variable [%s]", path, d.state.getResponse(), r.Bool(), varName)
@@ -385,6 +414,10 @@ func (d *CommonSteps) jsonPathOfBoolResponseSavedToVar(path, varName string) err
 }
 
 func (d *CommonSteps) jsonPathOfResponseNotEmpty(path string) error {
+	if err := d.state.resolveVarsInExpression(&path); err != nil {
+		return err
+	}
+
 	r := gjson.Get(d.state.getResponse(), path)
 
 	logger.Infof("Path [%s] of JSON %s resolves to %s", path, d.state.getResponse(), r.Str)
@@ -396,6 +429,10 @@ func (d *CommonSteps) jsonPathOfResponseNotEmpty(path string) error {
 }
 
 func (d *CommonSteps) jsonPathOfArrayResponseNotEmpty(path string) error {
+	if err := d.state.resolveVarsInExpression(&path); err != nil {
+		return err
+	}
+
 	r := gjson.Get(d.state.getResponse(), path)
 
 	logger.Infof("Path [%s] of JSON %s resolves to %s", path, d.state.getResponse(), r.Array())
@@ -821,7 +858,7 @@ func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
 }
 
 func (d *CommonSteps) mapHTTPDomain(domain, mapping string) error {
-	d.httpClient.MapDomain(domain, mapping)
+	d.httpClient.MapHost(domain, mapping)
 
 	return nil
 }
@@ -1064,6 +1101,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
 	s.Step(`^the JSON path "([^"]*)" of document '([^"]*)' is saved to variable "([^"]*)"$`, d.jsonPathOfDocumentSavedToVar)
+	s.Step(`^the JSON path "([^"]*)" of the response has prefix "([^"]*)"$`, d.jsonPathOfResponseHasPrefix)
 	s.Step(`^the value of the JSON string response is saved to variable "([^"]*)"$`, d.valueOfJSONStringResponseSavedToVar)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
@@ -1079,7 +1117,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" signed with KMS key from "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithSignatureAndExpectedCode)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^variable "([^"]*)" is assigned a unique ID$`, d.setUUIDVariable)
-	s.Step(`^domain "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
+	s.Step(`^host "([^"]*)" is mapped to "([^"]*)"$`, d.mapHTTPDomain)
 	s.Step(`^host-meta document is uploaded to IPNS$`, d.hostMetaDocumentIsUploadedToIPNS)
 	s.Step(`^command "([^"]*)" is executed$`, d.executeCommand)
 	s.Step(`^the data URI "([^"]*)" is resolved and saved to variable "([^"]*)"$`, d.resolveDataURIAndSaveToVar)

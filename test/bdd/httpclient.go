@@ -217,7 +217,7 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 
 	return &httpResponse{
 		Payload:    payload,
-		StatusCode: resp.StatusCode,
+		StatusCode: http.StatusOK,
 		Header:     resp.Header,
 	}, nil
 }
@@ -292,13 +292,11 @@ func (c *httpClient) signer(domain string) (signFunc, error) {
 	return signer, nil
 }
 
-func (c *httpClient) MapDomain(domain string, mapping string) {
+func (c *httpClient) MapHost(host string, mapping string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	logger.Infof("Mapping domain %s to %s", domain, mapping)
-
-	c.mappings[domain] = mapping
+	c.mappings[host] = mapping
 }
 
 func (c *httpClient) HostMappings() map[string]string {
@@ -312,11 +310,9 @@ func (c *httpClient) resolveURL(url string) string {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	for domain, mapping := range c.mappings {
-		if strings.Contains(url, "//"+domain) {
-			logger.Infof("Mapping %s to %s", domain, mapping)
-
-			return strings.Replace(url, "//"+domain, "//"+mapping, 1)
+	for host, mapping := range c.mappings {
+		if strings.Contains(url, "//"+host) {
+			return strings.Replace(url, "//"+host, "//"+mapping, 1)
 		}
 	}
 

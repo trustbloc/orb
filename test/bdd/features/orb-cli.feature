@@ -10,8 +10,8 @@
 Feature: Using Orb CLI
   Background: Setup
 
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
 
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"

@@ -13,11 +13,24 @@ Feature:
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"
     And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
-    And domain "orb.domain3.com" is mapped to "localhost:48626"
-    And domain "orb.domain4.com" is mapped to "localhost:48726"
-    And domain "orb.domain5.com" is mapped to "localhost:49026"
+    Given variable "domain1ID" is assigned the value "${domain1IRI}"
+    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain3ID" is assigned the value "${domain3IRI}"
+    And variable "domain4ID" is assigned the value "${domain4IRI}"
+
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb2.domain1.com" is mapped to "localhost:48526"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
+    And host "orb.domain3.com" is mapped to "localhost:48626"
+    And host "orb.domain4.com" is mapped to "localhost:48726"
+    And host "orb.domain5.com" is mapped to "localhost:49026"
+
+    Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb2.domain1.com" is set to "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
+    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain3.com" is set to "https://orb.domain3.com"
+    And anchor origin for host "orb.domain4.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain5.com" is set to "https://orb.domain5.com"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -42,51 +55,51 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain2.com/log" and the returned status code is 404
 
     # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2ID}","${domain3ID}"]},{"type":"invite-witness","add":["${domain2ID}","${domain3ID}"]}]'
     When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
 
     # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}","${domain4IRI}"]}]'
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1ID}"]},{"type":"invite-witness","add":["${domain1ID}","${domain4ID}"]}]'
     When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     When an HTTP GET is sent to "${domain1IRI}/acceptlist"
-    Then the JSON path '#(type="follow").url' of the response contains "${domain2IRI}"
-    Then the JSON path '#(type="follow").url' of the response contains "${domain3IRI}"
-    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain2IRI}"
-    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain3IRI}"
+    Then the JSON path '#(type="follow").url' of the response contains "${domain2ID}"
+    Then the JSON path '#(type="follow").url' of the response contains "${domain3ID}"
+    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain2ID}"
+    Then the JSON path '#(type="invite-witness").url' of the response contains "${domain3ID}"
 
     # domain2 server follows domain1 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 server follows domain2 server
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1ID}","to":"${domain2IRI}","object":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain3 server follows domain1 server. Domain3 needs to be a follower of domain1 so that HTTP signature validation succeeds when
     # the /cas endpoint is invoked on domain1 (since only followers and witnesses are authorized).
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain3ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain3IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain2 invites domain1 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain3 invites domain1 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain3IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain3.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain3ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain3IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain4 invites domain3 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4IRI}","to":"${domain3IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain3IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain4.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4ID}","to":"${domain3IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain3ID}"}'
+    When an HTTP POST is sent to "${domain4IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain4 invites domain2 to be a witness
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain4.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain4ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain4IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # set witness policy for domain1
     When an HTTP POST is sent to "https://orb.domain1.com/policy" with content "MinPercent(100,batch) AND MinPercent(50,system)" of type "text/plain"
@@ -97,7 +110,7 @@ Feature:
     Then we wait 3 seconds
 
   @vct_log_rotation_REST_test
-  Scenario: various did doc operations
+  Scenario: rotate VCT log
     Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/log-monitor" is set to "ADMIN_TOKEN"
 
@@ -360,7 +373,7 @@ Feature:
     Then we wait 5 seconds
     Then client sends request to "https://orb.domain3.com/sidetree/v1/identifiers,https://orb.domain1.com/sidetree/v1/identifiers,https://orb2.domain1.com/sidetree/v1/identifiers,https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
+    When an HTTP GET is sent to "${domain1IRI}/liked?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems" of the array response is not empty
     And the JSON path "orderedItems.0" of the response is saved to variable "anchorLink"
@@ -381,36 +394,36 @@ Feature:
     When an HTTP GET is sent to "${vcID}"
     Then the JSON path "id" of the response equals "${vcID}"
 
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes/${anchorLinkEncoded}?page=true"
+    When an HTTP GET is sent to "${domain2IRI}/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be two Like's:
      # 1 - From domain1 (which received the 'Create');
      # 2 - From domain3 (which received the 'Announce')
     And the JSON path "orderedItems.#" of the response has 2 items
-    And the JSON path "orderedItems.#.actor" of the response contains "${domain1IRI}"
-    And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
+    And the JSON path "orderedItems.#.actor" of the response contains "${domain1ID}"
+    And the JSON path "orderedItems.#.actor" of the response contains "${domain3ID}"
     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
-    And the JSON path 'orderedItems.#(actor="https://orb.domain1.com/services/orb")' of the raw response is saved to variable "likeActivity"
+    And the JSON path 'orderedItems.#(actor="${domain1ID}")' of the raw response is saved to variable "likeActivity"
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes/${anchorLinkEncoded}?page=true"
+    When an HTTP GET is sent to "${domain1IRI}/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
      # There should be one Like:
      # 1 - From domain3 (which received the 'Announce')
     And the JSON path "orderedItems.#" of the response has 1 items
-    And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
+    And the JSON path "orderedItems.#.actor" of the response contains "${domain3ID}"
     And the JSON path "orderedItems.0.object.url" of the response equals "${anchorLink}"
 
-    Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1IRI}","to":"${domain2IRI}","object":#{likeActivity}}'
+    Given variable "undoLikeActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Undo","actor":"${domain1ID}","to":"${domain2IRI}","object":#{likeActivity}}'
     When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${undoLikeActivity}" of type "application/json"
 
     Then we wait 2 seconds
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/liked?page=true"
+    When an HTTP GET is sent to "${domain1IRI}/liked?page=true"
     Then the JSON path "orderedItems.0.object.url" of the response does not contain "${anchorLink}"
 
-    When an HTTP GET is sent to "https://orb.domain2.com/services/orb/likes/${anchorLinkEncoded}?page=true"
+    When an HTTP GET is sent to "${domain2IRI}/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "orderedItems.#" of the response has 1 items
-    And the JSON path "orderedItems.#.actor" of the response contains "${domain3IRI}"
+    And the JSON path "orderedItems.#.actor" of the response contains "${domain3ID}"
 
   @all
   @resolve_unpublished_create
@@ -651,7 +664,7 @@ Feature:
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain2\.com.*"
     And the JSON path "links.#.href" of the response contains expression ".*orb\.domain3\.com.*"
 
-    When an HTTP GET is sent to "https://orb.domain1.com/services/orb/likes/${anchorLinkEncoded}?page=true"
+    When an HTTP GET is sent to "${domain1IRI}/likes/${anchorLinkEncoded}?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
     And the JSON path "orderedItems.#" of the response has 2 items
     And the JSON path "orderedItems.0" of the raw response is saved to variable "likeActivity_1"

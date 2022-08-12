@@ -8,7 +8,7 @@
 @nodeinfo
 Feature: NodeInfo
   Background: Setup
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
 
   @node_info
   Scenario: Tests NodeInfo response from the server

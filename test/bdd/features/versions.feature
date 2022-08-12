@@ -12,10 +12,10 @@ Feature:
     And variable "domain3IRI" is assigned the value "https://orb.domain3.com/services/orb"
     And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
-    And domain "orb.domain3.com" is mapped to "localhost:48626"
-    And domain "orb.domain4.com" is mapped to "localhost:48726"
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
+    And host "orb.domain3.com" is mapped to "localhost:48626"
+    And host "orb.domain4.com" is mapped to "localhost:48726"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"

@@ -11,9 +11,17 @@ Feature:
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
 
-    Given domain "orb.domain1.com" is mapped to "localhost:48326"
-    And domain "orb.domain2.com" is mapped to "localhost:48426"
-    And domain "orb.domain3.com" is mapped to "localhost:48626"
+    Given variable "domain1ID" is assigned the value "${domain1IRI}"
+    And variable "domain2ID" is assigned the value "${domain2IRI}"
+
+    Given host "orb.domain1.com" is mapped to "localhost:48326"
+    And host "orb2.domain1.com" is mapped to "localhost:48526"
+    And host "orb.domain2.com" is mapped to "localhost:48426"
+    And host "orb.domain3.com" is mapped to "localhost:48626"
+
+    Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb2.domain1.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"
@@ -27,32 +35,28 @@ Feature:
     Then we wait 1 seconds
 
     # domain1 adds domain2 and domain3 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2IRI}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2IRI}","${domain3IRI}"]}]'
+    Given variable "domain1AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain2ID}","${domain3IRI}"]},{"type":"invite-witness","add":["${domain2ID}","${domain3IRI}"]}]'
     When an HTTP POST is sent to "${domain1IRI}/acceptlist" with content "${domain1AcceptList}" of type "application/json"
 
     # domain2 adds domain1 to its 'follow' and 'invite-witness' accept lists.
-    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1IRI}"]},{"type":"invite-witness","add":["${domain1IRI}"]}]'
+    Given variable "domain2AcceptList" is assigned the JSON value '[{"type":"follow","add":["${domain1ID}"]},{"type":"invite-witness","add":["${domain1ID}"]}]'
     When an HTTP POST is sent to "${domain2IRI}/acceptlist" with content "${domain2AcceptList}" of type "application/json"
 
     # domain2 server follows domain1 server
-    Given variable "followID" is assigned a unique ID
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain2IRI}/activities/${followID}","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2ID}","to":"${domain1IRI}","object":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 server follows domain2 server
-    Given variable "followID" is assigned a unique ID
-    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","id":"${domain1IRI}/activities/${followID}","type":"Follow","actor":"${domain1IRI}","to":"${domain2IRI}","object":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${followActivity}" of type "application/json"
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain1ID}","to":"${domain2IRI}","object":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${followActivity}" of type "application/json"
 
     # domain1 invites domain2 to be a witness
-    Given variable "inviteWitnessID" is assigned a unique ID
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"id":"${domain1IRI}/activities/${inviteWitnessID}","type":"Invite","actor":"${domain1IRI}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain1.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain1ID}","to":"${domain2IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain2ID}"}'
+    When an HTTP POST is sent to "${domain1IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     # domain2 invites domain1 to be a witness
-    Given variable "inviteWitnessID" is assigned a unique ID
-    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"id":"${domain2IRI}/activities/${inviteWitnessID}","type":"Invite","actor":"${domain2IRI}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1IRI}"}'
-    When an HTTP POST is sent to "https://orb.domain2.com/services/orb/outbox" with content "${inviteWitnessActivity}" of type "application/json"
+    And variable "inviteWitnessActivity" is assigned the JSON value '{"@context":["https://www.w3.org/ns/activitystreams","https://w3id.org/activityanchors/v1"],"type":"Invite","actor":"${domain2ID}","to":"${domain1IRI}","object":"https://w3id.org/activityanchors#AnchorWitness","target":"${domain1ID}"}'
+    When an HTTP POST is sent to "${domain2IRI}/outbox" with content "${inviteWitnessActivity}" of type "application/json"
 
     Then we wait 3 seconds
 
