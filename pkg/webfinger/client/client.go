@@ -20,6 +20,7 @@ import (
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
@@ -36,14 +37,22 @@ type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type didDomainResolver func(did string) (string, error)
+
 // Client implements webfinger client.
 type Client struct {
 	httpClient httpClient
 
-	cacheLifetime time.Duration
-	cacheSize     int
+	cacheLifetime    time.Duration
+	cacheSize        int
+	getDomainFromDID didDomainResolver
 
-	ledgerTypeCache gcache.Cache
+	resourceCache gcache.Cache
+}
+
+type cacheKey struct {
+	domainWithScheme string
+	resource         string
 }
 
 // New creates new webfinger client.
@@ -58,36 +67,32 @@ func New(opts ...Option) *Client {
 		opt(client)
 	}
 
-	client.ledgerTypeCache = gcache.New(client.cacheSize).
+	client.resourceCache = gcache.New(client.cacheSize).
 		Expiration(client.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			lt, err := client.getLedgerType(key.(string))
-			if err != nil {
-				logger.Debugf("failed to load ledger type for domain '%s' into cache: %s", key.(string), err.Error())
+			k := key.(cacheKey) //nolint:errcheck,forcetypeassert
 
+			r, err := client.resolveResource(k.domainWithScheme, k.resource)
+			if err != nil {
 				return nil, err
 			}
 
-			logger.Debugf("loaded ledger type for domain '%s' into cache: %s", key.(string), lt)
+			logger.Debugf("Loaded webfinger resource for domain [%s] and resource [%s] into cache: %+v",
+				k.domainWithScheme, k.resource, r)
 
-			return lt, nil
+			return r, nil
 		}).Build()
 
 	return client
 }
 
-// GetLedgerType returns ledger type for VCT domain.
-func (c *Client) GetLedgerType(domain string) (string, error) {
-	ledgerTypeObj, err := c.ledgerTypeCache.Get(domain)
+// GetLedgerType returns ledger type for the VCT service.
+func (c *Client) GetLedgerType(uri string) (string, error) {
+	domain, err := c.resolveDomain(uri)
 	if err != nil {
-		return "", fmt.Errorf("failed to get key[%s] from ledger type cache: %w", domain, err)
+		return "", fmt.Errorf("resolve domain: %w", err)
 	}
 
-	return ledgerTypeObj.(string), nil
-}
-
-// GetLedgerType returns ledger type.
-func (c *Client) getLedgerType(domain string) (string, error) {
 	resource := fmt.Sprintf("%s/vct", domain)
 
 	jrd, err := c.ResolveWebFingerResource(domain, resource)
@@ -109,11 +114,11 @@ func (c *Client) getLedgerType(domain string) (string, error) {
 }
 
 // HasSupportedLedgerType returns true if domain supports configured ledger type.
-func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
+func (c *Client) HasSupportedLedgerType(uri string) (bool, error) {
 	// TODO: Do we need to configure supported ledger types.
 	supportedLedgerTypes := []string{"vct-v1"}
 
-	lt, err := c.GetLedgerType(domain)
+	lt, err := c.GetLedgerType(uri)
 	if err != nil {
 		if errors.Is(err, model.ErrResourceNotFound) {
 			return false, nil
@@ -127,17 +132,30 @@ func (c *Client) HasSupportedLedgerType(domain string) (bool, error) {
 
 // ResolveWebFingerResource attempts to resolve the given WebFinger resource from domainWithScheme.
 func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (restapi.JRD, error) {
+	r, err := c.resourceCache.Get(cacheKey{
+		domainWithScheme: domainWithScheme,
+		resource:         resource,
+	})
+	if err != nil {
+		return restapi.JRD{}, fmt.Errorf("get webfinger resource for domain [%s] and resource [%s]: %w",
+			domainWithScheme, resource, err)
+	}
+
+	return *r.(*restapi.JRD), nil
+}
+
+func (c *Client) resolveResource(domainWithScheme, resource string) (*restapi.JRD, error) {
 	webFingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s", domainWithScheme, resource)
 
 	req, err := http.NewRequest(http.MethodGet, webFingerURL, nil)
 	if err != nil {
-		return restapi.JRD{},
-			fmt.Errorf("failed to create new request for WebFinger URL [%s]: %w", webFingerURL, err)
+		return nil, fmt.Errorf("failed to create new request for WebFinger URL [%s]: %w",
+			webFingerURL, err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return restapi.JRD{}, orberrors.NewTransientf("failed to get response (URL: %s): %w", webFingerURL, err)
+		return nil, orberrors.NewTransientf("failed to get response (URL: %s): %w", webFingerURL, err)
 	}
 
 	defer func() {
@@ -149,36 +167,61 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return restapi.JRD{}, orberrors.NewTransientf("failed to read response body: %w", err)
+		return nil, orberrors.NewTransientf("failed to read response body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return restapi.JRD{}, model.ErrResourceNotFound
+			return nil, model.ErrResourceNotFound
 		}
 
 		e := fmt.Errorf("received unexpected status code. URL [%s], "+
 			"status code [%d], response body [%s]", webFingerURL, resp.StatusCode, string(respBytes))
 
 		if resp.StatusCode >= http.StatusInternalServerError {
-			return restapi.JRD{}, orberrors.NewTransient(e)
+			return nil, orberrors.NewTransient(e)
 		}
 
-		return restapi.JRD{}, e
+		return nil, e
 	}
 
-	webFingerResponse := restapi.JRD{}
+	webFingerResponse := &restapi.JRD{}
 
-	err = json.Unmarshal(respBytes, &webFingerResponse)
+	err = json.Unmarshal(respBytes, webFingerResponse)
 	if err != nil {
-		return restapi.JRD{}, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal WebFinger response: %w", err)
 	}
 
 	return webFingerResponse, nil
 }
 
-// ResolveLog returns VCT log for domain.
-func (c *Client) ResolveLog(domain string) (*url.URL, error) {
+func (c *Client) resolveDomain(uri string) (string, error) {
+	if util.IsDID(uri) {
+		var err error
+
+		domain, err := c.getDomainFromDID(uri)
+		if err != nil {
+			return "", fmt.Errorf("get domain from did [%s]: %w", uri, err)
+		}
+
+		return domain, nil
+	}
+
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", fmt.Errorf("parse URI [%s]: %w", uri, err)
+	}
+
+	return fmt.Sprintf("%s://%s", u.Scheme, u.Host), nil
+}
+
+// ResolveLog returns VCT log for the given service URI.
+func (c *Client) ResolveLog(uri string) (*url.URL, error) {
+	domain, err := c.resolveDomain(uri)
+	if err != nil {
+		return nil, fmt.Errorf("resolve domain: %w", err)
+	}
+
 	resource := fmt.Sprintf("%s/vct", domain)
 
 	jrd, err := c.ResolveWebFingerResource(domain, resource)
@@ -212,40 +255,43 @@ func (c *Client) ResolveLog(domain string) (*url.URL, error) {
 
 // GetWebCASURL gets the WebCAS URL for cid from domainWithScheme using WebFinger.
 func (c *Client) GetWebCASURL(domainWithScheme, cid string) (*url.URL, error) {
-	webFingerResponse, err := c.ResolveWebFingerResource(domainWithScheme,
-		fmt.Sprintf("%s/cas/%s", domainWithScheme, cid))
+	return c.resolveLink(domainWithScheme, fmt.Sprintf("%s/cas/%s", domainWithScheme, cid))
+}
+
+func (c *Client) resolveLink(domainWithScheme, resource string) (*url.URL, error) {
+	response, err := c.ResolveWebFingerResource(domainWithScheme, resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get WebFinger resource: %w", err)
 	}
 
-	var webCASURLFromWebFinger string
+	var u string
 
 	// First try to resolve from self.
-	for _, link := range webFingerResponse.Links {
+	for _, link := range response.Links {
 		if link.Rel == "self" {
-			webCASURLFromWebFinger = link.Href
+			u = link.Href
 
 			break
 		}
 	}
 
-	if webCASURLFromWebFinger == "" {
+	if u == "" {
 		// Try the alternates.
-		for _, link := range webFingerResponse.Links {
+		for _, link := range response.Links {
 			if link.Rel == "alternate" {
-				webCASURLFromWebFinger = link.Href
+				u = link.Href
 
 				break
 			}
 		}
 	}
 
-	webCASURL, err := url.Parse(webCASURLFromWebFinger)
+	uri, err := url.Parse(u)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse webcas URL: %w", err)
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	return webCASURL, nil
+	return uri, nil
 }
 
 // Option is a webfinger client instance option.
@@ -271,6 +317,13 @@ func WithCacheLifetime(lifetime time.Duration) Option {
 func WithCacheSize(size int) Option {
 	return func(opts *Client) {
 		opts.cacheSize = size
+	}
+}
+
+// WithDIDDomainResolver option sets the domain resolver.
+func WithDIDDomainResolver(resolver didDomainResolver) Option {
+	return func(opts *Client) {
+		opts.getDomainFromDID = resolver
 	}
 }
 

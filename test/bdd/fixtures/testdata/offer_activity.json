@@ -1,6 +1,6 @@
 {
   "@context": "https://www.w3.org/ns/activitystreams",
-  "actor": "https://orb.domain2.com/services/orb",
+  "actor": "did:web:orb.domain2.com:services:orb",
   "endTime": "2022-03-15T16:49:54.389514509Z",
   "id": "https://orb.domain2.com/services/orb/activities/cbc4ebd2-d30d-4cc3-80d4-dcd770904f1c",
   "object": {

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +17,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/common/model"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
+	vdrmocks "github.com/hyperledger/aries-framework-go/pkg/mock/vdr"
 	"github.com/stretchr/testify/require"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -294,65 +298,86 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 
 func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cyclop
 	t.Run("success", func(t *testing.T) {
-		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
-			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				if strings.Contains(req.URL.Path, ".well-known/did-orb") {
-					b, err := json.Marshal(restapi.WellKnownResponse{
-						OperationEndpoint:  "https://localhost/op",
-						ResolutionEndpoint: "https://localhost/resolve1",
-					})
-					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+		const domain = "https://example.com"
 
-					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
-				}
+		vdr := &vdrmocks.MockVDRegistry{
+			ResolveValue: &did.Doc{
+				Service: []did.Service{
+					{
+						Type:            serviceTypeLinkedDomains,
+						ServiceEndpoint: model.NewDIDCoreEndpoint([]string{domain}),
+					},
+				},
+			},
+		}
 
-				if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
-					strings.Contains(req.URL.RawQuery, "op") {
-					b, err := json.Marshal(restapi.JRD{
-						Links: []restapi.Link{{Href: "https://localhost/op1"}, {Href: "https://localhost/op2"}},
-					})
-					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithVDR(vdr),
+			WithHTTPClient(
+				&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
+					if strings.Contains(req.URL.Path, ".well-known/did-orb") {
+						b, err := json.Marshal(restapi.WellKnownResponse{
+							OperationEndpoint:  "https://localhost/op",
+							ResolutionEndpoint: "https://localhost/resolve1",
+						})
+						require.NoError(t, err)
+						r := ioutil.NopCloser(bytes.NewReader(b))
 
-					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
-				}
+						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+					}
 
-				if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
-					strings.Contains(req.URL.RawQuery, "resolve1") {
-					b, err := json.Marshal(restapi.JRD{
-						Properties: map[string]interface{}{minResolvers: float64(2)},
-						Links: []restapi.Link{
-							{Href: "https://localhost/resolve1", Rel: "self"},
-							{Href: "https://localhost/resolve2", Rel: "alternate"},
-						},
-					})
-					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
+						strings.Contains(req.URL.RawQuery, "op") {
+						b, err := json.Marshal(restapi.JRD{
+							Links: []restapi.Link{{Href: "https://localhost/op1"}, {Href: "https://localhost/op2"}},
+						})
+						require.NoError(t, err)
+						r := ioutil.NopCloser(bytes.NewReader(b))
 
-					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
-				}
+						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+					}
 
-				if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
-					strings.Contains(req.URL.RawQuery, "resolve2") {
-					b, err := json.Marshal(restapi.JRD{
-						Properties: map[string]interface{}{minResolvers: float64(2)},
-						Links: []restapi.Link{
-							{Href: "https://localhost/resolve2", Rel: "self"},
-							{Href: "https://localhost/resolve1", Rel: "alternate"},
-						},
-					})
-					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
+						strings.Contains(req.URL.RawQuery, "resolve1") {
+						b, err := json.Marshal(restapi.JRD{
+							Properties: map[string]interface{}{minResolvers: float64(2)},
+							Links: []restapi.Link{
+								{Href: "https://localhost/resolve1", Rel: "self"},
+								{Href: "https://localhost/resolve2", Rel: "alternate"},
+							},
+						})
+						require.NoError(t, err)
+						r := ioutil.NopCloser(bytes.NewReader(b))
 
-					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
-				}
+						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+					}
 
-				return nil, nil
-			}}))
+					if strings.Contains(req.URL.Path, ".well-known/webfinger") &&
+						strings.Contains(req.URL.RawQuery, "resolve2") {
+						b, err := json.Marshal(restapi.JRD{
+							Properties: map[string]interface{}{minResolvers: float64(2)},
+							Links: []restapi.Link{
+								{Href: "https://localhost/resolve2", Rel: "self"},
+								{Href: "https://localhost/resolve1", Rel: "alternate"},
+							},
+						})
+						require.NoError(t, err)
+						r := ioutil.NopCloser(bytes.NewReader(b))
+
+						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
+					}
+
+					return nil, nil
+				}}))
 		require.NoError(t, err)
 
 		endpoint, err := cs.GetEndpoint("d1")
+		require.NoError(t, err)
+
+		require.Equal(t, endpoint.ResolutionEndpoints, []string{"https://localhost/resolve1", "https://localhost/resolve2"})
+		require.Equal(t, endpoint.OperationEndpoints, []string{"https://localhost/op1", "https://localhost/op2"})
+		require.Equal(t, endpoint.MinResolvers, 2)
+
+		endpoint, err = cs.GetEndpoint("did:web:example.com:services:orb")
 		require.NoError(t, err)
 
 		require.Equal(t, endpoint.ResolutionEndpoints, []string{"https://localhost/resolve1", "https://localhost/resolve2"})
@@ -723,6 +748,48 @@ func TestDefaultCASReader(t *testing.T) {
 		require.Nil(t, val)
 		require.Contains(t, err.Error(),
 			"failed to resolve cidWithHint[ipfs cid]: got unexpected response from https://ipfs.io/ipfs/cid status '500' body error") //nolint:lll
+	})
+}
+
+func TestClient_ResolveDomainForDID(t *testing.T) {
+	const (
+		id     = "did:web:example.com:services:orb"
+		domain = "https://example.com"
+	)
+
+	t.Run("Success", func(t *testing.T) {
+		vdr := &vdrmocks.MockVDRegistry{
+			ResolveValue: &did.Doc{
+				Service: []did.Service{
+					{
+						Type:            serviceTypeLinkedDomains,
+						ServiceEndpoint: model.NewDIDCoreEndpoint([]string{domain}),
+					},
+				},
+			},
+		}
+
+		c, err := New(nil, &referenceCASReaderImplementation{}, WithVDR(vdr))
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		d, err := c.ResolveDomainForDID(id)
+		require.NoError(t, err)
+		require.Equal(t, domain, d)
+	})
+
+	t.Run("VDR error", func(t *testing.T) {
+		vdr := &vdrmocks.MockVDRegistry{
+			ResolveErr: errors.New("injected VDR error"),
+		}
+
+		c, err := New(nil, &referenceCASReaderImplementation{}, WithVDR(vdr))
+		require.NoError(t, err)
+		require.NotNil(t, c)
+
+		_, err = c.ResolveDomainForDID(id)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), vdr.ResolveErr.Error())
 	})
 }
 

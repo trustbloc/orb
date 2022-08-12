@@ -41,7 +41,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 		opt(options)
 	}
 
-	followersIRI, err := url.Parse(cfg.ServiceIRI.String() + resthandler.FollowersPath)
+	followersIRI, err := url.Parse(cfg.ServiceEndpointURL.String() + resthandler.FollowersPath)
 	if err != nil {
 		// This would only happen at startup and it would be a result of bad configuration.
 		panic(fmt.Errorf("followers IRI: %w", err))

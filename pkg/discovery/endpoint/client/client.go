@@ -33,6 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
 )
 
@@ -41,6 +42,8 @@ var logger = log.New("endpoint-client")
 const (
 	minResolvers         = "https://trustbloc.dev/ns/min-resolvers"
 	anchorOriginProperty = "https://trustbloc.dev/ns/anchor-origin"
+
+	serviceTypeLinkedDomains = "LinkedDomains"
 
 	namespace  = "did:orb"
 	ipfsGlobal = "https://ipfs.io"
@@ -74,8 +77,10 @@ type Client struct {
 	orbClient         orbClient
 
 	endpointsCache gcache.Cache
+	domainCache    gcache.Cache
 	cacheLifetime  time.Duration
 	cacheSize      int
+	vdr            vdrapi.Registry
 }
 
 type defaultHTTPClient struct{}
@@ -106,16 +111,22 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 
 	orbClientOpts = append(orbClientOpts, aoprovider.WithJSONLDDocumentLoader(docLoader))
 
-	if configService.disableProofCheck {
-		orbClientOpts = append(orbClientOpts, aoprovider.WithDisableProofCheck(configService.disableProofCheck))
-	} else {
-		if configService.publicKeyFetcher == nil {
-			configService.publicKeyFetcher = verifiable.NewVDRKeyResolver(vdr.New(vdr.WithVDR(&webVDR{
+	if configService.vdr == nil {
+		// Construct a VDR that only supports did:web.
+		configService.vdr = vdr.New(
+			vdr.WithVDR(&webVDR{
 				http:    configService.httpClient,
 				useHTTP: configService.didWebHTTP,
 				VDR:     web.New(),
 			}),
-			)).PublicKeyFetcher()
+		)
+	}
+
+	if configService.disableProofCheck {
+		orbClientOpts = append(orbClientOpts, aoprovider.WithDisableProofCheck(configService.disableProofCheck))
+	} else {
+		if configService.publicKeyFetcher == nil {
+			configService.publicKeyFetcher = verifiable.NewVDRKeyResolver(configService.vdr).PublicKeyFetcher()
 		}
 
 		orbClientOpts = append(orbClientOpts, aoprovider.WithPublicKeyFetcher(configService.publicKeyFetcher))
@@ -132,6 +143,12 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 		Expiration(configService.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
 			return configService.getEndpoint(key.(string))
+		}).Build()
+
+	configService.domainCache = gcache.New(configService.cacheSize).
+		Expiration(configService.cacheLifetime).
+		LoaderFunc(func(key interface{}) (interface{}, error) {
+			return configService.loadDomainForDID(key.(string))
 		}).Build()
 
 	return configService, nil
@@ -154,12 +171,37 @@ func (cs *Client) GetEndpointFromAnchorOrigin(didURI string) (*models.Endpoint, 
 	return cs.getEndpointAnchorOrigin(didURI)
 }
 
-func (cs *Client) getEndpoint(domain string) (*models.Endpoint, error) {
-	var wellKnownResponse restapi.WellKnownResponse
-
-	if !strings.HasPrefix(domain, "http://") && !strings.HasPrefix(domain, "https://") {
-		domain = "https://" + domain
+// ResolveDomainForDID resolves the origin domain for the given DID.
+func (cs *Client) ResolveDomainForDID(id string) (string, error) {
+	domain, err := cs.domainCache.Get(id)
+	if err != nil {
+		return "", err
 	}
+
+	return domain.(string), nil
+}
+
+func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) {
+	var domain string
+
+	if util.IsDID(uri) {
+		var err error
+
+		domain, err = cs.ResolveDomainForDID(uri)
+		if err != nil {
+			return nil, fmt.Errorf("get domain from DID: %w", err)
+		}
+	} else {
+		if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
+			domain = "https://" + uri
+		} else {
+			domain = uri
+		}
+	}
+
+	logger.Debugf("Resolved domain from URI [%s]: %s", uri, domain)
+
+	var wellKnownResponse restapi.WellKnownResponse
 
 	err := cs.sendRequest(nil, http.MethodGet, fmt.Sprintf("%s/.well-known/did-orb", domain), &wellKnownResponse)
 	if err != nil {
@@ -189,7 +231,31 @@ func (cs *Client) getEndpoint(domain string) (*models.Endpoint, error) {
 		endpoint.OperationEndpoints = append(endpoint.OperationEndpoints, v.Href)
 	}
 
+	logger.Debugf("... resolved endpoint from [%s]: %+v", uri, endpoint)
+
 	return endpoint, nil
+}
+
+func (cs *Client) loadDomainForDID(id string) (string, error) {
+	doc, err := cs.vdr.Resolve(id)
+	if err != nil {
+		return "", fmt.Errorf("resolve DID [%s]: %w", id, err)
+	}
+
+	for _, service := range doc.DIDDocument.Service { //nolint:gocritic
+		if service.Type == serviceTypeLinkedDomains {
+			uri, err := service.ServiceEndpoint.URI()
+			if err != nil {
+				return "", fmt.Errorf("invalid service endpoint for did [%s]: %w", id, err)
+			}
+
+			logger.Debugf("Resolved service endpoint domain for [%s]: %s", id, uri)
+
+			return uri, nil
+		}
+	}
+
+	return "", fmt.Errorf("service endpoint not found in DID document for did [%s]", id)
 }
 
 func (cs *Client) populateAnchorResolutionEndpoint(
@@ -302,12 +368,12 @@ func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpo
 func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, error) {
 	cid, suffix, err := cs.getCIDAndSuffix(didURI)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get CID and suffix for [%s]: %w", didURI, err)
 	}
 
 	result, err := cs.orbClient.GetAnchorOrigin(cid, suffix)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get anchor origin for [%s]: %w", didURI, err)
 	}
 
 	anchorOrigin, ok := result.(string)
@@ -322,7 +388,8 @@ func (cs *Client) getEndpointAnchorOrigin(didURI string) (*models.Endpoint, erro
 	for {
 		jrdLatestAnchorOrigin, errGet := cs.getLatestAnchorOrigin(currentAnchorOrigin, didURI)
 		if errGet != nil {
-			return nil, errGet
+			return nil, fmt.Errorf("get latest anchor origin for [%s] - current anchor origin [%s]: %w",
+				didURI, currentAnchorOrigin, errGet)
 		}
 
 		latestAnchorOrigin, ok := jrdLatestAnchorOrigin.Properties[anchorOriginProperty].(string)
@@ -367,23 +434,29 @@ func (cs *Client) getCIDAndSuffix(didURI string) (string, string, error) {
 }
 
 func (cs *Client) getWebFingerURL(anchorOrigin string) (string, error) {
-	if strings.HasPrefix(anchorOrigin, "ipns://") {
+	u, err := url.Parse(anchorOrigin)
+	if err != nil {
+		return "", fmt.Errorf("parse anchor origin URL [%s]: %w", anchorOrigin, err)
+	}
+
+	switch u.Scheme {
+	case "http", "https":
+		return fmt.Sprintf("%s/.well-known/host-meta.json", fmt.Sprintf("%s://%s", u.Scheme, u.Host)), nil
+	case "did":
+		domain, err := cs.ResolveDomainForDID(anchorOrigin)
+		if err != nil {
+			return "", fmt.Errorf("get domain from [%s]", anchorOrigin)
+		}
+
+		return fmt.Sprintf("%s/.well-known/host-meta.json", domain), nil
+	case "ipns":
 		anchorOriginSplit := strings.Split(anchorOrigin, "ipns://")
 
 		return fmt.Sprintf("%s/%s/%s/.well-known/host-meta.json", ipfsGlobal, "ipns",
 			anchorOriginSplit[1]), nil
-	} else if strings.HasPrefix(anchorOrigin, "http://") || strings.HasPrefix(anchorOrigin, "https://") {
-		parsedURL, err := url.Parse(anchorOrigin)
-		if err != nil {
-			return "", err
-		}
-
-		urlValue := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
-
-		return fmt.Sprintf("%s/.well-known/host-meta.json", urlValue), nil
+	default:
+		return "", fmt.Errorf("anchorOrigin %s not supported", anchorOrigin)
 	}
-
-	return "", fmt.Errorf("anchorOrigin %s not supported", anchorOrigin)
 }
 
 func (cs *Client) getLatestAnchorOrigin(anchorOrigin, didURI string) (*restapi.JRD, error) {
@@ -535,6 +608,13 @@ func WithCacheLifetime(lifetime time.Duration) Option {
 func WithCacheSize(size int) Option {
 	return func(opts *Client) {
 		opts.cacheSize = size
+	}
+}
+
+// WithVDR option is for custom VDR. If not specified then the default VDR is used.
+func WithVDR(r vdrapi.Registry) Option {
+	return func(opts *Client) {
+		opts.vdr = r
 	}
 }
 

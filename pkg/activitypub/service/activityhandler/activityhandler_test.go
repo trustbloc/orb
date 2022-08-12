@@ -34,10 +34,13 @@ import (
 )
 
 func TestNewInbox(t *testing.T) {
+	serviceIRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
-		BufferSize:  100,
+		ServiceName:        "service1",
+		ServiceIRI:         serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		BufferSize:         100,
 	}
 
 	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActivitPubClient())
@@ -79,9 +82,12 @@ func TestNoOpProofHandler_HandleProof(t *testing.T) {
 }
 
 func TestHandler_HandleUnsupportedActivity(t *testing.T) {
+	serviceIRI := testutil.MustParseURL("http://localhost:8301/services/service1")
+
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  testutil.MustParseURL("http://localhost:8301/services/service1"),
+		ServiceName:        "service1",
+		ServiceIRI:         serviceIRI,
+		ServiceEndpointURL: serviceIRI,
 	}
 
 	h := NewInbox(cfg, &servicemocks.ActivityStore{}, &servicemocks.Outbox{}, servicemocks.NewActivitPubClient())
@@ -108,8 +114,9 @@ func TestHandler_InboxHandleCreateActivity(t *testing.T) {
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	anchorEventHandler := servicemocks.NewAnchorEventHandler()
@@ -331,8 +338,9 @@ func TestHandler_HandleFollowActivity(t *testing.T) {
 	service4IRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceName:        "service1",
+		ServiceIRI:         service1IRI,
+		ServiceEndpointURL: service1IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -505,8 +513,9 @@ func TestHandler_HandleInviteWitnessActivity(t *testing.T) {
 	service4IRI := testutil.MustParseURL("http://localhost:8304/services/service4")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceName:        "service1",
+		ServiceIRI:         service1IRI,
+		ServiceEndpointURL: service1IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -683,8 +692,9 @@ func TestHandler_HandleAcceptActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -899,8 +909,9 @@ func TestHandler_HandleAcceptActivityValidationError(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -985,8 +996,9 @@ func TestHandler_HandleAcceptActivityError(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -1091,8 +1103,9 @@ func TestHandler_HandleRejectActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	ob := servicemocks.NewOutbox()
@@ -1263,8 +1276,9 @@ func TestHandler_HandleAnnounceActivity(t *testing.T) {
 		"http://localhost:8301/cas/bafkrwkhwinurpgfeqh263vgdathcprnbvatyat6h6mu7ipjhhodcdbyhoy")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceName:        "service1",
+		ServiceIRI:         service1IRI,
+		ServiceEndpointURL: service1IRI,
 	}
 
 	anchorEventHandler := servicemocks.NewAnchorEventHandler()
@@ -1524,8 +1538,9 @@ func TestHandler_HandleOfferActivity(t *testing.T) {
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service1",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	ob := servicemocks.NewOutbox().WithActivityID(testutil.NewMockID(service2IRI, "/activities/123456789"))
@@ -1711,8 +1726,9 @@ func TestHandler_HandleAcceptOfferActivity(t *testing.T) {
 	service2IRI := testutil.MustParseURL("http://localhost:8302/services/service2")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1IRI,
+		ServiceName:        "service1",
+		ServiceIRI:         service1IRI,
+		ServiceEndpointURL: service1IRI,
 	}
 
 	proofHandler := servicemocks.NewProofHandler()
@@ -2132,8 +2148,9 @@ func TestHandler_HandleUndoFollowActivity(t *testing.T) {
 
 	t.Run("Transient error", func(t *testing.T) {
 		inboxCfg := &Config{
-			ServiceName: "inbox1",
-			ServiceIRI:  service1IRI,
+			ServiceName:        "inbox1",
+			ServiceIRI:         service1IRI,
+			ServiceEndpointURL: service1IRI,
 		}
 
 		errExpected := errors.New("injected storage error")
@@ -2779,8 +2796,9 @@ func TestHandler_AnnounceAnchorEvent(t *testing.T) {
 	service3IRI := testutil.MustParseURL("http://localhost:8303/services/service3")
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	anchorEventHandler := servicemocks.NewAnchorEventHandler()
@@ -2902,8 +2920,9 @@ func TestHandler_InboxHandleLikeActivity(t *testing.T) {
 	publishedTime := time.Now()
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	anchorEventHandler := servicemocks.NewAnchorEventHandler()
@@ -3054,8 +3073,9 @@ func TestHandler_OutboxHandleLikeActivity(t *testing.T) {
 	publishedTime := time.Now()
 
 	cfg := &Config{
-		ServiceName: "service2",
-		ServiceIRI:  service2IRI,
+		ServiceName:        "service2",
+		ServiceIRI:         service2IRI,
+		ServiceEndpointURL: service2IRI,
 	}
 
 	activityStore := memstore.New(cfg.ServiceName)
@@ -3166,13 +3186,15 @@ func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
 	t.Helper()
 
 	inboxCfg := &Config{
-		ServiceName: "inbox1",
-		ServiceIRI:  inboxServiceIRI,
+		ServiceName:        "inbox1",
+		ServiceIRI:         inboxServiceIRI,
+		ServiceEndpointURL: inboxServiceIRI,
 	}
 
 	outboxCfg := &Config{
-		ServiceName: "outbox1",
-		ServiceIRI:  outboxServiceIRI,
+		ServiceName:        "outbox1",
+		ServiceIRI:         outboxServiceIRI,
+		ServiceEndpointURL: outboxServiceIRI,
 	}
 
 	apClient := servicemocks.NewActivitPubClient()

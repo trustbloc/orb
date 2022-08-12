@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 
+	ariesmodel "github.com/hyperledger/aries-framework-go/pkg/common/model"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
@@ -21,6 +22,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/multihash"
@@ -58,8 +60,11 @@ const (
 )
 
 const (
-	minResolvers = "https://trustbloc.dev/ns/min-resolvers"
-	context      = "https://w3id.org/did/v1"
+	minResolvers             = "https://trustbloc.dev/ns/min-resolvers"
+	contextDID               = "https://w3id.org/did/v1"
+	contextDIDConfig         = "https://identity.foundation/.well-known/did-configuration/v1"
+	serviceTypeLinkedDomains = "LinkedDomains"
+	serviceID                = "activity-pub"
 )
 
 type cas interface {
@@ -84,25 +89,28 @@ type logEndpointRetriever interface {
 
 // New returns discovery operations.
 func New(c *Config, p *Providers) (*Operation, error) {
-	u, err := url.Parse(c.BaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("parse base URL: %w", err)
-	}
-
 	// If the WebCAS path is empty, it'll cause certain WebFinger queries to be matched incorrectly
 	if c.WebCASPath == "" {
 		return nil, fmt.Errorf("webCAS path cannot be empty")
 	}
 
+	serviceID := c.ServiceID
+
+	if serviceID == nil {
+		serviceID = c.ServiceEndpointURL
+	}
+
 	return &Operation{
 		pubKeys:                   c.PubKeys,
-		host:                      u.Host,
+		httpSignPubKeys:           c.HTTPSignPubKeys,
 		resolutionPath:            c.ResolutionPath,
 		operationPath:             c.OperationPath,
 		webCASPath:                c.WebCASPath,
-		baseURL:                   c.BaseURL,
+		baseURL:                   fmt.Sprintf("%s://%s", c.ServiceEndpointURL.Scheme, c.ServiceEndpointURL.Host),
 		discoveryMinimumResolvers: c.DiscoveryMinimumResolvers,
 		discoveryDomains:          c.DiscoveryDomains,
+		serviceEndpointURL:        c.ServiceEndpointURL,
+		serviceID:                 serviceID,
 		anchorInfoRetriever:       NewAnchorInfoRetriever(p.ResourceRegistry),
 		logEndpointRetriever:      p.LogEndpointRetriever,
 		cas:                       p.CAS,
@@ -123,8 +131,7 @@ type Operation struct {
 	anchorInfoRetriever
 	logEndpointRetriever
 
-	pubKeys                   []PublicKey
-	host                      string
+	pubKeys, httpSignPubKeys  []PublicKey
 	resolutionPath            string
 	operationPath             string
 	webCASPath                string
@@ -134,18 +141,22 @@ type Operation struct {
 	cas                       cas
 	anchorStore               anchorLinkStore
 	wfClient                  webfingerClient
+	serviceEndpointURL        *url.URL
+	serviceID                 *url.URL
 }
 
 // Config defines configuration for discovery operations.
 type Config struct {
 	PubKeys                   []PublicKey
+	HTTPSignPubKeys           []PublicKey
 	VerificationMethodType    string
 	ResolutionPath            string
 	OperationPath             string
 	WebCASPath                string
-	BaseURL                   string
 	DiscoveryDomains          []string
 	DiscoveryMinimumResolvers int
+	ServiceID                 *url.URL
+	ServiceEndpointURL        *url.URL
 }
 
 // Providers defines the providers for discovery operations.
@@ -159,7 +170,7 @@ type Providers struct {
 
 // GetRESTHandlers get all controller API handler available for this service.
 func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
-	return []common.HTTPHandler{
+	handlers := []common.HTTPHandler{
 		newHTTPHandler(wellKnownEndpoint, o.wellKnownHandler),
 		newHTTPHandler(WebFingerEndpoint, o.webFingerHandler),
 		newHTTPHandler(hostMetaEndpoint, o.hostMetaHandler),
@@ -167,6 +178,14 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 		newHTTPHandler(webDIDEndpoint, o.webDIDHandler),
 		newHTTPHandler(nodeInfoEndpoint, o.nodeInfoHandler),
 	}
+
+	// Only expose a service DID endpoint if the service ID is configured to be a DID.
+	if util.IsDID(o.serviceID.String()) {
+		handlers = append(handlers, newHTTPHandler(fmt.Sprintf("%s/did.json", o.serviceEndpointURL.Path),
+			o.serviceWebDIDHandler))
+	}
+
+	return handlers
 }
 
 // wellKnownHandler swagger:route Get /.well-known/did-orb discovery wellKnownReq
@@ -190,49 +209,46 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 // Responses:
 //    default: genericError
 //        200: wellKnownDIDResp
-func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) { //nolint:gocyclo,cyclop
-	ID := "did:web:" + o.host
+func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
+	o.handleDIDWeb("did:web:"+o.serviceEndpointURL.Host, o.pubKeys, rw, true, false)
+}
 
-	rawDoc := &ariesdid.Doc{
-		Context: []string{context},
-		ID:      ID,
-	}
+// serviceWebDIDHandler swagger:route Get /services/orb/did.json discovery serviceDIDReq
+//
+// Responses:
+//    default: genericError
+//        200: wellKnownDIDResp
+func (o *Operation) serviceWebDIDHandler(rw http.ResponseWriter, r *http.Request) {
+	o.handleDIDWeb(o.serviceID.String(), o.httpSignPubKeys, rw, false, true)
+}
 
-	for _, key := range o.pubKeys {
-		var vm *ariesdid.VerificationMethod
+func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.ResponseWriter,
+	includeVerificationRelationships, includeService bool) {
+	rawDoc := &ariesdid.Doc{ID: did}
 
-		switch {
-		case key.Type == kms.ED25519:
-			vm = ariesdid.NewVerificationMethodFromBytesWithMultibase(ID+"#"+key.ID,
-				"Ed25519VerificationKey2020", ID, key.Value, multibase.Base58BTC)
-		case key.Type == kms.ECDSAP256IEEEP1363 || key.Type == kms.ECDSAP384IEEEP1363 ||
-			key.Type == kms.ECDSAP521IEEEP1363 || key.Type == kms.ECDSAP256DER ||
-			key.Type == kms.ECDSAP384TypeDER || key.Type == kms.ECDSAP521TypeDER:
-			jwk, err := jwksupport.PubKeyBytesToJWK(key.Value, key.Type)
-			if err != nil {
-				writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
+	for _, key := range pubKeys {
+		if err := populateVerificationMethod(rawDoc, did, key, includeVerificationRelationships); err != nil {
+			writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
 
-				return
-			}
-
-			vm, err = ariesdid.NewVerificationMethodFromJWK(ID+"#"+key.ID, "JsonWebKey2020", ID, jwk)
-			if err != nil {
-				writeErrorResponse(rw, http.StatusInternalServerError, err.Error())
-
-				return
-			}
+			return
 		}
-
-		rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, *vm)
-		rawDoc.Authentication = append(rawDoc.Authentication,
-			*ariesdid.NewReferencedVerification(vm, ariesdid.Authentication))
-		rawDoc.AssertionMethod = append(rawDoc.AssertionMethod,
-			*ariesdid.NewReferencedVerification(vm, ariesdid.AssertionMethod))
-		rawDoc.CapabilityDelegation = append(rawDoc.CapabilityDelegation,
-			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityDelegation))
-		rawDoc.CapabilityInvocation = append(rawDoc.CapabilityInvocation,
-			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityInvocation))
 	}
+
+	contexts := []string{contextDID}
+
+	if includeService {
+		contexts = append(contexts, contextDIDConfig)
+
+		rawDoc.Service = []ariesdid.Service{
+			{
+				ID:              fmt.Sprintf("%s#%s", did, serviceID),
+				Type:            serviceTypeLinkedDomains,
+				ServiceEndpoint: ariesmodel.NewDIDCoreEndpoint([]string{o.baseURL}),
+			},
+		}
+	}
+
+	rawDoc.Context = contexts
 
 	bytes, err := rawDoc.JSONBytes()
 	if err != nil {
@@ -247,6 +263,45 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) { //n
 	if _, err = rw.Write(bytes); err != nil {
 		logger.Errorf("unable to send a response: %v", err)
 	}
+}
+
+//nolint:gocyclo,cyclop
+func populateVerificationMethod(rawDoc *ariesdid.Doc, did string, key PublicKey,
+	includeVerificationRelationships bool) error {
+	var vm *ariesdid.VerificationMethod
+
+	switch {
+	case key.Type == kms.ED25519:
+		vm = ariesdid.NewVerificationMethodFromBytesWithMultibase(did+"#"+key.ID,
+			"Ed25519VerificationKey2020", did, key.Value, multibase.Base58BTC)
+	case key.Type == kms.ECDSAP256IEEEP1363 || key.Type == kms.ECDSAP384IEEEP1363 ||
+		key.Type == kms.ECDSAP521IEEEP1363 || key.Type == kms.ECDSAP256DER ||
+		key.Type == kms.ECDSAP384TypeDER || key.Type == kms.ECDSAP521TypeDER:
+		jwk, err := jwksupport.PubKeyBytesToJWK(key.Value, key.Type)
+		if err != nil {
+			return err
+		}
+
+		vm, err = ariesdid.NewVerificationMethodFromJWK(did+"#"+key.ID, "JsonWebKey2020", did, jwk)
+		if err != nil {
+			return err
+		}
+	}
+
+	rawDoc.VerificationMethod = append(rawDoc.VerificationMethod, *vm)
+
+	if includeVerificationRelationships {
+		rawDoc.Authentication = append(rawDoc.Authentication,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.Authentication))
+		rawDoc.AssertionMethod = append(rawDoc.AssertionMethod,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.AssertionMethod))
+		rawDoc.CapabilityDelegation = append(rawDoc.CapabilityDelegation,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityDelegation))
+		rawDoc.CapabilityInvocation = append(rawDoc.CapabilityInvocation,
+			*ariesdid.NewReferencedVerification(vm, ariesdid.CapabilityInvocation))
+	}
+
+	return nil
 }
 
 // webFingerHandler swagger:route Get /.well-known/webfinger discovery webFingerReq
@@ -302,7 +357,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 
 		for _, v := range o.discoveryDomains {
 			resp.Links = append(resp.Links, Link{
-				Rel:  "alternate",
+				Rel:  alternateRelation,
 				Href: fmt.Sprintf("%s%s", v, o.resolutionPath),
 			})
 		}
@@ -318,7 +373,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 
 		for _, v := range o.discoveryDomains {
 			resp.Links = append(resp.Links, Link{
-				Rel:  "alternate",
+				Rel:  alternateRelation,
 				Href: fmt.Sprintf("%s%s", v, o.operationPath),
 			})
 		}
@@ -368,7 +423,7 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 			{
 				Rel:  serviceRelation,
 				Type: ActivityJSONType,
-				Href: constructActivityPubURL(o.baseURL),
+				Href: o.serviceEndpointURL.String(),
 			},
 		},
 	}
@@ -507,7 +562,7 @@ func (o *Operation) respondWithHostMetaJSON(rw http.ResponseWriter) {
 			{
 				Rel:  selfRelation,
 				Type: ActivityJSONType,
-				Href: constructActivityPubURL(o.baseURL),
+				Href: o.serviceEndpointURL.String(),
 			},
 		},
 	}
@@ -677,7 +732,7 @@ func (h *httpHandler) Handler() common.HTTPRequestHandler {
 }
 
 func constructActivityPubURL(baseURL string) string {
-	return fmt.Sprintf("%s%s", baseURL, "/services/orb")
+	return fmt.Sprintf("%s%s", baseURL, "/services/orb") // FIXME: Should not hard-code /services/orb.
 }
 
 func contains(strs []string, str string) bool {

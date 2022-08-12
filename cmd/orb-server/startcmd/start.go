@@ -8,14 +8,10 @@ package startcmd
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -120,6 +116,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/resolvehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler/decorator"
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
@@ -147,6 +144,7 @@ import (
 	proofstore "github.com/trustbloc/orb/pkg/store/witness"
 	"github.com/trustbloc/orb/pkg/store/wrapper"
 	"github.com/trustbloc/orb/pkg/taskmgr"
+	cryptoutil "github.com/trustbloc/orb/pkg/util"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/vct"
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring"
@@ -178,6 +176,8 @@ const (
 	defaultDevModeEnabled                   = false
 	defaultVCTEnabled                       = false
 	defaultCasCacheSize                     = 1000
+	defaultWebfingerCacheExpiration         = 5 * time.Minute
+	defaultWebfingerCacheSize               = 1000
 
 	unpublishedDIDLabel = "uAAA"
 )
@@ -596,8 +596,12 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	apServicePublicKeyIRI := mustParseURL(parameters.externalEndpoint,
-		fmt.Sprintf("%s/keys/%s", activityPubServicesPath, aphandler.MainKeyID))
+	apServiceEndpoint, apServiceIRI, apServicePublicKeyIRI, err := getAPServiceAndPublicKeyIRI(parameters)
+	if err != nil {
+		return err
+	}
+
+	apServicePath := apServiceEndpoint.Path
 
 	// authTokenManager is used by the REST endpoints to authorize the request.
 	authTokenManager, err := auth.NewTokenManager(auth.Config{
@@ -622,7 +626,16 @@ func startOrbServices(parameters *orbParameters) error {
 
 	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner, clientTokenManager)
 
-	wfClient := wfclient.New(wfclient.WithHTTPClient(httpClient))
+	var endpointClient *discoveryclient.Client
+
+	wfClient := wfclient.New(
+		wfclient.WithHTTPClient(httpClient),
+		wfclient.WithDIDDomainResolver(func(did string) (string, error) {
+			return endpointClient.ResolveDomainForDID(did)
+		}),
+		wfclient.WithCacheLifetime(defaultWebfingerCacheExpiration), // TODO: Define parameter.
+		wfclient.WithCacheSize(defaultWebfingerCacheSize),           // TODO: Define parameter.
+	)
 
 	webCASResolver := resolver.NewWebCASResolver(t, wfClient, webFingerURIScheme)
 
@@ -752,8 +765,6 @@ func startOrbServices(parameters *orbParameters) error {
 	resourceRegistry := registry.New(registry.WithResourceInfoProvider(didAnchoringInfoProvider))
 	logger.Debugf("started resource registry: %+v", resourceRegistry)
 
-	apServiceIRI := mustParseURL(parameters.externalEndpoint, activityPubServicesPath)
-
 	var pubSub pubSub
 
 	mqParams := parameters.mqParams
@@ -775,8 +786,9 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	apConfig := &apservice.Config{
-		ServiceEndpoint:          activityPubServicesPath,
+		ServicePath:              apServicePath,
 		ServiceIRI:               apServiceIRI,
+		ServiceEndpointURL:       apServiceEndpoint,
 		VerifyActorInSignature:   parameters.httpSignaturesEnabled,
 		MaxWitnessDelay:          parameters.maxWitnessDelay,
 		IRICacheSize:             parameters.apIRICacheSize,
@@ -785,7 +797,7 @@ func startOrbServices(parameters *orbParameters) error {
 		InboxSubscriberPoolSize:  parameters.mqParams.inboxPoolSize,
 	}
 
-	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServiceEndpoint)
+	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServicePath)
 	if err != nil {
 		return err
 	}
@@ -829,10 +841,35 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("get public key: %w", err)
 	}
 
+	var httpSignPubKeys []discoveryrest.PublicKey
+
+	httpSignPubKeys = append(httpSignPubKeys, discoveryrest.PublicKey{ID: parameters.kmsParams.httpSignActiveKeyID,
+		Type: httpSignKeyType, Value: httpSignActivePubKey})
+
+	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher())
+	if err != nil {
+		return fmt.Errorf("create public key storage: %w", err)
+	}
+
+	publicKeyFetcher := func(issuerID, keyID string) (*verifier.PublicKey, error) {
+		return pkStore.GetPublicKey(issuerID, keyID)
+	}
+
+	endpointClient, err = discoveryclient.New(orbDocumentLoader,
+		&discoveryCAS{resolver: casResolver},
+		discoveryclient.WithNamespace(parameters.didNamespace),
+		discoveryclient.WithHTTPClient(httpClient),
+		discoveryclient.WithDIDWebHTTP(parameters.enableDevMode),
+		discoveryclient.WithPublicKeyFetcher(publicKeyFetcher),
+		discoveryclient.WithVDR(vdr),
+	)
+
+	resourceResolver := resource.New(httpClient, ipfsReader, endpointClient)
+
 	apClient := client.New(client.Config{
 		CacheSize:       parameters.apClientCacheSize,
 		CacheExpiration: parameters.apClientCacheExpiration,
-	}, t)
+	}, t, publicKeyFetcher, resourceResolver)
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
@@ -920,22 +957,11 @@ func startOrbServices(parameters *orbParameters) error {
 		vct.WithAuthWriteToken(parameters.requestTokens[vctWriteTokenKey]),
 	)
 
-	resourceResolver := resource.New(httpClient, ipfsReader)
-
 	logMonitorHandler := handler.New(logMonitorStore, wfClient)
 
 	anchorLinkStore, err := linkstore.New(storeProviders.provider)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
-	}
-
-	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher())
-	if err != nil {
-		return fmt.Errorf("create public key storage: %w", err)
-	}
-
-	publicKeyFetcher := func(issuerID, keyID string) (*verifier.PublicKey, error) {
-		return pkStore.GetPublicKey(issuerID, keyID)
 	}
 
 	// create new observer and start it
@@ -946,7 +972,7 @@ func startOrbServices(parameters *orbParameters) error {
 		PubSub:                 pubSub,
 		Metrics:                metrics.Get(),
 		Outbox:                 func() observer.Outbox { return activityPubService.Outbox() },
-		WebFingerResolver:      resourceResolver,
+		HostMetaLinkResolver:   resourceResolver,
 		CASResolver:            casResolver,
 		DocLoader:              orbDocumentLoader,
 		Pkf:                    publicKeyFetcher,
@@ -1029,7 +1055,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,
-		apServiceIRI, casIRI,
+		apServiceIRI, apServiceEndpoint, casIRI,
 		parameters.dataURIMediaType,
 		anchorWriterProviders,
 		observer.Publisher(), pubSub,
@@ -1062,14 +1088,6 @@ func startOrbServices(parameters *orbParameters) error {
 		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.unpublishedOperationStoreOperationTypes))
 	}
 
-	endpointClient, err := discoveryclient.New(orbDocumentLoader,
-		&discoveryCAS{resolver: casResolver},
-		discoveryclient.WithNamespace(parameters.didNamespace),
-		discoveryclient.WithHTTPClient(httpClient),
-		discoveryclient.WithDIDWebHTTP(parameters.enableDevMode),
-		discoveryclient.WithPublicKeyFetcher(publicKeyFetcher),
-	)
-
 	if parameters.verifyLatestFromAnchorOrigin {
 		operationDecorator := decorator.New(parameters.didNamespace,
 			parameters.externalEndpoint,
@@ -1093,8 +1111,9 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	apEndpointCfg := &aphandler.Config{
-		BasePath:               activityPubServicesPath,
+		BasePath:               apServicePath,
 		ObjectIRI:              apServiceIRI,
+		ServiceEndpointURL:     apServiceEndpoint,
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 		PageSize:               parameters.activityPubPageSize,
 	}
@@ -1136,12 +1155,14 @@ func startOrbServices(parameters *orbParameters) error {
 	endpointDiscoveryOp, err := discoveryrest.New(
 		&discoveryrest.Config{
 			PubKeys:                   pubKeys,
+			HTTPSignPubKeys:           httpSignPubKeys,
 			ResolutionPath:            baseResolvePath,
 			OperationPath:             baseUpdatePath,
 			WebCASPath:                casPath,
-			BaseURL:                   parameters.externalEndpoint,
 			DiscoveryDomains:          parameters.discoveryDomains,
 			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
+			ServiceID:                 apServiceIRI,
+			ServiceEndpointURL:        apServiceEndpoint,
 		},
 		&discoveryrest.Providers{
 			ResourceRegistry:     resourceRegistry,
@@ -1168,7 +1189,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	nodeInfoLogger := log.New("nodeinfo")
 
-	nodeInfoService := nodeinfo.NewService(apServiceIRI, parameters.nodeInfoRefreshInterval, apStore, usingMongoDB,
+	nodeInfoService := nodeinfo.NewService(apServiceEndpoint, parameters.nodeInfoRefreshInterval, apStore, usingMongoDB,
 		nodeInfoLogger)
 
 	handlers := make([]restcommon.HTTPHandler, 0)
@@ -1559,44 +1580,18 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 }
 
 func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceIRI,
-	apServicePublicKeyIRI *url.URL) (*vocab.PublicKeyType, error) {
-
-	pemKeyType := ""
-	keyBytes := pubKeyBytes
-
-	switch {
-	case keyType == kms.ED25519:
-		pemKeyType = "Ed25519"
-	case keyType == kms.ECDSAP256IEEEP1363 || keyType == kms.ECDSAP256DER:
-		pemKeyType = "P-256"
-	case keyType == kms.ECDSAP384IEEEP1363 || keyType == kms.ECDSAP384DER:
-		pemKeyType = "P-384"
-	case keyType == kms.ECDSAP521IEEEP1363 || keyType == kms.ECDSAP521DER:
-		pemKeyType = "P-521"
+	apServicePublicKeyID *url.URL) (*vocab.PublicKeyType, error) {
+	if util.IsDID(apServicePublicKeyID.String()) {
+		return vocab.NewPublicKey(vocab.WithID(apServicePublicKeyID)), nil
 	}
 
-	if keyType == kms.ECDSAP256DER || keyType == kms.ECDSAP384DER || keyType == kms.ECDSAP521DER {
-		curveMap := map[string]elliptic.Curve{
-			"P-256": elliptic.P256(),
-			"P-384": elliptic.P384(),
-			"P-521": elliptic.P521(),
-		}
-
-		key, err := x509.ParsePKIXPublicKey(pubKeyBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		keyBytes = elliptic.Marshal(curveMap[pemKeyType], key.(*ecdsa.PublicKey).X, key.(*ecdsa.PublicKey).Y)
+	pemBytes, err := cryptoutil.EncodePublicKeyToPEM(pubKeyBytes, keyType)
+	if err != nil {
+		return nil, fmt.Errorf("encode public key to PEM: %w", err)
 	}
-
-	pemBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  pemKeyType,
-		Bytes: keyBytes,
-	})
 
 	return vocab.NewPublicKey(
-		vocab.WithID(apServicePublicKeyIRI),
+		vocab.WithID(apServicePublicKeyID),
 		vocab.WithOwner(apServiceIRI),
 		vocab.WithPublicKeyPem(string(pemBytes)),
 	), nil
@@ -1749,4 +1744,95 @@ func asURIs(strs ...string) ([]*url.URL, error) {
 	}
 
 	return uris, nil
+}
+
+func getAPServiceAndPublicKeyIRI(parameters *orbParameters) (serviceEndpoint, serviceIRI, publicKeyIRI *url.URL, err error) {
+	apServiceID := parameters.serviceID
+
+	if apServiceID == "" {
+		apServiceID = parameters.externalEndpoint + activityPubServicesPath
+	}
+
+	var apServiceEndpoint, apServicePublicKeyID string
+
+	if util.IsDID(apServiceID) {
+		var err error
+
+		apServiceEndpoint, err = getEndpointFromDIDWeb(apServiceID, parameters.enableDevMode)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, err)
+		}
+
+		apServicePublicKeyID = fmt.Sprintf("%s#%s", apServiceID, parameters.kmsParams.httpSignActiveKeyID)
+	} else {
+		apServiceEndpoint = apServiceID
+
+		apServicePublicKeyID = fmt.Sprintf("%s/keys/%s", apServiceID, aphandler.MainKeyID)
+	}
+
+	serviceEndpoint, err = url.Parse(apServiceEndpoint)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("parse ActivityPub service endpoint [%s]: %w",
+			apServiceEndpoint, err)
+	}
+
+	u, err := url.Parse(parameters.externalEndpoint)
+	if err != nil {
+		return nil, nil, nil,
+			fmt.Errorf("parse external endpoint [%s]: %w", parameters.externalEndpoint, err)
+	}
+
+	if serviceEndpoint.Scheme != u.Scheme {
+		return nil, nil, nil,
+			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same protocol scheme (e.g. https)",
+				parameters.externalEndpoint, apServiceID)
+	}
+
+	if serviceEndpoint.Host != u.Host {
+		return nil, nil, nil,
+			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same host",
+				parameters.externalEndpoint, apServiceID)
+	}
+
+	serviceIRI, err = url.Parse(apServiceID)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("parse ActivityPub service IRI [%s]: %w",
+			apServiceID, err)
+	}
+
+	publicKeyIRI, err = url.Parse(apServicePublicKeyID)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("parse ActivityPub public key IRI [%s]: %w",
+			apServicePublicKeyID, err)
+	}
+
+	return serviceEndpoint, serviceIRI, publicKeyIRI, nil
+}
+
+func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
+	var protocolScheme string
+
+	if useHTTP {
+		protocolScheme = "http://"
+	} else {
+		protocolScheme = "https://"
+	}
+
+	parsedDID, err := did.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("parse did: %w", err)
+	}
+
+	if parsedDID.Method != "web" {
+		return "", fmt.Errorf("unsupported DID method [%s]", "did:"+parsedDID.Method)
+	}
+
+	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
+
+	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
+	if err != nil {
+		return "", fmt.Errorf("unescape did: %w", err)
+	}
+
+	return protocolScheme + strings.Join(pathComponents, "/"), nil
 }

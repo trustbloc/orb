@@ -178,3 +178,22 @@ func TestGetOperationsAfterCanonicalReference(t *testing.T) {
 		require.Equal(t, "xyz", ops[0].CanonicalReference)
 	})
 }
+
+func TestIsDID(t *testing.T) {
+	require.True(t, IsDID("did:web:example.com"))
+	require.False(t, IsDID("http://example.com"))
+}
+
+func TestParseKeyURI(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		did, keyID, err := ParseKeyURI("did:web:example.com#1234")
+		require.NoError(t, err)
+		require.Equal(t, "did:web:example.com", did)
+		require.Equal(t, "1234", keyID)
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		_, _, err := ParseKeyURI("did:web:example.com")
+		require.EqualError(t, err, "invalid public key ID - expecting DID and key ID")
+	})
+}

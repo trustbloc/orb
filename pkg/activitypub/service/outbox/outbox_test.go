@@ -21,6 +21,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -53,9 +54,10 @@ func TestNewOutbox(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName: "service1",
-			ServiceIRI:  service1URL,
-			Topic:       "activities",
+			ServiceName:        "service1",
+			ServiceIRI:         service1URL,
+			ServiceEndpointURL: service1URL,
+			Topic:              "activities",
 		}
 
 		ob, err := New(cfg, activityStore, mocks.NewPubSub(), transport.Default(),
@@ -66,9 +68,10 @@ func TestNewOutbox(t *testing.T) {
 
 	t.Run("PubSub Subscribe error", func(t *testing.T) {
 		cfg := &Config{
-			ServiceName: "service1",
-			ServiceIRI:  service1URL,
-			Topic:       "activities",
+			ServiceName:        "service1",
+			ServiceIRI:         service1URL,
+			ServiceEndpointURL: service1URL,
+			Topic:              "activities",
 		}
 
 		errExpected := errors.New("injected PubSub error")
@@ -88,9 +91,10 @@ func TestOutbox_StartStop(t *testing.T) {
 	pubSub := mocks.NewPubSub()
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "activities",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "activities",
 	}
 
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
@@ -185,13 +189,19 @@ func TestOutbox_Post(t *testing.T) {
 	require.NoError(t, activityStore.AddReference(store.Follower, service1URL, service2URL))
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "activities",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "activities",
 	}
 
+	apClient := client.New(client.Config{}, transport.Default(),
+		func(issuerID, keyID string) (*verifier.PublicKey, error) {
+			return &verifier.PublicKey{}, nil
+		}, &wellKnownResolver{})
+
 	ob, err := New(cfg, activityStore, pubSub, transport.Default(),
-		&mocks.ActivityHandler{}, client.New(client.Config{}, transport.Default()), &mocks.WebFingerResolver{},
+		&mocks.ActivityHandler{}, apClient, &mocks.WebFingerResolver{},
 		&orbmocks.MetricsProvider{})
 	require.NoError(t, err)
 	require.NotNil(t, ob)
@@ -268,9 +278,10 @@ func TestOutbox_PostError(t *testing.T) {
 	activityStore := memstore.New("service1")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "activities",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "activities",
 	}
 
 	objIRI := testutil.MustParseURL("http://example.com/transactions/txn1")
@@ -348,9 +359,10 @@ func TestOutbox_Handle(t *testing.T) {
 	service2URL := testutil.MustParseURL("http://domain2.com/services/orb")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "outbox",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "outbox",
 	}
 
 	objIRI, err := url.Parse("http://example.com/transactions/txn1")
@@ -426,9 +438,10 @@ func TestOutbox_HandleActivityMessage(t *testing.T) {
 	service2URL := testutil.MustParseURL("http://domain2.com/services/orb")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "outbox",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "outbox",
 	}
 
 	objIRI, err := url.Parse("http://example.com/transactions/txn1")
@@ -685,9 +698,10 @@ func TestResolveInboxes(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://localhost:8002/services/service1")
 
 	cfg := &Config{
-		ServiceName: "service1",
-		ServiceIRI:  service1URL,
-		Topic:       "activities",
+		ServiceName:        "service1",
+		ServiceIRI:         service1URL,
+		ServiceEndpointURL: service1URL,
+		Topic:              "activities",
 	}
 
 	apClient := mocks.NewActivitPubClient()
@@ -938,4 +952,21 @@ func (m *mockService) HealthCheck() error {
 
 func (m *mockService) Ping() error {
 	return m.pingErr
+}
+
+type wellKnownResolver struct {
+	Err error
+	URI string
+}
+
+func (m *wellKnownResolver) ResolveHostMetaLink(uri, _ string) (string, error) {
+	if m.Err != nil {
+		return "", m.Err
+	}
+
+	if m.URI != "" {
+		return m.URI, nil
+	}
+
+	return uri, nil
 }

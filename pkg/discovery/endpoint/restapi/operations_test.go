@@ -103,32 +103,50 @@ func (m *mockResourceInfoProvider) Accept(string) bool {
 }
 
 func TestGetRESTHandlers(t *testing.T) {
-	t.Run("Error - invalid base URL", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "://"}, nil)
-		require.EqualError(t, err, "parse base URL: parse \"://\": missing protocol scheme")
-		require.Nil(t, c)
-	})
-
 	t.Run("Error - empty WebCAS path", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com"}, &restapi.Providers{})
+		c, err := restapi.New(
+			&restapi.Config{
+				ServiceEndpointURL: testutil.MustParseURL("https://example.com"),
+			},
+			&restapi.Providers{},
+		)
 		require.EqualError(t, err, "webCAS path cannot be empty")
 		require.Nil(t, c)
 	})
 
-	t.Run("Success", func(t *testing.T) {
-		c, err := restapi.New(&restapi.Config{BaseURL: "https://example.com", WebCASPath: "/cas"}, &restapi.Providers{})
+	t.Run("HTTP service ID Success", func(t *testing.T) {
+		c, err := restapi.New(
+			&restapi.Config{
+				ServiceEndpointURL: testutil.MustParseURL("https://example.com"),
+				WebCASPath:         "/cas",
+			},
+			&restapi.Providers{},
+		)
 		require.NoError(t, err)
 		require.Equal(t, 6, len(c.GetRESTHandlers()))
+	})
+
+	t.Run("HTTP service ID Success", func(t *testing.T) {
+		cfg := &restapi.Config{
+			ServiceID:          testutil.MustParseURL("did:web:example.com:services:orb"),
+			ServiceEndpointURL: testutil.MustParseURL("https://example.com"),
+			WebCASPath:         "/cas",
+		}
+
+		c, err := restapi.New(cfg, &restapi.Providers{})
+		require.NoError(t, err)
+		require.Equal(t, 7, len(c.GetRESTHandlers()),
+			"Expecting 7 handlers, including the service did handler")
 	})
 }
 
 func TestWebFinger(t *testing.T) {
 	t.Run("test resource query string not exists", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
-			OperationPath:  "/op",
-			ResolutionPath: "/resolve",
-			WebCASPath:     "/cas",
-			BaseURL:        "http://base",
+			OperationPath:      "/op",
+			ResolutionPath:     "/resolve",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 		}, &restapi.Providers{})
 
 		require.NoError(t, err)
@@ -143,10 +161,10 @@ func TestWebFinger(t *testing.T) {
 
 	t.Run("test resource not found", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
-			OperationPath:  "/op",
-			ResolutionPath: "/resolve",
-			WebCASPath:     "/cas",
-			BaseURL:        "http://base",
+			OperationPath:      "/op",
+			ResolutionPath:     "/resolve",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 		}, &restapi.Providers{})
 		require.NoError(t, err)
 
@@ -163,7 +181,7 @@ func TestWebFinger(t *testing.T) {
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			WebCASPath:                "/cas",
-			BaseURL:                   "http://base",
+			ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
 		}, &restapi.Providers{})
@@ -189,7 +207,7 @@ func TestWebFinger(t *testing.T) {
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			WebCASPath:                "/cas",
-			BaseURL:                   "http://base",
+			ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
 		}, &restapi.Providers{})
@@ -223,8 +241,8 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			WebCASPath: "/cas",
-			BaseURL:    "http://base",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 		},
 			&restapi.Providers{
 				WebfingerClient:      wfClient,
@@ -261,8 +279,8 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			WebCASPath: "/cas",
-			BaseURL:    "http://base",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 		},
 			&restapi.Providers{
 				WebfingerClient:      wfClient,
@@ -297,8 +315,8 @@ func TestWebFinger(t *testing.T) {
 		wfClient := wfclient.New(wfclient.WithHTTPClient(wfHTTPClient))
 
 		c, err := restapi.New(&restapi.Config{
-			WebCASPath: "/cas",
-			BaseURL:    "http://base",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 		},
 			&restapi.Providers{
 				WebfingerClient:      wfClient,
@@ -327,7 +345,7 @@ func TestWebFinger(t *testing.T) {
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			WebCASPath:                "/cas",
-			BaseURL:                   "http://base",
+			ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
 		}, &restapi.Providers{
@@ -452,7 +470,7 @@ func TestWebFinger(t *testing.T) {
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
 			WebCASPath:                "/cas",
-			BaseURL:                   "http://base",
+			ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
 		}, &restapi.Providers{
@@ -577,7 +595,7 @@ func TestHostMeta(t *testing.T) {
 			c, err := restapi.New(&restapi.Config{
 				OperationPath:             "/op",
 				ResolutionPath:            "/resolve",
-				BaseURL:                   "http://base",
+				ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 				WebCASPath:                "/cas",
 				DiscoveryDomains:          []string{"http://domain1"},
 				DiscoveryMinimumResolvers: 2,
@@ -615,7 +633,7 @@ func TestHostMeta(t *testing.T) {
 			c, err := restapi.New(&restapi.Config{
 				OperationPath:             "/op",
 				ResolutionPath:            "/resolve",
-				BaseURL:                   "http://base",
+				ServiceEndpointURL:        testutil.MustParseURL("http://base/services/orb"),
 				WebCASPath:                "/cas",
 				DiscoveryDomains:          []string{"http://domain1"},
 				DiscoveryMinimumResolvers: 2,
@@ -654,8 +672,8 @@ func TestHostMeta(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
 			OperationPath:             "/op",
 			ResolutionPath:            "/resolve",
-			BaseURL:                   "http://base",
 			WebCASPath:                "/cas",
+			ServiceEndpointURL:        testutil.MustParseURL("http://example.com/services/orb"),
 			DiscoveryDomains:          []string{"http://domain1"},
 			DiscoveryMinimumResolvers: 2,
 		}, &restapi.Providers{LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct"}})
@@ -680,9 +698,9 @@ func TestHostMeta(t *testing.T) {
 
 func TestWellKnownDID(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
-		BaseURL:    "https://example.com",
-		WebCASPath: "/cas",
-		PubKeys:    []restapi.PublicKey{{ID: "key1", Value: []byte("value"), Type: kms.ED25519}},
+		ServiceEndpointURL: testutil.MustParseURL("http://example.com/services/orb"),
+		WebCASPath:         "/cas",
+		PubKeys:            []restapi.PublicKey{{ID: "key1", Value: []byte("value"), Type: kms.ED25519}},
 	}, &restapi.Providers{})
 	require.NoError(t, err)
 
@@ -699,12 +717,46 @@ func TestWellKnownDID(t *testing.T) {
 	require.Len(t, w.VerificationMethod, 1)
 }
 
+func TestWellKnownServiceDID(t *testing.T) {
+	const id = "did:web:example.com:services:orb"
+
+	c, err := restapi.New(&restapi.Config{
+		ServiceEndpointURL: testutil.MustParseURL("https://example.com/services/orb"),
+		ServiceID:          testutil.MustParseURL(id),
+		WebCASPath:         "/cas",
+		HTTPSignPubKeys:    []restapi.PublicKey{{ID: "key1", Value: []byte("value"), Type: kms.ED25519}},
+	}, &restapi.Providers{})
+	require.NoError(t, err)
+
+	handler := getHandler(t, c, "/services/orb/did.json")
+
+	rr := serveHTTP(t, handler.Handler(), http.MethodGet, webDIDEndpoint, nil, nil, false)
+
+	var doc ariesdid.Doc
+
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &doc))
+	require.Equal(t, doc.ID, id)
+	require.Len(t, doc.VerificationMethod, 1)
+	require.Len(t, doc.Service, 1)
+
+	service := doc.Service[0]
+
+	require.Equal(t, id+"#activity-pub", service.ID)
+	require.Equal(t, "LinkedDomains", service.Type)
+
+	u, err := service.ServiceEndpoint.URI()
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com", u)
+}
+
 func TestWellKnown(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
-		OperationPath:  "/op",
-		ResolutionPath: "/resolve",
-		WebCASPath:     "/cas",
-		BaseURL:        "http://base",
+		OperationPath:      "/op",
+		ResolutionPath:     "/resolve",
+		WebCASPath:         "/cas",
+		ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 	}, &restapi.Providers{})
 	require.NoError(t, err)
 
@@ -723,10 +775,10 @@ func TestWellKnown(t *testing.T) {
 
 func TestWellKnownNodeInfo(t *testing.T) {
 	c, err := restapi.New(&restapi.Config{
-		OperationPath:  "/op",
-		ResolutionPath: "/resolve",
-		WebCASPath:     "/cas",
-		BaseURL:        "http://base",
+		OperationPath:      "/op",
+		ResolutionPath:     "/resolve",
+		WebCASPath:         "/cas",
+		ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
 	}, &restapi.Providers{})
 	require.NoError(t, err)
 

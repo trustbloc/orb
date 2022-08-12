@@ -34,7 +34,7 @@ func NewActivitPubClient() *ActivityPubClient {
 // WithPublicKey adds the given public key to the map of keys which is used
 // by GetPublicKey.
 func (m *ActivityPubClient) WithPublicKey(key *vocab.PublicKeyType) *ActivityPubClient {
-	m.keys[key.ID.String()] = key
+	m.keys[key.ID().String()] = key
 
 	return m
 }

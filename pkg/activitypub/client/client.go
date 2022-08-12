@@ -18,11 +18,16 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	docutil "github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	cryptoutil "github.com/trustbloc/orb/pkg/util"
 )
 
 var logger = log.New("activitypub_client")
@@ -75,6 +80,10 @@ type httpTransport interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
 }
 
+type serviceResolver interface {
+	ResolveHostMetaLink(uri, linkType string) (string, error)
+}
+
 // Config contains configuration parameters for the client.
 type Config struct {
 	CacheSize       int
@@ -88,12 +97,16 @@ type Client struct {
 
 	actorCache     gcache.Cache
 	publicKeyCache gcache.Cache
+	fetchPublicKey verifiable.PublicKeyFetcher
+	resolver       serviceResolver
 }
 
 // New returns a new ActivityPub client.
-func New(cfg Config, t httpTransport) *Client {
+func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher, resolver serviceResolver) *Client {
 	c := &Client{
-		httpTransport: t,
+		httpTransport:  t,
+		fetchPublicKey: fetchPublicKey,
+		resolver:       resolver,
 	}
 
 	cacheSize := cfg.CacheSize
@@ -113,13 +126,13 @@ func New(cfg Config, t httpTransport) *Client {
 	c.actorCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.getActor(i.(*url.URL))
+			return c.loadActor(i.(string))
 		}).Build()
 
 	c.publicKeyCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.getPublicKey(i.(*url.URL))
+			return c.loadPublicKey(i.(string))
 		}).Build()
 
 	return c
@@ -128,7 +141,7 @@ func New(cfg Config, t httpTransport) *Client {
 // GetActor retrieves the actor at the given IRI.
 //nolint:interfacer
 func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
-	result, err := c.actorCache.Get(actorIRI)
+	result, err := c.actorCache.Get(actorIRI.String())
 	if err != nil {
 		logger.Debugf("Got error retrieving actor from cache for IRI [%s]: %s", actorIRI, err)
 
@@ -138,8 +151,22 @@ func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	return result.(*vocab.ActorType), nil
 }
 
-func (c *Client) getActor(actorIRI *url.URL) (*vocab.ActorType, error) {
-	respBytes, err := c.get(actorIRI)
+func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
+	logger.Debugf("Cache miss. Loading actor [%s]", actorIRI)
+
+	resolvedActorIRI, err := c.resolver.ResolveHostMetaLink(actorIRI, discoveryrest.ActivityJSONType)
+	if err != nil {
+		return nil, fmt.Errorf("resolve host meta-link: %w", err)
+	}
+
+	logger.Debugf("Resolved URL for actor [%s]: [%s]", actorIRI, resolvedActorIRI)
+
+	u, err := url.Parse(resolvedActorIRI)
+	if err != nil {
+		return nil, fmt.Errorf("parse actor IRI [%s]: %w", resolvedActorIRI, err)
+	}
+
+	respBytes, err := c.get(u)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", actorIRI, err)
 	}
@@ -159,7 +186,7 @@ func (c *Client) getActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 // GetPublicKey retrieves the public key at the given IRI.
 //nolint:interfacer
 func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
-	result, err := c.publicKeyCache.Get(keyIRI)
+	result, err := c.publicKeyCache.Get(keyIRI.String())
 	if err != nil {
 		logger.Debugf("Got error retrieving public key from cache for IRI [%s]: %s", keyIRI, err)
 
@@ -169,8 +196,19 @@ func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 	return result.(*vocab.PublicKeyType), nil
 }
 
-func (c *Client) getPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
-	respBytes, err := c.get(keyIRI)
+func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
+	logger.Debugf("Cache miss. Loading public key [%s]", keyIRI)
+
+	if docutil.IsDID(keyIRI) {
+		return c.resolvePublicKeyFromDID(keyIRI)
+	}
+
+	keyURL, err := url.Parse(keyIRI)
+	if err != nil {
+		return nil, fmt.Errorf("parse key IRI [%s]: %w", keyIRI, err)
+	}
+
+	respBytes, err := c.get(keyURL)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)
 	}
@@ -318,6 +356,58 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 	}
 
 	return respBytes, nil
+}
+
+func (c *Client) resolvePublicKeyFromDID(keyIRI string) (*vocab.PublicKeyType, error) {
+	did, keyID, err := docutil.ParseKeyURI(keyIRI)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := c.fetchPublicKey(did, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch public key - DID [%s], KeyID [%s]: %w", did, keyID, err)
+	}
+
+	var publicKeyBytes []byte
+
+	var keyType kms.KeyType
+
+	if pubKey.JWK == nil {
+		publicKeyBytes = pubKey.Value
+		keyType = kms.KeyType(pubKey.Type)
+	} else {
+		keyType, err = pubKey.JWK.KeyType()
+		if err != nil {
+			return nil, fmt.Errorf("get key type from JWK for [%s]: %w", keyIRI, err)
+		}
+
+		publicKeyBytes, err = pubKey.JWK.PublicKeyBytes()
+		if err != nil {
+			return nil, fmt.Errorf("get public key bytes from JWK for [%s]: %w", keyIRI, err)
+		}
+	}
+
+	pemBytes, err := cryptoutil.EncodePublicKeyToPEM(publicKeyBytes, keyType)
+	if err != nil {
+		return nil, fmt.Errorf("convert public key to PEM - DID [%s], KeyID [%s]: %w", did, keyID, err)
+	}
+
+	id, err := url.Parse(keyIRI)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL [%s]: %w", keyIRI, err)
+	}
+
+	owner, err := url.Parse(did)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL [%s]: %w", did, err)
+	}
+
+	return vocab.NewPublicKey(
+		vocab.WithID(id),
+		vocab.WithOwner(owner),
+		vocab.WithPublicKeyPem(string(pemBytes)),
+	), nil
 }
 
 type getFunc func(iri *url.URL) ([]byte, error)

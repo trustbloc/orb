@@ -37,6 +37,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/datauri"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	docutil "github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/linkset"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -81,6 +82,7 @@ type Writer struct {
 	namespace            string
 	anchorPublisher      anchorPublisher
 	apServiceIRI         *url.URL
+	apServiceEndpointURL *url.URL
 	casIRI               *url.URL
 	dataURIMediaType     vocab.MediaType
 	maxWitnessDelay      time.Duration
@@ -113,7 +115,7 @@ type Providers struct {
 }
 
 type webfingerClient interface {
-	HasSupportedLedgerType(domain string) (bool, error)
+	HasSupportedLedgerType(uri string) (bool, error)
 }
 
 type activityStore interface {
@@ -181,7 +183,7 @@ type pubSub interface {
 }
 
 // New returns a new anchor writer.
-func New(namespace string, apServiceIRI, casURL *url.URL, dataURIMediaType vocab.MediaType,
+func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, dataURIMediaType vocab.MediaType,
 	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
 	resourceResolver *resourceresolver.Resolver,
@@ -191,6 +193,7 @@ func New(namespace string, apServiceIRI, casURL *url.URL, dataURIMediaType vocab
 		anchorPublisher:      anchorPublisher,
 		namespace:            namespace,
 		apServiceIRI:         apServiceIRI,
+		apServiceEndpointURL: apServiceEndpointURL,
 		casIRI:               casURL,
 		maxWitnessDelay:      maxWitnessDelay,
 		signWithLocalWitness: signWithLocalWitness,
@@ -548,7 +551,7 @@ func (c *Writer) storeVC(anchorLink *linkset.Link) error {
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).
 func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) error { //nolint: interfacer
-	systemFollowers, err := url.Parse(c.apServiceIRI.String() + resthandler.FollowersPath)
+	systemFollowers, err := url.Parse(c.apServiceEndpointURL.String() + resthandler.FollowersPath)
 	if err != nil {
 		return fmt.Errorf("failed to create new object with document: %w", err)
 	}
@@ -715,16 +718,22 @@ func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
 		return "", fmt.Errorf("unexpected interface '%T' for anchor origin", anchorOriginObj)
 	}
 
-	logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
+	resolvedWitness := anchorOrigin
 
-	resolveStartTime := time.Now()
+	if !docutil.IsDID(anchorOrigin) {
+		logger.Debugf("Resolving witness for the following anchor origin: %s", anchorOrigin)
 
-	resolvedWitness, err := c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve witness: %w", err)
+		resolveStartTime := time.Now()
+
+		var err error
+
+		resolvedWitness, err = c.resourceResolver.ResolveHostMetaLink(anchorOrigin, discoveryrest.ActivityJSONType)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve witness: %w", err)
+		}
+
+		c.metrics.WriteAnchorResolveHostMetaLinkTime(time.Since(resolveStartTime))
 	}
-
-	c.metrics.WriteAnchorResolveHostMetaLinkTime(time.Since(resolveStartTime))
 
 	logger.Debugf("Successfully resolved witness %s from %s", resolvedWitness, anchorOrigin)
 
@@ -764,7 +773,7 @@ func (c *Writer) getWitnesses(batchOpsWitnesses []string) (selectedWitnessesIRI 
 	if len(selectedWitnesses) == 0 {
 		logger.Debugf("No witnesses were configured. Adding self [%s] to witness list.", c.apServiceIRI)
 
-		hasLog, e := c.WFClient.HasSupportedLedgerType(fmt.Sprintf("%s://%s", c.apServiceIRI.Scheme, c.apServiceIRI.Host))
+		hasLog, e := c.WFClient.HasSupportedLedgerType(c.apServiceIRI.String())
 		if e != nil {
 			return nil, nil, e
 		}
@@ -861,12 +870,10 @@ func (c *Writer) getSystemWitnesses() ([]*proof.Witness, error) {
 	var witnesses []*proof.Witness
 
 	for _, systemWitnessIRI := range systemWitnessesIRI {
-		domain := fmt.Sprintf("%s://%s", systemWitnessIRI.Scheme, systemWitnessIRI.Host)
-
-		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(domain)
+		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(systemWitnessIRI.String())
 		if innerErr != nil {
 			logger.Warnf("Skipping system witness [%s] since an error occurred while determining its ledger types: %s",
-				domain, err)
+				systemWitnessIRI, err)
 
 			continue
 		}
@@ -896,12 +903,10 @@ func (c *Writer) getBatchWitnesses(batchWitnesses []string) ([]*proof.Witness, e
 			return nil, fmt.Errorf("failed to parse witness path[%s]: %w", batchWitness, err)
 		}
 
-		domain := fmt.Sprintf("%s://%s", batchWitnessIRI.Scheme, batchWitnessIRI.Host)
-
-		hasLog, err := c.WFClient.HasSupportedLedgerType(domain)
+		hasLog, err := c.WFClient.HasSupportedLedgerType(batchWitness)
 		if err != nil {
 			logger.Warnf("Skipping batch witness [%s] since an error occurred while determining its ledger types: %s",
-				domain, err)
+				batchWitness, err)
 
 			continue
 		}

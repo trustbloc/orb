@@ -101,9 +101,9 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 
 	// Ensure that the public key ID matches the key ID of the specified owner. Otherwise, it could
 	// be an attempt to impersonate an actor.
-	actor, err := v.actorRetriever.GetActor(publicKey.Owner.URL())
+	actor, err := v.actorRetriever.GetActor(publicKey.Owner())
 	if err != nil {
-		return false, nil, fmt.Errorf("get actor [%s]: %w", publicKey.Owner, err)
+		return false, nil, fmt.Errorf("get actor [%s]: %w", publicKey.Owner(), err)
 	}
 
 	if actor.PublicKey() == nil {
@@ -112,9 +112,9 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 		return false, nil, nil
 	}
 
-	if actor.PublicKey().ID.String() != publicKey.ID.String() {
+	if actor.PublicKey().ID().String() != publicKey.ID().String() {
 		logger.Debugf("public key [%s] of actor [%s] does not match the provided public key ID [%s] in request %s",
-			actor.PublicKey().ID, actor.ID(), publicKey.ID, req.URL)
+			actor.PublicKey().ID(), actor.ID(), publicKey.ID(), req.URL)
 
 		return false, nil, nil
 	}

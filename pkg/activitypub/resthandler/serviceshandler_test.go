@@ -69,9 +69,10 @@ func TestNewPublicKey(t *testing.T) {
 
 func TestServices_Handler(t *testing.T) {
 	cfg := &Config{
-		BasePath:  basePath,
-		ObjectIRI: serviceIRI,
-		PageSize:  4,
+		BasePath:           basePath,
+		ObjectIRI:          serviceIRI,
+		ServiceEndpointURL: serviceIRI,
+		PageSize:           4,
 	}
 
 	activityStore := memstore.New("")

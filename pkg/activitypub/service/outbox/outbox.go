@@ -55,6 +55,7 @@ type pubSub interface {
 type Config struct {
 	ServiceName           string
 	ServiceIRI            *url.URL
+	ServiceEndpointURL    *url.URL
 	Topic                 string
 	MaxRecipients         int
 	MaxConcurrentRequests int
@@ -88,6 +89,8 @@ type Outbox struct {
 	jsonUnmarshal    func(data []byte, v interface{}) error
 	iriCache         gcache.Cache
 	metrics          metricsProvider
+	followersPath    string
+	witnessesPath    string
 }
 
 type httpTransport interface {
@@ -125,6 +128,8 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		jsonUnmarshal:    json.Unmarshal,
 		metrics:          metrics,
 		httpTransport:    t,
+		followersPath:    cfg.ServiceEndpointURL.String() + resthandler.FollowersPath,
+		witnessesPath:    cfg.ServiceEndpointURL.String() + resthandler.WitnessesPath,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName,
@@ -137,7 +142,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return h.resolveActorIRIFromWebFinger(i.(*url.URL))
+			return h.resolveActorIRI(i.(*url.URL))
 		}).Build()
 
 	return h, nil
@@ -472,7 +477,22 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 func (h *Outbox) doResolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 	logger.Debugf("[%s] Resolving IRI(s) for [%s]", h.ServiceName, iri)
 
-	if !strings.HasPrefix(iri.String(), h.ServiceIRI.String()) {
+	switch {
+	case iri.String() == h.followersPath:
+		responses, err := h.resolveReferences(store.Follower)
+		if err != nil {
+			return []*resolveIRIResponse{{iri: iri, err: err}}
+		}
+
+		return responses
+	case iri.String() == h.witnessesPath:
+		responses, err := h.resolveReferences(store.Witness)
+		if err != nil {
+			return []*resolveIRIResponse{{iri: iri, err: err}}
+		}
+
+		return responses
+	default:
 		resolvedIRIs, err := h.doResolveActorIRI(iri)
 		if err != nil {
 			return []*resolveIRIResponse{{iri: iri, err: err}}
@@ -481,32 +501,15 @@ func (h *Outbox) doResolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 		var responses []*resolveIRIResponse
 
 		for _, r := range resolvedIRIs {
+			if strings.HasPrefix(r.String(), h.ServiceEndpointURL.String()) {
+				// Ignore local endpoint.
+				continue
+			}
+
 			responses = append(responses, &resolveIRIResponse{iri: r})
 		}
 
 		return responses
-	}
-
-	// This IRI is for the local service. The only valid paths are /followers and /witnesses.
-	switch {
-	case strings.HasSuffix(iri.Path, resthandler.FollowersPath):
-		responses, err := h.resolveReferences(store.Follower)
-		if err != nil {
-			return []*resolveIRIResponse{{iri: iri, err: err}}
-		}
-
-		return responses
-	case strings.HasSuffix(iri.Path, resthandler.WitnessesPath):
-		responses, err := h.resolveReferences(store.Witness)
-		if err != nil {
-			return []*resolveIRIResponse{{iri: iri, err: err}}
-		}
-
-		return responses
-	default:
-		logger.Warnf("[%s] Ignoring local IRI %s since it is not a valid recipient.", h.ServiceName, iri)
-
-		return nil
 	}
 }
 
@@ -548,11 +551,11 @@ func (h *Outbox) doResolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 	return result.([]*url.URL), nil
 }
 
-func (h *Outbox) resolveActorIRIFromWebFinger(iri *url.URL) ([]*url.URL, error) {
-	// Resolve the actor IRI from WebFinger.
+func (h *Outbox) resolveActorIRI(iri *url.URL) ([]*url.URL, error) {
+	// Resolve the actor IRI from .well-known.
 	resolvedActorIRI, err := h.resourceResolver.ResolveHostMetaLink(iri.String(), discoveryrest.ActivityJSONType)
 	if err != nil {
-		return nil, fmt.Errorf("resolve actor: %w", err)
+		return nil, fmt.Errorf("resolve actor [%s]: %w", iri, err)
 	}
 
 	logger.Debugf("[%s] Resolved IRI for actor [%s]: [%s]", h.ServiceName, iri, resolvedActorIRI)
@@ -637,7 +640,7 @@ func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
 }
 
 func (h *Outbox) newActivityID() *url.URL {
-	id, err := url.Parse(fmt.Sprintf("%s/activities/%s", h.ServiceIRI, uuid.New()))
+	id, err := url.Parse(fmt.Sprintf("%s/activities/%s", h.ServiceEndpointURL, uuid.New()))
 	if err != nil {
 		// Should never happen since we've already validated the URLs
 		panic(err)

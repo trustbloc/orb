@@ -14,12 +14,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
+
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
 const (
 	funcHashLinkPrefix  = "$hashlink(|"
 	funcURLEncodePrefix = "$URLEncode(|"
+	funcGetDomainPrefix = "$GetDomainFromURI(|"
 
 	resourceHashProperty = "ResourceHash"
 )
@@ -308,6 +312,8 @@ func (s *state) evaluateFunctions(expression string) (string, error) {
 		return s.evaluateHashlinkFunc(expression, funcHashLinkPrefix)
 	case strings.Contains(expression, funcURLEncodePrefix):
 		return s.evaluateURLEncodeFunc(expression, funcURLEncodePrefix)
+	case strings.Contains(expression, funcGetDomainPrefix):
+		return s.evaluateGetDomainFunc(expression, funcGetDomainPrefix)
 	default:
 		return expression, nil
 	}
@@ -366,6 +372,39 @@ func (s *state) evaluateURLEncodeFunc(expression, prefix string) (string, error)
 	return escapedParam, nil
 }
 
+func (s *state) evaluateGetDomainFunc(expression, prefix string) (string, error) {
+	logger.Infof("Evaluating GetDomain function for expression %s", expression)
+
+	i := strings.Index(expression, "|)")
+	if i < 0 {
+		return expression, nil
+	}
+
+	param := expression[len(prefix):i]
+
+	var domain string
+
+	if util.IsDID(param) {
+		var err error
+
+		domain, err = getDomainFromDID(param)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		u, err := url.Parse(param)
+		if err != nil {
+			return "", err
+		}
+
+		domain = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	}
+
+	logger.Infof("Evaluated GetDomain function for parameter %s: %s", param, domain)
+
+	return domain, nil
+}
+
 func (s *state) setAnchorOrigin(host, anchorOrigin string) {
 	s.anchorOrigins[host] = anchorOrigin
 }
@@ -388,4 +427,24 @@ func (s *state) getAnchorOrigin(strUrl string) (string, error) {
 	}
 
 	return origin, nil
+}
+
+func getDomainFromDID(id string) (string, error) {
+	parsedDID, err := did.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("parse did: %w", err)
+	}
+
+	if parsedDID.Method != "web" {
+		return "", fmt.Errorf("unsupported DID method [%s]", parsedDID.Method)
+	}
+
+	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
+
+	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
+	if err != nil {
+		return "", fmt.Errorf("unescape did: %w", err)
+	}
+
+	return "https://" + pathComponents[0], nil
 }

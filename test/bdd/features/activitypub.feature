@@ -14,7 +14,7 @@ Feature:
     And variable "domain4IRI" is assigned the value "https://orb.domain4.com/services/orb"
 
     Given variable "domain1ID" is assigned the value "${domain1IRI}"
-    And variable "domain2ID" is assigned the value "${domain2IRI}"
+    And variable "domain2ID" is assigned the value "did:web:orb.domain2.com:services:orb"
     And variable "domain3ID" is assigned the value "${domain3IRI}"
     And variable "domain4ID" is assigned the value "${domain4IRI}"
 
@@ -55,8 +55,8 @@ Feature:
     And the JSON path "likes" of the response equals "${domain2IRI}/likes"
     And the JSON path "witnesses" of the response equals "${domain2IRI}/witnesses"
     And the JSON path "witnessing" of the response equals "${domain2IRI}/witnessing"
+    And the JSON path "publicKey" of the response has prefix "${domain2ID}#"
     And the JSON path "shares" of the response equals "${domain2IRI}/shares"
-    And the JSON path "publicKey.id" of the response equals "${domain2IRI}/keys/main-key"
 
   @activitypub_pubkey
   Scenario: Get service public key
@@ -64,6 +64,11 @@ Feature:
     Then the JSON path "id" of the response equals "${domain1IRI}/keys/main-key"
     Then the JSON path "owner" of the response equals "${domain1IRI}"
     Then the JSON path "publicKeyPem" of the response is not empty
+
+    When an HTTP GET is sent to "${domain2IRI}/did.json"
+    Then the JSON path "verificationMethod.#.controller" of the response contains "${domain2ID}"
+    Then the JSON path "verificationMethod.#.type" of the response contains "Ed25519VerificationKey2020"
+    Then the JSON path "verificationMethod.#.publicKeyMultibase" of the array response is not empty
 
   @activitypub_follow
   Scenario: follow/accept/undo

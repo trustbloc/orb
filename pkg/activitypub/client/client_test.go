@@ -7,6 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
+	"github.com/hyperledger/aries-framework-go/pkg/doc/util/signature"
+	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/edge-core/pkg/log"
 
@@ -45,8 +53,8 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
-		require.NotNil(t, t, c)
+		c := newMockClient(httpClient)
+		require.NotNil(t, c)
 
 		actor, e := c.GetActor(actorIRI)
 		require.NoError(t, e)
@@ -67,7 +75,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetActor(actorIRI)
@@ -85,7 +93,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetActor(actorIRI)
@@ -106,7 +114,7 @@ func TestClient_GetActor(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		actor, err := c.GetActor(actorIRI)
@@ -132,9 +140,10 @@ func TestClient_GetActor(t *testing.T) {
 			httpClient.GetReturnsOnCall(0, result, nil)
 			httpClient.GetReturnsOnCall(1, nil, errExpected)
 
-			c := New(Config{
-				CacheExpiration: time.Second,
-			}, httpClient)
+			c := New(Config{CacheExpiration: time.Second}, httpClient,
+				func(issuerID, keyID string) (*verifier.PublicKey, error) {
+					return &verifier.PublicKey{}, nil
+				}, &wellKnownResolver{})
 			require.NotNil(t, t, c)
 
 			actor, e := c.GetActor(actorIRI)
@@ -162,9 +171,10 @@ func TestClient_GetActor(t *testing.T) {
 			httpClient.GetReturnsOnCall(0, result, nil)
 			httpClient.GetReturnsOnCall(1, nil, errExpected)
 
-			c := New(Config{
-				CacheExpiration: time.Nanosecond,
-			}, httpClient)
+			c := New(Config{CacheExpiration: time.Nanosecond}, httpClient,
+				func(issuerID, keyID string) (*verifier.PublicKey, error) {
+					return &verifier.PublicKey{}, nil
+				}, &wellKnownResolver{})
 			require.NotNil(t, t, c)
 
 			actor, e := c.GetActor(actorIRI)
@@ -179,6 +189,34 @@ func TestClient_GetActor(t *testing.T) {
 
 			require.NoError(t, result.Body.Close())
 		})
+	})
+
+	t.Run("Resolve actor error", func(t *testing.T) {
+		c := New(Config{}, &mocks.HTTPTransport{},
+			func(issuerID, keyID string) (*verifier.PublicKey, error) {
+				return &verifier.PublicKey{}, nil
+			},
+			&wellKnownResolver{Err: ErrNotFound})
+		require.NotNil(t, c)
+
+		actor, err := c.GetActor(actorIRI)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), ErrNotFound.Error())
+		require.Nil(t, actor)
+	})
+
+	t.Run("Resolve actor invalid URL error", func(t *testing.T) {
+		c := New(Config{}, &mocks.HTTPTransport{},
+			func(issuerID, keyID string) (*verifier.PublicKey, error) {
+				return &verifier.PublicKey{}, nil
+			},
+			&wellKnownResolver{URI: string([]byte{0x0})})
+		require.NotNil(t, c)
+
+		actor, err := c.GetActor(actorIRI)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid control character in URL")
+		require.Nil(t, actor)
 	})
 }
 
@@ -215,7 +253,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(serviceIRI)
@@ -275,7 +313,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(1, result2, nil)
 		httpClient.GetReturnsOnCall(2, result3, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -343,7 +381,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(1, result2, nil)
 		httpClient.GetReturnsOnCall(2, result3, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -369,7 +407,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		actor, e := c.GetReferences(collIRI)
@@ -390,7 +428,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -416,7 +454,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetReferences(collIRI)
@@ -447,7 +485,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(0, result1, nil)
 		httpClient.GetReturnsOnCall(1, result2, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, err := c.GetReferences(collIRI)
@@ -488,7 +526,7 @@ func TestClient_GetReferences(t *testing.T) {
 		httpClient.GetReturnsOnCall(0, result1, nil)
 		httpClient.GetReturnsOnCall(1, result2, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, err := c.GetReferences(collIRI)
@@ -525,13 +563,13 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
 		require.NoError(t, e)
 		require.NotNil(t, publicKey)
-		require.Equal(t, keyIRI.String(), publicKey.ID.String())
+		require.Equal(t, keyIRI.String(), publicKey.ID().String())
 
 		require.NoError(t, result.Body.Close())
 	})
@@ -547,7 +585,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
@@ -565,7 +603,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, e := c.GetPublicKey(keyIRI)
@@ -586,7 +624,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		publicKey, err := c.GetPublicKey(keyIRI)
@@ -595,6 +633,108 @@ func TestClient_GetPublicKey(t *testing.T) {
 		require.Nil(t, publicKey)
 
 		require.NoError(t, result.Body.Close())
+	})
+}
+
+func TestClient_GetDIDPublicKey(t *testing.T) {
+	serviceIRI := testutil.MustParseURL("did:web.example.com:services:service1")
+	keyIRI := testutil.NewMockID(serviceIRI, "did:web.example.com:services:service1#123456")
+
+	t.Run("Success", func(t *testing.T) {
+		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+
+		c := New(Config{}, &mocks.HTTPTransport{},
+			func(issuerID, keyID string) (*verifier.PublicKey, error) {
+				return &verifier.PublicKey{
+					Type:  elliptic.P256().Params().Name,
+					Value: pubKey,
+				}, nil
+			}, &wellKnownResolver{})
+		require.NotNil(t, t, c)
+
+		publicKey, err := c.GetPublicKey(keyIRI)
+		require.NoError(t, err)
+		require.NotNil(t, publicKey)
+		require.Equal(t, keyIRI.String(), publicKey.ID().String())
+	})
+
+	t.Run("JWK", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			ecdsaSigner, err := signature.NewSigner(kms.ECDSASecp256k1TypeIEEEP1363)
+			if err != nil {
+				panic(err)
+			}
+
+			j, err := jwksupport.JWKFromKey(ecdsaSigner.PublicKey())
+			if err != nil {
+				panic(err)
+			}
+
+			c := New(Config{}, &mocks.HTTPTransport{},
+				func(issuerID, keyID string) (*verifier.PublicKey, error) {
+					return &verifier.PublicKey{
+						Type: "JsonWebKey2020",
+						JWK:  j,
+					}, nil
+				}, &wellKnownResolver{})
+			require.NotNil(t, t, c)
+
+			publicKey, err := c.GetPublicKey(keyIRI)
+			require.NoError(t, err)
+			require.NotNil(t, publicKey)
+			require.Equal(t, keyIRI.String(), publicKey.ID().String())
+		})
+
+		t.Run("No key type error", func(t *testing.T) {
+			c := New(Config{}, &mocks.HTTPTransport{},
+				func(issuerID, keyID string) (*verifier.PublicKey, error) {
+					return &verifier.PublicKey{
+						JWK: &jwk.JWK{},
+					}, nil
+				}, &wellKnownResolver{})
+			require.NotNil(t, t, c)
+
+			publicKey, err := c.GetPublicKey(keyIRI)
+			require.Error(t, err)
+			require.Nil(t, publicKey)
+			require.Contains(t, err.Error(), "no keytype recognized for jwk")
+		})
+
+		t.Run("Get public key bytes error", func(t *testing.T) {
+			c := New(Config{}, &mocks.HTTPTransport{},
+				func(issuerID, keyID string) (*verifier.PublicKey, error) {
+					return &verifier.PublicKey{
+						JWK: &jwk.JWK{
+							Kty: "OKP",
+							Crv: "Ed25519",
+						},
+					}, nil
+				}, &wellKnownResolver{})
+			require.NotNil(t, t, c)
+
+			publicKey, err := c.GetPublicKey(keyIRI)
+			require.Error(t, err)
+			require.Nil(t, publicKey)
+			require.Contains(t, err.Error(), "unsupported public key type in kid")
+		})
+	})
+
+	t.Run("Fetcher error", func(t *testing.T) {
+		errExpected := errors.New("injected fetcher error")
+
+		c := New(Config{}, &mocks.HTTPTransport{},
+			func(issuerID, keyID string) (*verifier.PublicKey, error) {
+				return nil, errExpected
+			}, &wellKnownResolver{})
+		require.NotNil(t, t, c)
+
+		publicKey, err := c.GetPublicKey(keyIRI)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Nil(t, publicKey)
 	})
 }
 
@@ -666,7 +806,7 @@ func TestClient_GetActivities(t *testing.T) {
 			httpClient.GetReturnsOnCall(1, result2, nil)
 			httpClient.GetReturnsOnCall(2, result3, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, Forward)
@@ -719,7 +859,7 @@ func TestClient_GetActivities(t *testing.T) {
 			httpClient.GetReturnsOnCall(1, result3, nil)
 			httpClient.GetReturnsOnCall(2, result2, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, Reverse)
@@ -772,7 +912,7 @@ func TestClient_GetActivities(t *testing.T) {
 			httpClient.GetReturnsOnCall(1, result2, nil)
 			httpClient.GetReturnsOnCall(2, result3, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, Forward)
@@ -823,7 +963,7 @@ func TestClient_GetActivities(t *testing.T) {
 			httpClient.GetReturnsOnCall(1, result3, nil)
 			httpClient.GetReturnsOnCall(2, result2, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, Reverse)
@@ -865,7 +1005,7 @@ func TestClient_GetActivities(t *testing.T) {
 				httpClient.GetReturnsOnCall(0, result2, nil)
 				httpClient.GetReturnsOnCall(1, result3, nil)
 
-				c := New(Config{}, httpClient)
+				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
 				it, e := c.GetActivities(collIRI, Forward)
@@ -907,7 +1047,7 @@ func TestClient_GetActivities(t *testing.T) {
 				httpClient.GetReturnsOnCall(0, result3, nil)
 				httpClient.GetReturnsOnCall(1, result2, nil)
 
-				c := New(Config{}, httpClient)
+				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
 				it, e := c.GetActivities(collIRI, Reverse)
@@ -949,7 +1089,7 @@ func TestClient_GetActivities(t *testing.T) {
 				httpClient.GetReturnsOnCall(0, result2, nil)
 				httpClient.GetReturnsOnCall(1, result3, nil)
 
-				c := New(Config{}, httpClient)
+				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
 				it, e := c.GetActivities(collIRI, Forward)
@@ -991,7 +1131,7 @@ func TestClient_GetActivities(t *testing.T) {
 				httpClient.GetReturnsOnCall(0, result3, nil)
 				httpClient.GetReturnsOnCall(1, result2, nil)
 
-				c := New(Config{}, httpClient)
+				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
 				it, e := c.GetActivities(collIRI, Reverse)
@@ -1043,7 +1183,7 @@ func TestClient_GetActivities(t *testing.T) {
 		httpClient.GetReturnsOnCall(1, result2, nil)
 		httpClient.GetReturnsOnCall(2, result3, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetActivities(collIRI, Forward)
@@ -1088,7 +1228,7 @@ func TestClient_GetActivities(t *testing.T) {
 
 		httpClient.GetReturns(nil, errExpected)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		activities, e := c.GetActivities(collIRI, Forward)
@@ -1109,7 +1249,7 @@ func TestClient_GetActivities(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetActivities(collIRI, Forward)
@@ -1135,7 +1275,7 @@ func TestClient_GetActivities(t *testing.T) {
 
 		httpClient.GetReturns(result, nil)
 
-		c := New(Config{}, httpClient)
+		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
 		it, e := c.GetActivities(collIRI, Forward)
@@ -1162,7 +1302,7 @@ func TestClient_GetActivities(t *testing.T) {
 
 			httpClient.GetReturns(result, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, "invalid-order")
@@ -1192,7 +1332,7 @@ func TestClient_GetActivities(t *testing.T) {
 
 			httpClient.GetReturns(result, nil)
 
-			c := New(Config{}, httpClient)
+			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
 			it, e := c.GetActivities(collIRI, "invalid-order")
@@ -1213,4 +1353,28 @@ func newMockActivity(service1IRI, toIRI, objID *url.URL) *vocab.ActivityType {
 			),
 		),
 	)
+}
+
+func newMockClient(httpClient httpTransport) *Client {
+	return New(Config{}, httpClient,
+		func(issuerID, keyID string) (*verifier.PublicKey, error) {
+			return &verifier.PublicKey{}, nil
+		}, &wellKnownResolver{})
+}
+
+type wellKnownResolver struct {
+	Err error
+	URI string
+}
+
+func (m *wellKnownResolver) ResolveHostMetaLink(uri, _ string) (string, error) {
+	if m.Err != nil {
+		return "", m.Err
+	}
+
+	if m.URI != "" {
+		return m.URI, nil
+	}
+
+	return uri, nil
 }

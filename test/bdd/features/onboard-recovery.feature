@@ -10,11 +10,11 @@ Feature:
   Background: Setup
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
     And variable "domain2IRI" is assigned the value "https://orb.domain2.com/services/orb"
-    And variable "domain5IRI" is assigned the value "https://orb.domain5.com/services/orb"
+    And variable "domain5IRI" is assigned the value "https://orb.domain5.com/services/anchor"
 
     Given variable "domain1ID" is assigned the value "${domain1IRI}"
-    And variable "domain2ID" is assigned the value "${domain2IRI}"
-    And variable "domain5ID" is assigned the value "${domain5IRI}"
+    And variable "domain2ID" is assigned the value "did:web:orb.domain2.com:services:orb"
+    And variable "domain5ID" is assigned the value "did:web:orb.domain5.com:services:anchor"
 
     Given host "orb.domain1.com" is mapped to "localhost:48326"
     And host "orb2.domain1.com" is mapped to "localhost:48526"
@@ -25,7 +25,7 @@ Feature:
     Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb2.domain1.com" is set to "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
-    And anchor origin for host "orb.domain5.com" is set to "https://orb.domain5.com"
+    And anchor origin for host "orb.domain5.com" is set to "${domain5ID}"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"

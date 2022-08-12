@@ -151,7 +151,7 @@ type Providers struct {
 	PubSub               pubSub
 	Metrics              metricsProvider
 	Outbox               outboxProvider
-	WebFingerResolver    resourceResolver
+	HostMetaLinkResolver resourceResolver
 	CASResolver          casResolver
 	DocLoader            documentLoader
 	Pkf                  verifiable.PublicKeyFetcher
@@ -439,6 +439,7 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 	}
 }
 
+//nolint:gocyclo,cyclop
 func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 	refURL, err := url.Parse(anchor.Hashlink)
 	if err != nil {
@@ -458,31 +459,35 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return nil
 	}
 
-	attributedTo, err := url.Parse(anchor.AttributedTo)
+	attributedToEndpoint, err := o.resolveHostMetaLink(anchor.AttributedTo)
 	if err != nil {
-		return fmt.Errorf("parse origin [%s]: %w", anchor.AttributedTo, err)
+		return fmt.Errorf("resolve host meta-link for [%s]: %w", anchor.AttributedTo, err)
+	}
+
+	to := []*url.URL{attributedToEndpoint}
+
+	// Also post a 'Like' to the creator of the anchor credential (if it's not the same as the actor above).
+	originActorIRI, err := o.resolveActorFromHashlink(refURL.String())
+	if err != nil {
+		return fmt.Errorf("resolve origin actor for hashlink: %w", err)
+	}
+
+	if anchor.AttributedTo != originActorIRI && originActorIRI != o.serviceIRI.String() {
+		originServiceEndpoint, e := o.resolveHostMetaLink(originActorIRI)
+		if e != nil {
+			return fmt.Errorf("resolve host meta-link: %w", e)
+		}
+
+		logger.Debugf(
+			"Also posting a 'Like' to the origin (actor=[%s], endpoint=[%s]) of this activity which was attributed to [%s]",
+			originActorIRI, originServiceEndpoint, anchor.AttributedTo)
+
+		to = append(to, originServiceEndpoint)
 	}
 
 	result, err := newLikeResult(anchor.LocalHashlink)
 	if err != nil {
 		return fmt.Errorf("new like result for local hashlink: %w", err)
-	}
-
-	logger.Debugf("Posting a 'Like' to the actor attributed to this activity [%s]", attributedTo)
-
-	to := []*url.URL{attributedTo}
-
-	// Also post a 'Like' to the creator of the anchor credential (if it's not the same as the actor above).
-	originActor, err := o.resolveActorFromHashlink(refURL.String())
-	if err != nil {
-		return fmt.Errorf("resolve origin actor for hashlink [%s]: %w", refURL, err)
-	}
-
-	if anchor.AttributedTo != originActor.String() && originActor.String() != o.serviceIRI.String() {
-		logger.Debugf("Also posting a 'Like' to the origin of this activity [%s] which was attributed to [%s]",
-			originActor, anchor.AttributedTo)
-
-		to = append(to, originActor)
 	}
 
 	err = o.doPostLikeActivity(to, refURL, result)
@@ -514,10 +519,10 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 	return nil
 }
 
-func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
+func (o *Observer) resolveActorFromHashlink(hl string) (actorID string, err error) {
 	anchorLinksetBytes, _, err := o.CASResolver.Resolve(nil, hl, nil)
 	if err != nil {
-		return nil, fmt.Errorf("resolve anchor: %w", err)
+		return "", fmt.Errorf("resolve anchor: %w", err)
 	}
 
 	logger.Debugf("Retrieved anchor from [%s]: %s", hl, anchorLinksetBytes)
@@ -526,26 +531,29 @@ func (o *Observer) resolveActorFromHashlink(hl string) (*url.URL, error) {
 
 	err = json.Unmarshal(anchorLinksetBytes, anchorLinkset)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor Linkset for [%s]: %w", hl, err)
+		return "", fmt.Errorf("unmarshal anchor Linkset for [%s]: %w", hl, err)
 	}
 
 	anchorLink := anchorLinkset.Link()
 	if anchorLink == nil {
-		return nil, fmt.Errorf("empty anchor Linkset [%s]", hl)
+		return "", fmt.Errorf("empty anchor Linkset [%s]", hl)
 	}
 
-	hml, err := o.WebFingerResolver.ResolveHostMetaLink(anchorLink.Author().String(),
-		discoveryrest.ActivityJSONType)
+	return anchorLink.Author().String(), nil
+}
+
+func (o *Observer) resolveHostMetaLink(uri string) (*url.URL, error) {
+	endpoint, err := o.HostMetaLinkResolver.ResolveHostMetaLink(uri, discoveryrest.ActivityJSONType)
 	if err != nil {
-		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", anchorLink.Author(), err)
+		return nil, fmt.Errorf("resolve host meta-link for [%s]: %w", uri, err)
 	}
 
-	actor, err := url.Parse(hml)
+	endpointURL, err := url.Parse(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf(`parse URL [%s]: %w`, hml, err)
+		return nil, fmt.Errorf("parse URI [%s]: %w", endpoint, err)
 	}
 
-	return actor, nil
+	return endpointURL, nil
 }
 
 // saveAnchorHashlink saves the hashlink of an anchor credential so that it may be returned

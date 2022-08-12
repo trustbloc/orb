@@ -30,10 +30,15 @@ const (
 
 var logger = log.New("resource-resolver")
 
+type domainResolver interface {
+	ResolveDomainForDID(did string) (string, error)
+}
+
 // Resolver is used for resolving host-meta resources.
 type Resolver struct {
-	httpClient *http.Client
-	ipfsReader *ipfs.Client
+	httpClient     *http.Client
+	ipfsReader     *ipfs.Client
+	domainResolver domainResolver
 
 	cacheLifetime    time.Duration
 	cacheSize        int
@@ -42,12 +47,13 @@ type Resolver struct {
 
 // New returns a new Resolver.
 // ipfsReader is optional. If not provided (is nil), then host-meta links specified with IPNS won't be resolvable.
-func New(httpClient *http.Client, ipfsReader *ipfs.Client, opts ...Option) *Resolver {
+func New(httpClient *http.Client, ipfsReader *ipfs.Client, domainResolver domainResolver, opts ...Option) *Resolver {
 	resolver := &Resolver{
-		httpClient:    httpClient,
-		ipfsReader:    ipfsReader,
-		cacheLifetime: defaultCacheLifetime,
-		cacheSize:     defaultCacheSize,
+		httpClient:     httpClient,
+		ipfsReader:     ipfsReader,
+		domainResolver: domainResolver,
+		cacheLifetime:  defaultCacheLifetime,
+		cacheSize:      defaultCacheSize,
 	}
 
 	for _, opt := range opts {
@@ -93,70 +99,85 @@ func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (s
 }
 
 func (c *Resolver) resolveHostMetaLink(urlToGetHostMetaFrom string) (*discoveryrest.JRD, error) {
-	var err error
-
-	var hostMetaDocument discoveryrest.JRD
-
-	if strings.HasPrefix(urlToGetHostMetaFrom, "ipns://") {
-		if c.ipfsReader == nil {
-			return nil, errors.New("unable to resolve since IPFS is not enabled")
-		}
-
-		hostMetaDocument, err = c.getHostMetaDocumentViaIPNS(urlToGetHostMetaFrom)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get host-meta document via IPNS: %w", err)
-		}
-	} else {
-		hostMetaDocument, err = c.getHostMetaDocumentViaHTTP(urlToGetHostMetaFrom)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get host-meta document via HTTP/HTTPS: %w", err)
-		}
+	u, err := url.Parse(urlToGetHostMetaFrom)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL [%s]: %w", urlToGetHostMetaFrom, err)
 	}
 
-	return &hostMetaDocument, nil
+	switch u.Scheme {
+	case "did":
+		return c.resolveHostMetaLinkFromDID(urlToGetHostMetaFrom)
+	case "ipns":
+		return c.resolveHostMetaLinkFromIPNS(urlToGetHostMetaFrom)
+	case "http", "https":
+		return c.getHostMetaDocumentViaHTTP(urlToGetHostMetaFrom)
+	case "":
+		return nil, fmt.Errorf("missing protocol scheme")
+	default:
+		return nil, fmt.Errorf(`unsupported protocol scheme "%s"`, u.Scheme)
+	}
 }
 
-func (c *Resolver) getHostMetaDocumentViaIPNS(ipnsURL string) (discoveryrest.JRD, error) {
+func (c *Resolver) resolveHostMetaLinkFromDID(did string) (*discoveryrest.JRD, error) {
+	address, err := c.domainResolver.ResolveDomainForDID(did)
+	if err != nil {
+		return nil, fmt.Errorf("parse DID [%s]: %w", did, err)
+	}
+
+	hostMetaDocument, err := c.getHostMetaDocumentViaHTTP(address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host-meta document for DID [%s] from [%s]: %w",
+			did, address, err)
+	}
+
+	return hostMetaDocument, nil
+}
+
+func (c *Resolver) resolveHostMetaLinkFromIPNS(u string) (*discoveryrest.JRD, error) {
+	if c.ipfsReader == nil {
+		return nil, errors.New("unable to resolve since IPFS is not enabled")
+	}
+
+	hostMetaDocument, err := c.getHostMetaDocumentViaIPNS(u)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host-meta document from [%s]: %w",
+			u, err)
+	}
+
+	return hostMetaDocument, nil
+}
+
+func (c *Resolver) getHostMetaDocumentViaIPNS(ipnsURL string) (*discoveryrest.JRD, error) {
 	ipnsURLSplitByDoubleSlashes := strings.Split(ipnsURL, "//")
 
 	hostMetaDocumentBytes, err := c.ipfsReader.Read(fmt.Sprintf("/ipns/%s%s",
 		ipnsURLSplitByDoubleSlashes[len(ipnsURLSplitByDoubleSlashes)-1], discoveryrest.HostMetaJSONEndpoint))
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to read from IPNS: %w", err)
+		return nil, fmt.Errorf("failed to read from IPNS: %w", err)
 	}
 
 	var hostMetaDocument discoveryrest.JRD
 
 	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
 	}
 
-	return hostMetaDocument, nil
+	return &hostMetaDocument, nil
 }
 
-func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom string) (discoveryrest.JRD, error) {
+func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom string) (*discoveryrest.JRD, error) {
 	parsedURL, err := url.Parse(urlToGetHostMetaDocumentFrom)
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to parse given URL: %w", err)
+		return nil, fmt.Errorf("failed to parse given URL: %w", err)
 	}
 
-	hostNameWithScheme := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+	hostMetaEndpoint := fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host,
+		discoveryrest.HostMetaJSONEndpoint)
 
-	hostMetaEndpoint := fmt.Sprintf("%s%s", hostNameWithScheme, discoveryrest.HostMetaJSONEndpoint)
-
-	hostMetaDocument, err := c.getHostMetaDocumentFromEndpoint(hostMetaEndpoint)
-	if err != nil {
-		return discoveryrest.JRD{}, err
-	}
-
-	return hostMetaDocument, nil
-}
-
-func (c *Resolver) getHostMetaDocumentFromEndpoint(hostMetaEndpoint string) (discoveryrest.JRD, error) {
 	resp, err := c.httpClient.Get(hostMetaEndpoint)
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to get a response from the host-meta endpoint: %w", err)
+		return nil, fmt.Errorf("failed to get a response from the host-meta endpoint: %w", err)
 	}
 
 	defer func() {
@@ -167,13 +188,13 @@ func (c *Resolver) getHostMetaDocumentFromEndpoint(hostMetaEndpoint string) (dis
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return discoveryrest.JRD{},
+		return nil,
 			fmt.Errorf("got status code %d from %s (expected 200)", resp.StatusCode, hostMetaEndpoint)
 	}
 
 	hostMetaDocumentBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	var hostMetaDocument discoveryrest.JRD
@@ -182,10 +203,10 @@ func (c *Resolver) getHostMetaDocumentFromEndpoint(hostMetaEndpoint string) (dis
 
 	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {
-		return discoveryrest.JRD{}, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal response into a host-meta document: %w", err)
 	}
 
-	return hostMetaDocument, nil
+	return &hostMetaDocument, nil
 }
 
 // Option is a resolver option.

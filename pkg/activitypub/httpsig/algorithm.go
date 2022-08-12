@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/url"
+	"strings"
 
 	ariesverifier "github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
@@ -82,14 +83,14 @@ func (a *SignatureHashAlgorithm) Verify(secret httpsig.Secret, data, signature [
 
 	logger.Debugf("Got key %+v from keyID [%s]", pubKey, secret.KeyID)
 
-	switch pubKey.Type {
-	case "Ed25519":
+	switch {
+	case strings.HasPrefix(pubKey.Type, "Ed25519"):
 		return ariesverifier.NewEd25519SignatureVerifier().Verify(pubKey, data, signature)
-	case "P-256":
+	case pubKey.Type == "P-256":
 		return ariesverifier.NewECDSAES256SignatureVerifier().Verify(pubKey, data, signature)
-	case "P-384":
+	case pubKey.Type == "P-384":
 		return ariesverifier.NewECDSAES384SignatureVerifier().Verify(pubKey, data, signature)
-	case "P-521x":
+	case pubKey.Type == "P-521x":
 		return ariesverifier.NewECDSAES521SignatureVerifier().Verify(pubKey, data, signature)
 	}
 
@@ -124,7 +125,7 @@ func (r *KeyResolver) Resolve(keyID string) (*ariesverifier.PublicKey, error) {
 		return nil, fmt.Errorf("retrieve public key for ID [%s]: %w", keyID, err)
 	}
 
-	block, rest := pem.Decode([]byte(pubKey.PublicKeyPem))
+	block, rest := pem.Decode([]byte(pubKey.PublicKeyPem()))
 	if block == nil {
 		logger.Warnf("invalid public key: nil block. Rest: %s", rest)
 
