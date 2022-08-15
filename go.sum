@@ -791,9 +791,8 @@ github.com/hyperledger/aries-framework-go v0.1.7/go.mod h1:uve8/q23AUnq4EM0vBkEr
 github.com/hyperledger/aries-framework-go v0.1.8-0.20220217153004-1622c70e5767/go.mod h1:rBMOJVwyHyYbOqbb3IB/ExBkHyvFLht/W81s24GmjcE=
 github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b/go.mod h1:bqeLa1s8fQ7YueGOOk0Q+r48FGF7sd8GEaS/CyEo/iY=
 github.com/hyperledger/aries-framework-go v0.1.8/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220526205258-18d510d84955/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220811152045-03f747c09617 h1:XT+AkZb78EnO0IMXpUpsZtx2NPTQfDh9xZGPIS9MBqg=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220811152045-03f747c09617/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220812134322-e05b76b09fcb h1:Gr6x+VhC6Y5zQ0Z6p6iWj43jPxyzYhis8HPeoh03JSg=
+github.com/hyperledger/aries-framework-go v0.1.9-0.20220812134322-e05b76b09fcb/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1/go.mod h1:q8qjsQpYo7AYG0pqQg1zgEoIVc+Hrpf5S0WciiwPDQA=
 github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220428163625-96d8261511e1/go.mod h1:rO6A/9mCSo2pPQqMVmhgGvOkFX/7FVLgoanqazkiKSc=
 github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf h1:F12zbOSRsye3IWK3Zb6prgrqQQFYnz5zjGSCh9pfYzk=
@@ -1440,8 +1439,8 @@ github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHY
 github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5 h1:v32O23Ox/uwrwros6Zk6XZHdZT7MAO/2pFTU7xcmfoU=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
-github.com/trustbloc/vct v1.0.0-rc2 h1:iuoG3rLC3V0kuwGnBmnzVPGH6xAxWzpozgkW5T5Qlac=
-github.com/trustbloc/vct v1.0.0-rc2/go.mod h1:k45HahHV0lr2h8ldzITXLjcWpTgXzRE8WL1avfC95po=
+github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc h1:RdSnNwICdhin7ZgFl6vzm+HCqxz3As7KX6SdKz/EK/M=
+github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc/go.mod h1:qwNUM42Nk2sopFB6Rrzt7a+vnFvtoug60Q9kSbx5ito=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

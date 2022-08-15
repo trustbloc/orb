@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.33
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220811152045-03f747c09617
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220812134322-e05b76b09fcb
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
@@ -100,7 +100,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 // indirect
-	github.com/trustbloc/vct v1.0.0-rc2 // indirect
+	github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
