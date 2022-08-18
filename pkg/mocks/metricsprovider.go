@@ -122,6 +122,10 @@ func (m *MetricsProvider) DocumentCreateUpdateTime(value time.Duration) {
 func (m *MetricsProvider) DocumentResolveTime(value time.Duration) {
 }
 
+// WebDocumentResolveTime records the time it takes the REST handler to resolve a web document.
+func (m *MetricsProvider) WebDocumentResolveTime(value time.Duration) {
+}
+
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
 func (m *MetricsProvider) OutboxIncrementActivityCount(activityType string) {
 }
