@@ -12,10 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
+	awssvc "github.com/trustbloc/kms/pkg/aws"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -86,7 +89,7 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 		require.NotNil(t, cr)
 	})
 
-	t.Run("Fail to create kms", func(t *testing.T) {
+	t.Run("Fail to create Aries KMS store wrapper", func(t *testing.T) {
 		masterKeyStore, err := mem.NewProvider().OpenStore("masterkeystore")
 		require.NoError(t, err)
 
@@ -98,10 +101,75 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 		}, nil, &ariesmockstorage.Provider{
 			ErrOpenStore: errors.New("test error"),
 		}, masterKeyStore)
-		require.EqualError(t, err, "create kms: new: failed to ceate local kms: test error")
+		require.EqualError(t, err, "create Aries KMS store wrapper: test error")
 		require.Nil(t, km)
 		require.Nil(t, cr)
 	})
+}
+
+func TestCreateLocalKMS(t *testing.T) {
+	t.Run("Fail to create kms", func(t *testing.T) {
+		km, cr, err := createLocalKMS("", "", mem.NewProvider())
+		require.EqualError(t, err, "create kms: new: failed to create new keywrapper: "+
+			"keyURI must have a prefix in form 'prefixname://'")
+		require.Nil(t, km)
+		require.Nil(t, cr)
+	})
+}
+
+type mockMetricsProvider struct {
+}
+
+func (m *mockMetricsProvider) SignCount() {
+}
+
+func (m *mockMetricsProvider) SignTime(time.Duration) {
+}
+
+func (m *mockMetricsProvider) ExportPublicKeyCount() {
+}
+
+func (m *mockMetricsProvider) ExportPublicKeyTime(time.Duration) {
+}
+
+func (m *mockMetricsProvider) VerifyCount() {
+}
+
+func (m *mockMetricsProvider) VerifyTime(time.Duration) {
+}
+
+func TestAWSKMSWrapper(t *testing.T) {
+	endpoint := "http://localhost"
+	awsSession, err := session.NewSession(&aws.Config{
+		Endpoint:                      &endpoint,
+		Region:                        aws.String("ca"),
+		CredentialsChainVerboseErrors: aws.Bool(true),
+	})
+	awsService := awssvc.New(awsSession, &mockMetricsProvider{}, "")
+
+	wrapper := awsKMSWrapper{service: awsService}
+
+	keyID, handle, err := wrapper.Create("")
+	require.EqualError(t, err, "not implemented")
+	require.Empty(t, "", keyID)
+	require.Nil(t, handle)
+
+	handle, err = wrapper.Get("")
+	require.NoError(t, err)
+	require.Equal(t, "", handle)
+
+	pubKeyBytes, keyType, err := wrapper.ExportPubKeyBytes("")
+	require.EqualError(t, err, "extracting key id from URI failed")
+	require.Nil(t, pubKeyBytes)
+	require.Empty(t, keyType)
+
+	keyID, handle, err = wrapper.ImportPrivateKey(nil, "")
+	require.EqualError(t, err, "not implemented")
+	require.Empty(t, keyID)
+	require.Nil(t, handle)
+
+	err = wrapper.HealthCheck()
+	require.EqualError(t, err, "extracting key id from URI failed")
 }
 
 func TestGetOrInit(t *testing.T) {
