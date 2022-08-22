@@ -30,31 +30,31 @@ import (
 
 // nolint: lll
 const mockResponse = `{
-   "svct_version":0,
-   "id":"H+IApArXUZ8NAcq8Vjr1t86aY5dpBQoCDc1wodEwXvI=",
-   "timestamp":1627462750739,
-   "extensions":"",
-   "signature":"eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiJYNHB4eEZXdFl5ckZvSTIzU0NCZ2FpcVhndm1NdEJTUlJGbzEyUFpOU0c3ckFUMHBXUkR4WjRMcVJWQmJESllSNXQ3bXViUy9vUlIwaG5RSm81NlFCQT09In0="
+  "svct_version": 0,
+  "id": "ztrZNwAslc6QFucuV8EUuxQ37zx0EikI1yLw/cx2xeE=",
+  "timestamp": 1661184840789,
+  "extensions": "",
+  "signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRi96TjE2elY0QzF5WXFZbGdJN2thS1Zpb0pDTVcyRHJvY0RMMEpWd3B0ekFpRUE5RmNEREhKOUN1YVN1eFFldVRsU2tOL2w0TDc3bWtpbWFXVXZuMmZkcXFzPSJ9"
 }`
 
-// nolint: lll
 const mockVC = `{
-  "@context":[
+  "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/security/bbs/v1"
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
-  "credentialSubject":{
-    "degree":{
-      "name":"Bachelor of Science and Arts",
-      "type":"BachelorDegree"
-    },
-    "id":"did:key:z5TcESXuYUE9aZWYwSdrUEGK1HNQFHyTt4aVpaCTVZcDXQmUheFwfNZmRksaAbBneNm5KyE52SdJeRCN1g6PJmF31GsHWwFiqUDujvasK3wTiDr3vvkYwEJHt7H5RGEKYEp1ErtQtcEBgsgY2DA9JZkHj1J9HZ8MRDTguAhoFtR4aTBQhgnkP4SwVbxDYMEZoF2TMYn3s#zUC7LTa4hWtaE9YKyDsMVGiRNqPMN3s4rjBdB3MFi6PcVWReNfR72y3oGW2NhNcaKNVhMobh7aHp8oZB3qdJCs7RebM2xsodrSm8MmePbN25NTGcpjkJMwKbcWfYDX7eHCJjPGM"
+  "credentialSubject": {
+    "anchor": "hl:uEiBi63Izr8fJ_q-GQYvJKUGAz8yqop1OFGZ9XBqNaeobFg",
+    "id": "hl:uEiCyKO4N1sqG1YLXMtiTErP9bF9LUsKJ_rbKnnJ9iOE3wA",
+    "profile": "https://w3id.org/orb#v0"
   },
-  "id":"http://example.gov/credentials/3732",
-  "issuanceDate":"2020-03-10T04:24:12.164Z",
-  "issuer":"did:key:zUC724vuGvHpnCGFG1qqpXb81SiBLu3KLSqVzenwEZNPoY35i2Bscb8DLaVwHvRFs6F2NkNNXRcPWvqnPDUd9ukdjLkjZd3u9zzL4wDZDUpkPAatLDGLEYVo8kkAzuAKJQMr7N2",
-  "type":[
-    "VerifiableCredential"
+  "id": "https://orb.domain1.com/vc/4976c561-7ae8-41c9-a2b0-e4c52a02c56d",
+  "issuanceDate": "2022-08-22T16:14:00.784064128Z",
+  "issuer": "https://orb.domain1.com",
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
   ]
 }`
 
@@ -75,7 +75,7 @@ func TestClient_Witness(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
-					`"BL0zrdTbR4mc1ZBuaXOh52IYeYKd9hlXrB3eZ+GR9WsHHGhrNaJJB9bpEXvM4zo2vnm34nQezBJ1/a/cQS/j+Q0="}}`
+					`"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA=="}}` //nolint:lll
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -103,7 +103,7 @@ func TestClient_Witness(t *testing.T) {
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
-		require.Equal(t, int64(1627462750739000000), timestampTime.UnixNano())
+		require.Equal(t, int64(1661184840789000000), timestampTime.UnixNano())
 	})
 
 	t.Run("Error - endpoint retriever error", func(t *testing.T) {

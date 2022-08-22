@@ -9,7 +9,7 @@ go 1.17
 require (
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2.0.20220811162145-47649b185a56
 	github.com/spf13/cobra v1.3.0
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/orb v1.0.0-rc2.0.20220811160855-64ffb892b32b
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
@@ -19,7 +19,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
+	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -38,7 +38,7 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2.0.20220729203359-da1de2fa21ce // indirect
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220428211718-66cc046674a1 // indirect
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85 // indirect
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220614152730-3d817acfa48b // indirect
 	github.com/hyperledger/aries-framework-go/test/component v0.0.0-20220516154446-0ba34929e05b // indirect
 	github.com/hyperledger/ursa-wrapper-go v0.3.1 // indirect
@@ -71,7 +71,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc // indirect
+	github.com/trustbloc/vct v1.0.0-rc2.0.20220820075241-03b2f1075dbc // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect

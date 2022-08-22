@@ -162,13 +162,18 @@ func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataP
 
 	var signatureSuite ariessigner.SignatureSuite
 
+	var signatureRepresentation verifiable.SignatureRepresentation
+
 	switch s.params.SignatureSuite {
 	case Ed25519Signature2018:
 		signatureSuite = ed25519signature2018.New(suite.WithSigner(kmsSigner))
+		signatureRepresentation = verifiable.SignatureProofValue
 	case Ed25519Signature2020:
 		signatureSuite = ed25519signature2020.New(suite.WithSigner(kmsSigner))
+		signatureRepresentation = verifiable.SignatureProofValue
 	case JSONWebSignature2020:
 		signatureSuite = jsonwebsignature2020.New(suite.WithSigner(kmsSigner))
+		signatureRepresentation = verifiable.SignatureJWS
 	default:
 		return nil, fmt.Errorf("signature type not supported: %s", s.params.SignatureSuite)
 	}
@@ -178,7 +183,7 @@ func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataP
 	signingCtx := &verifiable.LinkedDataProofContext{
 		Domain:                  s.params.Domain,
 		VerificationMethod:      s.params.VerificationMethod,
-		SignatureRepresentation: verifiable.SignatureProofValue,
+		SignatureRepresentation: signatureRepresentation,
 		SignatureType:           s.params.SignatureSuite,
 		Suite:                   signatureSuite,
 		Purpose:                 AssertionMethod,

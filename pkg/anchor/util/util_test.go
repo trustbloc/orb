@@ -14,6 +14,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
@@ -23,7 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-const defVCContext = "https://www.w3.org/2018/credentials/v1"
+var defVCContext = []string{vocab.ContextCredentials, vocab.ContextActivityAnchors}
 
 func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -43,9 +44,13 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 			generator.NewRegistry()).BuildAnchorLink(payload, datauri.MediaTypeDataURIGzipBase64,
 			func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 				return &verifiable.Credential{
-					Types:   []string{"VerifiableCredential"},
-					Context: []string{defVCContext},
-					Subject: &builder.CredentialSubject{ID: anchorHashlink},
+					Types:   []string{"VerifiableCredential", "AnchorCredential"},
+					Context: defVCContext,
+					Subject: &builder.CredentialSubject{
+						ID:      anchorHashlink,
+						Profile: "https://w3id.org/orb#v0",
+						Anchor:  "hl:uEiAtvFg7Ti4-0MquG-sFMGRDcGUwz22JpCmOksomNTQGXw",
+					},
 					Issuer: verifiable.Issuer{
 						ID: "http://peer1.com",
 					},
@@ -55,7 +60,10 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		vc2, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		vc2, err := VerifiableCredentialFromAnchorLink(al,
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.NoError(t, err)
 
 		vc2Bytes, err := vc2.MarshalJSON()
@@ -67,7 +75,10 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 	t.Run("Invalid anchor", func(t *testing.T) {
 		al := &linkset.Link{}
 
-		vc, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		vc, err := VerifiableCredentialFromAnchorLink(al,
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid anchor")
 		require.Nil(t, vc)
@@ -79,7 +90,10 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 			testutil.MustParseURL("https://serice.domain1.com"),
 			testutil.MustParseURL("https://profile.domain1.com"),
 			nil, nil, nil)
-		_, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		_, err := VerifiableCredentialFromAnchorLink(al,
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.EqualError(t, err, "no replies in anchor link")
 	})
 
@@ -91,7 +105,10 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 			nil, nil,
 			linkset.NewReference(testutil.MustParseURL("https://somecontent"), linkset.TypeLinkset),
 		)
-		_, err := VerifiableCredentialFromAnchorLink(al, verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		_, err := VerifiableCredentialFromAnchorLink(al,
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported protocol")
 	})

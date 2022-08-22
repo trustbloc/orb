@@ -32,7 +32,7 @@ func (p *ContextProperty) String() string {
 	}
 
 	if len(p.contexts) == 1 {
-		return string(p.contexts[0])
+		return p.contexts[0]
 	}
 
 	return fmt.Sprintf("%s", p.contexts)

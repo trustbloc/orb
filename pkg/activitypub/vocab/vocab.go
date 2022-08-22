@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package vocab
 
 // Context defines the object context.
-type Context string
+type Context = string
 
 const (
 	// ContextActivityStreams is the ActivityStreams context.

@@ -116,6 +116,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithJSONLDDocumentLoader(h.DocLoader),
+		verifiable.WithStrictValidation(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed get verifiable credential from anchor: %w", err)
