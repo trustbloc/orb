@@ -5,6 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 package restapi_test
 
+//go:generate counterfeiter -o ./mocks/webresolver.gen.go --fake-name WebResolver . webResolver
+
 import (
 	"bytes"
 	"encoding/json"
@@ -19,11 +21,13 @@ import (
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	endpointmocks "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi/mocks"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
@@ -36,6 +40,8 @@ const (
 	webDIDEndpoint   = "/.well-known/did.json"
 	hostMetaEndpoint = "/.well-known/host-meta"
 	nodeInfoEndpoint = "/.well-known/nodeinfo"
+
+	orbWebDIDEndpoint = "/scid/{id}/did.json"
 )
 
 type mockResourceInfoProvider struct {
@@ -123,7 +129,7 @@ func TestGetRESTHandlers(t *testing.T) {
 			&restapi.Providers{},
 		)
 		require.NoError(t, err)
-		require.Equal(t, 6, len(c.GetRESTHandlers()))
+		require.Equal(t, 7, len(c.GetRESTHandlers()))
 	})
 
 	t.Run("HTTP service ID Success", func(t *testing.T) {
@@ -135,8 +141,8 @@ func TestGetRESTHandlers(t *testing.T) {
 
 		c, err := restapi.New(cfg, &restapi.Providers{})
 		require.NoError(t, err)
-		require.Equal(t, 7, len(c.GetRESTHandlers()),
-			"Expecting 7 handlers, including the service did handler")
+		require.Equal(t, 8, len(c.GetRESTHandlers()),
+			"Expecting 8 handlers, including the service did handler")
 	})
 }
 
@@ -749,6 +755,59 @@ func TestWellKnownServiceDID(t *testing.T) {
 	u, err := service.ServiceEndpoint.URI()
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com", u)
+}
+
+func TestOrbWebDID(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		didDoc := make(document.Document)
+
+		wr := &endpointmocks.WebResolver{}
+		wr.ResolveDocumentReturns(&document.ResolutionResult{Document: didDoc}, nil)
+
+		c, err := restapi.New(&restapi.Config{
+			OperationPath:      "/op",
+			ResolutionPath:     "/resolve",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
+		},
+			&restapi.Providers{WebResolver: wr})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, orbWebDIDEndpoint)
+
+		urlVars := make(map[string]string)
+		urlVars["id"] = "suffix"
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDEndpoint,
+			nil, urlVars, false)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+	})
+
+	t.Run("error - resource not found (invalid)", func(t *testing.T) {
+		wr := &endpointmocks.WebResolver{}
+		wr.ResolveDocumentReturns(nil, orberrors.ErrContentNotFound)
+
+		c, err := restapi.New(&restapi.Config{
+			OperationPath:      "/op",
+			ResolutionPath:     "/resolve",
+			WebCASPath:         "/cas",
+			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
+		},
+			&restapi.Providers{WebResolver: wr})
+		require.NoError(t, err)
+
+		handler := getHandler(t, c, orbWebDIDEndpoint)
+
+		urlVars := make(map[string]string)
+		urlVars["id"] = "suffix"
+
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDEndpoint,
+			nil, urlVars, false)
+
+		require.Equal(t, http.StatusNotFound, rr.Code)
+		require.Contains(t, rr.Body.String(), "resource not found")
+	})
 }
 
 func TestWellKnown(t *testing.T) {

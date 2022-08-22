@@ -117,6 +117,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler/decorator"
 	"github.com/trustbloc/orb/pkg/document/util"
+	"github.com/trustbloc/orb/pkg/document/webresolver"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
@@ -1197,6 +1198,9 @@ func startOrbServices(parameters *orbParameters) error {
 		logEndpoint = &noOpRetriever{}
 	}
 
+	webResolveHandler := webresolver.NewResolveHandler(u, parameters.didNamespace,
+		unpublishedDIDLabel, orbDocResolveHandler, metrics.Get())
+
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(
 		&discoveryrest.Config{
@@ -1216,6 +1220,7 @@ func startOrbServices(parameters *orbParameters) error {
 			AnchorLinkStore:      anchorLinkStore,
 			WebfingerClient:      wfClient,
 			LogEndpointRetriever: logEndpoint,
+			WebResolver:          webResolveHandler,
 		})
 	if err != nil {
 		return fmt.Errorf("discovery rest: %w", err)

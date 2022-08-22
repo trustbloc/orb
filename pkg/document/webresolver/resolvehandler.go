@@ -16,12 +16,11 @@ import (
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
+
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 var logger = log.New("did-web-resolver")
-
-// ErrDocumentNotFound is document not found error.
-var ErrDocumentNotFound = fmt.Errorf("document not found")
 
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {
@@ -36,7 +35,7 @@ type ResolveHandler struct {
 
 // Orb resolver resolves Orb documents.
 type orbResolver interface {
-	ResolveDocument(id string) (*document.ResolutionResult, error)
+	ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error)
 }
 
 type metricsProvider interface {
@@ -71,29 +70,65 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 	localResponse, err := r.orbResolver.ResolveDocument(unpublishedOrbDID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, ErrDocumentNotFound
+			return nil, orberrors.ErrContentNotFound
 		}
 
 		return nil, fmt.Errorf("failed to resolve document for id[%s]: %w", id, err)
 	}
 
-	alsoKnownAs := getAlsoKnownAs(localResponse.Document)
-
-	webDID := fmt.Sprintf("did:web:%s:identity:%s", r.domain.Host, id)
-
-	if !contains(alsoKnownAs, webDID) {
-		// TODO: is this legit error message (should we allow it even if it is not in also known as)
-		return nil, fmt.Errorf("id[%s] not found in alsoKnownAs", webDID)
+	deactivated := getDeactivatedFlag(localResponse)
+	if deactivated {
+		return nil, orberrors.ErrContentNotFound
 	}
 
-	didWebDoc, err := transformToDIDWeb(id, localResponse.Document)
+	webDID := fmt.Sprintf("did:web:%s:scid:%s", r.domain.Host, id)
+
+	didWebDoc, err := transformToDIDWeb(webDID, localResponse.Document)
+	if err != nil {
+		return nil, err
+	}
+
+	orbDID := getOrbDID(localResponse)
+
+	// replace did:web ID with did:orb ID in also known as; if did:web ID is not found then add did:orb ID anyway
+	didWebDoc, err = updateAlsoKnownAs(didWebDoc, webDID, orbDID)
 	if err != nil {
 		return nil, err
 	}
 
 	logger.Debugf("resolved id: %s", id)
 
-	return &document.ResolutionResult{Document: didWebDoc}, nil
+	return &document.ResolutionResult{Document: didWebDoc, Context: localResponse.Context}, nil
+}
+
+func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string) (document.Document, error) {
+	alsoKnownAs, err := getAlsoKnownAs(didWebDoc)
+	if err != nil {
+		return nil, err
+	}
+
+	// replace did:orb value with did:web values
+	updatedAlsoKnownAs := updateValues(alsoKnownAs, webDID, orbDID)
+
+	if !contains(updatedAlsoKnownAs, orbDID) {
+		updatedAlsoKnownAs = append(updatedAlsoKnownAs, orbDID)
+	}
+
+	didWebDoc[document.AlsoKnownAs] = updatedAlsoKnownAs
+
+	return didWebDoc, nil
+}
+
+func getOrbDID(result *document.ResolutionResult) string {
+	canonicalIDObj, ok := result.DocumentMetadata[document.CanonicalIDProperty]
+	if ok {
+		canonicalID, ok := canonicalIDObj.(string)
+		if ok {
+			return canonicalID
+		}
+	}
+
+	return result.Document.ID()
 }
 
 func transformToDIDWeb(id string, doc document.Document) (document.Document, error) {
@@ -115,10 +150,46 @@ func transformToDIDWeb(id string, doc document.Document) (document.Document, err
 	return didWebDoc, nil
 }
 
-func getAlsoKnownAs(doc document.Document) []string {
-	didDoc := document.DidDocumentFromJSONLDObject(doc)
+// updateValues will replace old value with new value in an array of strings.
+func updateValues(values []string, oldValue, newValue string) []string {
+	for i, v := range values {
+		if v == oldValue {
+			values[i] = newValue
+		}
+	}
 
-	return didDoc.AlsoKnownAs()
+	return values
+}
+
+func getAlsoKnownAs(doc document.Document) ([]string, error) {
+	alsoKnownAsObj, ok := doc[document.AlsoKnownAs]
+	if !ok || alsoKnownAsObj == nil {
+		return nil, nil
+	}
+
+	alsoKnownAsObjArr, ok := alsoKnownAsObj.([]interface{})
+	if ok {
+		return document.StringArray(alsoKnownAsObjArr), nil
+	}
+
+	alsoKnownAsStrArr, ok := alsoKnownAsObj.([]string)
+	if ok {
+		return alsoKnownAsStrArr, nil
+	}
+
+	return nil, fmt.Errorf("unexpected interface '%T' for also known as", alsoKnownAsObj)
+}
+
+func getDeactivatedFlag(result *document.ResolutionResult) bool {
+	deactivatedObj, ok := result.DocumentMetadata[document.DeactivatedProperty]
+	if ok {
+		deactivated, ok := deactivatedObj.(bool)
+		if ok {
+			return deactivated
+		}
+	}
+
+	return false
 }
 
 func contains(values []string, value string) bool {
