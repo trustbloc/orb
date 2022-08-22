@@ -213,7 +213,7 @@ type pubSub interface {
 }
 
 type keyManager interface {
-	Create(kt kms.KeyType) (string, interface{}, error)
+	Create(kt kms.KeyType, opts ...kms.KeyOpts) (string, interface{}, error)
 	Get(keyID string) (interface{}, error)
 	ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error)
 	ImportPrivateKey(privKey interface{}, kt kms.KeyType, opts ...kms.PrivateKeyOpts) (string, interface{}, error)
@@ -305,25 +305,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 	store storage.Provider, cfg storage.Store) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
 	case kmsLocal:
-		secretLockService, err := prepareKeyLock(parameters.kmsParams.secretLockKeyPath)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		km, err := localkms.New(masterKeyURI, &kmsProvider{
-			storageProvider:   store,
-			secretLockService: secretLockService,
-		})
-		if err != nil {
-			return nil, nil, fmt.Errorf("create kms: %w", err)
-		}
-
-		cr, err := tinkcrypto.New()
-		if err != nil {
-			return nil, nil, fmt.Errorf("create crypto: %w", err)
-		}
-
-		return km, cr, nil
+		return createLocalKMS(parameters.kmsParams.secretLockKeyPath, masterKeyURI, store)
 	case kmsWeb:
 		if strings.Contains(parameters.kmsParams.kmsEndpoint, "keystores") {
 			return webkms.New(parameters.kmsParams.kmsEndpoint, client),
@@ -363,10 +345,66 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 
 		awsSvc := awssvc.New(awsSession, metrics.Get(), parameters.kmsParams.vcSignActiveKeyID)
 
-		return awsSvc, awsSvc, nil
+		return &awsKMSWrapper{service: awsSvc}, awsSvc, nil
 	}
 
 	return nil, nil, fmt.Errorf("unsupported kms type: %s", parameters.kmsParams.kmsType)
+}
+
+func createLocalKMS(secretLockKeyPath, masterKeyURI string, store storage.Provider) (keyManager, crypto, error) {
+	secretLockService, err := prepareKeyLock(secretLockKeyPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// TODO (#1434): Create our own implementation of the KMS storage interface and pass it in here instead of
+	//  wrapping the Aries storage provider.
+	kmsStore, err := kms.NewAriesProviderWrapper(store)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create Aries KMS store wrapper: %w", err)
+	}
+
+	km, err := localkms.New(masterKeyURI, &kmsProvider{
+		storageProvider:   kmsStore,
+		secretLockService: secretLockService,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("create kms: %w", err)
+	}
+
+	cr, err := tinkcrypto.New()
+	if err != nil {
+		return nil, nil, fmt.Errorf("create crypto: %w", err)
+	}
+
+	return km, cr, nil
+}
+
+// awsKMSWrapper acts as an adapter that allows the AWS KMS service implementation to be used to implement the
+// keyManager and Aries KMS interfaces.
+type awsKMSWrapper struct {
+	service *awssvc.Service
+}
+
+func (a *awsKMSWrapper) Create(kt kms.KeyType, _ ...kms.KeyOpts) (string, interface{}, error) {
+	return a.service.Create(kt)
+}
+
+func (a *awsKMSWrapper) Get(keyID string) (interface{}, error) {
+	return a.service.Get(keyID)
+}
+
+func (a *awsKMSWrapper) ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, error) {
+	return a.service.ExportPubKeyBytes(keyID)
+}
+
+func (a *awsKMSWrapper) ImportPrivateKey(privKey interface{}, kt kms.KeyType,
+	opts ...kms.PrivateKeyOpts) (string, interface{}, error) {
+	return a.service.ImportPrivateKey(privKey, kt, opts...)
+}
+
+func (a awsKMSWrapper) HealthCheck() error {
+	return a.service.HealthCheck()
 }
 
 func getRegion(keyURI string) (string, error) {
@@ -804,8 +842,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	pubKeys := make([]discoveryrest.PublicKey, 0)
 
-	pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: parameters.kmsParams.vcSignActiveKeyID,
-		Type: vcActiveKeyType, Value: vcActivePubKey})
+	pubKeys = append(pubKeys, discoveryrest.PublicKey{
+		ID:   parameters.kmsParams.vcSignActiveKeyID,
+		Type: vcActiveKeyType, Value: vcActivePubKey,
+	})
 
 	if len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
 		for keyID := range parameters.kmsParams.vcSignPrivateKeys {
@@ -814,8 +854,10 @@ func startOrbServices(parameters *orbParameters) error {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
 
-			pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: keyID,
-				Type: pubKeyType, Value: pubKey})
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{
+				ID:   keyID,
+				Type: pubKeyType, Value: pubKey,
+			})
 		}
 	}
 
@@ -826,8 +868,10 @@ func startOrbServices(parameters *orbParameters) error {
 				return fmt.Errorf("failed to export pub key: %w", err)
 			}
 
-			pubKeys = append(pubKeys, discoveryrest.PublicKey{ID: keyID,
-				Type: pubKeyType, Value: pubKey})
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{
+				ID:   keyID,
+				Type: pubKeyType, Value: pubKey,
+			})
 		}
 	}
 
@@ -843,8 +887,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	var httpSignPubKeys []discoveryrest.PublicKey
 
-	httpSignPubKeys = append(httpSignPubKeys, discoveryrest.PublicKey{ID: parameters.kmsParams.httpSignActiveKeyID,
-		Type: httpSignKeyType, Value: httpSignActivePubKey})
+	httpSignPubKeys = append(httpSignPubKeys, discoveryrest.PublicKey{
+		ID:   parameters.kmsParams.httpSignActiveKeyID,
+		Type: httpSignKeyType, Value: httpSignActivePubKey,
+	})
 
 	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher())
 	if err != nil {
@@ -1295,7 +1341,6 @@ func startOrbServices(parameters *orbParameters) error {
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
 	opStore common.OperationStore, provider storage.Provider, unpublishedOpStore *unpublishedopstore.Store,
 	allowedOriginsValidator operationparser.ObjectValidator) (*orbpcp.ClientProvider, error) {
-
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                           parameters.methodContext,
 		EnableBase:                              parameters.baseEnabled,
@@ -1384,11 +1429,11 @@ func (w *webVDR) Read(didID string, opts ...vdrapi.DIDMethodOption) (*did.DocRes
 }
 
 type kmsProvider struct {
-	storageProvider   storage.Provider
+	storageProvider   kms.Store
 	secretLockService secretlock.Service
 }
 
-func (k kmsProvider) StorageProvider() storage.Provider {
+func (k kmsProvider) StorageProvider() kms.Store {
 	return k.storageProvider
 }
 
@@ -1456,8 +1501,10 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return &storageProviders{}, err
 		}
 
-		edgeServiceProvs.provider = &storageProvider{wrapper.NewProvider(couchDBProvider, "CouchDB"),
-			databaseTypeCouchDBOption}
+		edgeServiceProvs.provider = &storageProvider{
+			wrapper.NewProvider(couchDBProvider, "CouchDB"),
+			databaseTypeCouchDBOption,
+		}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
@@ -1467,8 +1514,10 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
 
-		edgeServiceProvs.provider = &mongoDBStorageProvider{wrapper.NewMongoDBProvider(mongoDBProvider),
-			databaseTypeMongoDBOption}
+		edgeServiceProvs.provider = &mongoDBStorageProvider{
+			wrapper.NewMongoDBProvider(mongoDBProvider),
+			databaseTypeMongoDBOption,
+		}
 
 	default:
 		return &storageProviders{}, fmt.Errorf("database type not set to a valid type." +

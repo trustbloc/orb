@@ -20,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
+
 	"github.com/hyperledger/aries-framework-go/pkg/common/model"
 
 	"github.com/cucumber/godog"
@@ -33,7 +35,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
-	ariescontext "github.com/hyperledger/aries-framework-go/pkg/framework/context"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
@@ -55,18 +56,20 @@ const (
 	masterKeyURI   = "local-lock://custom/master/key/"
 )
 
-var createHTTPTime []int64
-var createLogCount int64
-var createCount int64
-var resolveCreateHTTPTime []int64
-var resolveCreateLogCount int64
-var resolveCreateCount int64
-var updateHTTPTime []int64
-var updateLogCount int64
-var updateCount int64
-var resolveUpdateHTTPTime []int64
-var resolveUpdateLogCount int64
-var resolveUpdateCount int64
+var (
+	createHTTPTime        []int64
+	createLogCount        int64
+	createCount           int64
+	resolveCreateHTTPTime []int64
+	resolveCreateLogCount int64
+	resolveCreateCount    int64
+	updateHTTPTime        []int64
+	updateLogCount        int64
+	updateCount           int64
+	resolveUpdateHTTPTime []int64
+	resolveUpdateLogCount int64
+	resolveUpdateCount    int64
+)
 
 // StressSteps is steps for orb stress BDD tests.
 type StressSteps struct {
@@ -74,17 +77,34 @@ type StressSteps struct {
 	localKMS   kms.KeyManager
 }
 
+type kmsProvider struct {
+	kmsStore          kms.Store
+	secretLockService secretlock.Service
+}
+
+func (k *kmsProvider) StorageProvider() kms.Store {
+	return k.kmsStore
+}
+
+func (k *kmsProvider) SecretLock() secretlock.Service {
+	return k.secretLockService
+}
+
 // NewStressSteps returns new agent from client SDK.
 func NewStressSteps(ctx *BDDContext) *StressSteps {
 	sl := &noop.NoLock{} // for bdd tests, using no lock
 
-	kmsProvider, err := ariescontext.New(ariescontext.WithStorageProvider(mem.NewProvider()),
-		ariescontext.WithSecretLock(sl))
+	kmsStore, err := kms.NewAriesProviderWrapper(mem.NewProvider())
 	if err != nil {
-		panic(fmt.Errorf("failed to create new kms provider: %w", err))
+		panic(fmt.Errorf("failed to create Aries KMS store wrapper: %w", err))
 	}
 
-	km, err := localkms.New(masterKeyURI, kmsProvider)
+	kmsProv := &kmsProvider{
+		kmsStore:          kmsStore,
+		secretLockService: sl,
+	}
+
+	km, err := localkms.New(masterKeyURI, kmsProv)
 	if err != nil {
 		panic(fmt.Errorf("failed to create new kms: %w", err))
 	}
@@ -414,7 +434,6 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 	svcEndpoint string, vdr *orb.VDR) (crypto.PrivateKey,
 	crypto.PrivateKey, string, error) {
-
 	recoveryKey, recoveryKeyPrivateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, "", err
@@ -458,10 +477,12 @@ func (e *StressSteps) updateDID(didID string, svcEndpoint string, vdr *orb.VDR,
 	verMethodsCreate []*ariesdid.VerificationMethod, verMethodsUpdate []*ariesdid.VerificationMethod) error {
 	didDoc := &ariesdid.Doc{ID: didID}
 
-	didDoc.Service = []ariesdid.Service{{
-		ID:              serviceID,
-		Type:            "type",
-		ServiceEndpoint: model.NewDIDCommV1Endpoint(svcEndpoint)},
+	didDoc.Service = []ariesdid.Service{
+		{
+			ID:              serviceID,
+			Type:            "type",
+			ServiceEndpoint: model.NewDIDCommV1Endpoint(svcEndpoint),
+		},
 	}
 
 	for _, vm := range verMethodsCreate {
@@ -553,7 +574,6 @@ type createResolveDIDReq struct {
 }
 
 func (r *createResolveDIDReq) Invoke() (interface{}, error) {
-
 	createReq := createDIDReq{
 		vdr:              r.vdr,
 		steps:            r.steps,
@@ -599,7 +619,6 @@ type updateResolveDIDReq struct {
 }
 
 func (r *updateResolveDIDReq) Invoke() (interface{}, error) {
-
 	updateReq := updateDIDReq{
 		vdr:              r.vdr,
 		steps:            r.steps,
