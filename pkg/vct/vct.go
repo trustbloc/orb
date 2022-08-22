@@ -130,6 +130,7 @@ func (c *Client) addProof(endpoint string, anchorCred []byte, timestamp int64) (
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithNoCustomSchemaCheck(),
 		verifiable.WithJSONLDDocumentLoader(c.documentLoader),
+		verifiable.WithStrictValidation(),
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "http request unsuccessful") {
@@ -144,7 +145,6 @@ func (c *Client) addProof(endpoint string, anchorCred []byte, timestamp int64) (
 
 	opts := []vcsigner.Opt{
 		vcsigner.WithCreated(time.Unix(0, timestamp)),
-		vcsigner.WithSignatureRepresentation(verifiable.SignatureProofValue),
 	}
 
 	if endpoint != "" {

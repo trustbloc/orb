@@ -18,7 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220428211718-66cc046674a1
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220614152730-3d817acfa48b
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
 	github.com/ipfs/go-cid v0.0.7
@@ -30,11 +30,11 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/rs/cors v1.7.0
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.5
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
-	github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc
+	github.com/trustbloc/vct v1.0.0-rc2.0.20220820075241-03b2f1075dbc
 	go.mongodb.org/mongo-driver v1.9.1
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 )
@@ -45,7 +45,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
+	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect

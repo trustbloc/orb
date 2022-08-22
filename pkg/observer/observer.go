@@ -340,6 +340,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLink,
 		verifiable.WithPublicKeyFetcher(o.Pkf),
 		verifiable.WithJSONLDDocumentLoader(o.DocLoader),
+		verifiable.WithStrictValidation(),
 	)
 	if err != nil {
 		return fmt.Errorf("get verifiable credential from anchor link: %w", err)

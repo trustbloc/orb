@@ -12,24 +12,24 @@ require (
 	github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2.0.20220811162145-47649b185a56
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2.0.20220729203359-da1de2fa21ce
-	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220516154446-0ba34929e05b
+	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/piprate/json-gold v0.4.1
 	github.com/spf13/cobra v1.3.0
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/orb v1.0.0-rc2.0.20220811160855-64ffb892b32b
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
-	github.com/trustbloc/vct v1.0.0-rc2.0.20220815152833-16b10a982cbc
+	github.com/trustbloc/vct v1.0.0-rc2.0.20220820075241-03b2f1075dbc
 )
 
 require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
+	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect

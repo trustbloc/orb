@@ -60,7 +60,7 @@ func (b *Builder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink stri
 
 	now := &util.TimeWrapper{Time: time.Now()}
 
-	ctx := []string{vcContextURIV1, string(vocab.ContextActivityAnchors)}
+	ctx := []string{vcContextURIV1, vocab.ContextActivityAnchors}
 
 	ctx = append(ctx, context...)
 
