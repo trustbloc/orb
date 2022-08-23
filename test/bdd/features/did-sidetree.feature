@@ -472,6 +472,63 @@ Feature:
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
     Then check success response contains "deactivated"
 
+  @did_web_doc
+  Scenario: various did doc operations (domain3 has caching enabled)
+    Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
+    And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
+
+    # test did:web document not found
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/non-existent/did.json" and the returned status code is 404
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document and the suffix is saved to variable "didSuffix"
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "uAAA"
+
+    # test unpublished existing DID
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json"
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
+    Then check success response contains "canonicalId"
+
+    # test published did without corresponding did:web in also known as
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json"
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to add also known as URI "did:web:orb.domain3.com:scid:${didSuffix}" to DID document
+    Then check for request success
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "did:web:orb.domain3.com:scid"
+
+    # did:web ID is now available in alsoKnownAs
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json"
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to recover DID document
+    Then check for request success
+
+    # verify recover DID
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "recoveryKey"
+
+    # normally we would include alsoKnownAs part of recovery request - so no need to update after recovery
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to add also known as URI "did:web:orb.domain3.com:scid:${didSuffix}" to DID document
+    Then check for request success
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "did:web:orb.domain3.com:scid"
+
+    # check did:web after recovery
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json"
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to deactivate DID document
+    Then check for request success
+
+    When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "deactivated"
+
+    # check did:web after deactivate - should be 404 (not found)
+    When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json" and the returned status code is 404
+
   @did_sidetree_auth
   Scenario: Sidetree endpoint authorization
     Given client discover orb endpoints

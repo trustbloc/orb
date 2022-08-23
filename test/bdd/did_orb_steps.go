@@ -16,6 +16,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 	"io"
 	"io/ioutil"
 	mrand "math/rand"
@@ -379,6 +380,26 @@ func (d *DIDOrbSteps) createDIDDocumentSaveIDToVar(url, varName string) error {
 	return nil
 }
 
+func (d *DIDOrbSteps) createDIDDocumentSaveSuffixToVar(url, varName string) error {
+	if err := d.createDIDDocument(url); err != nil {
+		return err
+	}
+
+	parts := strings.Split(d.interimDID, docutil.NamespaceDelimiter)
+
+	const minParts = 4
+	if len(parts) < minParts {
+		return fmt.Errorf("id[%s] has to have at least four parts", d.interimDID)
+	}
+
+	// suffix is always the last part
+	suffix := parts[len(parts)-1]
+
+	d.state.setVar(varName, suffix)
+
+	return nil
+}
+
 func (d *DIDOrbSteps) resetKeysToLastSuccessful(url string) error {
 	err := d.resolveDIDDocumentWithID(url, d.canonicalDID)
 	if err != nil {
@@ -629,7 +650,12 @@ func (d *DIDOrbSteps) removeServiceEndpointsFromDIDDocument(url, keyID string) e
 }
 
 func (d *DIDOrbSteps) addAlsoKnownAsURIToDIDDocument(url, uri string) error {
-	p, err := getAddAlsoKnownAsPatch(uri)
+	resolved, err := d.state.resolveVars(uri)
+	if err != nil {
+		return err
+	}
+
+	p, err := getAddAlsoKnownAsPatch(resolved.(string))
 	if err != nil {
 		return err
 	}
@@ -2062,6 +2088,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)
 	s.Step(`^client sends request to "([^"]*)" to create DID document and the ID is saved to variable "([^"]*)"$`, d.createDIDDocumentSaveIDToVar)
+	s.Step(`^client sends request to "([^"]*)" to create DID document and the suffix is saved to variable "([^"]*)"$`, d.createDIDDocumentSaveSuffixToVar)
 	s.Step(`^check success response contains "([^"]*)"$`, d.checkSuccessRespContains)
 	s.Step(`^check success response does NOT contain "([^"]*)"$`, d.checkSuccessRespDoesntContain)
 	s.Step(`^client sends request to "([^"]*)" to resolve DID document with interim did$`, d.resolveDIDDocumentWithInterimDID)

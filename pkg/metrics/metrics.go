@@ -103,6 +103,11 @@ const (
 	resolverVerifyCIDTimeMetric                       = "verify_cid_seconds"
 	resolverRequestDiscoveryTimeMetric                = "request_discovery_seconds"
 
+	// Resolver.
+	webResolver = "web_resolver"
+
+	webResolverResolveDocument = "resolve_document"
+
 	// Decorator.
 	decorator = "decorator"
 
@@ -210,6 +215,8 @@ type Metrics struct {
 	signerSignTimes                 prometheus.Histogram
 	signerAddLinkedDataProofTimes   prometheus.Histogram
 
+	webResolverResolveDocument prometheus.Histogram
+
 	resolverResolveDocumentLocallyTimes          prometheus.Histogram
 	resolverGetAnchorOriginEndpointTimes         prometheus.Histogram
 	resolverResolveDocumentFromAnchorOriginTimes prometheus.Histogram
@@ -311,6 +318,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		signerGetKeyTimes:                            newSignerGetKeyTime(),
 		signerSignTimes:                              newSignerSignTime(),
 		signerAddLinkedDataProofTimes:                newSignerAddLinkedDataProofTime(),
+		webResolverResolveDocument:                   newWebResolverResolveDocument(),
 		resolverResolveDocumentLocallyTimes:          newResolverResolveDocumentLocallyTime(),
 		resolverGetAnchorOriginEndpointTimes:         newResolverGetAnchorOriginEndpointTime(),
 		resolverResolveDocumentFromAnchorOriginTimes: newResolverResolveDocumentFromAnchorOriginTime(),
@@ -360,6 +368,7 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
 		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes, m.signerAddLinkedDataProofTimes,
 		m.anchorWriteResolveHostMetaLinkTime,
+		m.webResolverResolveDocument,
 		m.resolverResolveDocumentLocallyTimes, m.resolverGetAnchorOriginEndpointTimes,
 		m.resolverResolveDocumentFromAnchorOriginTimes,
 		m.resolverResolveDocumentFromCreateStoreTimes, m.resolverDeleteDocumentFromCreateStoreTimes,
@@ -755,6 +764,13 @@ func (m *Metrics) SignerAddLinkedDataProof(value time.Duration) {
 	m.signerAddLinkedDataProofTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer add linked data proof time: %s", value)
+}
+
+// WebDocumentResolveTime records resolving web document.
+func (m *Metrics) WebDocumentResolveTime(value time.Duration) {
+	m.webResolverResolveDocument.Observe(value.Seconds())
+
+	logger.Debugf("web resolver resolve document time: %s", value)
 }
 
 // ResolveDocumentLocallyTime records resolving document locally.
@@ -1463,6 +1479,14 @@ func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 	return newHistogram(
 		signer, signerAddLinkedDataProofMetric,
 		"The time (in seconds) it takes the signer to add data linked prrof.",
+		nil,
+	)
+}
+
+func newWebResolverResolveDocument() prometheus.Histogram {
+	return newHistogram(
+		webResolver, webResolverResolveDocument,
+		"The time (in seconds) it takes the web resolver to resolve document.",
 		nil,
 	)
 }

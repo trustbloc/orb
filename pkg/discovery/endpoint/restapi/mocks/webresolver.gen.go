@@ -7,12 +7,11 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 )
 
-type OrbResolver struct {
-	ResolveDocumentStub        func(string, ...document.ResolutionOption) (*document.ResolutionResult, error)
+type WebResolver struct {
+	ResolveDocumentStub        func(string) (*document.ResolutionResult, error)
 	resolveDocumentMutex       sync.RWMutex
 	resolveDocumentArgsForCall []struct {
 		arg1 string
-		arg2 []document.ResolutionOption
 	}
 	resolveDocumentReturns struct {
 		result1 *document.ResolutionResult
@@ -26,17 +25,16 @@ type OrbResolver struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *OrbResolver) ResolveDocument(arg1 string, arg2 ...document.ResolutionOption) (*document.ResolutionResult, error) {
+func (fake *WebResolver) ResolveDocument(arg1 string) (*document.ResolutionResult, error) {
 	fake.resolveDocumentMutex.Lock()
 	ret, specificReturn := fake.resolveDocumentReturnsOnCall[len(fake.resolveDocumentArgsForCall)]
 	fake.resolveDocumentArgsForCall = append(fake.resolveDocumentArgsForCall, struct {
 		arg1 string
-		arg2 []document.ResolutionOption
-	}{arg1, arg2})
-	fake.recordInvocation("ResolveDocument", []interface{}{arg1, arg2})
+	}{arg1})
+	fake.recordInvocation("ResolveDocument", []interface{}{arg1})
 	fake.resolveDocumentMutex.Unlock()
 	if fake.ResolveDocumentStub != nil {
-		return fake.ResolveDocumentStub(arg1, arg2...)
+		return fake.ResolveDocumentStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -45,26 +43,26 @@ func (fake *OrbResolver) ResolveDocument(arg1 string, arg2 ...document.Resolutio
 	return fakeReturns.result1, fakeReturns.result2
 }
 
-func (fake *OrbResolver) ResolveDocumentCallCount() int {
+func (fake *WebResolver) ResolveDocumentCallCount() int {
 	fake.resolveDocumentMutex.RLock()
 	defer fake.resolveDocumentMutex.RUnlock()
 	return len(fake.resolveDocumentArgsForCall)
 }
 
-func (fake *OrbResolver) ResolveDocumentCalls(stub func(string, ...document.ResolutionOption) (*document.ResolutionResult, error)) {
+func (fake *WebResolver) ResolveDocumentCalls(stub func(string) (*document.ResolutionResult, error)) {
 	fake.resolveDocumentMutex.Lock()
 	defer fake.resolveDocumentMutex.Unlock()
 	fake.ResolveDocumentStub = stub
 }
 
-func (fake *OrbResolver) ResolveDocumentArgsForCall(i int) (string, []document.ResolutionOption) {
+func (fake *WebResolver) ResolveDocumentArgsForCall(i int) string {
 	fake.resolveDocumentMutex.RLock()
 	defer fake.resolveDocumentMutex.RUnlock()
 	argsForCall := fake.resolveDocumentArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1
 }
 
-func (fake *OrbResolver) ResolveDocumentReturns(result1 *document.ResolutionResult, result2 error) {
+func (fake *WebResolver) ResolveDocumentReturns(result1 *document.ResolutionResult, result2 error) {
 	fake.resolveDocumentMutex.Lock()
 	defer fake.resolveDocumentMutex.Unlock()
 	fake.ResolveDocumentStub = nil
@@ -74,7 +72,7 @@ func (fake *OrbResolver) ResolveDocumentReturns(result1 *document.ResolutionResu
 	}{result1, result2}
 }
 
-func (fake *OrbResolver) ResolveDocumentReturnsOnCall(i int, result1 *document.ResolutionResult, result2 error) {
+func (fake *WebResolver) ResolveDocumentReturnsOnCall(i int, result1 *document.ResolutionResult, result2 error) {
 	fake.resolveDocumentMutex.Lock()
 	defer fake.resolveDocumentMutex.Unlock()
 	fake.ResolveDocumentStub = nil
@@ -90,7 +88,7 @@ func (fake *OrbResolver) ResolveDocumentReturnsOnCall(i int, result1 *document.R
 	}{result1, result2}
 }
 
-func (fake *OrbResolver) Invocations() map[string][][]interface{} {
+func (fake *WebResolver) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.resolveDocumentMutex.RLock()
@@ -102,7 +100,7 @@ func (fake *OrbResolver) Invocations() map[string][][]interface{} {
 	return copiedInvocations
 }
 
-func (fake *OrbResolver) recordInvocation(key string, args []interface{}) {
+func (fake *WebResolver) recordInvocation(key string, args []interface{}) {
 	fake.invocationsMutex.Lock()
 	defer fake.invocationsMutex.Unlock()
 	if fake.invocations == nil {

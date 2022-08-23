@@ -13,12 +13,14 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gorilla/mux"
 	ariesmodel "github.com/hyperledger/aries-framework-go/pkg/common/model"
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/multiformats/go-multibase"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
@@ -41,6 +43,7 @@ const (
 	// HostMetaJSONEndpoint is the endpoint for getting the host-meta document.
 	HostMetaJSONEndpoint = "/.well-known/host-meta.json"
 	webDIDEndpoint       = "/.well-known/did.json"
+	orbWebDIDEndpoint    = "/scid/{id}/did.json"
 	nodeInfoEndpoint     = "/.well-known/nodeinfo"
 
 	selfRelation      = "self"
@@ -87,6 +90,10 @@ type logEndpointRetriever interface {
 	GetLogEndpoint() (string, error)
 }
 
+type webResolver interface {
+	ResolveDocument(id string) (*document.ResolutionResult, error)
+}
+
 // New returns discovery operations.
 func New(c *Config, p *Providers) (*Operation, error) {
 	// If the WebCAS path is empty, it'll cause certain WebFinger queries to be matched incorrectly
@@ -116,6 +123,7 @@ func New(c *Config, p *Providers) (*Operation, error) {
 		cas:                       p.CAS,
 		anchorStore:               p.AnchorLinkStore,
 		wfClient:                  p.WebfingerClient,
+		webResolver:               p.WebResolver,
 	}, nil
 }
 
@@ -130,6 +138,7 @@ type PublicKey struct {
 type Operation struct {
 	anchorInfoRetriever
 	logEndpointRetriever
+	webResolver
 
 	pubKeys, httpSignPubKeys  []PublicKey
 	resolutionPath            string
@@ -166,6 +175,7 @@ type Providers struct {
 	AnchorLinkStore      anchorLinkStore
 	WebfingerClient      webfingerClient
 	LogEndpointRetriever logEndpointRetriever
+	WebResolver          webResolver
 }
 
 // GetRESTHandlers get all controller API handler available for this service.
@@ -177,6 +187,7 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 		newHTTPHandler(HostMetaJSONEndpoint, o.hostMetaJSONHandler),
 		newHTTPHandler(webDIDEndpoint, o.webDIDHandler),
 		newHTTPHandler(nodeInfoEndpoint, o.nodeInfoHandler),
+		newHTTPHandler(orbWebDIDEndpoint, o.orbWebDIDHandler),
 	}
 
 	// Only expose a service DID endpoint if the service ID is configured to be a DID.
@@ -200,6 +211,27 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 		ResolutionEndpoint: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath),
 		OperationEndpoint:  fmt.Sprintf("%s%s", o.baseURL, o.operationPath),
 	})
+}
+
+func (o *Operation) orbWebDIDHandler(rw http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	result, err := o.webResolver.ResolveDocument(id)
+	if err != nil {
+		if errors.Is(err, orberrors.ErrContentNotFound) {
+			logger.Debugf("web resource[%s] not found", id)
+
+			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
+		} else {
+			logger.Warnf("error returning web resource [%s]: %s", id, err)
+
+			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
+		}
+
+		return
+	}
+
+	writeResponse(rw, result)
 }
 
 // webDIDHandler swagger:route Get /.well-known/did.json discovery wellKnownDIDReq
