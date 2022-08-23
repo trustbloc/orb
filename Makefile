@@ -138,9 +138,17 @@ extract-orb-cli-binaries:
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-linux-amd64.tar.gz;mv orb-cli-linux-amd64 ../../extract/
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-amd64.tar.gz;mv orb-cli-darwin-amd64 ../../extract/
 
-.PHONY: bdd-test
-bdd-test: generate-test-keys orb-docker orb-test-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
-	@scripts/integration.sh
+.PHONY: bdd-test-cas-local
+bdd-test-cas-local: generate-test-keys orb-docker orb-test-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
+	@scripts/integration_cas_local.sh
+
+.PHONY: bdd-test-cas-ipfs
+bdd-test-cas-ipfs: generate-test-keys orb-docker orb-test-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
+	@scripts/integration_cas_ipfs.sh
+
+.PHONY: bdd-test-protocol-versions
+bdd-test-protocol-versions: generate-test-keys orb-docker orb-test-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
+	@scripts/integration_protocol_versions.sh
 
 .PHONY: clean
 clean:
