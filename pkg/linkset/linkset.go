@@ -30,8 +30,8 @@ const (
 
 type link struct {
 	Anchor   *vocab.URLProperty `json:"anchor"`
-	Profile  *vocab.URLProperty `json:"profile"`
-	Author   *vocab.URLProperty `json:"author,omitempty"`
+	Profile  []*Reference       `json:"profile"`
+	Author   []*Reference       `json:"author,omitempty"`
 	Item     []*Item            `json:"item,omitempty"`
 	Original []*Reference       `json:"original,omitempty"`
 	Related  []*Reference       `json:"related,omitempty"`
@@ -60,7 +60,11 @@ func (l *Link) Author() *url.URL {
 		return nil
 	}
 
-	return l.link.Author.URL()
+	if len(l.link.Author) == 0 {
+		return nil
+	}
+
+	return l.link.Author[0].HRef()
 }
 
 // Items returns the items contained within the link.
@@ -78,7 +82,11 @@ func (l *Link) Profile() *url.URL {
 		return nil
 	}
 
-	return l.link.Profile.URL()
+	if len(l.link.Profile) == 0 {
+		return nil
+	}
+
+	return l.link.Profile[0].HRef()
 }
 
 // Via returns the "via" relationship.
@@ -224,8 +232,8 @@ func NewLink(anchor, author, profile *url.URL, original, related, replies *Refer
 	return &Link{
 		link: &link{
 			Anchor:   vocab.NewURLProperty(anchor),
-			Author:   vocab.NewURLProperty(author),
-			Profile:  vocab.NewURLProperty(profile),
+			Author:   newRefsFromURIs(author),
+			Profile:  newRefsFromURIs(profile),
 			Original: newRefs(original),
 			Replies:  newRefs(replies),
 			Related:  newRefs(related),
@@ -238,9 +246,9 @@ func NewAnchorLink(anchor, author, profile *url.URL, item []*Item) *Link {
 	return &Link{
 		link: &link{
 			Anchor:  vocab.NewURLProperty(anchor),
-			Author:  vocab.NewURLProperty(author),
+			Author:  newRefsFromURIs(author),
 			Item:    item,
-			Profile: vocab.NewURLProperty(profile),
+			Profile: newRefsFromURIs(profile),
 		},
 	}
 }
@@ -250,7 +258,7 @@ func NewRelatedLink(anchor, profile, via *url.URL, up ...*url.URL) *Link {
 	return &Link{
 		link: &link{
 			Anchor:  vocab.NewURLProperty(anchor),
-			Profile: vocab.NewURLProperty(profile),
+			Profile: newRefsFromURIs(profile),
 			Via:     newRefsFromURIs(via),
 			Up:      newRefsFromURIs(up...),
 		},

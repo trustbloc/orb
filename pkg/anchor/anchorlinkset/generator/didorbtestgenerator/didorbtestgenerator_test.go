@@ -143,7 +143,11 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiCdYGN8IGTeXgsNjzf8THO6SD9SAtc9ithYE59iqgfkWg",
-      "author": "",
+      "author": [
+        {
+          "href": ""
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
@@ -155,7 +159,11 @@ const (
           ]
         }
       ],
-      "profile": "https://w3id.org/orb#v777"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v777"
+        }
+      ]
     }
   ]
 }`
@@ -169,7 +177,7 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiDvjtGoMhXcaTYxoLrayFmmtlg2Xh2IWlYTXajyqI8CkA",
-    "id": "hl:uEiDjGG3VbY14Al9B1UeA0UhniLe--pTHSMGNTyxvGir3iA",
+    "id": "hl:uEiCf1PSLM67NpIDuxeg9pR47SEax_S_NRQmQ-sy2NfXQaA",
     "profile": "https://w3id.org/orb#v777"
   },
   "id": "https://orb.domain1.com/vc/95bd0a07-cd90-423a-87da-0bd2b4d0c00e",
@@ -204,7 +212,11 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiDvjtGoMhXcaTYxoLrayFmmtlg2Xh2IWlYTXajyqI8CkA",
-      "author": "https://orb.domain1.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain1.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uEiBykP_SkWZoWZfKX1S0-Y2-NDJDGafmlE5q6OMJmAsYXg:EiCmr3DKudaBCve75CRdHF_B3FcdWxtQo8gjL_UhZG9oQg",
@@ -213,7 +225,11 @@ const (
           ]
         }
       ],
-      "profile": "https://w3id.org/orb#v777"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v777"
+        }
+      ]
     }
   ]
 }`

@@ -258,7 +258,11 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiCdYGN8IGTeXgsNjzf8THO6SD9SAtc9ithYE59iqgfkWg",
-      "author": "https://orb.domain2.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain2.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
@@ -270,7 +274,11 @@ const (
           ]
         }
       ],
-      "profile": "https://w3id.org/orb#v0"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ]
     }
   ]
 }`
@@ -279,7 +287,11 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiDIMOGQVfSVbMR4uVPJYtM_dXJ4bNghS2F-DWH01uQnnQ",
-      "author": "https://orb.domain2.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain2.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA:EiCy2r_iTGOyQ83z_sTRF9rqdCFGU5sDV923tg2R_gI9CQ",
@@ -294,7 +306,11 @@ const (
           ]
         }
       ],
-      "profile": "https://w3id.org/orb#v0"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ]
     }
   ]
 }`
@@ -305,13 +321,21 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-      "author": "https://orb.domain1.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain1.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
         }
       ],
-      "profile": "https://w3id.org/orb#v0"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ]
     }
   ]
 }`
@@ -320,13 +344,21 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-      "author": "https://orb.domain1.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain1.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
         }
       ],
-      "profile": "https://unsupported"
+      "profile": [
+        {
+          "href": "https://unsupported"
+        }
+      ]
     }
   ]
 }`
@@ -334,13 +366,21 @@ const (
 	linksetNilAnchorJSON = `{
   "linkset": [
     {
-      "author": "https://orb.domain1.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain1.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiBNTklr_Syb4tONtEIEPBLBdKgwCEOvjeTW4PwssB3Snw"
         }
       ],
-      "profile": "https://w3id.org/orb#v0"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ]
     }
   ]
 }`
@@ -354,7 +394,7 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
     "profile": "https://w3id.org/orb#v0"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
@@ -381,7 +421,7 @@ const (
     "https://w3id.org/security/suites/jws-2020/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
-  "credentialSubject": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+  "credentialSubject": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
   "issuanceDate": "2022-07-18T20:17:38.3799055Z",
   "issuer": "https://orb.domain1.com",
@@ -437,7 +477,7 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
     "profile": "https://invalid"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
@@ -466,7 +506,7 @@ const (
   ],
   "credentialSubject": {
     "anchor": "invalid",
-    "id": "hl:uEiDCDCOp4XRWP87VYZvAntvqThZqyH67y605D9l13bN93Q",
+    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
     "profile": "https://w3id.org/orb#v0"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",

@@ -531,7 +531,11 @@ const (
   "linkset": [
     {
       "anchor": "hl:uEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg",
-      "author": "https://orb.domain2.com/services/orb",
+      "author": [
+        {
+          "href": "https://orb.domain2.com/services/orb"
+        }
+      ],
       "item": [
         {
           "href": "did:orb:uAAA:EiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA",
@@ -543,7 +547,11 @@ const (
           "href": "did:orb:uAAA:EiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB"
         }
       ],
-      "profile": "https://w3id.org/orb#v0"
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ]
     }
   ]
 }`
@@ -582,18 +590,26 @@ const (
 	linksetGZIPBase64JSON = `{
   "linkset": [
     {
-      "anchor": "hl:uEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA",
-      "author": "https://orb.domain2.com/services/orb",
+      "anchor": "hl:uEiDR9t1fX6jamGe2SkCbt9-FSEoIy0QDI1Bpy26zn21QoQ",
+      "author": [
+        {
+          "href": "https://orb.domain2.com/services/orb"
+        }
+      ],
       "original": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/6TQUW+CMBQF4P9y94qKW2Zi38okDjPUjIljxizQFqhSqm0pbob/vrD4sPc939yc75wrVLw+amYA7a6Q1qSUChCUFWp8/hTH0aB224u7ypn/7oXTA5kvVyT0sUqS7Tq4HB9nn9V08hUV4EDamNu3MSeNRiOpsiGVIuX1/ZBIMdJMWU6Y7g/gADdM/MaWiuWAgHKKpMpQgzFGPvfy7ZnhRe4v2fML9nQSJEIHZ3McZFrYhZCvk6AIIjr5IBgcOClmuWw0oN2Nj2O8Lg+sDTc2bWduUQ3CJPy2b+u42eDx7LQaR8I7k3lW2hb2nfNvCKYedPueInNesT9LtA+cDqUq+uZ31oVu3/0EAAD//25CM696AQAA",
+          "href": "data:application/gzip;base64,H4sIAAAAAAAA/6SQQW+6MBiHv8v7v6Lif5mJvZVJHGaoGRPHDFmgFKhSim0pbobvvmB22GG3nd88b37Pc4WK1SdFNaDDFZKalEICgrJCrcsewjAY1XZ3sTc5dV8df34ky/WG+C6WUbTfepfT/eK9ms8+ggIsSFp9ow9XKCXNhzdaNwpNJkKm40zwhNX/x0TwiaLSMELVcIA+toBpyn+CGcuQkClqMcbIZU6+P1O8yt01fXzCjoq8iCvvrE+jVHGz4uJ55hVekM3eCAYLGkkNE60CdPg2wSHelkfa+TuTdAu7qEZ+5H+al23Y7vB00WymAXfOZJmWpoO4t/48BGfOTayRImcV/S1Kd8eysZDFEOGfsaGP+7j/CgAA//+mgJC8kAEAAA==",
           "type": "application/linkset+json"
         }
       ],
-      "profile": "https://w3id.org/orb#v0",
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ],
       "related": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/8zQ226bMADG8XfxbpOFHNrG3MFC0nXBQBK7wBRVYBvMoZhSsJNWvPu03UxTXmAP8On/0/cJ6qKp3nkPzJ+fIGmokB0wgajNwSks6IXbJ7/2kD2caLGcOj9872XV2HlQeTFEcIWX6+x+j9YbC0xA28msqPnved+37+ZsppcF+yq7fCa79IsywAQM7Z+Q6Hj2N0MsX5Rcu1glemPk9dSN3A918smArfmm9ebHV/uN7lKhtDnIYGpzp5fs8aDph1T7BbxGxV2VLuYieV5d969IpUdYRqGrGCZtQGIb78RbHDJEwlgwI9DxQvcnUiPexBhv4znBzuXwaPsuQX3QbMvD4kmyhoJxcksN/qXu/xfqeQJUkdy++42Q47Qx9MXwMu6EtgtLukMedR2ri6Jn//ulutu81PD+esxNRnnGOOVryIcHuH4A43k8j78CAAD//7QLA0AlAgAA",
+          "href": "data:application/gzip;base64,H4sIAAAAAAAA/8zQ326bMBTH8XfxbpMF2JrW3IVC0kyBxKG4wBRNYJuYP8GUGjuk4t2n9a7qC+z+6Hs++r2DpmzrNyaB/fsdZC3hogc24I09eKV7hNIs4mWVXTbMCuvHXML5OvTEdjSQuzWdbrSWt9YykUBgBrpeFGXDPkq8Z8W/jpTdm71Y6B8l/S7680L0+TdlgOk0A0P36fLj4wqvDrxi2o9Upl3j3Mz9xL+p5wMeopXpdnszvDivZJNzpe1BoLnDPCno01GTm1A7C45JeVfnlsmzl5/j7hKoPIRVEvuKRrhDOHWiDX9NYxrgOOXUQDq1tHzGTcDaNIrWqYkj73p8cg4+DiRq19XR+iVoS8A0+0pFn6m7/4V6mgFVZl/XfcQ4nLeGvhr7gnmx48OKbII98b1VnyQvh+21vnP/NHA5hmebElZQRtgDZMM9fLgH02k6TX8DAAD//5qrxNEwAgAA",
           "type": "application/linkset+json"
         }
       ],
@@ -611,18 +627,26 @@ const (
 	linksetURLEncodedJSON = `{
   "linkset": [
     {
-      "anchor": "hl:uEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA",
-      "author": "https://orb.domain2.com/services/orb",
+      "anchor": "hl:uEiDR9t1fX6jamGe2SkCbt9-FSEoIy0QDI1Bpy26zn21QoQ",
+      "author": [
+        {
+          "href": "https://orb.domain2.com/services/orb"
+        }
+      ],
       "original": [
         {
-          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain2.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA%22%2C%22previous%22%3A%5B%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%22%5D%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%22%2C%22author%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Forb.domain2.com%2Fservices%2Forb%22%7D%5D%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6ZcA%22%2C%22previous%22%3A%5B%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%22%5D%7D%2C%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiBfWqeAJfENeHLABsYIYmsIqtk-bsmvJmoR6IgISd6AdB%22%7D%5D%2C%22profile%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],
-      "profile": "https://w3id.org/orb#v0",
+      "profile": [
+        {
+          "href": "https://w3id.org/orb#v0"
+        }
+      ],
       "related": [
         {
-          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiA9OXFJPlONBuTci3-EKPO_4nBgQkOZ9N94U38f6LN8DA%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%2C%7B%22href%22%3A%22hl%3AuEiAVAQhjewMUvawD0gl-LYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%3Adcefdece89eu7987%22%7D%5D%7D%5D%7D",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiDR9t1fX6jamGe2SkCbt9-FSEoIy0QDI1Bpy26zn21QoQ%22%2C%22profile%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%2C%22up%22%3A%5B%7B%22href%22%3A%22hl%3AuEiAVAPhjewMUvawD0gl-MYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%2C%7B%22href%22%3A%22hl%3AuEiAVAQhjewMUvawD0gl-LYMzvTPVuUA1DpO1SmBqcGbhvw%3AuoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQVZBUGhqZXdNVXZhd0QwZ2wtTVlNenZUUFZ1VUExRHBPMVNtQnFjR2Jodnc%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiCVVS-n0wx0OfeEXBM9jcGNOcMEArYYWPIxk5D_l96ySg%3Adcefdece89eu7987%22%7D%5D%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],

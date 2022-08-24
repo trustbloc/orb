@@ -1,30 +1,38 @@
 {
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://orb.domain1.com/services/orb",
-  "id": "https://orb.domain1.com/services/orb/activities/292c7239-74a6-4837-93af-5103f37c3999",
+  "id": "https://orb.domain1.com/services/orb/activities/13e10c3a-2ffe-4a6f-bf8f-f6a749048341",
   "object": {
     "@context": "https://w3id.org/activityanchors/v1",
     "object": {
       "linkset": [
         {
-          "anchor": "hl:uEiAmC-PthwHl-rEm4m_Su_kgBTg_jd9k3gIk-LZCerNOTw",
-          "author": "https://orb.domain1.com/services/orb",
+          "anchor": "hl:uEiCO0EZYDN5rUN9UuffYdATZ4wTD97uA4J_EFfgwfriV7A",
+          "author": [
+            {
+              "href": "https://orb.domain1.com/services/orb"
+            }
+          ],
           "original": [
             {
-              "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiDuYWnFU8qP6E6rQoPOmNbbgw0SO5jVHzv4YHdYycNSRA%22%2C%22author%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiCDt9R73jvEvJsLNKl_3TDgojzcHJuG8GGcf2PidLPK-A%22%7D%5D%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D",
+              "href": "data:application/gzip;base64,H4sIAAAAAAAA/2yOzWqDQBRG3+V2G7VpGmxnN6EhUNPgIFYhSPBnHIeqV8dR24jvXnTVRdcf53xnglLWXx3XQK4TxHVaoAICRUn6ozxUe2fvncPwpnL344DJPXBwePJ6W9NT214cev95sd+D4IQCNhD3eqWvExSK54tG66YjloUqMTOsYllvzRQrq+NqkCnvlgHmaANS8+ovmMmMoEpITyklR/nmXQz/7Luj0OOny3y+9VgyGrvXwrB9JnQb6oYJ9n3jz2z1NQpzWfL/WsadzExUYvl+GB5hjuZo/g0AAP///exyAgcBAAA=",
               "type": "application/linkset+json"
             }
           ],
-          "profile": "https://w3id.org/orb#v0",
+          "profile": [
+            {
+              "href": "https://w3id.org/orb#v0"
+            }
+          ],
           "related": [
             {
-              "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAmC-PthwHl-rEm4m_Su_kgBTg_jd9k3gIk-LZCerNOTw%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiDuYWnFU8qP6E6rQoPOmNbbgw0SO5jVHzv4YHdYycNSRA%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHVZV25GVThxUDZFNnJRb1BPbU5iYmd3MFNPNWpWSHp2NFlIZFl5Y05TUkF4QmlwZnM6Ly9iYWZrcmVpaG9tZnU0a3U2a3I3dWU1azJjcXBoanJ2dzNxbWdyZW80eTJ1cHR4NmRhbzVtbXRxMnNpcQ%22%7D%5D%7D%5D%7D",
+              "href": "data:application/gzip;base64,H4sIAAAAAAAA/1TNTXOaQByA8e+yvaYVULRwI4pkEEmpwLLbcTKyf5A1LktWXpQM373T3Hp/5vd8oiuv329Fi+w/n+hUs0oqZKPqancuX79qLiWb0FRJaCVdWRJwYroY4o216pyF/+Zuy/NQKp6uHPSEGiVLfi2+pEoV5T+nbZubPZsNcw4/pDrPpMq/9Rqajk+o56f/0q/lszB35iHIsjdV/to/y3zEO9kbh27VOt7HR7hzxsfPlY+xJ892J6Pv68JtJbz8Htgo+8CwHoSb77mhVye8uAci7PODdSHZvockbSKh6YcxjeNtRbK5LxJXX+eGv0y1toeLH0MMWpTAnSVmEGWN+bqBXarDS27AIhLXgdb7ZfCwOMFUMZE21GMam1eC4vsNLsyAESR425rF4RJqX7HaGWlGxsIzK1JTBdgUBMNAL5HOjHaZY9BPEZqO03H6GwAA///edVrIigEAAA==",
               "type": "application/linkset+json"
             }
           ],
           "replies": [
             {
-              "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%22hl%3AuEiAmC-PthwHl-rEm4m_Su_kgBTg_jd9k3gIk-LZCerNOTw%22%2C%22id%22%3A%22https%3A%2F%2Forb.domain1.com%2Fvc%2F13193235-aaed-4b91-89a6-627fdc6638b1%22%2C%22issuanceDate%22%3A%222022-03-15T16%3A39%3A54.320624574Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb.domain1.com%22%2C%22proof%22%3A%5B%7B%22created%22%3A%222022-03-15T16%3A39%3A54.331Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22cTcGTv5pcCEI933aJ0UHvRTksj9pFgY6Iow0mwZZ2grEKqO25sgumq3Xn3BavwWA4xwtevTBQUVPhNDre9MSBQ%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23orb1key2%22%7D%2C%7B%22created%22%3A%222022-03-15T16%3A39%3A54.429162997Z%22%2C%22domain%22%3A%22https%3A%2F%2Forb.domain2.com%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22Xk56FeWD9Bw89KUcgaYA0x0lqXLcE26Hh4uKyaVp0Y_BfyE1buNla2h7Gi2RMOGBmHoNzC8gqbeqkP37VL0tCQ%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain2.com%23orb2key%22%7D%5D%2C%22type%22%3A%22VerifiableCredential%22%7D",
+              "href": "data:application/gzip;base64,H4sIAAAAAAAA/6xUW3OiSBT+L51XFWhALk9LwGh0dHXwgqRSUzTdaBugTdOAmMp/3yJqJrVbszsP+0p/57sd6ryBP2KWC3ISwH4CeyGOhS1JdV33arXH+E6CsmJKMSeY5IJGaSFVCuj8BKoUf8CiWNCKiibK4z3jv0IVJC45FY1UlFSQQjrURRfKUP5NOMFQ1xXrc+S5A34680t0ILEA9hu4mAA22Kd2OaD3mT7R/W9B8IMn8+k9Q+fNhFXQLw3hDF9fZxPn3JjGeLMZsh3oAIo/J90/5UG49WY6X82sVZkkW+wsQ61eepZROtr4x+Ah2dUJp2vDAR1w5CyhKWnH/x6FcXRXyeD9Rn99ZxzBHmZZRHOlF7NMqmLJMkzL7EPcVWMl7moqjrsmNLQuUhDqQ6IoyLRam0VRRnlMvEi0ilCGsCubXaguoWLLhg2NnqYost7XoBJe8YT/i/YlAEuA/fTW9hoJgn9JbLWUl+Er5YWxV8XCNmXDkLLomJJ2UzfeecmPrGi9RkVBuKAsnxKxZ/gGWEdp2T6fdbTyMi/Bwdyozure4/5udepvw2y2nrDK29bbQFThxmECz0QyaQbT/bBQ96ZYLjy9mo8tD82Q+uoOYzgekWwx0ubRonZOoANEc2wlBpc/yae7PBIlv/msCKcJjaMv3myAKbZrguw23Ze67vzTggV+qg6XI6iG6bew0tP146P3PR/XSagH3xddq1nRQ3f3CN47/1mpqRu6qmvwH8Ved3XVhl9X9fuVKtCqoXZ/VpqXvuEmo+QlWR8KZARBVGzKCXHVh125D+aj7B6XSOFwlGn96Ys/JsNy644jv/DIxtX46GwNcpRjjweNQYqH/6vSj1h3WKjTrEIH89XaBPy8bJrGdULz8Mibh3ypz5PdKaarRd+tTPD+fJN+AusPkQilxP28B6ADnI878OXT8/tfAQAA//91pMU38AQAAA==",
               "type": "application/ld+json"
             }
           ]
@@ -32,9 +40,9 @@
       ]
     },
     "type": "AnchorEvent",
-    "url": "hl:uEiDrc_UAilungcq-Q31iKZu6fiAMYCcZ8PpFycl55dstGg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpRHJjX1VBaWx1bmdjcS1RMzFpS1p1NmZpQU1ZQ2NaOFBwRnljbDU1ZHN0R2d4QmlwZnM6Ly9iYWZrcmVpaGxvcDJxYmNzM3U2YTR2cHNkcHZyY3RnNTJweXFheXliaGRoeXB1cm9qemY0Nmx3em5kaQ"
+    "url": "hl:uEiCpZivnvm2BoLY1yn46Xm_TEGpnO9Xv18_eO_F4u3_l6A:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ3BaaXZudm0yQm9MWTF5bjQ2WG1fVEVHcG5POVh2MThfZU9fRjR1M19sNkF4QmlwZnM6Ly9iYWZrcmVpZmpteXY2cHB0bnFncWxtbm9rcHk1ZjQzNnRjYnZnb282djU3bDQ3eHIzNmY0bHc3N2Y1YQ"
   },
-  "published": "2022-03-15T16:39:54.757960625Z",
+  "published": "2022-08-23T21:07:27.605889822Z",
   "to": [
     "https://orb.domain1.com/services/orb/followers",
     "https://www.w3.org/ns/activitystreams#Public"
