@@ -26,7 +26,7 @@ func GetProtocolConfig() protocol.Protocol {
 		MaxProvisionalIndexFileSize:  1000000,
 		MaxCoreIndexFileSize:         1000000,
 		MaxProofFileSize:             2500000,
-		Patches:                      []string{"add-public-keys", "remove-public-keys", "add-services", "remove-services", "ietf-json-patch", "add-also-known-as", "remove-also-known-as"}, //nolint:lll
+		Patches:                      []string{"add-public-keys", "remove-public-keys", "add-services", "remove-services", "add-also-known-as", "remove-also-known-as"}, //nolint:lll
 		SignatureAlgorithms:          []string{"EdDSA", "ES256", "ES256K"},
 		KeyAlgorithms:                []string{"Ed25519", "P-256", "secp256k1"},
 		MaxMemoryDecompressionFactor: 3,
