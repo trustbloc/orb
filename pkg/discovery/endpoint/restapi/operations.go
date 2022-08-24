@@ -231,7 +231,7 @@ func (o *Operation) orbWebDIDHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeResponse(rw, result)
+	writeResponse(rw, result.Document)
 }
 
 // webDIDHandler swagger:route Get /.well-known/did.json discovery wellKnownDIDReq
