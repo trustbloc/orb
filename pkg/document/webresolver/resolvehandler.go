@@ -90,8 +90,13 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 
 	orbDID := getOrbDID(localResponse)
 
+	equivalentID, err := getEquivalentID(localResponse)
+	if err != nil {
+		return nil, err
+	}
+
 	// replace did:web ID with did:orb ID in also known as; if did:web ID is not found then add did:orb ID anyway
-	didWebDoc, err = updateAlsoKnownAs(didWebDoc, webDID, orbDID)
+	didWebDoc, err = updateAlsoKnownAs(didWebDoc, webDID, orbDID, equivalentID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +106,7 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 	return &document.ResolutionResult{Document: didWebDoc, Context: localResponse.Context}, nil
 }
 
-func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string) (document.Document, error) {
+func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string, equivalentID []string) (document.Document, error) { //nolint:lll
 	alsoKnownAs, err := getAlsoKnownAs(didWebDoc)
 	if err != nil {
 		return nil, err
@@ -112,6 +117,16 @@ func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string) (docu
 
 	if !contains(updatedAlsoKnownAs, orbDID) {
 		updatedAlsoKnownAs = append(updatedAlsoKnownAs, orbDID)
+	}
+
+	// unpublished doc has 1 equivalent ID, and published has 2+ (first one is canonical)
+	const maxEquivalentIDLength = 2
+	count := minimum(maxEquivalentIDLength, len(equivalentID))
+
+	for i := 0; i < count; i++ {
+		if !contains(updatedAlsoKnownAs, equivalentID[i]) {
+			updatedAlsoKnownAs = append(updatedAlsoKnownAs, equivalentID[i])
+		}
 	}
 
 	didWebDoc[document.AlsoKnownAs] = updatedAlsoKnownAs
@@ -180,6 +195,25 @@ func getAlsoKnownAs(doc document.Document) ([]string, error) {
 	return nil, fmt.Errorf("unexpected interface '%T' for also known as", alsoKnownAsObj)
 }
 
+func getEquivalentID(result *document.ResolutionResult) ([]string, error) {
+	equivalentIDObj, ok := result.DocumentMetadata[document.EquivalentIDProperty]
+	if !ok {
+		return nil, nil
+	}
+
+	equivalentIDArr, ok := equivalentIDObj.([]interface{})
+	if ok {
+		return document.StringArray(equivalentIDArr), nil
+	}
+
+	equivalentIDStrArr, ok := equivalentIDObj.([]string)
+	if ok {
+		return equivalentIDStrArr, nil
+	}
+
+	return nil, fmt.Errorf("unexpected interface '%T' for equivalentId", equivalentIDObj)
+}
+
 func getDeactivatedFlag(result *document.ResolutionResult) bool {
 	deactivatedObj, ok := result.DocumentMetadata[document.DeactivatedProperty]
 	if ok {
@@ -200,4 +234,12 @@ func contains(values []string, value string) bool {
 	}
 
 	return false
+}
+
+func minimum(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
 }
