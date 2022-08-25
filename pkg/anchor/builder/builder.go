@@ -22,6 +22,12 @@ import (
 const (
 	// this context is pre-loaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
+
+	typeVerifiableCredential = "VerifiableCredential"
+	typeAnchorCredential     = "AnchorCredential"
+	typeAnchorLink           = "AnchorLink"
+
+	relLinkset = "linkset"
 )
 
 // Params holds required parameters for building anchor credential.
@@ -48,9 +54,11 @@ type Builder struct {
 
 // CredentialSubject contains the verifiable credential subject.
 type CredentialSubject struct {
-	ID      string `json:"id"`
-	Profile string `json:"profile"`
-	Anchor  string `json:"anchor"`
+	HRef    string   `json:"href"`
+	Profile string   `json:"profile"`
+	Anchor  string   `json:"anchor"`
+	Type    []string `json:"type"`
+	Rel     string   `json:"rel"`
 }
 
 // Build will create and sign anchor credential.
@@ -65,12 +73,14 @@ func (b *Builder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink stri
 	ctx = append(ctx, context...)
 
 	vc := &verifiable.Credential{
-		Types:   []string{"VerifiableCredential", "AnchorCredential"},
+		Types:   []string{typeVerifiableCredential, typeAnchorCredential},
 		Context: ctx,
 		Subject: &CredentialSubject{
-			ID:      anchorHashlink,
+			Type:    []string{typeAnchorLink},
+			Rel:     relLinkset,
 			Profile: profile.String(),
 			Anchor:  coreIndexHashlink,
+			HRef:    anchorHashlink,
 		},
 		Issuer: verifiable.Issuer{
 			ID: b.params.Issuer,

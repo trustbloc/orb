@@ -47,9 +47,11 @@ func TestVerifiableCredentialFromAnchorEvent(t *testing.T) {
 					Types:   []string{"VerifiableCredential", "AnchorCredential"},
 					Context: defVCContext,
 					Subject: &builder.CredentialSubject{
-						ID:      anchorHashlink,
+						HRef:    anchorHashlink,
+						Type:    []string{"AnchorLink"},
 						Profile: "https://w3id.org/orb#v0",
 						Anchor:  "hl:uEiAtvFg7Ti4-0MquG-sFMGRDcGUwz22JpCmOksomNTQGXw",
+						Rel:     "linkset",
 					},
 					Issuer: verifiable.Issuer{
 						ID: "http://peer1.com",

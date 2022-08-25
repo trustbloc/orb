@@ -32,7 +32,7 @@ func VerifiableCredentialFromAnchorLink(anchorLink *linkset.Link,
 		return nil, fmt.Errorf("unmarshal reply: %w", err)
 	}
 
-	vc, err := verifiable.ParseCredential(vcBytes, opts...)
+	vc, err := verifiable.ParseCredential(vcBytes, append(opts, verifiable.WithStrictValidation())...)
 	if err != nil {
 		if strings.Contains(err.Error(), "http request unsuccessful") ||
 			strings.Contains(err.Error(), "http server returned status code") ||

@@ -201,7 +201,7 @@ Feature:
     # A 'Create' activity should have been posted to domain1's followers (domain2).
     When an HTTP GET is sent to "${domain2IRI}/inbox?page=true"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/13e10c3a-2ffe-4a6f-bf8f-f6a749048341"
+    And the JSON path "orderedItems.#.id" of the response contains "${domain1IRI}/activities/c3f51db8-fa65-487b-85f5-201f110201b6"
 
     # An 'Announce' activity should have been posted to domain2's followers (domain3).
     When an HTTP GET is sent to "${domain2IRI}/outbox?page=true"
@@ -225,12 +225,12 @@ Feature:
     Then the JSON path "type" of the response equals "CollectionPage"
     And the JSON path "items" of the response does not contain "${domain3ID}"
 
-    When an HTTP GET is sent to "${domain3IRI}/shares/hl%3AuEiCpZivnvm2BoLY1yn46Xm_TEGpnO9Xv18_eO_F4u3_l6A%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ3BaaXZudm0yQm9MWTF5bjQ2WG1fVEVHcG5POVh2MThfZU9fRjR1M19sNkF4QmlwZnM6Ly9iYWZrcmVpZmpteXY2cHB0bnFncWxtbm9rcHk1ZjQzNnRjYnZnb282djU3bDQ3eHIzNmY0bHc3N2Y1YQ"
+    When an HTTP GET is sent to "${domain3IRI}/shares/hl%3AuEiCUKchKLxlnv5z9ovQ1_brtSIW4WUxrfalPfszpVPjUIg%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1VLY2hLTHhsbnY1ejlvdlExX2JydFNJVzRXVXhyZmFsUGZzenBWUGpVSWd4QmlwZnM6Ly9iYWZrcmVpZXVmaGVldWx5em02N3p6N25jNnEyNzNveG5qY2MzcXdrbW5uNjJzdDM2enR1dmo2Z3VlaQ"
     Then the JSON path "type" of the response equals "OrderedCollection"
     Then the JSON path "first" of the response is saved to variable "sharesFirstPage"
     When an HTTP GET is sent to "${sharesFirstPage}"
     Then the JSON path "type" of the response equals "OrderedCollectionPage"
-    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiCpZivnvm2BoLY1yn46Xm_TEGpnO9Xv18_eO_F4u3_l6A:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ3BaaXZudm0yQm9MWTF5bjQ2WG1fVEVHcG5POVh2MThfZU9fRjR1M19sNkF4QmlwZnM6Ly9iYWZrcmVpZmpteXY2cHB0bnFncWxtbm9rcHk1ZjQzNnRjYnZnb282djU3bDQ3eHIzNmY0bHc3N2Y1YQ"
+    And the JSON path "orderedItems.0.object.items.0.url" of the response equals "hl:uEiCUKchKLxlnv5z9ovQ1_brtSIW4WUxrfalPfszpVPjUIg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ1VLY2hLTHhsbnY1ejlvdlExX2JydFNJVzRXVXhyZmFsUGZzenBWUGpVSWd4QmlwZnM6Ly9iYWZrcmVpZXVmaGVldWx5em02N3p6N25jNnEyNzNveG5qY2MzcXdrbW5uNjJzdDM2enR1dmo2Z3VlaQ"
 
   @activitypub_invite_witness
   Scenario: invite witness/accept/undo

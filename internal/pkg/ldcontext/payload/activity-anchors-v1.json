@@ -31,8 +31,18 @@
           "type": "@type"
         }
       },
-      "anchor": "https://w3id.org/activityanchors#anchor",
-      "profile": "https://w3id.org/activityanchors#profile"
+      "AnchorLink": {
+        "@id": "https://w3id.org/activityanchors#AnchorLink",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "type": "@type",
+          "href": "https://w3id.org/activityanchors#href",
+          "anchor": "https://w3id.org/activityanchors#anchor",
+          "profile": "https://w3id.org/activityanchors#profile",
+          "rel": "https://w3id.org/activityanchors#rel"
+        }
+      }
     }
   }
 }
