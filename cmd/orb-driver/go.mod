@@ -7,12 +7,12 @@ module github.com/trustbloc/orb/cmd/orb-driver
 go 1.17
 
 require (
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc2.0.20220826091015-af6620d1f121
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc3
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/orb v1.0.0-rc2.0.20220826005428-b08eed04243a
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3
 )
 
 require (
@@ -71,7 +71,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/vct v1.0.0-rc2.0.20220825171642-c395321b4820 // indirect
+	github.com/trustbloc/vct v1.0.0-rc3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
