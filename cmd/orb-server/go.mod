@@ -22,7 +22,7 @@ require (
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3
 	go.mongodb.org/mongo-driver v1.9.1
 )
 
@@ -100,7 +100,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 // indirect
-	github.com/trustbloc/vct v1.0.0-rc2.0.20220825171642-c395321b4820 // indirect
+	github.com/trustbloc/vct v1.0.0-rc3 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
