@@ -132,6 +132,7 @@ func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
 	vc, err := verifiable.ParseCredential([]byte(jsonVC),
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		verifiable.WithStrictValidation(),
 	)
 	require.NoError(t, err)
 	require.NoError(t, New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, jsonOriginalLinkset)))
@@ -177,8 +178,10 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiDvjtGoMhXcaTYxoLrayFmmtlg2Xh2IWlYTXajyqI8CkA",
-    "id": "hl:uEiCf1PSLM67NpIDuxeg9pR47SEax_S_NRQmQ-sy2NfXQaA",
-    "profile": "https://w3id.org/orb#v777"
+    "href": "hl:uEiCf1PSLM67NpIDuxeg9pR47SEax_S_NRQmQ-sy2NfXQaA",
+    "rel": "linkset",
+    "profile": "https://w3id.org/orb#v777",
+    "type": "AnchorLink"
   },
   "id": "https://orb.domain1.com/vc/95bd0a07-cd90-423a-87da-0bd2b4d0c00e",
   "issuanceDate": "2022-07-20T19:14:03.3350642Z",

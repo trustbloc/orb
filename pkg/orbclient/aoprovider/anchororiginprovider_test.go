@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
 
+	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
@@ -291,11 +292,17 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 	t.Helper()
 
 	vc := &verifiable.Credential{
-		Types:   []string{"VerifiableCredential"},
-		Context: []string{"https://www.w3.org/2018/credentials/v1"},
-		Subject: &builder.CredentialSubject{},
-		Issuer:  verifiable.Issuer{ID: "http://orb.domain.com"},
-		Issued:  &util.TimeWrapper{Time: time.Now()},
+		Types:   []string{"VerifiableCredential", "AnchorCredential"},
+		Context: []string{vocab.ContextCredentials, vocab.ContextActivityAnchors},
+		Subject: &builder.CredentialSubject{
+			HRef:    "hl:uEiAUwhqMh8q26-dvAHxMASAinYHSo4i9JSzA3bRtq0tGWg",
+			Profile: "https://w3id.org/orb#v0",
+			Anchor:  payload.CoreIndex,
+			Type:    []string{"AnchorLink"},
+			Rel:     "linkset",
+		},
+		Issuer: verifiable.Issuer{ID: "http://orb.domain.com"},
+		Issued: &util.TimeWrapper{Time: time.Now()},
 	}
 
 	link, _, err := anchorlinkset.NewBuilder(

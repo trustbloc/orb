@@ -35,6 +35,8 @@ const (
 	// Version specifies the version of the generator.
 	Version = uint64(0)
 
+	relLinkset = "linkset"
+
 	multihashPrefix  = "did:orb"
 	unpublishedLabel = "uAAA"
 
@@ -260,18 +262,9 @@ func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentB
 		return fmt.Errorf("anchor in anchor linkset is nil")
 	}
 
-	s := &builder.CredentialSubject{}
-
-	if v, ok := vc.Subject.(string); ok {
-		s.ID = v
-	} else {
-		vSubject := vc.Subject.([]verifiable.Subject)[0]
-
-		s.ID = vSubject.ID
-
-		if err := vocab.UnmarshalFromDoc(vocab.Document(vSubject.CustomFields), s); err != nil {
-			return fmt.Errorf("unmarshal credential subject: %w", err)
-		}
+	s, err := parseCredentialSubject(vc)
+	if err != nil {
+		return fmt.Errorf("parse credential subject: %w", err)
 	}
 
 	anchorHL, err := hashlink.New().CreateHashLink(contentBytes, nil)
@@ -279,17 +272,15 @@ func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentB
 		return fmt.Errorf("create hashlink of data: %w", err)
 	}
 
-	if s.ID != anchorHL {
-		return fmt.Errorf("subject ID [%s] does not match the hashlink of the content [%s]", s.ID, anchorHL)
+	if s.HRef != anchorHL {
+		return fmt.Errorf("subject href [%s] does not match the hashlink of the content [%s]", s.HRef, anchorHL)
 	}
 
-	// Validate the profile if present in the subject.
-	if s.Profile != "" && s.Profile != g.ID().String() {
+	if s.Profile != g.ID().String() {
 		return fmt.Errorf("profile in the credential subject [%s] does not match profile [%s]", s.Profile, g.ID().String())
 	}
 
-	// Validate the anchor if present in the subject.
-	if s.Anchor != "" && s.Anchor != anchorLink.Anchor().String() {
+	if s.Anchor != anchorLink.Anchor().String() {
 		return fmt.Errorf("anchor in the credential subject [%s] does not match the anchor in the anchor linkset [%s]",
 			s.Anchor, anchorLink.Anchor())
 	}
@@ -335,4 +326,44 @@ func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (*sub
 	}
 
 	return nil, fmt.Errorf("resource[%s] not found in previous anchor list", res)
+}
+
+func parseCredentialSubject(vc *verifiable.Credential) (*builder.CredentialSubject, error) {
+	vSubject, ok := vc.Subject.([]verifiable.Subject)
+	if !ok || len(vSubject) == 0 {
+		return nil, fmt.Errorf("invalid credentialSubject")
+	}
+
+	// Set "type" to nil so that we don't need to worry about whether it's a string or an array.
+	if vSubject[0].CustomFields["type"] != nil {
+		vSubject[0].CustomFields["type"] = nil
+	}
+
+	s := &builder.CredentialSubject{}
+
+	if err := vocab.UnmarshalFromDoc(vocab.Document(vSubject[0].CustomFields), s); err != nil {
+		return nil, fmt.Errorf("unmarshal credential subject: %w", err)
+	}
+
+	if s.Anchor == "" {
+		return nil, fmt.Errorf(`missing mandatory field "anchor" in the credential subject`)
+	}
+
+	if s.HRef == "" {
+		return nil, fmt.Errorf(`missing mandatory field "href" in the credential subject`)
+	}
+
+	if s.Profile == "" {
+		return nil, fmt.Errorf(`missing mandatory field "profile" in the credential subject`)
+	}
+
+	if s.Rel == "" {
+		return nil, fmt.Errorf(`missing mandatory field "rel" in the credential subject`)
+	}
+
+	if s.Rel != relLinkset {
+		return nil, fmt.Errorf(`unsupported relation type "%s" in the credential subject`, s.Rel)
+	}
+
+	return s, nil
 }

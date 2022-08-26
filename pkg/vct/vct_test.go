@@ -32,9 +32,9 @@ import (
 const mockResponse = `{
   "svct_version": 0,
   "id": "ztrZNwAslc6QFucuV8EUuxQ37zx0EikI1yLw/cx2xeE=",
-  "timestamp": 1661184840789,
+  "timestamp": 1661370164755,
   "extensions": "",
-  "signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRi96TjE2elY0QzF5WXFZbGdJN2thS1Zpb0pDTVcyRHJvY0RMMEpWd3B0ekFpRUE5RmNEREhKOUN1YVN1eFFldVRsU2tOL2w0TDc3bWtpbWFXVXZuMmZkcXFzPSJ9"
+  "signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRDg5VVU3ZG1PYVhIVnVvb2JNZU5OOUgxdDJNOWhPc0FtbGpRSjNwYmxVUkFpRUEvd1RyU1cyd29NVHZuam1vdTJsQmo4em9wRWVMc05ya3F1V3JDL09adFA4PSJ9"
 }`
 
 const mockVC = `{
@@ -45,12 +45,16 @@ const mockVC = `{
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "credentialSubject": {
-    "anchor": "hl:uEiBi63Izr8fJ_q-GQYvJKUGAz8yqop1OFGZ9XBqNaeobFg",
-    "id": "hl:uEiCyKO4N1sqG1YLXMtiTErP9bF9LUsKJ_rbKnnJ9iOE3wA",
-    "profile": "https://w3id.org/orb#v0"
+    "anchor": "hl:uEiAjZSjGBTq3vCDAGjDRNuNsQvyj4XfvWd3qI7EBZN1NQA",
+    "href": "hl:uEiC43VX3UtAriY_tbmjmqXWPzwYMYyy3cEWr-u3zF_EiDA",
+    "profile": "https://w3id.org/orb#v0",
+    "rel": "linkset",
+    "type": [
+      "AnchorLink"
+    ]
   },
-  "id": "https://orb.domain1.com/vc/4976c561-7ae8-41c9-a2b0-e4c52a02c56d",
-  "issuanceDate": "2022-08-22T16:14:00.784064128Z",
+  "id": "https://orb.domain1.com/vc/fd308ff6-3211-442c-a3d0-2459bef9e3e1",
+  "issuanceDate": "2022-08-24T19:42:44.745875825Z",
   "issuer": "https://orb.domain1.com",
   "type": [
     "VerifiableCredential",
@@ -103,7 +107,7 @@ func TestClient_Witness(t *testing.T) {
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
-		require.Equal(t, int64(1661184840789000000), timestampTime.UnixNano())
+		require.Equal(t, int64(1661370164755000000), timestampTime.UnixNano())
 	})
 
 	t.Run("Error - endpoint retriever error", func(t *testing.T) {

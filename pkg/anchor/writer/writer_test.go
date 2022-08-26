@@ -1779,9 +1779,11 @@ func (m *mockTxnBuilder) Build(profile *url.URL, anchorHashlink, coreIndexHashli
 	}
 
 	return &verifiable.Credential{Subject: &builder.CredentialSubject{
-		ID:      anchorHashlink,
+		HRef:    anchorHashlink,
+		Type:    []string{"AnchorLink"},
 		Anchor:  coreIndexHashlink,
 		Profile: profile.String(),
+		Rel:     "linkset",
 	}}, nil
 }
 
@@ -1989,7 +1991,7 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 const jsonAnchorLinkset = `{
   "linkset": [
     {
-      "anchor": "hl:uEiD1W_21fZwLNqV-T10km8jMvsT_lQZmmR4vIHQD7Wu73g",
+      "anchor": "hl:uEiAwzxyCuljGunAZosU5wzHp6_GKaR8-vbm_Q7-igvqG4A",
       "author": [
         {
           "href": "https://orb.domain1.com/services/orb"
@@ -1997,7 +1999,7 @@ const jsonAnchorLinkset = `{
       ],
       "original": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/2yOQU+DMBiG/8vndRsYFbW3zhCdOBM3lGwLWVpa4BNKR1vQSPjvhp08eH7zPO8zQI1NZaUDchiANVmpDRAoa9KFSNs4r8Tjx8PrKn7K3372uFsfV1GTtb5Wgsc3n+voVtxRde8XMAPWuTN9GKA0Mp80zp0s8Txt+EJoxbC5XGRaeVaaHjNppwHGdAbopPoLChREG046SikJcRm8B3arji3bF7S7Tl42zMbLYL5NQh7x77mMN31ldmWdPNOz72R0jrX8r+XrCsVCm2L6vuh9GNMxHX8DAAD//+QF3RoHAQAA",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiChdZc6rYMIF6dkfSSqjpIeIiIugYwvO-RXfsa6VgvN9w%22%2C%22author%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Forb.domain1.com%2Fservices%2Forb%22%7D%5D%2C%22item%22%3A%5B%7B%22href%22%3A%22did%3Aorb%3AuAAA%3AEiDpA73ihhjK8SpcKhIRu0tOR1b-LR9B-ACeflnJyStFxQ%22%7D%5D%2C%22profile%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],
@@ -2008,13 +2010,13 @@ const jsonAnchorLinkset = `{
       ],
       "related": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/1TNTXOiMACA4f+SvbYrAV0rt06xfhSYCfKZHccBAhqSkIgYih3++8721vs7z/sFOG3ZreqB/fcL5G15kR2wwYXb9zV1YHIyYY0H17/GzyE0mHhpPH0LTxxhIYK53m2Rs0zuS+sMnoDqZE159S1duqr+7/S9utmz2WBR8lt255nsil/aANPxCWia/0i/l6/XsGZkE7/5u3BbowemmXfafbTl1ZCCFOGi8T6W5OVVrIyzfZfo+a1a95Jsg6F8SO2aqzGjC1aY8JIn809X+Lo4rJos9TSJYoXS9wiLngUQOyHj0WGDg4orlUSwPkT9PbPWQ2FClnEEcwZd30RzlBgLb0PmSPABt94fd1zRLMFdKWKVif5aOcHoCdKV6R6WacAqZ8+wpUZs7g1fcJE3/oO0MczbwCQWMqpUfZLG17753hRNNOYITMfpOP0LAAD//4ftAd+KAQAA",
+          "href": "data:application/json,%7B%22linkset%22%3A%5B%7B%22anchor%22%3A%22hl%3AuEiAwzxyCuljGunAZosU5wzHp6_GKaR8-vbm_Q7-igvqG4A%22%2C%22profile%22%3A%5B%7B%22href%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%7D%5D%2C%22via%22%3A%5B%7B%22href%22%3A%22hl%3AuEiChdZc6rYMIF6dkfSSqjpIeIiIugYwvO-RXfsa6VgvN9w%3AuoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQ2hkWmM2cllNSUY2ZGtmU1NxanBJZUlpSXVnWXd2Ty1SWGZzYTZWZ3ZOOXd4QmlwZnM6Ly9iYWZrcmVpZmJvd2x0dmxtZGJhbDJvemQ1ZXN2aTVlcTZlaXJjNWFtbWY0NTZpdjM2eTI1Zm1jNm42NA%22%7D%5D%7D%5D%7D",
           "type": "application/linkset+json"
         }
       ],
       "replies": [
         {
-          "href": "data:application/gzip;base64,H4sIAAAAAAAA/4xSW3OiMBT+L+mryF0uT+soVWt1amFppdPphCRIEBKFANZO//sOWtvOznRnX5Pvds753sAvxJkgBwHcJ5AKsatcWW7btt/qfV5uZE1RbRmVBBMmKMwruVFB7wuoU3yCQSRoQ8UrZCjl5U+oiqC6pOJVrmoqSCVnbSVpiqb8J5xgzTRV55Py3ANfyfw6zggSwH0D5xDABWnu1h4d7oNkiyfhaDkLpsnqGNH14mU2Z2iv8ALHgZkt5ha2h4WjbEAPUPzJHKsPL5qaRO3tch9KgapsCztbNFXwkq+iorg3mtl0NbYeakvvmLuSJzQnHf3vUXgZXzUKeL/If/zzMtb6mBeQMrWPeCE3SLbMRLdi5Eh6nJiSgW1TgpZNJGfgIIdoA0cxUBezqmrIEBlD0TlqiqZJii1pRqDqrqq6qtNXbcMe6IqlRx94Uv7D+zwAT7oNopJAQfAPuppidIpn7ofiWbDfIOHaimXJBdzlpDvURfauLne86qLCqiKloJwtiEg5vgBCmNfd91HnzNime8uIr/0s3ISNHlmPbDDN5o2I1o8BvJuwuX+78g/eZrwazierevDIjjd2ZJppen9YHPzimOIpMzx1dLNu5uvQCzg7gB4Qr7vOwjsXyacbBkVdXnI2pKQJRfBbNhdgit2WxG433bdtXaU7O1l7W3Mi3fnL4XVmoMns/lrcFOOR562sxfx3OzxytNTZ6exn5ycQnjxgnJPRZ3VBDwxPlf329Pz+JwAA//+5WD0XmwMAAA==",
+          "href": "data:application/json,%7B%22%40context%22%3A%5B%22https%3A%2F%2Fwww.w3.org%2F2018%2Fcredentials%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Factivityanchors%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fjws-2020%2Fv1%22%2C%22https%3A%2F%2Fw3id.org%2Fsecurity%2Fsuites%2Fed25519-2020%2Fv1%22%5D%2C%22credentialSubject%22%3A%7B%22anchor%22%3A%22hl%3AuEiChdZc6rYMIF6dkfSSqjpIeIiIugYwvO-RXfsa6VgvN9w%22%2C%22href%22%3A%22hl%3AuEiAwzxyCuljGunAZosU5wzHp6_GKaR8-vbm_Q7-igvqG4A%22%2C%22profile%22%3A%22https%3A%2F%2Fw3id.org%2Forb%23v0%22%2C%22rel%22%3A%22linkset%22%2C%22type%22%3A%5B%22AnchorLink%22%5D%7D%2C%22id%22%3A%22https%3A%2F%2Forb.domain1.com%2Fvc%2Fef209ef6-a635-4c2d-8984-341e8749f1dd%22%2C%22issuanceDate%22%3A%222022-08-25T15%3A13%3A31.967946894Z%22%2C%22issuer%22%3A%22https%3A%2F%2Forb.domain1.com%22%2C%22proof%22%3A%7B%22created%22%3A%222022-08-25T15%3A13%3A31.977Z%22%2C%22domain%22%3A%22http%3A%2F%2Forb.vct%3A8077%2Fmaple2020%22%2C%22proofPurpose%22%3A%22assertionMethod%22%2C%22proofValue%22%3A%22z5ubHgQk24qJDnSJ7TZdWhsRa1SJQw6k8VpGTs4pvC1zzonoyP6UmbbdAmxd2nczV9kFQ4xhWBoEjBxwwGiF1jszB%22%2C%22type%22%3A%22Ed25519Signature2020%22%2C%22verificationMethod%22%3A%22did%3Aweb%3Aorb.domain1.com%23cFDdR4w4CjaIVu42yUPmNdpmxdFtLUnyMUgh5NaZ6WE%22%7D%2C%22type%22%3A%5B%22VerifiableCredential%22%2C%22AnchorCredential%22%5D%7D",
           "type": "application/ld+json"
         }
       ]

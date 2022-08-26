@@ -925,7 +925,9 @@ func TestResolveActorFromHashlink(t *testing.T) {
 func TestSetupProofMonitoring(t *testing.T) {
 	vc, err := verifiable.ParseCredential([]byte(testVC),
 		verifiable.WithDisabledProofCheck(),
-		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		verifiable.WithStrictValidation(),
+	)
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
@@ -953,7 +955,9 @@ func TestSetupProofMonitoring(t *testing.T) {
 
 		vc, err = verifiable.ParseCredential([]byte(testVCDuplicateProof),
 			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.NoError(t, err)
 
 		o.setupProofMonitoring(vc)
@@ -988,7 +992,9 @@ func TestSetupProofMonitoring(t *testing.T) {
 
 		vc, err = verifiable.ParseCredential([]byte(testVCInvalidCreated),
 			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)))
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
+		)
 		require.NoError(t, err)
 
 		o.setupProofMonitoring(vc)
@@ -1002,9 +1008,11 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 		Types:   []string{"VerifiableCredential", "AnchorCredential"},
 		Context: []string{vocab.ContextCredentials, vocab.ContextActivityAnchors},
 		Subject: &builder.CredentialSubject{
-			ID:      "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
+			HRef:    "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
+			Type:    []string{"AnchorLink"},
 			Profile: "https://w3id.org/orb#v0",
 			Anchor:  "hl:uEiD7xzrz5lEKIq0ZZWh9ky0mNW6wxpGx_H2bxhg80c1IDA",
+			Rel:     "linkset",
 		},
 		Issuer: verifiable.Issuer{
 			ID: "https://orb.domain1.com",
@@ -1090,8 +1098,10 @@ const testVC = `{
   ],
   "credentialSubject": {
     "anchor": "hl:uEiD7xzrz5lEKIq0ZZWh9ky0mNW6wxpGx_H2bxhg80c1IDA",
-    "id": "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
-    "profile": "https://w3id.org/orb#v0"
+    "href": "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
+    "type": ["AnchorLink"],
+    "profile": "https://w3id.org/orb#v0",
+    "rel": "linkset"
   },
   "id": "https://orb.domain1.com/vc/daad6147-8148-4917-969a-a8a529908281",
   "issuanceDate": "2022-08-22T16:39:55.014682121Z",
@@ -1123,10 +1133,17 @@ const testVC = `{
 const testVCDuplicateProof = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
     "https://w3id.org/security/suites/jws-2020/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
-  "credentialSubject": "hl:uEiCU5ft0nJgRWoPH3ZrlRfgeah6svknFAMFozhJxFhKvMw",
+  "credentialSubject": {
+    "anchor": "hl:uEiD7xzrz5lEKIq0ZZWh9ky0mNW6wxpGx_H2bxhg80c1IDA",
+    "href": "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
+    "type": ["AnchorLink"],
+    "profile": "https://w3id.org/orb#v0",
+    "rel": "linkset"
+  },
   "id": "https://orb.domain4.com/vc/61f38a18-e2dd-4f91-b376-9586ca189b25",
   "issuanceDate": "2022-07-15T19:17:55.2446168Z",
   "issuer": "https://orb.domain4.com",
@@ -1156,16 +1173,26 @@ const testVCDuplicateProof = `{
       "verificationMethod": "did:web:orb.domain2.com#umaoTg511ZzOEm23TzMFwbDv3d_gLvRr1zfZVyxXZxM"
     }
   ],
-  "type": "VerifiableCredential"
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
 }`
 
 const testVCInvalidCreated = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
     "https://w3id.org/security/suites/jws-2020/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
-  "credentialSubject": "hl:uEiCU5ft0nJgRWoPH3ZrlRfgeah6svknFAMFozhJxFhKvMw",
+  "credentialSubject": {
+    "anchor": "hl:uEiD7xzrz5lEKIq0ZZWh9ky0mNW6wxpGx_H2bxhg80c1IDA",
+    "href": "hl:uEiBGozN2uP1HBNNZtL-oeg2ifE0NuKY8Bg3miVMJtVZvYQ",
+    "type": ["AnchorLink"],
+    "profile": "https://w3id.org/orb#v0",
+    "rel": "linkset"
+  },
   "id": "https://orb.domain4.com/vc/61f38a18-e2dd-4f91-b376-9586ca189b25",
   "issuanceDate": "2022-07-15T19:17:55.2446168Z",
   "issuer": "https://orb.domain4.com",
@@ -1179,5 +1206,8 @@ const testVCInvalidCreated = `{
       "verificationMethod": "did:web:orb.domain2.com#umaoTg511ZzOEm23TzMFwbDv3d_gLvRr1zfZVyxXZxM"
     }
   ],
-  "type": "VerifiableCredential"
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
 }`

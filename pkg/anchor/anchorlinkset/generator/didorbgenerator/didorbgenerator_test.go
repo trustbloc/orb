@@ -173,20 +173,12 @@ func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
 	vc, err := verifiable.ParseCredential([]byte(vcJSON),
 		verifiable.WithDisabledProofCheck(),
 		verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		verifiable.WithStrictValidation(),
 	)
 	require.NoError(t, err)
 
 	t.Run("Success", func(t *testing.T) {
 		require.NoError(t, New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3)))
-	})
-
-	t.Run("subject is ID -> success", func(t *testing.T) {
-		vc2, e := verifiable.ParseCredential([]byte(vcSubjectIsIDJSON),
-			verifiable.WithDisabledProofCheck(),
-			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
-		)
-		require.NoError(t, e)
-		require.NoError(t, New().ValidateAnchorCredential(vc2, testutil.GetCanonicalBytes(t, linksetJSON3)))
 	})
 
 	t.Run("Unmarshal anchor linkset error", func(t *testing.T) {
@@ -207,28 +199,30 @@ func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
 		require.Contains(t, err.Error(), "unsupported profile")
 	})
 
-	t.Run("Nil anchor in anchor linkset -> success", func(t *testing.T) {
+	t.Run("Nil anchor in anchor linkset -> fail", func(t *testing.T) {
 		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetNilAnchorJSON))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "anchor in anchor linkset is nil")
 	})
 
-	t.Run("Invalid subject ID -> error", func(t *testing.T) {
-		vc, err := verifiable.ParseCredential([]byte(vcInvalidIDJSON),
+	t.Run("Invalid subject href -> error", func(t *testing.T) {
+		vc, err := verifiable.ParseCredential([]byte(vcInvalidHRefJSON),
 			verifiable.WithDisabledProofCheck(),
 			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
 		)
 		require.NoError(t, err)
 
 		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3))
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "subject ID [invalid] does not match the hashlink of the content")
+		require.Contains(t, err.Error(), "subject href [invalid] does not match the hashlink of the content")
 	})
 
 	t.Run("Invalid profile -> error", func(t *testing.T) {
 		vc, err := verifiable.ParseCredential([]byte(vcInvalidProfileJSON),
 			verifiable.WithDisabledProofCheck(),
 			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+			verifiable.WithStrictValidation(),
 		)
 		require.NoError(t, err)
 
@@ -241,6 +235,7 @@ func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
 	t.Run("Invalid profile -> error", func(t *testing.T) {
 		vc, err := verifiable.ParseCredential([]byte(vcInvalidAnchorJSON),
 			verifiable.WithDisabledProofCheck(),
+			verifiable.WithStrictValidation(),
 			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
 		)
 		require.NoError(t, err)
@@ -249,6 +244,100 @@ func TestGenerator_ValidateAnchorCredentialSubject(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"anchor in the credential subject [invalid] does not match the anchor in the anchor linkset")
+	})
+
+	t.Run("Invalid credentialSubject -> error", func(t *testing.T) {
+		vc, err := verifiable.ParseCredential([]byte(vcInvalidCredentialSubjectJSON),
+			verifiable.WithDisabledProofCheck(),
+			verifiable.WithStrictValidation(),
+			verifiable.WithJSONLDDocumentLoader(testutil.GetLoader(t)),
+		)
+		require.NoError(t, err)
+
+		err = New().ValidateAnchorCredential(vc, testutil.GetCanonicalBytes(t, linksetJSON3))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing mandatory field")
+	})
+}
+
+func TestParseCredentialSubject(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		s, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{
+				"anchor":  "anchor1",
+				"href":    "href1",
+				"profile": "profile1",
+				"rel":     relLinkset,
+				"type":    "AnchorLink",
+			},
+		}}})
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		require.Equal(t, "anchor1", s.Anchor)
+		require.Equal(t, "href1", s.HRef)
+		require.Equal(t, "profile1", s.Profile)
+		require.Equal(t, relLinkset, s.Rel)
+	})
+
+	t.Run("invalid credentialSubject error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: ""})
+		require.EqualError(t, err, "invalid credentialSubject")
+	})
+
+	t.Run("unmarshal credentialSubject error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{"anchor": 1},
+		}}})
+		require.EqualError(t, err, "unmarshal credential subject: json: cannot unmarshal number into Go struct field CredentialSubject.anchor of type string") //nolint:lll
+	})
+
+	t.Run("missing anchor field error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{},
+		}}})
+		require.EqualError(t, err, `missing mandatory field "anchor" in the credential subject`)
+	})
+
+	t.Run("missing href field error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{
+				"anchor": "anchor1",
+			},
+		}}})
+		require.EqualError(t, err, `missing mandatory field "href" in the credential subject`)
+	})
+
+	t.Run("missing href field error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{
+				"anchor": "anchor1",
+				"href":   "href1",
+			},
+		}}})
+		require.EqualError(t, err, `missing mandatory field "profile" in the credential subject`)
+	})
+
+	t.Run("missing href field error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{
+				"anchor":  "anchor1",
+				"href":    "href1",
+				"profile": "profile1",
+			},
+		}}})
+		require.EqualError(t, err, `missing mandatory field "rel" in the credential subject`)
+	})
+
+	t.Run("missing href field error", func(t *testing.T) {
+		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
+			CustomFields: map[string]interface{}{
+				"anchor":  "anchor1",
+				"href":    "href1",
+				"profile": "profile1",
+				"rel":     "invalid",
+			},
+		}}})
+		require.EqualError(t, err, `unsupported relation type "invalid" in the credential subject`)
 	})
 }
 
@@ -394,7 +483,9 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "href": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "rel": "linkset",
+    "type": "AnchorLink",
     "profile": "https://w3id.org/orb#v0"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
@@ -414,32 +505,7 @@ const (
   ]
 }`
 
-	vcSubjectIsIDJSON = `{
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/suites/jws-2020/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1"
-  ],
-  "credentialSubject": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
-  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
-  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
-  "issuer": "https://orb.domain1.com",
-  "proof": {
-    "created": "2022-07-18T20:17:38.394Z",
-    "domain": "http://orb.vct:8077/maple2020",
-    "proofPurpose": "assertionMethod",
-    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
-    "type": "Ed25519Signature2020",
-    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
-  },
-  "type": [
-    "VerifiableCredential",
-    "AnchorCredential"
-  ]
-}`
-
-	vcInvalidIDJSON = `{
+	vcInvalidHRefJSON = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3id.org/activityanchors/v1",
@@ -448,7 +514,9 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-    "id": "invalid",
+    "href": "invalid",
+    "rel": "linkset",
+    "type": "AnchorLink",
     "profile": "https://w3id.org/orb#v0"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
@@ -477,7 +545,9 @@ const (
   ],
   "credentialSubject": {
     "anchor": "hl:uEiAgZlwuq4c6LjXLTILb1mklrZ9qqg42OEl9NNZtlL1XFw",
-    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "href": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "rel": "linkset",
+    "type": "AnchorLink",
     "profile": "https://invalid"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
@@ -506,8 +576,37 @@ const (
   ],
   "credentialSubject": {
     "anchor": "invalid",
-    "id": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "href": "hl:uEiCHU0O97gyQ8oq5O-pdxuacArLGIHu-_MFSfA4g7YSf3A",
+    "rel": "linkset",
+    "type": "AnchorLink",
     "profile": "https://w3id.org/orb#v0"
+  },
+  "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
+  "issuanceDate": "2022-07-18T20:17:38.3799055Z",
+  "issuer": "https://orb.domain1.com",
+  "proof": {
+    "created": "2022-07-18T20:17:38.394Z",
+    "domain": "http://orb.vct:8077/maple2020",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z3Et9ksRtjxzbR9ai9B5HBG6sGMns4gPE2nDvHa5YVdbdTUeiLLmw7FfVZezvQGGbj2v42MaBU3S2h1aNfNdJSdKk",
+    "type": "Ed25519Signature2020",
+    "verificationMethod": "did:web:orb.domain1.com#B2iVprWQpu1vorDdj19NwLTA0p73qtiGxyrkBukmt_w"
+  },
+  "type": [
+    "VerifiableCredential",
+    "AnchorCredential"
+  ]
+}`
+
+	vcInvalidCredentialSubjectJSON = `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/activityanchors/v1",
+    "https://w3id.org/security/suites/jws-2020/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
+  ],
+  "credentialSubject": {
+    "id": "xxx"
   },
   "id": "https://orb.domain1.com/vc/a95e6f27-f106-4486-aac9-986c5cae3be6",
   "issuanceDate": "2022-07-18T20:17:38.3799055Z",
