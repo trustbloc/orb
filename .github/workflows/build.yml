@@ -135,7 +135,7 @@ jobs:
     if: github.event_name == 'push' && (github.repository == 'trustbloc/orb' && github.ref == 'refs/heads/main')
     needs: [checks, unitTest]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Setup Go 1.17
         uses: actions/setup-go@v2
