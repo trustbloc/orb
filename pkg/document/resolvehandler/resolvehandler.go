@@ -64,6 +64,7 @@ type discoveryService interface {
 type endpointClient interface {
 	GetEndpoint(domain string) (*models.Endpoint, error)
 	ResolveDomainForDID(id string) (string, error)
+	GetDomainFromIPNS(uri string) (string, error)
 }
 
 type remoteResolver interface {
