@@ -182,7 +182,7 @@ func (cs *Client) ResolveDomainForDID(id string) (string, error) {
 	return domain.(string), nil
 }
 
-func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint: funlen,gocyclo,cyclop
+func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:gocyclo,cyclop
 	var domain string
 
 	switch {
@@ -194,31 +194,11 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint: 
 			return nil, fmt.Errorf("get domain from DID: %w", err)
 		}
 	case strings.HasPrefix(uri, "ipns://"):
-		anchorOriginSplit := strings.Split(uri, "ipns://")
+		var err error
 
-		var jrd restapi.JRD
-
-		err := cs.sendRequest(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s/.well-known/host-meta.json", ipfsGlobal, "ipns",
-			anchorOriginSplit[1]), &jrd)
+		domain, err = cs.GetDomainFromIPNS(uri)
 		if err != nil {
 			return nil, err
-		}
-
-		for _, v := range jrd.Links {
-			if v.Rel == self && v.Type == "application/activity+json" {
-				parsedURL, err := url.Parse(v.Href)
-				if err != nil {
-					return nil, err
-				}
-
-				domain = fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
-
-				break
-			}
-		}
-
-		if domain == "" {
-			return nil, fmt.Errorf("couldn't find application/activity+json in ipns file")
 		}
 	case !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://"):
 		domain = "https://" + uri
@@ -261,6 +241,40 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint: 
 	logger.Debugf("... resolved endpoint from [%s]: %+v", uri, endpoint)
 
 	return endpoint, nil
+}
+
+// GetDomainFromIPNS get domain from ipns.
+func (cs *Client) GetDomainFromIPNS(uri string) (string, error) {
+	anchorOriginSplit := strings.Split(uri, "ipns://")
+
+	var jrd restapi.JRD
+
+	var domain string
+
+	err := cs.sendRequest(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s/.well-known/host-meta.json", ipfsGlobal, "ipns",
+		anchorOriginSplit[1]), &jrd)
+	if err != nil {
+		return "", err
+	}
+
+	for _, v := range jrd.Links {
+		if v.Rel == self && v.Type == "application/activity+json" {
+			parsedURL, err := url.Parse(v.Href)
+			if err != nil {
+				return "", err
+			}
+
+			domain = fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+
+			break
+		}
+	}
+
+	if domain == "" {
+		return "", fmt.Errorf("couldn't find application/activity+json in ipns file")
+	}
+
+	return domain, nil
 }
 
 func (cs *Client) loadDomainForDID(id string) (string, error) {

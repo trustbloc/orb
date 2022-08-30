@@ -64,6 +64,7 @@ type discoveryService interface {
 type endpointClient interface {
 	GetEndpoint(domain string) (*models.Endpoint, error)
 	ResolveDomainForDID(id string) (string, error)
+	GetDomainFromIPNS(uri string) (string, error)
 }
 
 type remoteResolver interface {
@@ -165,14 +166,24 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 	var domain string
 
-	if util.IsDID(localAnchorOrigin) {
+	switch {
+	case util.IsDID(localAnchorOrigin):
 		domain, err = r.endpointClient.ResolveDomainForDID(localAnchorOrigin)
 		if err != nil {
 			logger.Debugf("resolving locally since there was an error getting domain for id[%s]: %s", id, err.Error())
 
 			return localResponse
 		}
-	} else {
+	case strings.HasPrefix(localAnchorOrigin, "ipns://"):
+		domain, err = r.endpointClient.GetDomainFromIPNS(localAnchorOrigin)
+
+		if err != nil {
+			logger.Debugf("resolving locally since there was an error "+
+				"getting domain from ipns for id[%s]: %s", id, err.Error())
+
+			return localResponse
+		}
+	default:
 		domain = localAnchorOrigin
 	}
 
