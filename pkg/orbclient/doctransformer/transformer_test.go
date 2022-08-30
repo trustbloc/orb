@@ -4,57 +4,40 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package webresolver
-
-//go:generate counterfeiter -o ./mocks/orbresolver.gen.go --fake-name OrbResolver . orbResolver
+package diddoctransformer
 
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
 	"github.com/trustbloc/orb/pkg/document/webresolver/mocks"
-	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
 const (
-	orbPrefix           = "did:orb"
-	orbUnpublishedLabel = "uAAA"
+	webDID = "did:web:orb.domain1.com:scid:" + testSuffix
 
-	testDomain            = "https://orb.domain1.com"
 	testSuffix            = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
-	testDeactivatedSuffix = "EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg"
 	testUnpublishedSuffix = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
-	testDomainURL, err := url.Parse(testDomain)
-	require.NoError(t, err)
-
 	t.Run("success - published did with also known as", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
 		require.NoError(t, err)
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
 			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
 
 		responseBytes, err := json.Marshal(response)
@@ -67,23 +50,17 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		var unpublishedResolutionResult document.ResolutionResult
 		err := json.Unmarshal([]byte(unpublishedDIDResolutionResult), &unpublishedResolutionResult)
 		require.NoError(t, err)
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(&unpublishedResolutionResult, nil)
 
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testUnpublishedSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, &unpublishedResolutionResult)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testUnpublishedSuffix, response.Document.ID())
-		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testUnpublishedSuffix, response.ID())
+		require.Equal(t, 3, len(response[document.AlsoKnownAs].([]string)))
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uAAA:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
 			"did:orb:https:orb.domain1.com:uAAA:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 
 		responseBytes, err := json.Marshal(response)
@@ -99,28 +76,18 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		otherDomainURL, err := url.Parse("https://other.com")
-		require.NoError(t, err)
+		otherWebDID := "did:web:other.com:scid:" + testSuffix
 
-		handler := NewResolveHandler(otherDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(otherWebDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		responseBytes, err := json.Marshal(response)
-		require.NoError(t, err)
-
-		fmt.Println(string(responseBytes))
-
-		require.Equal(t, "did:web:other.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, 4, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:other.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, 4, len(response[document.AlsoKnownAs].([]string)))
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:web:orb.domain1.com:scid:"+testSuffix)
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
@@ -130,21 +97,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		delete(rr.Document, document.AlsoKnownAs)
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
 	})
 
@@ -154,21 +114,14 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		delete(rr.DocumentMetadata, document.EquivalentIDProperty)
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, 2, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, 2, len(response[document.AlsoKnownAs].([]string)))
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
@@ -178,23 +131,16 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		rr.DocumentMetadata[document.EquivalentIDProperty] = []string{"https://test.com"}
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, 3, len(response[document.AlsoKnownAs].([]string)))
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2], "https://test.com")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2], "https://test.com")
 	})
 
 	t.Run("success - current domain not listed in also known as(string array version)", func(t *testing.T) {
@@ -203,41 +149,17 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		rr.Document[document.AlsoKnownAs] = []string{"other.com"}
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "other.com")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, 3, len(response[document.AlsoKnownAs].([]string)))
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "other.com")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
 			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
-	})
-
-	t.Run("error - deactivated document returns not found error", func(t *testing.T) {
-		var deactivatedResolutionResult document.ResolutionResult
-		err := json.Unmarshal([]byte(deactivatedDIDResolutionResult), &deactivatedResolutionResult)
-		require.NoError(t, err)
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(&deactivatedResolutionResult, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testDeactivatedSuffix)
-		require.Error(t, err)
-		require.Nil(t, response)
-		require.Contains(t, err.Error(), "content not found")
 	})
 
 	t.Run("error - also known as is an unexpected interface", func(t *testing.T) {
@@ -246,14 +168,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		rr.Document[document.AlsoKnownAs] = 123
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "unexpected interface 'float64' for also known as")
@@ -265,45 +180,10 @@ func TestResolveHandler_Resolve(t *testing.T) {
 
 		rr.DocumentMetadata[document.EquivalentIDProperty] = 123
 
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "unexpected interface 'int' for equivalentId")
-	})
-
-	t.Run("error - orb resolver error", func(t *testing.T) {
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(nil, fmt.Errorf("orb resolver error"))
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
-		require.Error(t, err)
-		require.Nil(t, response)
-		require.Contains(t, err.Error(), "orb resolver error")
-	})
-
-	t.Run("error - orb resolver not found error", func(t *testing.T) {
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(nil, fmt.Errorf("not found"))
-
-		handler := NewResolveHandler(testDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
-		require.Error(t, err)
-		require.Nil(t, response)
-		require.Contains(t, err.Error(), "content not found")
 	})
 }
 
@@ -413,61 +293,6 @@ var didResolutionResult = `
   },
   "updated": "2022-08-22T17:04:15Z",
   "versionId": "uEiDoMxcf-STXWHlBBi1PRWxycekYDST1EV-uokiAbxih7Q"
- }
-}`
-
-//nolint:lll
-var deactivatedDIDResolutionResult = `
-{
- "@context": "https://w3id.org/did-resolution/v1",
- "didDocument": {
-  "@context": [
-   "https://www.w3.org/ns/did/v1"
-  ],
-  "id": "did:orb:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg"
- },
- "didDocumentMetadata": {
-  "canonicalId": "did:orb:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg",
-  "created": "2022-08-19T23:46:13Z",
-  "deactivated": true,
-  "equivalentId": [
-   "did:orb:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg",
-   "did:orb:hl:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVE5UzVEMzY4amNPT0ZzaFo3bWlFbjhxc0JlME90bXJFekVoVVBkUkg3c1F4QmlwZnM6Ly9iYWZrcmVpYXE2dXhlaHg1cGVueW9oYm5zY3o1enVpamg2a3ZxYzYyZHZ3bmxjbXlzY3VoeGtlcDN3ZQ:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg",
-   "did:orb:https:shared.domain.com:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg"
-  ],
-  "method": {
-   "anchorOrigin": "https://orb.domain1.com",
-   "published": true,
-   "publishedOperations": [
-    {
-     "anchorOrigin": "https://orb.domain1.com",
-     "canonicalReference": "uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ",
-     "equivalentReferences": [
-      "hl:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVE5UzVEMzY4amNPT0ZzaFo3bWlFbjhxc0JlME90bXJFekVoVVBkUkg3c1F4QmlwZnM6Ly9iYWZrcmVpYXE2dXhlaHg1cGVueW9oYm5zY3o1enVpamg2a3ZxYzYyZHZ3bmxjbXlzY3VoeGtlcDN3ZQ",
-      "https:shared.domain.com:uEiAQ9S5D368jcOOFshZ7miEn8qsBe0OtmrEzEhUPdRH7sQ"
-     ],
-     "operation": "eyJkZWx0YSI6eyJwYXRjaGVzIjpbeyJhY3Rpb24iOiJhZGQtYWxzby1rbm93bi1hcyIsInVyaXMiOlsiaHR0cHM6Ly9teWJsb2cuZXhhbXBsZS8iXX0seyJhY3Rpb24iOiJhZGQtcHVibGljLWtleXMiLCJwdWJsaWNLZXlzIjpbeyJpZCI6ImNyZWF0ZUtleSIsInB1YmxpY0tleUp3ayI6eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IkxUUmZpZGdOVmFESDZVbFBkelljMG81NDV2YXBZc2g1NUNnNGxyV1d0VlEiLCJ5IjoibWc3OVV2LVhQcDMwM2pQX3BqeXY0TUhkTGREc1o3LXlBajVLOXYyRWE5RSJ9LCJwdXJwb3NlcyI6WyJhdXRoZW50aWNhdGlvbiJdLCJ0eXBlIjoiSnNvbldlYktleTIwMjAifSx7ImlkIjoiYXV0aCIsInB1YmxpY0tleUp3ayI6eyJjcnYiOiJFZDI1NTE5Iiwia3R5IjoiT0tQIiwieCI6ImUxdXQ4ZnVpc0JpNWd5dE9xMXpmSWFLYll6dkFONlljNVlINms1R3NZNWsiLCJ5IjoiIn0sInB1cnBvc2VzIjpbImFzc2VydGlvbk1ldGhvZCJdLCJ0eXBlIjoiRWQyNTUxOVZlcmlmaWNhdGlvbktleTIwMTgifV19LHsiYWN0aW9uIjoiYWRkLXNlcnZpY2VzIiwic2VydmljZXMiOlt7ImlkIjoiZGlkY29tbSIsInByaW9yaXR5IjowLCJyZWNpcGllbnRLZXlzIjpbIjZtQTNZUlZ1a25iVThTMXBFZGZTcmoyV00yYTR1dGJUZ0xOS3djWVNNSDhvIl0sInNlcnZpY2VFbmRwb2ludCI6Imh0dHBzOi8vaHViLmV4YW1wbGUuY29tLy5pZGVudGl0eS9kaWQ6ZXhhbXBsZTowMTIzNDU2Nzg5YWJjZGVmLyIsInR5cGUiOiJkaWQtY29tbXVuaWNhdGlvbiJ9XX1dLCJ1cGRhdGVDb21taXRtZW50IjoiRWlDNDVHa1NGRy1QVFRrZmxPclZyM084bEhLWEFNQmItQldyRHF6YlpDUVJ0dyJ9LCJzdWZmaXhEYXRhIjp7ImFuY2hvck9yaWdpbiI6Imh0dHBzOi8vb3JiLmRvbWFpbjEuY29tIiwiZGVsdGFIYXNoIjoiRWlCbmQ2UHNmemp6S1lRNC1tNWZBYWk1LXBNam5VaHVLV1M2cnNlQ215aW9adyIsInJlY292ZXJ5Q29tbWl0bWVudCI6IkVpQWM2ZWdoSzgteURkc2wtNzRnTXFLNzE3dHN4YmtEbHVSN1Z4WkRaRHh5aHcifSwidHlwZSI6ImNyZWF0ZSJ9",
-     "protocolVersion": 0,
-     "transactionNumber": 0,
-     "transactionTime": 1660952773,
-     "type": "create"
-    },
-    {
-     "canonicalReference": "uEiAB4Q9O6-tCTxKi6xhglsBOv_HgGHGuQ3SAVpBtbr_5ng",
-     "equivalentReferences": [
-      "hl:uEiAB4Q9O6-tCTxKi6xhglsBOv_HgGHGuQ3SAVpBtbr_5ng:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUI0UTlPNi10Q1R4S2k2eGhnbHNCT3ZfSGdHSEd1UTNTQVZwQnRicl81bmd4QmlwZnM6Ly9iYWZrcmVpYWI0ZWh1NTI3bGlqaHJmaXhsZGJxam5xY294N3k2YWdkcnZ6YnhqYWN3c2J3dzVwN3p0eQ",
-      "https:shared.domain.com:uEiAB4Q9O6-tCTxKi6xhglsBOv_HgGHGuQ3SAVpBtbr_5ng"
-     ],
-     "operation": "eyJkaWRTdWZmaXgiOiJFaUJKYmliY1JFQjJtUGVwOVBmSXlLSFBJdWV1YWN1OGR0UEtyTFB6cTVhU2RnIiwicmV2ZWFsVmFsdWUiOiJFaUJiSXZfN1RkbEg0NDVoMzQ4Z3BiSU5RbmpHS3RMQkg0cjhhV3ZZTUY5ZTBBIiwic2lnbmVkRGF0YSI6ImV5SmhiR2NpT2lKRlV6STFOaUo5LmV5SmhibU5vYjNKR2NtOXRJam94TmpZd09UVXlOemMwTENKa2FXUlRkV1ptYVhnaU9pSkZhVUpLWW1saVkxSkZRakp0VUdWd09WQm1TWGxMU0ZCSmRXVjFZV04xT0dSMFVFdHlURkI2Y1RWaFUyUm5JaXdpY21WamIzWmxjbmxMWlhraU9uc2lZM0oySWpvaVVDMHlOVFlpTENKcmRIa2lPaUpGUXlJc0luZ2lPaUl4VjBsRWEzQkdNR3RzV25SbWRtOWhNUzF3WW5CRkxUazNRVzl1YVZORVRVMXNjbU5FTVZCRVNEUlJJaXdpZVNJNkluTk9UekZNTVdoU2Ewa3pTMUJHZEU5Rk1URnFVMlJDVUVaWmFFcFVjM0F4TFZabFN6TnJSRVpQUWpnaWZTd2ljbVYyWldGc1ZtRnNkV1VpT2lJaWZRLndqVXpSalZ2YWt5UUpveVJsN3BuamZWUDBZc3ZxNkg1WkdzbFlsY2ZOWElDN0JRb3QzUTdfVnRFNm1JakUweXZaRVVKTjRHdFlBR3NEUjJYN2I4XzV3IiwidHlwZSI6ImRlYWN0aXZhdGUifQ==",
-     "protocolVersion": 0,
-     "transactionNumber": 0,
-     "transactionTime": 1660952775,
-     "type": "deactivate"
-    }
-   ]
-  },
-  "updated": "2022-08-19T23:46:15Z",
-  "versionId": "uEiAB4Q9O6-tCTxKi6xhglsBOv_HgGHGuQ3SAVpBtbr_5ng"
  }
 }`
 
