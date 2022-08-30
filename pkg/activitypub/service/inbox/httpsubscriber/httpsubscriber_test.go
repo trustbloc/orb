@@ -188,25 +188,28 @@ func TestSubscriber_Close(t *testing.T) {
 		_, err := s.Subscribe(context.Background(), "")
 		require.NoError(t, err)
 
-		var mutex sync.Mutex
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+
+		var wg sync.WaitGroup
+
+		wg.Add(1)
 
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 
-			mutex.Lock()
 			s.handleMessage(rw, req)
-			mutex.Unlock()
+
+			wg.Done()
 		}()
 
-		s.stop()
+		s.Stop()
 
-		mutex.Lock()
+		wg.Wait()
+
 		result := rw.Result()
 		require.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
 		require.NoError(t, result.Body.Close())
-		mutex.Unlock()
 	})
 
 	t.Run("Respond when stopped", func(t *testing.T) {
@@ -227,7 +230,8 @@ func TestSubscriber_Close(t *testing.T) {
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			s.stop()
+
+			s.Stop()
 		}()
 
 		s.handleMessage(rw, req)

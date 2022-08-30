@@ -8,10 +8,8 @@ package httpsubscriber
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
-	"time"
 
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -29,7 +27,6 @@ const (
 	ActorIRIKey = "actor-iri"
 
 	defaultBufferSize = 100
-	stopTimeout       = 250 * time.Millisecond
 )
 
 // Config holds the HTTP subscriber configuration parameters.
@@ -51,6 +48,7 @@ type Subscriber struct {
 	*lifecycle.Lifecycle
 	*Config
 
+	pubChan          chan *message.Message
 	msgChan          chan *message.Message
 	stopped          chan struct{}
 	done             chan struct{}
@@ -69,13 +67,19 @@ func New(cfg *Config, sigVerifier signatureVerifier, tm authTokenManager) *Subsc
 		Config:           cfg,
 		unmarshalMessage: wmhttp.DefaultUnmarshalMessageFunc,
 		verifier:         sigVerifier,
+		pubChan:          make(chan *message.Message, cfg.BufferSize),
 		msgChan:          make(chan *message.Message, cfg.BufferSize),
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
 		tokenVerifier:    auth.NewTokenVerifier(tm, cfg.ServiceEndpoint, http.MethodPost),
 	}
 
-	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint, lifecycle.WithStop(s.stop))
+	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint,
+		lifecycle.WithStop(s.stop),
+		lifecycle.WithStart(func() {
+			go s.publisher()
+		}),
+	)
 
 	// Start the service immediately.
 	s.Start()
@@ -171,18 +175,30 @@ func (s *Subscriber) publish(msg *message.Message) error {
 		return lifecycle.ErrNotStarted
 	}
 
-	select {
-	case s.msgChan <- msg:
-		logger.Debugf("[%s] Message [%s] was delivered to subscriber", s.ServiceEndpoint, msg.UUID)
+	s.pubChan <- msg
 
-		return nil
+	logger.Debugf("[%s] Message [%s] was posted to publisher", s.ServiceEndpoint, msg.UUID)
 
-	case <-s.stopped:
-		logger.Infof("[%s] Message [%s] was not published since service was stopped", s.ServiceEndpoint, msg.UUID)
+	return nil
+}
 
-		s.done <- struct{}{}
+func (s *Subscriber) publisher() {
+	logger.Infof("[%s] Starting publisher.", s.ServiceEndpoint)
 
-		return fmt.Errorf("service stopped")
+	for {
+		select {
+		case msg := <-s.pubChan:
+			s.msgChan <- msg
+
+			logger.Debugf("[%s] Message [%s] was delivered to subscriber", s.ServiceEndpoint, msg.UUID)
+
+		case <-s.stopped:
+			logger.Infof("[%s] Stopping publisher.", s.ServiceEndpoint)
+
+			close(s.done)
+
+			return
+		}
 	}
 }
 
@@ -207,8 +223,6 @@ func (s *Subscriber) respond(msg *message.Message, w http.ResponseWriter, r *htt
 	case <-s.stopped:
 		logger.Infof("[%s] Message [%s] was not handled since service was stopped", s.ServiceEndpoint, msg.UUID)
 
-		s.done <- struct{}{}
-
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 }
@@ -220,11 +234,7 @@ func (s *Subscriber) stop() {
 
 	// Wait for the publisher to stop so that we don't close the message channel
 	// while we're trying to publish a message to it (which would result in a panic).
-
-	select {
-	case <-s.done:
-	case <-time.After(stopTimeout):
-	}
+	<-s.done
 
 	close(s.msgChan)
 

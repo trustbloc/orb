@@ -1040,9 +1040,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		defer unsetEnvVars(t)
 
 		go func() {
-			err := startCmd.Execute()
-			require.Nil(t, err)
-			require.Equal(t, log.ERROR, log.GetLevel(""))
+			require.NoError(t, startCmd.Execute())
 		}()
 
 		require.NoError(t, backoff.Retry(func() error {
@@ -1060,9 +1058,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		defer unsetEnvVars(t)
 
 		go func() {
-			err := startCmd.Execute()
-			require.Nil(t, err)
-			require.Equal(t, log.ERROR, log.GetLevel(""))
+			require.NoError(t, startCmd.Execute())
 		}()
 
 		require.NoError(t, backoff.Retry(func() error {
@@ -1080,9 +1076,7 @@ func TestStartCmdValidArgsEnvVar(t *testing.T) {
 		defer unsetEnvVars(t)
 
 		go func() {
-			err := startCmd.Execute()
-			require.Nil(t, err)
-			require.Equal(t, log.ERROR, log.GetLevel(""))
+			require.NoError(t, startCmd.Execute())
 		}()
 
 		require.NoError(t, backoff.Retry(func() error {
