@@ -879,7 +879,7 @@ services:
   ipfs:
     container_name: ipfs
     #TODO: this image doesn't work on ARM64 yet (investigate images)
-    image: ipfs/go-ipfs:v0.8.0
+    image: ipfs/go-ipfs:v0.10.0
     ports:
       - "4001:4001"
       - "4001:4001/udp"
