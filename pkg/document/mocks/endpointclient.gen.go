@@ -8,6 +8,19 @@ import (
 )
 
 type EndpointClient struct {
+	GetDomainFromIPNSStub        func(string) (string, error)
+	getDomainFromIPNSMutex       sync.RWMutex
+	getDomainFromIPNSArgsForCall []struct {
+		arg1 string
+	}
+	getDomainFromIPNSReturns struct {
+		result1 string
+		result2 error
+	}
+	getDomainFromIPNSReturnsOnCall map[int]struct {
+		result1 string
+		result2 error
+	}
 	GetEndpointStub        func(string) (*models.Endpoint, error)
 	getEndpointMutex       sync.RWMutex
 	getEndpointArgsForCall []struct {
@@ -34,8 +47,84 @@ type EndpointClient struct {
 		result1 string
 		result2 error
 	}
+	GetEndpointFromAnchorOriginStub        func(string) (*models.Endpoint, error)
+	getEndpointFromAnchorOriginMutex       sync.RWMutex
+	getEndpointFromAnchorOriginArgsForCall []struct {
+		arg1 string
+	}
+	getEndpointFromAnchorOriginReturns struct {
+		result1 *models.Endpoint
+		result2 error
+	}
+	getEndpointFromAnchorOriginReturnsOnCall map[int]struct {
+		result1 *models.Endpoint
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *EndpointClient) GetDomainFromIPNS(arg1 string) (string, error) {
+	fake.getDomainFromIPNSMutex.Lock()
+	ret, specificReturn := fake.getDomainFromIPNSReturnsOnCall[len(fake.getDomainFromIPNSArgsForCall)]
+	fake.getDomainFromIPNSArgsForCall = append(fake.getDomainFromIPNSArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("GetDomainFromIPNS", []interface{}{arg1})
+	fake.getDomainFromIPNSMutex.Unlock()
+	if fake.GetDomainFromIPNSStub != nil {
+		return fake.GetDomainFromIPNSStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getDomainFromIPNSReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *EndpointClient) GetDomainFromIPNSCallCount() int {
+	fake.getDomainFromIPNSMutex.RLock()
+	defer fake.getDomainFromIPNSMutex.RUnlock()
+	return len(fake.getDomainFromIPNSArgsForCall)
+}
+
+func (fake *EndpointClient) GetDomainFromIPNSCalls(stub func(string) (string, error)) {
+	fake.getDomainFromIPNSMutex.Lock()
+	defer fake.getDomainFromIPNSMutex.Unlock()
+	fake.GetDomainFromIPNSStub = stub
+}
+
+func (fake *EndpointClient) GetDomainFromIPNSArgsForCall(i int) string {
+	fake.getDomainFromIPNSMutex.RLock()
+	defer fake.getDomainFromIPNSMutex.RUnlock()
+	argsForCall := fake.getDomainFromIPNSArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *EndpointClient) GetDomainFromIPNSReturns(result1 string, result2 error) {
+	fake.getDomainFromIPNSMutex.Lock()
+	defer fake.getDomainFromIPNSMutex.Unlock()
+	fake.GetDomainFromIPNSStub = nil
+	fake.getDomainFromIPNSReturns = struct {
+		result1 string
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *EndpointClient) GetDomainFromIPNSReturnsOnCall(i int, result1 string, result2 error) {
+	fake.getDomainFromIPNSMutex.Lock()
+	defer fake.getDomainFromIPNSMutex.Unlock()
+	fake.GetDomainFromIPNSStub = nil
+	if fake.getDomainFromIPNSReturnsOnCall == nil {
+		fake.getDomainFromIPNSReturnsOnCall = make(map[int]struct {
+			result1 string
+			result2 error
+		})
+	}
+	fake.getDomainFromIPNSReturnsOnCall[i] = struct {
+		result1 string
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *EndpointClient) GetEndpoint(arg1 string) (*models.Endpoint, error) {
@@ -44,16 +133,15 @@ func (fake *EndpointClient) GetEndpoint(arg1 string) (*models.Endpoint, error) {
 	fake.getEndpointArgsForCall = append(fake.getEndpointArgsForCall, struct {
 		arg1 string
 	}{arg1})
-	stub := fake.GetEndpointStub
-	fakeReturns := fake.getEndpointReturns
 	fake.recordInvocation("GetEndpoint", []interface{}{arg1})
 	fake.getEndpointMutex.Unlock()
-	if stub != nil {
-		return stub(arg1)
+	if fake.GetEndpointStub != nil {
+		return fake.GetEndpointStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
+	fakeReturns := fake.getEndpointReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -108,16 +196,15 @@ func (fake *EndpointClient) ResolveDomainForDID(arg1 string) (string, error) {
 	fake.resolveDomainForDIDArgsForCall = append(fake.resolveDomainForDIDArgsForCall, struct {
 		arg1 string
 	}{arg1})
-	stub := fake.ResolveDomainForDIDStub
-	fakeReturns := fake.resolveDomainForDIDReturns
 	fake.recordInvocation("ResolveDomainForDID", []interface{}{arg1})
 	fake.resolveDomainForDIDMutex.Unlock()
-	if stub != nil {
-		return stub(arg1)
+	if fake.ResolveDomainForDIDStub != nil {
+		return fake.ResolveDomainForDIDStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
+	fakeReturns := fake.resolveDomainForDIDReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -169,6 +256,8 @@ func (fake *EndpointClient) ResolveDomainForDIDReturnsOnCall(i int, result1 stri
 func (fake *EndpointClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.getDomainFromIPNSMutex.RLock()
+	defer fake.getDomainFromIPNSMutex.RUnlock()
 	fake.getEndpointMutex.RLock()
 	defer fake.getEndpointMutex.RUnlock()
 	fake.resolveDomainForDIDMutex.RLock()
@@ -178,6 +267,69 @@ func (fake *EndpointClient) Invocations() map[string][][]interface{} {
 		copiedInvocations[key] = value
 	}
 	return copiedInvocations
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOrigin(arg1 string) (*models.Endpoint, error) {
+	fake.getEndpointFromAnchorOriginMutex.Lock()
+	ret, specificReturn := fake.getEndpointFromAnchorOriginReturnsOnCall[len(fake.getEndpointFromAnchorOriginArgsForCall)]
+	fake.getEndpointFromAnchorOriginArgsForCall = append(fake.getEndpointFromAnchorOriginArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("GetEndpointFromAnchorOrigin", []interface{}{arg1})
+	fake.getEndpointFromAnchorOriginMutex.Unlock()
+	if fake.GetEndpointFromAnchorOriginStub != nil {
+		return fake.GetEndpointFromAnchorOriginStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getEndpointFromAnchorOriginReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOriginCallCount() int {
+	fake.getEndpointFromAnchorOriginMutex.RLock()
+	defer fake.getEndpointFromAnchorOriginMutex.RUnlock()
+	return len(fake.getEndpointFromAnchorOriginArgsForCall)
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOriginCalls(stub func(string) (*models.Endpoint, error)) {
+	fake.getEndpointFromAnchorOriginMutex.Lock()
+	defer fake.getEndpointFromAnchorOriginMutex.Unlock()
+	fake.GetEndpointFromAnchorOriginStub = stub
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOriginArgsForCall(i int) string {
+	fake.getEndpointFromAnchorOriginMutex.RLock()
+	defer fake.getEndpointFromAnchorOriginMutex.RUnlock()
+	argsForCall := fake.getEndpointFromAnchorOriginArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOriginReturns(result1 *models.Endpoint, result2 error) {
+	fake.getEndpointFromAnchorOriginMutex.Lock()
+	defer fake.getEndpointFromAnchorOriginMutex.Unlock()
+	fake.GetEndpointFromAnchorOriginStub = nil
+	fake.getEndpointFromAnchorOriginReturns = struct {
+		result1 *models.Endpoint
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *EndpointClient) GetEndpointFromAnchorOriginReturnsOnCall(i int, result1 *models.Endpoint, result2 error) {
+	fake.getEndpointFromAnchorOriginMutex.Lock()
+	defer fake.getEndpointFromAnchorOriginMutex.Unlock()
+	fake.GetEndpointFromAnchorOriginStub = nil
+	if fake.getEndpointFromAnchorOriginReturnsOnCall == nil {
+		fake.getEndpointFromAnchorOriginReturnsOnCall = make(map[int]struct {
+			result1 *models.Endpoint
+			result2 error
+		})
+	}
+	fake.getEndpointFromAnchorOriginReturnsOnCall[i] = struct {
+		result1 *models.Endpoint
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *EndpointClient) recordInvocation(key string, args []interface{}) {
