@@ -50,6 +50,7 @@ const (
 
 	defaultCacheLifetime = 300 * time.Second // five minutes
 	defaultCacheSize     = 100
+	self                 = "self"
 )
 
 type httpClient interface {
@@ -181,22 +182,48 @@ func (cs *Client) ResolveDomainForDID(id string) (string, error) {
 	return domain.(string), nil
 }
 
-func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) {
+func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint: funlen,gocyclo,cyclop
 	var domain string
 
-	if util.IsDID(uri) {
+	switch {
+	case util.IsDID(uri):
 		var err error
 
 		domain, err = cs.ResolveDomainForDID(uri)
 		if err != nil {
 			return nil, fmt.Errorf("get domain from DID: %w", err)
 		}
-	} else {
-		if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
-			domain = "https://" + uri
-		} else {
-			domain = uri
+	case strings.HasPrefix(uri, "ipns://"):
+		anchorOriginSplit := strings.Split(uri, "ipns://")
+
+		var jrd restapi.JRD
+
+		err := cs.sendRequest(nil, http.MethodGet, fmt.Sprintf("%s/%s/%s/.well-known/host-meta.json", ipfsGlobal, "ipns",
+			anchorOriginSplit[1]), &jrd)
+		if err != nil {
+			return nil, err
 		}
+
+		for _, v := range jrd.Links {
+			if v.Rel == self && v.Type == "application/activity+json" {
+				parsedURL, err := url.Parse(v.Href)
+				if err != nil {
+					return nil, err
+				}
+
+				domain = fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+
+				break
+			}
+		}
+
+		if domain == "" {
+			return nil, fmt.Errorf("couldn't find application/activity+json in ipns file")
+		}
+	case !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://"):
+		domain = "https://" + uri
+	default:
+		domain = uri
 	}
 
 	logger.Debugf("Resolved domain from URI [%s]: %s", uri, domain)
@@ -319,7 +346,7 @@ func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpo
 	// chosen links are listed in the n fetched configurations.
 
 	for _, v := range jrd.Links {
-		if v.Rel != "self" { //nolint: nestif
+		if v.Rel != self { //nolint: nestif
 			var webFingerResp restapi.JRD
 
 			parsedURL, err := url.Parse(v.Href)
@@ -475,7 +502,7 @@ func (cs *Client) getLatestAnchorOrigin(anchorOrigin, didURI string) (*restapi.J
 	templateURL := ""
 
 	for _, v := range jrd.Links {
-		if v.Rel == "self" && v.Type == "application/jrd+json" {
+		if v.Rel == self && v.Type == "application/jrd+json" {
 			templateURL = strings.ReplaceAll(v.Template, "{uri}", didURI)
 
 			break
