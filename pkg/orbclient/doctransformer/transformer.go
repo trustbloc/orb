@@ -7,10 +7,12 @@ SPDX-License-Identifier: Apache-2.0
 package diddoctransformer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 )
 
@@ -165,4 +167,42 @@ func minimum(a, b int) int {
 	}
 
 	return b
+}
+
+// Equal transforms documents into canonical form and compares them.
+// Exclude tags (optional) will be removed from document before comparison.
+func Equal(doc1, doc2 document.Document, excludeTags ...string) error {
+	for _, tag := range excludeTags {
+		delete(doc1, tag)
+		delete(doc2, tag)
+	}
+
+	doc1Bytes, err := canonicalizer.MarshalCanonical(doc1)
+	if err != nil {
+		return err
+	}
+
+	doc2Bytes, err := canonicalizer.MarshalCanonical(doc2)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(doc1Bytes, doc2Bytes) {
+		return fmt.Errorf("documents [%s] and [%s] do not match", string(doc1Bytes), string(doc2Bytes))
+	}
+
+	return nil
+}
+
+// VerifyWebDocumentFromOrbDocument will create web document from orb resolution result and compare that web document
+// with provided web document for equality.
+func VerifyWebDocumentFromOrbDocument(webRR, orbRR *document.ResolutionResult, excludeTags ...string) error {
+	webDID := webRR.Document.ID()
+
+	webDocFromOrbDoc, err := WebDocumentFromOrbDocument(webDID, orbRR)
+	if err != nil {
+		return err
+	}
+
+	return Equal(webRR.Document, webDocFromOrbDoc, excludeTags...)
 }
