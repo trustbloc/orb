@@ -226,10 +226,17 @@ func startDriver(parameters *parameters) error {
 		return err
 	}
 
-	orbVDR, err := orb.New(nil, orb.WithAuthToken(parameters.sidetreeToken),
-		orb.WithDomain(parameters.discoveryDomain),
+	opts := make([]orb.Option, 0)
+
+	opts = append(opts, orb.WithAuthToken(parameters.sidetreeToken),
 		orb.WithVerifyResolutionResultType(parameters.verifyResolutionResultType),
 		orb.WithTLSConfig(&tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}))
+
+	if parameters.discoveryDomain != "" {
+		opts = append(opts, orb.WithDomain(parameters.discoveryDomain))
+	}
+
+	orbVDR, err := orb.New(nil, opts...)
 	if err != nil {
 		return err
 	}
