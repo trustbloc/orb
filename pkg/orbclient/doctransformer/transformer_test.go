@@ -24,7 +24,7 @@ const (
 	testUnpublishedSuffix = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
 )
 
-func TestResolveHandler_Resolve(t *testing.T) {
+func TestWebDocumentFromOrbDocument(t *testing.T) {
 	t.Run("success - published did with also known as", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
 		require.NoError(t, err)
@@ -125,6 +125,24 @@ func TestResolveHandler_Resolve(t *testing.T) {
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
+	t.Run("success - also known as is string array", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		rr.Document[document.AlsoKnownAs] = document.StringArray(rr.Document[document.AlsoKnownAs])
+
+		response, err := WebDocumentFromOrbDocument(webDID, rr)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+
+		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.ID())
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
+			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
+		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+	})
+
 	t.Run("success - equivalent ID is string array", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
 		require.NoError(t, err)
@@ -187,15 +205,114 @@ func TestResolveHandler_Resolve(t *testing.T) {
 	})
 }
 
+func TestVerifyWebDocumentFromOrbDocument(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		webRR, err := getResolutionResult(webResponse)
+		require.NoError(t, err)
+
+		orbRR, err := getResolutionResult(orbResponse)
+		require.NoError(t, err)
+
+		err = VerifyWebDocumentFromOrbDocument(webRR, orbRR)
+		require.NoError(t, err)
+	})
+
+	t.Run("error - documents do not match", func(t *testing.T) {
+		webRR, err := getResolutionResult(`{"didDocument": {}}`)
+		require.NoError(t, err)
+
+		orbRR, err := getResolutionResult(orbResponse)
+		require.NoError(t, err)
+
+		err = VerifyWebDocumentFromOrbDocument(webRR, orbRR)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "do not match")
+	})
+
+	t.Run("error - parse also known as error", func(t *testing.T) {
+		webRR, err := getResolutionResult(`{}`)
+		require.NoError(t, err)
+
+		orbRR, err := getResolutionResult(`{"didDocument": {"alsoKnownAs": 1}}`)
+		require.NoError(t, err)
+
+		err = VerifyWebDocumentFromOrbDocument(webRR, orbRR)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unexpected interface 'float64' for also known as")
+	})
+}
+
+func TestEqual(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		doc1, err := getDocument(`{"id" : "some-id"}`)
+		require.NoError(t, err)
+
+		doc2, err := getDocument(`{"id" : "some-id"}`)
+		require.NoError(t, err)
+
+		err = Equal(doc1, doc2)
+		require.NoError(t, err)
+	})
+
+	t.Run("success - empty doc", func(t *testing.T) {
+		doc1, err := getDocument("{}")
+		require.NoError(t, err)
+
+		doc2, err := getDocument("{}")
+		require.NoError(t, err)
+
+		err = Equal(doc1, doc2)
+		require.NoError(t, err)
+	})
+
+	t.Run("success - with exclude tag", func(t *testing.T) {
+		doc1, err := getDocument(`{}`)
+		require.NoError(t, err)
+
+		doc2, err := getDocument(`{"alsoKnownAs": ["did:web:hello.com"]}`)
+		require.NoError(t, err)
+
+		err = Equal(doc1, doc2, "alsoKnownAs")
+		require.NoError(t, err)
+	})
+
+	t.Run("error - not equal", func(t *testing.T) {
+		doc1, err := getDocument(`{"id" : "some-id"}`)
+		require.NoError(t, err)
+
+		doc2, err := getDocument(`{"id" : "other-id"}`)
+		require.NoError(t, err)
+
+		err = Equal(doc1, doc2)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `documents [{"id":"some-id"}] and [{"id":"other-id"}] do not match`)
+	})
+}
+
 func getTestResolutionResult() (*document.ResolutionResult, error) {
+	return getResolutionResult(didResolutionResult)
+}
+
+func getResolutionResult(str string) (*document.ResolutionResult, error) {
 	var docResolutionResult document.ResolutionResult
 
-	err := json.Unmarshal([]byte(didResolutionResult), &docResolutionResult)
+	err := json.Unmarshal([]byte(str), &docResolutionResult)
 	if err != nil {
 		return nil, err
 	}
 
 	return &docResolutionResult, nil
+}
+
+func getDocument(str string) (document.Document, error) {
+	var doc document.Document
+
+	err := json.Unmarshal([]byte(str), &doc)
+	if err != nil {
+		return nil, err
+	}
+
+	return doc, nil
 }
 
 //nolint:lll
@@ -357,4 +474,143 @@ var unpublishedDIDResolutionResult = `
    "updateCommitment": "EiDa5uCx-5sTsAh4BfOU8QqSInlWXnWZPMGeomYxIk63PQ"
   }
  }
+}`
+
+// nolint:lll
+var webResponse = `
+{
+  "@context": "https://w3id.org/did-resolution/v1",
+  "didDocument": {
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/suites/jws-2020/v1",
+      "https://w3id.org/security/suites/ed25519-2018/v1"
+    ],
+    "alsoKnownAs": [
+      "https://myblog.example/",
+      "did:orb:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+      "did:orb:hl:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4zLmNvbS9jYXMvdUVpQ3hGR0N6Z2QwZ1Rrb0xobkV6UDZBT3d2TThGSG40UVRUYjVZamxXNHVRSFE:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA"
+    ],
+    "assertionMethod": [
+      "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#auth"
+    ],
+    "authentication": [
+      "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#createKey"
+    ],
+    "id": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+    "service": [
+      {
+        "id": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#didcomm",
+        "priority": 0,
+        "recipientKeys": [
+          "9kQ8WK6mj32d3v6SZp6bzngPajta2KPMd92qjcQZ4bLG"
+        ],
+        "serviceEndpoint": "https://hub.example.com/.identity/did:example:0123456789abcdef/",
+        "type": "did-communication"
+      }
+    ],
+    "verificationMethod": [
+      {
+        "controller": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+        "id": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#createKey",
+        "publicKeyJwk": {
+          "crv": "P-256",
+          "kty": "EC",
+          "x": "k2WMSkwqKWZR6imfF1Nv-OLJLhylNJMX1n8_dRGlYuE",
+          "y": "2ES0qDhNfbMe9CimiYj69zU60mhrXVwVlcwKwhW_DVs"
+        },
+        "type": "JsonWebKey2020"
+      },
+      {
+        "controller": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+        "id": "did:web:orb.domain3.com:scid:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#auth",
+        "publicKeyBase58": "VM6LMBqwetP9yLJo9C6nZkA4B4LwLA5ZkqeTstp8vdq",
+        "type": "Ed25519VerificationKey2018"
+      }
+    ]
+  }
+}`
+
+// nolint:lll
+var orbResponse = `
+{
+  "@context": "https://w3id.org/did-resolution/v1",
+  "didDocument": {
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/suites/jws-2020/v1",
+      "https://w3id.org/security/suites/ed25519-2018/v1"
+    ],
+    "alsoKnownAs": [
+      "https://myblog.example/"
+    ],
+    "assertionMethod": [
+      "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#auth"
+    ],
+    "authentication": [
+      "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#createKey"
+    ],
+    "id": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+    "service": [
+      {
+        "id": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#didcomm",
+        "priority": 0,
+        "recipientKeys": [
+          "9kQ8WK6mj32d3v6SZp6bzngPajta2KPMd92qjcQZ4bLG"
+        ],
+        "serviceEndpoint": "https://hub.example.com/.identity/did:example:0123456789abcdef/",
+        "type": "did-communication"
+      }
+    ],
+    "verificationMethod": [
+      {
+        "controller": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+        "id": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#createKey",
+        "publicKeyJwk": {
+          "crv": "P-256",
+          "kty": "EC",
+          "x": "k2WMSkwqKWZR6imfF1Nv-OLJLhylNJMX1n8_dRGlYuE",
+          "y": "2ES0qDhNfbMe9CimiYj69zU60mhrXVwVlcwKwhW_DVs"
+        },
+        "type": "JsonWebKey2020"
+      },
+      {
+        "controller": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+        "id": "did:orb:uAAA:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA#auth",
+        "publicKeyBase58": "VM6LMBqwetP9yLJo9C6nZkA4B4LwLA5ZkqeTstp8vdq",
+        "type": "Ed25519VerificationKey2018"
+      }
+    ]
+  },
+  "didDocumentMetadata": {
+    "canonicalId": "did:orb:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+    "created": "2022-08-31T19:13:44Z",
+    "equivalentId": [
+      "did:orb:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+      "did:orb:hl:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4zLmNvbS9jYXMvdUVpQ3hGR0N6Z2QwZ1Rrb0xobkV6UDZBT3d2TThGSG40UVRUYjVZamxXNHVRSFE:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA",
+      "did:orb:https:shared.domain.com:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:EiAWS5rfPpy3KK_3l7_aPb4sZsCraVCxFM-SeEqWrVi0RA"
+    ],
+    "method": {
+      "anchorOrigin": "https://orb.domain3.com",
+      "published": true,
+      "publishedOperations": [
+        {
+          "type": "create",
+          "operation": "eyJkZWx0YSI6eyJwYXRjaGVzIjpbeyJhY3Rpb24iOiJhZGQtYWxzby1rbm93bi1hcyIsInVyaXMiOlsiaHR0cHM6Ly9teWJsb2cuZXhhbXBsZS8iXX0seyJhY3Rpb24iOiJhZGQtcHVibGljLWtleXMiLCJwdWJsaWNLZXlzIjpbeyJpZCI6ImNyZWF0ZUtleSIsInB1YmxpY0tleUp3ayI6eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6ImsyV01Ta3dxS1daUjZpbWZGMU52LU9MSkxoeWxOSk1YMW44X2RSR2xZdUUiLCJ5IjoiMkVTMHFEaE5mYk1lOUNpbWlZajY5elU2MG1oclhWd1ZsY3dLd2hXX0RWcyJ9LCJwdXJwb3NlcyI6WyJhdXRoZW50aWNhdGlvbiJdLCJ0eXBlIjoiSnNvbldlYktleTIwMjAifSx7ImlkIjoiYXV0aCIsInB1YmxpY0tleUp3ayI6eyJjcnYiOiJFZDI1NTE5Iiwia3R5IjoiT0tQIiwieCI6IkIwTDdEMmoydU9VMUNHeXR4aGtzOHVUU3hCZTFIWC1ISUtlWVUwVmZKelEiLCJ5IjoiIn0sInB1cnBvc2VzIjpbImFzc2VydGlvbk1ldGhvZCJdLCJ0eXBlIjoiRWQyNTUxOVZlcmlmaWNhdGlvbktleTIwMTgifV19LHsiYWN0aW9uIjoiYWRkLXNlcnZpY2VzIiwic2VydmljZXMiOlt7ImlkIjoiZGlkY29tbSIsInByaW9yaXR5IjowLCJyZWNpcGllbnRLZXlzIjpbIjlrUThXSzZtajMyZDN2NlNacDZiem5nUGFqdGEyS1BNZDkycWpjUVo0YkxHIl0sInNlcnZpY2VFbmRwb2ludCI6Imh0dHBzOi8vaHViLmV4YW1wbGUuY29tLy5pZGVudGl0eS9kaWQ6ZXhhbXBsZTowMTIzNDU2Nzg5YWJjZGVmLyIsInR5cGUiOiJkaWQtY29tbXVuaWNhdGlvbiJ9XX1dLCJ1cGRhdGVDb21taXRtZW50IjoiRWlCZkcxRjVjcmp6cE1pYzhZdG9DTXNPd0c2SlJ4eDhBZWx1dEhrVjV5UXp0ZyJ9LCJzdWZmaXhEYXRhIjp7ImFuY2hvck9yaWdpbiI6Imh0dHBzOi8vb3JiLmRvbWFpbjMuY29tIiwiZGVsdGFIYXNoIjoiRWlDYVc1SEI4MWxabWJYVE9FUDFLMVpLVmpGRmhoOVg4clZuSERMNHFBbzQxUSIsInJlY292ZXJ5Q29tbWl0bWVudCI6IkVpQkJ0Ump3UmQ1N3JVYmlodGQ1NU5TMlVFR1Bvc0lqV3EtY1hWdHlQS0Z0OWcifSwidHlwZSI6ImNyZWF0ZSJ9",
+          "transactionTime": 1661973224,
+          "transactionNumber": 0,
+          "protocolVersion": 0,
+          "canonicalReference": "uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ",
+          "equivalentReferences": [
+            "hl:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4zLmNvbS9jYXMvdUVpQ3hGR0N6Z2QwZ1Rrb0xobkV6UDZBT3d2TThGSG40UVRUYjVZamxXNHVRSFE",
+            "https:shared.domain.com:uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ"
+          ],
+          "anchorOrigin": "https://orb.domain3.com"
+        }
+      ],
+      "recoveryCommitment": "EiBBtRjwRd57rUbihtd55NS2UEGPosIjWq-cXVtyPKFt9g",
+      "updateCommitment": "EiBfG1F5crjzpMic8YtoCMsOwG6JRxx8AelutHkV5yQztg"
+    },
+    "versionId": "uEiCxFGCzgd0gTkoLhnEzP6AOwvM8FHn4QTTb5YjlW4uQHQ"
+  }
 }`

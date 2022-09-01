@@ -16,7 +16,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 	"io"
 	"io/ioutil"
 	mrand "math/rand"
@@ -39,6 +38,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/commitment"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 	"github.com/trustbloc/sidetree-core-go/pkg/encoder"
 	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 	"github.com/trustbloc/sidetree-core-go/pkg/patch"
@@ -52,6 +52,7 @@ import (
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
+	"github.com/trustbloc/orb/pkg/orbclient/doctransformer"
 	"github.com/trustbloc/orb/pkg/orbclient/resolutionverifier"
 )
 
@@ -337,6 +338,39 @@ func (d *DIDOrbSteps) clientVerifiesResolvedDocument() error {
 	}
 
 	return verifier.Verify(d.resolutionResult)
+}
+
+func (d *DIDOrbSteps) clientVerifiesWebDocumentFromOrbDocument(didWebVar, didOrbVar string) error {
+	logger.Info("verify that resolved web document is produced from orb resolution result")
+
+	didWebResolutionResultStr, ok := d.state.getVar(didWebVar)
+	if !ok {
+		return fmt.Errorf("missing did:web resolution result from var[%s]", didWebVar)
+	}
+
+	var didWebResolutionResult document.ResolutionResult
+	err := json.Unmarshal([]byte(didWebResolutionResultStr), &didWebResolutionResult)
+	if err != nil {
+		return err
+	}
+
+	didOrbResolutionResultStr, ok := d.state.getVar(didOrbVar)
+	if !ok {
+		return fmt.Errorf("missing did:orb resolution result from var[%s]", didOrbVar)
+	}
+
+	var didOrbResolutionResult document.ResolutionResult
+	err = json.Unmarshal([]byte(didOrbResolutionResultStr), &didOrbResolutionResult)
+	if err != nil {
+		return err
+	}
+
+	return diddoctransformer.VerifyWebDocumentFromOrbDocument(&didWebResolutionResult, &didOrbResolutionResult)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *DIDOrbSteps) clientFailsToVerifyResolvedDocument() error {
@@ -2084,6 +2118,7 @@ func (d *DIDOrbSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client discover orb endpoints$`, d.discoverEndpoints)
 	s.Step(`^client sends request to "([^"]*)" to request anchor origin$`, d.clientRequestsAnchorOrigin)
 	s.Step(`^client verifies resolved document$`, d.clientVerifiesResolvedDocument)
+	s.Step(`^client verifies that web document from variable "([^"]*)" is produced from orb document from variable "([^"]*)"$`, d.clientVerifiesWebDocumentFromOrbDocument)
 	s.Step(`^mis-configured client fails to verify resolved document$`, d.clientFailsToVerifyResolvedDocument)
 	s.Step(`^check error response contains "([^"]*)"$`, d.checkErrorResp)
 	s.Step(`^client sends request to "([^"]*)" to create DID document$`, d.createDIDDocument)

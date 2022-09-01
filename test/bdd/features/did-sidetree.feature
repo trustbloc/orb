@@ -485,16 +485,19 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain3.com/1.0/identifiers/did:web:other.com:scid:suffix" and the returned status code is 404
     When an HTTP GET is sent to "https://orb.domain3.com/1.0/identifiers/did:web:orb.domain3.com:scid:suffix" and the returned status code is 404
 
-
     When client sends request to "https://orb.domain3.com/sidetree/v1/operations" to create DID document and the suffix is saved to variable "didSuffix"
 
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "uAAA"
+    Then the response is saved to variable "orbResponse"
 
     # test unpublished existing DID
     When an HTTP GET is sent to "https://orb.domain3.com/scid/${didSuffix}/did.json"
 
     When an HTTP GET is sent to "https://orb.domain3.com/1.0/identifiers/did:web:orb.domain3.com:scid:${didSuffix}"
+    Then the response is saved to variable "webResponse"
+
+    Then client verifies that web document from variable "webResponse" is produced from orb document from variable "orbResponse"
 
     When client sends request to "https://orb.domain3.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
