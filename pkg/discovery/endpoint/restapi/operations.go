@@ -46,8 +46,6 @@ const (
 	orbWebDIDFileEndpoint = "/scid/{id}/did.json"
 	nodeInfoEndpoint      = "/.well-known/nodeinfo"
 
-	orbWebDIDResolverEndpoint = "/1.0/identifiers/did:web:%s:scid:{id}"
-
 	selfRelation      = "self"
 	alternateRelation = "alternate"
 	viaRelation       = "via"
@@ -194,7 +192,6 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 		newHTTPHandler(webDIDEndpoint, o.webDIDHandler),
 		newHTTPHandler(nodeInfoEndpoint, o.nodeInfoHandler),
 		newHTTPHandler(orbWebDIDFileEndpoint, o.orbWebDIDFileHandler),
-		newHTTPHandler(fmt.Sprintf(orbWebDIDResolverEndpoint, o.domainWithPort), o.orbWebDIDResolverHandler),
 	}
 
 	// Only expose a service DID endpoint if the service ID is configured to be a DID.
@@ -239,27 +236,6 @@ func (o *Operation) orbWebDIDFileHandler(rw http.ResponseWriter, r *http.Request
 	}
 
 	writeResponse(rw, result.Document)
-}
-
-func (o *Operation) orbWebDIDResolverHandler(rw http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-
-	result, err := o.webResolver.ResolveDocument(id)
-	if err != nil {
-		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debugf("web resource[%s] not found", id)
-
-			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
-		} else {
-			logger.Warnf("error returning web resource [%s]: %s", id, err)
-
-			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
-		}
-
-		return
-	}
-
-	writeResponse(rw, result)
 }
 
 // webDIDHandler swagger:route Get /.well-known/did.json discovery wellKnownDIDReq

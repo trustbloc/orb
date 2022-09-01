@@ -42,8 +42,7 @@ const (
 	hostMetaEndpoint = "/.well-known/host-meta"
 	nodeInfoEndpoint = "/.well-known/nodeinfo"
 
-	orbWebDIDFileEndpoint     = "/scid/{id}/did.json"
-	orbWebDIDResolverEndpoint = "/1.0/identifiers/did:web:base:scid:{id}"
+	orbWebDIDFileEndpoint = "/scid/{id}/did.json"
 
 	suffix = "suffix"
 )
@@ -133,7 +132,7 @@ func TestGetRESTHandlers(t *testing.T) {
 			&restapi.Providers{},
 		)
 		require.NoError(t, err)
-		require.Equal(t, 8, len(c.GetRESTHandlers()))
+		require.Equal(t, 7, len(c.GetRESTHandlers()))
 	})
 
 	t.Run("HTTP service ID Success", func(t *testing.T) {
@@ -145,8 +144,8 @@ func TestGetRESTHandlers(t *testing.T) {
 
 		c, err := restapi.New(cfg, &restapi.Providers{})
 		require.NoError(t, err)
-		require.Equal(t, 9, len(c.GetRESTHandlers()),
-			"Expecting 9 handlers, including the service did handler")
+		require.Equal(t, 8, len(c.GetRESTHandlers()),
+			"Expecting 8 handlers, including the service did handler")
 	})
 }
 
@@ -759,110 +758,6 @@ func TestWellKnownServiceDID(t *testing.T) {
 	u, err := service.ServiceEndpoint.URI()
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com", u)
-}
-
-func TestOrbWebDIDResolver(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		didDoc := make(document.Document)
-
-		wr := &endpointmocks.WebResolver{}
-		wr.ResolveDocumentReturns(&document.ResolutionResult{Document: didDoc}, nil)
-
-		c, err := restapi.New(&restapi.Config{
-			OperationPath:      "/op",
-			ResolutionPath:     "/resolve",
-			WebCASPath:         "/cas",
-			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
-		},
-			&restapi.Providers{WebResolver: wr})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, orbWebDIDResolverEndpoint)
-
-		urlVars := make(map[string]string)
-		urlVars["id"] = suffix
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDResolverEndpoint,
-			nil, urlVars, false)
-
-		require.Equal(t, http.StatusOK, rr.Code)
-	})
-
-	t.Run("success - port provided", func(t *testing.T) {
-		didDoc := make(document.Document)
-
-		wr := &endpointmocks.WebResolver{}
-		wr.ResolveDocumentReturns(&document.ResolutionResult{Document: didDoc}, nil)
-
-		c, err := restapi.New(&restapi.Config{
-			OperationPath:      "/op",
-			ResolutionPath:     "/resolve",
-			WebCASPath:         "/cas",
-			ServiceEndpointURL: testutil.MustParseURL("http://base:8080/services/orb"),
-		},
-			&restapi.Providers{WebResolver: wr})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, "/1.0/identifiers/did:web:base%3A8080:scid:{id}")
-
-		urlVars := make(map[string]string)
-		urlVars["id"] = suffix
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDResolverEndpoint,
-			nil, urlVars, false)
-
-		require.Equal(t, http.StatusOK, rr.Code)
-	})
-
-	t.Run("error - resource not found", func(t *testing.T) {
-		wr := &endpointmocks.WebResolver{}
-		wr.ResolveDocumentReturns(nil, orberrors.ErrContentNotFound)
-
-		c, err := restapi.New(&restapi.Config{
-			OperationPath:      "/op",
-			ResolutionPath:     "/resolve",
-			WebCASPath:         "/cas",
-			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
-		},
-			&restapi.Providers{WebResolver: wr})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, orbWebDIDResolverEndpoint)
-
-		urlVars := make(map[string]string)
-		urlVars["id"] = suffix
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDResolverEndpoint,
-			nil, urlVars, false)
-
-		require.Equal(t, http.StatusNotFound, rr.Code)
-		require.Contains(t, rr.Body.String(), "resource not found")
-	})
-
-	t.Run("error - internal server error", func(t *testing.T) {
-		wr := &endpointmocks.WebResolver{}
-		wr.ResolveDocumentReturns(nil, fmt.Errorf("internal error"))
-
-		c, err := restapi.New(&restapi.Config{
-			OperationPath:      "/op",
-			ResolutionPath:     "/resolve",
-			WebCASPath:         "/cas",
-			ServiceEndpointURL: testutil.MustParseURL("http://base/services/orb"),
-		},
-			&restapi.Providers{WebResolver: wr})
-		require.NoError(t, err)
-
-		handler := getHandler(t, c, orbWebDIDResolverEndpoint)
-
-		urlVars := make(map[string]string)
-		urlVars["id"] = suffix
-
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, orbWebDIDResolverEndpoint,
-			nil, urlVars, false)
-
-		require.Equal(t, http.StatusInternalServerError, rr.Code)
-		require.Contains(t, rr.Body.String(), "error retrieving resource")
-	})
 }
 
 func TestOrbWebDIDFile(t *testing.T) {
