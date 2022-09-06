@@ -366,11 +366,6 @@ func (d *DIDOrbSteps) clientVerifiesWebDocumentFromOrbDocument(didWebVar, didOrb
 	}
 
 	return diddoctransformer.VerifyWebDocumentFromOrbDocument(&didWebResolutionResult, &didOrbResolutionResult)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (d *DIDOrbSteps) clientFailsToVerifyResolvedDocument() error {

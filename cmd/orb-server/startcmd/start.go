@@ -112,6 +112,7 @@ import (
 	localdiscovery "github.com/trustbloc/orb/pkg/discovery/did/local"
 	discoveryclient "github.com/trustbloc/orb/pkg/discovery/endpoint/client"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
+	"github.com/trustbloc/orb/pkg/document/didresolver"
 	"github.com/trustbloc/orb/pkg/document/remoteresolver"
 	"github.com/trustbloc/orb/pkg/document/resolvehandler"
 	"github.com/trustbloc/orb/pkg/document/updatehandler"
@@ -1174,7 +1175,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	didDiscovery := localdiscovery.New(parameters.didNamespace, observer.Publisher(), endpointClient)
 
-	orbDocResolveHandler := resolvehandler.NewResolveHandler(
+	orbResolveHandler := resolvehandler.NewResolveHandler(
 		parameters.didNamespace,
 		didDocHandler,
 		didDiscovery,
@@ -1199,7 +1200,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	webResolveHandler := webresolver.NewResolveHandler(u, parameters.didNamespace,
-		unpublishedDIDLabel, orbDocResolveHandler, metrics.Get())
+		unpublishedDIDLabel, orbResolveHandler, metrics.Get())
 
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(
@@ -1245,9 +1246,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 
+	didResolveHandler := didresolver.NewResolveHandler(orbResolveHandler, webResolveHandler)
+
 	handlers = append(handlers,
 		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get()), authTokenManager),
-		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, orbDocResolveHandler, metrics.Get()),
+		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics.Get()),
 			&aphandler.Config{
 				ObjectIRI:              apServiceIRI,
 				VerifyActorInSignature: parameters.httpSignaturesEnabled,
