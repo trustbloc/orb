@@ -1129,7 +1129,13 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	var didDocHandlerOpts []dochandler.Option
-	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
+
+	if parameters.enableDevMode {
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("http:"+u.Host))
+	} else {
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
+	}
+
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithLabel(unpublishedDIDLabel))
 
 	if parameters.unpublishedOperationStoreEnabled {
