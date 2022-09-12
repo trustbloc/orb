@@ -35,6 +35,8 @@ const (
 
 	vctReadTokenKey  = "vct-read"
 	vctWriteTokenKey = "vct-write"
+
+	vctV1LedgerType = "vct-v1"
 )
 
 // httpClient represents HTTP client.
@@ -103,7 +105,7 @@ type entity struct {
 
 var errExpired = errors.New("expired")
 
-func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
+func (c *Client) exist(e *entity) error {
 	// validates whether the promise is valid against the end time
 	if time.Now().UnixNano() > e.ExpirationTime.UnixNano() {
 		return errExpired
@@ -113,8 +115,9 @@ func (c *Client) exist(vc *verifiable.Credential, e *entity) error {
 	vctClient := vct.New(e.Domain, vct.WithHTTPClient(c.http), vct.WithAuthReadToken(c.requestTokens[vctReadTokenKey]),
 		vct.WithAuthWriteToken(c.requestTokens[vctWriteTokenKey]))
 
-	// calculates leaf hash for given timestamp and initial credential to be able query proof by hash.
-	hash, err := vct.CalculateLeafHash(uint64(e.Created.UnixNano()/int64(time.Millisecond)), vc)
+	// calculates leaf hash for given timestamp and initial credential to be able to query proof by hash.
+	hash, err := vct.CalculateLeafHash(uint64(e.Created.UnixNano()/int64(time.Millisecond)),
+		e.CredentialRaw, c.documentLoader)
 	if err != nil {
 		return fmt.Errorf("calculate leaf hash: %w", err)
 	}
@@ -194,9 +197,9 @@ func (c *Client) handleEntities() error {
 			continue
 		}
 
-		err = c.exist(vc, e)
+		err = c.exist(e)
 		if err == nil {
-			logger.Infof("credential %q existence in the Merkle tree confirmed", vc.ID)
+			logger.Infof("credential %q existence in the ledger [%s] confirmed", vc.ID, e.Domain)
 
 			// removes the entity from the store bc we confirmed that credential is in MT (log above).
 			if err = c.store.Delete(key(vc.ID)); err != nil {
@@ -212,7 +215,7 @@ func (c *Client) handleEntities() error {
 			continue
 		}
 
-		logger.Errorf("credential %q existence in the Merkle tree not confirmed", vc.ID)
+		logger.Errorf("credential %q existence in the ledger [%s] not confirmed", vc.ID, e.Domain)
 
 		// removes entity from the store bc we failed our promise (log above).
 		if err = c.store.Delete(key(vc.ID)); err != nil {
@@ -225,22 +228,38 @@ func (c *Client) handleEntities() error {
 
 // Watch starts monitoring.
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
-	// no domain nothing to verify
 	if domain == "" {
+		logger.Infof("No domain for VC %s. Proof will not be monitored.", vc.ID)
+
 		return nil
 	}
 
 	lt, err := c.wfClient.GetLedgerType(domain)
 	if err != nil {
 		if errors.Is(err, model.ErrResourceNotFound) {
+			logger.Infof("Ledger not found for domain %s. Proof will not be monitored for VC %s. Details: %s",
+				domain, vc.ID, err)
+
 			return nil
 		}
 
-		return err
+		return fmt.Errorf("get ledger type: %w", err)
 	}
 
-	if lt != "vct-v1" {
+	if !isLedgerTypeSupported(lt) {
+		logger.Warnf("Ledger type %s for domain %s not supported. Proof will not be monitored for VC %s.",
+			lt, domain, vc.ID)
+
 		return nil
+	}
+
+	return c.checkExistenceInLedger(vc, domain, created, endTime)
+}
+
+func (c *Client) checkExistenceInLedger(vc *verifiable.Credential, domain string, created, endTime time.Time) error {
+	raw, err := vc.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal credential: %w", err)
 	}
 
 	e := &entity{
@@ -248,32 +267,26 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 		Domain:         domain,
 		Created:        created,
 		Status:         statusUnconfirmed,
+		CredentialRaw:  raw,
 	}
 
-	err = c.exist(vc, e)
+	err = c.exist(e)
 	// no error means that we have credential in MT, no need to put it in the queue.
 	if err == nil {
-		logger.Infof("credential %q existence in the Merkle tree confirmed", vc.ID)
+		logger.Infof("credential %q existence in the ledger [%s] confirmed", vc.ID, e.Domain)
 
 		return nil
 	}
 
 	// if error is errExpired no need to put data in the queue.
 	if errors.Is(err, errExpired) {
-		logger.Errorf("credential %q existence in the Merkle tree not confirmed", vc.ID)
+		logger.Errorf("credential %q existence in the ledger [%s] not confirmed", vc.ID, e.Domain)
 
 		return err
 	}
 
-	logger.Warnf("credential %q existence: %v", vc.ID, err)
-	logger.Warnf("credential %q is not in the Merkle tree yet, entity will escape to the queue", vc.ID)
-
-	raw, err := vc.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("marshal credential: %w", err)
-	}
-
-	e.CredentialRaw = raw
+	logger.Warnf("Credential %q is not in the ledger [%s] yet: %s. Will check again later.",
+		vc.ID, e.Domain, err)
 
 	src, err := json.Marshal(e)
 	if err != nil {
@@ -288,4 +301,8 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 
 func key(id string) string {
 	return keyPrefix + id
+}
+
+func isLedgerTypeSupported(lt string) bool {
+	return lt == vctV1LedgerType
 }

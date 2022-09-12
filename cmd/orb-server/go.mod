@@ -100,7 +100,7 @@ require (
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 // indirect
-	github.com/trustbloc/vct v1.0.0-rc3 // indirect
+	github.com/trustbloc/vct v1.0.0-rc3.0.20220906151146-1ad4bdc032ed // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

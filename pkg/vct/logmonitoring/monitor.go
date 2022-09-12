@@ -19,6 +19,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
@@ -528,7 +529,7 @@ func verifySTHSignature(sth *command.GetSTHResponse, pubKey []byte) error {
 		return fmt.Errorf("pub key to handle: %w", err)
 	}
 
-	sigBytes, err := json.Marshal(command.TreeHeadSignature{
+	sigBytes, err := canonicalizer.MarshalCanonical(command.TreeHeadSignature{
 		Version:        command.V1,
 		SignatureType:  command.TreeHeadSignatureType,
 		Timestamp:      sth.Timestamp,

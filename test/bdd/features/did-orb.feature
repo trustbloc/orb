@@ -607,7 +607,7 @@ Feature:
     Then check success response contains "thirdKey"
 
       # wait for operation to expire
-    Then we wait 45 seconds
+    Then we wait 20 seconds
 
     Then container "orb-domain1" is started
     And container "orb2-domain1" is started

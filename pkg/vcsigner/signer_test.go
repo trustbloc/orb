@@ -108,6 +108,21 @@ func TestSigner_Sign(t *testing.T) {
 		require.Equal(t, 1, len(signedVC.Proofs))
 	})
 
+	t.Run("success - Ed25519Signature2020", func(t *testing.T) {
+		signingParamsWithED25519 := SigningParams{
+			VerificationMethod: "did:abc:123#key1",
+			SignatureSuite:     Ed25519Signature2020,
+			Domain:             "domain",
+		}
+
+		s, err := New(providers, signingParamsWithED25519)
+		require.NoError(t, err)
+
+		signedVC, err := s.Sign(&verifiable.Credential{ID: "http://example.edu/credentials/1872"})
+		require.NoError(t, err)
+		require.Equal(t, 1, len(signedVC.Proofs))
+	})
+
 	t.Run("error - invalid verification method", func(t *testing.T) {
 		invalidSigningParams := SigningParams{
 			VerificationMethod: "key1",
@@ -201,5 +216,47 @@ func TestSigner_verifySigningParams(t *testing.T) {
 		err := verifySigningParams(signingParams)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing domain")
+	})
+}
+
+func TestSigner_Context(t *testing.T) {
+	t.Run("JSONWebSignature2020", func(t *testing.T) {
+		s, err := New(&Providers{}, SigningParams{
+			SignatureSuite:     JSONWebSignature2020,
+			VerificationMethod: "did:abc:123#key1",
+			Domain:             "domain",
+		})
+		require.NoError(t, err)
+		require.Contains(t, s.Context(), CtxJWS)
+	})
+
+	t.Run("Ed25519Signature2018", func(t *testing.T) {
+		s, err := New(&Providers{}, SigningParams{
+			SignatureSuite:     Ed25519Signature2018,
+			VerificationMethod: "did:abc:123#key1",
+			Domain:             "domain",
+		})
+		require.NoError(t, err)
+		require.Contains(t, s.Context(), CtxEd25519Signature2018)
+	})
+
+	t.Run("Ed25519Signature2020", func(t *testing.T) {
+		s, err := New(&Providers{}, SigningParams{
+			SignatureSuite:     Ed25519Signature2020,
+			VerificationMethod: "did:abc:123#key1",
+			Domain:             "domain",
+		})
+		require.NoError(t, err)
+		require.Contains(t, s.Context(), CtxEd25519Signature2020)
+	})
+
+	t.Run("Not supported", func(t *testing.T) {
+		s, err := New(&Providers{}, SigningParams{
+			SignatureSuite:     "xxx",
+			VerificationMethod: "did:abc:123#key1",
+			Domain:             "domain",
+		})
+		require.NoError(t, err)
+		require.Empty(t, s.Context())
 	})
 }

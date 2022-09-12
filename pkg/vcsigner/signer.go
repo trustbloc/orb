@@ -30,8 +30,12 @@ const (
 	// JSONWebSignature2020 json web signature suite.
 	JSONWebSignature2020 = "JsonWebSignature2020"
 
-	ctxJWS                  = "https://w3id.org/security/suites/jws-2020/v1"
-	ctxEd25519Signature2020 = "https://w3id.org/security/suites/ed25519-2020/v1"
+	// CtxJWS is the JWS context.
+	CtxJWS = "https://w3id.org/security/suites/jws-2020/v1"
+	// CtxEd25519Signature2018 is the ED25519-2018 context.
+	CtxEd25519Signature2018 = "https://w3id.org/security/suites/ed25519-2018/v1"
+	// CtxEd25519Signature2020 is the ED25519-2020 context.
+	CtxEd25519Signature2020 = "https://w3id.org/security/suites/ed25519-2020/v1"
 
 	// AssertionMethod assertionMethod.
 	AssertionMethod = "assertionMethod"
@@ -145,13 +149,16 @@ func (s *Signer) Sign(vc *verifiable.Credential, opts ...Opt) (*verifiable.Crede
 
 // Context return context.
 func (s *Signer) Context() []string {
-	if s.params.SignatureSuite == JSONWebSignature2020 {
-		return []string{ctxJWS, ctxEd25519Signature2020}
-	} else if s.params.SignatureSuite == Ed25519Signature2020 {
-		return []string{ctxJWS, ctxEd25519Signature2020}
+	switch s.params.SignatureSuite {
+	case JSONWebSignature2020:
+		return []string{CtxJWS}
+	case Ed25519Signature2018:
+		return []string{CtxEd25519Signature2018}
+	case Ed25519Signature2020:
+		return []string{CtxEd25519Signature2020}
+	default:
+		return nil
 	}
-
-	return []string{}
 }
 
 func (s *Signer) getLinkedDataProofContext(opts ...Opt) (*verifiable.LinkedDataProofContext, error) {

@@ -26,6 +26,7 @@ import (
 	proofapi "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/vct"
 )
 
@@ -278,6 +279,8 @@ func addProofs(vc *verifiable.Credential, proofs []*proofapi.WitnessProof) (*ver
 			if !proofExists(vc.Proofs, witnessProof.Proof) {
 				logger.Debugf("Adding witness proof: %s", witnessProof.Proof)
 
+				vc.Context = addContextsFromProof(vc.Context, witnessProof)
+
 				vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 			} else {
 				logger.Debugf("Not adding witness proof since it already exists: %s", witnessProof.Proof)
@@ -296,4 +299,29 @@ func proofExists(proofs []verifiable.Proof, proof verifiable.Proof) bool {
 	}
 
 	return false
+}
+
+func addContextsFromProof(contexts []string, witnessProof vct.Proof) []string {
+	proofType := witnessProof.Proof["type"]
+
+	switch proofType {
+	case vcsigner.Ed25519Signature2020:
+		contexts = add(contexts, vcsigner.CtxEd25519Signature2020)
+	case vcsigner.Ed25519Signature2018:
+		contexts = add(contexts, vcsigner.CtxEd25519Signature2018)
+	case vcsigner.JSONWebSignature2020:
+		contexts = add(contexts, vcsigner.CtxJWS)
+	}
+
+	return contexts
+}
+
+func add(values []string, value string) []string {
+	for _, v := range values {
+		if v == value {
+			return values
+		}
+	}
+
+	return append(values, value)
 }

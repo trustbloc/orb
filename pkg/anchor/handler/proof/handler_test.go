@@ -37,7 +37,8 @@ import (
 
 const (
 	anchorID                 = "http://peer1.com/vc/62c153d1-a6be-400e-a6a6-5b700b596d9d"
-	witnessURL               = "http://example.com/orb/services"
+	witnessURL               = "http://orb.vct:8077/maple2020"
+	witness2URL              = "https://orb.domain2.com"
 	defaultPolicyCacheExpiry = 5 * time.Second
 	defaultClockSkew         = 10 * 12 * 30 * 24 * time.Hour // ten years
 )
@@ -60,7 +61,10 @@ func TestWitnessProofHandler(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
 
-	witnessIRI, outerErr := url.Parse(witnessURL)
+	witness1IRI, outerErr := url.Parse(witnessURL)
+	require.NoError(t, outerErr)
+
+	witness2IRI, outerErr := url.Parse(witness2URL)
 	require.NoError(t, outerErr)
 
 	configStore := &policymocks.PolicyStore{}
@@ -92,7 +96,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				{
 					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}, nil)
@@ -108,7 +112,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -137,7 +141,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				{
 					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}, nil)
@@ -158,8 +162,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		expiredTime := time.Now().Add(-60 * time.Second)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiredTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiredTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -187,9 +191,11 @@ func TestWitnessProofHandler(t *testing.T) {
 			[]*proofapi.WitnessProof{
 				{
 					Witness: &proofapi.Witness{
-						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						Type:   proofapi.WitnessTypeSystem,
+						URI:    vocab.NewURLProperty(witness1IRI),
+						HasLog: true,
 					},
+					Proof: []byte(witnessProofJSONWebSignature),
 				},
 			}, nil)
 
@@ -207,8 +213,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -242,8 +248,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -272,8 +278,16 @@ func TestWitnessProofHandler(t *testing.T) {
 			WitnessStore: &mockWitnessStore{WitnessProof: []*proofapi.WitnessProof{
 				{
 					Witness: &proofapi.Witness{
+						Type:   proofapi.WitnessTypeBatch,
+						URI:    vocab.NewURLProperty(witness2IRI),
+						HasLog: true,
+					},
+					Proof: []byte(witnessProofED25519Signature2020),
+				},
+				{
+					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}},
@@ -284,8 +298,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -320,8 +334,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -349,9 +363,19 @@ func TestWitnessProofHandler(t *testing.T) {
 			[]*proofapi.WitnessProof{
 				{
 					Witness: &proofapi.Witness{
-						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						Type:   proofapi.WitnessTypeBatch,
+						URI:    vocab.NewURLProperty(witness2IRI),
+						HasLog: true,
 					},
+					Proof: []byte(witnessProofED25519Signature2018),
+				},
+				{
+					Witness: &proofapi.Witness{
+						Type:   proofapi.WitnessTypeBatch,
+						URI:    vocab.NewURLProperty(witness2IRI),
+						HasLog: true,
+					},
+					Proof: []byte(witnessProofED25519Signature2018),
 				},
 			}, nil)
 
@@ -370,8 +394,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(duplicateWitnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofED25519Signature2020))
 		require.NoError(t, err)
 	})
 
@@ -400,7 +424,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				{
 					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}, nil)
@@ -420,8 +444,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed get verifiable credential from anchor: no replies in anchor link")
@@ -452,7 +476,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				{
 					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}, nil)
@@ -474,7 +498,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		expiredTime := time.Now()
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
 			expiredTime, []byte(witnessProofWithoutCreated))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get create time")
@@ -497,7 +521,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		// prepare witness store
-		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: vocab.NewURLProperty(witnessIRI)}}
+		witnesses := []*proofapi.Witness{{Type: proofapi.WitnessTypeSystem, URI: vocab.NewURLProperty(witness1IRI)}}
 		err = witnessStore.Put(al.Anchor().String(), witnesses)
 		require.NoError(t, err)
 
@@ -519,8 +543,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor [%s]: get status error", al.Anchor().String()))
@@ -558,8 +582,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor [%s]: second get status error", al.Anchor().String()))
@@ -596,8 +620,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to change status to 'completed' for anchor [%s]: add status error", al.Anchor().String()))
@@ -622,7 +646,7 @@ func TestWitnessProofHandler(t *testing.T) {
 				{
 					Witness: &proofapi.Witness{
 						Type: proofapi.WitnessTypeSystem,
-						URI:  vocab.NewURLProperty(witnessIRI),
+						URI:  vocab.NewURLProperty(witness1IRI),
 					},
 				},
 			}, nil)
@@ -646,8 +670,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -682,8 +706,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to evaluate witness policy for anchor [%s]: witness policy error", al.Anchor().String()))
@@ -717,8 +741,8 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
+			expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "status not found for anchor [hl:uEiABbKSeh3rb4MOjS1Era2_62bBPwP9EytPSg5tIkNYiSQ]")
 	})
@@ -750,7 +774,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, anchorID, expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get anchor link: get error")
 	})
@@ -786,7 +810,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -822,7 +846,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, al.Anchor().String(), expiryTime, []byte(witnessProof))
+		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -848,7 +872,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witnessIRI, anchorID, expiryTime, []byte(""))
+		err = proofHandler.HandleProof(witness1IRI, anchorID, expiryTime, []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor")
 	})
@@ -997,25 +1021,40 @@ const anchorLinksetWithoutReplies = `{
 }`
 
 //nolint:lll
-const witnessProof = `{
+const witnessProofJSONWebSignature = `{
   "@context": [
     "https://w3id.org/security/v1",
     "https://w3id.org/security/suites/jws-2020/v1"
   ],
   "proof": {
     "created": "2021-04-20T20:05:35.055Z",
-    "domain": "http://orb.vct:8077",
+    "domain": "http://orb.vct:8077/maple2020",
     "jws": "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..PahivkKT6iKdnZDpkLu6uwDWYSdP7frt4l66AXI8mTsBnjgwrf9Pr-y_BkEFqsOMEuwJ3DSFdmAp1eOdTxMfDQ",
     "proofPurpose": "assertionMethod",
-    "type": "Ed25519Signature2018",
+    "type": "JsonWebSignature2020",
     "verificationMethod": "did:web:abc.com#2130bhDAK-2jKsOXJiEDG909Jux4rcYEpFsYzVlqdAY"
   }
 }`
 
-const duplicateWitnessProof = `{
+const witnessProofED25519Signature2018 = `{
   "@context": [
     "https://w3id.org/security/v1",
-    "https://w3id.org/security/suites/jws-2020/v1"
+    "https://w3id.org/security/suites/ed25519-2018/v1"
+  ],
+  "proof": {
+      "created": "2022-03-15T21:21:54.744899145Z",
+      "domain": "https://orb.domain2.com",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "FX58osRrwU11IrUfhVTi0ucrNEq05Cv94CQNvd8SdoY66fAjwU2--m8plvxwVnXmxnlV23i6htkq4qI8qrDgAA",
+      "type": "Ed25519Signature2018",
+      "verificationMethod": "did:web:orb.domain2.com#orb2key"
+  }
+}`
+
+const witnessProofED25519Signature2020 = `{
+  "@context": [
+    "https://w3id.org/security/v1",
+    "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "proof": {
       "created": "2022-03-15T21:21:54.744899145Z",

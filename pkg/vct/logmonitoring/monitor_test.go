@@ -2799,28 +2799,28 @@ var storedEntries = []command.LeafEntry{
 //nolint:lll
 var sth0 = `{
   "tree_size": 0,
-  "timestamp": 1647375563852,
+  "timestamp": 1662493474864,
   "sha256_root_hash": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
-  "tree_head_signature": "eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiIySWhVNzUwQlkxWG5tY1A4OHlONlViZG1NaEhLMjdORWxHU0l0V2ZoNFV4Z2Z3WWhXTm8yYVVSSjk2Q3JsOWs3T09Ddm9zamxtME9rR2kwTjlVODJ5UT09In0="
+  "tree_head_signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FUUNJRnVneG8wSVZuZjh2K2Y2MG0rUUpVV3dKRU9tZ0IzMmoyVm9SRWFHWmJCdEFpQXZmRFRUSERwVG04bXJxZHdFRGFBZmRvMUhPU3dDRUpvNVBNaG1pbEFHU1E9PSJ9"
 }`
 
 //nolint:lll
 var sth4 = `{
   "tree_size": 4,
-  "timestamp": 1647375715221,
-  "sha256_root_hash": "GNW0EPlQ+QoKh76QtVqlM3HazFNndRLMolw3P4Ag510=",
-  "tree_head_signature": "eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiIyWVh4NHZxalZhSTdFMGhKdnhldW1mYXBwRU9RZWU2Qm51Wmc0WmNXM2JqdlF6ZGd5bmtsVVNZYm9DbFkreDNiRXFXSXlGdEtVaE9UUjMxckpwbXpDdz09In0="
+  "timestamp": 1662493604367,
+  "sha256_root_hash": "ERzuJAV+f4ul44vU0dxxS6nWr8yzb1CZu3JClS7aAIk=",
+  "tree_head_signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRmtrRkFTZUlWNWsxZzBrSzdONE80MEM5Ni9ITk9HTDV0Y0EvK0pRRVFMcEFpRUF3QWpsWFlmV3ZiZk90ajQxY1JoS29qeDkyZ29jMER5aXRleVVROVRIeEdzPSJ9"
 }`
 
 //nolint:lll
 var sth5 = `{
   "tree_size": 5,
-  "timestamp": 1647375720248,
-  "sha256_root_hash": "F662myG5fHA2ASVuWBfBLWxGZWgLz1LaB0Cl1GDKGOg=",
-  "tree_head_signature": "eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiJtSGVlUXRpNTh4UjZCcXFYWEtPekgwcW51N3RnckgwQ0NGRC9hT0F5WWdYU3IvdkttMHg5RDRpZFNXTElDeTJybEt1UVpmaUNPd3pTeDgxR0N3Wm5uQT09In0="
+  "timestamp": 1662493614262,
+  "sha256_root_hash": "WYRAkV3WzAAmg9jwnWhJyrA2+3BF4whEzi9BljqrcQY=",
+  "tree_head_signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRUZxMHNxNmN0ZUtUZmZKbzlMbmZua3pKS2Qxb3Z5cDNuMHZFZ05qdGQxMUFpRUFrQTZJQ1VMU1dRRGw4YTFsdkE0c29xQ3NnY1JnNEh5bE1PMDdYWGh1a21VPSJ9"
 }`
 
 const (
-	PublicKey          = `BJCTYDUeK7Z9COucTLYMcP1k5Olf524eJ8cxeXps6OovEUl2PBGVBT//pVtwgLQWp4FdupFXp9mMd5flDK6C3/Q=`
-	DifferentPublicKey = `BE8R63bF0Qasqj/j+vwz/s/X9Ofdi1Ts2ShTnAQbzuDzA+S0mOyR9wzthyh3+1Ynpo1/izm6wy75/SrX01U+kEA=`
+	PublicKey          = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA==` //nolint:lll
+	DifferentPublicKey = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYH7+MO+X0YPnGkvK1Nmy/4/r9HpgPPku9gjw3k3zOl+PTbu7iEL2gsiH/KHaFbeMoMcj5Tv0OkA/EKfuzd0imQ==` //nolint:lll
 )
