@@ -93,11 +93,9 @@ func (c *Client) GetLedgerType(uri string) (string, error) {
 		return "", fmt.Errorf("resolve domain: %w", err)
 	}
 
-	resource := fmt.Sprintf("%s/vct", domain)
-
-	jrd, err := c.ResolveWebFingerResource(domain, resource)
+	jrd, err := c.ResolveWebFingerResource(domain, uri)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", resource, err)
+		return "", fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", uri, err)
 	}
 
 	ltRaw, ok := jrd.Properties[command.LedgerType]
@@ -107,7 +105,7 @@ func (c *Client) GetLedgerType(uri string) (string, error) {
 
 	lt, ok := ltRaw.(string)
 	if !ok {
-		return "", fmt.Errorf("ledger type '%T' is not a string for Webfinger resource[%s]", ltRaw, resource)
+		return "", fmt.Errorf("ledger type '%T' is not a string for Webfinger resource[%s]", ltRaw, uri)
 	}
 
 	return lt, nil
@@ -222,14 +220,12 @@ func (c *Client) ResolveLog(uri string) (*url.URL, error) {
 		return nil, fmt.Errorf("resolve domain: %w", err)
 	}
 
-	resource := fmt.Sprintf("%s/vct", domain)
-
-	jrd, err := c.ResolveWebFingerResource(domain, resource)
+	jrd, err := c.ResolveWebFingerResource(domain, domain)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", resource, err)
+		return nil, fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", domain, err)
 	}
 
-	logger.Debugf("jrd response for vct for domain[%s]: %+v", domain, jrd)
+	logger.Debugf("jrd response for domain[%s]: %+v", domain, jrd)
 
 	var logURL string
 

@@ -606,9 +606,9 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		},
 			time.Now().Add(time.Minute),
 			"https://vct.com", time.Now(),
-		), "get ledger type: failed to resolve WebFinger resource[https://vct.com/vct]: get webfinger resource for domain"+
-			" [https://vct.com] and resource [https://vct.com/vct]: received unexpected status code."+
-			" URL [https://vct.com/.well-known/webfinger?resource=https://vct.com/vct], status code [500],"+
+		), "get ledger type: failed to resolve WebFinger resource[https://vct.com]: get webfinger resource for domain"+
+			" [https://vct.com] and resource [https://vct.com]: received unexpected status code."+
+			" URL [https://vct.com/.well-known/webfinger?resource=https://vct.com], status code [500],"+
 			" response body [internal server error]")
 
 		checkQueue(t, db, 0)

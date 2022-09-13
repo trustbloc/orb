@@ -1702,8 +1702,8 @@ github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5/g
 github.com/trustbloc/sidetree-core-go v1.0.0-rc3 h1:GRpnSLsmGIJRZV3kQdkbdrCnDBurnlMi6X8WfBhjxG4=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc3/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
 github.com/trustbloc/vct v1.0.0-rc2.0.20220820075241-03b2f1075dbc/go.mod h1:lGK5QNUTJRVUf47HEqTYBC+raauPVp2yfZOIo29XmDI=
-github.com/trustbloc/vct v1.0.0-rc3.0.20220906151146-1ad4bdc032ed h1:TneI3MQKyGm80NcvGHZiNFbec+RTfUN3ei7UC6s3GbI=
-github.com/trustbloc/vct v1.0.0-rc3.0.20220906151146-1ad4bdc032ed/go.mod h1:bvaPihQV7/8Qd7U8EehLq/Q+svAPVmgsYGw+lX1MqcE=
+github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c h1:+1mTL0k4T4I7HzdOyiEpp4Go7nhA/nvVtxICfU8uxI8=
+github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c/go.mod h1:bvaPihQV7/8Qd7U8EehLq/Q+svAPVmgsYGw+lX1MqcE=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

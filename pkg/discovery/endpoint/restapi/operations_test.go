@@ -255,13 +255,13 @@ func TestWebFinger(t *testing.T) {
 		},
 			&restapi.Providers{
 				WebfingerClient:      wfClient,
-				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com"},
+				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://base"},
 			})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/services/orb",
 			nil, nil, false)
 
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -270,8 +270,12 @@ func TestWebFinger(t *testing.T) {
 
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 
-		require.Equal(t, "vct", w.Links[0].Rel)
-		require.Equal(t, "http://vct.com", w.Links[0].Href)
+		require.Len(t, w.Links, 2)
+
+		require.Equal(t, "self", w.Links[0].Rel)
+		require.Equal(t, "http://base/services/orb", w.Links[0].Href)
+		require.Equal(t, "vct", w.Links[1].Rel)
+		require.Equal(t, "http://base", w.Links[1].Href)
 		require.Equal(t, "vct-v1", w.Properties[command.LedgerType])
 	})
 
@@ -293,13 +297,13 @@ func TestWebFinger(t *testing.T) {
 		},
 			&restapi.Providers{
 				WebfingerClient:      wfClient,
-				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://vct.com"},
+				LogEndpointRetriever: &mockLogEndpointProvider{LogURL: "http://base"},
 			})
 		require.NoError(t, err)
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base",
 			nil, nil, false)
 
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -308,8 +312,10 @@ func TestWebFinger(t *testing.T) {
 
 		require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &w))
 
-		require.Equal(t, "vct", w.Links[0].Rel)
-		require.Equal(t, "http://vct.com", w.Links[0].Href)
+		require.Equal(t, "self", w.Links[0].Rel)
+		require.Equal(t, "http://base", w.Links[0].Href)
+		require.Equal(t, "vct", w.Links[1].Rel)
+		require.Equal(t, "http://base", w.Links[1].Href)
 		require.Empty(t, w.Properties[command.LedgerType])
 	})
 
@@ -335,7 +341,7 @@ func TestWebFinger(t *testing.T) {
 
 		handler := getHandler(t, c, restapi.WebFingerEndpoint)
 
-		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/vct",
+		rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+"?resource=http://base/services/orb",
 			nil, nil, false)
 
 		require.Equal(t, http.StatusInternalServerError, rr.Code)

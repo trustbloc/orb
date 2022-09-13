@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	testLog = "vct.com"
+	testLog = "http://vct.com"
 
-	sthURL            = "vct.com/v1/get-sth"
-	getEntriesURL     = "vct.com/v1/get-entries"
-	sthConsistencyURL = "vct.com/v1/get-sth-consistency"
-	webfingerURL      = "vct.com/.well-known/webfinger"
+	sthURL            = "/v1/get-sth"
+	getEntriesURL     = "/v1/get-entries"
+	sthConsistencyURL = "/v1/get-sth-consistency"
+	webfingerURL      = "/.well-known/webfinger"
 )
 
 func TestNew(t *testing.T) {
