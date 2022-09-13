@@ -640,7 +640,8 @@ func (e *Steps) execute(argsStr string) error {
 }
 
 func execCMD(args ...string) (string, error) {
-	cmd := exec.Command(fmt.Sprintf("../../.build/extract/orb-cli-%s-amd64", runtime.GOOS), args...) // nolint: gosec
+	path := fmt.Sprintf("../../.build/extract/orb-cli-%s-%s", runtime.GOOS, runtime.GOARCH)
+	cmd := exec.Command(path, args...) // nolint: gosec
 
 	var out bytes.Buffer
 

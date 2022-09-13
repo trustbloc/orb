@@ -10,7 +10,6 @@ set -e
 
 echo "Generating orb Test PKI"
 
-# TODO re-use the sandbox CA script https://github.com/trustbloc/orb/issues/131
 cd /opt/workspace/orb
 mkdir -p test/bdd/fixtures/keys/tls
 tmp=$(mktemp)
