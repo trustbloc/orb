@@ -29,14 +29,24 @@ To run Orb outside of _make_, you can use _docker-compose_:
 2. `docker-compose up`
 This starts the Orb nodes and all dependent containers (wait for containers to start for about 15-20 seconds)
 
+## Tests
+
 A full set of integration tests is included, which demonstrate all the features of Orb, including adding followers/witnesses and
-creating/resolving sample DIDs. (These are located in ./test/bdd/features.) After Orb is started (using the instructions above) you may run the tests as follows:
+creating/resolving sample DIDs. (These are located in ./test/bdd/features.)
+
+### Prerequisites
+
+* [MongoDB Tools](https://www.mongodb.com/docs/database-tools/installation/installation), used by the _orb_domain_backup_and_restore_ test
+* The PostgreSQL Command Line Tools, which can be installed using the [PostgreSQL installer](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads). Note that you can install just them standalone without the PostgreSQL server, which isn't required since PostgreSQL is run via Docker for the BDD tests. The PostgreSQL Command Line Tools are used by the _vct_backup_and_restore_ test.
+* The PostgreSQL Command Line Tools added to your PATH.
+* The following entries in your `hosts` file: `127.0.0.1 orb.domain1.com` and '127.0.0.1 orb.vct'
+
+### Running BDD tests
+
+After Orb is started (using the instructions in the [Run](#run) section, above) you may run the tests as follows:
 1. `cd test/bdd`
 2. `DISABLE_COMPOSITION=true go test`
 
-(Note that _orb_domain_backup_and_restore_ test requires that
-[MongoDB Tools](https://www.mongodb.com/docs/database-tools/installation/installation/)
-is installed and _vct_backup_and_restore_ test requires that Command Line Tools, part of [PostgreSQL](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads) is installed.)
 
 You can run individual tests using the -run option, for example:
 

@@ -115,10 +115,12 @@ ifneq ($(strip $(DEV_IMAGES)),)
 	@docker rmi $(DEV_IMAGES) -f
 endif
 
+# TODO (#1479): frapsoft/openssl only has an amd64 version. While this does work under amd64 and arm64 Mac OS currently,
+#               we should add an arm64 version for systems that can only run arm64 code.
 .PHONY: generate-test-keys
 generate-test-keys:
 	@mkdir -p -p test/bdd/fixtures/keys/tls
-	@docker run -i --rm \
+	@docker run -i --platform linux/amd64 --rm \
 		-v $(abspath .):/opt/workspace/orb \
 		--entrypoint "/opt/workspace/orb/scripts/generate_test_keys.sh" \
 		frapsoft/openssl
@@ -137,6 +139,8 @@ extract-orb-cli-binaries:
 	@echo "Extract orb cli binaries"
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-linux-amd64.tar.gz;mv orb-cli-linux-amd64 ../../extract/
 	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-amd64.tar.gz;mv orb-cli-darwin-amd64 ../../extract/
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-linux-arm64.tar.gz;mv orb-cli-linux-arm64 ../../extract/
+	@mkdir -p .build/extract;cd .build/dist/bin;tar -zxf orb-cli-darwin-arm64.tar.gz;mv orb-cli-darwin-arm64 ../../extract/
 
 .PHONY: bdd-test-cas-local
 bdd-test-cas-local: generate-test-keys orb-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
