@@ -31,30 +31,29 @@ import (
 // nolint: lll
 const mockResponse = `{
   "svct_version": 0,
-  "id": "ztrZNwAslc6QFucuV8EUuxQ37zx0EikI1yLw/cx2xeE=",
-  "timestamp": 1661370164755,
+  "id": "c0JZOeGbBoFbJYTJpin68J2IhCHr1muAEi4QCY7cTko=",
+  "timestamp": 1663011476458,
   "extensions": "",
-  "signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRDg5VVU3ZG1PYVhIVnVvb2JNZU5OOUgxdDJNOWhPc0FtbGpRSjNwYmxVUkFpRUEvd1RyU1cyd29NVHZuam1vdTJsQmo4em9wRWVMc05ya3F1V3JDL09adFA4PSJ9"
-}`
+  "signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FUUNJQi9UbzRoQmY2cTFDQTlOM3FIdGNxcWM4NFlsSzQyL3Q0d1BiMUNka25ScUFpQjY3SENIZUdCUDZaQm5jYVhZSVJnbzJyRzIwbHV3dCtCVnNTS3FZOHgrM3c9PSJ9"
+}}`
 
 const mockVC = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
     "https://w3id.org/activityanchors/v1",
-    "https://w3id.org/security/suites/jws-2020/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "credentialSubject": {
-    "anchor": "hl:uEiAjZSjGBTq3vCDAGjDRNuNsQvyj4XfvWd3qI7EBZN1NQA",
-    "href": "hl:uEiC43VX3UtAriY_tbmjmqXWPzwYMYyy3cEWr-u3zF_EiDA",
+    "anchor": "hl:uEiBBRKO7tkspK2CouYkePBD2QJnIFpmCe5SGwocNDhntYw",
+    "href": "hl:uEiDMvU1CIM_AHXNP1TwIlqxirTzlXIajvbM47I8p4_VpwQ",
     "profile": "https://w3id.org/orb#v0",
     "rel": "linkset",
     "type": [
       "AnchorLink"
     ]
   },
-  "id": "https://orb.domain1.com/vc/fd308ff6-3211-442c-a3d0-2459bef9e3e1",
-  "issuanceDate": "2022-08-24T19:42:44.745875825Z",
+  "id": "https://orb.domain1.com/vc/1fbd3398-e43c-4e7c-946d-5177824d66ca",
+  "issuanceDate": "2022-09-12T19:37:56.451081538Z",
   "issuer": "https://orb.domain1.com",
   "type": [
     "VerifiableCredential",
@@ -79,7 +78,7 @@ func TestClient_Witness(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
-					`"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA=="}}` //nolint:lll
+					`"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfCc/5CT+K59Dv7+r+MiVX+ARfMeFK9CwdLlicTyjoNJdhFfP4/wnVfXg+vLjrqBYFsYzgokTSTZBSk72WF1RrQ=="}}` //nolint:lll
 
 				return &http.Response{
 					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
@@ -107,7 +106,7 @@ func TestClient_Witness(t *testing.T) {
 		timestampTime, err := time.Parse(time.RFC3339, p.Proof["created"].(string))
 		require.NoError(t, err)
 
-		require.Equal(t, int64(1661370164755000000), timestampTime.UnixNano())
+		require.Equal(t, int64(1663011476458000000), timestampTime.UnixNano())
 	})
 
 	t.Run("Error - endpoint retriever error", func(t *testing.T) {

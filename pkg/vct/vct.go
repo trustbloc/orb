@@ -228,7 +228,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 
 	resp, err := vctClient.AddVC(context.Background(), anchorCred)
 	if err != nil {
-		return nil, orberrors.NewTransientf("failed to add VC: %w", err)
+		return nil, orberrors.NewTransientf("add VC to log [%s]: %w", endpoint, err)
 	}
 
 	c.metrics.WitnessAddVC(time.Since(addVCStartTime))
@@ -284,7 +284,7 @@ func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,
 	verifyVCTStartTime := time.Now()
 
 	// verifies the signature by given timestamp from the proof and original credentials.
-	err = vct.VerifyVCTimestampSignature(resp.Signature, pubKey, timestamp, vc)
+	err = vct.VerifyVCTimestampSignature(resp.Signature, pubKey, timestamp, anchorCred, c.documentLoader)
 	if err != nil {
 		return nil, fmt.Errorf("verify VC timestamp signature: %w", err)
 	}

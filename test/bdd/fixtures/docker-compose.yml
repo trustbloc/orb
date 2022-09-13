@@ -695,8 +695,8 @@ services:
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - RESOLVE_FROM_ANCHOR_ORIGIN=true
       - VERIFY_LATEST_FROM_ANCHOR_ORIGIN=true
-      - UNPUBLISHED_OPERATION_LIFETIME=30s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
-      - DATA_EXPIRY_CHECK_INTERVAL=15s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
+      - UNPUBLISHED_OPERATION_LIFETIME=10s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
+      - DATA_EXPIRY_CHECK_INTERVAL=2s # This is set to a somewhat low value in order to speed up one of the BDD tests which relies on it
       - ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD=3s
       - ANCHOR_STATUS_MONITORING_INTERVAL=2s
       - MAX_WITNESS_DELAY=25s
@@ -925,7 +925,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc/vct-log-server:v1.0.0-rc3
+    image: ghcr.io/trustbloc-cicd/vct-log-server:v1.0.0-rc4-snapshot-1ad4bdc
     restart: always
     command:
       - --quota_system=noop
@@ -943,7 +943,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc/vct-log-signer:v1.0.0-rc3
+    image: ghcr.io/trustbloc-cicd/vct-log-signer:v1.0.0-rc4-snapshot-1ad4bdc
     restart: always
     command:
       - --quota_system=noop
@@ -1010,7 +1010,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc/vct:v1.0.0-rc3
+    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc4-snapshot-1ad4bdc
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
@@ -1031,7 +1031,7 @@ services:
     ports:
       - 8077:8077
     depends_on:
-      - mongodb.shared.com
+      -   orb.postgres
     command: start
     networks:
       orb_net:

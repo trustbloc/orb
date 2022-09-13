@@ -58,7 +58,12 @@ func executeVerify(cmd *cobra.Command, vctClientProvider vctClientProvider) erro
 		return err
 	}
 
-	vc, err := getVC(cmd, anchorHash, casURL, verbose)
+	docLoader, err := newDocumentLoader()
+	if err != nil {
+		return fmt.Errorf("new document loader: %w", err)
+	}
+
+	vc, err := getVC(cmd, anchorHash, casURL, docLoader, verbose)
 	if err != nil {
 		return err
 	}
@@ -72,10 +77,16 @@ func executeVerify(cmd *cobra.Command, vctClientProvider vctClientProvider) erro
 		return fmt.Errorf("new HTTP client: %w", err)
 	}
 
+	vcBytes, err := json.Marshal(vc)
+	if err != nil {
+		return fmt.Errorf("marshal VC: %w", err)
+	}
+
 	var verifyResults []*verifyResult
 
 	for _, proof := range vc.Proofs {
-		result, e := verifyProof(cmd.OutOrStdout(), vc, proof, httpClient, authToken, verbose, vctClientProvider)
+		result, e := verifyProof(cmd.OutOrStdout(), vcBytes, proof, httpClient, authToken,
+			vctClientProvider, docLoader, verbose)
 		if e != nil {
 			common.Println(cmd.OutOrStdout(), e.Error())
 
@@ -104,21 +115,20 @@ type vctClientProvider interface {
 	GetVCTClient(domain string, opts ...vct.ClientOpt) vctClient
 }
 
-func verifyProof(out io.Writer, vc *verifiable.Credential, proof verifiable.Proof, httpClient *http.Client,
-	authToken string, verbose bool, vctClientProvider vctClientProvider,
+func verifyProof(out io.Writer, vcBytes []byte, proof verifiable.Proof, httpClient *http.Client,
+	authToken string, vctClientProvider vctClientProvider, docLoader jsonld.DocumentLoader, verbose bool,
 ) (*verifyResult, error) {
-	domain, proofValue, createdTime, err := getVCParameters(proof)
+	domain, createdTime, err := getVCParameters(proof)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &verifyResult{
-		Domain:     domain,
-		ProofValue: proofValue,
+		Domain: domain,
 	}
 
 	// calculates leaf hash for given timestamp and initial credential to be able to query proof by hash.
-	leafHash, err := vct.CalculateLeafHash(uint64(createdTime.UnixNano()/int64(time.Millisecond)), vc)
+	leafHash, err := vct.CalculateLeafHash(uint64(createdTime.UnixNano()/int64(time.Millisecond)), vcBytes, docLoader)
 	if err != nil {
 		result.Error = fmt.Errorf("calculate leaf hash: %w", err).Error()
 
@@ -202,7 +212,8 @@ func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, ve
 	return casURL, anchorHash, authToken, verbose, nil
 }
 
-func getVC(cmd *cobra.Command, anchorHash, casURL string, verbose bool) (*verifiable.Credential, error) {
+func getVC(cmd *cobra.Command, anchorHash, casURL string, docLoader jsonld.DocumentLoader,
+	verbose bool) (*verifiable.Credential, error) {
 	anchorLinksetBytes, err := common.SendHTTPRequest(cmd, nil, http.MethodGet,
 		fmt.Sprintf("%s/%s", casURL, anchorHash))
 	if err != nil {
@@ -218,11 +229,6 @@ func getVC(cmd *cobra.Command, anchorHash, casURL string, verbose bool) (*verifi
 	err = json.Unmarshal(anchorLinksetBytes, anchorLinkset)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal anchor linkset: %w", err)
-	}
-
-	docLoader, err := newDocumentLoader()
-	if err != nil {
-		return nil, fmt.Errorf("new document loader: %w", err)
 	}
 
 	vc, err := util.VerifiableCredentialFromAnchorLink(anchorLinkset.Link(),
@@ -282,28 +288,23 @@ func createJSONLDDocumentLoader(ldStore *ldStoreProvider) (jsonld.DocumentLoader
 	return loader, nil
 }
 
-func getVCParameters(proof verifiable.Proof) (domain, proofValue string, created time.Time, err error) {
+func getVCParameters(proof verifiable.Proof) (domain string, created time.Time, err error) {
 	d, ok := proof["domain"]
 	if !ok {
-		return "", "", time.Time{}, errors.New("'domain' not found in VC")
-	}
-
-	v, ok := proof["proofValue"]
-	if !ok {
-		return "", "", time.Time{}, errors.New("'proofValue' not found in VC")
+		return "", time.Time{}, errors.New("'domain' not found in VC")
 	}
 
 	c, ok := proof["created"]
 	if !ok {
-		return "", "", time.Time{}, errors.New("'created' not found in VC")
+		return "", time.Time{}, errors.New("'created' not found in VC")
 	}
 
 	createdTime, err := time.Parse(time.RFC3339, c.(string))
 	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("parse 'created': %w", err)
+		return "", time.Time{}, fmt.Errorf("parse 'created': %w", err)
 	}
 
-	return d.(string), v.(string), createdTime, nil
+	return d.(string), createdTime, nil
 }
 
 type ldStoreProvider struct {
@@ -320,12 +321,11 @@ func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStor
 }
 
 type verifyResult struct {
-	Domain     string   `json:"domain"`
-	ProofValue string   `json:"proofValue"`
-	Found      bool     `json:"found"`
-	Index      int64    `json:"leafIndex"`
-	AuditPath  [][]byte `json:"auditPath"`
-	Error      string   `json:"error,omitempty"`
+	Domain    string   `json:"domain"`
+	Found     bool     `json:"found"`
+	Index     int64    `json:"leafIndex"`
+	AuditPath [][]byte `json:"auditPath"`
+	Error     string   `json:"error,omitempty"`
 }
 
 type clientProvider struct{}
