@@ -382,6 +382,8 @@ func (o *Operation) nodeInfoHandler(rw http.ResponseWriter, r *http.Request) {
 
 func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, resource string) {
 	switch {
+	case resource == o.baseURL || resource == o.serviceEndpointURL.String():
+		o.handleDomainQuery(rw, resource)
 	case resource == fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath):
 		resp := &JRD{
 			Subject:    resource,
@@ -417,8 +419,6 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 		writeResponse(rw, resp)
 	case strings.HasPrefix(resource, fmt.Sprintf("%s%s", o.baseURL, o.webCASPath)):
 		o.handleWebCASQuery(rw, resource)
-	case strings.HasPrefix(resource, fmt.Sprintf("%s/vct", o.baseURL)):
-		o.handleVCTQuery(rw, resource)
 	case strings.HasPrefix(resource, "did:orb:"):
 		o.handleDIDOrbQuery(rw, resource)
 	// TODO (#536): Support resources other than did:orb.
@@ -475,10 +475,16 @@ func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 	writeResponse(rw, resp)
 }
 
-func (o *Operation) handleVCTQuery(rw http.ResponseWriter, resource string) {
+func (o *Operation) handleDomainQuery(rw http.ResponseWriter, resource string) {
 	resp := &JRD{
 		Subject: resource,
 	}
+
+	resp.Links = append(resp.Links, Link{
+		Rel:  selfRelation,
+		Type: jrdJSONType,
+		Href: resource,
+	})
 
 	logURL, err := o.logEndpointRetriever.GetLogEndpoint()
 	if err != nil && !errors.Is(err, vct.ErrDisabled) && !errors.Is(err, vct.ErrLogEndpointNotConfigured) {

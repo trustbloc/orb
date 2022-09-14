@@ -925,7 +925,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc-cicd/vct-log-server:v1.0.0-rc4-snapshot-1ad4bdc
+    image: ghcr.io/trustbloc-cicd/vct-log-server:v1.0.0-rc4-snapshot-ef2141d
     restart: always
     command:
       - --quota_system=noop
@@ -943,7 +943,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc-cicd/vct-log-signer:v1.0.0-rc4-snapshot-1ad4bdc
+    image: ghcr.io/trustbloc-cicd/vct-log-signer:v1.0.0-rc4-snapshot-ef2141d
     restart: always
     command:
       - --quota_system=noop
@@ -1010,10 +1010,12 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc4-snapshot-1ad4bdc
+    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc4-snapshot-ef2141d
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
+      - VCT_METRICS_HOST=172.20.0.14:8078
+      - VCT_BASE_URL=http://orb.vct:8077
       - VCT_LOGS=maple2020:rw@orb.trillian.log.server:8090,maple2022:rw@orb.trillian.log.server:8090
       - VCT_KMS_TYPE=aws
       - VCT_KMS_ENDPOINT=http://aws-kms:8020
