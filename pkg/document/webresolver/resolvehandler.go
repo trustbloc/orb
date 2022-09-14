@@ -81,7 +81,9 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 		return nil, orberrors.ErrContentNotFound
 	}
 
-	webDID := fmt.Sprintf("did:web:%s:scid:%s", r.domain.Host, id)
+	domainWithPort := strings.ReplaceAll(r.domain.Host, ":", "%3A")
+
+	webDID := fmt.Sprintf("did:web:%s:scid:%s", domainWithPort, id)
 
 	didWebDoc, err := diddoctransformer.WebDocumentFromOrbDocument(webDID, localResponse)
 	if err != nil {

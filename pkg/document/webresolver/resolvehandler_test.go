@@ -63,6 +63,33 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		fmt.Println(string(responseBytes))
 	})
 
+	t.Run("success - host with port", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		delete(rr.Document, document.AlsoKnownAs)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		testDomainURLWithPort, err := url.Parse("https://orb.domain1.com:9090")
+		require.NoError(t, err)
+
+		handler := NewResolveHandler(testDomainURLWithPort,
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument(testSuffix)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+
+		require.Equal(t, "did:web:orb.domain1.com%3A9090:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
+			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
+		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+	})
+
 	t.Run("success - unpublished did (orb unpublished ID added to also known as)", func(t *testing.T) {
 		var unpublishedResolutionResult document.ResolutionResult
 		err := json.Unmarshal([]byte(unpublishedDIDResolutionResult), &unpublishedResolutionResult)
