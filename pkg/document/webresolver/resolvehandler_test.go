@@ -25,15 +25,19 @@ const (
 	orbPrefix           = "did:orb"
 	orbUnpublishedLabel = "uAAA"
 
-	testDomain            = "https://orb.domain1.com"
-	testSuffix            = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
-	testDeactivatedSuffix = "EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg"
-	testUnpublishedSuffix = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
+	testDomain = "https://orb.domain1.com"
+
+	testDID            = "did:web:orb.domain1.com:scid:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
+	testDIDWithPort    = "did:web:orb.domain1.com%3A9090:scid:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
+	testDeactivatedDID = "did:web:orb.domain1.com:scid:EiBJbibcREB2mPep9PfIyKHPIueuacu8dtPKrLPzq5aSdg"
+	testUnpublishedDID = "did:web:orb.domain1.com:scid:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
 )
 
 func TestResolveHandler_Resolve(t *testing.T) {
 	testDomainURL, err := url.Parse(testDomain)
 	require.NoError(t, err)
+
+	allowedDomains := []*url.URL{testDomainURL}
 
 	t.Run("success - published did with also known as", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
@@ -42,15 +46,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDID, response.Document.ID())
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
@@ -75,15 +79,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		testDomainURLWithPort, err := url.Parse("https://orb.domain1.com:9090")
 		require.NoError(t, err)
 
-		handler := NewResolveHandler(testDomainURLWithPort,
+		handler := NewResolveHandler([]*url.URL{testDomainURLWithPort},
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDIDWithPort)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com%3A9090:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDIDWithPort, response.Document.ID())
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
@@ -97,15 +101,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(&unpublishedResolutionResult, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testUnpublishedSuffix)
+		response, err := handler.ResolveDocument(testUnpublishedDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testUnpublishedSuffix, response.Document.ID())
+		require.Equal(t, testUnpublishedDID, response.Document.ID())
 		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
@@ -119,38 +123,6 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		fmt.Println(string(responseBytes))
 	})
 
-	t.Run("success - published did but domain not in alsoKnownAs (orb canonical ID added to also known as)", func(t *testing.T) { //nolint:lll
-		rr, err := getTestResolutionResult()
-		require.NoError(t, err)
-
-		orbResolver := &mocks.OrbResolver{}
-		orbResolver.ResolveDocumentReturns(rr, nil)
-
-		otherDomainURL, err := url.Parse("https://other.com")
-		require.NoError(t, err)
-
-		handler := NewResolveHandler(otherDomainURL,
-			orbPrefix, orbUnpublishedLabel, orbResolver,
-			&orbmocks.MetricsProvider{})
-
-		response, err := handler.ResolveDocument(testSuffix)
-		require.NoError(t, err)
-		require.NotNil(t, response)
-
-		responseBytes, err := json.Marshal(response)
-		require.NoError(t, err)
-
-		fmt.Println(string(responseBytes))
-
-		require.Equal(t, "did:web:other.com:scid:"+testSuffix, response.Document.ID())
-		require.Equal(t, 4, len(response.Document[document.AlsoKnownAs].([]string)))
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
-			"did:web:orb.domain1.com:scid:"+testSuffix)
-		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
-			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
-	})
-
 	t.Run("success - also known as does not exist in the document", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
 		require.NoError(t, err)
@@ -160,15 +132,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDID, response.Document.ID())
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
@@ -184,15 +156,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDID, response.Document.ID())
 		require.Equal(t, 2, len(response.Document[document.AlsoKnownAs].([]string)))
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
@@ -208,15 +180,15 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDID, response.Document.ID())
 		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "https://myblog.example/")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
@@ -233,21 +205,121 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		require.Equal(t, "did:web:orb.domain1.com:scid:"+testSuffix, response.Document.ID())
+		require.Equal(t, testDID, response.Document.ID())
 		require.Equal(t, 3, len(response.Document[document.AlsoKnownAs].([]string)))
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0], "other.com")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
 			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+	})
+
+	t.Run("error - invalid DID", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		handler := NewResolveHandler(allowedDomains,
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument("xyz:web:orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(),
+			"invalid did: xyz:web:orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw. Make sure it conforms to the DID syntax") //nolint:lll
+	})
+
+	t.Run("error - invalid DID (missing method specific part)", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		handler := NewResolveHandler(allowedDomains,
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument("did:web:orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(),
+			"method specific id[orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw] must have three parts")
+	})
+
+	t.Run("error - invalid DID (missing scid)", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		handler := NewResolveHandler(allowedDomains,
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument("did:web:orb.domain1.com:xyz:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
+		require.Error(t, err)
+		require.Nil(t, response)
+		require.Contains(t, err.Error(),
+			"method specific id[orb.domain1.com:xyz:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw] must contain scid")
+	})
+
+	t.Run("error - domain not supported", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		delete(rr.Document, document.AlsoKnownAs)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		domainURL, err := url.Parse("https://other.com")
+		require.NoError(t, err)
+
+		handler := NewResolveHandler([]*url.URL{domainURL},
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument(testDID)
+		require.Error(t, err)
+		require.Nil(t, response)
+
+		require.Contains(t, err.Error(), "domain not supported: orb.domain1.com")
+	})
+
+	t.Run("error - domain with port not supported", func(t *testing.T) {
+		rr, err := getTestResolutionResult()
+		require.NoError(t, err)
+
+		delete(rr.Document, document.AlsoKnownAs)
+
+		orbResolver := &mocks.OrbResolver{}
+		orbResolver.ResolveDocumentReturns(rr, nil)
+
+		domainURL, err := url.Parse("https://orb.domain1.com")
+		require.NoError(t, err)
+
+		handler := NewResolveHandler([]*url.URL{domainURL},
+			orbPrefix, orbUnpublishedLabel, orbResolver,
+			&orbmocks.MetricsProvider{})
+
+		response, err := handler.ResolveDocument(testDIDWithPort)
+		require.Error(t, err)
+		require.Nil(t, response)
+
+		require.Contains(t, err.Error(), "domain not supported: orb.domain1.com%3A9090")
 	})
 
 	t.Run("error - deactivated document returns not found error", func(t *testing.T) {
@@ -257,11 +329,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(&deactivatedResolutionResult, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testDeactivatedSuffix)
+		response, err := handler.ResolveDocument(testDeactivatedDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "content not found")
@@ -276,11 +348,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "unexpected interface 'float64' for also known as")
@@ -295,11 +367,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(rr, nil)
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "unexpected interface 'int' for equivalentId")
@@ -309,11 +381,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(nil, fmt.Errorf("orb resolver error"))
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "orb resolver error")
@@ -323,11 +395,11 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		orbResolver := &mocks.OrbResolver{}
 		orbResolver.ResolveDocumentReturns(nil, fmt.Errorf("not found"))
 
-		handler := NewResolveHandler(testDomainURL,
+		handler := NewResolveHandler(allowedDomains,
 			orbPrefix, orbUnpublishedLabel, orbResolver,
 			&orbmocks.MetricsProvider{})
 
-		response, err := handler.ResolveDocument(testSuffix)
+		response, err := handler.ResolveDocument(testDID)
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(), "content not found")

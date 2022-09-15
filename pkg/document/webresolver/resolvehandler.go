@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
@@ -28,7 +29,7 @@ type ResolveHandler struct {
 	orbPrefix              string
 	orbUnpublishedDIDLabel string
 
-	domain *url.URL
+	allowedDomains map[string]bool
 
 	metrics metricsProvider
 }
@@ -43,10 +44,17 @@ type metricsProvider interface {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(domain *url.URL, orbPrefix, orbUnpublishedLabel string, resolver orbResolver,
+func NewResolveHandler(domains []*url.URL, orbPrefix, orbUnpublishedLabel string, resolver orbResolver,
 	metrics metricsProvider) *ResolveHandler {
+	allowedDomains := make(map[string]bool)
+
+	for _, domain := range domains {
+		domainWithPort := strings.ReplaceAll(domain.Host, ":", "%3A")
+		allowedDomains[domainWithPort] = true
+	}
+
 	rh := &ResolveHandler{
-		domain:                 domain,
+		allowedDomains:         allowedDomains,
 		orbPrefix:              orbPrefix,
 		orbResolver:            resolver,
 		metrics:                metrics,
@@ -64,8 +72,34 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 		r.metrics.WebDocumentResolveTime(time.Since(startTime))
 	}()
 
+	didURL, err := did.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := strings.Split(didURL.MethodSpecificID, ":")
+
+	// there has to be three parts: domain+port, scid, suffix
+	const methodSpecificParts = 3
+
+	if len(parts) != methodSpecificParts {
+		return nil, fmt.Errorf("method specific id[%s] must have three parts", didURL.MethodSpecificID)
+	}
+
+	if parts[1] != "scid" {
+		return nil, fmt.Errorf("method specific id[%s] must contain scid", didURL.MethodSpecificID)
+	}
+
+	hostWithPort := parts[0]
+
+	if _, ok := r.allowedDomains[hostWithPort]; !ok {
+		return nil, fmt.Errorf("domain not supported: %s", hostWithPort)
+	}
+
+	suffix := parts[2]
+
 	unpublishedOrbDID := r.orbPrefix + docutil.NamespaceDelimiter +
-		r.orbUnpublishedDIDLabel + docutil.NamespaceDelimiter + id
+		r.orbUnpublishedDIDLabel + docutil.NamespaceDelimiter + suffix
 
 	localResponse, err := r.orbResolver.ResolveDocument(unpublishedOrbDID)
 	if err != nil {
@@ -81,11 +115,7 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 		return nil, orberrors.ErrContentNotFound
 	}
 
-	domainWithPort := strings.ReplaceAll(r.domain.Host, ":", "%3A")
-
-	webDID := fmt.Sprintf("did:web:%s:scid:%s", domainWithPort, id)
-
-	didWebDoc, err := diddoctransformer.WebDocumentFromOrbDocument(webDID, localResponse)
+	didWebDoc, err := diddoctransformer.WebDocumentFromOrbDocument(id, localResponse)
 	if err != nil {
 		return nil, err
 	}

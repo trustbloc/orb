@@ -875,6 +875,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "allowed-origins-cache-expiration: invalid value [xxx]")
 	})
+
+	t.Run("allowed DID web domains", func(t *testing.T) {
+		restoreEnv := setEnv(t, allowedDIDWebDomainsEnvKey, ":domain.com")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "allowed-did-web-domains: parse \":domain.com\": missing protocol scheme")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {

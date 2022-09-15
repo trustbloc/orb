@@ -424,12 +424,20 @@ Feature:
     Given the authorization bearer token for "GET" requests to path "/sidetree/v1/identifiers" is set to "READ_TOKEN"
     And the authorization bearer token for "POST" requests to path "/sidetree/v1/operations" is set to "ADMIN_TOKEN"
 
-    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document and the suffix is saved to variable "didSuffix"
     Then check success response contains "#interimDID"
     Then we wait 2 seconds
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with interim did
     Then check success response contains "canonicalId"
+
+    # the domain1 is enabled by default, domain2 and domain3 are configured in allowed did:web domains
+    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/did:web:orb.domain1.com:scid:${didSuffix}"
+    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/did:web:orb.domain2.com:scid:${didSuffix}"
+    When an HTTP GET is sent to "https://orb.domain1.com/sidetree/v1/identifiers/did:web:orb.domain3.com:scid:${didSuffix}"
+
+    # the domain1 is enabled by default, domain2 and domain3 are configured; other.com will fail
+    When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:web:other.com:scid:${didSuffix}" and the returned status code is 500
 
     When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add service endpoint with ID "newService" to DID document
     Then check for request success
@@ -481,7 +489,7 @@ Feature:
     When an HTTP GET is sent to "https://orb.domain3.com/scid/non-existent/did.json" and the returned status code is 404
 
     # test did:web document not found for identifiers endpoint
-    When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:web:other.com:scid:suffix" and the returned status code is 404
+    When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:web:other.com:scid:suffix" and the returned status code is 500
     When an HTTP GET is sent to "https://orb.domain3.com/sidetree/v1/identifiers/did:web:orb.domain3.com:scid:suffix" and the returned status code is 404
 
     # test invalid did method
