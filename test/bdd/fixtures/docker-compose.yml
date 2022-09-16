@@ -32,6 +32,7 @@ services:
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       - ALLOWED_ORIGINS_CACHE_EXPIRATION=1m
+      - ALLOWED_DID_WEB_DOMAINS=https://orb.domain2.com,https://orb.domain3.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
@@ -185,6 +186,7 @@ services:
       - DID_NAMESPACE=did:orb
       - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       - ALLOWED_ORIGINS_CACHE_EXPIRATION=1m
+      - ALLOWED_DID_WEB_DOMAINS=https://orb.domain2.com,https://orb.domain3.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}

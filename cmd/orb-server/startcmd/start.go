@@ -1205,7 +1205,14 @@ func startOrbServices(parameters *orbParameters) error {
 		logEndpoint = &noOpRetriever{}
 	}
 
-	webResolveHandler := webresolver.NewResolveHandler(u, parameters.didNamespace,
+	// current external endpoint is always allowed
+	allowedDIDWebDomains := []*url.URL{u}
+
+	if len(parameters.allowedDIDWebDomains) > 0 {
+		allowedDIDWebDomains = append(allowedDIDWebDomains, parameters.allowedDIDWebDomains...)
+	}
+
+	webResolveHandler := webresolver.NewResolveHandler(allowedDIDWebDomains, parameters.didNamespace,
 		unpublishedDIDLabel, orbResolveHandler, metrics.Get())
 
 	// create discovery rest api

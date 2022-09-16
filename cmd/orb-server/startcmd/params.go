@@ -429,6 +429,10 @@ const (
 	allowedOriginsCacheExpirationFlagUsage = "The expiration time of the allowed origins cache. " +
 		commonEnvVarUsageText + allowedOriginsCacheExpirationEnvKey
 
+	allowedDIDWebDomainsFlagName  = "allowed-did-web-domains"
+	allowedDIDWebDomainsEnvKey    = "ALLOWED_DID_WEB_DOMAINS"
+	allowedDIDWebDomainsFlagUsage = "Allowed domains for did:web method resolution. " + commonEnvVarUsageText + allowedDIDWebDomainsEnvKey
+
 	maxWitnessDelayFlagName      = "max-witness-delay"
 	maxWitnessDelayEnvKey        = "MAX_WITNESS_DELAY"
 	maxWitnessDelayFlagShorthand = "w"
@@ -700,6 +704,7 @@ type orbParameters struct {
 	methodContext                           []string
 	baseEnabled                             bool
 	allowedOrigins                          []string
+	allowedDomains                          []string
 	allowedOriginsCacheExpiration           time.Duration
 	tlsParams                               *tlsParameters
 	anchorCredentialParams                  *anchorCredentialParams
@@ -756,6 +761,7 @@ type orbParameters struct {
 	currentSidetreeProtocolVersion          string
 	kmsParams                               *kmsParameters
 	requestTokens                           map[string]string
+	allowedDIDWebDomains                    []*url.URL
 }
 
 type anchorCredentialParams struct {
@@ -1204,6 +1210,22 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", allowedOriginsCacheExpirationFlagName, err)
 	}
 
+	allowedDIDWebDomainsArray, err := cmdutils.GetUserSetVarFromArrayString(cmd, allowedDIDWebDomainsFlagName, allowedDIDWebDomainsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var allowedDIDWebDomains []*url.URL
+
+	for _, domain := range allowedDIDWebDomainsArray {
+		domainURL, err := url.Parse(domain)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", allowedDIDWebDomainsFlagName, err)
+		}
+
+		allowedDIDWebDomains = append(allowedDIDWebDomains, domainURL)
+	}
+
 	dataURIMediaType, err := cmdutils.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -1429,6 +1451,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didAliases:                              didAliases,
 		allowedOrigins:                          allowedOrigins,
 		allowedOriginsCacheExpiration:           allowedOriginsCacheExpiration,
+		allowedDIDWebDomains:                    allowedDIDWebDomains,
 		casType:                                 casType,
 		ipfsURL:                                 ipfsURL,
 		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
@@ -2088,6 +2111,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)
 	startCmd.Flags().StringArrayP(allowedOriginsFlagName, allowedOriginsFlagShorthand, []string{}, allowedOriginsFlagUsage)
+	startCmd.Flags().StringArrayP(allowedDIDWebDomainsFlagName, "", []string{}, allowedDIDWebDomainsFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialURLFlagName, anchorCredentialURLFlagShorthand, "", anchorCredentialURLFlagUsage)

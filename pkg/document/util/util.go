@@ -49,17 +49,17 @@ func GetHint(id, namespace, suffix string) (string, error) {
 func BetweenStrings(value, first, second string) (string, error) {
 	posFirst := strings.Index(value, first)
 	if posFirst == -1 {
-		return "", fmt.Errorf("string '%s' doesn't contain first string '%s'", value, first)
+		return "", fmt.Errorf("string[%s] doesn't contain string[%s]", value, first)
 	}
 
 	posSecond := strings.Index(value, second)
 	if posSecond == -1 {
-		return "", fmt.Errorf("string '%s' doesn't contain second string '%s'", value, second)
+		return "", fmt.Errorf("string[%s] doesn't contain string[%s]", value, second)
 	}
 
 	posFirstAdjusted := posFirst + len(first)
 	if posFirstAdjusted >= posSecond {
-		return "", fmt.Errorf("second string '%s' is before first string '%s' in string '%s'", second, first, value)
+		return "", fmt.Errorf("second string[%s] is before first string[%s] in string[%s]", second, first, value)
 	}
 
 	return value[posFirstAdjusted:posSecond], nil

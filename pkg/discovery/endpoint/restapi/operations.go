@@ -220,7 +220,9 @@ func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 func (o *Operation) orbWebDIDFileHandler(rw http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	result, err := o.webResolver.ResolveDocument(id)
+	did := fmt.Sprintf("did:web:%s:scid:%s", o.domainWithPort, id)
+
+	result, err := o.webResolver.ResolveDocument(did)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
 			logger.Debugf("web resource[%s] not found", id)
