@@ -1446,8 +1446,8 @@ github.com/trustbloc/edge-core v0.1.8 h1:m4X5XNDwiHJjGf8gHnpo6aLkBYuqDyNRq+npjxL
 github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHYn+87f+TBQ8M=
 github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
 github.com/trustbloc/sidetree-core-go v1.0.0-rc2.0.20220729143551-6cda4cea3bf5/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3 h1:GRpnSLsmGIJRZV3kQdkbdrCnDBurnlMi6X8WfBhjxG4=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220919135304-eef47f34868a h1:P1pAbrNgOO4VxRGmccWdkK82nq0v0PCmPppP0QpA/PI=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220919135304-eef47f34868a/go.mod h1:SYCYxrsviTcRoUCoM6VosXF+sqWkKpk8C1dqD0doRYQ=
 github.com/trustbloc/vct v1.0.0-rc2.0.20220820075241-03b2f1075dbc/go.mod h1:lGK5QNUTJRVUf47HEqTYBC+raauPVp2yfZOIo29XmDI=
 github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c h1:+1mTL0k4T4I7HzdOyiEpp4Go7nhA/nvVtxICfU8uxI8=
 github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c/go.mod h1:bvaPihQV7/8Qd7U8EehLq/Q+svAPVmgsYGw+lX1MqcE=
