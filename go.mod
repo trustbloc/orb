@@ -33,7 +33,7 @@ require (
 	github.com/stretchr/testify v1.7.5
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/edge-core v0.1.8
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220919135304-eef47f34868a
 	github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c
 	go.mongodb.org/mongo-driver v1.9.1
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd

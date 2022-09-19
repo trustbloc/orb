@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/edge-core v0.1.8
 	github.com/trustbloc/orb v1.0.0-rc2.0.20220826005428-b08eed04243a
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220919135304-eef47f34868a
 	github.com/trustbloc/vct v1.0.0-rc3.0.20220909132110-ef2141db958c
 )
 
