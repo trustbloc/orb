@@ -208,8 +208,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -234,8 +232,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -261,8 +257,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -289,8 +283,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -316,8 +308,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -344,8 +334,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -370,8 +358,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		}
 
@@ -394,8 +380,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + httpSignaturesEnabledFlagName, "invalid bool",
 		}
@@ -420,8 +404,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + enableVCTFlagName, "invalid bool",
 		}
@@ -446,8 +428,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + enableDidDiscoveryFlagName, "invalid bool",
 		}
@@ -472,8 +452,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + enableUnpublishedOperationStoreFlagName, "invalid bool",
 		}
@@ -498,8 +476,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + resolveFromAnchorOriginFlagName, "invalid bool",
 		}
@@ -524,8 +500,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + verifyLatestFromAnchorOriginFlagName, "invalid bool",
 		}
@@ -550,8 +524,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + includeUnpublishedOperationsFlagName, "invalid bool",
 		}
@@ -576,8 +548,6 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 			"--" + includePublishedOperationsFlagName, "invalid bool",
 		}
@@ -941,8 +911,6 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 	}
 	startCmd.SetArgs(args)
@@ -964,8 +932,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsSecretsDatabaseURLFlagName, "badURL",
 			"--" + kmsTypeFlagName, "local",
 		}
@@ -988,8 +954,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeCouchDBOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsSecretsDatabaseURLFlagName, "badURL",
 			"--" + kmsTypeFlagName, "wrong",
 		}
@@ -1010,8 +974,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsTypeFlagName, "web",
 		}
 		startCmd.SetArgs(args)
@@ -1031,8 +993,6 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + kmsEndpointFlagName, "https://vct.example.com",
 			"--" + kmsTypeFlagName, "web",
 		}
@@ -1727,12 +1687,6 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 	err = os.Setenv(kmsSecretsDatabaseTypeEnvKey, databaseTypeMemOption)
 	require.NoError(t, err)
 
-	err = os.Setenv(anchorCredentialIssuerEnvKey, "issuer")
-	require.NoError(t, err)
-
-	err = os.Setenv(anchorCredentialURLEnvKey, "peer")
-	require.NoError(t, err)
-
 	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")
 	require.NoError(t, err)
 
@@ -1826,8 +1780,6 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + databaseTypeFlagName, databaseType,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseType,
 		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + anchorCredentialIssuerFlagName, "issuer.com",
-		"--" + anchorCredentialURLFlagName, "peer.com",
 		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
 		"--" + localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnabled,
 		"--" + enableUnpublishedOperationStoreFlagName, "true",
@@ -1846,6 +1798,69 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 	}
 
 	return args
+}
+
+func Test_getAPServiceParams(t *testing.T) {
+	t.Run("Default service ID", func(t *testing.T) {
+		apServiceParams, err := newAPServiceParams("", "https://orb.domain1.com", nil, false)
+		require.NoError(t, err)
+		require.Equal(t, "https://orb.domain1.com/services/orb", apServiceParams.serviceEndpoint().String())
+		require.Equal(t, "https://orb.domain1.com/services/orb", apServiceParams.serviceIRI().String())
+		require.Equal(t, "https://orb.domain1.com/services/orb/keys/main-key", apServiceParams.publicKeyIRI())
+	})
+
+	t.Run("HTTPS service ID -> success", func(t *testing.T) {
+		apServiceParams, err := newAPServiceParams("https://orb.domain1.com/services/anchor",
+			"https://orb.domain1.com", nil, false)
+		require.NoError(t, err)
+		require.Equal(t, "https://orb.domain1.com/services/anchor", apServiceParams.serviceEndpoint().String())
+		require.Equal(t, "https://orb.domain1.com/services/anchor", apServiceParams.serviceIRI().String())
+		require.Equal(t, "https://orb.domain1.com/services/anchor/keys/main-key", apServiceParams.publicKeyIRI())
+	})
+
+	t.Run("DID service ID -> success", func(t *testing.T) {
+		apServiceParams, err := newAPServiceParams("did:web:orb.domain1.com:services:anchor",
+			"https://orb.domain1.com", &kmsParameters{httpSignActiveKeyID: "123456"}, false)
+		require.NoError(t, err)
+		require.Equal(t, "https://orb.domain1.com/services/anchor", apServiceParams.serviceEndpoint().String())
+		require.Equal(t, "did:web:orb.domain1.com:services:anchor", apServiceParams.serviceIRI().String())
+		require.Equal(t, "did:web:orb.domain1.com:services:anchor#123456", apServiceParams.publicKeyIRI())
+	})
+
+	t.Run("DID service ID with dev-mode -> success", func(t *testing.T) {
+		apServiceParams, err := newAPServiceParams("did:web:orb.domain1.com:services:anchor",
+			"http://orb.domain1.com", &kmsParameters{httpSignActiveKeyID: "123456"}, true)
+		require.NoError(t, err)
+		require.Equal(t, "http://orb.domain1.com/services/anchor", apServiceParams.serviceEndpoint().String())
+		require.Equal(t, "did:web:orb.domain1.com:services:anchor", apServiceParams.serviceIRI().String())
+		require.Equal(t, "did:web:orb.domain1.com:services:anchor#123456", apServiceParams.publicKeyIRI())
+	})
+
+	t.Run("serviceID/external-endpoint protocol mismatch -> error", func(t *testing.T) {
+		_, err := newAPServiceParams("http://orb.domain1.com/services/anchor",
+			"https://orb.domain1.com", nil, false)
+		require.EqualError(t, err, "external endpoint [https://orb.domain1.com] and service ID [http://orb.domain1.com/services/anchor] must have the same protocol scheme (e.g. https)")
+	})
+
+	t.Run("serviceID/external-endpoint host mismatch -> error", func(t *testing.T) {
+		_, err := newAPServiceParams("did:web:orb.domain1.com:services:anchor",
+			"https://orb.domainx.com", &kmsParameters{httpSignActiveKeyID: "123456"}, false)
+		require.EqualError(t, err, "external endpoint [https://orb.domainx.com] and service ID [did:web:orb.domain1.com:services:anchor] must have the same host")
+	})
+
+	t.Run("Invalid DID format -> error", func(t *testing.T) {
+		_, err := newAPServiceParams("did:web",
+			"https://orb.domainx.com", &kmsParameters{httpSignActiveKeyID: "123456"}, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid did")
+	})
+
+	t.Run("DID method not supported -> error", func(t *testing.T) {
+		_, err := newAPServiceParams("did:key:orb.domain1.com:services:anchor",
+			"https://orb.domainx.com", &kmsParameters{httpSignActiveKeyID: "123456"}, false)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsupported DID method [did:key]")
+	})
 }
 
 type mockStoreProvider struct {

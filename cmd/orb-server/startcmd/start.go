@@ -636,12 +636,7 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	apServiceEndpoint, apServiceIRI, apServicePublicKeyIRI, err := getAPServiceAndPublicKeyIRI(parameters)
-	if err != nil {
-		return err
-	}
-
-	apServicePath := apServiceEndpoint.Path
+	apServicePath := parameters.apServiceParams.serviceEndpoint().Path
 
 	// authTokenManager is used by the REST endpoints to authorize the request.
 	authTokenManager, err := auth.NewTokenManager(auth.Config{
@@ -664,7 +659,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apGetSigner, apPostSigner := getActivityPubSigners(parameters, km, cr)
 
-	t := transport.New(httpClient, apServicePublicKeyIRI, apGetSigner, apPostSigner, clientTokenManager)
+	publicKeyID, err := url.Parse(parameters.apServiceParams.publicKeyIRI())
+	if err != nil {
+		return fmt.Errorf("parse public key ID: %w", err)
+	}
+
+	t := transport.New(httpClient, publicKeyID, apGetSigner, apPostSigner, clientTokenManager)
 
 	var endpointClient *discoveryclient.Client
 
@@ -827,8 +827,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apConfig := &apservice.Config{
 		ServicePath:              apServicePath,
-		ServiceIRI:               apServiceIRI,
-		ServiceEndpointURL:       apServiceEndpoint,
+		ServiceIRI:               parameters.apServiceParams.serviceIRI(),
+		ServiceEndpointURL:       parameters.apServiceParams.serviceEndpoint(),
 		VerifyActorInSignature:   parameters.httpSignaturesEnabled,
 		MaxWitnessDelay:          parameters.maxWitnessDelay,
 		IRICacheSize:             parameters.apIRICacheSize,
@@ -882,10 +882,13 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to export pub key: %w", err)
 	}
 
-	httpSignActivePublicKey, err := getActivityPubPublicKey(httpSignActivePubKey, httpSignKeyType, apServiceIRI, apServicePublicKeyIRI)
+	httpSignActivePublicKey, err := getActivityPubPublicKey(httpSignActivePubKey, httpSignKeyType, parameters.apServiceParams)
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
+
+	logger.Infof("publicKeyIRI [%s], HTTP sign public key ID %s",
+		parameters.apServiceParams.publicKeyIRI(), httpSignActivePublicKey.ID())
 
 	var httpSignPubKeys []discoveryrest.PublicKey
 
@@ -1042,7 +1045,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	err = anchorsynctask.Register(
 		anchorsynctask.Config{
-			ServiceIRI:     apServiceIRI,
+			ServiceIRI:     parameters.apServiceParams.serviceIRI(),
 			Interval:       parameters.anchorSyncPeriod,
 			MinActivityAge: parameters.anchorSyncMinActivityAge,
 		},
@@ -1103,7 +1106,9 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	anchorWriter, err := writer.New(parameters.didNamespace,
-		apServiceIRI, apServiceEndpoint, casIRI,
+		parameters.apServiceParams.serviceIRI(),
+		parameters.apServiceParams.serviceEndpoint(),
+		casIRI,
 		parameters.dataURIMediaType,
 		anchorWriterProviders,
 		observer.Publisher(), pubSub,
@@ -1166,8 +1171,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apEndpointCfg := &aphandler.Config{
 		BasePath:               apServicePath,
-		ObjectIRI:              apServiceIRI,
-		ServiceEndpointURL:     apServiceEndpoint,
+		ObjectIRI:              parameters.apServiceParams.serviceIRI(),
+		ServiceEndpointURL:     parameters.apServiceParams.serviceEndpoint(),
 		VerifyActorInSignature: parameters.httpSignaturesEnabled,
 		PageSize:               parameters.activityPubPageSize,
 	}
@@ -1225,8 +1230,8 @@ func startOrbServices(parameters *orbParameters) error {
 			WebCASPath:                casPath,
 			DiscoveryDomains:          parameters.discoveryDomains,
 			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
-			ServiceID:                 apServiceIRI,
-			ServiceEndpointURL:        apServiceEndpoint,
+			ServiceID:                 parameters.apServiceParams.serviceIRI(),
+			ServiceEndpointURL:        parameters.apServiceParams.serviceEndpoint(),
 		},
 		&discoveryrest.Providers{
 			ResourceRegistry:     resourceRegistry,
@@ -1254,8 +1259,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	nodeInfoLogger := log.New("nodeinfo")
 
-	nodeInfoService := nodeinfo.NewService(apServiceEndpoint, parameters.nodeInfoRefreshInterval, apStore, usingMongoDB,
-		nodeInfoLogger)
+	nodeInfoService := nodeinfo.NewService(parameters.apServiceParams.serviceEndpoint(), parameters.nodeInfoRefreshInterval,
+		apStore, usingMongoDB, nodeInfoLogger)
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 
@@ -1265,7 +1270,7 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get()), authTokenManager),
 		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics.Get()),
 			&aphandler.Config{
-				ObjectIRI:              apServiceIRI,
+				ObjectIRI:              parameters.apServiceParams.serviceIRI(),
 				VerifyActorInSignature: parameters.httpSignaturesEnabled,
 				PageSize:               parameters.activityPubPageSize,
 			},
@@ -1287,7 +1292,7 @@ func startOrbServices(parameters *orbParameters) error {
 		aphandler.NewActivity(apEndpointCfg, apStore, apSigVerifier, activitypubspi.SortAscending, authTokenManager),
 		webcas.New(
 			&aphandler.Config{
-				ObjectIRI:              apServiceIRI,
+				ObjectIRI:              parameters.apServiceParams.serviceIRI(),
 				VerifyActorInSignature: parameters.httpSignaturesEnabled,
 				PageSize:               parameters.activityPubPageSize,
 			},
@@ -1649,10 +1654,15 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 	return u
 }
 
-func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceIRI,
-	apServicePublicKeyID *url.URL) (*vocab.PublicKeyType, error) {
-	if util.IsDID(apServicePublicKeyID.String()) {
-		return vocab.NewPublicKey(vocab.WithID(apServicePublicKeyID)), nil
+func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType,
+	apServiceParams *apServiceParams) (*vocab.PublicKeyType, error) {
+	publicKeyID, err := url.Parse(apServiceParams.publicKeyIRI())
+	if err != nil {
+		return nil, fmt.Errorf("parse public key ID: %w", err)
+	}
+
+	if util.IsDID(publicKeyID.String()) {
+		return vocab.NewPublicKey(vocab.WithID(publicKeyID)), nil
 	}
 
 	pemBytes, err := cryptoutil.EncodePublicKeyToPEM(pubKeyBytes, keyType)
@@ -1661,8 +1671,8 @@ func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceI
 	}
 
 	return vocab.NewPublicKey(
-		vocab.WithID(apServicePublicKeyID),
-		vocab.WithOwner(apServiceIRI),
+		vocab.WithID(publicKeyID),
+		vocab.WithOwner(apServiceParams.serviceIRI()),
 		vocab.WithPublicKeyPem(string(pemBytes)),
 	), nil
 }
@@ -1814,95 +1824,4 @@ func asURIs(strs ...string) ([]*url.URL, error) {
 	}
 
 	return uris, nil
-}
-
-func getAPServiceAndPublicKeyIRI(parameters *orbParameters) (serviceEndpoint, serviceIRI, publicKeyIRI *url.URL, err error) {
-	apServiceID := parameters.serviceID
-
-	if apServiceID == "" {
-		apServiceID = parameters.externalEndpoint + activityPubServicesPath
-	}
-
-	var apServiceEndpoint, apServicePublicKeyID string
-
-	if util.IsDID(apServiceID) {
-		var err error
-
-		apServiceEndpoint, err = getEndpointFromDIDWeb(apServiceID, parameters.enableDevMode)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, err)
-		}
-
-		apServicePublicKeyID = fmt.Sprintf("%s#%s", apServiceID, parameters.kmsParams.httpSignActiveKeyID)
-	} else {
-		apServiceEndpoint = apServiceID
-
-		apServicePublicKeyID = fmt.Sprintf("%s/keys/%s", apServiceID, aphandler.MainKeyID)
-	}
-
-	serviceEndpoint, err = url.Parse(apServiceEndpoint)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parse ActivityPub service endpoint [%s]: %w",
-			apServiceEndpoint, err)
-	}
-
-	u, err := url.Parse(parameters.externalEndpoint)
-	if err != nil {
-		return nil, nil, nil,
-			fmt.Errorf("parse external endpoint [%s]: %w", parameters.externalEndpoint, err)
-	}
-
-	if serviceEndpoint.Scheme != u.Scheme {
-		return nil, nil, nil,
-			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same protocol scheme (e.g. https)",
-				parameters.externalEndpoint, apServiceID)
-	}
-
-	if serviceEndpoint.Host != u.Host {
-		return nil, nil, nil,
-			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same host",
-				parameters.externalEndpoint, apServiceID)
-	}
-
-	serviceIRI, err = url.Parse(apServiceID)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parse ActivityPub service IRI [%s]: %w",
-			apServiceID, err)
-	}
-
-	publicKeyIRI, err = url.Parse(apServicePublicKeyID)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("parse ActivityPub public key IRI [%s]: %w",
-			apServicePublicKeyID, err)
-	}
-
-	return serviceEndpoint, serviceIRI, publicKeyIRI, nil
-}
-
-func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
-	var protocolScheme string
-
-	if useHTTP {
-		protocolScheme = "http://"
-	} else {
-		protocolScheme = "https://"
-	}
-
-	parsedDID, err := did.Parse(id)
-	if err != nil {
-		return "", fmt.Errorf("parse did: %w", err)
-	}
-
-	if parsedDID.Method != "web" {
-		return "", fmt.Errorf("unsupported DID method [%s]", "did:"+parsedDID.Method)
-	}
-
-	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
-
-	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
-	if err != nil {
-		return "", fmt.Errorf("unescape did: %w", err)
-	}
-
-	return protocolScheme + strings.Join(pathComponents, "/"), nil
 }
