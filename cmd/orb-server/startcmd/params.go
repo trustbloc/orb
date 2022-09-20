@@ -14,12 +14,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/spf13/cobra"
 	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/context/opqueue"
 	"github.com/trustbloc/orb/pkg/datauri"
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
 
@@ -401,18 +404,6 @@ const (
 	databaseTypeCouchDBOption = "couchdb"
 	databaseTypeMongoDBOption = "mongodb"
 
-	anchorCredentialIssuerFlagName      = "anchor-credential-issuer"
-	anchorCredentialIssuerEnvKey        = "ANCHOR_CREDENTIAL_ISSUER"
-	anchorCredentialIssuerFlagShorthand = "i"
-	anchorCredentialIssuerFlagUsage     = "Anchor credential issuer (required). " +
-		commonEnvVarUsageText + anchorCredentialIssuerEnvKey
-
-	anchorCredentialURLFlagName      = "anchor-credential-url"
-	anchorCredentialURLEnvKey        = "ANCHOR_CREDENTIAL_URL"
-	anchorCredentialURLFlagShorthand = "g"
-	anchorCredentialURLFlagUsage     = "Anchor credential url (required). " +
-		commonEnvVarUsageText + anchorCredentialURLEnvKey
-
 	anchorCredentialDomainFlagName      = "anchor-credential-domain"
 	anchorCredentialDomainEnvKey        = "ANCHOR_CREDENTIAL_DOMAIN"
 	anchorCredentialDomainFlagShorthand = "d"
@@ -687,7 +678,7 @@ type orbParameters struct {
 	hostURL                                 string
 	hostMetricsURL                          string
 	externalEndpoint                        string
-	serviceID                               string
+	apServiceParams                         *apServiceParams
 	discoveryDomain                         string
 	didNamespace                            string
 	didAliases                              []string
@@ -762,6 +753,14 @@ type orbParameters struct {
 	kmsParams                               *kmsParameters
 	requestTokens                           map[string]string
 	allowedDIDWebDomains                    []*url.URL
+}
+
+// apServiceParams contains accessor functions for various
+// service parameters.
+type apServiceParams struct {
+	serviceEndpoint func() *url.URL
+	serviceIRI      func() *url.URL
+	publicKeyIRI    func() string
 }
 
 type anchorCredentialParams struct {
@@ -1194,11 +1193,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	anchorCredentialParams, err := getAnchorCredentialParameters(cmd, externalEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
 	allowedOrigins, err := cmdutils.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -1440,12 +1434,19 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	requestTokens := getRequestTokens(cmd)
 
+	apServiceParams, err := newAPServiceParams(serviceID, externalEndpoint, kmsParams, enableDevMode)
+	if err != nil {
+		return nil, err
+	}
+
+	anchorCredentialParams := getAnchorCredentialParameters(cmd, externalEndpoint, apServiceParams.serviceIRI().String())
+
 	return &orbParameters{
 		hostURL:                                 hostURL,
 		hostMetricsURL:                          hostMetricsURL,
 		discoveryDomain:                         discoveryDomain,
 		externalEndpoint:                        externalEndpoint,
-		serviceID:                               serviceID,
+		apServiceParams:                         apServiceParams,
 		tlsParams:                               tlsParams,
 		didNamespace:                            didNamespace,
 		didAliases:                              didAliases,
@@ -1538,27 +1539,17 @@ func getRequestTokens(cmd *cobra.Command) map[string]string {
 	return tokens
 }
 
-func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint string) (*anchorCredentialParams, error) {
+func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint, serviceIRI string) *anchorCredentialParams {
 	domain := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey)
 	if domain == "" {
 		domain = externalEndpoint
 	}
 
-	issuer := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialIssuerFlagName, anchorCredentialIssuerEnvKey)
-	if issuer == "" {
-		issuer = externalEndpoint
-	}
-
-	url := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialURLFlagName, anchorCredentialURLEnvKey)
-	if url == "" {
-		url = fmt.Sprintf("%s/vc", externalEndpoint)
-	}
-
 	return &anchorCredentialParams{
-		issuer: issuer,
-		url:    url,
+		issuer: serviceIRI,
+		url:    fmt.Sprintf("%s/vc", externalEndpoint),
 		domain: domain,
-	}, nil
+	}
 }
 
 func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
@@ -2058,6 +2049,96 @@ func getAnchorSyncParameters(cmd *cobra.Command) (syncPeriod, minActivityAge tim
 	return syncPeriod, minActivityAge, nil
 }
 
+func newAPServiceParams(apServiceID, externalEndpoint string, kmsParams *kmsParameters,
+	enableDevMode bool) (params *apServiceParams, err error) {
+	if apServiceID == "" {
+		apServiceID = externalEndpoint + activityPubServicesPath
+	}
+
+	var apServiceEndpoint string
+
+	if util.IsDID(apServiceID) {
+		var err error
+
+		apServiceEndpoint, err = getEndpointFromDIDWeb(apServiceID, enableDevMode)
+		if err != nil {
+			return nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, err)
+		}
+	} else {
+		apServiceEndpoint = apServiceID
+	}
+
+	serviceEndpoint, err := url.Parse(apServiceEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse ActivityPub service endpoint [%s]: %w",
+			apServiceEndpoint, err)
+	}
+
+	u, err := url.Parse(externalEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse external endpoint [%s]: %w", externalEndpoint, err)
+	}
+
+	if serviceEndpoint.Scheme != u.Scheme {
+		return nil,
+			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same protocol scheme (e.g. https)",
+				externalEndpoint, apServiceID)
+	}
+
+	if serviceEndpoint.Host != u.Host {
+		return nil,
+			fmt.Errorf("external endpoint [%s] and service ID [%s] must have the same host",
+				externalEndpoint, apServiceID)
+	}
+
+	serviceIRI, err := url.Parse(apServiceID)
+	if err != nil {
+		return nil, fmt.Errorf("parse ActivityPub service IRI [%s]: %w",
+			apServiceID, err)
+	}
+
+	return &apServiceParams{
+		serviceEndpoint: func() *url.URL { return serviceEndpoint },
+		serviceIRI:      func() *url.URL { return serviceIRI },
+		publicKeyIRI: func() string {
+			// Since kmsParams is mutable, we must process the IRI dynamically.
+			if util.IsDID(apServiceID) {
+				return fmt.Sprintf("%s#%s", apServiceID, kmsParams.httpSignActiveKeyID)
+			}
+
+			return fmt.Sprintf("%s/keys/%s", apServiceID, aphandler.MainKeyID)
+		},
+	}, nil
+}
+
+func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
+	var protocolScheme string
+
+	if useHTTP {
+		protocolScheme = "http://"
+	} else {
+		protocolScheme = "https://"
+	}
+
+	parsedDID, err := did.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("parse did: %w", err)
+	}
+
+	if parsedDID.Method != "web" {
+		return "", fmt.Errorf("unsupported DID method [%s]", "did:"+parsedDID.Method)
+	}
+
+	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
+
+	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
+	if err != nil {
+		return "", fmt.Errorf("unescape did: %w", err)
+	}
+
+	return protocolScheme + strings.Join(pathComponents, "/"), nil
+}
+
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
@@ -2113,8 +2194,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(allowedOriginsFlagName, allowedOriginsFlagShorthand, []string{}, allowedOriginsFlagUsage)
 	startCmd.Flags().StringArrayP(allowedDIDWebDomainsFlagName, "", []string{}, allowedDIDWebDomainsFlagUsage)
 	startCmd.Flags().StringP(anchorCredentialDomainFlagName, anchorCredentialDomainFlagShorthand, "", anchorCredentialDomainFlagUsage)
-	startCmd.Flags().StringP(anchorCredentialIssuerFlagName, anchorCredentialIssuerFlagShorthand, "", anchorCredentialIssuerFlagUsage)
-	startCmd.Flags().StringP(anchorCredentialURLFlagName, anchorCredentialURLFlagShorthand, "", anchorCredentialURLFlagUsage)
 	startCmd.Flags().StringP(databaseTypeFlagName, databaseTypeFlagShorthand, "", databaseTypeFlagUsage)
 	startCmd.Flags().StringP(databaseURLFlagName, databaseURLFlagShorthand, "", databaseURLFlagUsage)
 	startCmd.Flags().StringP(databasePrefixFlagName, "", "", databasePrefixFlagUsage)

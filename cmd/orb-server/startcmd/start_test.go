@@ -210,8 +210,6 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + vcSignPrivateKeysFlagName, "k1=value",
 			"--" + vcSignActiveKeyIDFlagName, "k2",
 			"--" + kmsTypeFlagName, "local",
@@ -235,8 +233,6 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + httpSignPrivateKeyFlagName, "k1=value",
 			"--" + httpSignActiveKeyIDFlagName, "k2",
 			"--" + kmsTypeFlagName, "local",
@@ -260,8 +256,6 @@ func TestPrivateKeys(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + httpSignPrivateKeyFlagName, "k1=value",
 			"--" + httpSignPrivateKeyFlagName, "k2=value2",
 			"--" + httpSignActiveKeyIDFlagName, "k2",
@@ -294,8 +288,6 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + anchorCredentialIssuerFlagName, "issuer.com",
-			"--" + anchorCredentialURLFlagName, "peer.com",
 			"--" + secretLockKeyPathFlagName, "./key.file",
 			"--" + vcSignActiveKeyIDFlagName, "k1",
 			"--" + kmsTypeFlagName, "local",
@@ -366,105 +358,4 @@ func TestMonitorActivities(t *testing.T) {
 		"Received activity [https://domain1.com/123] of type Reject from [https://domain2.com/456]")
 	require.Contains(t, l.getInfos(),
 		"Received activity [https://domain2.com/456] of type Accept from [https://domain1.com/123]")
-}
-
-func Test_getAPServiceAndPublicKeyIRI(t *testing.T) {
-	t.Run("Default service ID", func(t *testing.T) {
-		params := &orbParameters{
-			externalEndpoint: "https://orb.domain1.com",
-		}
-
-		serviceEndpoint, serviceIRI, publicKeyIRI, err := getAPServiceAndPublicKeyIRI(params)
-		require.NoError(t, err)
-		require.Equal(t, "https://orb.domain1.com/services/orb", serviceEndpoint.String())
-		require.Equal(t, "https://orb.domain1.com/services/orb", serviceIRI.String())
-		require.Equal(t, "https://orb.domain1.com/services/orb/keys/main-key", publicKeyIRI.String())
-	})
-
-	t.Run("HTTPS service ID -> success", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "https://orb.domain1.com/services/anchor",
-			externalEndpoint: "https://orb.domain1.com",
-		}
-
-		serviceEndpoint, serviceIRI, publicKeyIRI, err := getAPServiceAndPublicKeyIRI(params)
-		require.NoError(t, err)
-		require.Equal(t, "https://orb.domain1.com/services/anchor", serviceEndpoint.String())
-		require.Equal(t, "https://orb.domain1.com/services/anchor", serviceIRI.String())
-		require.Equal(t, "https://orb.domain1.com/services/anchor/keys/main-key", publicKeyIRI.String())
-	})
-
-	t.Run("DID service ID -> success", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "did:web:orb.domain1.com:services:anchor",
-			externalEndpoint: "https://orb.domain1.com",
-			kmsParams:        &kmsParameters{httpSignActiveKeyID: "123456"},
-		}
-
-		serviceEndpoint, serviceIRI, publicKeyIRI, err := getAPServiceAndPublicKeyIRI(params)
-		require.NoError(t, err)
-		require.Equal(t, "https://orb.domain1.com/services/anchor", serviceEndpoint.String())
-		require.Equal(t, "did:web:orb.domain1.com:services:anchor", serviceIRI.String())
-		require.Equal(t, "did:web:orb.domain1.com:services:anchor#123456", publicKeyIRI.String())
-	})
-
-	t.Run("DID service ID with dev-mode -> success", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "did:web:orb.domain1.com:services:anchor",
-			externalEndpoint: "http://orb.domain1.com",
-			kmsParams:        &kmsParameters{httpSignActiveKeyID: "123456"},
-			enableDevMode:    true,
-		}
-
-		serviceEndpoint, serviceIRI, publicKeyIRI, err := getAPServiceAndPublicKeyIRI(params)
-		require.NoError(t, err)
-		require.Equal(t, "http://orb.domain1.com/services/anchor", serviceEndpoint.String())
-		require.Equal(t, "did:web:orb.domain1.com:services:anchor", serviceIRI.String())
-		require.Equal(t, "did:web:orb.domain1.com:services:anchor#123456", publicKeyIRI.String())
-	})
-
-	t.Run("serviceID/external-endpoint protocol mismatch -> error", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "http://orb.domain1.com/services/anchor",
-			externalEndpoint: "https://orb.domain1.com",
-		}
-
-		_, _, _, err := getAPServiceAndPublicKeyIRI(params)
-		require.EqualError(t, err, "external endpoint [https://orb.domain1.com] and service ID [http://orb.domain1.com/services/anchor] must have the same protocol scheme (e.g. https)")
-	})
-
-	t.Run("serviceID/external-endpoint host mismatch -> error", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "did:web:orb.domain1.com:services:anchor",
-			externalEndpoint: "https://orb.domainx.com",
-			kmsParams:        &kmsParameters{httpSignActiveKeyID: "123456"},
-		}
-
-		_, _, _, err := getAPServiceAndPublicKeyIRI(params)
-		require.EqualError(t, err, "external endpoint [https://orb.domainx.com] and service ID [did:web:orb.domain1.com:services:anchor] must have the same host")
-	})
-
-	t.Run("Invalid DID format -> error", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "did:web",
-			externalEndpoint: "https://orb.domainx.com",
-			kmsParams:        &kmsParameters{httpSignActiveKeyID: "123456"},
-		}
-
-		_, _, _, err := getAPServiceAndPublicKeyIRI(params)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid did")
-	})
-
-	t.Run("DID method not supported -> error", func(t *testing.T) {
-		params := &orbParameters{
-			serviceID:        "did:key:orb.domain1.com:services:anchor",
-			externalEndpoint: "https://orb.domainx.com",
-			kmsParams:        &kmsParameters{httpSignActiveKeyID: "123456"},
-		}
-
-		_, _, _, err := getAPServiceAndPublicKeyIRI(params)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "unsupported DID method [did:key]")
-	})
 }
