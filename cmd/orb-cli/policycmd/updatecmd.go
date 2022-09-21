@@ -12,9 +12,9 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 func newUpdateCmd() *cobra.Command {
@@ -58,7 +58,7 @@ func addUpdateFlags(cmd *cobra.Command) {
 }
 
 func getUpdateArgs(cmd *cobra.Command) (u, policy string, err error) {
-	u, err = cmdutils.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
+	u, err = cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -68,7 +68,7 @@ func getUpdateArgs(cmd *cobra.Command) (u, policy string, err error) {
 		return "", "", fmt.Errorf("invalid URL %s: %w", u, err)
 	}
 
-	policy, err = cmdutils.GetUserSetVarFromString(cmd, policyFlagName, policyEnvKey, false)
+	policy, err = cmdutil.GetUserSetVarFromString(cmd, policyFlagName, policyEnvKey, false)
 	if err != nil {
 		return "", "", err
 	}

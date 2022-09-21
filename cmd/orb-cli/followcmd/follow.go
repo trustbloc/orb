@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -85,7 +85,7 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 				return err
 			}
 
-			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, common.AuthTokenFlagName,
+			authToken := cmdutil.GetUserSetOptionalVarFromString(cmd, common.AuthTokenFlagName,
 				common.AuthTokenEnvKey)
 
 			headers := make(map[string]string)
@@ -93,19 +93,19 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 				headers["Authorization"] = "Bearer " + authToken
 			}
 
-			outboxURL, err := cmdutils.GetUserSetVarFromString(cmd, outboxURLFlagName,
+			outboxURL, err := cmdutil.GetUserSetVarFromString(cmd, outboxURLFlagName,
 				outboxURLEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			actorIRI, err := cmdutils.GetUserSetVarFromString(cmd, actorFlagName,
+			actorIRI, err := cmdutil.GetUserSetVarFromString(cmd, actorFlagName,
 				actorEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			to, err := cmdutils.GetUserSetVarFromString(cmd, toFlagName,
+			to, err := cmdutil.GetUserSetVarFromString(cmd, toFlagName,
 				toEnvKey, false)
 			if err != nil {
 				return err
@@ -116,7 +116,7 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 				return fmt.Errorf("parse 'to' URL %s: %w", to, err)
 			}
 
-			action, err := cmdutils.GetUserSetVarFromString(cmd, actionFlagName,
+			action, err := cmdutil.GetUserSetVarFromString(cmd, actionFlagName,
 				actionEnvKey, false)
 			if err != nil {
 				return err
@@ -124,7 +124,7 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 
 			maxRetry := defaultMaxRetry
 
-			maxRetryString := cmdutils.GetUserSetOptionalVarFromString(cmd, maxRetryFlagName,
+			maxRetryString := cmdutil.GetUserSetOptionalVarFromString(cmd, maxRetryFlagName,
 				maxRetryEnvKey)
 
 			if maxRetryString != "" {
@@ -143,7 +143,7 @@ func createCmd() *cobra.Command { //nolint:funlen,gocyclo,cyclop,gocognit
 			var followIRI *url.URL
 
 			if action == undoAction {
-				followID, errGet := cmdutils.GetUserSetVarFromString(cmd, followIDFlagName,
+				followID, errGet := cmdutil.GetUserSetVarFromString(cmd, followIDFlagName,
 					followIDEnvKey, false)
 				if errGet != nil {
 					return errGet

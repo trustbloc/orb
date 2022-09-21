@@ -12,9 +12,9 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 func newGetCmd() *cobra.Command {
@@ -36,7 +36,7 @@ func newGetCmd() *cobra.Command {
 }
 
 func executeGet(cmd *cobra.Command) error {
-	u, err := cmdutils.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
+	u, err := cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return err
 	}

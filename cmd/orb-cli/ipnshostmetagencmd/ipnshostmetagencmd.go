@@ -17,10 +17,10 @@ import (
 
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
 
@@ -92,25 +92,25 @@ func hostMetaGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 				},
 			}
 
-			ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName,
+			ipfsURL, err := cmdutil.GetUserSetVarFromString(cmd, ipfsURLFlagName,
 				ipfsURLEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			resourceURL, err := cmdutils.GetUserSetVarFromString(cmd, resourceURLFlagName,
+			resourceURL, err := cmdutil.GetUserSetVarFromString(cmd, resourceURLFlagName,
 				resourceURLEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			keyName, err := cmdutils.GetUserSetVarFromString(cmd, keyNameFlagName,
+			keyName, err := cmdutil.GetUserSetVarFromString(cmd, keyNameFlagName,
 				keyNameEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			hostMetaDirOutputPath := cmdutils.GetUserSetOptionalVarFromString(cmd, hostMetaDocOutputPathFlagName,
+			hostMetaDirOutputPath := cmdutil.GetUserSetOptionalVarFromString(cmd, hostMetaDocOutputPathFlagName,
 				hostMetaDocOutputPathEnvKey)
 
 			if hostMetaDirOutputPath == "" {
@@ -177,7 +177,7 @@ func hostMetaGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -191,7 +191,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)

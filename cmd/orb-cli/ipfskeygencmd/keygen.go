@@ -20,10 +20,10 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 const (
@@ -90,22 +90,22 @@ func keyGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop,gocognit
 				},
 			}
 
-			ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName,
+			ipfsURL, err := cmdutil.GetUserSetVarFromString(cmd, ipfsURLFlagName,
 				ipfsURLEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			keyName, err := cmdutils.GetUserSetVarFromString(cmd, keyNameFlagName,
+			keyName, err := cmdutil.GetUserSetVarFromString(cmd, keyNameFlagName,
 				keyNameEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			keyDir := cmdutils.GetUserSetOptionalVarFromString(cmd, keyDirFlagName,
+			keyDir := cmdutil.GetUserSetOptionalVarFromString(cmd, keyDirFlagName,
 				keyDirEnvKey)
 
-			ed25519PrivateKey := cmdutils.GetUserSetOptionalVarFromString(cmd, privateKeyED25519FlagName,
+			ed25519PrivateKey := cmdutil.GetUserSetOptionalVarFromString(cmd, privateKeyED25519FlagName,
 				privateKeyED25519EnvKey)
 
 			priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
@@ -211,7 +211,7 @@ func createMultipartFormData(fieldName, fileName string) (*bytes.Buffer, *multip
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -225,7 +225,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)

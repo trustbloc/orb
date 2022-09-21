@@ -21,10 +21,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 const (
@@ -113,16 +113,16 @@ func deactivateDIDCmd() *cobra.Command { //nolint:funlen
 				return err
 			}
 
-			didURI, err := cmdutils.GetUserSetVarFromString(cmd, didURIFlagName,
+			didURI, err := cmdutil.GetUserSetVarFromString(cmd, didURIFlagName,
 				didURIEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			sidetreeWriteToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeWriteTokenFlagName,
+			sidetreeWriteToken := cmdutil.GetUserSetOptionalVarFromString(cmd, sidetreeWriteTokenFlagName,
 				sidetreeWriteTokenEnvKey)
 
-			domain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName,
+			domain := cmdutil.GetUserSetOptionalVarFromString(cmd, domainFlagName,
 				domainFileEnvKey)
 
 			httpClient := http.Client{Transport: &http.Transport{
@@ -130,7 +130,7 @@ func deactivateDIDCmd() *cobra.Command { //nolint:funlen
 				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 			}}
 
-			kmsStoreURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
+			kmsStoreURL := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
 				kmsStoreEndpointEnvKey)
 
 			var webKmsClient kms.KeyManager
@@ -147,13 +147,13 @@ func deactivateDIDCmd() *cobra.Command { //nolint:funlen
 
 			if webKmsClient == nil {
 				signingKey, err = common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
-					signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
+					signingKeyFileEnvKey, []byte(cmdutil.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
 						signingKeyPasswordEnvKey)), true)
 				if err != nil {
 					return err
 				}
 			} else {
-				signingKeyID, err = cmdutils.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
+				signingKeyID, err = cmdutil.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
 					signingKeyIDEnvKey, false)
 				if err != nil {
 					return err
@@ -195,14 +195,14 @@ func deactivateDIDCmd() *cobra.Command { //nolint:funlen
 func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	var opts []vdrapi.DIDMethodOption
 
-	sidetreeURLOps := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLOpsFlagName,
+	sidetreeURLOps := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLOpsFlagName,
 		sidetreeURLOpsEnvKey)
 
 	if len(sidetreeURLOps) > 0 {
 		opts = append(opts, vdrapi.WithOption(orb.OperationEndpointsOpt, sidetreeURLOps))
 	}
 
-	sidetreeURLRes := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
+	sidetreeURLRes := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
 		sidetreeURLResEnvKey)
 
 	if len(sidetreeURLRes) > 0 {
@@ -217,7 +217,7 @@ func deactivateDIDOption(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -231,7 +231,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)

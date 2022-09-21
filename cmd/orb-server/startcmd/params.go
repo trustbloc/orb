@@ -16,9 +16,9 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/context/opqueue"
 	"github.com/trustbloc/orb/pkg/datauri"
@@ -791,7 +791,7 @@ type kmsParameters struct {
 }
 
 func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
-	kmsTypeStr, err := cmdutils.GetUserSetVarFromString(cmd, kmsTypeFlagName, kmsTypeEnvKey, false)
+	kmsTypeStr, err := cmdutil.GetUserSetVarFromString(cmd, kmsTypeFlagName, kmsTypeEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
@@ -802,20 +802,20 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 		return nil, fmt.Errorf("unsupported kms type: %s", kmsType)
 	}
 
-	kmsEndpoint := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey)
+	kmsEndpoint := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey)
 
-	secretLockKeyPath := cmdutils.GetUserSetOptionalVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey)
-	keyDatabaseType, err := cmdutils.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
+	secretLockKeyPath := cmdutil.GetUserSetOptionalVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey)
+	keyDatabaseType, err := cmdutil.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
 		kmsSecretsDatabaseTypeEnvKey, kmsType != kmsLocal)
 	if err != nil {
 		return nil, err
 	}
-	keyDatabaseURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabaseURLFlagName,
+	keyDatabaseURL := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabaseURLFlagName,
 		kmsSecretsDatabaseURLEnvKey)
-	keyDatabasePrefix := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabasePrefixFlagName,
+	keyDatabasePrefix := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsSecretsDatabasePrefixFlagName,
 		kmsSecretsDatabasePrefixEnvKey)
 
-	vcSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, vcSignActiveKeyIDFlagName, vcSignActiveKeyIDEnvKey)
+	vcSignActiveKeyID := cmdutil.GetUserSetOptionalVarFromString(cmd, vcSignActiveKeyIDFlagName, vcSignActiveKeyIDEnvKey)
 	vcSignPrivateKeys, err := getPrivateKeys(cmd, vcSignPrivateKeysFlagName, vcSignPrivateKeysEnvKey)
 	if err != nil {
 		return nil, fmt.Errorf("vc sign private keys: %w", err)
@@ -825,9 +825,9 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 			return nil, fmt.Errorf("vc sign active key id %s not exist in vc private keys", vcSignActiveKeyID)
 		}
 	}
-	vcSignKeysID := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, vcSignKeysIDFlagName, vcSignKeysIDEnvKey)
+	vcSignKeysID := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, vcSignKeysIDFlagName, vcSignKeysIDEnvKey)
 
-	httpSignActiveKeyID := cmdutils.GetUserSetOptionalVarFromString(cmd, httpSignActiveKeyIDFlagName, httpSignActiveKeyIDEnvKey)
+	httpSignActiveKeyID := cmdutil.GetUserSetOptionalVarFromString(cmd, httpSignActiveKeyIDFlagName, httpSignActiveKeyIDEnvKey)
 	httpSignPrivateKey, err := getPrivateKeys(cmd, httpSignPrivateKeyFlagName, httpSignPrivateKeyEnvKey)
 	if err != nil {
 		return nil, fmt.Errorf("http sign private keys: %w", err)
@@ -867,17 +867,17 @@ func supportedKmsType(kmsType kmsMode) bool {
 
 // nolint: gocyclo,funlen
 func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
-	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
+	hostURL, err := cmdutil.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	hostMetricsURL, err := cmdutils.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, true)
+	hostMetricsURL, err := cmdutil.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	externalEndpoint, err := cmdutils.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
+	externalEndpoint, err := cmdutil.GetUserSetVarFromString(cmd, externalEndpointFlagName, externalEndpointEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -886,12 +886,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		externalEndpoint = hostURL
 	}
 
-	serviceID, err := cmdutils.GetUserSetVarFromString(cmd, serviceIDFlagName, serviceIDEnvKey, true)
+	serviceID, err := cmdutil.GetUserSetVarFromString(cmd, serviceIDFlagName, serviceIDEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	discoveryDomain, err := cmdutils.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
+	discoveryDomain, err := cmdutil.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -901,12 +901,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	casType, err := cmdutils.GetUserSetVarFromString(cmd, casTypeFlagName, casTypeEnvKey, false)
+	casType, err := cmdutil.GetUserSetVarFromString(cmd, casTypeFlagName, casTypeEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
+	ipfsURL, err := cmdutil.GetUserSetVarFromString(cmd, ipfsURLFlagName, ipfsURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -922,7 +922,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 			"change the CAS type to local")
 	}
 
-	localCASReplicateInIPFSEnabledString, err := cmdutils.GetUserSetVarFromString(cmd, localCASReplicateInIPFSFlagName,
+	localCASReplicateInIPFSEnabledString, err := cmdutil.GetUserSetVarFromString(cmd, localCASReplicateInIPFSFlagName,
 		localCASReplicateInIPFSEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -943,7 +943,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	cidVersionString, err := cmdutils.GetUserSetVarFromString(cmd, cidVersionFlagName, cidVersionEnvKey, true)
+	cidVersionString, err := cmdutil.GetUserSetVarFromString(cmd, cidVersionFlagName, cidVersionEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -962,7 +962,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	batchWriterTimeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
+	batchWriterTimeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1001,7 +1001,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("witness store expiry period must me greater than maximum witness delay + max clock skew")
 	}
 
-	signWithLocalWitnessStr, err := cmdutils.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
+	signWithLocalWitnessStr, err := cmdutil.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,7 +1015,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	syncTimeoutStr := cmdutils.GetUserSetOptionalVarFromString(cmd, syncTimeoutFlagName, syncTimeoutEnvKey)
+	syncTimeoutStr := cmdutil.GetUserSetOptionalVarFromString(cmd, syncTimeoutFlagName, syncTimeoutEnvKey)
 
 	syncTimeout := uint64(defaultSyncTimeout)
 
@@ -1026,7 +1026,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	httpSignaturesEnabledStr, err := cmdutils.GetUserSetVarFromString(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey, true)
+	httpSignaturesEnabledStr, err := cmdutil.GetUserSetVarFromString(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1041,7 +1041,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		httpSignaturesEnabled = enable
 	}
 
-	enableDidDiscoveryStr, err := cmdutils.GetUserSetVarFromString(cmd, enableDidDiscoveryFlagName, enableDidDiscoveryEnvKey, true)
+	enableDidDiscoveryStr, err := cmdutil.GetUserSetVarFromString(cmd, enableDidDiscoveryFlagName, enableDidDiscoveryEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1056,7 +1056,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		didDiscoveryEnabled = enable
 	}
 
-	enableVCTStr := cmdutils.GetUserSetOptionalVarFromString(cmd, enableVCTFlagName, enabledVCTEnvKey)
+	enableVCTStr := cmdutil.GetUserSetOptionalVarFromString(cmd, enableVCTFlagName, enabledVCTEnvKey)
 
 	enableVCT := defaultVCTEnabled
 	if enableVCTStr != "" {
@@ -1068,7 +1068,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		enableVCT = enable
 	}
 
-	enableDevModeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, devModeEnabledFlagName, devModeEnabledEnvKey)
+	enableDevModeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, devModeEnabledFlagName, devModeEnabledEnvKey)
 
 	enableDevMode := defaultDevModeEnabled
 	if enableDevModeStr != "" {
@@ -1080,7 +1080,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		enableDevMode = enable
 	}
 
-	enableUnpublishedOperationStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
+	enableUnpublishedOperationStoreStr, err := cmdutil.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1095,7 +1095,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		unpublishedOperationStoreEnabled = enable
 	}
 
-	unpublishedOperationStoreOperationTypesArr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, unpublishedOperationStoreOperationTypesFlagName, unpublishedOperationStoreOperationTypesEnvKey)
+	unpublishedOperationStoreOperationTypesArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, unpublishedOperationStoreOperationTypesFlagName, unpublishedOperationStoreOperationTypesEnvKey)
 
 	defaultOperationTypes := []operation.Type{operation.TypeCreate, operation.TypeUpdate}
 
@@ -1111,7 +1111,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		unpublishedOperationStoreOperationTypes = configuredOpTypes
 	}
 
-	includeUnpublishedOperationsStr, err := cmdutils.GetUserSetVarFromString(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey, true)
+	includeUnpublishedOperationsStr, err := cmdutil.GetUserSetVarFromString(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1126,7 +1126,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		includeUnpublishedOperations = enable
 	}
 
-	includePublishedOperationsStr, err := cmdutils.GetUserSetVarFromString(cmd, includePublishedOperationsFlagName, includePublishedOperationsEnvKey, true)
+	includePublishedOperationsStr, err := cmdutil.GetUserSetVarFromString(cmd, includePublishedOperationsFlagName, includePublishedOperationsEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1141,7 +1141,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		includePublishedOperations = enable
 	}
 
-	resolveFromAnchorOriginStr, err := cmdutils.GetUserSetVarFromString(cmd, resolveFromAnchorOriginFlagName, resolveFromAnchorOriginEnvKey, true)
+	resolveFromAnchorOriginStr, err := cmdutil.GetUserSetVarFromString(cmd, resolveFromAnchorOriginFlagName, resolveFromAnchorOriginEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1156,7 +1156,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		resolveFromAnchorOrigin = enable
 	}
 
-	verifyLatestFromAnchorOriginStr, err := cmdutils.GetUserSetVarFromString(cmd, verifyLatestFromAnchorOriginFlagName, verifyLatestFromAnchorOriginEnvKey, true)
+	verifyLatestFromAnchorOriginStr, err := cmdutil.GetUserSetVarFromString(cmd, verifyLatestFromAnchorOriginFlagName, verifyLatestFromAnchorOriginEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1171,12 +1171,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		verifyLatestFromAnchorOrigin = enable
 	}
 
-	didNamespace, err := cmdutils.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
+	didNamespace, err := cmdutil.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	didAliases := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
+	didAliases := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
 
 	kmsParams, err := getKmsParameters(cmd)
 	if err != nil {
@@ -1188,12 +1188,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	loggingLevel, err := cmdutils.GetUserSetVarFromString(cmd, LogLevelFlagName, LogLevelEnvKey, true)
+	loggingLevel, err := cmdutil.GetUserSetVarFromString(cmd, LogLevelFlagName, LogLevelEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	allowedOrigins, err := cmdutils.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
+	allowedOrigins, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,7 +1204,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", allowedOriginsCacheExpirationFlagName, err)
 	}
 
-	allowedDIDWebDomainsArray, err := cmdutils.GetUserSetVarFromArrayString(cmd, allowedDIDWebDomainsFlagName, allowedDIDWebDomainsEnvKey, true)
+	allowedDIDWebDomainsArray, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedDIDWebDomainsFlagName, allowedDIDWebDomainsEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1220,7 +1220,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		allowedDIDWebDomains = append(allowedDIDWebDomains, domainURL)
 	}
 
-	dataURIMediaType, err := cmdutils.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
+	dataURIMediaType, err := cmdutil.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1229,9 +1229,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		dataURIMediaType = defaultDataURIMediaType
 	}
 
-	discoveryDomains := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
+	discoveryDomains := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
 
-	discoveryMinimumResolversStr := cmdutils.GetUserSetOptionalVarFromString(cmd, discoveryMinimumResolversFlagName,
+	discoveryMinimumResolversStr := cmdutil.GetUserSetOptionalVarFromString(cmd, discoveryMinimumResolversFlagName,
 		discoveryMinimumResolversEnvKey)
 
 	discoveryMinimumResolvers := defaultDiscoveryMinimumResolvers
@@ -1298,7 +1298,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
 	}
 
-	contextProviderURLs, err := cmdutils.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
+	contextProviderURLs, err := cmdutil.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", contextProviderFlagName, err)
 	}
@@ -1353,7 +1353,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", vctLogMonitoringIntervalFlagName, err)
 	}
 
-	vctLogMonitoringMaxTreeSizeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringMaxTreeSizeFlagName,
+	vctLogMonitoringMaxTreeSizeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringMaxTreeSizeFlagName,
 		vctLogMonitoringMaxTreeSizeEnvKey)
 
 	vctLogMonitoringMaxTreeSize := uint64(defaultVCTLogMonitoringMaxTreeSize)
@@ -1364,7 +1364,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	vctLogMonitoringGetEntriesRangeStr := cmdutils.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringGetEntriesRangeFlagName,
+	vctLogMonitoringGetEntriesRangeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, vctLogMonitoringGetEntriesRangeFlagName,
 		vctLogMonitoringGetEntriesRangeEnvKey)
 
 	vctLogMonitoringGetEntriesRange := defaultVCTLogMonitoringGetEntriesRange
@@ -1377,7 +1377,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		vctLogMonitoringGetEntriesRange = int(getEntriesRange)
 	}
 
-	enableLogEntriesStoreStr, err := cmdutils.GetUserSetVarFromString(cmd, vctLogEntriesStoreEnabledFlagName, vctLogEntriesStoreEnabledEnvKey, true)
+	enableLogEntriesStoreStr, err := cmdutil.GetUserSetVarFromString(cmd, vctLogEntriesStoreEnabledFlagName, vctLogEntriesStoreEnabledEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1420,7 +1420,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	sidetreeProtocolVersionsArr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeProtocolVersionsFlagName, sidetreeProtocolVersionsEnvKey)
+	sidetreeProtocolVersionsArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeProtocolVersionsFlagName, sidetreeProtocolVersionsEnvKey)
 
 	defaultSidetreeProtocolVersions := []string{"1.0"}
 
@@ -1430,7 +1430,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		sidetreeProtocolVersions = sidetreeProtocolVersionsArr
 	}
 
-	currentSidetreeProtocolVersion := cmdutils.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
+	currentSidetreeProtocolVersion := cmdutil.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
 
 	requestTokens := getRequestTokens(cmd)
 
@@ -1521,7 +1521,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 }
 
 func getRequestTokens(cmd *cobra.Command) map[string]string {
-	requestTokens := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, requestTokensFlagName,
+	requestTokens := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, requestTokensFlagName,
 		requestTokensEnvKey)
 
 	tokens := make(map[string]string)
@@ -1540,7 +1540,7 @@ func getRequestTokens(cmd *cobra.Command) map[string]string {
 }
 
 func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint, serviceIRI string) *anchorCredentialParams {
-	domain := cmdutils.GetUserSetOptionalVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey)
+	domain := cmdutil.GetUserSetOptionalVarFromString(cmd, anchorCredentialDomainFlagName, anchorCredentialDomainEnvKey)
 	if domain == "" {
 		domain = externalEndpoint
 	}
@@ -1553,19 +1553,19 @@ func getAnchorCredentialParameters(cmd *cobra.Command, externalEndpoint, service
 }
 
 func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
-	databaseType, err := cmdutils.GetUserSetVarFromString(cmd, databaseTypeFlagName,
+	databaseType, err := cmdutil.GetUserSetVarFromString(cmd, databaseTypeFlagName,
 		databaseTypeEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
 
-	databaseURL, err := cmdutils.GetUserSetVarFromString(cmd, databaseURLFlagName,
+	databaseURL, err := cmdutil.GetUserSetVarFromString(cmd, databaseURLFlagName,
 		databaseURLEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	databasePrefix, err := cmdutils.GetUserSetVarFromString(cmd, databasePrefixFlagName,
+	databasePrefix, err := cmdutil.GetUserSetVarFromString(cmd, databasePrefixFlagName,
 		databasePrefixEnvKey, true)
 	if err != nil {
 		return nil, err
@@ -1579,7 +1579,7 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 }
 
 func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaultDefs []*auth.TokenDef) ([]*auth.TokenDef, error) {
-	authTokenDefsStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
+	authTokenDefsStr, err := cmdutil.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1637,7 +1637,7 @@ func filterEmptyTokens(tokens []string) []string {
 }
 
 func getPrivateKeys(cmd *cobra.Command, flagName, envKey string) (map[string]string, error) {
-	privateKeyStr := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, flagName, envKey)
+	privateKeyStr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, flagName, envKey)
 
 	if len(privateKeyStr) == 0 {
 		return nil, nil
@@ -1659,7 +1659,7 @@ func getPrivateKeys(cmd *cobra.Command, flagName, envKey string) (map[string]str
 }
 
 func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens map[string]string) (map[string]string, error) {
-	authTokensStr, err := cmdutils.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
+	authTokensStr, err := cmdutil.GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1686,7 +1686,7 @@ func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens ma
 }
 
 func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
-	activityPubPageSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubPageSizeFlagName, activityPubPageSizeEnvKey, true)
+	activityPubPageSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubPageSizeFlagName, activityPubPageSizeEnvKey, true)
 	if err != nil {
 		return 0, err
 	}
@@ -1709,7 +1709,7 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 
 func getDuration(cmd *cobra.Command, flagName, envKey string,
 	defaultDuration time.Duration) (time.Duration, error) {
-	timeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	timeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return -1, err
 	}
@@ -1727,7 +1727,7 @@ func getDuration(cmd *cobra.Command, flagName, envKey string,
 }
 
 func getInt(cmd *cobra.Command, flagName, envKey string, defaultValue int) (int, error) {
-	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", flagName, err)
 	}
@@ -1745,7 +1745,7 @@ func getInt(cmd *cobra.Command, flagName, envKey string, defaultValue int) (int,
 }
 
 func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64) (float64, error) {
-	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", flagName, err)
 	}
@@ -1763,7 +1763,7 @@ func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64)
 }
 
 func getBool(cmd *cobra.Command, flagName, envKey string, defaultValue bool) (bool, error) {
-	str, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return false, fmt.Errorf("%s: %w", flagName, err)
 	}
@@ -1796,7 +1796,7 @@ type mqParams struct {
 }
 
 func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
-	mqURL, err := cmdutils.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
+	mqURL, err := cmdutil.GetUserSetVarFromString(cmd, mqURLFlagName, mqURLEnvKey, true)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", mqURLFlagName, err)
 	}
@@ -1910,7 +1910,7 @@ func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration, mqPara
 }
 
 func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -1924,11 +1924,11 @@ func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName, tlsCACertsEnvKey)
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName, tlsCACertsEnvKey)
 
-	tlsServeCertPath := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey)
+	tlsServeCertPath := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey)
 
-	tlsServeKeyPath := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
+	tlsServeKeyPath := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
 
 	return &tlsParameters{
 		systemCertPool: tlsSystemCertPool,
@@ -1939,7 +1939,7 @@ func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
 }
 
 func getFollowAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) {
-	authType, err := cmdutils.GetUserSetVarFromString(cmd, followAuthPolicyFlagName, followAuthPolicyEnvKey, true)
+	authType, err := cmdutil.GetUserSetVarFromString(cmd, followAuthPolicyFlagName, followAuthPolicyEnvKey, true)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", followAuthPolicyFlagName, err)
 	}
@@ -1957,7 +1957,7 @@ func getFollowAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) {
 }
 
 func getInviteWitnessAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) {
-	authType, err := cmdutils.GetUserSetVarFromString(cmd, inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyEnvKey, true)
+	authType, err := cmdutil.GetUserSetVarFromString(cmd, inviteWitnessAuthPolicyFlagName, inviteWitnessAuthPolicyEnvKey, true)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", inviteWitnessAuthPolicyFlagName, err)
 	}
@@ -1977,7 +1977,7 @@ func getInviteWitnessAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) 
 func getActivityPubClientParameters(cmd *cobra.Command) (int, time.Duration, error) {
 	cacheSize := defaultActivityPubClientCacheSize
 
-	cacheSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubClientCacheSizeFlagName, activityPubClientCacheSizeEnvKey, true)
+	cacheSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubClientCacheSizeFlagName, activityPubClientCacheSizeEnvKey, true)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -2007,7 +2007,7 @@ func getActivityPubClientParameters(cmd *cobra.Command) (int, time.Duration, err
 func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, error) {
 	cacheSize := defaultActivityPubIRICacheSize
 
-	cacheSizeStr, err := cmdutils.GetUserSetVarFromString(cmd, activityPubIRICacheSizeFlagName, activityPubIRICacheSizeEnvKey, true)
+	cacheSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubIRICacheSizeFlagName, activityPubIRICacheSizeEnvKey, true)
 	if err != nil {
 		return 0, 0, err
 	}
