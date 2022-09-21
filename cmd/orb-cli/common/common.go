@@ -33,7 +33,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"github.com/trustbloc/sidetree-core-go/pkg/jws"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
@@ -41,6 +40,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
+	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 
 var logger = log.New("orb-cli")
@@ -430,7 +430,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, TLSCACertsFlagName,
 		TLSCACertsEnvKey)
 
-	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
+	return tlsutil.GetCertPool(tlsSystemCertPool, tlsCACerts)
 }
 
 func newAuthTokenHeader(cmd *cobra.Command) map[string]string {

@@ -16,9 +16,9 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/spf13/cobra"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
+	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 
 const (
@@ -187,7 +187,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
-	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
+	return tlsutil.GetCertPool(tlsSystemCertPool, tlsCACerts)
 }
 
 func createFlags(startCmd *cobra.Command) {
