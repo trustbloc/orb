@@ -33,13 +33,14 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	"github.com/trustbloc/sidetree-core-go/pkg/jws"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/pubkey"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
+
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 var logger = log.New("orb-cli")
@@ -179,7 +180,7 @@ func ParsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 // GetPublicKeyFromKMS get publickey from kms.
 func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 	webKmsClient kms.KeyManager) (interface{}, error) {
-	keyID, err := cmdutils.GetUserSetVarFromString(cmd, keyIDFlagName,
+	keyID, err := cmdutil.GetUserSetVarFromString(cmd, keyIDFlagName,
 		keyIDEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -222,10 +223,10 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 // GetKey get key.
 func GetKey(cmd *cobra.Command, keyFlagName, keyEnvKey, keyFileFlagName, keyFileEnvKey string,
 	password []byte, privateKey bool) (interface{}, error) {
-	keyString := cmdutils.GetUserSetOptionalVarFromString(cmd, keyFlagName,
+	keyString := cmdutil.GetUserSetOptionalVarFromString(cmd, keyFlagName,
 		keyEnvKey)
 
-	keyFile := cmdutils.GetUserSetOptionalVarFromString(cmd, keyFileFlagName,
+	keyFile := cmdutil.GetUserSetOptionalVarFromString(cmd, keyFileFlagName,
 		keyFileEnvKey)
 
 	if keyString == "" && keyFile == "" {
@@ -412,7 +413,7 @@ func NewHTTPClient(cmd *cobra.Command) (*http.Client, error) {
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, TLSSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, TLSSystemCertPoolFlagName,
 		TLSSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -426,7 +427,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, TLSCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, TLSCACertsFlagName,
 		TLSCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
@@ -435,7 +436,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 func newAuthTokenHeader(cmd *cobra.Command) map[string]string {
 	headers := make(map[string]string)
 
-	authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, AuthTokenFlagName, AuthTokenEnvKey)
+	authToken := cmdutil.GetUserSetOptionalVarFromString(cmd, AuthTokenFlagName, AuthTokenEnvKey)
 	if authToken != "" {
 		headers["Authorization"] = "Bearer " + authToken
 	}
@@ -446,7 +447,7 @@ func newAuthTokenHeader(cmd *cobra.Command) map[string]string {
 // GetDuration get duration.
 func GetDuration(cmd *cobra.Command, flagName, envKey string,
 	defaultDuration time.Duration) (time.Duration, error) {
-	timeoutStr, err := cmdutils.GetUserSetVarFromString(cmd, flagName, envKey, true)
+	timeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return -1, err
 	}

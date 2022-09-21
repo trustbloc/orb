@@ -18,10 +18,10 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	driverrest "github.com/trustbloc/orb/pkg/driver/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"
 )
@@ -132,7 +132,7 @@ func createStartCmd() *cobra.Command {
 }
 
 func getParameters(cmd *cobra.Command) (*parameters, error) {
-	hostURL, err := cmdutils.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
+	hostURL, err := cmdutil.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +142,14 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 		return nil, err
 	}
 
-	tlsCertificate := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey)
+	tlsCertificate := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsCertificateFlagName, tlsCertificateLEnvKey)
 
-	tlsKey := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
+	tlsKey := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsKeyFlagName, tlsKeyEnvKey)
 
-	sidetreeToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeTokenFlagName,
+	sidetreeToken := cmdutil.GetUserSetOptionalVarFromString(cmd, sidetreeTokenFlagName,
 		sidetreeTokenEnvKey)
 
-	discoveryDomain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainEnvKey)
+	discoveryDomain := cmdutil.GetUserSetOptionalVarFromString(cmd, domainFlagName, domainEnvKey)
 
 	verifyResolutionResultType, err := getVerifyResolutionResultType(cmd)
 	if err != nil {
@@ -169,7 +169,7 @@ func getParameters(cmd *cobra.Command) (*parameters, error) {
 }
 
 func getVerifyResolutionResultType(cmd *cobra.Command) (orb.VerifyResolutionResultType, error) {
-	verifyTypeString, err := cmdutils.GetUserSetVarFromString(cmd, verifyTypeFlagName,
+	verifyTypeString, err := cmdutil.GetUserSetVarFromString(cmd, verifyTypeFlagName,
 		verifyTypeEnvKey, false)
 	if err != nil {
 		return -1, err
@@ -188,7 +188,7 @@ func getVerifyResolutionResultType(cmd *cobra.Command) (orb.VerifyResolutionResu
 }
 
 func getTLS(cmd *cobra.Command) (bool, []string, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -202,7 +202,7 @@ func getTLS(cmd *cobra.Command) (bool, []string, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsSystemCertPool, tlsCACerts, nil

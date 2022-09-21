@@ -18,7 +18,8 @@ import (
 	shell "github.com/ipfs/go-ipfs-api"
 	files "github.com/ipfs/go-ipfs-files"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
+
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 const (
@@ -62,19 +63,19 @@ func hostMetaDocUploadCmd() *cobra.Command { //nolint: funlen
 		Long:         "upload IPNS host-meta document",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ipfsURL, err := cmdutils.GetUserSetVarFromString(cmd, ipfsURLFlagName,
+			ipfsURL, err := cmdutil.GetUserSetVarFromString(cmd, ipfsURLFlagName,
 				ipfsURLEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			keyName, err := cmdutils.GetUserSetVarFromString(cmd, keyNameFlagName,
+			keyName, err := cmdutil.GetUserSetVarFromString(cmd, keyNameFlagName,
 				keyNameEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			hostMetaDocInputPath := cmdutils.GetUserSetOptionalVarFromString(cmd, hostMetaDocInputFileFlagName,
+			hostMetaDocInputPath := cmdutil.GetUserSetOptionalVarFromString(cmd, hostMetaDocInputFileFlagName,
 				hostMetaDocInputFileEnvKey)
 
 			if hostMetaDocInputPath == "" {

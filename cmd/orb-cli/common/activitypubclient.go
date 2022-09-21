@@ -15,8 +15,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
@@ -41,7 +41,7 @@ func NewActivityPubClient(cmd *cobra.Command) (*ActivityPubClient, error) {
 
 	const mappingParts = 2
 
-	for _, mapping := range cmdutils.GetUserSetOptionalVarFromArrayString(cmd, TargetOverrideFlagName,
+	for _, mapping := range cmdutil.GetUserSetOptionalVarFromArrayString(cmd, TargetOverrideFlagName,
 		TargetOverrideEnvKey) {
 		pair := strings.Split(mapping, "->")
 		if len(pair) != mappingParts {

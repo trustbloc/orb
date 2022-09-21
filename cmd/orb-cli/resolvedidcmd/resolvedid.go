@@ -16,8 +16,9 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	vdrapi "github.com/hyperledger/aries-framework-go/pkg/framework/aries/api/vdr"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
+
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 const (
@@ -85,16 +86,16 @@ func resolveDIDCmd() *cobra.Command {
 				return err
 			}
 
-			didURI, err := cmdutils.GetUserSetVarFromString(cmd, didURIFlagName,
+			didURI, err := cmdutil.GetUserSetVarFromString(cmd, didURIFlagName,
 				didURIEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			authToken := cmdutils.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
+			authToken := cmdutil.GetUserSetOptionalVarFromString(cmd, authTokenFlagName,
 				authTokenEnvKey)
 
-			domain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName,
+			domain := cmdutil.GetUserSetOptionalVarFromString(cmd, domainFlagName,
 				domainFileEnvKey)
 
 			verifyResolutionResultType, err := getVerifyResolutionResultType(cmd)
@@ -139,7 +140,7 @@ func resolveDIDOption(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	var opts []vdrapi.DIDMethodOption
 
-	sidetreeURLRes := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
+	sidetreeURLRes := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
 		sidetreeURLResEnvKey)
 
 	if len(sidetreeURLRes) > 0 {
@@ -150,7 +151,7 @@ func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 }
 
 func getVerifyResolutionResultType(cmd *cobra.Command) (orb.VerifyResolutionResultType, error) {
-	verifyTypeString, err := cmdutils.GetUserSetVarFromString(cmd, verifyTypeFlagName,
+	verifyTypeString, err := cmdutil.GetUserSetVarFromString(cmd, verifyTypeFlagName,
 		verifyTypeEnvKey, false)
 	if err != nil {
 		return -1, err
@@ -169,7 +170,7 @@ func getVerifyResolutionResultType(cmd *cobra.Command) (orb.VerifyResolutionResu
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -183,7 +184,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)

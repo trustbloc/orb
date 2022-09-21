@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 func newUpdateCmd() *cobra.Command {
@@ -37,7 +37,7 @@ func newUpdateCmd() *cobra.Command {
 }
 
 func executeUpdate(cmd *cobra.Command) error { //nolint: gocyclo,cyclop
-	u, err := cmdutils.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
+	u, err := cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return err
 	}
@@ -47,14 +47,14 @@ func executeUpdate(cmd *cobra.Command) error { //nolint: gocyclo,cyclop
 		return fmt.Errorf("invalid URL %s: %w", u, err)
 	}
 
-	log, err := cmdutils.GetUserSetVarFromString(cmd, logFlagName, typeEnvKey, false)
+	log, err := cmdutil.GetUserSetVarFromString(cmd, logFlagName, typeEnvKey, false)
 	if err != nil {
 		return err
 	}
 
 	maxRetry := defaultMaxRetry
 
-	maxRetryString := cmdutils.GetUserSetOptionalVarFromString(cmd, maxRetryFlagName,
+	maxRetryString := cmdutil.GetUserSetOptionalVarFromString(cmd, maxRetryFlagName,
 		maxRetryEnvKey)
 
 	if maxRetryString != "" {

@@ -13,9 +13,9 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 func newAddCmd() *cobra.Command {
@@ -89,7 +89,7 @@ func addUpdateFlags(cmd *cobra.Command) {
 }
 
 func getUpdateArgs(cmd *cobra.Command) (u, acceptType string, actors []string, err error) {
-	u, err = cmdutils.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
+	u, err = cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -99,12 +99,12 @@ func getUpdateArgs(cmd *cobra.Command) (u, acceptType string, actors []string, e
 		return "", "", nil, fmt.Errorf("invalid URL %s: %w", u, err)
 	}
 
-	acceptType, err = cmdutils.GetUserSetVarFromString(cmd, typeFlagName, typeEnvKey, false)
+	acceptType, err = cmdutil.GetUserSetVarFromString(cmd, typeFlagName, typeEnvKey, false)
 	if err != nil {
 		return "", "", nil, err
 	}
 
-	actors, err = cmdutils.GetUserSetVarFromArrayString(cmd, actorFlagName, actorEnvKey, false)
+	actors, err = cmdutil.GetUserSetVarFromArrayString(cmd, actorFlagName, actorEnvKey, false)
 	if err != nil {
 		return "", "", nil, err
 	}

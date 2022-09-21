@@ -24,11 +24,11 @@ import (
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/linkset"
@@ -187,7 +187,7 @@ func addUpdateFlags(cmd *cobra.Command) {
 }
 
 func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, verbose bool, err error) {
-	casURL, err = cmdutils.GetUserSetVarFromString(cmd, casURLFlagName, casURLEnvKey, false)
+	casURL, err = cmdutil.GetUserSetVarFromString(cmd, casURLFlagName, casURLEnvKey, false)
 	if err != nil {
 		return "", "", "", false, err
 	}
@@ -197,14 +197,14 @@ func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, ve
 		return "", "", "", false, fmt.Errorf("invalid CAS URL %s: %w", casURL, err)
 	}
 
-	anchorHash, err = cmdutils.GetUserSetVarFromString(cmd, anchorHashFlagName, anchorHashEnvKey, false)
+	anchorHash, err = cmdutil.GetUserSetVarFromString(cmd, anchorHashFlagName, anchorHashEnvKey, false)
 	if err != nil {
 		return "", "", "", false, err
 	}
 
-	authToken = cmdutils.GetUserSetOptionalVarFromString(cmd, vctAuthTokenFlagName, vctAuthTokenEnvKey)
+	authToken = cmdutil.GetUserSetOptionalVarFromString(cmd, vctAuthTokenFlagName, vctAuthTokenEnvKey)
 
-	verboseStr := cmdutils.GetUserSetOptionalVarFromString(cmd, verboseFlagName, verboseEnvKey)
+	verboseStr := cmdutil.GetUserSetOptionalVarFromString(cmd, verboseFlagName, verboseEnvKey)
 	if verboseStr != "" {
 		verbose = true
 	}

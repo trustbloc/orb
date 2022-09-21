@@ -12,9 +12,9 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 func newGetCmd() *cobra.Command {
@@ -37,7 +37,7 @@ func newGetCmd() *cobra.Command {
 }
 
 func executeGet(cmd *cobra.Command) error {
-	u, err := cmdutils.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
+	u, err := cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func executeGet(cmd *cobra.Command) error {
 		return fmt.Errorf("invalid URL %s: %w", u, err)
 	}
 
-	acceptType, err := cmdutils.GetUserSetVarFromString(cmd, typeFlagName, typeEnvKey, true)
+	acceptType, err := cmdutil.GetUserSetVarFromString(cmd, typeFlagName, typeEnvKey, true)
 	if err != nil {
 		return err
 	}

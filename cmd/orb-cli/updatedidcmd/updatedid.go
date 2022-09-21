@@ -22,10 +22,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
 	"github.com/spf13/cobra"
-	cmdutils "github.com/trustbloc/edge-core/pkg/utils/cmd"
 	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 )
 
 const (
@@ -146,16 +146,16 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 				return err
 			}
 
-			didURI, err := cmdutils.GetUserSetVarFromString(cmd, didURIFlagName,
+			didURI, err := cmdutil.GetUserSetVarFromString(cmd, didURIFlagName,
 				didURIEnvKey, false)
 			if err != nil {
 				return err
 			}
 
-			sidetreeWriteToken := cmdutils.GetUserSetOptionalVarFromString(cmd, sidetreeWriteTokenFlagName,
+			sidetreeWriteToken := cmdutil.GetUserSetOptionalVarFromString(cmd, sidetreeWriteTokenFlagName,
 				sidetreeWriteTokenEnvKey)
 
-			domain := cmdutils.GetUserSetOptionalVarFromString(cmd, domainFlagName,
+			domain := cmdutil.GetUserSetOptionalVarFromString(cmd, domainFlagName,
 				domainFileEnvKey)
 
 			didDoc, opts, err := updateDIDOption(didURI, cmd)
@@ -168,7 +168,7 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 				TLSClientConfig:   &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12},
 			}}
 
-			kmsStoreURL := cmdutils.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
+			kmsStoreURL := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsStoreEndpointFlagName,
 				kmsStoreEndpointEnvKey)
 
 			var webKmsClient kms.KeyManager
@@ -186,7 +186,7 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 
 			if webKmsClient == nil { //nolint: nestif
 				signingKey, err = common.GetKey(cmd, signingKeyFlagName, signingKeyEnvKey, signingKeyFileFlagName,
-					signingKeyFileEnvKey, []byte(cmdutils.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
+					signingKeyFileEnvKey, []byte(cmdutil.GetUserSetOptionalVarFromString(cmd, signingKeyPasswordFlagName,
 						signingKeyPasswordEnvKey)), true)
 				if err != nil {
 					return err
@@ -203,7 +203,7 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 					return err
 				}
 
-				signingKeyID, err = cmdutils.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
+				signingKeyID, err = cmdutil.GetUserSetVarFromString(cmd, signingKeyIDFlagName,
 					signingKeyIDEnvKey, false)
 				if err != nil {
 					return err
@@ -246,14 +246,14 @@ func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
 func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	var opts []vdrapi.DIDMethodOption
 
-	sidetreeURLOps := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLOpsFlagName,
+	sidetreeURLOps := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLOpsFlagName,
 		sidetreeURLOpsEnvKey)
 
 	if len(sidetreeURLOps) > 0 {
 		opts = append(opts, vdrapi.WithOption(orb.OperationEndpointsOpt, sidetreeURLOps))
 	}
 
-	sidetreeURLRes := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
+	sidetreeURLRes := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeURLResFlagName,
 		sidetreeURLResEnvKey)
 
 	if len(sidetreeURLRes) > 0 {
@@ -279,7 +279,7 @@ func updateDIDOption(didID string, cmd *cobra.Command) (*ariesdid.Doc, []vdrapi.
 	didDoc.ID = didID
 	didDoc.Service = services
 
-	alsoKnownAs := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, didAlsoKnownAsFlagName,
+	alsoKnownAs := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, didAlsoKnownAsFlagName,
 		didAlsoKnownAsEnvKey)
 
 	if len(alsoKnownAs) > 0 {
@@ -290,7 +290,7 @@ func updateDIDOption(didID string, cmd *cobra.Command) (*ariesdid.Doc, []vdrapi.
 }
 
 func getServices(cmd *cobra.Command) ([]ariesdid.Service, error) {
-	serviceFile := cmdutils.GetUserSetOptionalVarFromString(cmd, addServiceFileFlagName,
+	serviceFile := cmdutil.GetUserSetOptionalVarFromString(cmd, addServiceFileFlagName,
 		addServiceFileEnvKey)
 
 	var svc []ariesdid.Service
@@ -310,7 +310,7 @@ func getServices(cmd *cobra.Command) ([]ariesdid.Service, error) {
 }
 
 func getPublicKeys(cmd *cobra.Command) (*ariesdid.Doc, error) {
-	publicKeyFile := cmdutils.GetUserSetOptionalVarFromString(cmd, addPublicKeyFileFlagName,
+	publicKeyFile := cmdutil.GetUserSetOptionalVarFromString(cmd, addPublicKeyFileFlagName,
 		addPublicKeyFileEnvKey)
 
 	if publicKeyFile != "" {
@@ -321,7 +321,7 @@ func getPublicKeys(cmd *cobra.Command) (*ariesdid.Doc, error) {
 }
 
 func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
-	tlsSystemCertPoolString := cmdutils.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
+	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
 		tlsSystemCertPoolEnvKey)
 
 	tlsSystemCertPool := false
@@ -335,7 +335,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 		}
 	}
 
-	tlsCACerts := cmdutils.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
+	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
 	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
