@@ -57,7 +57,6 @@ import (
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/edge-core/pkg/log"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 	awssvc "github.com/trustbloc/kms/pkg/aws"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -70,6 +69,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
+	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/httpsig"
@@ -495,7 +495,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 
-	rootCAs, err := tlsutils.GetCertPool(parameters.tlsParams.systemCertPool, parameters.tlsParams.caCerts)
+	rootCAs, err := tlsutil.GetCertPool(parameters.tlsParams.systemCertPool, parameters.tlsParams.caCerts)
 	if err != nil {
 		return err
 	}

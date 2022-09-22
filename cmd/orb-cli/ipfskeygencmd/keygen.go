@@ -20,10 +20,10 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/spf13/cobra"
-	tlsutils "github.com/trustbloc/edge-core/pkg/utils/tls"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/common"
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
+	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 
 const (
@@ -228,7 +228,7 @@ func getRootCAs(cmd *cobra.Command) (*x509.CertPool, error) {
 	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName,
 		tlsCACertsEnvKey)
 
-	return tlsutils.GetCertPool(tlsSystemCertPool, tlsCACerts)
+	return tlsutil.GetCertPool(tlsSystemCertPool, tlsCACerts)
 }
 
 func createFlags(startCmd *cobra.Command) {
