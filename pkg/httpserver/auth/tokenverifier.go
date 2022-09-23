@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("httpserver")

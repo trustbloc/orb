@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const testLogModuleName = "test"
@@ -49,7 +50,7 @@ func TestSetLogLevel(t *testing.T) {
 func resetLoggingLevels(t *testing.T) {
 	t.Helper()
 
-	log.SetLevel("", log.INFO)
+	log.SetDefaultLevel(log.INFO)
 	log.SetLevel("module1", log.INFO)
 	log.SetLevel("module2", log.INFO)
 }

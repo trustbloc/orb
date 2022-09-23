@@ -14,8 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/trustbloc/edge-core/pkg/log"
-
+	"github.com/trustbloc/orb/internal/pkg/log"
 	apstore "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/lifecycle"

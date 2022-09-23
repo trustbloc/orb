@@ -20,8 +20,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/cenkalti/backoff"
 	ramqp "github.com/rabbitmq/amqp091-go"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"

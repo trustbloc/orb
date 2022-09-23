@@ -13,8 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/trustbloc/edge-core/pkg/log"
-
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"

@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -374,7 +374,7 @@ type progressLogger struct {
 }
 
 func (l *progressLogger) Log(numProcessed int, page, currentPage fmt.Stringer) {
-	if !log.IsEnabledFor(logModule, log.INFO) {
+	if !logger.IsEnabled(log.INFO) {
 		return
 	}
 

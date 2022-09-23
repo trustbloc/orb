@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"

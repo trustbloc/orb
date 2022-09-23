@@ -8,7 +8,6 @@ package main
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/trustbloc/edge-core/pkg/log"
 
 	"github.com/trustbloc/orb/cmd/orb-cli/acceptlistcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/allowedoriginscmd"
@@ -26,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/cmd/orb-cli/updatedidcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/vctcmd"
 	"github.com/trustbloc/orb/cmd/orb-cli/witnesscmd"
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("orb-cli")

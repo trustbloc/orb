@@ -21,8 +21,8 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/bluele/gcache"
 	"github.com/google/uuid"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"

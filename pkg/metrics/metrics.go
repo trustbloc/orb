@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/trustbloc/edge-core/pkg/log"
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("tlsutil")

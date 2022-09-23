@@ -10,7 +10,8 @@ import (
 	"fmt"
 
 	"github.com/ThreeDotsLabs/watermill"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // Module is the name of the Watermill module used for logging.
@@ -38,8 +39,7 @@ func (l *Logger) Error(msg string, err error, fields watermill.LogFields) {
 
 // Info logs an informational message.
 func (l *Logger) Info(msg string, fields watermill.LogFields) {
-	// Watermill outputs too many INFO logs, so use the DEBUG log level.
-	if level := log.GetLevel(Module); level < log.INFO {
+	if level := log.GetLevel(Module); level > log.INFO {
 		return
 	}
 
@@ -48,7 +48,7 @@ func (l *Logger) Info(msg string, fields watermill.LogFields) {
 
 // Debug logs a debug message.
 func (l *Logger) Debug(msg string, fields watermill.LogFields) {
-	if level := log.GetLevel(Module); level < log.DEBUG {
+	if level := log.GetLevel(Module); level > log.DEBUG {
 		return
 	}
 
@@ -57,7 +57,7 @@ func (l *Logger) Debug(msg string, fields watermill.LogFields) {
 
 // Trace logs a trace message. Note that this implementation uses a debug log for trace.
 func (l *Logger) Trace(msg string, fields watermill.LogFields) {
-	if level := log.GetLevel(Module); level < log.DEBUG {
+	if level := log.GetLevel(Module); level > log.DEBUG {
 		return
 	}
 

@@ -10,8 +10,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("client-version-provider")

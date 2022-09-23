@@ -18,7 +18,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 func TestStartCmdContents(t *testing.T) {
@@ -208,7 +209,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -232,7 +233,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -257,7 +258,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -283,7 +284,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -308,7 +309,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -334,7 +335,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -358,7 +359,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 		}
 
 		startCmd.SetArgs(args)
@@ -380,7 +381,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + httpSignaturesEnabledFlagName, "invalid bool",
 		}
 
@@ -404,7 +405,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + enableVCTFlagName, "invalid bool",
 		}
 
@@ -428,7 +429,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + enableDidDiscoveryFlagName, "invalid bool",
 		}
 
@@ -452,7 +453,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + enableUnpublishedOperationStoreFlagName, "invalid bool",
 		}
 
@@ -476,7 +477,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + resolveFromAnchorOriginFlagName, "invalid bool",
 		}
 
@@ -500,7 +501,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + verifyLatestFromAnchorOriginFlagName, "invalid bool",
 		}
 
@@ -524,7 +525,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + includeUnpublishedOperationsFlagName, "invalid bool",
 		}
 
@@ -548,7 +549,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
-			"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+			"--" + LogLevelFlagName, log.ERROR.String(),
 			"--" + includePublishedOperationsFlagName, "invalid bool",
 		}
 
@@ -911,7 +912,7 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 		"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		"--" + LogLevelFlagName, log.ERROR.String(),
 	}
 	startCmd.SetArgs(args)
 
@@ -1780,7 +1781,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + databaseTypeFlagName, databaseType,
 		"--" + kmsSecretsDatabaseTypeFlagName, databaseType,
 		"--" + anchorCredentialDomainFlagName, "domain.com",
-		"--" + LogLevelFlagName, log.ParseString(log.ERROR),
+		"--" + LogLevelFlagName, log.ERROR.String(),
 		"--" + localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnabled,
 		"--" + enableUnpublishedOperationStoreFlagName, "true",
 		"--" + unpublishedOperationStoreOperationTypesFlagName, "update",

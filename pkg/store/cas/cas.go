@@ -14,8 +14,8 @@ import (
 
 	"github.com/bluele/gcache"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -109,7 +109,7 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 		return "", fmt.Errorf("failed to create resource hash from content: %w", err)
 	}
 
-	if log.IsEnabledFor(logModule, log.DEBUG) {
+	if logger.IsEnabled(log.DEBUG) {
 		logger.Debugf("Writing to CAS store [%s]. Content (base64-encoded): %s",
 			resourceHash, base64.RawStdEncoding.EncodeToString(content))
 	}

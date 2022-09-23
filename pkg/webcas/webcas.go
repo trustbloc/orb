@@ -13,10 +13,10 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/trustbloc/edge-core/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"

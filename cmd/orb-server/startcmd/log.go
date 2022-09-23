@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 
 package startcmd
 
-import "github.com/trustbloc/edge-core/pkg/log"
+import "github.com/trustbloc/orb/internal/pkg/log"
 
 const (
 	// LogLevelFlagName is the flag name used for setting the default log level.
@@ -34,6 +34,6 @@ func setLogLevels(logger log.Logger, logSpec string) {
 	if err := log.SetSpec(logSpec); err != nil {
 		logger.Warnf(logSpecErrorMsg, err.Error())
 
-		log.SetLevel("", log.INFO)
+		log.SetDefaultLevel(log.INFO)
 	}
 }
