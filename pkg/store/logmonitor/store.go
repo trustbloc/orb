@@ -12,9 +12,9 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
 )

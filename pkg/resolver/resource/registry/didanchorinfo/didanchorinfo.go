@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/didanchor"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )

@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )

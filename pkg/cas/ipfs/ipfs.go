@@ -18,8 +18,8 @@ import (
 
 	"github.com/bluele/gcache"
 	shell "github.com/ipfs/go-ipfs-api"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
@@ -192,7 +192,7 @@ func (m *Client) get(cid string) ([]byte, error) {
 		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
 	}
 
-	if log.IsEnabledFor(logModule, log.DEBUG) {
+	if logger.IsEnabled(log.DEBUG) {
 		logger.Debugf("Got content from IPFS for CID (base64-encoded) [%s]: %s", cid,
 			base64.RawStdEncoding.EncodeToString(content))
 	}

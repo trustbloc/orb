@@ -56,7 +56,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
-	"github.com/trustbloc/edge-core/pkg/log"
 	awssvc "github.com/trustbloc/kms/pkg/aws"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
@@ -69,6 +68,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"

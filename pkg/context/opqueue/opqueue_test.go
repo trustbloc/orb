@@ -18,9 +18,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	ctxmocks "github.com/trustbloc/orb/pkg/context/mocks"
 	"github.com/trustbloc/orb/pkg/internal/testutil/rabbitmqtestutil"

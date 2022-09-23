@@ -12,7 +12,8 @@ import (
 	"time"
 
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("activitypub_httpsig")

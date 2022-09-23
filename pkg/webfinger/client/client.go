@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"

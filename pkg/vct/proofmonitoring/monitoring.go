@@ -17,9 +17,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/vct/pkg/client/vct"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )

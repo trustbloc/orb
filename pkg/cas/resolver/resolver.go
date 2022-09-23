@@ -17,8 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trustbloc/edge-core/pkg/log"
-
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -304,7 +303,7 @@ func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) (
 			"(and calculate CID in the process of doing so): %w", err)
 	}
 
-	if log.IsEnabledFor(logModule, log.DEBUG) {
+	if logger.IsEnabled(log.DEBUG) {
 		logger.Debugf("Successfully stored data into CAS. Request resource hash[%s], "+
 			"resource hash as determined by local store [%s], Data (base64-encoded): %s",
 			resourceHash, newHLFromLocalCAS, base64.RawStdEncoding.EncodeToString(data))

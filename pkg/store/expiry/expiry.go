@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	"github.com/trustbloc/edge-core/pkg/log"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const (

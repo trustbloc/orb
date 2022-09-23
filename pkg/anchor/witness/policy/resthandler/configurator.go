@@ -10,9 +10,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 )
 

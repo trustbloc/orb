@@ -12,8 +12,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/trustbloc/edge-core/pkg/log"
-
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"

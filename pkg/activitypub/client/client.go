@@ -20,8 +20,8 @@ import (
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"

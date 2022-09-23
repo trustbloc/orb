@@ -17,11 +17,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"github.com/trustbloc/edge-core/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	vct2 "github.com/trustbloc/orb/pkg/vct"
 )
 

@@ -14,8 +14,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/edge-core/pkg/log"
-
+	"github.com/trustbloc/orb/internal/pkg/log"
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 )
 

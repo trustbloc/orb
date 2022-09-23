@@ -19,8 +19,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 	"github.com/trustbloc/orb/pkg/taskmgr"
 )

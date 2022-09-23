@@ -13,12 +13,12 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/edge-core/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger/mocks"
 )
 
-//go:generate counterfeiter -o ./mocks/logger.gen.go --fake-name Logger github.com/trustbloc/edge-core/pkg/log.Logger
+//go:generate counterfeiter -o ./mocks/logger.gen.go --fake-name Logger github.com/trustbloc/orb/internal/pkg/log.Logger
 
 func TestNew(t *testing.T) {
 	logger := New()
