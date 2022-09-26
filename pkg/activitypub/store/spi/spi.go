@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -133,6 +134,11 @@ type Criteria struct {
 	ActivityIRIs  []*url.URL
 }
 
+// MarshalJSON marshals the criteria into a logger-friendly format.
+func (c *Criteria) MarshalJSON() ([]byte, error) {
+	return json.Marshal(newLoggedCriteria(c))
+}
+
 // CriteriaOpt sets a Criteria option.
 type CriteriaOpt func(q *Criteria)
 
@@ -200,4 +206,22 @@ type ReferenceIterator interface {
 	Next() (*url.URL, error)
 	// Close closes the iterator.
 	Close() error
+}
+
+type loggedCriteria struct {
+	Types         []vocab.Type                 `json:"types,omitempty"`
+	ReferenceType ReferenceType                `json:"referenceType,omitempty"`
+	ObjectIRI     *vocab.URLProperty           `json:"objectIRI,omitempty"`
+	ReferenceIRI  *vocab.URLProperty           `json:"referenceIRI,omitempty"`
+	ActivityIRIs  *vocab.URLCollectionProperty `json:"activityIRIs,omitempty"`
+}
+
+func newLoggedCriteria(c *Criteria) *loggedCriteria {
+	return &loggedCriteria{
+		Types:         c.Types,
+		ReferenceType: c.ReferenceType,
+		ObjectIRI:     vocab.NewURLProperty(c.ObjectIRI),
+		ReferenceIRI:  vocab.NewURLProperty(c.ReferenceIRI),
+		ActivityIRIs:  vocab.NewURLCollectionProperty(c.ActivityIRIs...),
+	}
 }

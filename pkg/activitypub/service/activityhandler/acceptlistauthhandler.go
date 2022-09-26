@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
+
+var logger = log.NewStructured(loggerModule)
 
 const (
 	// FollowType defines the 'follow' accept list type.
@@ -47,12 +50,14 @@ func (h *AcceptListAuthHandler) AuthorizeActor(actor *vocab.ActorType) (bool, er
 	}
 
 	if contains(allowList, actor.ID().URL()) {
-		logger.Debugf("Actor [%s] is in the accept list for type [%s]", actor.ID(), h.allowType)
+		logger.Debug("Actor is in the accept list for the given type",
+			log.WithActorID(actor.ID().String()), log.WithAcceptListType(h.allowType))
 
 		return true, nil
 	}
 
-	logger.Debugf("Actor [%s] is NOT in the accept list for type [%s]", actor.ID(), h.allowType)
+	logger.Debug("Actor is NOT in the accept-list for the given type",
+		log.WithActorID(actor.ID().String()), log.WithAcceptListType(h.allowType))
 
 	return false, nil
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/bluele/gcache"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -36,9 +37,9 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
-var logger = log.New("activitypub_service")
-
 const (
+	loggerModule = "activitypub_service"
+
 	defaultConcurrentHTTPRequests = 10
 	defaultCacheSize              = 100
 	defaultCacheExpiration        = time.Minute
@@ -91,6 +92,7 @@ type Outbox struct {
 	metrics          metricsProvider
 	followersPath    string
 	witnessesPath    string
+	logger           *log.StructuredLog
 }
 
 type httpTransport interface {
@@ -109,7 +111,9 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider) (*Outbox, error) {
 	cfg := populateConfigDefaults(cnfg)
 
-	logger.Debugf("Creating Outbox with config: %+v", cfg)
+	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName)))
+
+	logger.Debug("Creating Outbox", log.WithConfig(cfg))
 
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), cfg.Topic, spi.WithPool(cfg.SubscriberPoolSize))
 	if err != nil {
@@ -130,6 +134,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		httpTransport:    t,
 		followersPath:    cfg.ServiceEndpointURL.String() + resthandler.FollowersPath,
 		witnessesPath:    cfg.ServiceEndpointURL.String() + resthandler.WitnessesPath,
+		logger:           logger,
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName,
@@ -137,7 +142,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		lifecycle.WithStop(h.stop),
 	)
 
-	logger.Debugf("Creating IRI cache with size=%d, expiration=%s", cfg.CacheSize, cfg.CacheExpiration)
+	logger.Debug("Creating IRI cache", log.WithSize(cfg.CacheSize), log.WithExpiration(cfg.CacheExpiration))
 
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).
@@ -153,19 +158,19 @@ func (h *Outbox) start() {
 }
 
 func (h *Outbox) stop() {
-	logger.Infof("[%s] Outbox stopped", h.ServiceName)
+	h.logger.Info("Outbox stopped")
 }
 
 func (h *Outbox) listen() {
-	logger.Debugf("[%s] Starting message listener", h.ServiceName)
+	h.logger.Debug("Starting message listener")
 
 	for msg := range h.msgChan {
-		logger.Debugf("[%s] Got new message: %s: %s", h.ServiceName, msg.UUID, msg.Payload)
+		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
 
 		h.handle(msg)
 	}
 
-	logger.Debugf("[%s] Message listener stopped", h.ServiceName)
+	h.logger.Debug("Message listener stopped")
 }
 
 type messageType string
@@ -217,26 +222,24 @@ func (h *Outbox) handle(msg *message.Message) {
 	activity, err := h.handleActivityMsg(msg)
 	if err != nil {
 		if orberrors.IsTransient(err) {
-			logger.Warnf("[%s] Transient error handling message [%s]: %s",
-				h.ServiceName, msg.UUID, err)
+			h.logger.Warn("Transient error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
 
 			msg.Nack()
 		} else {
-			logger.Warnf("[%s] Persistent error handling message [%s]: %s",
-				h.ServiceName, msg.UUID, err)
+			h.logger.Warn("Persistent error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
 
 			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 			msg.Ack()
 		}
 	} else {
-		logger.Debugf("[%s] Acking message [%s] for activity [%s]", h.ServiceName, msg.UUID, activity.ID())
+		h.logger.Debug("Acking activity message", log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()))
 
 		msg.Ack()
 	}
 }
 
 func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
-	logger.Debugf("[%s] Handling activity message [%s]", h.ServiceName, msg.UUID)
+	h.logger.Debug("Handling activity message", log.WithMessageID(msg.UUID))
 
 	activityMsg := &activityMessage{}
 
@@ -246,8 +249,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 
 	switch activityMsg.Type {
 	case broadcastType:
-		logger.Debugf("[%s] Handling 'broadcast' activity message [%s], activity [%s]",
-			h.ServiceName, msg.UUID, activityMsg.Activity.ID())
+		h.logger.Debug("Handling 'broadcast' activity message",
+			log.WithMessageID(msg.UUID), log.WithActivityID(activityMsg.Activity.ID()))
 
 		if err := h.handleBroadcast(activityMsg.Activity, activityMsg.ExcludeIRIs.URLs()); err != nil {
 			return nil, fmt.Errorf("handle 'broadcast' message for activity [%s]: %w",
@@ -257,8 +260,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 		return activityMsg.Activity, nil
 
 	case resolveAndDeliverType:
-		logger.Debugf("[%s] Handling 'resolve-and-deliver' message [%s], activity [%s], target %s",
-			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
+		h.logger.Debug("Handling 'resolve-and-deliver' activity message", log.WithMessageID(msg.UUID),
+			log.WithActivityID(activityMsg.Activity.ID()), log.WithTargetIRI(activityMsg.TargetIRI))
 
 		if err := h.handleResolveIRIs(activityMsg.Activity, activityMsg.TargetIRI.URL(),
 			activityMsg.ExcludeIRIs.URLs()); err != nil {
@@ -269,8 +272,8 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 		return activityMsg.Activity, nil
 
 	case deliverType:
-		logger.Debugf("[%s] Handling 'deliver' activity message [%s], activity [%s], target [%s]",
-			h.ServiceName, msg.UUID, activityMsg.Activity.ID(), activityMsg.TargetIRI)
+		h.logger.Debug("Handling 'deliver' activity message", log.WithMessageID(msg.UUID),
+			log.WithActivityID(activityMsg.Activity.ID()), log.WithTargetIRI(activityMsg.TargetIRI))
 
 		if err := h.sendActivity(activityMsg.Activity, activityMsg.TargetIRI.URL()); err != nil {
 			return nil, fmt.Errorf("handle 'deliver' message for activity [%s] of type [%s] to [%s]: %w",
@@ -285,7 +288,7 @@ func (h *Outbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, e
 }
 
 func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*url.URL) error {
-	logger.Debugf("[%s] Handling broadcast for activity [%s]", h.ServiceName, activity.ID())
+	h.logger.Debug("Handling broadcast for activity", log.WithActivityID(activity.ID()))
 
 	if err := h.storeActivity(activity); err != nil {
 		return fmt.Errorf("store activity: %w", err)
@@ -304,13 +307,15 @@ func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*ur
 				return fmt.Errorf("unable to publish activity to inbox %s: %w", r.iri, err)
 			}
 		case orberrors.IsTransient(r.err):
-			logger.Warnf("Transient error resolving inbox %s: %s. IRI will be retried.", r.iri, r.err)
+			h.logger.Warn("Transient error resolving inbox. IRI will be retried.",
+				log.WithTargetIRI(r.iri), log.WithError(r.err))
 
 			if err := h.publishResolveAndDeliverMessage(activity, r.iri, excludeIRIs); err != nil {
 				return fmt.Errorf("unable to publish activity for resolve %s: %w", r.iri, err)
 			}
 		default:
-			logger.Errorf("Persistent error resolving inbox %s: %s. IRI will be ignored.", r.iri, r.err)
+			h.logger.Error("Persistent error resolving inbox. IRI will be ignored.",
+				log.WithError(r.err), log.WithTargetIRI(r.iri))
 		}
 	}
 
@@ -318,12 +323,14 @@ func (h *Outbox) handleBroadcast(activity *vocab.ActivityType, excludeIRIs []*ur
 }
 
 func (h *Outbox) handleResolveIRIs(activity *vocab.ActivityType, toIRI *url.URL, excludeIRIs []*url.URL) error {
-	logger.Debugf("[%s] Resolving inboxes from [%s] for activity [%s]", h.ServiceName, toIRI, activity.ID())
+	h.logger.Debug("Resolving inboxes from [%s] for activity [%s]",
+		log.WithTargetIRI(toIRI), log.WithActivityID(activity.ID()))
 
 	for _, r := range h.resolveInboxes([]*url.URL{toIRI}, excludeIRIs) {
 		if r.err != nil {
-			logger.Warnf("Error resolving inbox %s: %s. Transient error: %t",
-				r.iri, r.err, orberrors.IsTransient(r.err))
+			h.logger.Warn("Error resolving inbox.",
+				log.WithTargetIRI(r.iri), log.WithError(r.err),
+				zap.Bool("is-transient-error", orberrors.IsTransient(r.err)))
 
 			return fmt.Errorf("resolve inbox [%s]: %w", r.iri, r.err)
 		}
@@ -372,8 +379,8 @@ func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, excludeIR
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	logger.Debugf("[%s] Publishing activity message [%s] for activity [%s] to queue [%s]",
-		h.ServiceName, msg.UUID, activity.ID(), h.Topic)
+	h.logger.Debug("Publishing activity message to queue", log.WithMessageID(msg.UUID),
+		log.WithActivityID(activity.ID()), log.WithQueue(h.Topic))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
@@ -394,8 +401,8 @@ func (h *Outbox) publishResolveAndDeliverMessage(activity *vocab.ActivityType, t
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	logger.Debugf("[%s] Publishing 'resolve-and-deliver' message [%s] for activity [%s] to queue [%s]",
-		h.ServiceName, msg.UUID, activity.ID(), h.Topic)
+	h.logger.Debug("Publishing 'resolve-and-deliver' activity message to queue",
+		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()), log.WithQueue(h.Topic))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
@@ -414,8 +421,9 @@ func (h *Outbox) publishDeliverMessage(activity *vocab.ActivityType, target *url
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	logger.Debugf("[%s] Publishing 'deliver' message [%s] for activity [%s] to queue [%s] with target [%s]",
-		h.ServiceName, msg.UUID, activity.ID(), h.Topic, target)
+	h.logger.Debug("Publishing 'deliver' activity message to queue",
+		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()),
+		log.WithQueue(h.Topic), log.WithTargetIRI(target))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
@@ -453,7 +461,7 @@ func (h *Outbox) resolveInboxes(toIRIs, excludeIRIs []*url.URL) []*resolveIRIRes
 }
 
 func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
-	logger.Debugf("[%s] Retrieving actor from %s", h.ServiceName, iri)
+	h.logger.Debug("Retrieving actor", log.WithActorIRI(iri))
 
 	actor, err := h.client.GetActor(iri)
 	if err != nil {
@@ -466,7 +474,7 @@ func (h *Outbox) resolveInbox(iri *url.URL) (*url.URL, error) {
 func (h *Outbox) resolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 	if iri.String() == vocab.PublicIRI.String() {
 		// Should not attempt to publishToTarget to the 'Public' URI.
-		logger.Debugf("[%s] Not adding %s to recipients list", h.ServiceName, iri)
+		h.logger.Debug("Not adding target to recipients list", log.WithTargetIRI(iri))
 
 		return nil
 	}
@@ -475,7 +483,7 @@ func (h *Outbox) resolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
 }
 
 func (h *Outbox) doResolveActorIRIs(iri *url.URL) []*resolveIRIResponse {
-	logger.Debugf("[%s] Resolving IRI(s) for [%s]", h.ServiceName, iri)
+	h.logger.Debug("Resolving actor IRI(s)", log.WithTargetIRI(iri))
 
 	switch {
 	case iri.String() == h.followersPath:
@@ -543,7 +551,7 @@ func (h *Outbox) resolveReferences(refType store.ReferenceType) ([]*resolveIRIRe
 func (h *Outbox) doResolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 	result, err := h.iriCache.Get(iri)
 	if err != nil {
-		logger.Debugf("[%s] Got error resolving IRI from cache for actor [%s]: %s", h.ServiceName, iri, err)
+		h.logger.Debug("Got error resolving IRI from cache for actor", log.WithActorIRI(iri), log.WithError(err))
 
 		return nil, err
 	}
@@ -558,14 +566,14 @@ func (h *Outbox) resolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 		return nil, fmt.Errorf("resolve actor [%s]: %w", iri, err)
 	}
 
-	logger.Debugf("[%s] Resolved IRI for actor [%s]: [%s]", h.ServiceName, iri, resolvedActorIRI)
+	h.logger.Debug("Resolved actor IRI for target", log.WithTargetIRI(iri), log.WithActorID(resolvedActorIRI))
 
 	actorIRI, err := url.Parse(resolvedActorIRI)
 	if err != nil {
 		return nil, fmt.Errorf("parse actor URI: %w", err)
 	}
 
-	logger.Debugf("[%s] Sending request to %s to resolve recipient list", h.ServiceName, actorIRI)
+	h.logger.Debug("Sending request to target to resolve recipient list", log.WithTargetIRI(actorIRI))
 
 	it, err := h.client.GetReferences(actorIRI)
 	if err != nil {
@@ -581,7 +589,7 @@ func (h *Outbox) resolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 }
 
 func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error) {
-	logger.Debugf("[%s] Loading references from local storage", h.ServiceName)
+	h.logger.Debug("Loading references from local storage")
 
 	it, err := h.activityStore.QueryReferences(refType, store.NewCriteria(store.WithObjectIRI(h.ServiceIRI)))
 	if err != nil {
@@ -593,7 +601,7 @@ func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error)
 		return nil, fmt.Errorf("error retrieving references of type %s from storage: %w", refType, err)
 	}
 
-	logger.Debugf("[%s] Got %d references from local storage", h.ServiceName, len(refs))
+	h.logger.Debug("Got references from local storage", zap.Int("num-references", len(refs)))
 
 	return refs, nil
 }
@@ -672,7 +680,7 @@ func (h *Outbox) incrementCount(types []vocab.Type) {
 }
 
 func (h *Outbox) sendActivity(activity *vocab.ActivityType, target *url.URL) error {
-	logger.Debugf("[%s] Sending activity [%s] to target [%s]", h.ServiceName, activity.ID(), target)
+	h.logger.Debug("Sending activity to target", log.WithActivityID(activity.ID()), log.WithTargetIRI(target))
 
 	activityBytes, err := h.jsonMarshal(activity)
 	if err != nil {
@@ -686,7 +694,8 @@ func (h *Outbox) sendActivity(activity *vocab.ActivityType, target *url.URL) err
 		transport.WithHeader(wmhttp.HeaderUUID, msg.UUID),
 	)
 
-	logger.Debugf("[%s] Sending message [%s] to [%s]: %s", h.ServiceName, msg.UUID, req.URL, msg.Payload)
+	h.logger.Debug("Sending message", log.WithMessageID(msg.UUID),
+		log.WithTargetIRI(req.URL), log.WithPayload(msg.Payload))
 
 	resp, err := h.httpTransport.Post(context.Background(), req, msg.Payload)
 	if err != nil {
@@ -694,24 +703,24 @@ func (h *Outbox) sendActivity(activity *vocab.ActivityType, target *url.URL) err
 	}
 
 	if err := resp.Body.Close(); err != nil {
-		logger.Warnf("[%s] Error closing response body: %s", h.ServiceName, err)
+		h.logger.Warn("Error closing response body", log.WithError(err))
 	}
 
 	if resp.StatusCode >= http.StatusInternalServerError {
-		logger.Debugf("[%s] Error code %d received in response from [%s] for message [%s]",
-			h.ServiceName, resp.StatusCode, req.URL, msg.UUID)
+		h.logger.Debug("Error code received in response for message",
+			log.WithHTTPStatus(resp.StatusCode), log.WithTargetIRI(req.URL), log.WithMessageID(msg.UUID))
 
 		return orberrors.NewTransientf("server responded with error %d - %s", resp.StatusCode, resp.Status)
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		logger.Debugf("[%s] Error code %d received in response from [%s] for message [%s]",
-			h.ServiceName, resp.StatusCode, req.URL, msg.UUID)
+		h.logger.Debug("Error code received in response for message",
+			log.WithHTTPStatus(resp.StatusCode), log.WithTargetIRI(req.URL), log.WithMessageID(msg.UUID))
 
 		return fmt.Errorf("server responded with error %d - %s", resp.StatusCode, resp.Status)
 	}
 
-	logger.Debugf("[%s] Message successfully sent [%s] to [%s] ", h.ServiceName, msg.UUID, req.URL)
+	h.logger.Debug("Message successfully sent", log.WithMessageID(msg.UUID), log.WithTargetIRI(req.URL))
 
 	return nil
 }

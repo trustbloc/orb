@@ -16,6 +16,7 @@ import (
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 )
 
@@ -31,15 +32,19 @@ type AcceptListWriter struct {
 	mgr      acceptListMgr
 	marshal  func(v interface{}) ([]byte, error)
 	readAll  func(r io.Reader) ([]byte, error)
+	logger   *log.StructuredLog
 }
 
 // NewAcceptListWriter returns a new REST handler to update the "accept list".
 func NewAcceptListWriter(cfg *Config, mgr acceptListMgr) *AcceptListWriter {
+	endpoint := fmt.Sprintf("%s%s", cfg.BasePath, AcceptListPath)
+
 	return &AcceptListWriter{
 		mgr:      mgr,
-		endpoint: fmt.Sprintf("%s%s", cfg.BasePath, AcceptListPath),
+		endpoint: endpoint,
 		marshal:  json.Marshal,
 		readAll:  ioutil.ReadAll,
+		logger:   log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -62,20 +67,20 @@ func (h *AcceptListWriter) Handler() common.HTTPRequestHandler {
 func (h *AcceptListWriter) handlePost(w http.ResponseWriter, req *http.Request) {
 	reqBytes, err := h.readAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", h.endpoint, err)
+		h.logger.Error("Error reading request body", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Got request to update accept list: %s", h.endpoint, reqBytes)
+	h.logger.Debug("Got request to update accept list", log.WithRequestBody(reqBytes))
 
 	requests, err := unmarshalAndValidateRequest(reqBytes)
 	if err != nil {
-		logger.Infof("[%s] Error validating request: %s", h.endpoint, err)
+		h.logger.Info("Error validating request", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusBadRequest, []byte(err.Error()))
+		writeResponse(h.logger, w, http.StatusBadRequest, []byte(err.Error()))
 
 		return
 	}
@@ -83,15 +88,15 @@ func (h *AcceptListWriter) handlePost(w http.ResponseWriter, req *http.Request) 
 	for _, req := range requests {
 		err = h.mgr.Update(req.acceptType, req.additions, req.deletions)
 		if err != nil {
-			logger.Errorf("[%s] Error updating accept list: %s", h.endpoint, err)
+			h.logger.Error("Error updating accept list", log.WithError(err))
 
-			writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+			writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 			return
 		}
 	}
 
-	writeResponse(h.endpoint, w, http.StatusOK, nil)
+	writeResponse(h.logger, w, http.StatusOK, nil)
 }
 
 // AcceptListReader implements a REST handler to read a service's "accept list".
@@ -99,13 +104,17 @@ type AcceptListReader struct {
 	endpoint string
 	mgr      acceptListMgr
 	marshal  func(v interface{}) ([]byte, error)
+	logger   *log.StructuredLog
 }
 
 // NewAcceptListReader returns a new REST handler to read a service's "accept list".
 func NewAcceptListReader(cfg *Config, mgr acceptListMgr) *AcceptListReader {
+	endpoint := fmt.Sprintf("%s%s", cfg.BasePath, AcceptListPath)
+
 	return &AcceptListReader{
 		mgr:      mgr,
-		endpoint: fmt.Sprintf("%s%s", cfg.BasePath, AcceptListPath),
+		endpoint: endpoint,
+		logger:   log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:  json.Marshal,
 	}
 }
@@ -139,58 +148,58 @@ func (h *AcceptListReader) handleGet(w http.ResponseWriter, req *http.Request) {
 func (h *AcceptListReader) handleGetAll(w http.ResponseWriter) {
 	acceptLists, err := h.mgr.GetAll()
 	if err != nil {
-		logger.Errorf("[%s] Error querying accept lists: %s", h.endpoint, err)
+		h.logger.Error("Error querying accept lists", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	acceptListsBytes, err := h.marshalAcceptLists(acceptLists)
 	if err != nil {
-		logger.Errorf("[%s] Error querying accept list: %s", h.endpoint, err)
+		h.logger.Error("Error querying accept list", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	writeResponse(h.endpoint, w, http.StatusOK, acceptListsBytes)
+	writeResponse(h.logger, w, http.StatusOK, acceptListsBytes)
 }
 
 func (h *AcceptListReader) handleGetByType(acceptType string, w http.ResponseWriter) {
 	uris, err := h.mgr.Get(acceptType)
 	if err != nil {
-		logger.Errorf("[%s] Error querying accept list: %s", h.endpoint, err)
+		h.logger.Error("Error querying accept list", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	acceptListBytes, err := h.marshalAcceptList(acceptType, uris)
 	if err != nil {
-		logger.Errorf("[%s] Error querying accept list: %s", h.endpoint, err)
+		h.logger.Error("Error marshalling accept list", log.WithError(err))
 
-		writeResponse(h.endpoint, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(h.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	writeResponse(h.endpoint, w, http.StatusOK, acceptListBytes)
+	writeResponse(h.logger, w, http.StatusOK, acceptListBytes)
 }
 
-func writeResponse(endpoint string, w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
 	w.WriteHeader(status)
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
+			logger.Warn("Unable to write response", log.WithError(err))
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", endpoint, body)
+		logger.Debug("Wrote response", log.WithResponse(body))
 	}
 }
 

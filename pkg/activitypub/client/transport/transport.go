@@ -18,7 +18,7 @@ import (
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 )
 
-var logger = log.New("activitypub_client")
+var logger = log.NewStructured("activitypub_client")
 
 const (
 	// AcceptHeader specifies the content type that the client is expecting.
@@ -139,9 +139,9 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 			return nil, fmt.Errorf("sign request: %w", err)
 		}
 
-		logger.Debugf("Signed HTTP POST to %s. Headers: %s", r.URL, req.Header)
+		logger.Debug("Signed HTTP POST", log.WithRequestURL(r.URL), log.WithRequestHeaders(req.Header))
 	} else {
-		logger.Debugf("HTTP signature is not required for HTTP POST to %s", r.URL)
+		logger.Debug("HTTP signature is not required for HTTP POST", log.WithRequestURL(r.URL))
 	}
 
 	return t.client.Do(req)
@@ -169,9 +169,9 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 			return nil, fmt.Errorf("sign request: %w", err)
 		}
 
-		logger.Debugf("Signed HTTP GET to %s. Headers: %s", r.URL, req.Header)
+		logger.Debug("Signed HTTP GET", log.WithRequestURL(r.URL), log.WithRequestHeaders(req.Header))
 	} else {
-		logger.Debugf("HTTP signature is not required for HTTP GET to %s", r.URL)
+		logger.Debug("HTTP signature is not required for HTTP GET", log.WithRequestURL(r.URL))
 	}
 
 	return t.client.Do(req)

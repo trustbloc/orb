@@ -23,7 +23,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.New("activitypub_resthandler")
+const loggerModule = "activitypub_resthandler"
 
 const (
 	// PublicKeysPath specifies the service's "keys" endpoint.
@@ -225,7 +225,7 @@ func (h *handler) paramAsInt(req *http.Request, param string) (int, bool) {
 
 	size, err := strconv.Atoi(values[0])
 	if err != nil {
-		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+		log.InvalidParameterValue(h.logger.Error, param, err)
 
 		return 0, false
 	}
@@ -243,7 +243,7 @@ func (h *handler) paramAsBool(req *http.Request, param string) bool {
 
 	b, err := strconv.ParseBool(values[0])
 	if err != nil {
-		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+		log.InvalidParameterValue(h.logger.Error, param, err)
 
 		return false
 	}

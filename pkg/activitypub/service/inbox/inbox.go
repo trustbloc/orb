@@ -30,9 +30,11 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
-var logger = log.New("activitypub_service")
+const (
+	loggerModule = "activitypub_service"
 
-const defaultSubscriberPoolSize = 5
+	defaultSubscriberPoolSize = 5
+)
 
 type pubSub interface {
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
@@ -74,6 +76,7 @@ type Inbox struct {
 	jsonUnmarshal          func(data []byte, v interface{}) error
 	metrics                metricsProvider
 	verifyActorInSignature bool
+	logger                 *log.StructuredLog
 }
 
 // New returns a new ActivityPub inbox.
@@ -87,6 +90,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, activityHandler service.Act
 		activityStore:   s,
 		jsonUnmarshal:   json.Unmarshal,
 		metrics:         metrics,
+		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
@@ -155,33 +159,33 @@ func (h *Inbox) start() {
 
 func (h *Inbox) stop() {
 	if err := h.router.Close(); err != nil {
-		logger.Warnf("[%s] Error closing router: %s", h.ServiceEndpoint, err)
+		h.logger.Warn("Error closing router", log.WithError(err))
 	} else {
-		logger.Debugf("[%s] Closed router", h.ServiceEndpoint)
+		h.logger.Debug("Closed router")
 	}
 }
 
 func (h *Inbox) route() {
-	logger.Debugf("[%s] Starting router", h.ServiceEndpoint)
+	h.logger.Debug("Starting router")
 
 	if err := h.router.Run(context.Background()); err != nil {
 		// This happens on startup so the best thing to do is to panic
 		panic(err)
 	}
 
-	logger.Debugf("[%s] Router stopped", h.ServiceEndpoint)
+	h.logger.Debug("Router stopped")
 }
 
 func (h *Inbox) listen() {
-	logger.Debugf("[%s] Starting message listener", h.ServiceEndpoint)
+	h.logger.Debug("Starting message listener")
 
 	for msg := range h.msgChannel {
-		logger.Debugf("[%s] Got new message: %s: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
+		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
 
 		h.handle(msg)
 	}
 
-	logger.Debugf("[%s] Message listener stopped", h.ServiceEndpoint)
+	h.logger.Debug("Message listener stopped")
 }
 
 func (h *Inbox) handle(msg *message.Message) {
@@ -190,19 +194,17 @@ func (h *Inbox) handle(msg *message.Message) {
 	activity, err := h.handleActivityMsg(msg)
 	if err != nil {
 		if orberrors.IsTransient(err) {
-			logger.Warnf("[%s] Transient error handling message [%s]: %s",
-				h.ServiceEndpoint, msg.UUID, err)
+			h.logger.Warn("Transient error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
 
 			msg.Nack()
 		} else {
-			logger.Warnf("[%s] Persistent error handling message [%s]: %s",
-				h.ServiceEndpoint, msg.UUID, err)
+			h.logger.Warn("Persistent error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
 
 			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 			msg.Ack()
 		}
 	} else {
-		logger.Debugf("[%s] Acking message [%s] for activity [%s]", h.ServiceEndpoint, msg.UUID, activity.ID())
+		h.logger.Debug("Acking message", log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()))
 
 		msg.Ack()
 
@@ -211,11 +213,12 @@ func (h *Inbox) handle(msg *message.Message) {
 }
 
 func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
-	logger.Debugf("[%s] Handling activities message [%s]: %s", h.ServiceEndpoint, msg.UUID, msg.Payload)
+	h.logger.Debug("Handling activities message",
+		log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
-		logger.Errorf("[%s] Error validating activity for message [%s]: %s", h.ServiceEndpoint, msg.UUID, err)
+		h.logger.Error("Error validating activity", log.WithError(err), log.WithMessageID(msg.UUID))
 
 		return nil, err
 	}
@@ -223,13 +226,13 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 	_, err = h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			logger.Errorf("[%s] Error retrieving activity [%s] in message [%s]: %s",
-				h.ServiceEndpoint, activity.ID(), msg.UUID, err)
+			h.logger.Error("Error retrieving activity", log.WithError(err),
+				log.WithActivityID(activity.ID()), log.WithMessageID(msg.UUID))
 
 			return nil, err
 		}
 	} else {
-		logger.Infof("[%s] Ignoring duplicate activity [%s] in message [%s]", h.ServiceEndpoint, activity.ID(), msg.UUID)
+		h.logger.Info("Ignoring duplicate activity", log.WithActivityID(activity.ID()), log.WithMessageID(msg.UUID))
 
 		return activity, nil
 	}
@@ -243,15 +246,16 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 		}
 	}
 
-	logger.Debugf("[%s] Handled message [%s]. Adding activity to inbox...", h.ServiceEndpoint, msg.UUID)
+	h.logger.Debug("Handled message. Adding activity to inbox...",
+		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()))
 
-	// Don't return an error if we can't store the activity since we've already successfully processed the activity
+	// Don't return an error if we can't store the activity since we've already successfully processed the activity,
 	// and we don't want to reprocess the same message.
 	if e := h.activityStore.AddActivity(activity); e != nil {
-		logger.Errorf("[%s] Error storing activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
+		h.logger.Error("Error storing activity", log.WithError(e), log.WithActivityID(activity.ID()))
 	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL(),
 		store.WithActivityType(activity.Type().Types()[0])); e != nil {
-		logger.Errorf("[%s] Error adding reference to activity [%s]: %s", h.ServiceEndpoint, activity.ID(), e)
+		h.logger.Error("Error adding reference to activity", log.WithError(e), log.WithActivityID(activity.ID()))
 	}
 
 	return activity, err

@@ -35,7 +35,7 @@ Valid log levels: critical,error,warn,info,debug
 Error: %s`
 
 // setLogLevels sets the log levels for individual modules as well as the default level.
-func setLogLevels(logger log.Logger, logSpec string) {
+func setLogLevels(logger *log.Log, logSpec string) {
 	if err := log.SetSpec(logSpec); err != nil {
 		logger.Warnf(logSpecErrorMsg, err.Error())
 

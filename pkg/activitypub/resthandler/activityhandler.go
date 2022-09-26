@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -101,7 +102,7 @@ func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activity
 func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 	ok, _, err := h.Authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+		h.logger.Error("Error authorizing request", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -120,7 +121,7 @@ func (h *Activities) handle(w http.ResponseWriter, req *http.Request) {
 func (h *Activities) handleActivityRefsOfType(w http.ResponseWriter, req *http.Request, refType spi.ReferenceType) {
 	objectIRI, id, err := h.getObjectIRIAndID(req)
 	if err != nil {
-		logger.Debugf("[%s] Error getting object IRI and ID: %s", h.endpoint, err)
+		h.logger.Debug("Error getting object IRI and ID", log.WithError(err))
 
 		if orberrors.IsBadRequest(err) {
 			h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
@@ -142,8 +143,8 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 	refType spi.ReferenceType) {
 	activities, err := h.getActivities(objectIRI, id, refType)
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
-			h.endpoint, h.refType, objectIRI, err)
+		h.logger.Error("Error retrieving references of the given type",
+			log.WithReferenceType(string(h.refType)), log.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -152,8 +153,8 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 
 	activitiesCollBytes, err := h.marshal(activities)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
-			h.endpoint, h.refType, objectIRI, err)
+		h.logger.Error("Unable to marshal collection", log.WithError(err),
+			log.WithReferenceType(string(h.refType)), log.WithObjectIRI(objectIRI))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -184,8 +185,8 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	}
 
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s",
-			h.endpoint, objectIRI, err)
+		h.logger.Error("Error retrieving page for object IRI",
+			log.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -194,8 +195,8 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s",
-			h.endpoint, objectIRI, err)
+		h.logger.Error("Unable to marshal page for object IRI",
+			log.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -219,7 +220,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIterator(h.logger.Error, err)
 		}
 	}()
 
@@ -262,7 +263,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIterator(h.logger.Error, err)
 		}
 	}()
 
@@ -320,7 +321,7 @@ type Activity struct {
 func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	authorized, _, err := h.Authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+		h.logger.Error("Error authorizing request", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -329,7 +330,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	activityIRI, err := h.getActivityIRI(req)
 	if err != nil {
-		logger.Debugf("[%s] Get activity IRI: %s", h.endpoint, err)
+		h.logger.Debug("Error getting activity IRI", log.WithError(err))
 
 		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -339,14 +340,14 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	activity, err := h.activityStore.GetActivity(activityIRI)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
-			logger.Debugf("[%s] Activity ID not found [%s]", h.endpoint, activityIRI)
+			h.logger.Debug("Activity ID not found", log.WithActivityID(activityIRI))
 
 			h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
 			return
 		}
 
-		logger.Errorf("[%s] Unable to retrieve activity [%s]: %s", h.endpoint, activityIRI, err)
+		h.logger.Error("Unable to retrieve activity", log.WithActivityID(activityIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -355,7 +356,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	if !authorized {
 		if !activity.To().Contains(vocab.PublicIRI) {
-			logger.Debugf("[%s] Unauthorized for activity ID [%s]", h.endpoint, activityIRI)
+			h.logger.Debug("Unauthorized for activity", log.WithActivityID(activityIRI))
 
 			h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
@@ -365,14 +366,14 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	activityBytes, err := h.marshal(activity)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal activity [%s]: %s", h.endpoint, activityIRI, err)
+		h.logger.Error("Unable to marshal activity", log.WithActivityID(activityIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Returning activity: %s", h.endpoint, activityBytes)
+	h.logger.Debug("Returning activity", log.WithPayload(activityBytes))
 
 	h.writeResponse(w, http.StatusOK, activityBytes)
 }
@@ -385,8 +386,6 @@ func (h *Activity) getActivityIRI(req *http.Request) (*url.URL, error) {
 	}
 
 	activityID := fmt.Sprintf("%s/activities/%s", h.ServiceEndpointURL, id)
-
-	logger.Debugf("[%s] Retrieving activity from store [%s]", h.endpoint, activityID)
 
 	activityIRI, err := url.Parse(activityID)
 	if err != nil {
@@ -405,7 +404,7 @@ type ReadOutbox struct {
 func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
 	ok, _, err := h.Authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+		h.logger.Error("Error authorizing request", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -413,11 +412,11 @@ func (h *ReadOutbox) handleOutbox(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if ok {
-		logger.Debugf("[%s] Client authorized. Returning items in outbox.", h.endpoint)
+		h.logger.Debug("Client authorized. Returning items in outbox.")
 
 		h.handleActivityRefsOfType(w, req, spi.Outbox)
 	} else {
-		logger.Debugf("[%s] Client not authorized. Returning only items in outbox marked as public.", h.endpoint)
+		h.logger.Debug("Client not authorized. Returning only items in outbox marked as public.")
 
 		h.handleActivityRefsOfType(w, req, spi.PublicOutbox)
 	}

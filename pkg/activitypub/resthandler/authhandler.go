@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
@@ -29,6 +30,7 @@ type AuthHandler struct {
 	activityStore  store.Store
 	authorizeActor authorizeActorFunc
 	writeResponse  func(w http.ResponseWriter, status int, body []byte)
+	logger         *log.StructuredLog
 }
 
 type authTokenManager interface {
@@ -40,6 +42,8 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 	tm authTokenManager, authorizeActor authorizeActorFunc) *AuthHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
+	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(ep)))
+
 	h := &AuthHandler{
 		Config:         cfg,
 		tokenVerifier:  auth.NewTokenVerifier(tm, ep, method),
@@ -47,17 +51,18 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 		verifier:       verifier,
 		activityStore:  s,
 		authorizeActor: authorizeActor,
+		logger:         logger,
 		writeResponse: func(w http.ResponseWriter, status int, body []byte) {
 			w.WriteHeader(status)
 
 			if len(body) > 0 {
 				if _, err := w.Write(body); err != nil {
-					logger.Warnf("[%s] Unable to write response: %s", ep, err)
+					logger.Warn("Unable to write response", log.WithError(err))
 
 					return
 				}
 
-				logger.Debugf("[%s] Wrote response: %s", ep, body)
+				logger.Debug("Wrote response", log.WithResponse(body))
 			}
 		},
 	}
@@ -73,20 +78,20 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 // provided, the HTTP signature.
 func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 	if h.tokenVerifier.Verify(req) {
-		logger.Debugf("[%s] Authorization succeeded using bearer token for request %s", h.endpoint, req.URL)
+		h.logger.Debug("Authorization succeeded using bearer token for request", log.WithRequestURL(req.URL))
 
 		// The bearer of the token is assumed to be this service. If it isn't then validation
 		// should fail in subsequent checks.
 		return true, h.ObjectIRI, nil
 	}
 
-	logger.Debugf("[%s] Authorization failed using bearer token for request %s.", h.endpoint, req.URL)
+	h.logger.Debug("Authorization failed using bearer token for request", log.WithRequestURL(req.URL))
 
 	if h.verifier == nil {
 		return false, nil, nil
 	}
 
-	logger.Debugf("[%s] Checking HTTP signature for request %s...", h.endpoint, req.URL)
+	h.logger.Debug("Checking HTTP signature for request ...", log.WithRequestURL(req.URL))
 
 	// Check HTTP signature.
 	ok, actorIRI, err := h.verifier.VerifyRequest(req)
@@ -95,7 +100,7 @@ func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 	}
 
 	if !ok {
-		logger.Debugf("[%s] Authorization failed using HTTP signature for request %s.", h.endpoint, req.URL)
+		h.logger.Debug("Authorization failed using HTTP signature for request.", log.WithRequestURL(req.URL))
 
 		return false, nil, nil
 	}
@@ -105,7 +110,7 @@ func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 		return false, nil, fmt.Errorf("authorize actor [%s]: %w", actorIRI, err)
 	}
 
-	logger.Debugf("[%s] Authorization succeeded using HTTP signature for request %s.", h.endpoint, req.URL)
+	h.logger.Debug("Authorization succeeded using HTTP signature for request.", log.WithRequestURL(req.URL))
 
 	return ok, actorIRI, nil
 }
@@ -128,7 +133,7 @@ func (h *AuthHandler) ensureActorIsWitnessOrFollower(actorIRI *url.URL) (bool, e
 		}
 
 		if !isWitness {
-			logger.Infof("[%s] Denying access since actor [%s] is neither a follower or a witness.", h.endpoint, actorIRI)
+			h.logger.Info("Denying access since actor is neither a follower or a witness.", log.WithActorIRI(actorIRI))
 
 			return false, nil
 		}
@@ -151,7 +156,7 @@ func (h *AuthHandler) hasReference(refType store.ReferenceType, refIRI *url.URL)
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIterator(h.logger.Error, err)
 		}
 	}()
 

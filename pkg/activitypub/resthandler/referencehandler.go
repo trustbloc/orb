@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -83,7 +84,7 @@ func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrde
 func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 	ok, _, err := h.Authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+		h.logger.Error("Error authorizing request", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -98,7 +99,7 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 
 	id, err := h.getID(h.ServiceEndpointURL, req)
 	if err != nil {
-		logger.Errorf("[%s] Error generating ID: %s", h.endpoint, err)
+		h.logger.Error("Error generating ID", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -115,8 +116,8 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 func (h *Reference) handleReference(w http.ResponseWriter, id *url.URL) {
 	coll, err := h.getReference(id)
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving %s for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+		h.logger.Error("Error retrieving references for object", log.WithReferenceType(string(h.refType)),
+			log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -125,8 +126,8 @@ func (h *Reference) handleReference(w http.ResponseWriter, id *url.URL) {
 
 	collBytes, err := h.marshal(coll)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal %s collection for object IRI [%s]: %s",
-			h.endpoint, h.refType, h.ObjectIRI, err)
+		h.logger.Error("Unable to marshal collection for object", log.WithReferenceType(string(h.refType)),
+			log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -151,7 +152,7 @@ func (h *Reference) handleReferencePage(w http.ResponseWriter, req *http.Request
 	}
 
 	if err != nil {
-		logger.Errorf("[%s] Error retrieving page for object IRI [%s]: %s", h.endpoint, h.ObjectIRI, err)
+		h.logger.Error("Error retrieving page for object", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -160,7 +161,7 @@ func (h *Reference) handleReferencePage(w http.ResponseWriter, req *http.Request
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal page for object IRI [%s]: %s", h.endpoint, h.ObjectIRI, err)
+		h.logger.Error("Unable to marshal page for object", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -183,7 +184,7 @@ func (h *Reference) getReference(id *url.URL) (interface{}, error) {
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIterator(h.logger.Error, err)
 		}
 	}()
 
@@ -224,7 +225,7 @@ func (h *Reference) getPage(id *url.URL, opts ...spi.QueryOpt) (interface{}, err
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIterator(h.logger.Error, err)
 		}
 	}()
 

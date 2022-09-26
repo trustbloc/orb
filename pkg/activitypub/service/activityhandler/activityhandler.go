@@ -22,9 +22,9 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-var logger = log.New("activitypub_service")
-
 const (
+	loggerModule = "activitypub_service"
+
 	defaultBufferSize      = 100
 	defaultMaxWitnessDelay = 10 * time.Minute
 )
@@ -67,6 +67,7 @@ type handler struct {
 	undoFollow        undoFunc
 	undoInviteWitness undoFunc
 	undoLike          undoFunc
+	logger            *log.StructuredLog
 }
 
 func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
@@ -86,6 +87,7 @@ func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
 		undoFollow:        undoFollow,
 		undoInviteWitness: undoInviteWitness,
 		undoLike:          undoLike,
+		logger:            log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -94,7 +96,7 @@ func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
 }
 
 func (h *handler) stop() {
-	logger.Infof("[%s] Stopping activity handler", h.ServiceName)
+	h.logger.Info("Stopping activity handler")
 
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -118,7 +120,7 @@ func (h *handler) Subscribe() <-chan *vocab.ActivityType {
 }
 
 func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
-	logger.Debugf("[%s] Handling 'Undo' activity: %s", h.ServiceName, undo.ID())
+	h.logger.Debug("Handling 'Undo' activity", log.WithActivityID(undo.ID()))
 
 	if undo.Actor() == nil {
 		return orberrors.NewBadRequest(fmt.Errorf("no actor specified in 'Undo' activity"))

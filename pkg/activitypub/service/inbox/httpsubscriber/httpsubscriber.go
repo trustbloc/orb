@@ -20,13 +20,13 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-var logger = log.New("activitypub_service")
-
 const (
 	// ActorIRIKey is the metadata key for the actor IRI.
 	ActorIRIKey = "actor-iri"
 
 	defaultBufferSize = 100
+
+	loggerModule = "activitypub_service"
 )
 
 // Config holds the HTTP subscriber configuration parameters.
@@ -55,6 +55,7 @@ type Subscriber struct {
 	unmarshalMessage wmhttp.UnmarshalMessageFunc
 	verifier         signatureVerifier
 	tokenVerifier    *auth.TokenVerifier
+	logger           *log.StructuredLog
 }
 
 // New returns a new HTTP subscriber.
@@ -72,6 +73,7 @@ func New(cfg *Config, sigVerifier signatureVerifier, tm authTokenManager) *Subsc
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
 		tokenVerifier:    auth.NewTokenVerifier(tm, cfg.ServiceEndpoint, http.MethodPost),
+		logger:           log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint,
@@ -119,11 +121,12 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 	var actorIRI *url.URL
 
 	if !s.tokenVerifier.Verify(r) {
-		logger.Debugf("Request was not verified using authorization bearer tokens. Verifying request via HTTP signature")
+		s.logger.Debug("Request was not verified using authorization bearer tokens. Verifying request via HTTP signature",
+			log.WithSenderURL(r.URL))
 
 		verified, actor, err := s.verifier.VerifyRequest(r)
 		if err != nil {
-			logger.Errorf("[%s] Error verifying HTTP signature: %s", s.ServiceEndpoint, err)
+			s.logger.Error("Error verifying HTTP signature", log.WithError(err), log.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusInternalServerError)
 
@@ -131,7 +134,7 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !verified {
-			logger.Infof("[%s] Invalid HTTP signature", s.ServiceEndpoint)
+			s.logger.Info("Invalid HTTP signature", log.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusUnauthorized)
 
@@ -140,12 +143,12 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 
 		actorIRI = actor
 	} else {
-		logger.Debugf("Request was verified with a bearer token or no authorization was required.")
+		s.logger.Debug("Request was verified with a bearer token or no authorization was required.", log.WithSenderURL(r.URL))
 	}
 
 	msg, err := s.unmarshalMessage("", r)
 	if err != nil {
-		logger.Warnf("[%s] Error reading message: %s", s.ServiceEndpoint, err)
+		s.logger.Warn("Error reading message", log.WithError(err), log.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusBadRequest)
 
@@ -156,11 +159,11 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		msg.Metadata[ActorIRIKey] = actorIRI.String()
 	}
 
-	logger.Debugf("[%s] Handling message [%s] from actor [%s]", s.ServiceEndpoint, msg.UUID, actorIRI)
+	s.logger.Debug("Handling message", log.WithMessageID(msg.UUID), log.WithActorIRI(actorIRI), log.WithSenderURL(r.URL))
 
 	err = s.publish(msg)
 	if err != nil {
-		logger.Infof("[%s] Message [%s] wasn't sent: %s", s.ServiceEndpoint, msg.UUID, err)
+		s.logger.Info("Message wasn't sent", log.WithMessageID(msg.UUID), log.WithError(err), log.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusServiceUnavailable)
 
@@ -177,23 +180,23 @@ func (s *Subscriber) publish(msg *message.Message) error {
 
 	s.pubChan <- msg
 
-	logger.Debugf("[%s] Message [%s] was posted to publisher", s.ServiceEndpoint, msg.UUID)
+	s.logger.Debug("Message was posted to publisher", log.WithMessageID(msg.UUID))
 
 	return nil
 }
 
 func (s *Subscriber) publisher() {
-	logger.Infof("[%s] Starting publisher.", s.ServiceEndpoint)
+	s.logger.Info("Starting publisher.")
 
 	for {
 		select {
 		case msg := <-s.pubChan:
 			s.msgChan <- msg
 
-			logger.Debugf("[%s] Message [%s] was delivered to subscriber", s.ServiceEndpoint, msg.UUID)
+			s.logger.Debug("Message was delivered to subscriber", log.WithMessageID(msg.UUID))
 
 		case <-s.stopped:
-			logger.Infof("[%s] Stopping publisher.", s.ServiceEndpoint)
+			s.logger.Info("Stopping publisher.")
 
 			close(s.done)
 
@@ -205,30 +208,30 @@ func (s *Subscriber) publisher() {
 func (s *Subscriber) respond(msg *message.Message, w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-msg.Acked():
-		logger.Debugf("[%s] Ack received for message [%s]", s.ServiceEndpoint, msg.UUID)
+		s.logger.Debug("Ack received for message", log.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusOK)
 
 	case <-msg.Nacked():
-		logger.Warnf("[%s] Nack received for message [%s]", s.ServiceEndpoint, msg.UUID)
+		s.logger.Warn("Nack received for message", log.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusInternalServerError)
 
 	case <-r.Context().Done():
-		logger.Infof("[%s] Timed out waiting for ack or nack for message [%s]",
-			s.ServiceEndpoint, msg.UUID, r.Context().Err())
+		s.logger.Info("Timed out waiting for ack or nack for message",
+			log.WithMessageID(msg.UUID), log.WithError(r.Context().Err()))
 
 		w.WriteHeader(http.StatusInternalServerError)
 
 	case <-s.stopped:
-		logger.Infof("[%s] Message [%s] was not handled since service was stopped", s.ServiceEndpoint, msg.UUID)
+		s.logger.Info("Message was not handled since service was stopped", log.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 }
 
 func (s *Subscriber) stop() {
-	logger.Infof("[%s] Stopping HTTP subscriber", s.ServiceEndpoint)
+	s.logger.Info("Stopping HTTP subscriber")
 
 	close(s.stopped)
 
@@ -238,5 +241,5 @@ func (s *Subscriber) stop() {
 
 	close(s.msgChan)
 
-	logger.Infof("[%s] ... HTTP subscriber stopped.", s.ServiceEndpoint)
+	s.logger.Info("... HTTP subscriber stopped.")
 }

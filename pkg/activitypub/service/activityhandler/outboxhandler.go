@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -65,7 +66,7 @@ func (h *Outbox) HandleActivity(_ *url.URL, activity *vocab.ActivityType) error 
 }
 
 func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
-	logger.Debugf("[%s] Handling 'Create' activity: %s", h.ServiceName, create.ID())
+	h.logger.Debug("Handling 'Create' activity", log.WithActivityID(create.ID()))
 
 	obj := create.Object()
 
@@ -97,7 +98,7 @@ func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
 		return fmt.Errorf("invalid anchor link: %w", err)
 	}
 
-	logger.Debugf("[%s] Storing anchor reference [%s]", h.ServiceName, anchorLink.Anchor())
+	h.logger.Debug("Storing anchor reference", log.WithAnchorURI(anchorLink.Anchor()))
 
 	if err := h.store.AddReference(store.AnchorLinkset, anchorEvent.URL()[0], h.ServiceIRI); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("store anchor reference: %w", err))
@@ -122,14 +123,14 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 			iri, h.ServiceIRI, refType))
 	}
 
-	logger.Debugf("[%s] %s (if found) was successfully deleted from %s's collection of %s",
-		h.ServiceIRI, iri, h.ServiceIRI, refType)
+	h.logger.Debug("Reference was successfully deleted from the collection of the given type",
+		log.WithServiceIRI(h.ServiceIRI), log.WithURI(iri), log.WithReferenceType(string(refType)))
 
 	return nil
 }
 
 func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
-	logger.Debugf("[%s] Handling 'Like' activity: %s", h.ServiceName, like.ID())
+	h.logger.Debug("Handling 'Like' activity", log.WithActivityID(like.ID()))
 
 	ref := like.Object().AnchorEvent()
 
@@ -137,7 +138,7 @@ func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
 		return errors.New("no anchor reference URL in 'Like' activity")
 	}
 
-	logger.Debugf("[%s] Storing anchor reference in the 'Liked' collection: %s", h.ServiceName, ref.URL())
+	h.logger.Debug("Storing anchor event reference in the 'Liked' collection", log.WithAnchorEventURI(ref.URL()))
 
 	err := h.store.AddReference(store.Liked, h.ServiceIRI, ref.URL()[0])
 	if err != nil {
