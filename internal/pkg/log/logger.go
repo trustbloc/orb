@@ -17,6 +17,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	timestampKey  = "time"
+	levelKey      = "level"
+	moduleKey     = "logger"
+	callerKey     = "caller"
+	messageKey    = "msg"
+	stacktraceKey = "stacktrace"
+)
+
+// DefaultEncoding sets the default logger encoding.
+// It may be overridden at build time using the -ldflags option.
+//nolint:gochecknoglobals
+var DefaultEncoding = Console
+
 // Level defines a log level for logging messages.
 type Level int
 
@@ -69,153 +83,100 @@ const (
 	PANIC   = Level(zapcore.PanicLevel)
 	FATAL   = Level(zapcore.FatalLevel)
 
-	minLogLevel = DEBUG
-)
-
-// Logger - Standard logger interface.
-type Logger interface {
-	// Fatalf is critical fatal logging, should possibly be followed by a call to os.Exit(1)
-	Fatalf(msg string, args ...interface{})
-
-	// Panicf is critical logging, should possibly be followed by panic
-	Panicf(msg string, args ...interface{})
-
-	// Debugf is for logging verbose messages
-	Debugf(msg string, args ...interface{})
-
-	// Infof for logging general logging messages
-	Infof(msg string, args ...interface{})
-
-	// Warnf is for logging messages about possible issues
-	Warnf(msg string, args ...interface{})
-
-	// Errorf is for logging errors
-	Errorf(msg string, args ...interface{})
-
-	// isEnabledFor returns true if the logger is enabled for the given level.
-	IsEnabled(level Level) bool
-}
-
-const (
-	defaultLevel      = INFO
-	defaultModuleName = ""
-	callerSkip        = 1
+	minLogLevel  = DEBUG
+	defaultLevel = INFO
 )
 
 var levels = newModuleLevels() //nolint:gochecknoglobals
 
-// Log is an implementation of Logger interface.
-type Log struct {
-	instance *zap.SugaredLogger
-	module   string
+type options struct {
+	encoding Encoding
 	stdOut   zapcore.WriteSyncer
 	stdErr   zapcore.WriteSyncer
+	fields   []zap.Field
 }
 
+// Encoding defines the log encoding.
+type Encoding = string
+
+// Log encodings.
+const (
+	Console Encoding = "console"
+	JSON    Encoding = "json"
+)
+
+const defaultModuleName = ""
+
 // Option is a logger option.
-type Option func(l *Log)
+type Option func(o *options)
 
 // WithStdOut sets the output for logs of type DEBUG, INFO, and WARN.
 func WithStdOut(stdOut zapcore.WriteSyncer) Option {
-	return func(l *Log) {
-		l.stdOut = stdOut
+	return func(o *options) {
+		o.stdOut = stdOut
 	}
 }
 
 // WithStdErr sets the output for logs of type ERROR, PANIC, and FATAL.
 func WithStdErr(stdErr zapcore.WriteSyncer) Option {
-	return func(l *Log) {
-		l.stdErr = stdErr
+	return func(o *options) {
+		o.stdErr = stdErr
 	}
 }
 
-// New creates and returns a Logger implementation based on given module name.
-// note: the underlying logger instance is lazy initialized on first use.
-// To use your own logger implementation provide logger provider in 'Initialize()' before logging any line.
-// If 'Initialize()' is not called before logging any line then default logging implementation will be used.
+// WithFields sets the fields that will be output with every log.
+func WithFields(fields ...zap.Field) Option {
+	return func(o *options) {
+		o.fields = fields
+	}
+}
+
+// WithEncoding sets the output encoding (console or json).
+func WithEncoding(encoding Encoding) Option {
+	return func(o *options) {
+		o.encoding = encoding
+	}
+}
+
+// Log uses the Zap SugaredLogger to log messages.
+type Log struct {
+	*zap.SugaredLogger
+	module string
+}
+
+// New creates a Logger implementation based on given module name.
 func New(module string, opts ...Option) *Log {
-	l := &Log{
-		module: module,
-		stdOut: os.Stdout,
-		stdErr: os.Stderr,
+	options := getOptions(opts)
+
+	return &Log{
+		SugaredLogger: newZap(module, options.encoding, options.stdOut, options.stdErr).With(options.fields...).Sugar(),
+		module:        module,
 	}
-
-	for _, opt := range opts {
-		opt(l)
-	}
-
-	l.initialize()
-
-	return l
-}
-
-func (l *Log) initialize() {
-	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
-		TimeKey:        "ts",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		FunctionKey:    zapcore.OmitKey,
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.StringDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
-		EncodeName: func(moduleName string, encoder zapcore.PrimitiveArrayEncoder) {
-			encoder.AppendString(fmt.Sprintf("[%s]", moduleName))
-		},
-	})
-
-	core := zapcore.NewTee(
-		zapcore.NewCore(encoder, zapcore.Lock(l.stdErr),
-			zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl >= zapcore.ErrorLevel && levels.isEnabled(l.module, Level(lvl))
-			}),
-		),
-		zapcore.NewCore(encoder, zapcore.Lock(l.stdOut),
-			zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-				return lvl < zapcore.ErrorLevel && levels.isEnabled(l.module, Level(lvl))
-			}),
-		),
-	)
-
-	l.instance = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(callerSkip)).Named(l.module).Sugar()
-}
-
-// Fatalf log a templated message, then calls os.Exit.
-func (l *Log) Fatalf(msg string, args ...interface{}) {
-	l.instance.Fatalf(msg, args...)
-}
-
-// Panicf log a templated message, then panics.
-func (l *Log) Panicf(msg string, args ...interface{}) {
-	l.instance.Panicf(msg, args...)
-}
-
-// Debugf logs a templated message.
-func (l *Log) Debugf(msg string, args ...interface{}) {
-	l.instance.Debugf(msg, args...)
-}
-
-// Infof logs a templated message.
-func (l *Log) Infof(msg string, args ...interface{}) {
-	l.instance.Infof(msg, args...)
-}
-
-// Warnf logs a templated message.
-func (l *Log) Warnf(msg string, args ...interface{}) {
-	l.instance.Warnf(msg, args...)
-}
-
-// Errorf logs a templated message.
-func (l *Log) Errorf(msg string, args ...interface{}) {
-	l.instance.Errorf(msg, args...)
 }
 
 // IsEnabled returns true if given log level is enabled.
 func (l *Log) IsEnabled(level Level) bool {
+	return levels.isEnabled(l.module, level)
+}
+
+// StructuredLog uses the Zap Logger to log messages in a structured way.
+type StructuredLog struct {
+	*zap.Logger
+	module string
+}
+
+// NewStructured creates a structured Logger implementation based on given module name.
+func NewStructured(module string, opts ...Option) *StructuredLog {
+	options := getOptions(opts)
+
+	return &StructuredLog{
+		Logger: newZap(module, options.encoding, options.stdOut, options.stdErr).With(options.fields...),
+		module: module,
+	}
+}
+
+// IsEnabled returns true if given log level is enabled.
+func (l *StructuredLog) IsEnabled(level Level) bool {
 	return levels.isEnabled(l.module, level)
 }
 
@@ -385,4 +346,71 @@ func (l *moduleLevels) SetDefault(level Level) {
 // isEnabled will return true if logging is enabled for given module and level.
 func (l *moduleLevels) isEnabled(module string, level Level) bool {
 	return level >= l.Get(module)
+}
+
+func newZap(module string, encoding Encoding, stdOut, stdErr zapcore.WriteSyncer) *zap.Logger {
+	encoder := newZapEncoder(encoding)
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(encoder, zapcore.Lock(stdErr),
+			zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+				return lvl >= zapcore.ErrorLevel && levels.isEnabled(module, Level(lvl))
+			}),
+		),
+		zapcore.NewCore(encoder, zapcore.Lock(stdOut),
+			zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+				return lvl < zapcore.ErrorLevel && levels.isEnabled(module, Level(lvl))
+			}),
+		),
+	)
+
+	return zap.New(core, zap.AddCaller()).Named(module)
+}
+
+func newZapEncoder(encoding Encoding) zapcore.Encoder {
+	defaultCfg := zapcore.EncoderConfig{
+		TimeKey:        timestampKey,
+		LevelKey:       levelKey,
+		NameKey:        moduleKey,
+		CallerKey:      callerKey,
+		FunctionKey:    zapcore.OmitKey,
+		MessageKey:     messageKey,
+		StacktraceKey:  stacktraceKey,
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.CapitalLevelEncoder,
+		EncodeTime:     zapcore.ISO8601TimeEncoder,
+		EncodeDuration: zapcore.StringDurationEncoder,
+		EncodeCaller:   zapcore.ShortCallerEncoder,
+	}
+
+	switch strings.ToLower(encoding) {
+	case JSON:
+		cfg := defaultCfg
+		cfg.EncodeLevel = zapcore.LowercaseLevelEncoder
+
+		return zapcore.NewJSONEncoder(cfg)
+	case Console:
+		cfg := defaultCfg
+		cfg.EncodeName = func(moduleName string, encoder zapcore.PrimitiveArrayEncoder) {
+			encoder.AppendString(fmt.Sprintf("[%s]", moduleName))
+		}
+
+		return zapcore.NewConsoleEncoder(cfg)
+	default:
+		panic("unsupported encoding " + encoding)
+	}
+}
+
+func getOptions(opts []Option) *options {
+	options := &options{
+		encoding: DefaultEncoding,
+		stdOut:   os.Stdout,
+		stdErr:   os.Stderr,
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return options
 }

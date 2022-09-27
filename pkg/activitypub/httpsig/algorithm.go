@@ -14,6 +14,8 @@ import (
 
 	ariesverifier "github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const orbHTTPSigAlgorithm = "Sign"
@@ -59,17 +61,17 @@ func (a *SignatureHashAlgorithm) Algorithm() string {
 func (a *SignatureHashAlgorithm) Create(secret httpsig.Secret, data []byte) ([]byte, error) {
 	kh, err := a.KMS.Get(a.keyID)
 	if err != nil {
-		return nil, fmt.Errorf("get key handle: %w", err)
+		return nil, fmt.Errorf("get KMS key handle: %w", err)
 	}
 
-	logger.Debugf("Got key handle for key ID [%s]. Signing ...", secret.KeyID)
+	logger.Debug("Got key handle. Signing ...", log.WithKeyID(secret.KeyID))
 
 	sig, err := a.Crypto.Sign(data, kh)
 	if err != nil {
 		return nil, fmt.Errorf("sign data: %w", err)
 	}
 
-	logger.Debugf("... successfully signed data with keyID from KMS [%s]", a.keyID)
+	logger.Debug("... successfully signed data with KMS", log.WithKeyID(a.keyID))
 
 	return sig, nil
 }
@@ -81,7 +83,7 @@ func (a *SignatureHashAlgorithm) Verify(secret httpsig.Secret, data, signature [
 		return fmt.Errorf("resolve key %s: %w", secret.KeyID, err)
 	}
 
-	logger.Debugf("Got key %+v from keyID [%s]", pubKey, secret.KeyID)
+	logger.Debug("Got public key", log.WithKeyType(pubKey.Type), log.WithKeyID(secret.KeyID))
 
 	switch {
 	case strings.HasPrefix(pubKey.Type, "Ed25519"):
@@ -111,24 +113,22 @@ func NewKeyResolver(actorRetriever actorRetriever) *KeyResolver {
 func (r *KeyResolver) Resolve(keyID string) (*ariesverifier.PublicKey, error) {
 	keyIRI, err := url.Parse(keyID)
 	if err != nil {
-		logger.Errorf("Error parsing public key IRI [%s]: %s", keyID, err)
+		logger.Error("Error parsing public key", log.WithKeyID(keyID), log.WithError(err))
 
 		return nil, fmt.Errorf("parse key IRI [%s]: %w", keyID, err)
 	}
 
-	logger.Debugf("Retrieving public key for key IRI [%s]", keyIRI)
+	logger.Debug("Retrieving public key", log.WithKeyIRI(keyIRI))
 
 	pubKey, err := r.pubKeyRetriever.GetPublicKey(keyIRI)
 	if err != nil {
-		logger.Errorf("Error retrieving public key for IRI [%s]: %s", keyIRI, err)
+		logger.Error("Error retrieving public key", log.WithKeyIRI(keyIRI), log.WithError(err))
 
 		return nil, fmt.Errorf("retrieve public key for ID [%s]: %w", keyID, err)
 	}
 
-	block, rest := pem.Decode([]byte(pubKey.PublicKeyPem()))
+	block, _ := pem.Decode([]byte(pubKey.PublicKeyPem()))
 	if block == nil {
-		logger.Warnf("invalid public key: nil block. Rest: %s", rest)
-
 		return nil, fmt.Errorf("invalid public key for ID [%s]: nil block", keyID)
 	}
 

@@ -241,6 +241,29 @@ func (u Urls) contains(v fmt.Stringer) bool {
 	return false
 }
 
+// String returns the string representation of the URL array.
+func (u Urls) String() string {
+	if len(u) == 0 {
+		return ""
+	}
+
+	if len(u) == 1 {
+		return u[0].String()
+	}
+
+	var s string
+
+	for _, iri := range u {
+		if s == "" {
+			s = "[" + iri.String()
+		} else {
+			s += "," + iri.String()
+		}
+	}
+
+	return s + "]"
+}
+
 // To returns a set of URLs to which the object should be sent.
 func (t *ObjectType) To() Urls {
 	if t == nil || t.object == nil || t.object.To == nil {

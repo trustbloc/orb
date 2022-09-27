@@ -19,7 +19,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.New("accept_list")
+var logger = log.NewStructured("accept_list")
 
 const acceptTypeTag = "acceptType"
 
@@ -83,7 +83,7 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 	}
 
 	if len(operations) == 0 {
-		logger.Debugf("No new additions or deletions for type [%s].", acceptType)
+		logger.Debug("No new additions or deletions for type.", log.WithAcceptListType(acceptType))
 
 		return nil
 	}
@@ -93,8 +93,9 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 		return orberrors.NewTransient(fmt.Errorf("batch update: %w", err))
 	}
 
-	logger.Debugf("Successfully updated the accept list [%s] - Additions: %s, Deletions: %s",
-		acceptType, additions, deletions)
+	logger.Debug("Successfully updated the accept list [%s] - Additions: %s, Deletions: %s",
+		log.WithAcceptListType(acceptType), log.WithAcceptListAdditions(additions...),
+		log.WithAcceptListDeletions(deletions...))
 
 	return nil
 }
@@ -176,14 +177,14 @@ func (m *Manager) next(it storage.Iterator, acceptListMap map[string]*spi.Accept
 
 	err = m.unmarshal(value, &cfg)
 	if err != nil {
-		logger.Warnf("Error unmarshalling accept-list config: %s. The item will be ignored.", err)
+		logger.Warn("Error unmarshalling accept-list config. The item will be ignored.", log.WithError(err))
 
 		return true, nil
 	}
 
 	uri, err := url.Parse(cfg.URI)
 	if err != nil {
-		logger.Warnf("Invalid URI [%s]: %s. The item will be ignored.", cfg.URI, err)
+		logger.Warn("Invalid target URI. The item will be ignored.", log.WithTarget(cfg.URI), log.WithError(err))
 
 		return true, nil
 	}

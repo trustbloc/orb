@@ -16,7 +16,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("activitypub_httpsig")
+var logger = log.NewStructured("activitypub_httpsig")
 
 const (
 	dateHeader = "Date"
@@ -82,13 +82,14 @@ func NewSigner(cfg SignerConfig, cr crypto, km keyManager, keyID string) *Signer
 func (s *Signer) SignRequest(pubKeyID string, req *http.Request) error {
 	req.Header.Add(dateHeader, date())
 
-	logger.Debugf("Signing request for %s. Public key ID [%s]. Headers: %s", req.RequestURI, pubKeyID, req.Header)
+	logger.Debug("Signing request for %s. Public key ID [%s]. Headers: %s", log.WithRequestURLString(req.RequestURI),
+		log.WithKeyID(pubKeyID), log.WithRequestHeaders(req.Header))
 
 	if err := s.signer().Sign(pubKeyID, req); err != nil {
 		return fmt.Errorf("sign request with public key ID [%s]: %w", pubKeyID, err)
 	}
 
-	logger.Debugf("Signed request. Headers: %s", req.Header)
+	logger.Debug("Signed request.", log.WithRequestHeaders(req.Header))
 
 	return nil
 }

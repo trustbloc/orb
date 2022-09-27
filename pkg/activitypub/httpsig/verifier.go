@@ -13,7 +13,9 @@ import (
 	"strings"
 
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
+	"go.uber.org/zap"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
@@ -65,7 +67,7 @@ func NewVerifier(actorRetriever actorRetriever, cr crypto, km keyManager) *Verif
 // - Actor IRI if the signature was successfully verified.
 // - An error if the signature could not be verified due to server error.
 func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
-	logger.Debugf("Verifying request. Headers: %s", req.Header)
+	logger.Debug("Verifying request.", log.WithRequestHeaders(req.Header))
 
 	verified, err := v.verify(req)
 	if err != nil {
@@ -78,16 +80,17 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 
 	keyID := getKeyIDFromSignatureHeader(req)
 	if keyID == "" {
-		logger.Debugf("'keyId' not found in Signature header in request %s", req.URL)
+		logger.Debug("'keyId' not found in Signature header in request", log.WithRequestURL(req.URL))
 
 		return false, nil, nil
 	}
 
-	logger.Debugf("Verifying keyId [%s] from signature header ...", keyID)
+	logger.Debug("Verifying keyId from signature header ...", log.WithKeyID(keyID))
 
 	keyIRI, err := url.Parse(keyID)
 	if err != nil {
-		logger.Debugf("invalid public key ID [%s] in request %s: %s", keyID, req.URL, err)
+		logger.Debug("invalid public key ID in request", log.WithKeyID(keyID),
+			log.WithRequestURL(req.URL), log.WithError(err))
 
 		return false, nil, nil
 	}
@@ -97,7 +100,7 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 		return false, nil, fmt.Errorf("get public key [%s]: %w", keyIRI, err)
 	}
 
-	logger.Debugf("Retrieving actor for public key owner [%s]", publicKey.Owner)
+	logger.Debug("Retrieving actor for public key owner", log.WithKeyOwnerIRI(publicKey.Owner()))
 
 	// Ensure that the public key ID matches the key ID of the specified owner. Otherwise, it could
 	// be an attempt to impersonate an actor.
@@ -107,19 +110,21 @@ func (v *Verifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	}
 
 	if actor.PublicKey() == nil {
-		logger.Debugf("nil public key on actor [%s] in request %s: %s", actor.ID(), req.URL)
+		logger.Debug("nil public key on actor in request", log.WithActorIRI(actor.ID()),
+			log.WithRequestURL(req.URL))
 
 		return false, nil, nil
 	}
 
 	if actor.PublicKey().ID().String() != publicKey.ID().String() {
-		logger.Debugf("public key [%s] of actor [%s] does not match the provided public key ID [%s] in request %s",
-			actor.PublicKey().ID(), actor.ID(), publicKey.ID(), req.URL)
+		logger.Debug("Public key [%s] of actor [%s] does not match the provided public key ID [%s] in request %s",
+			log.WithActorIRI(actor.ID()), log.WithKeyIRI(publicKey.ID()), log.WithRequestURL(req.URL),
+			zap.Stringer("actor-key-id", actor.PublicKey().ID()))
 
 		return false, nil, nil
 	}
 
-	logger.Debugf("Successfully verified signature in header. Actor [%s]", actor.ID())
+	logger.Debug("Successfully verified signature in header", log.WithActorIRI(actor.ID()))
 
 	return true, actor.ID().URL(), nil
 }
@@ -131,13 +136,13 @@ func (v *Verifier) verify(req *http.Request) (bool, error) {
 	}
 
 	if orberrors.IsTransient(err) {
-		logger.Errorf("Error in signature verification for request %s: %s", req.URL, err)
+		logger.Error("Error in signature verification for request", log.WithRequestURL(req.URL), log.WithError(err))
 
 		return false, err
 	}
 
 	if strings.Contains(err.Error(), "transient http error:") {
-		logger.Errorf("Error in signature verification for request %s: %s", req.URL, err)
+		logger.Error("Error in signature verification for request", log.WithRequestURL(req.URL), log.WithError(err))
 
 		// The http sig library does not wrap errors properly, so the ORB transient error is not in the
 		// chain of errors. Wrap the error with a transient error so that the request may be retried by
@@ -145,7 +150,7 @@ func (v *Verifier) verify(req *http.Request) (bool, error) {
 		return false, orberrors.NewTransient(err)
 	}
 
-	logger.Infof("Signature verification failed for request %s: %s", req.URL, err)
+	logger.Info("Signature verification failed for request", log.WithRequestURL(req.URL), log.WithError(err))
 
 	return false, nil
 }
@@ -153,7 +158,7 @@ func (v *Verifier) verify(req *http.Request) (bool, error) {
 func getKeyIDFromSignatureHeader(req *http.Request) string {
 	signatureHeader, ok := req.Header["Signature"]
 	if !ok || len(signatureHeader) == 0 {
-		logger.Debugf("'Signature' not found in request header for request %s", req.URL)
+		logger.Debug("'Signature' not found in request header for request", log.WithRequestURL(req.URL))
 
 		return ""
 	}

@@ -37,14 +37,14 @@ const (
 	activityTypeTagName = "activityType"
 )
 
-var logger = log.New("activitypub_store")
+const loggerModule = "activitypub_store"
 
 // Provider implements an ActivityPub store backed by an Aries storage provider.
 type Provider struct {
-	serviceName             string
 	activityStore           ariesstorage.Store
 	referenceStore          ariesstorage.Store
 	multipleTagQueryCapable bool
+	logger                  *log.StructuredLog
 }
 
 // New returns a new ActivityPub storage provider.
@@ -58,17 +58,17 @@ func New(serviceName string, provider ariesstorage.Provider, multipleTagQueryCap
 	}
 
 	return &Provider{
-		serviceName:             serviceName,
 		activityStore:           stores.activities,
 		referenceStore:          stores.reference,
 		multipleTagQueryCapable: multipleTagQueryCapable,
+		logger:                  log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
 	}, nil
 }
 
 // AddActivity adds the given activity to the activity store.
 func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
-	logger.Debugf("[%s] Storing activity - Type: %s, ID: %s",
-		s.serviceName, activity.Type(), activity.ID())
+	s.logger.Debug("Storing activity - Type: %s, ID: %s", log.WithActivityType(activity.Type().String()),
+		log.WithActivityID(activity.ID()))
 
 	activityBytes, err := json.Marshal(activity)
 	if err != nil {
@@ -86,7 +86,7 @@ func (s *Provider) AddActivity(activity *vocab.ActivityType) error {
 // GetActivity returns the activity for the given ID from the activity store
 // or ErrNotFound error if it wasn't found.
 func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
-	logger.Debugf("[%s] Retrieving activity - ID: %s", s.serviceName, activityID)
+	s.logger.Debug("Retrieving activity", log.WithActivityID(activityID))
 
 	activityBytes, err := s.activityStore.Get(activityID.String())
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *Provider) GetActivity(activityID *url.URL) (*vocab.ActivityType, error)
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
 func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
-	logger.Debugf("[%s] Querying activities - Query: %+v", s.serviceName, query)
+	s.logger.Debug("Querying activities", log.WithQuery(query))
 
 	if query.ReferenceType != "" && query.ObjectIRI != nil {
 		return s.queryActivitiesByRef(query.ReferenceType, query, opts...)
@@ -131,8 +131,8 @@ type activityRef struct {
 // AddReference adds the reference of the given type to the given object.
 func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
 	refMetaDataOpts ...spi.RefMetadataOpt) error {
-	logger.Debugf("[%s] Adding reference of type %s to object %s: %s",
-		s.serviceName, referenceType, objectIRI, referenceIRI)
+	s.logger.Debug("Adding reference", log.WithReferenceType(string(referenceType)),
+		log.WithObjectIRI(objectIRI), log.WithReferenceIRI(referenceIRI))
 
 	refMetadata := storeutil.GetRefMetadata(refMetaDataOpts...)
 
@@ -169,8 +169,8 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.
 
 // DeleteReference deletes the reference of the given type from the given object.
 func (s *Provider) DeleteReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
-	logger.Debugf("[%s] Deleting reference of type %s from object %s: %s",
-		s.serviceName, referenceType, objectIRI, referenceIRI)
+	s.logger.Debug("Deleting reference", log.WithReferenceType(string(referenceType)),
+		log.WithObjectIRI(objectIRI), log.WithReferenceIRI(referenceIRI))
 
 	err := s.referenceStore.Delete(getRefKey(referenceType, objectIRI, referenceIRI))
 	if err != nil {
@@ -183,7 +183,7 @@ func (s *Provider) DeleteReference(referenceType spi.ReferenceType, objectIRI, r
 // QueryReferences returns the list of references of the given type according to the given query.
 func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.Criteria,
 	opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
-	logger.Debugf("[%s] Querying references of type %s - Query: %+v", s.serviceName, referenceType, query)
+	s.logger.Debug("Querying references", log.WithReferenceType(string(referenceType)), log.WithQuery(query))
 
 	if query.ObjectIRI == nil {
 		return nil, fmt.Errorf("object IRI is required")

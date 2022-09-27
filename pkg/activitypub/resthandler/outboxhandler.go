@@ -15,6 +15,7 @@ import (
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -67,7 +68,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint:funlen
 	ok, _, err := h.Authorize(req)
 	if err != nil {
-		logger.Errorf("[%s] Error authorizing request: %s", h.endpoint, err)
+		h.logger.Error("Error authorizing request", log.WithError(err), log.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -75,7 +76,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 	}
 
 	if !ok {
-		logger.Infof("[%s] Unauthorized", h.endpoint)
+		h.logger.Info("Unauthorized", log.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
@@ -84,18 +85,18 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 
 	activityBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", h.endpoint, err)
+		h.logger.Error("Error reading request body", log.WithError(err), log.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Posting activity %s", h.endpoint, activityBytes)
+	h.logger.Debug("Posting activity", log.WithPayload(activityBytes))
 
 	activity, err := h.unmarshalAndValidateActivity(activityBytes)
 	if err != nil {
-		logger.Debugf("[%s] Invalid activity: %s", h.endpoint, err)
+		h.logger.Debug("Invalid activity", log.WithError(err))
 
 		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -105,11 +106,11 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 	activityID, err := h.ob.Post(activity)
 	if err != nil {
 		if orberrors.IsBadRequest(err) {
-			logger.Debugf("[%s] Error posting activity: %s", h.endpoint, err)
+			h.logger.Debug("Error posting activity", log.WithError(err))
 
 			h.writeResponse(w, http.StatusBadRequest, []byte(err.Error()))
 		} else {
-			logger.Errorf("[%s] Error posting activity: %s", h.endpoint, err)
+			h.logger.Error("Error posting activity", log.WithError(err))
 
 			h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 		}
@@ -119,7 +120,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 
 	activityIDBytes, err := h.marshal(activityID.String())
 	if err != nil {
-		logger.Errorf("[%s] Error marshaling activity ID: %s", h.endpoint, err)
+		h.logger.Error("Error marshaling activity ID", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -156,8 +157,7 @@ func (h *Outbox) authorizeActor(actorIRI *url.URL) (bool, error) {
 
 	// Ensure that the actor is the local service.
 	if actorIRI.String() != h.ObjectIRI.String() {
-		logger.Infof("[%s] Denying access to actor [%s] since only [%s] is allowed to post to the outbox",
-			h.endpoint, actorIRI, h.ObjectIRI)
+		h.logger.Info("Denying access to actor to post to the outbox", log.WithActorIRI(actorIRI))
 
 		return false, nil
 	}

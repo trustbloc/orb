@@ -148,7 +148,7 @@ func TestOutbox_Post(t *testing.T) {
 			func(w http.ResponseWriter, req *http.Request) {
 				collID := testutil.NewMockID(service2URL, resthandler.WitnessesPath)
 
-				if !paramAsBool(req, "page") {
+				if !paramAsBool(t, req, "page") {
 					handleMockCollection(t, collID, witnesses, w, req)
 				} else {
 					handleMockCollectionPage(t, collID, witnesses, w, req)
@@ -805,7 +805,9 @@ func (m *testHandler) Handler() common.HTTPRequestHandler {
 	return m.handler
 }
 
-func paramAsInt(req *http.Request, param string) (int, bool) {
+func paramAsInt(t *testing.T, req *http.Request, param string) (int, bool) {
+	t.Helper()
+
 	params := req.URL.Query()
 
 	values := params[param]
@@ -815,7 +817,7 @@ func paramAsInt(req *http.Request, param string) (int, bool) {
 
 	size, err := strconv.Atoi(values[0])
 	if err != nil {
-		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+		t.Logf("Invalid value for parameter [%s]: %s", param, err)
 
 		return 0, false
 	}
@@ -823,7 +825,9 @@ func paramAsInt(req *http.Request, param string) (int, bool) {
 	return size, true
 }
 
-func paramAsBool(req *http.Request, param string) bool {
+func paramAsBool(t *testing.T, req *http.Request, param string) bool {
+	t.Helper()
+
 	params := req.URL.Query()
 
 	values := params[param]
@@ -833,7 +837,7 @@ func paramAsBool(req *http.Request, param string) bool {
 
 	b, err := strconv.ParseBool(values[0])
 	if err != nil {
-		logger.Debugf("Invalid value for parameter [%s]: %s", param, err)
+		t.Logf("Invalid value for parameter [%s]: %s", param, err)
 
 		return false
 	}
@@ -897,7 +901,7 @@ func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
 	w http.ResponseWriter, req *http.Request) {
 	t.Helper()
 
-	pageNum, ok := paramAsInt(req, "page-num")
+	pageNum, ok := paramAsInt(t, req, "page-num")
 	if !ok {
 		pageNum = 0
 	}

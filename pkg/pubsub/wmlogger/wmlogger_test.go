@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger/mocks"
 )
 
-//go:generate counterfeiter -o ./mocks/logger.gen.go --fake-name Logger github.com/trustbloc/orb/internal/pkg/log.Logger
+//go:generate counterfeiter -o ./mocks/logger.gen.go --fake-name Logger . logger
 
 func TestNew(t *testing.T) {
 	logger := New()
@@ -46,9 +46,9 @@ func TestWMLogger(t *testing.T) {
 		logger.Debug("message", fields)
 		logger.Trace("message", nil)
 
-		require.Equal(t, 1, l.ErrorfCallCount())
-		require.Equal(t, 1, l.InfofCallCount())
-		require.Equal(t, 2, l.DebugfCallCount())
+		require.Equal(t, 1, l.ErrorCallCount())
+		require.Equal(t, 1, l.InfoCallCount())
+		require.Equal(t, 2, l.DebugCallCount())
 	})
 
 	t.Run("Info level", func(t *testing.T) {
@@ -64,9 +64,9 @@ func TestWMLogger(t *testing.T) {
 		logger.Debug("message", fields)
 		logger.Trace("message", nil)
 
-		require.Equal(t, 1, l.ErrorfCallCount())
-		require.Equal(t, 1, l.InfofCallCount())
-		require.Equal(t, 0, l.DebugfCallCount())
+		require.Equal(t, 1, l.ErrorCallCount())
+		require.Equal(t, 1, l.InfoCallCount())
+		require.Equal(t, 0, l.DebugCallCount())
 	})
 
 	t.Run("Warn level", func(t *testing.T) {
@@ -82,9 +82,9 @@ func TestWMLogger(t *testing.T) {
 		logger.Debug("message", fields)
 		logger.Trace("message", nil)
 
-		require.Equal(t, 1, l.ErrorfCallCount())
-		require.Equal(t, 0, l.InfofCallCount())
-		require.Equal(t, 0, l.DebugfCallCount())
+		require.Equal(t, 1, l.ErrorCallCount())
+		require.Equal(t, 0, l.InfoCallCount())
+		require.Equal(t, 0, l.DebugCallCount())
 	})
 
 	t.Run("Error level", func(t *testing.T) {
@@ -100,9 +100,9 @@ func TestWMLogger(t *testing.T) {
 		logger.Debug("message", fields)
 		logger.Trace("message", nil)
 
-		require.Equal(t, 1, l.ErrorfCallCount())
-		require.Equal(t, 0, l.InfofCallCount())
-		require.Equal(t, 0, l.DebugfCallCount())
+		require.Equal(t, 1, l.ErrorCallCount())
+		require.Equal(t, 0, l.InfoCallCount())
+		require.Equal(t, 0, l.DebugCallCount())
 	})
 
 	t.Run("With", func(t *testing.T) {
@@ -115,6 +115,6 @@ func TestWMLogger(t *testing.T) {
 
 		logger.Debug("message", fields)
 
-		require.Equal(t, 1, l.DebugfCallCount())
+		require.Equal(t, 1, l.DebugCallCount())
 	})
 }

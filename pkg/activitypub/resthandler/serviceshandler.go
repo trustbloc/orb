@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
@@ -58,7 +59,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 
 	s, err := h.newService()
 	if err != nil {
-		logger.Errorf("[%s] Invalid service configuration [%s]: %s", h.endpoint, h.ObjectIRI, err)
+		h.logger.Error("Invalid service configuration", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -67,7 +68,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 
 	serviceBytes, err := h.marshal(s)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal service [%s]: %s", h.endpoint, h.ObjectIRI, err)
+		h.logger.Error("Unable to marshal service", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -87,7 +88,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	keyID := getIDParam(req)
 
 	if keyID == "" {
-		logger.Infof("[%s] Key ID not specified [%s]", h.endpoint, h.ObjectIRI)
+		h.logger.Info("Key ID not specified", log.WithObjectIRI(h.ObjectIRI))
 
 		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -95,7 +96,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if fmt.Sprintf("%s/keys/%s", h.ObjectIRI, keyID) != h.publicKey.ID().String() {
-		logger.Infof("[%s] Public key [%s] not found for [%s]", h.endpoint, h.ObjectIRI, keyID)
+		h.logger.Info("Public key not found", log.WithObjectIRI(h.ObjectIRI), log.WithKeyID(keyID))
 
 		h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
@@ -104,14 +105,14 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 
 	publicKeyBytes, err := h.marshal(h.publicKey)
 	if err != nil {
-		logger.Errorf("[%s] Unable to marshal public key [%s]: %s", h.endpoint, h.ObjectIRI, err)
+		h.logger.Error("Unable to marshal public key", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Returning public key bytes: %s", h.endpoint, publicKeyBytes)
+	h.logger.Debug("Returning public key bytes", log.WithResponse(publicKeyBytes))
 
 	h.writeResponse(w, http.StatusOK, publicKeyBytes)
 }

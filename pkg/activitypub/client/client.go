@@ -30,7 +30,7 @@ import (
 	cryptoutil "github.com/trustbloc/orb/pkg/util"
 )
 
-var logger = log.New("activitypub_client")
+var logger = log.NewStructured("activitypub_client")
 
 const (
 	defaultCacheSize       = 100
@@ -121,7 +121,7 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 		cacheExpiration = defaultCacheExpiration
 	}
 
-	logger.Debugf("Creating actor cache with size=%d, expiration=%s", cacheSize, cacheExpiration)
+	logger.Debug("Creating actor cache", log.WithSize(cacheSize), log.WithExpiration(cacheExpiration))
 
 	c.actorCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
@@ -143,7 +143,7 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	result, err := c.actorCache.Get(actorIRI.String())
 	if err != nil {
-		logger.Debugf("Got error retrieving actor from cache for IRI [%s]: %s", actorIRI, err)
+		logger.Debug("Got error retrieving actor from cache", log.WithActorIRI(actorIRI), log.WithError(err))
 
 		return nil, err
 	}
@@ -152,14 +152,14 @@ func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 }
 
 func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
-	logger.Debugf("Cache miss. Loading actor [%s]", actorIRI)
+	logger.Debug("Cache miss. Resolving actor for target.", log.WithTarget(actorIRI))
 
 	resolvedActorIRI, err := c.resolver.ResolveHostMetaLink(actorIRI, discoveryrest.ActivityJSONType)
 	if err != nil {
 		return nil, fmt.Errorf("resolve host meta-link: %w", err)
 	}
 
-	logger.Debugf("Resolved URL for actor [%s]: [%s]", actorIRI, resolvedActorIRI)
+	logger.Debug("Resolved URL for actor", log.WithTarget(actorIRI), log.WithActorID(resolvedActorIRI))
 
 	u, err := url.Parse(resolvedActorIRI)
 	if err != nil {
@@ -171,7 +171,7 @@ func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
 		return nil, fmt.Errorf("error reading response from %s: %w", actorIRI, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", actorIRI, respBytes)
+	logger.Debug("Got response from actor", log.WithActorIRI(u), log.WithResponse(respBytes))
 
 	actor := &vocab.ActorType{}
 
@@ -188,7 +188,7 @@ func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
 func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 	result, err := c.publicKeyCache.Get(keyIRI.String())
 	if err != nil {
-		logger.Debugf("Got error retrieving public key from cache for IRI [%s]: %s", keyIRI, err)
+		logger.Debug("Got error retrieving public key from cache", log.WithKeyIRI(keyIRI), log.WithError(err))
 
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 }
 
 func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
-	logger.Debugf("Cache miss. Loading public key [%s]", keyIRI)
+	logger.Debug("Cache miss. Loading public key", log.WithKeyID(keyIRI))
 
 	if docutil.IsDID(keyIRI) {
 		return c.resolvePublicKeyFromDID(keyIRI)
@@ -213,7 +213,7 @@ func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
 		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", keyIRI, respBytes)
+	logger.Debug("Got public key", log.WithKeyID(keyIRI), log.WithResponse(respBytes))
 
 	pubKey := &vocab.PublicKeyType{}
 
@@ -233,7 +233,7 @@ func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", iri, respBytes)
+	logger.Debug("Got references", log.WithURI(iri), log.WithResponse(respBytes))
 
 	objProps, firstPage, _, totalItems, err := unmarshalCollection(respBytes)
 	if err != nil {
@@ -257,7 +257,7 @@ func (c *Client) GetActivities(iri *url.URL, order Order) (ActivityIterator, err
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", iri, respBytes)
+	logger.Debug("Got activities", log.WithURI(iri), log.WithResponse(respBytes))
 
 	obj := &vocab.ObjectType{}
 
@@ -284,11 +284,13 @@ func (c *Client) activityIteratorFromCollection(collBytes []byte, order Order) (
 
 	switch order {
 	case Forward:
-		logger.Debugf("Creating forward activity iterator - next [%s], total [%d]", first, totalItems)
+		logger.Debug("Creating forward activity iterator",
+			log.WithNextIRI(first), log.WithTotal(totalItems))
 
 		return newForwardActivityIterator(nil, nil, first, totalItems, c.get), nil
 	case Reverse:
-		logger.Debugf("Creating reverse activity iterator - next [%s], total [%d]", last, totalItems)
+		logger.Debug("Creating reverse activity iterator",
+			log.WithNextIRI(last), log.WithTotal(totalItems))
 
 		return newReverseActivityIterator(nil, nil, last, totalItems, c.get), nil
 	default:
@@ -310,13 +312,13 @@ func (c *Client) activityIteratorFromCollectionPage(collBytes []byte, order Orde
 
 	switch order {
 	case Forward:
-		logger.Debugf("Creating forward activity iterator - current [%s], items [%d], total [%d]",
-			page.current, len(activities), page.totalItems)
+		logger.Debug("Creating forward activity iterator",
+			log.WithCurrentIRI(page.current), log.WithSize(len(activities)), log.WithTotal(page.totalItems))
 
 		return newForwardActivityIterator(activities, page.current, page.next, page.totalItems, c.get), nil
 	case Reverse:
-		logger.Debugf("Creating reverse activity iterator - current [%s], items [%d], total [%d]",
-			page.current, len(activities), page.totalItems)
+		logger.Debug("Creating reverse activity iterator",
+			log.WithCurrentIRI(page.current), log.WithSize(len(activities)), log.WithTotal(page.totalItems))
 
 		return newReverseActivityIterator(activities, page.current, page.prev, page.totalItems, c.get), nil
 	default:
@@ -334,11 +336,11 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 
 	defer func() {
 		if e := resp.Body.Close(); e != nil {
-			logger.Warnf("Error closing response body from %s: %s", iri, e)
+			log.CloseResponseBody(logger.Warn, e)
 		}
 	}()
 
-	logger.Debugf("Got response from %s. Status: %d", iri, resp.StatusCode)
+	logger.Debug("Got response code", log.WithRequestURL(iri), log.WithHTTPStatus(resp.StatusCode))
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= http.StatusInternalServerError {
@@ -451,19 +453,17 @@ func (it *referenceIterator) TotalItems() int {
 
 func (it *referenceIterator) getNextPage() error {
 	if it.nextPage == nil {
-		logger.Debugf("No more pages")
-
 		return ErrNotFound
 	}
 
-	logger.Debugf("Retrieving next page %s", it.nextPage)
+	logger.Debug("Retrieving next page", log.WithNextIRI(it.nextPage))
 
 	respBytes, err := it.get(it.nextPage)
 	if err != nil {
 		return fmt.Errorf("get references from %s: %w", it.nextPage, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", it.nextPage, respBytes)
+	logger.Debug("Got response", log.WithRequestURL(it.nextPage), log.WithResponse(respBytes))
 
 	page, err := unmarshalCollectionPage(respBytes)
 	if err != nil {
@@ -474,11 +474,11 @@ func (it *referenceIterator) getNextPage() error {
 
 	for _, item := range page.items {
 		if item.IRI() != nil {
-			logger.Debugf("Adding %s to the recipient list", item.IRI())
+			logger.Debug("Adding target to the recipient list", log.WithTarget(item.IRI().String()))
 
 			refs = append(refs, item.IRI())
 		} else {
-			logger.Warnf("expecting IRI item for collection but got %s", item.Type())
+			logger.Warn("expecting IRI item for collection but got other type", log.WithType(item.Type().String()))
 		}
 	}
 
@@ -580,19 +580,17 @@ func (it *activityIterator) TotalItems() int {
 
 func (it *activityIterator) getNextPage() error {
 	if it.nextPage == nil {
-		logger.Debugf("No more pages")
-
 		return ErrNotFound
 	}
 
-	logger.Debugf("Retrieving next page %s", it.nextPage)
+	logger.Debug("Retrieving next page of activities", log.WithNextIRI(it.nextPage))
 
 	respBytes, err := it.get(it.nextPage)
 	if err != nil {
 		return fmt.Errorf("get activities from %s: %w", it.nextPage, err)
 	}
 
-	logger.Debugf("Got response from %s: %s", it.nextPage, respBytes)
+	logger.Debug("Got next page of activities", log.WithRequestURL(it.nextPage), log.WithResponse(respBytes))
 
 	page, err := unmarshalCollectionPage(respBytes)
 	if err != nil {
@@ -603,12 +601,13 @@ func (it *activityIterator) getNextPage() error {
 
 	for _, item := range page.items {
 		if item.Activity() != nil {
-			logger.Debugf("Adding activity to the recipient list - ID [%s], Type %s",
-				item.Activity().ID(), item.Activity().Type())
+			logger.Debug("Adding activity to the recipient list",
+				log.WithActivityID(item.Activity().ID()), log.WithActivityType(item.Activity().Type().String()))
 
 			activities = it.appendActivity(activities, item.Activity())
 		} else {
-			logger.Warnf("expecting activity item for collection but got %s", item.Type())
+			logger.Warn("expecting activity item for collection but got a different type",
+				log.WithType(item.Type().String()))
 		}
 	}
 
