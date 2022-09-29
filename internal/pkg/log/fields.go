@@ -19,43 +19,60 @@ import (
 
 // Log Fields.
 const (
-	FieldURI                 = "uri"
-	FieldSenderURL           = "sender"
-	FieldConfig              = "config"
-	FieldServiceName         = "service"
-	FieldServiceIRI          = "service-iri"
-	FieldServiceEndpoint     = "service-endpoint"
-	FieldActorID             = "actor-id"
-	FieldActivityType        = "activity-type"
-	FieldActivityID          = "activity-id"
-	FieldMessageID           = "message-id"
-	FieldPayload             = "payload"
-	FieldRequestURL          = "request-url"
-	FieldRequestHeaders      = "request-headers"
-	FieldRequestBody         = "request-body"
-	FieldResponse            = "response"
-	FieldSize                = "size"
-	FieldExpiration          = "expiration"
-	FieldTarget              = "target"
-	FieldQueue               = "queue"
-	FieldHTTPStatus          = "http-status"
-	FieldParameter           = "parameter"
-	FieldAcceptListType      = "accept-list-type"
-	FieldAcceptListAdditions = "accept-list-additions"
-	FieldAcceptListDeletions = "accept-list-deletions"
-	FieldReferenceType       = "reference-type"
-	FieldAnchorURI           = "anchor-uri"
-	FieldAnchorEventURI      = "anchor-event-uri"
-	FieldObjectIRI           = "object-iri"
-	FieldReferenceIRI        = "reference"
-	FieldKeyID               = "key-id"
-	FieldKeyType             = "key-type"
-	FieldKeyOwner            = "key-owner"
-	FieldCurrent             = "current"
-	FieldNext                = "next"
-	FieldTotalItems          = "total"
-	FieldType                = "type"
-	FieldQuery               = "query"
+	FieldURI                    = "uri"
+	FieldURIs                   = "uris"
+	FieldSenderURL              = "sender"
+	FieldConfig                 = "config"
+	FieldServiceName            = "service"
+	FieldServiceIRI             = "service-iri"
+	FieldServiceEndpoint        = "service-endpoint"
+	FieldActorID                = "actor-id"
+	FieldActivityType           = "activity-type"
+	FieldActivityID             = "activity-id"
+	FieldMessageID              = "message-id"
+	FieldData                   = "data"
+	FieldRequestURL             = "request-url"
+	FieldRequestHeaders         = "request-headers"
+	FieldRequestBody            = "request-body"
+	FieldResponse               = "response"
+	FieldSize                   = "size"
+	FieldCacheExpiration        = "cache-expiration"
+	FieldTarget                 = "target"
+	FieldQueue                  = "queue"
+	FieldHTTPStatus             = "http-status"
+	FieldParameter              = "parameter"
+	FieldAcceptListType         = "accept-list-type"
+	FieldAdditions              = "additions"
+	FieldDeletions              = "deletions"
+	FieldReferenceType          = "reference-type"
+	FieldAnchorURI              = "anchor-uri"
+	FieldAnchorHash             = "anchor-hash"
+	FieldAnchorEventURI         = "anchor-event-uri"
+	FieldObjectIRI              = "object-iri"
+	FieldReferenceIRI           = "reference"
+	FieldKeyID                  = "key-id"
+	FieldKeyType                = "key-type"
+	FieldKeyOwner               = "key-owner"
+	FieldCurrent                = "current"
+	FieldNext                   = "next"
+	FieldTotal                  = "total"
+	FieldMinimum                = "minimum"
+	FieldType                   = "type"
+	FieldQuery                  = "query"
+	FieldSuffix                 = "suffix"
+	FieldVerifiableCredential   = "vc"
+	FieldVerifiableCredentialID = "vc-id"
+	FieldHashlink               = "hashlink"
+	FieldParent                 = "parent"
+	FieldParents                = "parents"
+	FieldProof                  = "proof"
+	FieldCreatedTime            = "created-time"
+	FieldWitnessURI             = "witness-uri"
+	FieldWitnessURIs            = "witness-uris"
+	FieldWitnessPolicy          = "witness-policy"
+	FieldAnchorOrigin           = "anchor-origin"
+	FieldOperationType          = "operation-type"
+	FieldCoreIndex              = "core-index"
 )
 
 // WithError sets the error field.
@@ -68,9 +85,9 @@ func WithMessageID(value string) zap.Field {
 	return zap.String(FieldMessageID, value)
 }
 
-// WithPayload sets the payload field.
-func WithPayload(value []byte) zap.Field {
-	return zap.String(FieldPayload, string(value))
+// WithData sets the data field.
+func WithData(value []byte) zap.Field {
+	return zap.String(FieldData, string(value))
 }
 
 // WithRequestURL sets the request-url field.
@@ -144,9 +161,9 @@ func WithSize(value int) zap.Field {
 	return zap.Int(FieldSize, value)
 }
 
-// WithExpiration sets the expiration field.
-func WithExpiration(value time.Duration) zap.Field {
-	return zap.Duration(FieldExpiration, value)
+// WithCacheExpiration sets the cache-expiration field.
+func WithCacheExpiration(value time.Duration) zap.Field {
+	return zap.Duration(FieldCacheExpiration, value)
 }
 
 // WithTarget sets the target field.
@@ -179,14 +196,14 @@ func WithAcceptListType(value string) zap.Field {
 	return zap.String(FieldAcceptListType, value)
 }
 
-// WithAcceptListAdditions sets the accept-list-additions field.
-func WithAcceptListAdditions(value ...*url.URL) zap.Field {
-	return zap.Array(FieldAcceptListAdditions, newURLArrayMarshaller(value))
+// WithURLAdditions sets the additions field.
+func WithURLAdditions(value ...*url.URL) zap.Field {
+	return zap.Array(FieldAdditions, NewURLArrayMarshaller(value))
 }
 
-// WithAcceptListDeletions sets the accept-list-deletions field.
-func WithAcceptListDeletions(value ...*url.URL) zap.Field {
-	return zap.Array(FieldAcceptListDeletions, newURLArrayMarshaller(value))
+// WithURLDeletions sets the deletions field.
+func WithURLDeletions(value ...*url.URL) zap.Field {
+	return zap.Array(FieldDeletions, NewURLArrayMarshaller(value))
 }
 
 // WithReferenceType sets the reference-type field.
@@ -199,6 +216,16 @@ func WithURI(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldURI, value)
 }
 
+// WithURIString sets the uri field.
+func WithURIString(value string) zap.Field {
+	return zap.String(FieldURI, value)
+}
+
+// WithURIs sets the uris field.
+func WithURIs(value ...*url.URL) zap.Field {
+	return zap.Array(FieldURIs, NewURLArrayMarshaller(value))
+}
+
 // WithSenderURL sets the sender field.
 func WithSenderURL(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldSenderURL, value)
@@ -209,9 +236,24 @@ func WithAnchorEventURI(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldAnchorEventURI, value)
 }
 
+// WithAnchorEventURIString sets the anchor-event-uri field.
+func WithAnchorEventURIString(value string) zap.Field {
+	return zap.String(FieldAnchorEventURI, value)
+}
+
 // WithAnchorURI sets the anchor-uri field.
 func WithAnchorURI(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldAnchorURI, value)
+}
+
+// WithAnchorURIString sets the anchor-uri field.
+func WithAnchorURIString(value string) zap.Field {
+	return zap.String(FieldAnchorURI, value)
+}
+
+// WithAnchorHash sets the anchor-hash field.
+func WithAnchorHash(value string) zap.Field {
+	return zap.String(FieldAnchorHash, value)
 }
 
 // WithObjectIRI sets the object-iri field.
@@ -256,7 +298,12 @@ func WithNextIRI(value fmt.Stringer) zap.Field {
 
 // WithTotal sets the total field.
 func WithTotal(value int) zap.Field {
-	return zap.Int(FieldTotalItems, value)
+	return zap.Int(FieldTotal, value)
+}
+
+// WithMinimum sets the minimum field.
+func WithMinimum(value int) zap.Field {
+	return zap.Int(FieldMinimum, value)
 }
 
 // WithType sets the type field.
@@ -268,6 +315,101 @@ func WithType(value string) zap.Field {
 // encoded as JSON.
 func WithQuery(value interface{}) zap.Field {
 	return zap.Inline(newJSONMarshaller(FieldQuery, value))
+}
+
+// WithSuffix sets the suffix field.
+func WithSuffix(value string) zap.Field {
+	return zap.String(FieldSuffix, value)
+}
+
+// WithVerifiableCredential sets the vc field.
+func WithVerifiableCredential(value []byte) zap.Field {
+	return zap.String(FieldVerifiableCredential, string(value))
+}
+
+// WithVerifiableCredentialID sets the vc-id field.
+func WithVerifiableCredentialID(value string) zap.Field {
+	return zap.String(FieldVerifiableCredentialID, value)
+}
+
+// WithHashlink sets the hashlink field.
+func WithHashlink(value string) zap.Field {
+	return zap.String(FieldHashlink, value)
+}
+
+// WithHashlinkURI sets the hashlink field.
+func WithHashlinkURI(value fmt.Stringer) zap.Field {
+	return zap.Stringer(FieldHashlink, value)
+}
+
+// WithParent sets the parent field.
+func WithParent(value string) zap.Field {
+	return zap.String(FieldParent, value)
+}
+
+// WithParentURI sets the parent field.
+func WithParentURI(value fmt.Stringer) zap.Field {
+	return zap.Stringer(FieldParent, value)
+}
+
+// WithParents sets the parents field.
+func WithParents(value []string) zap.Field {
+	return zap.Array(FieldParents, NewStringArrayMarshaller(value))
+}
+
+// WithProof sets the proof field.
+func WithProof(value []byte) zap.Field {
+	return zap.String(FieldProof, string(value))
+}
+
+// WithProofDocument sets the proof field.
+func WithProofDocument(value map[string]interface{}) zap.Field {
+	return zap.Inline(newJSONMarshaller(FieldProof, value))
+}
+
+// WithCreatedTime sets the created-time field.
+func WithCreatedTime(value time.Time) zap.Field {
+	return zap.Time(FieldCreatedTime, value)
+}
+
+// WithWitnessURI sets the witness-uri field.
+func WithWitnessURI(value fmt.Stringer) zap.Field {
+	return zap.Stringer(FieldWitnessURI, value)
+}
+
+// WithWitnessURIString sets the witness-uri field.
+func WithWitnessURIString(value string) zap.Field {
+	return zap.String(FieldWitnessURI, value)
+}
+
+// WithWitnessURIs sets the witness-uris field.
+func WithWitnessURIs(value ...*url.URL) zap.Field {
+	return zap.Array(FieldWitnessURIs, NewURLArrayMarshaller(value))
+}
+
+// WithWitnessURIStrings sets the witness-uris field.
+func WithWitnessURIStrings(value ...string) zap.Field {
+	return zap.Array(FieldWitnessURIs, NewStringArrayMarshaller(value))
+}
+
+// WithWitnessPolicy sets the witness-policy field.
+func WithWitnessPolicy(value string) zap.Field {
+	return zap.String(FieldWitnessPolicy, value)
+}
+
+// WithAnchorOrigin sets the anchor-origin field.
+func WithAnchorOrigin(value interface{}) zap.Field {
+	return zap.Any(FieldAnchorOrigin, value)
+}
+
+// WithOperationType sets the operation-type field.
+func WithOperationType(value string) zap.Field {
+	return zap.Any(FieldOperationType, value)
+}
+
+// WithCoreIndex sets the coreIndex field.
+func WithCoreIndex(value string) zap.Field {
+	return zap.Any(FieldCoreIndex, value)
 }
 
 type jsonMarshaller struct {
@@ -290,15 +432,18 @@ func (m *jsonMarshaller) MarshalLogObject(e zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type urlArrayMarshaller struct {
+// URLArrayMarshaller marshals an array of URLs into a log field.
+type URLArrayMarshaller struct {
 	urls []*url.URL
 }
 
-func newURLArrayMarshaller(urls []*url.URL) *urlArrayMarshaller {
-	return &urlArrayMarshaller{urls: urls}
+// NewURLArrayMarshaller returns a new URLArrayMarshaller.
+func NewURLArrayMarshaller(urls []*url.URL) *URLArrayMarshaller {
+	return &URLArrayMarshaller{urls: urls}
 }
 
-func (m *urlArrayMarshaller) MarshalLogArray(e zapcore.ArrayEncoder) error {
+// MarshalLogArray marshals the array.
+func (m *URLArrayMarshaller) MarshalLogArray(e zapcore.ArrayEncoder) error {
 	for _, u := range m.urls {
 		e.AppendString(u.String())
 	}
@@ -316,7 +461,7 @@ func newHTTPHeaderMarshaller(headers http.Header) *httpHeaderMarshaller {
 
 func (m *httpHeaderMarshaller) MarshalLogObject(e zapcore.ObjectEncoder) error {
 	for k, values := range m.headers {
-		if err := e.AddArray(k, newStringArrayMarshaller(values)); err != nil {
+		if err := e.AddArray(k, NewStringArrayMarshaller(values)); err != nil {
 			return fmt.Errorf("marshal values: %w", err)
 		}
 	}
@@ -324,15 +469,18 @@ func (m *httpHeaderMarshaller) MarshalLogObject(e zapcore.ObjectEncoder) error {
 	return nil
 }
 
-type stringArrayMarshaller struct {
+// StringArrayMarshaller marshals an array of strings into a log field.
+type StringArrayMarshaller struct {
 	values []string
 }
 
-func newStringArrayMarshaller(values []string) *stringArrayMarshaller {
-	return &stringArrayMarshaller{values: values}
+// NewStringArrayMarshaller returns a new StringArrayMarshaller.
+func NewStringArrayMarshaller(values []string) *StringArrayMarshaller {
+	return &StringArrayMarshaller{values: values}
 }
 
-func (m *stringArrayMarshaller) MarshalLogArray(e zapcore.ArrayEncoder) error {
+// MarshalLogArray marshals the array.
+func (m *StringArrayMarshaller) MarshalLogArray(e zapcore.ArrayEncoder) error {
 	for _, v := range m.values {
 		e.AppendString(v)
 	}

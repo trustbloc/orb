@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"net/url"
 
+	"go.uber.org/zap"
+
 	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var logger = log.New("anchor-acknowledgement-handler")
+var logger = log.NewStructured("anchor-acknowledgement-handler")
 
 type anchorLinkStore interface {
 	PutLinks(links []*url.URL) error
@@ -34,8 +36,9 @@ func New(store anchorLinkStore) *Handler {
 // AnchorEventAcknowledged handles a notification of a successful anchor event processed from an Orb server.
 // The given additional references are added to the anchor link store so that they are included in WebFinger responses.
 func (p *Handler) AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error {
-	logger.Infof("Anchor event was acknowledged by [%s] for anchor %s. Additional anchors: %s",
-		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
+	logger.Info("Anchor event was acknowledged.", log.WithActorIRI(actor),
+		log.WithHashlink(hashlink.ToString(anchorRef)),
+		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	links, err := getLinks(anchorRef, additionalAnchorRefs)
 	if err != nil {
@@ -53,8 +56,9 @@ func (p *Handler) AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalA
 // event was undone. The given additional references are removed from the anchor link store so that they
 // are no longer included in WebFinger responses.
 func (p *Handler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error {
-	logger.Infof("Anchor event acknowledgement was undone [%s] for anchor %s. Additional anchors: %s",
-		actor, hashlink.ToString(anchorRef), hashlink.ToString(additionalAnchorRefs...))
+	logger.Info("Anchor event acknowledgement was undone.", log.WithActorIRI(actor),
+		log.WithHashlink(hashlink.ToString(anchorRef)),
+		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	links, err := getLinks(anchorRef, additionalAnchorRefs)
 	if err != nil {
@@ -81,14 +85,15 @@ func getLinks(anchorRef *url.URL, additionalAnchorRefs []*url.URL) ([]*url.URL, 
 	for _, hl := range additionalAnchorRefs {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warnf("Error parsing hashlink [%s]: %s", hl, err)
+			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}
 
 		if hlInfo.ResourceHash != info.ResourceHash {
-			logger.Warnf("Hash in additional anchor ref [%s] does not match the hash of the acknowledged anchor event [%s]",
-				hlInfo.ResourceHash, info.ResourceHash)
+			logger.Warn("Hash in additional anchor does not match the hash of the acknowledged anchor event",
+				zap.String("additional-anchor-hash", hlInfo.ResourceHash),
+				zap.String("anchor-event-hash", info.ResourceHash))
 
 			continue
 		}

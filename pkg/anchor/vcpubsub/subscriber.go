@@ -13,6 +13,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/linkset"
@@ -42,7 +43,7 @@ func NewSubscriber(pubSub pubSub, processor anchorProcessor) (*Subscriber, error
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Debugf("Subscribing to topic [%s]", anchorTopic)
+	logger.Debug("Subscribing to queue", log.WithQueue(anchorTopic))
 
 	vcChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
 	if err != nil {
@@ -60,25 +61,25 @@ func (h *Subscriber) start() {
 }
 
 func (h *Subscriber) listen() {
-	logger.Debugf("Starting message listener")
+	logger.Debug("Starting message listener")
 
 	for msg := range h.vcChan {
-		logger.Debugf("Got new anchor event message: %s: %s", msg.UUID, msg.Payload)
+		logger.Debug("Got new anchor event message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 		h.handleAnchorMessage(msg)
 	}
 
-	logger.Debugf("Listener stopped.")
+	logger.Debug("Listener stopped.")
 }
 
 func (h *Subscriber) handleAnchorMessage(msg *message.Message) {
-	logger.Debugf("Handling message [%s]: %s", msg.UUID, msg.Payload)
+	logger.Debug("Handling message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 	anchorLinkset := &linkset.Linkset{}
 
 	err := h.jsonUnmarshal(msg.Payload, &anchorLinkset)
 	if err != nil {
-		logger.Errorf("Error parsing anchor Linkset [%s]: %s", msg.UUID, err)
+		logger.Error("Error parsing anchor Linkset", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -90,19 +91,19 @@ func (h *Subscriber) handleAnchorMessage(msg *message.Message) {
 
 	switch {
 	case err == nil:
-		logger.Debugf("Acking anchor Linkset message. MsgID [%s]", msg.UUID)
+		logger.Debug("Acking anchor Linkset message", log.WithMessageID(msg.UUID))
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warnf("Nacking anchor Linkset message since it could not be processed due "+
-			"to a transient error. MsgID [%s]: %s", msg.UUID, err)
+		logger.Warn("Nacking anchor Linkset message since it could not be processed due "+
+			"to a transient error", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warnf("Acking anchor link message since it could not be processed due "+
-			"to a persistent error. MsgID [%s]: %s", msg.UUID, err)
+		logger.Warn("Acking anchor link message since it could not be processed due "+
+			"to a persistent error", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Ack()
 	}

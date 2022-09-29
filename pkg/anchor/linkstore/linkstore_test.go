@@ -218,17 +218,6 @@ func TestStore_DeleteLinks(t *testing.T) {
 		))
 	})
 
-	t.Run("Invalid hashlink", func(t *testing.T) {
-		require.Error(t, s.DeleteLinks([]*url.URL{testutil.MustParseURL("https://xxx")}))
-	})
-
-	t.Run("Marshal error", func(t *testing.T) {
-		s.marshal = func(i interface{}) ([]byte, error) { return nil, errors.New("injected marshal error") }
-		defer func() { s.marshal = json.Marshal }()
-
-		require.Error(t, s.DeleteLinks([]*url.URL{testutil.MustParseURL("hl:xxx")}))
-	})
-
 	t.Run("Store error", func(t *testing.T) {
 		errExpected := errors.New("injected batch error")
 

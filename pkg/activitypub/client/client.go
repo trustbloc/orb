@@ -121,7 +121,7 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 		cacheExpiration = defaultCacheExpiration
 	}
 
-	logger.Debug("Creating actor cache", log.WithSize(cacheSize), log.WithExpiration(cacheExpiration))
+	logger.Debug("Creating actor cache", log.WithSize(cacheSize), log.WithCacheExpiration(cacheExpiration))
 
 	c.actorCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
@@ -336,7 +336,7 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 
 	defer func() {
 		if e := resp.Body.Close(); e != nil {
-			log.CloseResponseBody(logger.Warn, e)
+			log.CloseResponseBodyError(logger.Warn, e)
 		}
 	}()
 
