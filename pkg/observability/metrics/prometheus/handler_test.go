@@ -4,9 +4,9 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package metrics
+package prometheus
 
-/*import (
+import (
 	"net/http"
 	"testing"
 
@@ -20,4 +20,3 @@ func TestNewHandler(t *testing.T) {
 	require.Equal(t, http.MethodGet, h.Method())
 	require.NotNil(t, h.Handler())
 }
-*/
