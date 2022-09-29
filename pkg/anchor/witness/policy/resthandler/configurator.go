@@ -23,7 +23,7 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.New("policy-rest-handler")
+var logger = log.NewStructured("policy-rest-handler", log.WithFields(log.WithServiceEndpoint(endpoint)))
 
 type policyStore interface {
 	PutPolicy(policyStr string) error
@@ -62,7 +62,7 @@ func New(store policyStore) *PolicyConfigurator {
 func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 	policyBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", endpoint, err)
+		logger.Error("Error reading request body", log.WithError(err))
 
 		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -73,7 +73,7 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 
 	_, err = config.Parse(policyStr)
 	if err != nil {
-		logger.Errorf("[%s] Invalid witness policy: %s", endpoint, err)
+		logger.Error("Invalid witness policy", log.WithError(err), log.WithWitnessPolicy(policyStr))
 
 		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -82,14 +82,14 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 
 	err = pc.store.PutPolicy(policyStr)
 	if err != nil {
-		logger.Errorf("[%s] Error storing witness policy: %s", endpoint, err)
+		logger.Error("Error storing witness policy", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Stored witness policy %s", endpoint, string(policyBytes))
+	logger.Debug("Stored witness policy", log.WithWitnessPolicy(policyStr))
 
 	writeResponse(w, http.StatusOK, nil)
 }
@@ -103,11 +103,11 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
+			log.WriteResponseBodyError(logger.Warn, err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", endpoint, body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }

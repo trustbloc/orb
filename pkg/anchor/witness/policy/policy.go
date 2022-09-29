@@ -39,7 +39,7 @@ const (
 	defaultCacheSize = 10
 )
 
-var logger = log.New("witness-policy")
+var logger = log.NewStructured("witness-policy")
 
 type gCache interface {
 	Get(key interface{}) (interface{}, error)
@@ -74,8 +74,8 @@ func New(retriever policyRetriever, policyCacheExpiry time.Duration) (*WitnessPo
 		return nil, fmt.Errorf("failed to set expiry entry in policy cache: %w", err)
 	}
 
-	logger.Debugf("created new witness policy evaluator with policy: %s "+
-		"and witness policy cache expiry period set to: %s", policy, policyCacheExpiry)
+	logger.Debug("Created new witness policy evaluator with cache",
+		log.WithWitnessPolicy(policy.(string)), log.WithCacheExpiration(policyCacheExpiry))
 
 	return wp, nil
 }
@@ -118,8 +118,9 @@ func (wp *WitnessPolicy) Evaluate(witnesses []*proof.WitnessProof) (bool, error)
 
 	evaluated := cfg.OperatorFnc(batchCondition, systemCondition)
 
-	logger.Debugf("witness policy[%s] evaluated to[%t] with batch[%t] and system[%t] for witnesses: %s",
-		cfg, evaluated, batchCondition, systemCondition, witnesses)
+	logger.Debug("Witness policy was evaluated.",
+		withPolicyConfigField(cfg), withEvaluatedField(evaluated), withBatchConditionField(batchCondition),
+		withSystemConditionField(systemCondition), withWitnessProofsField(witnesses))
 
 	return evaluated, nil
 }
@@ -130,7 +131,7 @@ func (wp *WitnessPolicy) loadWitnessPolicy(interface{}) (interface{}, *time.Dura
 		return nil, nil, err
 	}
 
-	logger.Debugf("loaded witness policy from store: %s", policy)
+	logger.Debug("Loaded witness policy from store", log.WithWitnessPolicy(policy))
 
 	return policy, &wp.cacheExpiry, nil
 }
@@ -203,8 +204,8 @@ func (wp *WitnessPolicy) Select(witnesses []*proof.Witness, exclude ...*proof.Wi
 // selects min number of batch and system witnesses that are required to fulfill witness policy.
 func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, // nolint:funlen,gocyclo,cyclop
 	cfg *config.WitnessPolicyConfig, exclude ...*proof.Witness) ([]*proof.Witness, []*proof.Witness, error) {
-	logger.Debugf("selecting minimum number of batch and system witnesses based on cfg[%s] and witnesses: %+v",
-		cfg, witnesses)
+	logger.Debug("Selecting minimum number of batch and system witnesses based on policy",
+		withPolicyConfigField(cfg), withWitnessesField(witnesses))
 
 	var eligibleBatchWitnesses []*proof.Witness
 
@@ -233,8 +234,9 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		}
 	}
 
-	logger.Debugf("selecting minimum number of witnesses based on cfg[%s] and eligible batch%s and system witnesses%s",
-		cfg, eligibleBatchWitnesses, eligibleSystemWitnesses)
+	logger.Debug("Selecting minimum number of witnesses based on policy and eligible batch and system witnesses",
+		withPolicyConfigField(cfg), withBatchWitnessesField(eligibleBatchWitnesses),
+		withSystemWitnessesField(eligibleSystemWitnesses))
 
 	var selectedBatchWitnesses []*proof.Witness
 
@@ -256,7 +258,8 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		}
 	}
 
-	logger.Debugf("selected %d batch witnesses: %v", len(selectedBatchWitnesses), selectedBatchWitnesses)
+	logger.Debug("Selected batch witnesses", log.WithTotal(len(selectedBatchWitnesses)),
+		withBatchWitnessesField(selectedBatchWitnesses))
 
 	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
 		cfg.MinPercentSystem, totalSystemWitnesses, commonWitnesses...)
@@ -265,7 +268,8 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 			witnesses, eligibleSystemWitnesses, commonWitnesses, totalSystemWitnesses, cfg, err)
 	}
 
-	logger.Debugf("selected %d system witnesses: %v", len(selectedSystemWitnesses), selectedSystemWitnesses)
+	logger.Debug("Selected system witnesses", log.WithTotal(len(selectedSystemWitnesses)),
+		withSystemWitnessesField(selectedSystemWitnesses))
 
 	return selectedBatchWitnesses, selectedSystemWitnesses, nil
 }
@@ -293,8 +297,8 @@ func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
 		minSelection = int(math.Ceil(float64(minPercent)/maxPercent*float64(totalWitnesses))) - len(preferred)
 	}
 
-	logger.Debugf("Selecting %d witnesses from eligible %s and preferred %s",
-		minSelection, eligible, preferred)
+	logger.Debug("Selecting witnesses from eligible and preferred", log.WithMinimum(minSelection),
+		withEligibleWitnessesField(eligible), withPreferredWitnessesField(preferred))
 
 	selection, err := wp.selector.Select(difference(eligible, preferred), minSelection)
 	if err != nil {

@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-var logger = log.New("allowed-origins")
+var logger = log.NewStructured("allowed-origins", log.WithFields(log.WithServiceEndpoint(allowedOriginsPath)))
 
 const (
 	allowedOriginsPath          = "/allowedorigins"
@@ -67,18 +67,18 @@ func (h *Writer) Handler() common.HTTPRequestHandler {
 func (h *Writer) handlePost(w http.ResponseWriter, req *http.Request) {
 	reqBytes, err := h.readAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", allowedOriginsPath, err)
+		logger.Error("Error reading request body", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Got request to update allowed origins: %s", allowedOriginsPath, reqBytes)
+	logger.Debug("Got request to update allowed origins", log.WithRequestBody(reqBytes))
 
 	request, err := unmarshalAndValidateRequest(reqBytes)
 	if err != nil {
-		logger.Infof("[%s] Error validating request: %s", allowedOriginsPath, err)
+		logger.Info("Error validating request", log.WithError(err))
 
 		writeResponse(w, http.StatusBadRequest, []byte(err.Error()))
 
@@ -87,7 +87,7 @@ func (h *Writer) handlePost(w http.ResponseWriter, req *http.Request) {
 
 	err = h.mgr.Update(request.additions, request.deletions)
 	if err != nil {
-		logger.Errorf("[%s] Error updating allowed origins: %s", allowedOriginsPath, err)
+		logger.Error("Error updating allowed origins", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -130,7 +130,7 @@ func (h *Reader) Handler() common.HTTPRequestHandler {
 func (h *Reader) handleGet(w http.ResponseWriter, _ *http.Request) {
 	allowedOrigins, err := h.mgr.Get()
 	if err != nil {
-		logger.Errorf("[%s] Error querying allowed originss: %s", allowedOriginsPath, err)
+		logger.Error("Error querying allowed originss", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -139,7 +139,7 @@ func (h *Reader) handleGet(w http.ResponseWriter, _ *http.Request) {
 
 	allowedOriginsBytes, err := h.marshalAllowedOrigins(allowedOrigins)
 	if err != nil {
-		logger.Errorf("[%s] Error querying allowed origins: %s", allowedOriginsPath, err)
+		logger.Error("Error querying allowed origins", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -154,12 +154,12 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", allowedOriginsPath, err)
+			log.WriteResponseBodyError(logger.Warn, err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", allowedOriginsPath, body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }
 

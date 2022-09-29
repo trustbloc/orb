@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.New("anchorevent")
+var logger = log.NewStructured("anchorevent")
 
 const (
 	// ID specifies the ID of the generator.
@@ -160,7 +160,7 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 }
 
 func newItem(value *subject.SuffixAnchor) (*linkset.Item, error) {
-	logger.Debugf("Resource - Key [%s] Value [%s]", value.Suffix, value.Anchor)
+	logger.Debug("Creating new linkset item", log.WithSuffix(value.Suffix), log.WithAnchorURIString(value.Anchor))
 
 	if value.Anchor == "" {
 		hrefURI, e := url.Parse(fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, value.Suffix))
@@ -174,7 +174,8 @@ func newItem(value *subject.SuffixAnchor) (*linkset.Item, error) {
 	parts := strings.Split(value.Anchor, separator)
 
 	if len(parts) != hashlinkParts {
-		return nil, fmt.Errorf("invalid number of parts for previous anchor hashlink[%s] for suffix[%s]: expected 3, got %d", value, value.Suffix, len(parts)) //nolint:lll
+		return nil, fmt.Errorf("invalid number of parts for previous anchor hashlink[%s] for suffix[%s]: expected 3, got %d",
+			value, value.Suffix, len(parts))
 	}
 
 	pos := strings.LastIndex(value.Anchor, ":")
@@ -285,7 +286,7 @@ func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentB
 			s.Anchor, anchorLink.Anchor())
 	}
 
-	logger.Debugf("Anchor credential subject is valid for [%s]", vc.ID)
+	logger.Debug("Anchor credential subject is valid", log.WithVerifiableCredentialID(vc.ID))
 
 	return nil
 }
@@ -320,7 +321,7 @@ func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (*sub
 			continue
 		}
 
-		logger.Debugf("Found previous anchor [%s] for suffix [%s]", prev, suffix)
+		logger.Debug("Found previous anchor for suffix", log.WithAnchorURI(prev), log.WithSuffix(suffix))
 
 		return &subject.SuffixAnchor{Suffix: suffix, Anchor: prev.String()}, nil
 	}

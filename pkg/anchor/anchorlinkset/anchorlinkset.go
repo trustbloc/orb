@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.New("anchorevent")
+var logger = log.NewStructured("anchorevent")
 
 // Builder constructs an anchor linkset.
 type Builder struct {
@@ -190,7 +190,7 @@ func resolveParents(previousAnchors []*subject.SuffixAnchor) []*url.URL {
 	for i, p := range previous {
 		parent, err := url.Parse(p)
 		if err != nil {
-			logger.Warnf("Invalid parent URL [%s]: %s", p, err)
+			logger.Warn("Invalid parent URI", log.WithURIString(p), log.WithError(err))
 		}
 
 		parents[i] = parent

@@ -92,7 +92,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 		return
 	}
 
-	h.logger.Debug("Posting activity", log.WithPayload(activityBytes))
+	h.logger.Debug("Posting activity", log.WithData(activityBytes))
 
 	activity, err := h.unmarshalAndValidateActivity(activityBytes)
 	if err != nil {

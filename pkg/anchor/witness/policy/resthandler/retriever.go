@@ -13,6 +13,8 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // PolicyRetriever retrieves the current witness policy.
@@ -48,21 +50,21 @@ func (pc *PolicyRetriever) handle(w http.ResponseWriter, req *http.Request) {
 	policyStr, err := pc.store.GetPolicy()
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			logger.Debugf("[%s] Witness policy not found", endpoint)
+			logger.Debug("Witness policy not found")
 
 			writeResponse(w, http.StatusNotFound, nil)
 
 			return
 		}
 
-		logger.Errorf("[%s] Error retrieving witness policy: %s", endpoint, err)
+		logger.Error("Error retrieving witness policy", log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Retrieved witness policy %s", endpoint, policyStr)
+	logger.Debug("Retrieved witness policy", log.WithWitnessPolicy(policyStr))
 
 	writeResponse(w, http.StatusOK, []byte(policyStr))
 }

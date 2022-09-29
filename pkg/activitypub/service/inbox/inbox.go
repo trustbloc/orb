@@ -180,7 +180,7 @@ func (h *Inbox) listen() {
 	h.logger.Debug("Starting message listener")
 
 	for msg := range h.msgChannel {
-		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
+		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 		h.handle(msg)
 	}
@@ -214,7 +214,7 @@ func (h *Inbox) handle(msg *message.Message) {
 
 func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
 	h.logger.Debug("Handling activities message",
-		log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
+		log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {

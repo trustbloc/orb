@@ -17,7 +17,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.New("allowed-origins-mgr")
+var logger = log.NewStructured("allowed-origins-mgr")
 
 const (
 	allowedOriginKeyPrefix = "allowed-origin_"
@@ -81,7 +81,7 @@ func (s *Manager) Update(additions, deletions []*url.URL) error {
 	}
 
 	if len(operations) == 0 {
-		logger.Debugf("No new additions or deletions for allowed origins.")
+		logger.Debug("No new additions or deletions for allowed origins.")
 
 		return nil
 	}
@@ -90,8 +90,8 @@ func (s *Manager) Update(additions, deletions []*url.URL) error {
 		return orberrors.NewTransientf("batch update: %w", err)
 	}
 
-	logger.Infof("Successfully updated the allowed anchor origins - Additions: %s, Deletions: %s",
-		additions, deletions)
+	logger.Info("Successfully updated the allowed anchor origins",
+		log.WithURLAdditions(additions...), log.WithURLDeletions(deletions...))
 
 	return nil
 }
@@ -126,7 +126,7 @@ func (s *Manager) Get() ([]*url.URL, error) {
 
 		uri, err := url.Parse(cfg.AllowedOrigin)
 		if err != nil {
-			logger.Warnf("Ignoring invalid allowed origin: %s", cfg.AllowedOrigin)
+			logger.Warn("Ignoring invalid allowed origin", log.WithURIString(cfg.AllowedOrigin))
 		} else {
 			allowed = append(allowed, uri)
 		}
@@ -137,7 +137,7 @@ func (s *Manager) Get() ([]*url.URL, error) {
 		}
 	}
 
-	logger.Debugf("Loaded allowed anchor origins: %s", allowed)
+	logger.Debug("Loaded allowed anchor origins", log.WithURIs(allowed...))
 
 	return allowed, nil
 }

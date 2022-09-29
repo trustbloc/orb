@@ -25,7 +25,7 @@ const (
 	hashTag   = "anchorHash"
 )
 
-var logger = log.New("anchor-ref-store")
+var logger = log.NewStructured("anchor-ref-store")
 
 // New creates a new anchor link store.
 func New(provider storage.Provider) (*Store, error) {
@@ -73,7 +73,7 @@ func (s *Store) PutLinks(links []*url.URL) error {
 			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
 
-		logger.Debugf("Storing anchor ref for hash [%s]: [%s]", anchorHash, linkBytes)
+		logger.Debug("Storing anchor reference", log.WithAnchorHash(anchorHash), log.WithURI(link))
 
 		operations[i] = storage.Operation{
 			Key:   getID(link),
@@ -100,17 +100,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 	operations := make([]storage.Operation, len(links))
 
 	for i, link := range links {
-		anchorHash, err := hashlink.GetResourceHashFromHashLink(link.String())
-		if err != nil {
-			return fmt.Errorf("get hash from hashlink [%s]: %w", link, err)
-		}
-
-		linkBytes, err := s.marshal(link.String())
-		if err != nil {
-			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
-		}
-
-		logger.Debugf("Deleting anchor ref for hash [%s]: [%s]", anchorHash, linkBytes)
+		logger.Debug("Deleting anchor reference", log.WithURI(link))
 
 		operations[i] = storage.Operation{
 			Key: getID(link),
@@ -127,7 +117,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 
 // GetLinks returns the links for the given anchor hash.
 func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
-	logger.Debugf("Retrieving anchor refs for hash [%s]...", anchorHash)
+	logger.Debug("Retrieving anchor link references for anchor hash", log.WithAnchorHash(anchorHash))
 
 	var err error
 
@@ -173,7 +163,7 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 		}
 	}
 
-	logger.Debugf("Returning anchor refs for hash [%s]: %s", anchorHash, links)
+	logger.Debug("Returning anchor references for anchor hash", log.WithAnchorHash(anchorHash), log.WithURIs(links...))
 
 	return links, nil
 }
