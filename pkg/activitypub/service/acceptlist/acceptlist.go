@@ -93,9 +93,9 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 		return orberrors.NewTransient(fmt.Errorf("batch update: %w", err))
 	}
 
-	logger.Debug("Successfully updated the accept list [%s] - Additions: %s, Deletions: %s",
-		log.WithAcceptListType(acceptType), log.WithAcceptListAdditions(additions...),
-		log.WithAcceptListDeletions(deletions...))
+	logger.Debug("Successfully updated the accept list",
+		log.WithAcceptListType(acceptType), log.WithURLAdditions(additions...),
+		log.WithURLDeletions(deletions...))
 
 	return nil
 }

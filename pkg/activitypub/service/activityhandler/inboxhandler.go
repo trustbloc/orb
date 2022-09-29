@@ -447,7 +447,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIterator(h.logger.Error, err)
+			log.CloseIteratorError(h.logger.Error, err)
 		}
 	}()
 

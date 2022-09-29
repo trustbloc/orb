@@ -142,7 +142,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 		lifecycle.WithStop(h.stop),
 	)
 
-	logger.Debug("Creating IRI cache", log.WithSize(cfg.CacheSize), log.WithExpiration(cfg.CacheExpiration))
+	logger.Debug("Creating IRI cache", log.WithSize(cfg.CacheSize), log.WithCacheExpiration(cfg.CacheExpiration))
 
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).
@@ -165,7 +165,7 @@ func (h *Outbox) listen() {
 	h.logger.Debug("Starting message listener")
 
 	for msg := range h.msgChan {
-		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithPayload(msg.Payload))
+		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 		h.handle(msg)
 	}
@@ -695,7 +695,7 @@ func (h *Outbox) sendActivity(activity *vocab.ActivityType, target *url.URL) err
 	)
 
 	h.logger.Debug("Sending message", log.WithMessageID(msg.UUID),
-		log.WithTargetIRI(req.URL), log.WithPayload(msg.Payload))
+		log.WithTargetIRI(req.URL), log.WithData(msg.Payload))
 
 	resp, err := h.httpTransport.Post(context.Background(), req, msg.Payload)
 	if err != nil {

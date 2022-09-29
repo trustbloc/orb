@@ -19,7 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.New("anchor")
+var logger = log.NewStructured("anchor")
 
 const anchorTopic = "orb.anchor_linkset"
 
@@ -51,7 +51,7 @@ func (h *Publisher) Publish(anchorLinkset *linkset.Linkset) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debugf("Publishing anchor link to topic [%s]: %s", anchorTopic, anchorLinkset)
+	logger.Debug("Publishing anchor linkset", log.WithQueue(anchorTopic), log.WithData(payload))
 
 	err = h.pubSub.Publish(anchorTopic, msg)
 	if err != nil {

@@ -25,7 +25,7 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.New("vc-rest-handler")
+var logger = log.NewStructured("vc-rest-handler")
 
 // Handler retrieves vc from verifiable credential store.
 type Handler struct {
@@ -62,14 +62,14 @@ func (h *Handler) handle(w http.ResponseWriter, req *http.Request) {
 	vc, err := h.store.Get(id)
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			logger.Debugf("verifiable credential not found for id[%s]: %s", id, err)
+			logger.Debug("Verifiable credential not found", log.WithVerifiableCredentialID(id), log.WithError(err))
 
 			writeResponse(w, http.StatusNotFound, []byte(statusNotFoundResponse))
 
 			return
 		}
 
-		logger.Errorf("error retrieving verifiable credential for id[%s]: %s", id, err)
+		logger.Error("Error retrieving verifiable credential", log.WithVerifiableCredentialID(id), log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -84,11 +84,11 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", err)
+			log.WriteResponseBodyError(logger.Warn, err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }

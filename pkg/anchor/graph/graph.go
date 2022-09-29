@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.New("anchor-graph")
+var logger = log.NewStructured("anchor-graph")
 
 // Graph manages anchor graph.
 type Graph struct {
@@ -67,7 +67,7 @@ func (g *Graph) Add(anchorLinkset *linkset.Linkset) (string, error) { //nolint:i
 		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debugf("added anchor[%s]: %s", hl, string(canonicalBytes))
+	logger.Debug("Added anchor", log.WithHashlink(hl), log.WithData(canonicalBytes))
 
 	return hl, nil
 }
@@ -79,7 +79,7 @@ func (g *Graph) Read(hl string) (*linkset.Linkset, error) {
 		return nil, err
 	}
 
-	logger.Debugf("read anchor Linkset [%s]: %s", hl, string(anchorLinksetBytes))
+	logger.Debug("Read anchor Linkset", log.WithHashlink(hl), log.WithData(anchorLinksetBytes))
 
 	anchorLinkset := &linkset.Linkset{}
 
@@ -105,7 +105,7 @@ func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 	ok := true
 
 	for ok {
-		logger.Debugf("getting did anchors for hl[%s], suffix[%s]", cur, suffix)
+		logger.Debug("Getting DID anchors", log.WithHashlink(cur), log.WithSuffix(suffix))
 
 		anchorLinkset, err := g.Read(cur)
 		if err != nil {
