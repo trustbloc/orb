@@ -13,8 +13,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"go.mongodb.org/mongo-driver/mongo"
 	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
-
-	"github.com/trustbloc/orb/pkg/metrics"
 )
 
 // StoreWrapper wrap aries store.
@@ -35,8 +33,8 @@ type metricsProvider interface {
 }
 
 // NewStore return new store wrapper.
-func NewStore(s storage.Store, dbType string) *StoreWrapper {
-	return &StoreWrapper{s: s, m: metrics.Get(), dbType: dbType}
+func NewStore(s storage.Store, dbType string, metrics metricsProvider) *StoreWrapper {
+	return &StoreWrapper{s: s, m: metrics, dbType: dbType}
 }
 
 // Put data.
@@ -121,14 +119,14 @@ type MongoDBStoreWrapper struct {
 }
 
 // NewMongoDBStore return new MongoDB store wrapper.
-func NewMongoDBStore(s storage.Store) *MongoDBStoreWrapper {
+func NewMongoDBStore(s storage.Store, metrics metricsProvider) *MongoDBStoreWrapper {
 	ms, ok := s.(mongoDBStore)
 	if !ok {
 		panic("storage is not MongoDB")
 	}
 
 	return &MongoDBStoreWrapper{
-		StoreWrapper: NewStore(s, "MongoDB"),
+		StoreWrapper: NewStore(s, "MongoDB", metrics),
 		ms:           ms,
 	}
 }

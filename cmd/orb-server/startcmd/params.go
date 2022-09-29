@@ -9,7 +9,6 @@ package startcmd
 import (
 	"errors"
 	"fmt"
-	"github.com/trustbloc/orb/internal/pkg/log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -44,11 +43,6 @@ const (
 	kmsEndpointFlagName  = "kms-endpoint"
 	kmsEndpointEnvKey    = "ORB_KMS_ENDPOINT"
 	kmsEndpointFlagUsage = "KMS URL." +
-		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
-
-	kmsRegionFlagName  = "kms-region"
-	kmsRegionEnvKey    = "ORB_KMS_REGION"
-	kmsRegionFlagUsage = "KMS region." +
 		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
 
 	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
@@ -158,12 +152,6 @@ const (
 	hostURLFlagShorthand = "u"
 	hostURLFlagUsage     = "URL to run the orb-server instance on. Format: HostName:Port."
 	hostURLEnvKey        = "ORB_HOST_URL"
-
-	hostMetricsURLFlagName      = "host-metrics-url"
-	hostMetricsURLFlagShorthand = "M"
-	hostMetricsURLFlagUsage     = "URL that exposes the metrics endpoint. If not specified then no metrics " +
-		"endpoint is exposed. Format: HostName:Port."
-	hostMetricsURLEnvKey = "ORB_HOST_METRICS_URL"
 
 	syncTimeoutFlagName  = "sync-timeout"
 	syncTimeoutEnvKey    = "ORB_SYNC_TIMEOUT"
@@ -664,6 +652,15 @@ const (
 	requestTokensEnvKey    = "ORB_REQUEST_TOKENS" //nolint: gosec
 	requestTokensFlagUsage = "Tokens used for http request supported tokens (vct-read and vct-write) " +
 		commonEnvVarUsageText + requestTokensEnvKey
+
+	metricsProviderFlagName         = "metrics-provider-name"
+	metricsProviderEnvKey           = "ORB_METRICS_PROVIDER_NAME"
+	allowedMetricsProviderFlagUsage = "The metrics provider name (for example: 'prometheus' etc.). " +
+		commonEnvVarUsageText + metricsProviderEnvKey
+
+	promHttpUrlFlagName             = "prom-http-url"
+	promHttpUrlEnvKey               = "ORB_PROM_HTTP_URL"
+	allowedPromHttpUrlFlagNameUsage = "URL that exposes the prometheus metrics endpoint. Format: HostName:Port. "
 )
 
 type acceptRejectPolicy string
@@ -682,7 +679,6 @@ type tlsParameters struct {
 
 type orbParameters struct {
 	hostURL                                 string
-	hostMetricsURL                          string
 	externalEndpoint                        string
 	apServiceParams                         *apServiceParams
 	discoveryDomain                         string
@@ -759,6 +755,12 @@ type orbParameters struct {
 	kmsParams                               *kmsParameters
 	requestTokens                           map[string]string
 	allowedDIDWebDomains                    []*url.URL
+	metricsProviderName                     string
+	prometheusMetricsProviderParams         *prometheusMetricsProviderParams
+}
+
+type prometheusMetricsProviderParams struct {
+	url string
 }
 
 // apServiceParams contains accessor functions for various
@@ -882,7 +884,17 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	hostMetricsURL, err := cmdutil.GetUserSetVarFromString(cmd, hostMetricsURLFlagName, hostMetricsURLEnvKey, true)
+	metricsProviderName, err := getMetricsProviderName(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var prometheusMetricsProviderParams *prometheusMetricsProviderParams
+	if metricsProviderName == "prometheus" {
+		prometheusMetricsProviderParams, err = getPrometheusMetricsProviderParams(cmd)
+	} else {
+		prometheusMetricsProviderParams, err = nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1453,7 +1465,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	return &orbParameters{
 		hostURL:                                 hostURL,
-		hostMetricsURL:                          hostMetricsURL,
 		discoveryDomain:                         discoveryDomain,
 		externalEndpoint:                        externalEndpoint,
 		apServiceParams:                         apServiceParams,
@@ -1527,7 +1538,25 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
 		kmsParams:                               kmsParams,
 		requestTokens:                           requestTokens,
+		metricsProviderName:                     metricsProviderName,
+		prometheusMetricsProviderParams:         prometheusMetricsProviderParams,
 	}, nil
+}
+
+func getMetricsProviderName(cmd *cobra.Command) (string, error) {
+	metricsProvider, err := cmdutil.GetUserSetVarFromString(cmd, metricsProviderFlagName, metricsProviderEnvKey, true)
+	if err != nil {
+		return "", err
+	}
+	return metricsProvider, nil
+}
+
+func getPrometheusMetricsProviderParams(cmd *cobra.Command) (*prometheusMetricsProviderParams, error) {
+	promMetricsUrl, err := cmdutil.GetUserSetVarFromString(cmd, promHttpUrlFlagName, promHttpUrlEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+	return &prometheusMetricsProviderParams{url: promMetricsUrl}, nil
 }
 
 func getRequestTokens(cmd *cobra.Command) map[string]string {
@@ -2154,7 +2183,6 @@ func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
 
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
-	startCmd.Flags().StringP(hostMetricsURLFlagName, hostMetricsURLFlagShorthand, "", hostMetricsURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
 	startCmd.Flags().String(kmsEndpointFlagName, "", kmsEndpointFlagUsage)
 	startCmd.Flags().StringP(vcSignActiveKeyIDFlagName, "", "", vcSignActiveKeyIDFlagUsage)
@@ -2258,5 +2286,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)
 	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
 	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
-	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)
+	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)	
+        startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
+	startCmd.Flags().StringP(promHttpUrlFlagName, "", "", allowedPromHttpUrlFlagNameUsage)
 }

@@ -71,7 +71,7 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 				kmsEndpoint: "https://example.com/keystores",
 				kmsType:     kmsWeb,
 			},
-		}, nil, nil, nil)
+		}, nil, nil, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, km)
 		require.NotNil(t, cr)
@@ -86,7 +86,7 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 				kmsSecretsDatabaseType: "mem",
 				kmsType:                kmsLocal,
 			},
-		}, nil, mem.NewProvider(), cfgStore)
+		}, nil, mem.NewProvider(), cfgStore, nil)
 		require.NoError(t, err)
 		require.NotNil(t, km)
 		require.NotNil(t, cr)
@@ -103,7 +103,7 @@ func TestCreateKMSAndCrypto(t *testing.T) {
 			},
 		}, nil, &ariesmockstorage.Provider{
 			ErrOpenStore: errors.New("test error"),
-		}, masterKeyStore)
+		}, masterKeyStore, nil)
 		require.EqualError(t, err, "create Aries KMS store wrapper: test error")
 		require.Nil(t, km)
 		require.Nil(t, cr)
@@ -199,7 +199,8 @@ func TestPrivateKeys(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -222,7 +223,8 @@ func TestPrivateKeys(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -245,7 +247,8 @@ func TestPrivateKeys(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -277,7 +280,8 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,

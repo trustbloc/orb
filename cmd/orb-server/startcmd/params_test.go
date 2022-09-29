@@ -44,22 +44,22 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		require.Equal(t, "host-url value is empty", err.Error())
 	})
 
-	t.Run("test blank host metrics url arg", func(t *testing.T) {
+	t.Run("test blank metrics-provider-name arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		args := []string{"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, ""}
+		args := []string{"--" + hostURLFlagName, "test", "--" + metricsProviderFlagName, ""}
 		startCmd.SetArgs(args)
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Equal(t, "host-metrics-url value is empty", err.Error())
+		require.Equal(t, "metrics-provider-name value is empty", err.Error())
 	})
 
 	t.Run("test blank cas type arg", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test",
+			"--" + hostURLFlagName, "test", "--" + hostURLFlagName, "test",
 			"--" + casTypeFlagName, "",
 		}
 		startCmd.SetArgs(args)
@@ -73,7 +73,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
+			"--" + hostURLFlagName, "test", "--" + hostURLFlagName, "test", "--" + casTypeFlagName,
 			"local", "--" + didNamespaceFlagName, "",
 		}
 		startCmd.SetArgs(args)
@@ -87,7 +87,7 @@ func TestStartCmdWithBlankArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "test", "--" + hostMetricsURLFlagName, "test", "--" + casTypeFlagName,
+			"--" + hostURLFlagName, "test", "--" + hostURLFlagName, "test", "--" + casTypeFlagName,
 			"local", "--" + didNamespaceFlagName,
 			"namespace", "--" + databaseTypeFlagName, "", "--" + kmsTypeFlagName, "local",
 			"--" + kmsSecretsDatabaseTypeFlagName, "mem",
@@ -183,7 +183,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		startCmd := GetStartCmd()
 
 		args := []string{
-			"--" + hostURLFlagName, "localhost:8080", "--" + hostMetricsURLFlagName,
+			"--" + hostURLFlagName, "localhost:8080", "--" + hostURLFlagName,
 			"localhost:8081",
 		}
 		startCmd.SetArgs(args)
@@ -201,7 +201,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -225,7 +226,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -249,7 +251,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -274,7 +277,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -300,7 +304,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -326,7 +331,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -351,7 +357,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -374,7 +381,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -398,7 +406,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -422,7 +431,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -446,7 +456,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -470,7 +481,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -494,7 +506,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -518,7 +531,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -542,7 +556,8 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
-			"--" + hostMetricsURLFlagName, "localhost:8248",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -879,7 +894,7 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 		err := os.Setenv(hostURLEnvKey, "localhost:8080")
 		require.NoError(t, err)
 
-		err = os.Setenv(hostMetricsURLEnvKey, "localhost:8081")
+		err = os.Setenv(promHttpUrlEnvKey, "localhost:8081")
 		require.NoError(t, err)
 
 		err = os.Setenv(casTypeEnvKey, "")
@@ -901,7 +916,8 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
-		"--" + hostMetricsURLFlagName, "localhost:8248",
+		"--" + metricsProviderFlagName, "prometheus",
+		"--" + promHttpUrlFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + casTypeFlagName, "ipfs",
@@ -926,7 +942,8 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -948,7 +965,8 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -970,7 +988,8 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -989,7 +1008,8 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
-			"--" + hostMetricsURLFlagName, "localhost:8081",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -1766,7 +1786,8 @@ func setEnv(t *testing.T, name, value string) (restore func()) {
 func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType, databaseURL string) []string {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
-		"--" + hostMetricsURLFlagName, "localhost:8248",
+		"--" + metricsProviderFlagName, "prometheus",
+		"--" + promHttpUrlFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + discoveryDomainFlagName, "shared.example.com",
 		"--" + enableVCTFlagName, "true",

@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -122,8 +123,9 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
-	"github.com/trustbloc/orb/pkg/metrics"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
+	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
+	promMetricsProvider "github.com/trustbloc/orb/pkg/observability/metrics/prometheus"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -304,7 +306,7 @@ type keyStoreCfg struct {
 }
 
 func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
-	store storage.Provider, cfg storage.Store) (keyManager, crypto, error) {
+	store storage.Provider, cfg storage.Store, metricsProvider metricsProvider.Metrics) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
 	case kmsLocal:
 		return createLocalKMS(parameters.kmsParams.secretLockKeyPath, masterKeyURI, store)
@@ -340,7 +342,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			return nil, nil, err
 		}
 
-		awsSvc := awssvc.New(awsSession, metrics.Get(), parameters.kmsParams.vcSignActiveKeyID)
+		awsSvc := awssvc.New(awsSession, metricsProvider, parameters.kmsParams.vcSignActiveKeyID)
 
 		return &awsKMSWrapper{service: awsSvc}, awsSvc, nil
 	}
@@ -506,7 +508,12 @@ func startOrbServices(parameters *orbParameters) error {
 		Transport: httpTransport,
 	}
 
-	km, cr, err := createKMSAndCrypto(parameters, httpClient, storeProviders.kmsSecretsProvider, configStore)
+	metrics, err := NewMetrics(parameters)
+	if err != nil {
+		return err
+	}
+
+	km, cr, err := createKMSAndCrypto(parameters, httpClient, storeProviders.kmsSecretsProvider, configStore, metrics)
 	if err != nil {
 		return err
 	}
@@ -529,15 +536,15 @@ func startOrbServices(parameters *orbParameters) error {
 			logger.Info("Local CAS writes will be replicated in IPFS.")
 
 			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(),
-				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
+				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
 					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
-				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
 			}
 		} else {
 			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(), nil,
-				metrics.Get(), defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
+				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
 			if err != nil {
 				return err
 			}
@@ -552,7 +559,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	opStore, err := opstore.New(storeProviders.provider, metrics.Get())
+	opStore, err := opstore.New(storeProviders.provider, metrics)
 	if err != nil {
 		return err
 	}
@@ -661,11 +668,11 @@ func startOrbServices(parameters *orbParameters) error {
 	var ipfsReader *ipfscas.Client
 	var casResolver *resolver.Resolver
 	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
+		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver, metrics.Get())
+		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver, metrics)
 	} else {
-		casResolver = resolver.New(coreCASClient, nil, webCASResolver, metrics.Get())
+		casResolver = resolver.New(coreCASClient, nil, webCASResolver, metrics)
 	}
 
 	generatorRegistry := generator.NewRegistry()
@@ -688,7 +695,7 @@ func startOrbServices(parameters *orbParameters) error {
 	var updateDocumentStore *unpublishedopstore.Store
 	if parameters.unpublishedOperationStoreEnabled {
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
-			parameters.unpublishedOperationLifespan, expiryService, metrics.Get())
+			parameters.unpublishedOperationLifespan, expiryService, metrics)
 		if err != nil {
 			return fmt.Errorf("failed to create unpublished document store: %w", err)
 		}
@@ -707,7 +714,7 @@ func startOrbServices(parameters *orbParameters) error {
 	// get protocol client provider
 	pcp, err := getProtocolClientProvider(parameters, coreCASClient, casResolver, opStore,
 		storeProviders.provider, updateDocumentStore, anchororigin.New(allowedOriginsStore,
-			parameters.allowedOriginsCacheExpiration))
+			parameters.allowedOriginsCacheExpiration), metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create protocol client provider: %w", err)
 	}
@@ -743,7 +750,7 @@ func startOrbServices(parameters *orbParameters) error {
 		KeyManager: km,
 		Crypto:     cr,
 		DocLoader:  orbDocumentLoader,
-		Metrics:    metrics.Get(),
+		Metrics:    metrics,
 	}
 
 	vcSigner, err := vcsigner.New(signingProviders, signingParams)
@@ -972,11 +979,11 @@ func startOrbServices(parameters *orbParameters) error {
 			DocLoader:       orbDocumentLoader,
 			WitnessStore:    witnessProofStore,
 			WitnessPolicy:   witnessPolicy,
-			Metrics:         metrics.Get(),
+			Metrics:         metrics,
 		},
 		pubSub, parameters.dataURIMediaType, parameters.maxClockSkew)
 
-	witness := vct.New(configclient.New(configStore), vcSigner, metrics.Get(),
+	witness := vct.New(configclient.New(configStore), vcSigner, metrics,
 		vct.WithHTTPClient(httpClient),
 		vct.WithDocumentLoader(orbDocumentLoader),
 		vct.WithAuthReadToken(parameters.requestTokens[vctReadTokenKey]),
@@ -996,7 +1003,7 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorGraph:            anchorGraph,
 		DidAnchors:             didAnchors,
 		PubSub:                 pubSub,
-		Metrics:                metrics.Get(),
+		Metrics:                metrics,
 		Outbox:                 func() observer.Outbox { return activityPubService.Outbox() },
 		HostMetaLinkResolver:   resourceResolver,
 		CASResolver:            casResolver,
@@ -1034,7 +1041,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	activityPubService, err = apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics.Get(),
+		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithAcceptFollowHandler(logMonitorHandler),
 		apspi.WithUndoFollowHandler(logMonitorHandler),
@@ -1090,12 +1097,12 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.maxWitnessDelay,
 		parameters.signWithLocalWitness,
 		resourceResolver,
-		metrics.Get())
+		metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
 
-	opQueue, err := opqueue.New(*parameters.opQueueParams, pubSub, storeProviders.provider, taskMgr, metrics.Get())
+	opQueue, err := opqueue.New(*parameters.opQueueParams, pubSub, storeProviders.provider, taskMgr, metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
 	}
@@ -1128,7 +1135,7 @@ func startOrbServices(parameters *orbParameters) error {
 			opProcessor,
 			endpointClient,
 			remoteresolver.New(t),
-			metrics.Get(),
+			metrics,
 		)
 
 		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))
@@ -1140,7 +1147,7 @@ func startOrbServices(parameters *orbParameters) error {
 		pc,
 		batchWriter,
 		opProcessor,
-		metrics.Get(),
+		metrics,
 		didDocHandlerOpts...,
 	)
 
@@ -1169,11 +1176,11 @@ func startOrbServices(parameters *orbParameters) error {
 		endpointClient,
 		remoteresolver.New(t),
 		anchorGraph,
-		metrics.Get(),
+		metrics,
 		resolveHandlerOpts...,
 	)
 
-	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics.Get(), updateHandlerOpts...)
+	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics, updateHandlerOpts...)
 
 	var logEndpoint logEndpoint
 
@@ -1193,7 +1200,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	webResolveHandler := webresolver.NewResolveHandler(allowedDIDWebDomains, parameters.didNamespace,
-		unpublishedDIDLabel, orbResolveHandler, metrics.Get())
+		unpublishedDIDLabel, orbResolveHandler, metrics)
 
 	// create discovery rest api
 	endpointDiscoveryOp, err := discoveryrest.New(
@@ -1240,8 +1247,8 @@ func startOrbServices(parameters *orbParameters) error {
 	didResolveHandler := didresolver.NewResolveHandler(orbResolveHandler, webResolveHandler)
 
 	handlers = append(handlers,
-		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics.Get()), authTokenManager),
-		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics.Get()),
+		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics), authTokenManager),
+		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics),
 			&aphandler.Config{
 				ObjectIRI:              parameters.apServiceParams.serviceIRI(),
 				VerifyActorInSignature: parameters.httpSignaturesEnabled,
@@ -1313,15 +1320,15 @@ func startOrbServices(parameters *orbParameters) error {
 		handlers...,
 	)
 
-	if parameters.hostMetricsURL != "" {
-		metricsHttpServer := httpserver.New(
-			parameters.hostMetricsURL, "", "", parameters.serverIdleTimeout,
-			pubSub, witness, storeProviders.provider, km, metrics.NewHandler(),
-		)
+	metricsProvider, err := NewMetricsProvider(parameters, pubSub, witness, storeProviders, km)
+	if err != nil {
+		return err
+	}
 
-		err = metricsHttpServer.Start()
+	if metricsProvider != nil {
+		err = metricsProvider.Create()
 		if err != nil {
-			return fmt.Errorf("start metrics HTTP server at %s: %w", parameters.hostMetricsURL, err)
+			return err
 		}
 	}
 
@@ -1339,7 +1346,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
 	opStore common.OperationStore, provider storage.Provider, unpublishedOpStore *unpublishedopstore.Store,
-	allowedOriginsValidator operationparser.ObjectValidator) (*orbpcp.ClientProvider, error) {
+	allowedOriginsValidator operationparser.ObjectValidator, metrics metricsProvider.Metrics) (*orbpcp.ClientProvider, error) {
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                           parameters.methodContext,
 		EnableBase:                              parameters.baseEnabled,
@@ -1354,7 +1361,7 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 
 	var protocolVersions []protocol.Version
 	for _, version := range parameters.sidetreeProtocolVersions {
-		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg)
+		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg, metrics)
 		if err != nil {
 			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)
 		}
@@ -1799,4 +1806,27 @@ func asURIs(strs ...string) ([]*url.URL, error) {
 	}
 
 	return uris, nil
+}
+
+func NewMetrics(parameters *orbParameters) (metricsProvider.Metrics, error) {
+	switch parameters.metricsProviderName {
+	case "prometheus":
+		return promMetricsProvider.GetMetrics(), nil
+	default:
+		return nil, nil
+	}
+}
+
+func NewMetricsProvider(parameters *orbParameters, pubSub pubSub, witness *vct.Client, storeProviders *storageProviders,
+	km keyManager) (metricsProvider.Provider, error) {
+	switch parameters.metricsProviderName {
+	case "prometheus":
+		metricsHttpServer := httpserver.New(
+			parameters.prometheusMetricsProviderParams.url, "", "", parameters.serverIdleTimeout,
+			pubSub, witness, storeProviders.provider, km, promMetricsProvider.NewHandler(),
+		)
+		return promMetricsProvider.NewPrometheusProvider(metricsHttpServer), nil
+	default:
+		return nil, nil
+	}
 }
