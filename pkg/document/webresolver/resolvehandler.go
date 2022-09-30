@@ -21,7 +21,7 @@ import (
 	diddoctransformer "github.com/trustbloc/orb/pkg/orbclient/doctransformer"
 )
 
-var logger = log.New("did-web-resolver")
+var logger = log.NewStructured("did-web-resolver")
 
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {
@@ -120,9 +120,11 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 		return nil, err
 	}
 
-	logger.Debugf("resolved id: %s", id)
+	result := &document.ResolutionResult{Document: didWebDoc, Context: localResponse.Context}
 
-	return &document.ResolutionResult{Document: didWebDoc, Context: localResponse.Context}, nil
+	logger.Debug("Resolved DID", log.WithDID(id), log.WithResolutionResult(result))
+
+	return result, nil
 }
 
 func getDeactivatedFlag(result *document.ResolutionResult) bool {

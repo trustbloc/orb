@@ -19,7 +19,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.New("config-client")
+var logger = log.NewStructured("config-client")
 
 const (
 	defaultCacheSize       = 100
@@ -52,7 +52,8 @@ func New(cfg storage.Store, opts ...Option) *Client {
 		opt(client)
 	}
 
-	logger.Debugf("creating config store cache with size=%d, expiration=%s", client.cacheSize, client.cacheExpiry)
+	logger.Debug("Creating config store cache", log.WithSize(client.cacheSize),
+		log.WithCacheExpiration(client.cacheExpiry))
 
 	client.configCache = gcache.New(client.cacheSize).ARC().
 		Expiration(client.cacheExpiry).
@@ -90,7 +91,7 @@ func (c *Client) get(key string) ([]byte, error) {
 		return nil, orberrors.NewTransientf("get config for key [%s]: %w", key, err)
 	}
 
-	logger.Debugf("loaded key from config store: %s", key)
+	logger.Debug("Loaded data from config store", log.WithKey(key))
 
 	return val, nil
 }

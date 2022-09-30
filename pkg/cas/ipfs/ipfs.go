@@ -8,7 +8,6 @@ package ipfs
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +27,7 @@ import (
 
 const logModule = "cas-ipfs"
 
-var logger = log.New(logModule)
+var logger = log.NewStructured(logModule)
 
 const (
 	defaultCacheSize = 1000
@@ -73,13 +72,15 @@ func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
 
 	c := &Client{ipfs: ipfs, opts: opts, hl: hashlink.New(), metrics: metrics}
 
-	c.cache = gcache.New(cacheSize).LoaderFunc(func(key interface{}) (interface{}, error) {
-		content, err := c.get(key.(string))
+	c.cache = gcache.New(cacheSize).LoaderFunc(func(k interface{}) (interface{}, error) {
+		key := k.(string) //nolint:forcetypeassert,errcheck
+
+		content, err := c.get(key)
 		if err != nil {
 			return nil, err
 		}
 
-		logger.Debugf("Content was cached for key [%s]", key)
+		logger.Debug("Content was cached for key", log.WithKey(key))
 
 		return content, nil
 	}).Build()
@@ -102,7 +103,7 @@ func (m *Client) Write(content []byte) (string, error) {
 		return "", fmt.Errorf("failed to create hashlink for ipfs: %w", err)
 	}
 
-	logger.Debugf("ipfs Add returned hl [%s] using cid[%s]", hl, cid)
+	logger.Debug("Wrote content to IPFS", log.WithHashlink(hl), log.WithCID(cid))
 
 	return hl, nil
 }
@@ -135,7 +136,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debugf("ipfs Add returned cid [%s] using version %d.", cid, options.CIDVersion)
+	logger.Debug("Wrote content to IPFS", log.WithCID(cid), log.WithCIDVersion(options.CIDVersion))
 
 	return cid, nil
 }
@@ -148,7 +149,7 @@ func (m *Client) GetPrimaryWriterType() string {
 // Read reads the content for the given CID from CAS.
 // returns the contents of CID.
 func (m *Client) Read(cidOrHash string) ([]byte, error) {
-	logger.Debugf("read cid or hash from ipfs: %s", cidOrHash)
+	logger.Debug("Reading CID or hash from IPFS", log.WithKey(cidOrHash))
 
 	cid, err := m.getCID(cidOrHash)
 	if err != nil {
@@ -172,12 +173,12 @@ func (m *Client) get(cid string) ([]byte, error) {
 
 	defer m.metrics.CASReadTime(casType, time.Since(startTime))
 
-	logger.Debugf("Read CID from IPFS [%s]", cid)
+	logger.Debug("Reading CID from IPFS", log.WithCID(cid))
 
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			logger.Debugf("CID not found in IPFS (due to context deadline exceeded) [%s]", cid)
+			logger.Debug("CID not found in IPFS (due to context deadline exceeded)", log.WithCID(cid))
 
 			return nil, fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound)
 		}
@@ -192,13 +193,10 @@ func (m *Client) get(cid string) ([]byte, error) {
 		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
 	}
 
-	if logger.IsEnabled(log.DEBUG) {
-		logger.Debugf("Got content from IPFS for CID (base64-encoded) [%s]: %s", cid,
-			base64.RawStdEncoding.EncodeToString(content))
-	}
+	logger.Debug("Got content from IPFS for CID (base64-encoded)", log.WithCID(cid), log.WithCASData(content))
 
 	if string(content) == "null" {
-		logger.Debugf("Got 'null' from IPFS for CID [%s]", cid)
+		logger.Debug("Got 'null' from IPFS", log.WithCID(cid))
 
 		return nil, orberrors.NewTransient(orberrors.ErrContentNotFound)
 	}
@@ -226,7 +224,7 @@ func (m *Client) getCID(cidOrHash string) (string, error) {
 			return "", fmt.Errorf("failed to get cid in ipfs reader: %w", err)
 		}
 
-		logger.Debugf("converted value[%s] to CID: %s", cidOrHash, cid)
+		logger.Debug("Converted multihash to CID", log.WithMultihash(cidOrHash), log.WithCID(cid))
 	}
 
 	return cid, nil
@@ -278,6 +276,6 @@ func getOptions(opts []extendedcasclient.CIDFormatOption) (
 
 func closeAndLog(rc io.Closer) {
 	if err := rc.Close(); err != nil {
-		logger.Warnf("failed to close reader: %s", err.Error())
+		logger.Warn("Failed to close reader", log.WithError(err))
 	}
 }

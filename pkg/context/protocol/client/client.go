@@ -11,11 +11,12 @@ import (
 	"sort"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"go.uber.org/zap"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("protocol-client")
+var logger = log.NewStructured("protocol-client")
 
 // Client implements protocol client.
 type Client struct {
@@ -75,16 +76,16 @@ func (c *Client) Current() (protocol.Version, error) {
 
 // Get gets protocol version based on blockchain(transaction) time.
 func (c *Client) Get(genesisTime uint64) (protocol.Version, error) {
-	logger.Debugf("available protocols: %s", c.protocols)
-
 	for i := len(c.protocols) - 1; i >= 0; i-- {
 		pv := c.protocols[i]
 		p := pv.Protocol()
 
-		logger.Debugf("Checking protocol for version genesis time %d: %+v", genesisTime, p)
+		logger.Debug("Checking protocol for genesis time...", log.WithGenesisTime(genesisTime),
+			zap.Inline(log.NewObjectMarshaller("sidetree-protocol", &p)))
 
 		if genesisTime == p.GenesisTime {
-			logger.Debugf("Found protocol for version genesis time %d: %+v", genesisTime, p)
+			logger.Debug("Found protocol for version genesis time", log.WithGenesisTime(genesisTime),
+				zap.Inline(log.NewObjectMarshaller("sidetree-protocol", &p)))
 
 			return pv, nil
 		}

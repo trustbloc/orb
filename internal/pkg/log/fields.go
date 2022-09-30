@@ -62,6 +62,7 @@ const (
 	FieldSuffix                 = "suffix"
 	FieldVerifiableCredential   = "vc"
 	FieldVerifiableCredentialID = "vc-id"
+	FieldHash                   = "hash"
 	FieldHashlink               = "hashlink"
 	FieldParent                 = "parent"
 	FieldParents                = "parents"
@@ -71,8 +72,37 @@ const (
 	FieldWitnessURIs            = "witness-uris"
 	FieldWitnessPolicy          = "witness-policy"
 	FieldAnchorOrigin           = "anchor-origin"
+	FieldAnchorOriginEndpoint   = "anchor-origin-endpoint"
 	FieldOperationType          = "operation-type"
 	FieldCoreIndex              = "core-index"
+	FieldKey                    = "key"
+	FieldCID                    = "cid"
+	FieldResolvedCID            = "resolved-cid"
+	FieldAnchorCID              = "anchor-cid"
+	FieldCIDVersion             = "cid-version"
+	FieldMultihash              = "multihash"
+	FieldCASData                = "cas-data"
+	FieldDomain                 = "domain"
+	FieldLink                   = "link"
+	FieldLinks                  = "links"
+	FieldTaskMgrInstanceID      = "task-mgr-instance"
+	FieldRetries                = "retries"
+	FieldMaxRetries             = "max-retries"
+	FieldSubscriberPoolSize     = "subscriber-pool-size"
+	FieldTaskMonitorInterval    = "task-monitor-interval"
+	FieldTaskExpiration         = "task-expiration"
+	FieldDeliveryDelay          = "delivery-delay"
+	FieldOperationID            = "operation-id"
+	FieldTaskOwnerID            = "task-owner-id"
+	FieldTimeSinceLastUpdate    = "time-since-last-update"
+	FieldGenesisTime            = "genesis-time"
+	FieldDID                    = "did"
+	FieldHRef                   = "href"
+	FieldID                     = "id"
+	FieldResource               = "resource"
+	FieldResolutionResult       = "resolution-result"
+	FieldResolutionModel        = "resolution-model"
+	FieldResolutionEndpoints    = "resolution-endpoints"
 )
 
 // WithError sets the error field.
@@ -102,7 +132,7 @@ func WithRequestURLString(value string) zap.Field {
 
 // WithRequestHeaders sets the request-headers field.
 func WithRequestHeaders(value http.Header) zap.Field {
-	return zap.Object(FieldRequestHeaders, newHTTPHeaderMarshaller(value))
+	return zap.Inline(NewObjectMarshaller(FieldRequestHeaders, value))
 }
 
 // WithRequestBody sets the request-body field.
@@ -153,7 +183,7 @@ func WithActorID(value string) zap.Field {
 // WithConfig sets the config field. The value of the field is
 // encoded as JSON.
 func WithConfig(value interface{}) zap.Field {
-	return zap.Inline(newJSONMarshaller(FieldConfig, value))
+	return zap.Inline(NewObjectMarshaller(FieldConfig, value))
 }
 
 // WithSize sets the size field.
@@ -314,7 +344,7 @@ func WithType(value string) zap.Field {
 // WithQuery sets the query field. The value of the field is
 // encoded as JSON.
 func WithQuery(value interface{}) zap.Field {
-	return zap.Inline(newJSONMarshaller(FieldQuery, value))
+	return zap.Inline(NewObjectMarshaller(FieldQuery, value))
 }
 
 // WithSuffix sets the suffix field.
@@ -330,6 +360,11 @@ func WithVerifiableCredential(value []byte) zap.Field {
 // WithVerifiableCredentialID sets the vc-id field.
 func WithVerifiableCredentialID(value string) zap.Field {
 	return zap.String(FieldVerifiableCredentialID, value)
+}
+
+// WithHash sets the hash field.
+func WithHash(value string) zap.Field {
+	return zap.String(FieldHash, value)
 }
 
 // WithHashlink sets the hashlink field.
@@ -402,6 +437,11 @@ func WithAnchorOrigin(value interface{}) zap.Field {
 	return zap.Any(FieldAnchorOrigin, value)
 }
 
+// WithAnchorOriginEndpoint sets the anchor-origin-endpoint field.
+func WithAnchorOriginEndpoint(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldAnchorOriginEndpoint, value))
+}
+
 // WithOperationType sets the operation-type field.
 func WithOperationType(value string) zap.Field {
 	return zap.Any(FieldOperationType, value)
@@ -410,6 +450,146 @@ func WithOperationType(value string) zap.Field {
 // WithCoreIndex sets the coreIndex field.
 func WithCoreIndex(value string) zap.Field {
 	return zap.Any(FieldCoreIndex, value)
+}
+
+// WithKey sets the key field.
+func WithKey(value string) zap.Field {
+	return zap.String(FieldKey, value)
+}
+
+// WithCID sets the cid field.
+func WithCID(value string) zap.Field {
+	return zap.String(FieldCID, value)
+}
+
+// WithResolvedCID sets the resolved-cid field.
+func WithResolvedCID(value string) zap.Field {
+	return zap.String(FieldResolvedCID, value)
+}
+
+// WithAnchorCID sets the anchor-cid field.
+func WithAnchorCID(value string) zap.Field {
+	return zap.String(FieldAnchorCID, value)
+}
+
+// WithCIDVersion sets the cid-version field.
+func WithCIDVersion(value int) zap.Field {
+	return zap.Int(FieldCIDVersion, value)
+}
+
+// WithMultihash sets the multihash field.
+func WithMultihash(value string) zap.Field {
+	return zap.String(FieldMultihash, value)
+}
+
+// WithCASData sets the cas-data field.
+func WithCASData(value []byte) zap.Field {
+	return zap.Binary(FieldCASData, value)
+}
+
+// WithDomain sets the domain field.
+func WithDomain(value string) zap.Field {
+	return zap.String(FieldDomain, value)
+}
+
+// WithLink sets the link field.
+func WithLink(value string) zap.Field {
+	return zap.String(FieldLink, value)
+}
+
+// WithLinks sets the links field.
+func WithLinks(value ...string) zap.Field {
+	return zap.Array(FieldLinks, NewStringArrayMarshaller(value))
+}
+
+// WithTaskMgrInstanceID sets the task-mgr-instance field.
+func WithTaskMgrInstanceID(value string) zap.Field {
+	return zap.String(FieldTaskMgrInstanceID, value)
+}
+
+// WithRetries sets the retries field.
+func WithRetries(value int) zap.Field {
+	return zap.Int(FieldRetries, value)
+}
+
+// WithMaxRetries sets the max-retries field.
+func WithMaxRetries(value int) zap.Field {
+	return zap.Int(FieldMaxRetries, value)
+}
+
+// WithSubscriberPoolSize sets the subscriber-pool-size field.
+func WithSubscriberPoolSize(value int) zap.Field {
+	return zap.Int(FieldSubscriberPoolSize, value)
+}
+
+// WithTaskMonitorInterval sets the task-monitor-interval field.
+func WithTaskMonitorInterval(value time.Duration) zap.Field {
+	return zap.Duration(FieldTaskMonitorInterval, value)
+}
+
+// WithTaskExpiration sets the task-expiration field.
+func WithTaskExpiration(value time.Duration) zap.Field {
+	return zap.Duration(FieldTaskExpiration, value)
+}
+
+// WithDeliveryDelay sets the delivery-delay field.
+func WithDeliveryDelay(value time.Duration) zap.Field {
+	return zap.Duration(FieldDeliveryDelay, value)
+}
+
+// WithOperationID sets the operation-id field.
+func WithOperationID(value string) zap.Field {
+	return zap.String(FieldOperationID, value)
+}
+
+// WithTaskOwnerID sets the task-owner-id field.
+func WithTaskOwnerID(value string) zap.Field {
+	return zap.String(FieldTaskOwnerID, value)
+}
+
+// WithTimeSinceLastUpdate sets the time-since-last-update field.
+func WithTimeSinceLastUpdate(value time.Duration) zap.Field {
+	return zap.Duration(FieldTimeSinceLastUpdate, value)
+}
+
+// WithGenesisTime sets the genesis-time field.
+func WithGenesisTime(value uint64) zap.Field {
+	return zap.Uint64(FieldGenesisTime, value)
+}
+
+// WithDID sets the did field.
+func WithDID(value string) zap.Field {
+	return zap.String(FieldDID, value)
+}
+
+// WithHRef sets the href field.
+func WithHRef(value string) zap.Field {
+	return zap.String(FieldHRef, value)
+}
+
+// WithID sets the id field.
+func WithID(value string) zap.Field {
+	return zap.String(FieldID, value)
+}
+
+// WithResource sets the resource field.
+func WithResource(value string) zap.Field {
+	return zap.String(FieldResource, value)
+}
+
+// WithResolutionResult sets the resolution-result field.
+func WithResolutionResult(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldResolutionResult, value))
+}
+
+// WithResolutionModel sets the resolution-model field.
+func WithResolutionModel(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldResolutionModel, value))
+}
+
+// WithResolutionEndpoints sets the resolution-endpoints field.
+func WithResolutionEndpoints(value ...string) zap.Field {
+	return zap.Array(FieldResolutionEndpoints, NewStringArrayMarshaller(value))
 }
 
 type jsonMarshaller struct {
@@ -451,22 +631,20 @@ func (m *URLArrayMarshaller) MarshalLogArray(e zapcore.ArrayEncoder) error {
 	return nil
 }
 
-type httpHeaderMarshaller struct {
-	headers http.Header
+// ObjectMarshaller uses reflection to marshal an object's fields.
+type ObjectMarshaller struct {
+	key string
+	obj interface{}
 }
 
-func newHTTPHeaderMarshaller(headers http.Header) *httpHeaderMarshaller {
-	return &httpHeaderMarshaller{headers: headers}
+// NewObjectMarshaller returns a new ObjectMarshaller.
+func NewObjectMarshaller(key string, obj interface{}) *ObjectMarshaller {
+	return &ObjectMarshaller{key: key, obj: obj}
 }
 
-func (m *httpHeaderMarshaller) MarshalLogObject(e zapcore.ObjectEncoder) error {
-	for k, values := range m.headers {
-		if err := e.AddArray(k, NewStringArrayMarshaller(values)); err != nil {
-			return fmt.Errorf("marshal values: %w", err)
-		}
-	}
-
-	return nil
+// MarshalLogObject marshals the object's fields.
+func (m *ObjectMarshaller) MarshalLogObject(e zapcore.ObjectEncoder) error {
+	return e.AddReflected(m.key, m.obj)
 }
 
 // StringArrayMarshaller marshals an array of strings into a log field.
