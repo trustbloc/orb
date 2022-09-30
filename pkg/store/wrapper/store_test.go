@@ -8,6 +8,7 @@ package wrapper
 
 import (
 	"testing"
+	"time"
 
 	ariesmockstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -19,7 +20,7 @@ import (
 )
 
 func TestStoreWrapper(t *testing.T) {
-	s := NewStore(&ariesmockstorage.Store{}, "CouchDB")
+	s := NewStore(&ariesmockstorage.Store{}, "CouchDB", &MockMetrics{})
 	require.NotNil(t, s)
 
 	t.Run("put", func(t *testing.T) {
@@ -66,7 +67,7 @@ func TestStoreWrapper(t *testing.T) {
 func TestMongoDBStoreWrapper(t *testing.T) {
 	ms := &mocks.MongoDBStore{}
 
-	s := NewMongoDBStore(ms)
+	s := NewMongoDBStore(ms, &MockMetrics{})
 	require.NotNil(t, s)
 
 	doc := map[string]interface{}{
@@ -120,3 +121,13 @@ func TestMongoDBStoreWrapper(t *testing.T) {
 		require.NotNil(t, mongoOpts)
 	})
 }
+
+type MockMetrics struct{}
+
+func (mm MockMetrics) DBPutTime(dbType string, duration time.Duration)     {}
+func (mm MockMetrics) DBGetTime(dbType string, duration time.Duration)     {}
+func (mm MockMetrics) DBGetTagsTime(dbType string, duration time.Duration) {}
+func (mm MockMetrics) DBGetBulkTime(dbType string, duration time.Duration) {}
+func (mm MockMetrics) DBQueryTime(dbType string, duration time.Duration)   {}
+func (mm MockMetrics) DBDeleteTime(dbType string, duration time.Duration)  {}
+func (mm MockMetrics) DBBatchTime(dbType string, duration time.Duration)   {}
